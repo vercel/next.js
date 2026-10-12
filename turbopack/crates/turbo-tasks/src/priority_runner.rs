@@ -17,7 +17,7 @@ use concurrent_queue::ConcurrentQueue;
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
 
-use crate::FxDashMap;
+use crate::{FxDashMap, experiment_lock_stats as lock_stats};
 
 pub trait Executor<C, T, P>: Send + Sync {
     /// The lowest priority, which is expected to be the priority of most tasks. Tasks with this
@@ -100,7 +100,8 @@ impl<P: Ord, K> PartialOrd for HeapItem<P, K> {
 ///
 /// Lock ordering: [`Queue::pop`] takes `claimable` shard locks while holding the `heap` mutex (to
 /// resolve popped heap entries). Nothing takes the `heap` mutex while holding a `claimable` shard
-/// lock: [`Queue::push`] finishes its `claimable` insert before it locks the heap, and
+/// lock: queueing ([`Queue::insert`], then [`Queue::push_band`]) finishes its `claimable` insert
+/// before it locks the heap, and
 /// [`Queue::claim`] only touches `claimable`. So the order is always `heap`, then `claimable`.
 struct Queue<P, T: Claimable> {
     /// The lowest priority, see [`Executor::LOWEST_PRIORITY`].
@@ -152,31 +153,80 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
 
     /// Queues `task`. Returns the still-queued item with the same key that it replaced, if any:
     /// that item will not be executed, and its band entry became a tombstone.
+    ///
+    /// EXPERIMENT (local slot): the runner uses [`Queue::insert`] and [`Queue::push_band`]
+    /// separately; this combination is kept for the queue-level tests.
+    #[cfg(test)]
     #[must_use]
     fn push(&self, priority: P, task: T) -> Option<(P, T)> {
+        let (key, replaced) = self.insert(priority.clone(), task);
+        self.push_band(key, priority);
+        replaced
+    }
+
+    /// First step of queueing an item: stores it in `claimable` (replacing a queued item with the
+    /// same key, which is returned). The item is claimable from now on, but a pop can only find it
+    /// once its key is in a band ([`Queue::push_band`]), or through an older band entry for the
+    /// same key and priority.
+    ///
+    /// EXPERIMENT (local slot): split out so the band push can be deferred, see [`local_slot`].
+    #[must_use]
+    fn insert(&self, priority: P, task: T) -> (T::Key, Option<(P, T)>) {
         #[cfg(feature = "inline_execution_stats")]
         self.pushes.fetch_add(1, Ordering::Relaxed);
         let key = task.claim_key();
         // Stored before the key is queued, so a pop can't find the key before the item.
-        let replaced = self.claimable.insert(key, (priority.clone(), task));
+        let replaced = self.claimable.insert(key, (priority, task));
+        lock_stats::count(&lock_stats::MAP_INSERT);
+        (key, replaced)
+    }
+
+    /// Second step of queueing an item: queues `key` in the band for `priority`.
+    fn push_band(&self, key: T::Key, priority: P) {
         if priority == self.lowest_priority {
             // unbounded queue: push only fails if closed, which never happens here
             let _ = self.lowest.push(key);
+            lock_stats::count(&lock_stats::LOWEST_PUSH);
         } else {
-            let mut heap = self.heap.lock();
+            let mut heap = lock_stats::lock(&self.heap, lock_stats::Site::HeapPush);
             heap.push(HeapItem { priority, key });
             self.heap_non_empty.store(true, Ordering::Release);
+            lock_stats::count(&lock_stats::HEAP_PUSH);
         }
-        replaced
+    }
+
+    /// EXPERIMENT (local slot): whether a band has any entry (tombstones included). Read without
+    /// locks, may be stale; only an advisory hint for adaptive deferral.
+    fn bands_non_empty_hint(&self) -> bool {
+        self.heap_non_empty.load(Ordering::Relaxed) || !self.lowest.is_empty()
+    }
+
+    /// EXPERIMENT (local slot): whether `key` still has a queued item with `priority`. The shard
+    /// guard is dropped before returning.
+    fn has_queued(&self, key: &T::Key, priority: &P) -> bool {
+        self.claimable
+            .get(key)
+            .is_some_and(|entry| entry.value().0 == *priority)
     }
 
     /// Pops the highest priority item, skipping tombstones. The heap mutex is only taken when the
     /// heap is non-empty.
     fn pop(&self) -> Option<(P, T)> {
+        let popped = self.pop_inner();
+        lock_stats::count(if popped.is_some() {
+            &lock_stats::POP_HIT
+        } else {
+            &lock_stats::POP_EMPTY
+        });
+        popped
+    }
+
+    fn pop_inner(&self) -> Option<(P, T)> {
         if self.heap_non_empty.load(Ordering::Acquire) {
-            let mut heap = self.heap.lock();
+            let mut heap = lock_stats::lock(&self.heap, lock_stats::Site::HeapPop);
             let mut popped = None;
             while let Some(HeapItem { priority, key }) = heap.pop() {
+                lock_stats::count(&lock_stats::HEAP_POP);
                 if let Some(task) = self.take(&priority, &key) {
                     popped = Some((priority, task));
                     break;
@@ -193,6 +243,7 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
             }
         }
         while let Ok(key) = self.lowest.pop() {
+            lock_stats::count(&lock_stats::LOWEST_POP);
             if let Some(task) = self.take(&self.lowest_priority, &key) {
                 return Some((self.lowest_priority.clone(), task));
             }
@@ -202,15 +253,26 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
 
     /// Resolves a popped band entry to its item, or `None` if it is a tombstone.
     fn take(&self, priority: &P, key: &T::Key) -> Option<T> {
-        self.claimable
+        let task = self
+            .claimable
             .remove_if(key, |_, (item_priority, _)| item_priority == priority)
-            .map(|(_, (_, task))| task)
+            .map(|(_, (_, task))| task);
+        if task.is_none() {
+            lock_stats::count(&lock_stats::POP_TOMBSTONE);
+        }
+        task
     }
 
     /// Removes the queued item with the given key, if it is still queued. Its band entry stays
     /// behind as a tombstone.
     fn claim(&self, key: &T::Key) -> Option<(P, T)> {
-        self.claimable.remove(key).map(|(_, item)| item)
+        let claimed = self.claimable.remove(key).map(|(_, item)| item);
+        lock_stats::count(if claimed.is_some() {
+            &lock_stats::CLAIM_HIT
+        } else {
+            &lock_stats::CLAIM_MISS
+        });
+        claimed
     }
 }
 
@@ -239,10 +301,12 @@ impl<
 > PriorityRunner<C, T, P, E>
 {
     pub fn new(executor: E) -> Self {
-        Self::with_target_workers(
-            executor,
-            tokio::runtime::Handle::current().metrics().num_workers(),
-        )
+        let target_workers = tokio::runtime::Handle::current().metrics().num_workers();
+        lock_stats::ensure_dumper();
+        if *lock_stats::ENABLED {
+            lock_stats::TARGET_WORKERS.store(target_workers, Ordering::Relaxed);
+        }
+        Self::with_target_workers(executor, target_workers)
     }
 
     fn with_target_workers(executor: E, target_workers: usize) -> Self {
@@ -289,6 +353,8 @@ impl<
             let prev = self.active_workers.fetch_add(1, Ordering::AcqRel);
             if prev < self.target_workers {
                 // We own a slot: spawn a new worker to execute this task immediately.
+                lock_stats::count(&lock_stats::SPAWN_DIRECT);
+                lock_stats::record_active_workers(prev + 1);
                 let future = self.executor.execute(execute_context, task, priority);
                 WorkerFuture::spawn(future, execute_context.clone(), self.clone());
             } else {
@@ -296,7 +362,7 @@ impl<
                 // and give the slot back like a retiring worker would: `decrease_active_workers`
                 // undoes our increment and re-checks the queue, so it is covered by the same
                 // argument as any retiring worker.
-                let replaced = self.queue.push(priority, task);
+                let replaced = self.enqueue(execute_context, priority, task);
                 self.decrease_active_workers(execute_context);
                 self.discard_replaced(execute_context, replaced);
             }
@@ -304,7 +370,7 @@ impl<
             // Saturated (the dominant hot path). Push the task for an existing worker to pick up,
             // then re-read `active_workers` behind a `SeqCst` fence (see above). The fence keeps
             // this hot path from writing to the shared `active_workers` cache line.
-            let replaced = self.queue.push(priority, task);
+            let replaced = self.enqueue(execute_context, priority, task);
             fence(Ordering::SeqCst);
             let active_workers = self.active_workers.load(Ordering::Relaxed);
             if active_workers < self.target_workers {
@@ -317,9 +383,44 @@ impl<
         }
     }
 
+    /// Queues a task on [`schedule`](Self::schedule)'s queued path: stores it in `claimable`, then
+    /// pushes its band entry, or (EXPERIMENT, see [`local_slot`]) defers the band push into this
+    /// thread's local slot. A deferred key is still claimable; its band entry is pushed when the
+    /// worker poll ends or before a blocking wait, followed by the same liveness handshake as
+    /// [`schedule`](Self::schedule)'s saturated path.
+    fn enqueue(self: &Arc<Self>, execute_context: &Arc<C>, priority: P, task: T) -> Option<(P, T)> {
+        lock_stats::count(&lock_stats::SCHEDULE_QUEUED);
+        let (key, replaced) = self.queue.insert(priority.clone(), task);
+        #[cfg(test)]
+        tests::run_after_insert_hook();
+        if let Err(priority) = local_slot::try_defer(self, execute_context, key, priority) {
+            self.queue.push_band(key, priority);
+        }
+        replaced
+    }
+
+    /// EXPERIMENT (local slot): pushes a deferred band entry, unless its item is gone (claimed,
+    /// popped through an older band entry, or replaced by an item with another priority, which
+    /// pushed its own band entry), then re-checks for a free worker like the saturated path of
+    /// [`schedule`](Self::schedule) does after its push.
+    fn flush_deferred(self: &Arc<Self>, execute_context: &Arc<C>, key: T::Key, priority: P) {
+        if !self.queue.has_queued(&key, &priority) {
+            lock_stats::count(&lock_stats::SLOT_FLUSH_SKIP_GONE);
+            return;
+        }
+        self.queue.push_band(key, priority);
+        fence(Ordering::SeqCst);
+        let active_workers = self.active_workers.load(Ordering::Relaxed);
+        if active_workers < self.target_workers {
+            self.spawn_worker_if_work_available(execute_context, false);
+        }
+    }
+
     /// Hands a queued task that a push replaced to [`Executor::discard`].
     fn discard_replaced(&self, execute_context: &Arc<C>, replaced: Option<(P, T)>) {
         if let Some((priority, task)) = replaced {
+            lock_stats::count(&lock_stats::MAP_REPLACED);
+            lock_stats::count(&lock_stats::DISCARD);
             self.executor.discard(execute_context, task, priority);
         }
     }
@@ -367,6 +468,7 @@ impl<
         // capacity now, so we try to spawn a new worker if
         // there is work available.
         let active_workers = self.active_workers.fetch_sub(1, Ordering::AcqRel) - 1;
+        lock_stats::record_active_workers(active_workers);
         fence(Ordering::SeqCst);
         if active_workers < self.target_workers {
             self.spawn_worker_if_work_available(execute_context, false);
@@ -473,7 +575,13 @@ impl<
                 WorkerState::Closed => return Poll::Ready(()),
                 WorkerState::PendingFuture => unreachable!(),
                 WorkerState::UnfinishedFuture => {
-                    match this.future.as_mut().poll(cx) {
+                    let poll = {
+                        // EXPERIMENT (local slot): band pushes deferred while polling are flushed
+                        // when the outermost scope ends (also on unwind).
+                        let _slot_scope = local_slot::WorkerPollScope::enter();
+                        this.future.as_mut().poll(cx)
+                    };
+                    match poll {
                         Poll::Ready(()) => {
                             *this.state = WorkerState::Done;
 
@@ -528,6 +636,238 @@ impl<
                         return Poll::Ready(());
                     }
                 }
+            }
+        }
+    }
+}
+
+/// EXPERIMENT (not for merge): a per-thread buffer of deferred band pushes ("local slot"), see
+/// `turbopack/crates/turbo-tasks/EXPERIMENT_LOCAL_SLOT.md`.
+///
+/// Most queued tasks are claimed (executed inline by the reader that waits for them) shortly after
+/// being scheduled by the task that schedules them. On canary, every queued task costs a
+/// `claimable` insert and a band push, a claim removes it from `claimable`, and the band entry is
+/// later popped as a tombstone. While a worker poll is active on this thread, the band push of a
+/// task queued by [`PriorityRunner::schedule`] is deferred into a thread-local buffer instead. The
+/// item itself is stored in `claimable` as usual, so replacement, [`Executor::discard`] and
+/// claiming (from any thread) are unchanged. When the outermost worker poll ends (also on unwind),
+/// or before a blocking wait ([`local_slot::flush`]), every deferred key whose item is still queued
+/// is pushed into its band, followed by the liveness handshake of the saturated scheduling path. A
+/// task that is claimed before its deferred push is flushed thus never touches a band (a claim
+/// after the flush leaves a tombstone, as on canary).
+///
+/// Modes (`TURBO_TASKS_EXPERIMENT_LOCAL_SLOT`): unset/`0` = off (default, never defers), `1` or
+/// `always` = defer whenever possible, `adaptive` = defer only while a band already has entries
+/// (an advisory, lock-free hint), so that idle workers can find new work immediately when the
+/// bands are empty. `TURBO_TASKS_EXPERIMENT_LOCAL_SLOT_CAP` (default 16) bounds the buffer; when
+/// it is full the band push happens immediately.
+///
+/// Direct spawns ([`PriorityRunner::schedule`] with free worker capacity) are never deferred.
+pub(crate) mod local_slot {
+    use std::{
+        cell::{Cell, RefCell},
+        sync::{Arc, LazyLock},
+    };
+
+    use super::{Claimable, Executor, PriorityRunner};
+    use crate::experiment_lock_stats as lock_stats;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Mode {
+        Off,
+        Always,
+        Adaptive,
+    }
+
+    fn parse_mode(value: Option<&str>) -> Mode {
+        match value {
+            None | Some("") | Some("0") => Mode::Off,
+            Some("1") | Some("always") => Mode::Always,
+            Some("adaptive") => Mode::Adaptive,
+            Some(other) => {
+                eprintln!(
+                    "TURBO_TASKS_EXPERIMENT_LOCAL_SLOT: unknown value {other:?}, using off \
+                     (expected 0, 1, always or adaptive)"
+                );
+                Mode::Off
+            }
+        }
+    }
+
+    static ENV_MODE: LazyLock<Mode> = LazyLock::new(|| {
+        parse_mode(
+            std::env::var("TURBO_TASKS_EXPERIMENT_LOCAL_SLOT")
+                .ok()
+                .as_deref(),
+        )
+    });
+
+    static ENV_CAPACITY: LazyLock<usize> = LazyLock::new(|| {
+        std::env::var("TURBO_TASKS_EXPERIMENT_LOCAL_SLOT_CAP")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .filter(|&cap| cap >= 1)
+            .unwrap_or(16)
+    });
+
+    thread_local! {
+        static IN_WORKER_POLL: Cell<bool> = const { Cell::new(false) };
+        static BUFFER: RefCell<Vec<Box<dyn Deferred>>> = const { RefCell::new(Vec::new()) };
+    }
+
+    #[cfg(test)]
+    thread_local! {
+        static TEST_OVERRIDE: Cell<Option<(Mode, usize)>> = const { Cell::new(None) };
+    }
+
+    /// Test-only: overrides mode and capacity for the current thread (`None` restores the env).
+    #[cfg(test)]
+    pub(super) fn set_test_override(value: Option<(Mode, usize)>) {
+        TEST_OVERRIDE.set(value);
+    }
+
+    pub fn mode() -> Mode {
+        #[cfg(test)]
+        if let Some((mode, _)) = TEST_OVERRIDE.get() {
+            return mode;
+        }
+        *ENV_MODE
+    }
+
+    fn capacity() -> usize {
+        #[cfg(test)]
+        if let Some((_, capacity)) = TEST_OVERRIDE.get() {
+            return capacity;
+        }
+        *ENV_CAPACITY
+    }
+
+    /// A deferred band push of some runner (the buffer is shared by all runners on the thread).
+    trait Deferred {
+        fn flush(self: Box<Self>);
+    }
+
+    struct Entry<C, T, P, E>
+    where
+        C: Send + Sync + 'static,
+        T: Claimable + Send + Sync + 'static,
+        P: Clone + Ord + Send + Sync + 'static,
+        E: Executor<C, T, P> + 'static,
+    {
+        runner: Arc<PriorityRunner<C, T, P, E>>,
+        execute_context: Arc<C>,
+        key: T::Key,
+        priority: P,
+    }
+
+    impl<C, T, P, E> Deferred for Entry<C, T, P, E>
+    where
+        C: Send + Sync + 'static,
+        T: Claimable + Send + Sync + 'static,
+        P: Clone + Ord + Send + Sync + 'static,
+        E: Executor<C, T, P> + 'static,
+    {
+        fn flush(self: Box<Self>) {
+            let Entry {
+                runner,
+                execute_context,
+                key,
+                priority,
+            } = *self;
+            runner.flush_deferred(&execute_context, key, priority);
+        }
+    }
+
+    /// Defers the band push of `key` if the mode allows it, a worker poll is active on this thread
+    /// and the buffer has room. Otherwise hands the priority back so the caller pushes now.
+    pub(super) fn try_defer<C, T, P, E>(
+        runner: &Arc<PriorityRunner<C, T, P, E>>,
+        execute_context: &Arc<C>,
+        key: T::Key,
+        priority: P,
+    ) -> Result<(), P>
+    where
+        C: Send + Sync + 'static,
+        T: Claimable + Send + Sync + 'static,
+        P: Clone + Ord + Send + Sync + 'static,
+        E: Executor<C, T, P> + 'static,
+    {
+        let mode = mode();
+        if mode == Mode::Off || !IN_WORKER_POLL.get() {
+            return Err(priority);
+        }
+        if mode == Mode::Adaptive && !runner.queue.bands_non_empty_hint() {
+            // The bands (probably) have no entries, so an idle worker could start this task right
+            // away. Don't hide it.
+            lock_stats::count(&lock_stats::SLOT_ADAPTIVE_SKIP);
+            return Err(priority);
+        }
+        let capacity = capacity();
+        BUFFER.with_borrow_mut(|buffer| {
+            if buffer.len() >= capacity {
+                lock_stats::count(&lock_stats::SLOT_FULL);
+                return Err(priority);
+            }
+            buffer.push(Box::new(Entry {
+                runner: runner.clone(),
+                execute_context: execute_context.clone(),
+                key,
+                priority,
+            }));
+            lock_stats::count(&lock_stats::SLOT_DEFER);
+            Ok(())
+        })
+    }
+
+    /// Test-only: number of band pushes deferred on this thread.
+    #[cfg(test)]
+    pub(super) fn deferred_len() -> usize {
+        BUFFER.with_borrow(|buffer| buffer.len())
+    }
+
+    pub enum FlushReason {
+        PollEnd,
+        Blocking,
+    }
+
+    /// Pushes all deferred band entries of this thread (if any), oldest first.
+    pub fn flush(reason: FlushReason) {
+        // Taken out first, so flushing can't observe (or re-enter) a borrowed buffer.
+        let entries = BUFFER.with_borrow_mut(std::mem::take);
+        if entries.is_empty() {
+            return;
+        }
+        lock_stats::add(
+            match reason {
+                FlushReason::PollEnd => &lock_stats::SLOT_FLUSH_POLL_END,
+                FlushReason::Blocking => &lock_stats::SLOT_FLUSH_BLOCKING,
+            },
+            entries.len() as u64,
+        );
+        for entry in entries {
+            entry.flush();
+        }
+    }
+
+    /// Marks a worker poll as active on this thread; flushes the buffer when the outermost scope
+    /// ends (including on unwind).
+    pub(super) struct WorkerPollScope {
+        prev: bool,
+    }
+
+    impl WorkerPollScope {
+        pub fn enter() -> Self {
+            Self {
+                prev: IN_WORKER_POLL.replace(true),
+            }
+        }
+    }
+
+    impl Drop for WorkerPollScope {
+        fn drop(&mut self) {
+            IN_WORKER_POLL.set(self.prev);
+            if !self.prev {
+                flush(FlushReason::PollEnd);
             }
         }
     }
@@ -701,6 +1041,445 @@ mod tests {
         executed.lock().clear();
 
         assert_eq!(drain(&runner, &executed), vec![5, 3, 2, 1, 0]);
+    }
+
+    // EXPERIMENT (not for merge): local slot (deferred band push) tests. They enable the slot for
+    // the current thread only (`local_slot::set_test_override`) and use `WorkerPollScope` to stand
+    // in for an active worker poll. `queueing_runner` has no worker capacity, so every schedule
+    // takes the queued path.
+
+    thread_local! {
+        /// One-shot hook run by `PriorityRunner::enqueue` right after the `claimable` insert,
+        /// before the deferral decision, on this thread only.
+        static AFTER_INSERT_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+            const { std::cell::RefCell::new(None) };
+    }
+
+    pub(super) fn run_after_insert_hook() {
+        if let Some(hook) = AFTER_INSERT_HOOK.with_borrow_mut(Option::take) {
+            hook();
+        }
+    }
+
+    /// Enables the local slot for this thread until dropped.
+    struct SlotOverride;
+
+    impl Drop for SlotOverride {
+        fn drop(&mut self) {
+            local_slot::set_test_override(None);
+        }
+    }
+
+    fn slot_override(mode: local_slot::Mode, capacity: usize) -> SlotOverride {
+        local_slot::set_test_override(Some((mode, capacity)));
+        SlotOverride
+    }
+
+    fn lowest_band_len<T: Claimable + Copy + Send + Sync + Debug + 'static>(
+        runner: &TestRunner<T>,
+    ) -> usize {
+        runner.queue.lowest.len()
+    }
+
+    #[test]
+    fn slot_fresh_key_claimable_not_poppable_until_flushed() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, 1, 0);
+            runner.schedule(&executed, 2, 0);
+            assert_eq!(local_slot::deferred_len(), 2);
+            assert_eq!(lowest_band_len(&runner), 0, "band pushes are deferred");
+            assert!(
+                runner.pop_future_from_worker(&executed).is_none(),
+                "a fresh deferred key is not poppable"
+            );
+            assert!(runner.claim(&executed, &1).is_some(), "but it is claimable");
+            assert_eq!(*executed.lock(), vec![1]);
+            executed.lock().clear();
+        }
+        assert_eq!(local_slot::deferred_len(), 0, "scope end flushes");
+        assert_eq!(
+            lowest_band_len(&runner),
+            1,
+            "only the key whose item is still queued is pushed"
+        );
+        assert_eq!(drain(&runner, &executed), vec![2]);
+        assert!(take_discarded(&runner).is_empty());
+    }
+
+    #[test]
+    fn slot_deferred_key_claimable_from_other_thread() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, 3, 0);
+        assert_eq!(local_slot::deferred_len(), 1);
+        let claimed = {
+            let runner = runner.clone();
+            let executed = executed.clone();
+            std::thread::spawn(move || runner.claim(&executed, &3).is_some())
+                .join()
+                .unwrap()
+        };
+        assert!(claimed, "claims go through the shared map");
+        assert_eq!(*executed.lock(), vec![3]);
+        executed.lock().clear();
+        local_slot::flush(local_slot::FlushReason::Blocking);
+        assert_eq!(lowest_band_len(&runner), 0, "a claimed key is not pushed");
+        assert!(drain(&runner, &executed).is_empty());
+    }
+
+    #[test]
+    fn slot_replacement_while_deferred() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, (1, false), 0);
+            runner.schedule(&executed, (1, true), 0);
+            assert_eq!(take_discarded(&runner), vec![(1, false)]);
+            assert!(runner.pop_future_from_worker(&executed).is_none());
+        }
+        // Both deferred entries are flushed; the second band entry is a tombstone.
+        assert_eq!(drain(&runner, &executed), vec![(1, true)]);
+        assert!(take_discarded(&runner).is_empty());
+        assert!(runner.queue.claimable.is_empty());
+    }
+
+    #[test]
+    fn slot_shared_then_deferred() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        // Outside of a worker poll: band entry pushed right away.
+        runner.schedule(&executed, (1, false), 0);
+        let mut executions = Vec::new();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, (1, true), 0);
+            assert_eq!(take_discarded(&runner), vec![(1, false)]);
+            assert_eq!(local_slot::deferred_len(), 1);
+            // The older band entry has the same priority, so a pop may take the newer item early
+            // (canary's accepted reordering of equal-priority items).
+            executions.extend(drain(&runner, &executed));
+        }
+        executions.extend(drain(&runner, &executed));
+        assert_eq!(executions, vec![(1, true)], "executed exactly once");
+        assert!(runner.queue.claimable.is_empty());
+    }
+
+    #[test]
+    fn slot_deferred_then_shared() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, (1, false), 0);
+        {
+            let runner = runner.clone();
+            let executed = executed.clone();
+            // Another thread, not in a worker poll: queued with a band entry right away.
+            std::thread::spawn(move || runner.schedule(&executed, (1, true), 0))
+                .join()
+                .unwrap();
+        }
+        assert_eq!(take_discarded(&runner), vec![(1, false)]);
+        local_slot::flush(local_slot::FlushReason::Blocking);
+        assert_eq!(drain(&runner, &executed), vec![(1, true)]);
+        assert!(take_discarded(&runner).is_empty());
+    }
+
+    #[test]
+    fn slot_flush_skips_items_queued_with_another_priority() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, (1, false), 0);
+        // Same key, another priority: replaces the deferred item and is deferred itself.
+        runner.schedule(&executed, (1, true), 7);
+        assert_eq!(take_discarded(&runner), vec![(1, false)]);
+        local_slot::flush(local_slot::FlushReason::Blocking);
+        assert_eq!(
+            lowest_band_len(&runner),
+            0,
+            "the stale lowest-band push is skipped"
+        );
+        assert_eq!(drain(&runner, &executed), vec![(1, true)]);
+    }
+
+    #[test]
+    fn slot_flush_on_scope_end_nested_unwind_and_blocking() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, 1, 0);
+            {
+                let _nested = local_slot::WorkerPollScope::enter();
+                runner.schedule(&executed, 2, 0);
+            }
+            assert_eq!(
+                local_slot::deferred_len(),
+                2,
+                "a nested scope doesn't flush"
+            );
+        }
+        assert_eq!(local_slot::deferred_len(), 0);
+        assert_eq!(drain(&runner, &executed), vec![1, 2]);
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, 3, 0);
+            panic!("unwind with a deferred band push");
+        }));
+        assert!(result.is_err());
+        assert_eq!(local_slot::deferred_len(), 0, "unwinding flushes");
+        assert_eq!(drain(&runner, &executed), vec![3]);
+
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, 4, 0);
+        crate::experiment_lock_stats::flush_local_slot();
+        assert_eq!(local_slot::deferred_len(), 0, "a blocking wait flushes");
+        assert_eq!(drain(&runner, &executed), vec![4]);
+    }
+
+    #[test]
+    fn slot_full_buffer_pushes_immediately() {
+        let _override = slot_override(local_slot::Mode::Always, 1);
+        let (runner, executed) = queueing_runner::<u32>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, 1, 0);
+        runner.schedule(&executed, 2, 0);
+        assert_eq!(local_slot::deferred_len(), 1);
+        assert_eq!(
+            drain(&runner, &executed),
+            vec![2],
+            "the second band push was not deferred"
+        );
+        local_slot::flush(local_slot::FlushReason::Blocking);
+        assert_eq!(drain(&runner, &executed), vec![1]);
+    }
+
+    #[test]
+    fn slot_runner_isolation() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (runner_a, executed_a) = queueing_runner::<u32>();
+        let (runner_b, executed_b) = queueing_runner::<u32>();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner_a.schedule(&executed_a, 5, 0);
+            runner_b.schedule(&executed_b, 6, 0);
+            runner_b.schedule(&executed_b, 5, 0);
+            assert_eq!(local_slot::deferred_len(), 3);
+            assert!(
+                runner_a.claim(&executed_a, &6).is_none(),
+                "runner A has no item 6"
+            );
+        }
+        assert_eq!(drain(&runner_a, &executed_a), vec![5]);
+        assert_eq!(drain(&runner_b, &executed_b), vec![6, 5]);
+        assert!(take_discarded(&runner_a).is_empty());
+        assert!(take_discarded(&runner_b).is_empty());
+    }
+
+    #[test]
+    fn slot_adaptive_defers_only_with_band_entries() {
+        let _override = slot_override(local_slot::Mode::Adaptive, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, 1, 0);
+        assert_eq!(local_slot::deferred_len(), 0, "empty bands: not deferred");
+        assert_eq!(lowest_band_len(&runner), 1);
+        runner.schedule(&executed, 2, 0);
+        assert_eq!(local_slot::deferred_len(), 1, "non-empty band: deferred");
+        assert_eq!(drain(&runner, &executed), vec![1]);
+        runner.schedule(&executed, 3, 0);
+        assert_eq!(
+            local_slot::deferred_len(),
+            1,
+            "bands empty again: not deferred"
+        );
+        local_slot::flush(local_slot::FlushReason::Blocking);
+        let mut rest = drain(&runner, &executed);
+        rest.sort_unstable();
+        assert_eq!(rest, vec![2, 3]);
+    }
+
+    #[test]
+    fn slot_off_never_defers() {
+        let _override = slot_override(local_slot::Mode::Off, 16);
+        let (runner, executed) = queueing_runner::<u32>();
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, 1, 0);
+        runner.schedule(&executed, 2, 5);
+        assert_eq!(local_slot::deferred_len(), 0);
+        assert_eq!(drain(&runner, &executed), vec![2, 1]);
+    }
+
+    #[test]
+    fn slot_direct_spawn_is_never_deferred() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_time()
+            .build()
+            .unwrap();
+        let _guard = rt.enter();
+        let runner: TestRunner<u32> = Arc::new(PriorityRunner::with_target_workers(
+            RecordingExecutor {
+                discarded: Mutex::new(Vec::new()),
+            },
+            1,
+        ));
+        let executed: Executions<u32> = Arc::new(Mutex::new(Vec::new()));
+        let _scope = local_slot::WorkerPollScope::enter();
+        runner.schedule(&executed, 9, 0);
+        assert_eq!(
+            local_slot::deferred_len(),
+            0,
+            "with free capacity, the task is spawned directly"
+        );
+        let start = Instant::now();
+        while executed.lock().is_empty() {
+            assert!(
+                start.elapsed() < Duration::from_secs(10),
+                "spawned task ran"
+            );
+            sleep(Duration::from_millis(1));
+        }
+        assert_eq!(*executed.lock(), vec![9]);
+    }
+
+    /// A runner with one worker slot on a timer-only runtime, with the slot marked as taken (as if
+    /// the current thread were that worker), so `schedule` takes the queued path.
+    fn saturated_runner_with_one_worker()
+    -> (tokio::runtime::Runtime, TestRunner<u32>, Executions<u32>) {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_time()
+            .build()
+            .unwrap();
+        let runner: TestRunner<u32> = Arc::new(PriorityRunner::with_target_workers(
+            RecordingExecutor {
+                discarded: Mutex::new(Vec::new()),
+            },
+            1,
+        ));
+        runner.active_workers.store(1, Ordering::SeqCst);
+        (rt, runner, Arc::new(Mutex::new(Vec::new())))
+    }
+
+    fn wait_for_executions(executed: &Executions<u32>, expected: &[u32]) {
+        let start = Instant::now();
+        while executed.lock().len() < expected.len() {
+            assert!(
+                start.elapsed() < Duration::from_secs(10),
+                "deferred task was stranded: executed {:?}",
+                executed.lock()
+            );
+            sleep(Duration::from_millis(1));
+        }
+        assert_eq!(*executed.lock(), expected);
+    }
+
+    /// The last worker retires while a fresh key is still deferred (its retirement re-check can't
+    /// see it); the flush must then spawn a worker for it.
+    #[test]
+    fn slot_flush_spawns_worker_after_retirement() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (rt, runner, executed) = saturated_runner_with_one_worker();
+        let _guard = rt.enter();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, 11, 0);
+            assert_eq!(local_slot::deferred_len(), 1);
+            runner.decrease_active_workers(&executed);
+            assert_eq!(runner.active_workers.load(Ordering::SeqCst), 0);
+            assert!(executed.lock().is_empty(), "nothing to pick up yet");
+        }
+        wait_for_executions(&executed, &[11]);
+        assert!(runner.queue.claimable.is_empty());
+    }
+
+    /// The deferred key is published while the worker is still active (the flush doesn't spawn);
+    /// the worker's retirement re-check must then pick it up.
+    #[test]
+    fn slot_retirement_recheck_finds_flushed_key() {
+        let _override = slot_override(local_slot::Mode::Always, 16);
+        let (rt, runner, executed) = saturated_runner_with_one_worker();
+        let _guard = rt.enter();
+        {
+            let _scope = local_slot::WorkerPollScope::enter();
+            runner.schedule(&executed, 12, 0);
+            assert_eq!(local_slot::deferred_len(), 1);
+        }
+        assert_eq!(lowest_band_len(&runner), 1, "published, not yet executed");
+        assert!(executed.lock().is_empty());
+        runner.decrease_active_workers(&executed);
+        wait_for_executions(&executed, &[12]);
+        assert!(runner.queue.claimable.is_empty());
+    }
+
+    /// Two concurrent schedules of the same key: thread A (in a worker poll) stores its item and is
+    /// paused before deciding to defer its band push; thread B (not in a worker poll) replaces it
+    /// with a newer item meanwhile. There must be exactly one queued item for the key, the replaced
+    /// one is discarded exactly once, and each item is executed or discarded exactly once.
+    #[test]
+    fn slot_concurrent_same_key_with_deferral() {
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        let (paused_tx, paused_rx) = std::sync::mpsc::channel::<()>();
+        let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+        let (deferred_tx, deferred_rx) = std::sync::mpsc::channel::<usize>();
+        let (flush_tx, flush_rx) = std::sync::mpsc::channel::<()>();
+        let thread_a = {
+            let runner = runner.clone();
+            let executed = executed.clone();
+            std::thread::spawn(move || {
+                let _override = slot_override(local_slot::Mode::Always, 16);
+                AFTER_INSERT_HOOK.set(Some(Box::new(move || {
+                    paused_tx.send(()).unwrap();
+                    release_rx.recv().unwrap();
+                })));
+                let _scope = local_slot::WorkerPollScope::enter();
+                runner.schedule(&executed, (1, false), 0);
+                deferred_tx.send(local_slot::deferred_len()).unwrap();
+                flush_rx.recv().unwrap();
+                // `_scope` ends here and flushes.
+            })
+        };
+        // Timeouts only bound hangs; channels decide the interleaving.
+        paused_rx.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert_eq!(runner.queue.claimable.len(), 1, "A's item is stored");
+        {
+            let runner = runner.clone();
+            let executed = executed.clone();
+            std::thread::spawn(move || runner.schedule(&executed, (1, true), 0))
+                .join()
+                .unwrap();
+        }
+        assert_eq!(take_discarded(&runner), vec![(1, false)]);
+        assert_eq!(runner.queue.claimable.len(), 1, "one queued item per key");
+        release_tx.send(()).unwrap();
+        assert_eq!(
+            deferred_rx.recv_timeout(Duration::from_secs(10)).unwrap(),
+            1,
+            "A deferred its (now stale) band push"
+        );
+        flush_tx.send(()).unwrap();
+        thread_a.join().unwrap();
+
+        assert!(runner.claim(&executed, &1).is_some());
+        assert_eq!(*executed.lock(), vec![(1, true)]);
+        executed.lock().clear();
+        assert!(
+            drain(&runner, &executed).is_empty(),
+            "nothing else executes"
+        );
+        assert!(
+            take_discarded(&runner).is_empty(),
+            "nothing else is discarded"
+        );
+        assert!(runner.queue.claimable.is_empty());
     }
 
     /// The items the runner discarded since the last call, in order.

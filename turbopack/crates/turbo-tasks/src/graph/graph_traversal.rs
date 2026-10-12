@@ -42,6 +42,9 @@ where
         Impl: Send,
     {
         let mut futures = FuturesUnordered::new();
+        // EXPERIMENT (not for merge): traversal width gauge for
+        // `TURBO_TASKS_EXPERIMENT_LOCK_STATS`.
+        let mut gauge = crate::experiment_lock_stats::TraversalGauge::default();
 
         // Populate `futures` with all the roots, `root_nodes` isn't required to be `Send`, so this
         // has to happen outside of the future. We could require `root_nodes` to be `Send` in the
@@ -51,6 +54,7 @@ where
                 VisitControlFlow::Continue => {
                     if let Some(handle) = self.try_enter(&node) {
                         let span = visit.span(&node, None);
+                        gauge.push();
                         futures.push(With::new(visit.edges(&node), span, handle));
                     }
                     self.insert(None, node);
@@ -69,6 +73,7 @@ where
             loop {
                 match futures.next().await {
                     Some((parent_node, span, Ok(edges))) => {
+                        gauge.complete();
                         let _guard = span.enter();
                         for (node, edge) in edges {
                             match visit.visit(&node, Some(&edge)) {
@@ -76,6 +81,7 @@ where
                                     if let Some(handle) = self.try_enter(&node) {
                                         let span = visit.span(&node, Some(&edge));
                                         let edges_future = visit.edges(&node);
+                                        gauge.push();
                                         futures.push(With::new(edges_future, span, handle));
                                     }
                                     self.insert(Some((&parent_node, edge)), node);
@@ -90,6 +96,7 @@ where
                         }
                     }
                     Some((_, _, Err(err))) => {
+                        gauge.complete();
                         result = Err(err);
                     }
                     None => {

@@ -89,6 +89,8 @@ pub fn block_in_place<R>(f: impl FnOnce() -> R + Send) -> R
 where
     R: Send,
 {
+    // EXPERIMENT (not for merge): publish deferred band pushes before blocking.
+    crate::experiment_lock_stats::flush_local_slot();
     tokio::task::block_in_place(f)
 }
 
