@@ -335,7 +335,7 @@ async fn mutating_a_state_read_by_a_collected_task_does_not_panic() {
     // GC only soft-deletes, leaving the task resident, and a weak open of a resident-but-deleted
     // task returns early on the `deleted` flag. Evicting drops it from memory (and tombstones it on
     // disk), so the open below instead reaches the exists-nowhere case in
-    // `ExecuteContextImpl::open_task` -- nothing restored, nothing found on disk -- which is the
+    // `ExecuteContext::open_task` -- nothing restored, nothing found on disk -- which is the
     // one that would panic under `MustExist`. Drop this line and the test still passes, but it
     // stops covering that path.
     tt2.backend().snapshot_and_evict_for_testing(&tt2);

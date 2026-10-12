@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { gate } from '../../../lib/next-test-utils'
 
 // @force-gate prod
 describe('cached-navigations-sync-io', () => {
@@ -50,6 +51,7 @@ describe('cached-navigations-sync-io', () => {
   ]) {
     for (const source of ['dynamic RSC', 'initial HTML']) {
       it(`${description} from ${source}`, async () => {
+        const getCliOutput = next.getCliOutputFromHere()
         const { browser, page, act, startDate, navigate } = await startBrowser()
 
         if (source === 'dynamic RSC') {
@@ -60,6 +62,19 @@ describe('cached-navigations-sync-io', () => {
           const response = await page.goto(next.url + pathname)
           expect(response?.status()).toBe(200)
           expect(await response?.text()).toContain('Uncached time:')
+        }
+
+        // - In PPF, we should log a sync IO error.
+        // - Before PPF, we should not log anything, because Cached Navigations
+        //   are an extra thing that the user did not opt into
+        const syncIOErrorText = `Route "${pathname}": Next.js encountered the unstable value \`Date.now()\` while prerendering`
+        // No CLI logs in deploy
+        if (!(await gate('deploy'))) {
+          if (await gate('partialPrefetchingGlobal')) {
+            expect(getCliOutput()).toInclude(syncIOErrorText)
+          } else {
+            expect(getCliOutput()).not.toInclude(syncIOErrorText)
+          }
         }
 
         const timestamp = await browser.elementById('timestamp').text()
@@ -100,6 +115,8 @@ describe('cached-navigations-sync-io', () => {
     }
   }
 
+  // In Partial Prefetching, `prefetch={true}` is no longer a full prefetch that includes uncached data.
+  // @gate !partialPrefetchingGlobal
   it('finishes a full prefetch after synchronous IO interrupts its static stage', async () => {
     const { browser, act, navigate } = await startBrowser()
     await act(() => navigate('/uncached-time'), { includes: 'Dynamic content' })
@@ -117,7 +134,7 @@ describe('cached-navigations-sync-io', () => {
 
     // Refresh clears segment data and BFCache but retains the route tree. The
     // full prefetch must fetch new data without a cold static tree prerender.
-    const href = '/uncached-time#full-prefetch'
+    const href = '/uncached-time#prefetch-true'
     await act(
       async () => {
         await browser

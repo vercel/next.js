@@ -89,7 +89,7 @@ function instantiateModule(
   }
 
   // Node.js: no hooks wrapper, just execute directly
-  const runWithHooks = (module: HotModule, exec: (refresh: any) => void) => {
+  const runWithHooks = (_module: HotModule, exec: (refresh: any) => void) => {
     exec(undefined) // no refresh context
   }
 

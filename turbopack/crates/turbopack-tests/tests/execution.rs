@@ -281,6 +281,8 @@ struct TestOptions {
     #[serde(default = "default_true")]
     mangle_export_names: bool,
     #[serde(default = "default_true")]
+    mangle_via_materialized_namespace_object: bool,
+    #[serde(default = "default_true")]
     cross_module_constants: bool,
     #[serde(default)]
     cjs_scope_hoisting: bool,
@@ -319,6 +321,7 @@ impl Default for TestOptions {
             scope_hoisting: default_true(),
             cjs_tree_shaking: false,
             mangle_export_names: default_true(),
+            mangle_via_materialized_namespace_object: default_true(),
             cjs_scope_hoisting: false,
             cross_module_constants: true,
             infer_module_side_effects: default_true(),
@@ -489,6 +492,8 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 enable_exports_info_inlining: true,
                 cjs_tree_shaking: options.cjs_tree_shaking,
                 mangle_export_names: options.mangle_export_names,
+                mangle_via_materialized_namespace_object: options
+                    .mangle_via_materialized_namespace_object,
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
                 infer_module_side_effects: options.infer_module_side_effects,

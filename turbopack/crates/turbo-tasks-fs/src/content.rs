@@ -166,8 +166,8 @@ pub(crate) enum FileComparison {
 /// The target of a symbolic link, as read from a filesystem.
 ///
 /// Every variant carries the `resolved` path the link points at, computed once by
-/// [`crate::FileSystem::read_link`], which is also what guarantees the target stays inside the
-/// filesystem root — a link whose target leaves the root is [`LinkContent::Invalid`] instead.
+/// [`crate::FileSystem::read_link`]. A link whose target cannot be resolved into its filesystem
+/// or another configured filesystem is [`LinkContent::Invalid`] instead.
 #[derive(Clone, Debug, Hash, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum LinkTarget {
     /// The link is an absolute path on disk.

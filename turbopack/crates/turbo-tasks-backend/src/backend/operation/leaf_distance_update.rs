@@ -85,7 +85,7 @@ impl LeafDistanceUpdateQueue {
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
-    pub fn process(&mut self, ctx: &mut impl ExecuteContext) -> bool {
+    pub fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
         let mut remaining = MAX_COUNT_BEFORE_YIELD;
         while remaining > 0 {
             if let Some((Reverse(queue_dependencies_distance), task_id)) = self.queue.pop() {
@@ -121,7 +121,7 @@ impl LeafDistanceUpdateQueue {
 
     fn update_leaf_distance(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut ExecuteContext<'_>,
         task_id: TaskId,
         dependencies_distance: u32,
         dependencies_max_distance_in_buffer: u32,
@@ -169,7 +169,7 @@ impl LeafDistanceUpdateQueue {
         task.set_leaf_distance(leaf_distance);
     }
 
-    pub fn execute(&mut self, ctx: &mut impl ExecuteContext<'_>) {
+    pub fn execute(&mut self, ctx: &mut ExecuteContext<'_>) {
         if self.is_empty() {
             return;
         }

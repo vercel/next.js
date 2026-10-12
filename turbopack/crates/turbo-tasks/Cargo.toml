@@ -39,15 +39,12 @@ bincode = { workspace = true }
 concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 either = { workspace = true }
-erased-serde = { workspace = true }
 event-listener = "5.4.0"
 fixedbitset = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true, features = ["serde"]}
 pin-project-lite = { workspace = true }
-rayon = { workspace = true }
-regex = { workspace = true }
 rustc-hash = { workspace = true }
 scattered-collect = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
@@ -56,7 +53,6 @@ shrink-to-fit = { workspace = true, features = ["indexmap", "serde_json", "small
 smallvec = { workspace = true, features = ["serde", "impl_bincode"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tokio-util = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-bincode = { workspace = true }
@@ -65,7 +61,6 @@ turbo-frozenmap = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
-turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
 
 # Only used by the benchmarks, which don't run on wasm. Gated by target so that
@@ -73,6 +68,7 @@ unsize = { workspace = true }
 # rayon, which refuses to compile for wasi, and cargo resolves dev-dependencies even for `--lib`.
 [target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+turbo-tasks-malloc = { workspace = true }
 
 # `parking_lot_core` picks its thread parker in `thread_parker/mod.rs`. The working wasm parker
 # (`wasm_atomic.rs`, built on `memory_atomic_wait32` / `memory_atomic_notify`) is selected only under

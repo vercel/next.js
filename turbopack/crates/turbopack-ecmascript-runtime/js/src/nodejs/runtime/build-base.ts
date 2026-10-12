@@ -76,7 +76,7 @@ function getOrInstantiateModuleFromParent(
   id: ModuleId,
   sourceModule: ModuleWithDirection
 ): ModuleWithDirection {
-  const module = moduleCache.get(id)
+  const module = moduleCache.get(id) as ModuleWithDirection | undefined
 
   if (module) {
     if (module.error) {
@@ -107,7 +107,7 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath,
   moduleId: ModuleId
 ): ModuleWithDirection {
-  const module = moduleCache.get(moduleId)
+  const module = moduleCache.get(moduleId) as ModuleWithDirection | undefined
 
   if (module) {
     if (module.error) {

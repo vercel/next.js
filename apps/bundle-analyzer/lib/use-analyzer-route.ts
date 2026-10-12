@@ -1,31 +1,57 @@
 import { CompareView, Environment } from '@/components/top-bar'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import type { SnapshotMetadata } from './snapshot'
+import {
+  decodeBuildSelection,
+  encodeBuildSelection,
+  snapshotBaseDir,
+  type SnapshotMetadata,
+} from './snapshot'
 
 export function useAnalyzerRoute(
   compare: boolean,
-  snapshots: SnapshotMetadata[] | undefined
+  snapshots: SnapshotMetadata[] | undefined,
+  latestSnapshot: SnapshotMetadata
 ) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const selectedRoute = searchParams.get('route')
+  const singleBuildName = compare
+    ? null
+    : decodeBuildSelection(searchParams.get('build') ?? 'latest')
+  const invalidSingleBuild = !compare && singleBuildName === undefined
+  const singleSnapshot =
+    typeof singleBuildName === 'string'
+      ? (snapshots?.find((snapshot) => snapshot.name === singleBuildName) ??
+        null)
+      : null
+  const fromName = compare
+    ? decodeBuildSelection(searchParams.get('from'))
+    : undefined
+  const toName = compare
+    ? decodeBuildSelection(searchParams.get('to') ?? 'latest')
+    : null
+  const invalidComparison =
+    compare &&
+    (toName === undefined ||
+      (toName !== null &&
+        !snapshots?.some((snapshot) => snapshot.name === toName)))
   const baselineSnapshot = compare
-    ? (snapshots?.find(
-        (snapshot) => snapshot.id === searchParams.get('from')
-      ) ?? null)
+    ? fromName === null
+      ? latestSnapshot
+      : (snapshots?.find((snapshot) => snapshot.name === fromName) ?? null)
     : null
   const comparisonSnapshot = compare
-    ? (snapshots?.find((snapshot) => snapshot.id === searchParams.get('to')) ??
-      null)
-    : null
+    ? (snapshots?.find((snapshot) => snapshot.name === toName) ?? null)
+    : singleSnapshot
+  const activeBaseDir = comparisonSnapshot
+    ? snapshotBaseDir(comparisonSnapshot)
+    : '/data'
   const viewParam = searchParams.get('view')
   const compareView =
     viewParam === CompareView.Table || viewParam === CompareView.Treemap
       ? viewParam
-      : compare
-        ? CompareView.Table
-        : CompareView.Treemap
+      : CompareView.Treemap
   const environmentParam = searchParams.get('environment')
   const environmentFilter =
     environmentParam === Environment.Server
@@ -34,10 +60,9 @@ export function useAnalyzerRoute(
   const searchQuery = searchParams.get('query') ?? ''
   const typeFilter = parseTypeFilter(searchParams.get('types'))
 
-  function navigate(
+  function buildHref(
     nextPathname: string,
-    updates: Record<string, string | null>,
-    method: 'push' | 'replace'
+    updates: Record<string, string | null>
   ) {
     const nextSearchParams = new URLSearchParams(searchParams.toString())
     for (const [key, value] of Object.entries(updates)) {
@@ -45,7 +70,15 @@ export function useAnalyzerRoute(
       else nextSearchParams.set(key, value)
     }
     const query = nextSearchParams.toString()
-    router[method](`${nextPathname}${query ? `?${query}` : ''}`)
+    return `${nextPathname}${query ? `?${query}` : ''}`
+  }
+
+  function navigate(
+    nextPathname: string,
+    updates: Record<string, string | null>,
+    method: 'push' | 'replace'
+  ) {
+    router[method](buildHref(nextPathname, updates))
   }
 
   function replaceSearchParams(updates: Record<string, string | null>) {
@@ -63,8 +96,15 @@ export function useAnalyzerRoute(
   }
 
   return {
+    activeBaseDir,
     baselineSnapshot,
     comparisonSnapshot,
+    fromName,
+    invalidComparison,
+    invalidSingleBuild,
+    singleBuildName: singleBuildName ?? null,
+    singleSnapshot,
+    toName,
     compareView,
     environmentFilter,
     searchQuery,
@@ -73,12 +113,30 @@ export function useAnalyzerRoute(
     setView: (view: CompareView) => navigate(pathname, { view }, 'replace'),
     setRoute: (route: string | null) =>
       navigate(pathname, { route }, 'replace'),
-    startComparison: (snapshot: SnapshotMetadata) =>
-      navigate('/compare', { from: snapshot.id, to: null, view: null }, 'push'),
-    stopComparison: () =>
-      navigate('/', { from: null, to: null, view: null }, 'push'),
-    setComparisonSnapshot: (snapshot: SnapshotMetadata | null) =>
-      navigate(pathname, { to: snapshot?.id ?? null }, 'replace'),
+    getRouteHref:
+      pathname === '/'
+        ? (route: string) => buildHref('/analyze', { route })
+        : undefined,
+    setSingleBuild: (name: string | null) =>
+      navigate(
+        '/analyze',
+        {
+          build: name === null ? null : encodeBuildSelection(name),
+          from: null,
+          to: null,
+        },
+        'push'
+      ),
+    setComparison: (from: string | null, to: string | null) =>
+      navigate(
+        '/compare',
+        {
+          from: encodeBuildSelection(from),
+          to: to === null ? null : encodeBuildSelection(to),
+          build: null,
+        },
+        pathname === '/compare' && fromName === from ? 'replace' : 'push'
+      ),
     setEnvironmentFilter: (environment: Environment) =>
       replaceSearchParams({
         environment: environment === Environment.Client ? null : environment,

@@ -161,7 +161,7 @@ const API_DOCS: Record<
   },
   prefetch: {
     description: `Controls prefetching behavior for this segment. Some options are experimental and may change.`,
-    link: '(docs coming soon)',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/prefetch',
     type: `"auto" | "partial" | "force-disabled"`,
     options: {
       auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
@@ -173,7 +173,7 @@ const API_DOCS: Record<
   },
   ensureStatic: {
     description: `Controls which rendering phases require static output for this segment. This option is experimental and may change.`,
-    link: '(docs coming soon)',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/ensureStatic',
     type: `"auto" | "shell" | "prefetch" | "navigation" | false`,
     options: {
       '"auto"':

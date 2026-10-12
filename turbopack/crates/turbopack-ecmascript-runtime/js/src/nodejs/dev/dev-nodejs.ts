@@ -62,11 +62,13 @@ if (handlers.size === 0) {
     // updates) or nested inside `merged` entries (chunks covered by a
     // merger). Collect both so routing isn't skipped just because a mergeable
     // chunk's update only reports its paths inside `merged`.
+    const instruction = update.instruction
     const updateChunkPaths = new Set<string>([
-      ...Object.keys(update.instruction?.chunks ?? {}),
-      ...(update.instruction?.merged ?? []).flatMap((merged) =>
-        Object.keys(merged.chunks ?? {})
-      ),
+      ...Object.keys(instruction?.chunks ?? {}),
+      ...(
+        (instruction?.type === 'ChunkListUpdate' && instruction.merged) ||
+        []
+      ).flatMap((merged) => Object.keys(merged.chunks ?? {})),
     ])
 
     const toCall: HmrHandlerEntry[] = []

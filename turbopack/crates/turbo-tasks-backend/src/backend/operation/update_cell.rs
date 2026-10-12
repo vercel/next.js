@@ -29,7 +29,7 @@ pub fn update_cell(
     content_hash: Option<CellHash>,
     #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
     #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
-    mut ctx: impl ExecuteContext<'_>,
+    mut ctx: ExecuteContext<'_>,
 ) {
     let value_type = registry::get_value_type(cell.type_id());
     // `content_hash` is only ever supplied for `HashOnly` cells — only the
@@ -219,7 +219,7 @@ pub fn update_cell(
 /// Updates the stored cell_data_hash, which only `serialization = "hash"`
 /// cells consult (on eviction + recompute). Skips the update for all other
 /// persistence modes and when the hash hasn't changed.
-fn update_cell_data_hash(task: &mut impl TaskGuard, cell: &CellId, content_hash: Option<CellHash>) {
+fn update_cell_data_hash(task: &mut TaskGuard<'_>, cell: &CellId, content_hash: Option<CellHash>) {
     let old_hash = task.get_cell_data_hash(cell).copied();
     if old_hash != content_hash {
         if let Some(hash) = content_hash {
@@ -235,7 +235,7 @@ fn invalidate_cell_dependents(
     mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
     #[cfg(feature = "task_dirty_cause")] has_updated_key_hashes: bool,
     content: Option<TypedSharedReference>,
-    ctx: &mut impl ExecuteContext<'_>,
+    ctx: &mut ExecuteContext<'_>,
 ) {
     let mut queue = AggregationUpdateQueue::new();
     while let Some((dependent_task_id, keys)) = dependent_tasks.pop() {
