@@ -276,6 +276,15 @@ const nextDev = async (
     '../lib/upgrade/nudge.js'
   )
   const humanUpgrade = await shouldPromptForUpgrade()
+  if (humanUpgrade) {
+    // The server's output is piped, so it only knows the terminal width it
+    // started with. Pass on later resizes.
+    process.stdout.on('resize', () => {
+      if (child?.connected && process.stdout.columns) {
+        child.send({ nextTerminalColumns: process.stdout.columns })
+      }
+    })
+  }
   const allowedUpgradeRetries = new Set<string>()
   async function offerUpgrade(
     context: UpgradeContext,
