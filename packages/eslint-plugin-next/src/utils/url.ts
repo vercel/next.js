@@ -5,28 +5,60 @@ import * as fs from 'fs'
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsReadDirSyncCache = {}
 
+function escapeStringRegexp(str: string) {
+  return str.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').replace(/-/g, '\\x2d')
+}
+
+function getPageExtensionsRegex(pageExtensions: string[]) {
+  const sorted = [...pageExtensions].sort((a, b) => b.length - a.length)
+  const escaped = sorted.map((ext) => escapeStringRegexp(ext))
+  return new RegExp(`\\.(${escaped.join('|')})$`)
+}
+
+function getIndexRegex(pageExtensions: string[]) {
+  const sorted = [...pageExtensions].sort((a, b) => b.length - a.length)
+  const escaped = sorted.map((ext) => escapeStringRegexp(ext))
+  return new RegExp(`^index\\.(${escaped.join('|')})$`)
+}
+
+function getPageRegex(pageExtensions: string[]) {
+  const sorted = [...pageExtensions].sort((a, b) => b.length - a.length)
+  const escaped = sorted.map((ext) => escapeStringRegexp(ext))
+  return new RegExp(`^page\\.(${escaped.join('|')})$`)
+}
+
+function getLayoutRegex(pageExtensions: string[]) {
+  const sorted = [...pageExtensions].sort((a, b) => b.length - a.length)
+  const escaped = sorted.map((ext) => escapeStringRegexp(ext))
+  return new RegExp(`^layout\\.(${escaped.join('|')})$`)
+}
+
 /**
  * Recursively parse directory for page URLs.
  */
-function parseUrlForPages(urlprefix: string, directory: string) {
+function parseUrlForPages(
+  urlprefix: string,
+  directory: string,
+  pageExtensions: string[] = ['tsx', 'ts', 'jsx', 'js']
+) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
+  const extRegex = getPageExtensionsRegex(pageExtensions)
+  const indexRegex = getIndexRegex(pageExtensions)
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
-        )
+    if (extRegex.test(dirent.name)) {
+      if (indexRegex.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(indexRegex, '')}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+      res.push(`${urlprefix}${dirent.name.replace(extRegex, '')}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        res.push(
+          ...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, pageExtensions)
+        )
       }
     }
   })
@@ -36,24 +68,32 @@ function parseUrlForPages(urlprefix: string, directory: string) {
 /**
  * Recursively parse app directory for URLs.
  */
-function parseUrlForAppDir(urlprefix: string, directory: string) {
+function parseUrlForAppDir(
+  urlprefix: string,
+  directory: string,
+  pageExtensions: string[] = ['tsx', 'ts', 'jsx', 'js']
+) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
+  const extRegex = getPageExtensionsRegex(pageExtensions)
+  const pageRegex = getPageRegex(pageExtensions)
+  const layoutRegex = getLayoutRegex(pageExtensions)
+  const indexRegex = getIndexRegex(pageExtensions)
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+    if (extRegex.test(dirent.name)) {
+      if (pageRegex.test(dirent.name) || indexRegex.test(dirent.name)) {
+        res.push(`${urlprefix}`)
+      } else if (!layoutRegex.test(dirent.name)) {
+        res.push(`${urlprefix}${dirent.name.replace(extRegex, '')}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+        res.push(
+          ...parseUrlForAppDir(urlprefix + dirent.name + '/', dirPath, pageExtensions)
+        )
       }
     }
   })
@@ -136,13 +176,14 @@ export function normalizeAppPath(route: string) {
  */
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions: string[] = ['tsx', 'ts', 'jsx', 'js']
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .flatMap((directory) => parseUrlForPages(urlPrefix, directory))
+        .flatMap((directory) => parseUrlForPages(urlPrefix, directory, pageExtensions))
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
           (url) => `^${normalizeURL(url)}$`
@@ -156,17 +197,18 @@ export function getUrlFromPagesDirectories(
 
 export function getUrlFromAppDirectory(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions: string[] = ['tsx', 'ts', 'jsx', 'js']
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForAppDir(urlPrefix, directory))
+        .map((directory) => parseUrlForAppDir(urlPrefix, directory, pageExtensions))
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-          (url) => `^${normalizeAppPath(url)}$`
+          (url) => `^${normalizeURL(normalizeAppPath(url))}$`
         )
     )
   ).map((urlReg) => {
