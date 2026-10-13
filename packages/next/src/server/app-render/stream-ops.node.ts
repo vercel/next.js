@@ -976,6 +976,56 @@ const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
+// Batch available mixed chunks to avoid a script for every React write, without
+// encoding the original strings just to decode them for inline data.
+// Object-mode input must retain original string boundaries and contain
+// well-formed Unicode.
+// String arrays contain escaped JSON fragments; Buffers use the byte path.
+function readInlineFlightData(stream: Readable): string[] | Buffer | null {
+  const first: string | Uint8Array | null = stream.read()
+  if (first === null || !stream.readableObjectMode) {
+    return first as Buffer | null
+  }
+
+  const chunks = [first]
+  while (stream.readableLength > 0) {
+    chunks.push(stream.read())
+  }
+
+  // JSON escaping composes across well-formed string boundaries. Quoting each
+  // part avoids allocating a combined decoded string before JSON.stringify.
+  const fragments: string[] = []
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i]
+    let text: string
+    if (typeof chunk === 'string') {
+      // Native input strings are already normalized to valid Unicode.
+      text = chunk
+    } else {
+      const start = i
+      while (i + 1 < chunks.length && typeof chunks[i + 1] !== 'string') {
+        i++
+      }
+      const bytes =
+        start === i
+          ? Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+          : Buffer.concat(chunks.slice(start, i + 1) as Uint8Array[])
+      // A multibyte character may span adjacent byte chunks. Validate the run,
+      // and preserve the whole batch as binary if any run contains invalid UTF-8.
+      if (!isUtf8(bytes)) {
+        return Buffer.concat(
+          chunks.map((part) =>
+            typeof part === 'string' ? Buffer.from(part) : part
+          )
+        )
+      }
+      text = bytes.toString('utf8')
+    }
+    fragments.push(htmlEscapeJsonString(JSON.stringify(text).slice(1, -1)))
+  }
+  return fragments
+}
+
 async function pullFlightData(
   dataStream: Readable,
   output: PassThrough,
@@ -1007,10 +1057,12 @@ async function pullFlightData(
 
   try {
     while (true) {
-      const chunk: Buffer | null = dataStream.read()
+      const chunk = readInlineFlightData(dataStream)
       if (chunk !== null) {
         let htmlInlinedData: string
-        if (isUtf8(chunk)) {
+        if (Array.isArray(chunk)) {
+          htmlInlinedData = `[${INLINE_FLIGHT_PAYLOAD_DATA},"${chunk.join('')}"]`
+        } else if (isUtf8(chunk)) {
           const decodedString = chunk.toString('utf-8')
           htmlInlinedData = htmlEscapeJsonString(
             JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, decodedString])
