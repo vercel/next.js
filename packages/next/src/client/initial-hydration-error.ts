@@ -7,6 +7,7 @@ export function isInitialHydrationConnectionClosed(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error)
   return (
     message.includes('Connection closed.') ||
-    message.includes('Minified React error #412')
+    message.includes('Minified React error #412') ||
+    message.includes('The connection to the page was unexpectedly closed')
   )
 }
