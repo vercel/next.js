@@ -52,15 +52,25 @@ jobs:
               exit 1
               ;;
           esac
-          case "$INPUT_TAGNAME" in
-            v*) ;;
-            *)
-              echo "::error::tagName must be a release tag (got '$INPUT_TAGNAME')"
+          case "$INPUT_BRANCHNAME" in
+            *..*)
+              echo "::error::branchName must not contain '..' (got '$INPUT_BRANCHNAME')"
               exit 1
               ;;
           esac
-          # Resolve via the tags namespace so branches/other refs are rejected.
-          read -r sha type < <(gh api "repos/vercel/next.js/git/refs/tags/$INPUT_TAGNAME" --jq '.object.sha + " " + .object.type')
+          # Complete release-tag format only (SemVer) — rejects path
+          # characters and traversal like 'v/../../heads/<branch>'.
+          if ! printf '%s' "$INPUT_TAGNAME" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::tagName must be a release tag like v16.4.0 or v16.5.0-canary.3 (got '$INPUT_TAGNAME')"
+            exit 1
+          fi
+          # Resolve via the tags namespace and require the returned ref to be
+          # exactly the requested tag (guards against path resolution quirks).
+          read -r sha type ref < <(gh api "repos/vercel/next.js/git/refs/tags/$INPUT_TAGNAME" --jq '.object.sha + " " + .object.type + " " + .ref')
+          if [ "$ref" != "refs/tags/$INPUT_TAGNAME" ]; then
+            echo "::error::tag lookup returned '$ref' instead of 'refs/tags/$INPUT_TAGNAME'"
+            exit 1
+          fi
           if [ "$type" = "tag" ]; then
             # Annotated tag: dereference to the commit.
             sha="$(gh api "repos/vercel/next.js/git/tags/$sha" --jq .object.sha)"
