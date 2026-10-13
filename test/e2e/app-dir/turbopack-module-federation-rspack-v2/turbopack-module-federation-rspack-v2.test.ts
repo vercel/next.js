@@ -77,6 +77,14 @@ async function buildRspack(
   )
 }
 
+function stopStaticServer(server: Server) {
+  return new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()))
+    // Enhanced remotes may retain active connections after the browser has closed.
+    server.closeAllConnections()
+  })
+}
+
 describeTurbopack('Turbopack host and Rspack v2 remote', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, '../turbopack-module-federation-webpack-remote'),
@@ -131,9 +139,7 @@ describeTurbopack('Turbopack host and Rspack v2 remote', () => {
 
   afterAll(async () => {
     if (remoteServer) {
-      await new Promise<void>((resolve, reject) => {
-        remoteServer.close((error) => (error ? reject(error) : resolve()))
-      })
+      await stopStaticServer(remoteServer)
     }
     if (sharedPackage) await rm(sharedPackage, { recursive: true, force: true })
     delete process.env.MF_REMOTE_ORIGIN
@@ -309,9 +315,7 @@ describeTurbopack('Rspack v2 host and Turbopack remote', () => {
 
   afterAll(async () => {
     if (rspackHostServer) {
-      await new Promise<void>((resolve, reject) => {
-        rspackHostServer.close((error) => (error ? reject(error) : resolve()))
-      })
+      await stopStaticServer(rspackHostServer)
     }
     if (remoteServer) await killApp(remoteServer)
     delete process.env.MF_REMOTE_URL
@@ -323,6 +327,12 @@ describeTurbopack('Rspack v2 host and Turbopack remote', () => {
       expect(await browser.elementByCss('#webpack-message').text()).toBe(
         'hello from Next.js'
       )
+      expect(await browser.elementByCss('#next-remote-react').text()).toBe(
+        'React hook from Next.js remote'
+      )
+      expect(
+        await browser.elementByCss('#next-remote-shared-value').text()
+      ).toBe('Rspack host shared value')
     }, 15_000)
     const assets = await browser.eval(
       `performance.getEntriesByType('resource').map((entry) => entry.name).filter((name) => name.startsWith(${JSON.stringify(remoteOrigin + '/_next/static/chunks/mf/')}) && !name.endsWith('nextRemote.js'))`
