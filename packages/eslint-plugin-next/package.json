@@ -24,6 +24,7 @@
   "scripts": {
     "dev": "pnpm build",
     "build": "swc -d dist src && pnpm types",
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz",
     "types": "tsc --project tsconfig.json --skipLibCheck --declaration --emitDeclarationOnly --esModuleInterop --declarationDir dist"
   }
 }
