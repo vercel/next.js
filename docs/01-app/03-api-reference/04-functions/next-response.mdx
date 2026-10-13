@@ -168,8 +168,8 @@ Create an explicit allow-list of headers to forward. Overwrite or remove client-
 import { type NextRequest, NextResponse } from 'next/server'
 
 function addAuthHeaders(request: NextRequest, headers: Headers) {
-  // Derive this value from validated server-side auth, never from an
-  // untrusted incoming x-user-id header.
+  // Application-specific helper: validate the session on the server.
+  // Never trust an incoming x-user-id header as proof of identity.
   const session = validateSession(request)
   headers.delete('x-user-id')
 
