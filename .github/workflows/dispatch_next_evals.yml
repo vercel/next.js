@@ -123,14 +123,30 @@ jobs:
               ),
             ]
 
-            if (releaseBranches.length !== 1) {
+            // Stable publishes can move an LTS ref to the released SHA after
+            // the tag and source branch are created. Prefer the release's
+            // source branch over those LTS mirror runs when both exist.
+            const sourceBranches = releaseBranches.filter(
+              (branch) => branch === 'canary' || /^next-\d+-\d+$/.test(branch)
+            )
+            const ltsBranches = releaseBranches.filter(
+              (branch) =>
+                branch === 'releases/lts/active' ||
+                branch === 'releases/lts/maintenance'
+            )
+
+            let sourceBranch
+            if (sourceBranches.length === 1) {
+              sourceBranch = sourceBranches[0]
+            } else if (sourceBranches.length === 0 && ltsBranches.length === 1) {
+              sourceBranch = ltsBranches[0]
+            } else {
               core.setFailed(
-                `Expected one release branch run for ${workflowRun.head_sha}, found: ${releaseBranches.join(', ') || 'none'}`
+                `Could not identify one source branch for ${workflowRun.head_sha}; found: ${releaseBranches.join(', ') || 'none'}`
               )
               return
             }
 
-            const sourceBranch = releaseBranches[0]
             const releaseKind = sourceBranch === 'canary' ? 'release' : 'backport'
 
             core.setOutput('should_run', 'true')
