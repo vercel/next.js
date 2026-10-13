@@ -37,6 +37,53 @@ const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
+/**
+ * Attempts to read and parse next.config.js to extract pageExtensions.
+ * Returns default extensions if config cannot be read.
+ */
+function getPageExtensions(rootDir: string): string[] {
+  const defaultExtensions = ['tsx', 'ts', 'jsx', 'js']
+
+  try {
+    // Try to find next.config.js, next.config.ts, or next.config.mjs
+    const configFiles = [
+      'next.config.js',
+      'next.config.ts',
+      'next.config.mjs',
+      'next.config.cjs',
+    ]
+
+    for (const configFile of configFiles) {
+      const configPath = path.join(rootDir, configFile)
+      if (fs.existsSync(configPath)) {
+        // For now, we'll use a simple regex-based approach to extract pageExtensions
+        // This avoids the complexity of dynamically importing config files in ESLint context
+        const configContent = fs.readFileSync(configPath, 'utf8')
+
+        // Match pageExtensions: ['ext1', 'ext2'] or pageExtensions: ["ext1", "ext2"]
+        const match = configContent.match(
+          /pageExtensions\s*:\s*\[([^\]]+)\]/
+        )
+        if (match && match[1]) {
+          const extensions = match[1]
+            .split(',')
+            .map((ext) => ext.trim().replace(/['"]/g, ''))
+            .filter(Boolean)
+
+          if (extensions.length > 0) {
+            return extensions
+          }
+        }
+      }
+    }
+  } catch (error) {
+    // If we can't read the config, fall back to defaults
+    // This ensures the rule doesn't break when config is unavailable
+  }
+
+  return defaultExtensions
+}
+
 export default defineRule({
   meta: {
     docs: {
@@ -74,6 +121,11 @@ export default defineRule({
 
     const rootDirs = getRootDirs(context)
 
+    // Get pageExtensions from the first available root directory
+    const pageExtensions = rootDirs.length > 0
+      ? getPageExtensions(rootDirs[0])
+      : ['tsx', 'ts', 'jsx', 'js']
+
     const pagesDirs = (
       customPagesDirectory
         ? [customPagesDirectory]
@@ -107,8 +159,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
