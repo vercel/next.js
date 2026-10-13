@@ -1988,6 +1988,11 @@ export default class NextNodeServer extends BaseServer<
       return handleFinished()
     }
 
+    if ((req as any)._hasRanMiddleware) {
+      return false
+    }
+    (req as any)._hasRanMiddleware = true
+
     let result: Awaited<
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
     >
@@ -2012,7 +2017,11 @@ export default class NextNodeServer extends BaseServer<
         for (const [key, value] of Object.entries(
           toNodeOutgoingHttpHeaders(result.response.headers)
         )) {
-          if (key !== 'content-encoding' && value !== undefined) {
+          if (
+            key !== 'content-encoding' &&
+            value !== undefined &&
+            !key.startsWith('x-middleware-')
+          ) {
             res.setHeader(key, value as string | string[])
           }
         }
@@ -2288,6 +2297,8 @@ export default class NextNodeServer extends BaseServer<
     this._serverDistDir = serverDistDir
     return serverDistDir
   }
+
+  // cache bust
 
   protected async getFallbackErrorComponents(
     _url?: string
