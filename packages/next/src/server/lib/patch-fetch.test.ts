@@ -216,26 +216,8 @@ describe('createPatchedFetcher', () => {
       )
       expect(
         (span.events ?? []).filter((event) => event.name === 'exception')
-      ).toEqual(
-        isHttpError
-          ? [
-              expect.objectContaining({
-                attributes: {
-                  'exception.type': 'Error',
-                  'exception.message': `Fetch failed with HTTP status ${status}`,
-                },
-              }),
-            ]
-          : []
-      )
-      expect(span.error).toEqual(
-        isHttpError
-          ? {
-              type: 'Error',
-              message: `Fetch failed with HTTP status ${status}`,
-            }
-          : undefined
-      )
+      ).toEqual([])
+      expect(span.error).toBeUndefined()
       expect(workStore.fetchMetrics?.length ?? 0).toBe(
         shouldTrackFetchMetrics ? 1 : 0
       )
@@ -301,7 +283,8 @@ describe('createPatchedFetcher', () => {
         (spanRecords[0].events ?? []).filter(
           (event) => event.name === 'exception'
         )
-      ).toHaveLength(cachedStatus === 404 ? 1 : 0)
+      ).toHaveLength(0)
+      expect(spanRecords[0].error).toBeUndefined()
     }
   )
 

@@ -189,9 +189,6 @@ function trackFetchMetric(
   if (span && metric.status >= 400) {
     span.setStatus({ code: SpanStatusCode.ERROR })
     span.setAttribute('error.type', String(metric.status))
-    span.recordException(
-      new Error(`Fetch failed with HTTP status ${metric.status}`)
-    )
   }
 
   if (isRequestInsightsEnabled()) {
