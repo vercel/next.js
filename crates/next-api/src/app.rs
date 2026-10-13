@@ -1039,11 +1039,11 @@ impl AppProject {
 }
 
 #[turbo_tasks::function]
-pub fn app_entry_point_to_route(
+pub async fn app_entry_point_to_route(
     app_project: ResolvedVc<AppProject>,
     entrypoint: AppEntrypoint,
-) -> Vc<Route> {
-    match entrypoint {
+) -> Result<Vc<Route>> {
+    Ok(match entrypoint {
         AppEntrypoint::AppPage {
             pages, loader_tree, ..
         } => Route::AppPage(
@@ -1076,6 +1076,20 @@ pub fn app_entry_point_to_route(
                 })
                 .collect(),
         ),
+        AppEntrypoint::AppRoute { page, path, .. } if path.path.ends_with("/route.go") => {
+            Route::AppRoute {
+                original_name: page.to_string().into(),
+                endpoint: ResolvedVc::upcast(
+                    crate::go_route::GoRouteEndpoint {
+                        project: app_project.await?.project,
+                        path,
+                        page,
+                    }
+                    .resolved_cell(),
+                ),
+                has_action_manifest: false,
+            }
+        }
         AppEntrypoint::AppRoute { page, path, .. } => Route::AppRoute {
             original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
@@ -1104,7 +1118,7 @@ pub fn app_entry_point_to_route(
             }
         }
     }
-    .cell()
+    .cell())
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
@@ -2174,7 +2188,7 @@ impl AppEndpoint {
     }
 }
 
-async fn create_app_paths_manifest(
+pub(crate) async fn create_app_paths_manifest(
     node_root: FileSystemPath,
     original_name: &str,
     filename: RcStr,

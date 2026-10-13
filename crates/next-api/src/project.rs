@@ -429,6 +429,9 @@ struct ProjectFileSystemState {
 #[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
+    #[turbo_tasks(debug_ignore)]
+    #[bincode(skip)]
+    go_sessions: std::sync::Arc<crate::go_route::GoSessions>,
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
@@ -444,6 +447,7 @@ impl ProjectContainer {
     pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
         Ok(ProjectContainer {
             name,
+            go_sessions: Default::default(),
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
@@ -971,6 +975,11 @@ impl ProjectContainer {
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
+            go_sessions: if *next_config.go_routes().await? {
+                Some(self.go_sessions.clone())
+            } else {
+                None
+            },
             root_path,
             project_path,
             watch,
@@ -1001,6 +1010,22 @@ impl ProjectContainer {
             additional_roots,
         }
         .cell())
+    }
+
+    /// Cancel native compiler actions before stopping Turbo Tasks, then release their watcher.
+    #[turbo_tasks::function]
+    pub async fn shutdown_go(self: Vc<Self>) -> Result<Vc<Completion>> {
+        let this = self.await?;
+        let context = this.go_sessions.context.lock().await.take();
+        if let Some(context) = context {
+            context.cancel();
+            turbopack_go::filesystem(context.module_cache)
+                .connect()
+                .await?
+                .stop_watching()
+                .await;
+        }
+        Ok(Completion::new())
     }
 
     /// See [Project::entrypoints].
@@ -1034,6 +1059,9 @@ impl ProjectContainer {
 #[derive(Clone)]
 #[turbo_tasks::value]
 pub struct Project {
+    #[turbo_tasks(debug_ignore)]
+    #[bincode(skip)]
+    pub(crate) go_sessions: Option<std::sync::Arc<crate::go_route::GoSessions>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.

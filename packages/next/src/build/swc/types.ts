@@ -473,6 +473,14 @@ export type ServerPath = {
 
 export type WrittenEndpoint =
   | {
+      type: 'native'
+      entryPath: string
+      serverHmrEntryPaths: []
+      clientPaths: []
+      serverPaths: []
+      config: EndpointConfig
+    }
+  | {
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string

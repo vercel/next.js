@@ -922,6 +922,26 @@ export async function isPageStatic({
         httpAgentOptions,
       })
 
+      if (pageType === 'app') {
+        const appPaths = JSON.parse(
+          await fs.readFile(
+            path.join(distDir, 'server', 'app-paths-manifest.json'),
+            'utf8'
+          )
+        )
+        if (appPaths[originalAppPath || page]?.endsWith('.native.json')) {
+          return {
+            isStatic: false,
+            isRoutePPREnabled: false,
+            prerenderedRoutes: undefined,
+            prerenderRouteMatchers: undefined,
+            paramMatching: undefined,
+            prerenderFallbackMode: undefined,
+            rootParamKeys: undefined,
+            appConfig: { dynamic: 'force-dynamic', revalidate: 0 },
+          }
+        }
+      }
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
