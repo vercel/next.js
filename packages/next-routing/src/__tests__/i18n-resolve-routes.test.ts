@@ -416,41 +416,7 @@ describe('resolveRoutes with i18n', () => {
           dynamicRoutes: [
             {
               sourceRegex:
-                '^[/]?(?<nextLocale>[^/]{1,})/api/blog/(?<nxtPslug>[^/]+?)(?:/)?
-      const result = await resolveRoutes({
-        ...baseParams,
-        url: new URL('http://example.com/app-dir/foo'),
-        headers: new Headers({}),
-        pathnames: ['/app-dir/[[...slug]]', '/en/[[...slug]]'],
-        routes: {
-          ...baseParams.routes,
-          dynamicRoutes: [
-            {
-              sourceRegex:
-                '^[/]?(?<nextLocale>[^/]{1,})/app\\-dir(?:/(?<nxtPslug>.+?))?(?:/)?$',
-              destination:
-                '/$nextLocale/app-dir/[[...slug]]?nxtPslug=$nxtPslug',
-            },
-            {
-              sourceRegex:
-                '^[/]?(?<nextLocale>[^/]{1,})(?:/(?<nxtPslug>.+?))?(?:/)?$',
-              destination: '/$nextLocale/[[...slug]]?nxtPslug=$nxtPslug',
-            },
-          ],
-        },
-        i18n: {
-          defaultLocale: 'en',
-          locales: ['en', 'en-GB'],
-          localeDetection: false,
-        },
-      })
-
-      expect(result.redirect).toBeUndefined()
-      expect(result.resolvedPathname).toBe('/app-dir/[[...slug]]')
-    })
-  })
-})
-,
+                '^[/]?(?<nextLocale>[^/]{1,})/api/blog/(?<nxtPslug>[^/]+?)(?:/)?$',
               destination:
                 '/$nextLocale/api/blog/[slug]?nxtPslug=$nxtPslug',
             },
@@ -480,41 +446,7 @@ describe('resolveRoutes with i18n', () => {
           dynamicRoutes: [
             {
               sourceRegex:
-                '^[/]?(?<nextLocale>[^/]{1,})/api/blog/(?<nxtPslug>[^/]+?)(?:/)?
-      const result = await resolveRoutes({
-        ...baseParams,
-        url: new URL('http://example.com/app-dir/foo'),
-        headers: new Headers({}),
-        pathnames: ['/app-dir/[[...slug]]', '/en/[[...slug]]'],
-        routes: {
-          ...baseParams.routes,
-          dynamicRoutes: [
-            {
-              sourceRegex:
-                '^[/]?(?<nextLocale>[^/]{1,})/app\\-dir(?:/(?<nxtPslug>.+?))?(?:/)?$',
-              destination:
-                '/$nextLocale/app-dir/[[...slug]]?nxtPslug=$nxtPslug',
-            },
-            {
-              sourceRegex:
-                '^[/]?(?<nextLocale>[^/]{1,})(?:/(?<nxtPslug>.+?))?(?:/)?$',
-              destination: '/$nextLocale/[[...slug]]?nxtPslug=$nxtPslug',
-            },
-          ],
-        },
-        i18n: {
-          defaultLocale: 'en',
-          locales: ['en', 'en-GB'],
-          localeDetection: false,
-        },
-      })
-
-      expect(result.redirect).toBeUndefined()
-      expect(result.resolvedPathname).toBe('/app-dir/[[...slug]]')
-    })
-  })
-})
-,
+                '^[/]?(?<nextLocale>[^/]{1,})/api/blog/(?<nxtPslug>[^/]+?)(?:/)?$',
               destination:
                 '/$nextLocale/api/blog/[slug]?nxtPslug=$nxtPslug',
             },
