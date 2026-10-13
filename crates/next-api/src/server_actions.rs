@@ -489,6 +489,10 @@ fn collect_cache_modules(
             Ok(GraphTraversalAction::Continue)
         },
         |_, _, _| Ok(()),
+        // Include traced modules, they still affect runtime behavior.
+        true,
+        // Collect the full dependency subtree, binding usage can differ between entry points and
+        // would cause the hashes to change unnecessarily.
         true,
     )?;
     Ok(modules)
