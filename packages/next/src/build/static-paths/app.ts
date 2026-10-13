@@ -927,7 +927,7 @@ export async function buildAppStaticPaths({
 
   ComponentMod.patchFetch()
 
-  if (ComponentMod.__next_app__) {
+  if ('__next_app__' in ComponentMod) {
     // Cached generator results can contain server references that Flight needs
     // to load before any rendering has initialized the module-loading globals.
     installGlobalModuleLoadingHandlers(ComponentMod, cacheComponents)
