@@ -1,8 +1,9 @@
 import { trace } from '@opentelemetry/api'
+import { connection } from 'next/server'
 
-export const dynamic = 'force-dynamic'
-
-export function GET() {
+export async function GET() {
+  // Run at request time so the reported trace belongs to the request.
+  await connection()
   const traceId = trace.getActiveSpan()?.spanContext().traceId ?? 'none'
   return Response.json({ traceId })
 }
