@@ -258,7 +258,9 @@ export async function collectBuildTraces({
         '**/*.d.ts',
         '**/*.map',
         '**/next/dist/pages/**/*',
-        ...(ciEnvironment.hasNextSupport
+        ...(ciEnvironment.hasNextSupport ||
+        config.images.unoptimized ||
+        config.images.loader !== 'default'
           ? ['**/node_modules/sharp/**/*', '**/@img/sharp-libvips*/**/*']
           : []),
       ].filter(nonNullable)
