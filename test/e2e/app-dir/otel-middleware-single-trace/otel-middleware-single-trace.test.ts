@@ -1,28 +1,56 @@
-import { FileRef, isNextDeploy, nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-import path from 'path'
 
 const USER_TRACE_ID = '0af7651916cd43dd8448eb211c80319c'
 const INCOMING_TRACE_ID = '4bf92f3577b34da6a3ce929d0e0e4736'
 const INCOMING_TRACEPARENT = `00-${INCOMING_TRACE_ID}-00f067aa0ba902b7-01`
 const TRACE_ID = /^(?!0{32}$)[0-9a-f]{32}$/
 
+const MATCHER = [
+  '/page',
+  '/route-handler',
+  '/rewrite',
+  '/redirect',
+  '/direct',
+  '/user-overrides',
+  '/user-traceparent',
+]
+
+// The middleware entry file is generated per variant: `config` must be a
+// static literal in the entry file itself, and the shared implementation is
+// imported relative to the app root, where the entry file is written.
+function middlewareEntry(exportName: 'proxy' | 'middleware') {
+  return [
+    `import type { NextRequest } from 'next/server'`,
+    `import { handler } from './middleware-impl'`,
+    ``,
+    `export function ${exportName}(request: NextRequest) {`,
+    `  return handler(request)`,
+    `}`,
+    ``,
+    `export const config = { matcher: ${JSON.stringify(MATCHER)} }`,
+    ``,
+  ].join('\n')
+}
+
 // The app reports its active trace IDs itself (no local collector), so these
 // assertions also hold when deployed. Every request that passes through
 // middleware must stay in a single trace: the trace ID seen by the middleware
 // has to be the one seen by the page / route handler that renders afterwards.
 describe.each([
-  { name: 'proxy (nodejs runtime)', file: 'proxy.ts', source: 'proxy.ts' },
+  // `proxy.ts` always runs in the Node.js runtime.
+  { name: 'proxy (nodejs runtime)', file: 'proxy.ts', exportName: 'proxy' },
+  // `middleware.ts` defaults to the edge runtime.
   {
     name: 'middleware (edge runtime)',
     file: 'middleware.ts',
-    source: 'middleware-edge.ts',
+    exportName: 'middleware',
   },
-])('otel-middleware-single-trace - $name', ({ file, source }) => {
+] as const)('otel-middleware-single-trace - $name', ({ file, exportName }) => {
   const { next } = nextTestSetup({
     files: __dirname,
     overrideFiles: {
-      [file]: new FileRef(path.join(__dirname, 'variants', source)),
+      [file]: middlewareEntry(exportName),
     },
     dependencies: {
       '@vercel/otel': '2.1.3',
