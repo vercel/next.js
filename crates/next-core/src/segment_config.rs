@@ -1016,18 +1016,20 @@ async fn parse_config_value(
                 .await;
             };
 
-            let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value else {
-                return invalid_config(
-                    source,
-                    "maxDuration",
-                    span,
-                    rcstr!("It needs to be a static number."),
-                    Some(&value),
-                    IssueSeverity::Error,
-                )
-                .await;
+            config.max_duration = match parse_max_duration(&value) {
+                Ok(duration) => duration,
+                Err(error) => {
+                    return invalid_config(
+                        source,
+                        "maxDuration",
+                        span,
+                        format!("It {error}").into(),
+                        Some(&value),
+                        IssueSeverity::Error,
+                    )
+                    .await;
+                }
             };
-            config.max_duration = Some(val as u32);
         }
         "fetchCache" => {
             let Some(value) = get_value() else {
@@ -1160,6 +1162,19 @@ async fn parse_config_value(
     }
 
     Ok(())
+}
+
+fn parse_max_duration(value: &JsValue<'_>) -> Result<Option<u32>, &'static str> {
+    if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+        return Ok(None);
+    }
+    let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value else {
+        return Err("needs to be a static number.");
+    };
+    if !val.is_finite() || *val < 0.0 || val.fract() != 0.0 || *val > u32::MAX as f64 {
+        return Err("needs to be a non-negative integer no greater than 4294967295.");
+    }
+    Ok(Some(*val as u32))
 }
 
 async fn parse_preferred_region_from_js_value(
