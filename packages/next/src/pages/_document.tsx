@@ -932,6 +932,7 @@ export class NextScript extends React.Component<OriginProps> {
       <>
         {!disableRuntimeJS &&
         this.context.isDevelopment &&
+        // Only turbopack configures this.
         initialHmrVersion !== undefined ? (
           <script
             nonce={this.props.nonce || this.context.nonce}
