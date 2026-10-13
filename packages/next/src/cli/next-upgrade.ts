@@ -20,10 +20,8 @@ import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
 import { getInstalledNextVersion } from '../lib/upgrade/prepare-upgrade'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
 import {
-  getRunnerReleaseAge,
-  getReleaseMetadata,
-  isReleaseAllowed,
-  type ReleaseMetadata,
+  getReleaseAgeChecks,
+  isReleaseInstallable,
 } from '../lib/upgrade/release-age'
 import { getAgentName } from '../telemetry/agent-name'
 import {
@@ -312,36 +310,14 @@ export async function spawnNextUpgrade(
         throw configError
       }
 
-      failureStage = 'metadata'
-      const runnerPolicy = getRunnerReleaseAge({
-        directory: baseDir,
-        packageName: 'next',
-      })
-      let runnerMetadata: ReleaseMetadata | null = null
-      const runnerAllowsNext = async (version: string) => {
-        if (
-          isReleaseAllowed({
-            packageName: 'next',
-            version,
-            publishedAt: undefined,
-            policy: runnerPolicy,
-          })
-        ) {
-          return true
-        }
-        runnerMetadata ??= await getReleaseMetadata({
-          name: 'next',
+      // Release-age policies can refuse a release the registry already lists.
+      const { runner: runnerCheck } = getReleaseAgeChecks(baseDir)
+      const runnerAllows = (version: string) =>
+        isReleaseInstallable({
+          check: runnerCheck,
+          packageName: 'next',
+          version,
         })
-        return (
-          runnerMetadata.versions[version]?.version === version &&
-          isReleaseAllowed({
-            packageName: 'next',
-            version,
-            publishedAt: runnerMetadata.time?.[version],
-            policy: runnerPolicy,
-          })
-        )
-      }
 
       const expectedVersion = process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
@@ -362,7 +338,7 @@ export async function spawnNextUpgrade(
         // Keep this resolver in the current process when npm would reject a newer CLI.
         if (
           process.env.__NEXT_VERSION !== canaryVersion &&
-          (await runnerAllowsNext(canaryVersion))
+          (await runnerAllows(canaryVersion))
         ) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
           const agentArgument =
@@ -477,7 +453,7 @@ export async function spawnNextUpgrade(
       const bundledDocs = join(__dirname, '../docs')
       // The report runs after dependencies change, so it must be reinstallable too.
       const cliVersion = process.env.__NEXT_VERSION
-      if (!cliVersion || !(await runnerAllowsNext(cliVersion))) {
+      if (!cliVersion || !(await runnerAllows(cliVersion))) {
         throw new Error(
           `The reporting CLI next@${cliVersion} does not satisfy the package manager release-age policy.`
         )
@@ -561,13 +537,9 @@ export async function spawnNextUpgrade(
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
           }
-          const codemodPolicy = getRunnerReleaseAge({
-            directory: baseDir,
-            packageName: '@next/codemod',
-          })
           if (
             !valid(codemodVersion) ||
-            (codemodPolicy.before !== null &&
+            (runnerCheck.gates.length > 0 &&
               lt(codemodVersion, result.targetVersion))
           ) {
             throw new Error(
@@ -575,29 +547,15 @@ export async function spawnNextUpgrade(
             )
           }
           if (
-            !isReleaseAllowed({
+            !(await isReleaseInstallable({
+              check: runnerCheck,
               packageName: '@next/codemod',
               version: codemodVersion,
-              publishedAt: undefined,
-              policy: codemodPolicy,
-            })
+            }))
           ) {
-            const metadata = await getReleaseMetadata({
-              name: '@next/codemod',
-            })
-            if (
-              metadata.versions[codemodVersion]?.version !== codemodVersion ||
-              !isReleaseAllowed({
-                packageName: '@next/codemod',
-                version: codemodVersion,
-                publishedAt: metadata.time?.[codemodVersion],
-                policy: codemodPolicy,
-              })
-            ) {
-              throw new Error(
-                `@next/codemod@${codemodVersion} does not satisfy the package manager release-age policy.`
-              )
-            }
+            throw new Error(
+              `@next/codemod@${codemodVersion} does not satisfy the package manager release-age policy.`
+            )
           }
           const codemodCommand = `${getNpxCommand(baseDir)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
           const guide = await readFile(guidePath, 'utf8')

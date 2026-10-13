@@ -8,12 +8,24 @@ import {
   prepareUpgrade,
 } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
-import { getInstallerReleaseAge } from 'next/dist/lib/upgrade/release-age'
+import {
+  getReleaseAgeChecks,
+  type ReleaseAgeGate,
+} from 'next/dist/lib/upgrade/release-age'
 
 jest.mock('next/dist/lib/upgrade/release-age', () => ({
   ...jest.requireActual('next/dist/lib/upgrade/release-age'),
-  getInstallerReleaseAge: jest.fn(),
+  getReleaseAgeChecks: jest.fn(),
 }))
+
+// One upgrade shares its registry metadata between the install and the runner.
+function mockReleaseAgeChecks(check: { gates: ReleaseAgeGate[] }) {
+  const packuments = new Map()
+  return {
+    install: { ...check, packuments },
+    runner: { ...check, packuments },
+  }
+}
 
 jest.mock('next/dist/server/config', () => ({
   __esModule: true,
@@ -84,10 +96,9 @@ describe('prepare latest upgrade', () => {
   }
 
   beforeEach(() => {
-    const policy = { manager: 'npm' as const, before: null, exclude: [] }
     jest
-      .mocked(getInstallerReleaseAge)
-      .mockResolvedValue({ installer: policy, codemodInstaller: policy })
+      .mocked(getReleaseAgeChecks)
+      .mockReturnValue(mockReleaseAgeChecks({ gates: [] }))
     jest.mocked(loadConfig).mockResolvedValue({
       cacheComponents: false,
     } as never)
@@ -982,17 +993,22 @@ describe('prepare latest upgrade', () => {
     const cutoff = Date.parse('2026-10-10T12:00:00Z')
 
     function constrainedMetadata(
-      installerExclude: string[],
+      exemptPackages: string[],
       timestamps: Record<string, string> | undefined = undefined
     ) {
-      const policy = {
-        manager: 'pnpm' as const,
-        before: cutoff,
-        exclude: installerExclude,
-      }
-      jest
-        .mocked(getInstallerReleaseAge)
-        .mockResolvedValue({ installer: policy, codemodInstaller: policy })
+      jest.mocked(getReleaseAgeChecks).mockReturnValue(
+        mockReleaseAgeChecks({
+          gates: [
+            {
+              cutoff,
+              exemptions: exemptPackages.map((name) => ({
+                name,
+                versions: null,
+              })),
+            },
+          ],
+        })
+      )
       global.fetch = jest.fn(async (input, init) => {
         const url = String(input)
         if (url.includes('security/advisories')) {

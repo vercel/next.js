@@ -23,12 +23,24 @@ import { normalizeConfig } from 'next/dist/server/config-shared'
 import { PHASE_PRODUCTION_BUILD } from 'next/dist/shared/lib/constants'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { Telemetry } from 'next/dist/telemetry/storage'
-import { getRunnerReleaseAge } from 'next/dist/lib/upgrade/release-age'
+import {
+  getReleaseAgeChecks,
+  type ReleaseAgeGate,
+} from 'next/dist/lib/upgrade/release-age'
 
 jest.mock('next/dist/lib/upgrade/release-age', () => ({
   ...jest.requireActual('next/dist/lib/upgrade/release-age'),
-  getRunnerReleaseAge: jest.fn(),
+  getReleaseAgeChecks: jest.fn(),
 }))
+
+// One upgrade shares its registry metadata between the install and the runner.
+function mockReleaseAgeChecks(check: { gates: ReleaseAgeGate[] }) {
+  const packuments = new Map()
+  return {
+    install: { ...check, packuments },
+    runner: { ...check, packuments },
+  }
+}
 
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
@@ -173,8 +185,8 @@ describe('agentic upgrade prompts', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     jest
-      .mocked(getRunnerReleaseAge)
-      .mockReturnValue({ manager: 'npm', before: null, exclude: [] })
+      .mocked(getReleaseAgeChecks)
+      .mockReturnValue(mockReleaseAgeChecks({ gates: [] }))
     jest.mocked(Telemetry).mockImplementation(
       () =>
         ({
@@ -409,11 +421,16 @@ describe('agentic upgrade prompts', () => {
 
   it('reuses the current CLI when a newer bootstrap is age-blocked', async () => {
     delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-    jest.mocked(getRunnerReleaseAge).mockReturnValue({
-      manager: 'npm',
-      before: Date.parse('2026-10-10T12:00:00Z'),
-      exclude: [],
-    })
+    jest.mocked(getReleaseAgeChecks).mockReturnValue(
+      mockReleaseAgeChecks({
+        gates: [
+          {
+            cutoff: Date.parse('2026-10-10T12:00:00Z'),
+            exemptions: [],
+          },
+        ],
+      })
+    )
     global.fetch = jest.fn(async (input) =>
       String(input).endsWith('/canary')
         ? Response.json({ version: '99.0.0-canary.35' })
@@ -444,11 +461,16 @@ describe('agentic upgrade prompts', () => {
   it.each(['too young', 'unpublished'])(
     'blocks handoff when the reporting CLI is %s',
     async (reason) => {
-      jest.mocked(getRunnerReleaseAge).mockReturnValue({
-        manager: 'npm',
-        before: Date.parse('2026-10-10T12:00:00Z'),
-        exclude: [],
-      })
+      jest.mocked(getReleaseAgeChecks).mockReturnValue(
+        mockReleaseAgeChecks({
+          gates: [
+            {
+              cutoff: Date.parse('2026-10-10T12:00:00Z'),
+              exemptions: [],
+            },
+          ],
+        })
+      )
       global.fetch = jest.fn(async () =>
         Response.json({
           'dist-tags': {},
@@ -481,13 +503,17 @@ describe('agentic upgrade prompts', () => {
   it.each(['too young', 'unpublished'])(
     'blocks handoff when the codemod is %s under its own release-age policy',
     async (reason) => {
-      jest
-        .mocked(getRunnerReleaseAge)
-        .mockImplementation(({ packageName }) => ({
-          manager: 'yarn',
-          before: Date.parse('2026-10-10T12:00:00Z'),
-          exclude: packageName === 'next' ? ['next'] : [],
-        }))
+      // Only Next.js is exempt, so the codemod stays gated.
+      jest.mocked(getReleaseAgeChecks).mockReturnValue(
+        mockReleaseAgeChecks({
+          gates: [
+            {
+              cutoff: Date.parse('2026-10-10T12:00:00Z'),
+              exemptions: [{ name: 'next', versions: null }],
+            },
+          ],
+        })
+      )
       global.fetch = jest.fn(async () =>
         Response.json({
           'dist-tags': {},
@@ -518,11 +544,19 @@ describe('agentic upgrade prompts', () => {
   )
 
   it('blocks a release-age constrained codemod that predates the target', async () => {
-    jest.mocked(getRunnerReleaseAge).mockImplementation(({ packageName }) => ({
-      manager: 'yarn',
-      before: Date.parse('2026-10-10T12:00:00Z'),
-      exclude: [packageName],
-    }))
+    jest.mocked(getReleaseAgeChecks).mockReturnValue(
+      mockReleaseAgeChecks({
+        gates: [
+          {
+            cutoff: Date.parse('2026-10-10T12:00:00Z'),
+            exemptions: [
+              { name: 'next', versions: null },
+              { name: '@next/codemod', versions: null },
+            ],
+          },
+        ],
+      })
+    )
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
       installedVersion: '14.1.1',
