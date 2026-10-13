@@ -1,0 +1,11 @@
+.box {
+  color: red;
+}
+
+.box:target-current {
+  color: green;
+}
+
+.box::-webkit-scrollbar {
+  width: 0;
+}
