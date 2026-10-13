@@ -68,6 +68,36 @@ describe('Node inline Flight data', () => {
     expect(received).toEqual(expected)
   })
 
+  it.each([0, 8192, 128 * 1024])(
+    'preserves the complete script bytes for a batch with a %i-character fragment',
+    async (length) => {
+      const source = new PassThrough({ objectMode: true })
+      const text = 'a'.repeat(length)
+      for (const chunk of [
+        '<head>&\n"',
+        text,
+        Buffer.from([0xc3]),
+        Buffer.from([0xa9]),
+        '\\tail😀',
+        '',
+      ]) {
+        source.write(chunk)
+      }
+      source.end()
+
+      const html = await collect(
+        createNodeInlinedDataStream(source, 'a"é', '<&>') as Readable
+      )
+      const start = '<script nonce="a&quot;é">'
+      expect(html).toEqual(
+        Buffer.from(
+          `${start}(self.__next_f=self.__next_f||[]).push([0]);self.__next_f.push([2,"\\u003c\\u0026\\u003e"])</script>` +
+            `${start}self.__next_f.push([1,"\\u003chead\\u003e\\u0026\\n\\"${text}é\\\\tail😀"])</script>`
+        )
+      )
+    }
+  )
+
   it('keeps UTF-8 split across separate availability batches as binary', async () => {
     const source = new PassThrough({ objectMode: true })
     const html = createNodeInlinedDataStream(

@@ -983,6 +983,7 @@ const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
 const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
+const INLINE_FLIGHT_DATA_SCRIPT_END = Buffer.from('"])</script>')
 
 // Batch available mixed chunks to avoid a script for every React write, without
 // encoding the original strings just to decode them for inline data.
@@ -1002,6 +1003,7 @@ function readInlineFlightData(stream: Readable): string[] | Buffer | null {
 
   // JSON escaping composes across well-formed string boundaries. Quoting each
   // part avoids allocating a combined decoded string before JSON.stringify.
+  // Keep the fragments separate so encoding does not flatten a combined string.
   const fragments: string[] = []
   for (let i = 0; i < chunks.length; i++) {
     const chunk = chunks[i]
@@ -1034,11 +1036,30 @@ function readInlineFlightData(stream: Readable): string[] | Buffer | null {
   return fragments
 }
 
+function encodeInlineFlightData(fragments: string[], start: Buffer): Buffer {
+  let byteLength = start.length + INLINE_FLIGHT_DATA_SCRIPT_END.length
+  for (const fragment of fragments) {
+    byteLength += Buffer.byteLength(fragment)
+  }
+
+  const buffer = Buffer.allocUnsafe(byteLength)
+  start.copy(buffer)
+  let offset = start.length
+  for (const fragment of fragments) {
+    offset += buffer.write(fragment, offset, buffer.length - offset, 'utf8')
+  }
+  INLINE_FLIGHT_DATA_SCRIPT_END.copy(buffer, offset)
+  return buffer
+}
+
 async function pullFlightData(
   dataStream: Readable,
   output: PassThrough,
   startScriptTag: string
 ): Promise<void> {
+  let scriptStart: Buffer | undefined
+  let binaryScriptStart: Buffer | undefined
+
   function waitForReadableOrEnd(): Promise<void> {
     if (dataStream.readableLength > 0 || dataStream.readableEnded) {
       return Promise.resolve()
@@ -1067,29 +1088,32 @@ async function pullFlightData(
     while (true) {
       const chunk = readInlineFlightData(dataStream)
       if (chunk !== null) {
-        let htmlInlinedData: string
+        let fragments: string[]
         if (Array.isArray(chunk)) {
-          htmlInlinedData = `[${INLINE_FLIGHT_PAYLOAD_DATA},"${chunk.join('')}"]`
+          fragments = chunk
         } else if (isUtf8(chunk)) {
-          const decodedString = chunk.toString('utf-8')
-          htmlInlinedData = htmlEscapeJsonString(
-            JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, decodedString])
-          )
+          fragments = [
+            htmlEscapeJsonString(
+              JSON.stringify(chunk.toString('utf8')).slice(1, -1)
+            ),
+          ]
         } else {
           const base64 = Buffer.from(
             chunk.buffer,
             chunk.byteOffset,
             chunk.byteLength
           ).toString('base64')
-          htmlInlinedData = htmlEscapeJsonString(
-            JSON.stringify([INLINE_FLIGHT_PAYLOAD_BINARY, base64])
+          binaryScriptStart ??= Buffer.from(
+            `${startScriptTag}self.__next_f.push([${INLINE_FLIGHT_PAYLOAD_BINARY},"`
           )
+          // Base64 contains no JSON or HTML special characters.
+          output.push(encodeInlineFlightData([base64], binaryScriptStart))
+          continue
         }
-        output.push(
-          Buffer.from(
-            `${startScriptTag}self.__next_f.push(${htmlInlinedData})</script>`
-          )
+        scriptStart ??= Buffer.from(
+          `${startScriptTag}self.__next_f.push([${INLINE_FLIGHT_PAYLOAD_DATA},"`
         )
+        output.push(encodeInlineFlightData(fragments, scriptStart))
         continue
       }
 
