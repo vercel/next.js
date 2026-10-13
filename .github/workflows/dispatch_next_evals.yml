@@ -159,7 +159,7 @@ jobs:
   evaluate:
     needs: identify
     if: needs.identify.outputs.should_run == 'true'
-    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@d8f7cc2349b3f42d23261f1bf4c6d8288b9fa3d5 # PR #134
+    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@8289192f84a914a62a344f0ebccfa8a76280d412 # PR #134
     with:
       releaseKind: ${{ needs.identify.outputs.release_kind }}
       nextVersion: ${{ needs.identify.outputs.version }}
@@ -168,8 +168,6 @@ jobs:
       sourceRunUrl: ${{ needs.identify.outputs.source_run_url }}
       vercelTeamId: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_TEAM_ID }}
       vercelProjectId: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_PROJECT_ID }}
-      releaseGitHubAppClientId: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
       releaseAgentUrl: ${{ vars.VERCEL_NEXT_EVALS_AGENT_URL }}
     secrets:
       VERCEL_TOKEN: ${{ secrets.VERCEL_NEXT_UPGRADE_EVALS_TOKEN }}
-      RELEASE_GITHUB_APP_PRIVATE_KEY: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
