@@ -10,6 +10,7 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withAppDirStatic = path.join(__dirname, 'with-app-dir-static')
 
 const linters = {
   withoutPages: new Linter({
@@ -18,6 +19,10 @@ const linters = {
   }),
   withApp: new Linter({
     cwd: withAppDir,
+    configType: 'eslintrc',
+  }),
+  withAppStatic: new Linter({
+    cwd: withAppDirStatic,
     configType: 'eslintrc',
   }),
   withNestedPages: new Linter({
@@ -185,6 +190,51 @@ export class Blah extends Head {
 }
 `
 
+const invalidStaticAppRouteCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/dashboard'>Dashboard</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const invalidNestedStaticAppRouteCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/dashboard/settings'>Settings</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const validMissingStaticAppRouteCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/about'>About</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
 const invalidDynamicCode = `
 import Link from 'next/link';
 
@@ -256,6 +306,39 @@ export class Blah extends Head {
 }
 `
 describe('no-html-link-for-pages', function () {
+  it('invalid static app route with appDir', function () {
+    const [report] = linters.withAppStatic.verify(
+      invalidStaticAppRouteCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/dashboard/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid nested static app route with appDir', function () {
+    const [report] = linters.withAppStatic.verify(
+      invalidNestedStaticAppRouteCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/dashboard/settings/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('valid link to a non-existent static app route', function () {
+    const report = linters.withAppStatic.verify(
+      validMissingStaticAppRouteCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
+
   it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     linters.withNestedPages.verify(
