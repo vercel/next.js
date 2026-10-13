@@ -7,6 +7,7 @@ import { warn } from '../../build/output/log'
 import { cyan } from '../../lib/picocolors'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
+import { isGroupSegment } from '../../shared/lib/segment'
 import type { PageExtensions } from '../../build/page-extensions-type'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
@@ -159,7 +160,16 @@ export function createValidFileMatcher(
       return false
     }
     const rest = filePath.slice(appDirPath.length + 1)
-    return rootNotFoundFileRegex.test(rest)
+    const parts = rest.split(sep)
+    // Strip leading route-group segments — they are URL-transparent and a
+    // not-found.tsx nested only inside route groups is still a root not-found.
+    // e.g. app/(app)/not-found.tsx should behave identically to app/not-found.tsx
+    const nonGroupParts = parts.filter(
+      (seg, i) => i === parts.length - 1 || !isGroupSegment(seg)
+    )
+    return (
+      nonGroupParts.length === 1 && rootNotFoundFileRegex.test(nonGroupParts[0])
+    )
   }
 
   return {
