@@ -382,9 +382,7 @@ export async function POST(request) {
 
 An App Router `page.tsx` does not receive the incoming `Request` object or its POST body. Use a [Server Action](/docs/app/getting-started/mutating-data) when a form submission should run server-side logic and return updated UI, or use a Route Handler when you need to own an HTTP method and read `request.formData()`, `request.json()`, or `request.text()`. A `page.tsx` and `route.ts` cannot serve the same route segment.
 
-If a multi-step flow must keep submitted fields out of the URL and navigate to a different server-rendered page, keep the values in server-side state or a short-lived, `HttpOnly`, `Secure`, `SameSite` cookie, then redirect to the page that reads them. Avoid putting personal data in query parameters.
-
-An advanced Backend for Frontend can also accept the POST in a Route Handler and internally request a separate page route, forwarding only an allow-listed payload through a signed, short-lived internal header. This adds another server request and requires careful protection: verify the token and expiry in the page, reject direct requests that lack valid authorization, disable caching for user-specific responses, and never forward arbitrary incoming headers. Prefer Server Actions or server-side state when they meet the use case.
+If a multi-step flow must keep submitted fields out of the URL and navigate to a different server-rendered page, store the values in server-side state and redirect using an opaque, short-lived identifier. A short-lived `HttpOnly`, `Secure`, `SameSite` cookie may also suit some flows, but account for cookie size limits and CSRF protections. Avoid putting personal data in query parameters.
 
 ## Manipulating data
 
