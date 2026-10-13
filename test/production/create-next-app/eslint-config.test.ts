@@ -9,6 +9,10 @@ const testPkgPaths = [
   ['eslint-config-next', '/packed/eslint-config-next.tgz'],
   ['@next/env', 'C:\\packed\\next-env.tgz'],
   ['@next/eslint-plugin-next', '/packed/eslint-plugin-next.tgz'],
+  // Packed, but not a dependency of the generated project. Yarn Classic
+  // resolves every `resolutions` entry, so these must not be overridden.
+  ['@next/mdx', '/packed/next-mdx.tgz'],
+  ['next-rspack', '/packed/next-rspack.tgz'],
 ]
 const transitiveTestPkgOverrides = {
   '@next/env': 'C:\\packed\\next-env.tgz',
@@ -224,6 +228,33 @@ describe('create-next-app ESLint configuration', () => {
       })
     }
   )
+
+  it('should only override companions of direct dependencies', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'test-biome-overrides'
+      const { exitCode } = await run(
+        [
+          projectName,
+          ...eslintProjectArgs.filter((arg) => arg !== '--eslint'),
+          '--biome',
+        ],
+        resolveNextTgzFilename(),
+        {
+          cwd,
+          env: {
+            NEXT_TEST_PKG_PATHS: JSON.stringify(testPkgPaths),
+            npm_config_user_agent: 'yarn/1.22.19 npm/? node/v24.14.1',
+          },
+        }
+      )
+
+      expect(exitCode).toBe(0)
+      const packageJson = await readProjectJson(join(cwd, projectName))
+      const envOnly = { '@next/env': 'C:\\packed\\next-env.tgz' }
+      expect(packageJson.overrides).toEqual(envOnly)
+      expect(packageJson.resolutions).toEqual(envOnly)
+    })
+  })
 
   it('should not write test overrides without packed package paths', async () => {
     await useTempDir(async (cwd) => {

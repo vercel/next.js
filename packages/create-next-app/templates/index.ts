@@ -280,8 +280,8 @@ export const installTemplate = async ({
   // paths over `version` so siblings like `next-rspack` and
   // `eslint-config-next` install from their own tarball — not from the
   // `next` tarball, which would cause npm to extract `next`'s contents
-  // into the sibling's `node_modules/` entry. Packed packages that are only
-  // transitive dependencies are added as overrides below.
+  // into the sibling's `node_modules/` entry. Their packed workspace
+  // companions are added as overrides below.
   const testPkgPaths: Map<string, string> | null = (() => {
     const env = process.env.NEXT_TEST_PKG_PATHS;
     if (!env) return null;
@@ -396,19 +396,30 @@ export const installTemplate = async ({
     packageJson.devDependencies = sorted(packageJson.devDependencies);
   }
 
-  // Packed workspace packages are only direct dependencies when listed above.
-  // Others, such as `@next/env` from `next` or `@next/eslint-plugin-next` from
-  // `eslint-config-next`, are transitive and would otherwise resolve from the
-  // registry, where a freshly bumped release version may not be published yet.
-  // Point them at their local tarballs for every package manager.
+  // Direct dependencies above install from their packed tarballs, but their
+  // workspace companions (e.g. `@next/env` from `next`) would otherwise
+  // resolve from the registry, where a freshly bumped release version may not
+  // be published yet. Point them at their local tarballs too. Only override
+  // companions of direct dependencies: Yarn Classic resolves every
+  // `resolutions` entry, even ones nothing depends on.
+  const testPkgCompanions: Record<string, string> = {
+    next: "@next/env",
+    "eslint-config-next": "@next/eslint-plugin-next",
+  };
   const testPkgOverrides: Record<string, string> = {};
   if (testPkgPaths) {
-    for (const [name, tarballPath] of testPkgPaths) {
+    const isDirectDependency = (name: string) =>
+      Boolean(
+        packageJson.dependencies[name] || packageJson.devDependencies?.[name],
+      );
+    for (const [parent, companion] of Object.entries(testPkgCompanions)) {
+      const tarballPath = testPkgPaths.get(companion);
       if (
-        !packageJson.dependencies[name] &&
-        !packageJson.devDependencies?.[name]
+        tarballPath &&
+        isDirectDependency(parent) &&
+        !isDirectDependency(companion)
       ) {
-        testPkgOverrides[name] = tarballPath;
+        testPkgOverrides[companion] = tarballPath;
       }
     }
   }
