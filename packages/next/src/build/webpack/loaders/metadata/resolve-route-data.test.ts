@@ -291,5 +291,57 @@ describe('resolveRouteData', () => {
         "
       `)
     })
+    it('should escape XML special characters in sitemap values', () => {
+      expect(
+        resolveSitemap([
+          {
+            url: 'https://example.com/page?a=1&b=2',
+            lastModified: '2021-01-01',
+            alternates: {
+              languages: {
+                'x-default':
+                  'https://example.com/en?x=1&y=2" onclick="alert(1)',
+              },
+            },
+            images: ['https://example.com/image.jpg?a=1&b=2'],
+            videos: [
+              {
+                title: '</video:title><video:title>',
+                thumbnail_loc: 'https://example.com/thumb.jpg?a=1&b=2',
+                description: 'description with <script> & "quotes"',
+                restriction: {
+                  relationship: 'allow',
+                  content: 'IE & GB',
+                },
+                uploader: {
+                  info: 'https://example.com/uploader?a=1&b=2',
+                  content: 'Uploader <b>',
+                },
+              },
+            ],
+          },
+        ])
+      ).toMatchInlineSnapshot(`
+        "<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+        <url>
+        <loc>https://example.com/page?a=1&amp;b=2</loc>
+        <xhtml:link rel="alternate" hreflang="x-default" href="https://example.com/en?x=1&amp;y=2&quot; onclick=&quot;alert(1)" />
+        <image:image>
+        <image:loc>https://example.com/image.jpg?a=1&amp;b=2</image:loc>
+        </image:image>
+        <video:video>
+        <video:title>&lt;/video:title&gt;&lt;video:title&gt;</video:title>
+        <video:thumbnail_loc>https://example.com/thumb.jpg?a=1&amp;b=2</video:thumbnail_loc>
+        <video:description>description with &lt;script&gt; &amp; &quot;quotes&quot;</video:description>
+        <video:restriction relationship="allow">IE &amp; GB</video:restriction>
+        <video:uploader info="https://example.com/uploader?a=1&amp;b=2">Uploader &lt;b&gt;</video:uploader>
+        </video:video>
+        <lastmod>2021-01-01</lastmod>
+        </url>
+        </urlset>
+        "
+      `)
+    })
   })
 })
