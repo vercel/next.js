@@ -111,8 +111,7 @@ jobs:
             fi
           elif [[ ''"${GIT_REF}"'' == 'refs/heads/canary' ||
                   ''"${GIT_REF}"'' == 'refs/heads/releases/lts/active' ||
-                  ''"${GIT_REF}"'' == 'refs/heads/releases/lts/maintenance' ||
-                  ''"${GIT_REF}"'' == refs/heads/next-*-* ]]
+                  ''"${GIT_REF}"'' == 'refs/heads/releases/lts/maintenance' ]]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]
