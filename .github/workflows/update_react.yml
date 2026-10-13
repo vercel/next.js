@@ -72,9 +72,6 @@ jobs:
 
       - name: Create Pull Request
         shell: bash
-        # Caller-controlled values must go through env vars — interpolating
-        # them into the script source would be script injection (this job
-        # holds the release App token).
         run: pnpm sync-react --actor "$ACTOR" --commit --create-pull --version "$INPUT_VERSION"
         env:
           ACTOR: ${{ github.actor }}
