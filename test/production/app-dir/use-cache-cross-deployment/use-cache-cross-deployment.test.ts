@@ -302,6 +302,72 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       env: { DURABLE_USE_CACHE_ENTRIES: '1' },
     })
 
+    let key1: Awaited<ReturnType<typeof execute>>
+    beforeAll(async () => {
+      await next.stop()
+      await next.deleteFile('handler-remote-data.json')
+      key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1', true)
+    })
+
+    describe('behavioral tests', () => {
+      it('client component should return baseline', async () => {
+        const browser = await next.browser('/import-use-client')
+        expect(await browser.elementById('title').text()).toBe(
+          'Client Component A'
+        )
+        await browser.elementByCss('button').click()
+        expect(await browser.elementById('state').text()).toBe('Button clicked')
+        await browser.close()
+      })
+
+      it('should share a durable cache entry between an App Page and an API route', async () => {
+        await next.stop()
+        await next.start()
+
+        try {
+          const page = await next.render$('/page-api')
+          const pageValue = page('#page-api-data').text()
+          expect(pageValue).not.toBeEmpty()
+
+          const response = await next.fetch('/page-api/api')
+          expect(response.status).toBe(200)
+          expect(await response.text()).toBe(pageValue)
+
+          const secondPage = await next.render$('/page-api')
+          expect(secondPage('#page-api-data').text()).toBe(pageValue)
+        } finally {
+          await next.stop()
+        }
+      })
+
+      it('should not share a durable cache entry returning an asset URL between an App Page and an API route', async () => {
+        await next.stop()
+        await next.start()
+
+        try {
+          const page = await next.render$('/page-api-url')
+          const pageValue = page('#page-api-url').text()
+          expect(pageValue).toMatch(/^\/_next\/static\/media\//)
+
+          const response = await next.fetch('/page-api-url/api')
+          expect(response.status).toBe(200)
+          const apiValue = await response.text()
+          expect(apiValue).toMatch(/^file:\/\//)
+          // Even with identical source code and arguments, the asset URL is
+          // resolved in a different chunking context and must not reuse the entry.
+          expect(apiValue).not.toBe(pageValue)
+
+          const secondPage = await next.render$('/page-api-url')
+          expect(secondPage('#page-api-url').text()).toBe(pageValue)
+          const secondResponse = await next.fetch('/page-api-url/api')
+          expect(secondResponse.status).toBe(200)
+          expect(await secondResponse.text()).toBe(apiValue)
+        } finally {
+          await next.stop()
+        }
+      })
+    })
+
     beforeEach(async () => {
       await next.deleteFile('handler-remote-data.json')
     })
@@ -369,53 +435,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         expect(key1.runtimeValues.action).not.toBeEmpty()
         expect(key2.runtimeValues.action).toBe(key1.runtimeValues.action)
       })
-    })
-
-    it('should share a durable cache entry between an App Page and an API route', async () => {
-      await next.stop()
-      await next.start()
-
-      try {
-        const page = await next.render$('/page-api')
-        const pageValue = page('#page-api-data').text()
-        expect(pageValue).not.toBeEmpty()
-
-        const response = await next.fetch('/page-api/api')
-        expect(response.status).toBe(200)
-        expect(await response.text()).toBe(pageValue)
-
-        const secondPage = await next.render$('/page-api')
-        expect(secondPage('#page-api-data').text()).toBe(pageValue)
-      } finally {
-        await next.stop()
-      }
-    })
-
-    it('should not share a durable cache entry returning an asset URL between an App Page and an API route', async () => {
-      await next.stop()
-      await next.start()
-
-      try {
-        const page = await next.render$('/page-api-url')
-        const pageValue = page('#page-api-url').text()
-        expect(pageValue).toMatch(/^\/_next\/static\/media\//)
-
-        const response = await next.fetch('/page-api-url/api')
-        expect(response.status).toBe(200)
-        const apiValue = await response.text()
-        expect(apiValue).toMatch(/^file:\/\//)
-        // Even with identical source code and arguments, the asset URL is
-        // resolved in a different chunking context and must not reuse the entry.
-        expect(apiValue).not.toBe(pageValue)
-
-        const secondPage = await next.render$('/page-api-url')
-        expect(secondPage('#page-api-url').text()).toBe(pageValue)
-        const secondResponse = await next.fetch('/page-api-url/api')
-        expect(secondResponse.status).toBe(200)
-        expect(await secondResponse.text()).toBe(apiValue)
-      } finally {
-        await next.stop()
-      }
     })
 
     describe('durable build-time generators', () => {
@@ -518,8 +537,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     })
 
     it('should recompute when transitive implementation changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-
       let value = String(Math.random())
       await next.patchFile(
         'app/logic.ts',
@@ -568,8 +585,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     // entropy in the argument-part of the cache key.
     // But currently, you cannot do anything with the passed server reference anyway.
     it.skip('should recompute when a use cache reference argument changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-
       await next.patchFile(
         'app/argument-use-cache/action.ts',
         (content) => content.replace("return 'first'", "return 'second'"),
@@ -587,8 +602,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     // But currently, you cannot do anything with the passed server reference anyway.
     // Furthermore, we need to compute the metadata information for `use cache` functions as well.
     it.skip('should recompute when a use server reference argument changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-
       await next.patchFile(
         'app/argument-use-server/action.ts',
         (content) => content.replace("return 'first'", "return 'second'"),
@@ -714,15 +727,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     })
 
     it('should still work when imported client reference changes', async () => {
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-      const browser = await next.browser('/import-use-client')
-      expect(await browser.elementById('title').text()).toBe(
-        'Client Component A'
-      )
-      await browser.elementByCss('button').click()
-      expect(await browser.elementById('state').text()).toBe('Button clicked')
-      await browser.close()
-
       await next.patchFile(
         'app/import-use-client/client.tsx',
         (oldContent) =>
@@ -766,14 +770,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     it('should still work when a client reference argument changes', async () => {
       // The client reference is passed as an opaque argument. Instead, we need to make sure that
       // the client reference still uses the up-to-date chunks.
-      const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
-      const browser = await next.browser('/import-use-client')
-      expect(await browser.elementById('title').text()).toBe(
-        'Client Component A'
-      )
-      await browser.elementByCss('button').click()
-      expect(await browser.elementById('state').text()).toBe('Button clicked')
-      await browser.close()
 
       await next.patchFile(
         'app/argument-use-client/client.tsx',
