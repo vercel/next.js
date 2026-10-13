@@ -7,50 +7,92 @@ describe('initial hydration after a truncated document', () => {
     files: __dirname,
   })
 
-  it('reloads once when the initial Flight response is incomplete', async () => {
+  async function routeDocumentThroughTruncation(
+    page: Playwright.Page,
+    options: { truncateEveryResponse: boolean }
+  ) {
     let documentRequestCount = 0
 
-    await next.browser('/', {
+    await page.route('**/*', async (route) => {
+      const request = route.request()
+      const url = new URL(request.url())
+
+      if (
+        request.resourceType() !== 'document' ||
+        url.pathname !== '/'
+      ) {
+        await route.continue()
+        return
+      }
+
+      documentRequestCount++
+      if (!options.truncateEveryResponse && documentRequestCount > 1) {
+        await route.continue()
+        return
+      }
+
+      const response = await route.fetch()
+      const headers = { ...response.headers() }
+
+      // The response body is intentionally truncated. Remove headers that
+      // describe the original, complete representation before fulfilling it.
+      delete headers['content-length']
+      delete headers['transfer-encoding']
+      delete headers['content-encoding']
+
+      const body = await response.text()
+      await route.fulfill({
+        status: response.status(),
+        headers,
+        body: body.slice(0, Math.floor(body.length * 0.75)),
+      })
+    })
+
+    return () => documentRequestCount
+  }
+
+  it('reloads and hydrates when the recovery response is complete', async () => {
+    let getDocumentRequestCount = () => 0
+
+    const browser = await next.browser('/', {
       async beforePageLoad(page: Playwright.Page) {
-        await page.route('**/*', async (route) => {
-          const request = route.request()
-          const url = new URL(request.url())
-
-          if (
-            request.resourceType() !== 'document' ||
-            url.pathname !== '/'
-          ) {
-            await route.continue()
-            return
-          }
-
-          documentRequestCount++
-          const response = await route.fetch()
-          const headers = { ...response.headers() }
-
-          // The response body is intentionally truncated. Remove headers that
-          // describe the original, complete representation before fulfilling it.
-          delete headers['content-length']
-          delete headers['transfer-encoding']
-          delete headers['content-encoding']
-
-          const body = await response.text()
-          await route.fulfill({
-            status: response.status(),
-            headers,
-            body: body.slice(0, Math.floor(body.length * 0.75)),
-          })
+        getDocumentRequestCount = await routeDocumentThroughTruncation(page, {
+          truncateEveryResponse: false,
         })
       },
     })
 
-    // The first incomplete response should trigger one recovery reload.
     await retry(async () => {
-      expect(documentRequestCount).toBeGreaterThanOrEqual(2)
+      expect(getDocumentRequestCount()).toBeGreaterThanOrEqual(2)
+      expect(
+        await browser.eval('document.documentElement.dataset.hydrated')
+      ).toBe('true')
     })
 
-    // A consistently truncated response must not trigger an unbounded reload.
+    await browser.elementByCss('#counter').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#counter').text()).toBe('Count: 1')
+    })
+    await browser.close()
+  })
+
+  it('does not loop if every initial document response is incomplete', async () => {
+    let getDocumentRequestCount = () => 0
+
+    await next.browser('/', {
+      async beforePageLoad(page: Playwright.Page) {
+        getDocumentRequestCount = await routeDocumentThroughTruncation(page, {
+          truncateEveryResponse: true,
+        })
+      },
+    })
+
+    await retry(async () => {
+      expect(getDocumentRequestCount()).toBeGreaterThanOrEqual(2)
+    })
+
+    // Give a possible accidental reload loop time to request another document.
     await waitFor(1000)
-    expect(documentRequestCount).toBe(2)
+    expect(getDocumentRequestCount()).toBe(2)
   })
 })
