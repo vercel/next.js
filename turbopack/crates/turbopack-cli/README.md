@@ -87,8 +87,12 @@ For example, enable a build tag in imported packages and choose the output:
 ```
 
 Outputs cannot overwrite source or module files, match an embed pattern, or have
-a `.go` extension. Choose an output outside embedded asset directories. The build
-cache must be outside both the source project and module cache, and cannot contain
+a `.go` extension. Default outputs stay inside `--dir` and reject symlinked `dist`
+directories or output files, including symlinks introduced during watch mode.
+Use `--output` to explicitly select an external destination. Choose an output
+outside embedded asset directories.
+
+The build cache must be outside both the source project and module cache, and cannot contain
 either tree. Use a separate directory such as a sibling of the project.
 
 ### Module dependencies and environment

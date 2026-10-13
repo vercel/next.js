@@ -29,8 +29,42 @@ fn absolute(path: &Path) -> Result<PathBuf> {
         .join(path.file_name().context("path has no filename")?))
 }
 
+const DEFAULT_OUTPUT_ERROR: &str = "default Go output must stay inside --dir without symlinks; \
+                                    choose another destination explicitly with --output";
+
+fn validate_default_output(root: &Path, path: &Path) -> Result<()> {
+    validate_source_path(root, path).context(DEFAULT_OUTPUT_ERROR)?;
+    ensure!(
+        std::fs::canonicalize(root)? == root,
+        "{DEFAULT_OUTPUT_ERROR}"
+    );
+    match std::fs::canonicalize(path.parent().context("output has no parent")?) {
+        Ok(parent) => ensure!(parent.starts_with(root), "{DEFAULT_OUTPUT_ERROR}"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context(DEFAULT_OUTPUT_ERROR),
+    }
+    Ok(())
+}
+
+fn default_output(root: &Path, name: &str) -> Result<PathBuf> {
+    let path = root.join("dist").join(name);
+    validate_default_output(root, &path)?;
+    // Only dist may be missing. Do not recursively create directories through a redirected
+    // project path, even when the symlink points to a destination that does not exist yet.
+    match std::fs::create_dir(path.parent().unwrap()) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(error).context("creating the default Go output directory"),
+    }
+    validate_default_output(root, &path)?;
+    Ok(path)
+}
+
 /// Rename a complete graph-owned executable into place. Failed builds retain the last output.
-fn publish(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+fn publish(path: &Path, default_root: Option<&Path>, bytes: &[u8]) -> std::io::Result<()> {
+    if let Some(root) = default_root {
+        validate_default_output(root, path).map_err(std::io::Error::other)?;
+    }
     let mut temp = tempfile::NamedTempFile::new_in(path.parent().unwrap())?;
     temp.write_all(bytes)?;
     #[cfg(unix)]
@@ -38,6 +72,9 @@ fn publish(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
         use std::os::unix::fs::PermissionsExt;
         temp.as_file()
             .set_permissions(std::fs::Permissions::from_mode(0o755))?;
+    }
+    if let Some(root) = default_root {
+        validate_default_output(root, path).map_err(std::io::Error::other)?;
     }
     temp.persist(path).map_err(|error| error.error)?;
     Ok(())
@@ -166,15 +203,18 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
         .file_stem()
         .context("input has no filename")?
         .to_string_lossy();
-    let target = absolute(&args.output.clone().unwrap_or_else(|| {
-        build
-            .common
-            .dir
-            .as_deref()
-            .unwrap_or(Path::new("."))
-            .join("dist")
-            .join(format!("{name}{}", go_context.exe_suffix))
-    }))?;
+    let default_root = args
+        .output
+        .is_none()
+        .then(|| std::fs::canonicalize(build.common.dir.as_deref().unwrap_or(Path::new("."))))
+        .transpose()?;
+    let target = match &args.output {
+        Some(output) => absolute(output)?,
+        None => default_output(
+            default_root.as_deref().unwrap(),
+            &format!("{name}{}", go_context.exe_suffix),
+        )?,
+    };
     for input in files
         .iter()
         .map(|file| project.join(file.as_str()))
@@ -272,7 +312,7 @@ pub async fn build(build: &BuildArguments) -> Result<()> {
                             "output must be outside tracked Go inputs and embed patterns; choose \
                              another --output path"
                         );
-                        if let Err(error) = publish(&target, &bytes) {
+                        if let Err(error) = publish(&target, default_root.as_deref(), &bytes) {
                             // Windows cannot replace an executable while it is running or an
                             // open handle denies delete sharing. Keep the previous output and
                             // recheck graph freshness before retrying publication.

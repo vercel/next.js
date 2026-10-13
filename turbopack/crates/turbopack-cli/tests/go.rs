@@ -743,6 +743,112 @@ fn watch_rebuilds_recovers_and_recreates_output() {
 
 #[cfg(unix)]
 #[test]
+fn default_outputs_reject_redirected_directories_and_watch_changes() {
+    let temp = tempfile::tempdir().unwrap();
+    let project = temp.path().join("project");
+    let outside = temp.path().join("outside");
+    let inside = project.join("inside");
+    std::fs::create_dir_all(&inside).unwrap();
+    std::fs::create_dir(&outside).unwrap();
+    std::fs::write(
+        project.join("go.mod"),
+        "module example.com/outputs\ngo 1.24\n",
+    )
+    .unwrap();
+    source(
+        &project,
+        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"original\") }\n",
+    );
+    let name = format!("main{}", std::env::consts::EXE_SUFFIX);
+    let victim = outside.join(&name);
+    let internal = inside.join(&name);
+    std::fs::write(&victim, "external sentinel").unwrap();
+    std::fs::write(&internal, "internal sentinel").unwrap();
+    let missing = temp.path().join("missing/nested");
+    for destination in [&outside, &inside, &missing] {
+        std::os::unix::fs::symlink(destination, project.join("dist")).unwrap();
+        for arguments in [
+            vec!["build", "main.go"],
+            vec!["build", "main.go", "--dir", project.to_str().unwrap()],
+        ] {
+            rejection(
+                &project,
+                &arguments,
+                "default Go output must stay inside --dir without symlinks",
+            );
+            assert_eq!(std::fs::read(&victim).unwrap(), b"external sentinel");
+            assert_eq!(std::fs::read(&internal).unwrap(), b"internal sentinel");
+            assert!(
+                !temp.path().join("missing").exists(),
+                "rejection created directories outside the project"
+            );
+        }
+        std::fs::remove_file(project.join("dist")).unwrap();
+    }
+    std::fs::create_dir(project.join("dist")).unwrap();
+    std::os::unix::fs::symlink(&victim, executable(&project)).unwrap();
+    rejection(
+        &project,
+        &["build", "main.go"],
+        "default Go output must stay inside --dir without symlinks",
+    );
+    assert_eq!(std::fs::read(&victim).unwrap(), b"external sentinel");
+    std::fs::remove_file(executable(&project)).unwrap();
+
+    // External output remains available when the caller explicitly selects the destination.
+    let output = cli(&project)
+        .args(["build", "main.go", "--go", &tool(), "--output"])
+        .arg(&victim)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(run(&victim).as_deref(), Some("original"));
+    let previous = std::fs::read(&victim).unwrap();
+
+    let log = tempfile::NamedTempFile::new().unwrap();
+    let mut process = Process(
+        cli(&project)
+            .args(["build", "main.go", "--go", &tool(), "--watch"])
+            .stdout(Stdio::null())
+            .stderr(log.reopen().unwrap())
+            .spawn()
+            .unwrap(),
+    );
+    wait(|| run(&executable(&project)).as_deref() == Some("original"));
+    std::fs::rename(project.join("dist"), project.join("old-dist")).unwrap();
+    std::os::unix::fs::symlink(&outside, project.join("dist")).unwrap();
+    source(
+        &project,
+        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"changed\") }\n",
+    );
+    wait_for("watch rejection after output redirection", || {
+        process.0.try_wait().unwrap().is_some()
+    });
+    assert_eq!(process.0.wait().unwrap().code(), Some(1));
+    let error = std::fs::read_to_string(log.path()).unwrap();
+    assert!(
+        error.contains("default Go output must stay inside --dir without symlinks"),
+        "{error}"
+    );
+    assert_eq!(std::fs::read(&victim).unwrap(), previous);
+    assert_eq!(run(&victim).as_deref(), Some("original"));
+    assert_eq!(
+        run(&project.join("old-dist").join(&name)).as_deref(),
+        Some("original")
+    );
+    assert_eq!(
+        std::fs::read_dir(&outside).unwrap().count(),
+        1,
+        "redirection wrote extra files outside the project"
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn cancellation_during_compilation_kills_child_processes() {
     use std::os::unix::fs::PermissionsExt;
     let temp = tempfile::tempdir().unwrap();
