@@ -81,6 +81,14 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
+# Sharp recommends jemalloc on glibc-based Linux to reduce memory fragmentation.
+# Remove this setup when using Alpine, which uses musl instead of glibc:
+# https://sharp.pixelplumbing.com/install/#linux-memory-allocator
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libjemalloc2 \
+  && rm -rf /var/lib/apt/lists/*
+ENV LD_PRELOAD=libjemalloc.so.2
+
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry during the run time.
