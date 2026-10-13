@@ -87,8 +87,8 @@ For example, enable a build tag in imported packages and choose the output:
 ```
 
 Outputs cannot overwrite source or module files, match an embed pattern, or have
-a `.go` extension. Default outputs stay inside `--dir` and reject symlinked `dist`
-directories or output files, including symlinks introduced during watch mode.
+a `.go` extension. Default outputs stay inside `--dir`. Symlinked `dist` directories
+or output files are unsupported, including symlinks introduced during watch mode.
 Use `--output` to explicitly select an external destination. Choose an output
 outside embedded asset directories.
 
