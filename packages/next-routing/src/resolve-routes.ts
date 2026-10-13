@@ -374,6 +374,59 @@ function matchDynamicRoute(
 }
 
 /**
+ * The route manifest represents Pages Router API routes with i18n enabled as
+ * locale-prefixed dynamic routes, but API requests themselves must remain
+ * unlocalized. Match an unprefixed API URL against the default-locale variant
+ * of those routes, and never let a locale-prefixed API URL match them.
+ */
+function matchDynamicRouteWithLocaleApiFallback(
+  pathname: string,
+  route: Route,
+  caseSensitive: boolean,
+  basePath: string,
+  i18n: ResolveRoutesParams['i18n']
+): {
+  matched: boolean
+  params?: Record<string, string>
+  regexMatches?: RegExpMatchArray
+} {
+  const destinationPathname = route.destination?.split('?')[0]
+  const isLocalizedApiRoute =
+    destinationPathname?.startsWith('/$nextLocale/api/') ||
+    destinationPathname === '/$nextLocale/api'
+
+  if (!isLocalizedApiRoute || !i18n) {
+    return matchDynamicRoute(pathname, route, caseSensitive)
+  }
+
+  const pathnameWithoutBasePath =
+    basePath && pathname.startsWith(basePath)
+      ? pathname.slice(basePath.length) || '/'
+      : pathname
+  const localePath = normalizeLocalePath(
+    pathnameWithoutBasePath,
+    i18n.locales
+  )
+  const isApiPath =
+    localePath.pathname === '/api' || localePath.pathname.startsWith('/api/')
+
+  if (localePath.detectedLocale && isApiPath) {
+    // Next.js API routes do not receive an i18n locale prefix.
+    return { matched: false }
+  }
+
+  if (isApiPath && !localePath.detectedLocale) {
+    return matchDynamicRoute(
+      `/${i18n.defaultLocale}${pathnameWithoutBasePath}`,
+      route,
+      caseSensitive
+    )
+  }
+
+  return matchDynamicRoute(pathname, route, caseSensitive)
+}
+
+/**
  * Applies headers from onMatch routes
  */
 function applyOnMatchHeaders(
@@ -426,7 +479,7 @@ function checkDynamicRoutes(
   }
 
   for (const route of dynamicRoutes) {
-    const match = matchDynamicRoute(checkUrl.pathname, route, caseSensitive)
+    const match = matchDynamicRouteWithLocaleApiFallback(checkUrl.pathname, route, caseSensitive, basePath, i18n)
 
     if (match.matched) {
       // Check has/missing conditions
@@ -879,7 +932,7 @@ export async function resolveRoutes(
   let matchedPath = matchesPathname(currentUrl.pathname, pathnames)
   if (matchedPath) {
     for (const route of routes.dynamicRoutes) {
-      const match = matchDynamicRoute(currentUrl.pathname, route, caseSensitive)
+      const match = matchDynamicRouteWithLocaleApiFallback(currentUrl.pathname, route, caseSensitive, basePath, i18n)
 
       if (!match.matched) {
         continue
@@ -1120,7 +1173,7 @@ export async function resolveRoutes(
 
   // Check dynamic routes
   for (const route of routes.dynamicRoutes) {
-    const match = matchDynamicRoute(currentUrl.pathname, route, caseSensitive)
+    const match = matchDynamicRouteWithLocaleApiFallback(currentUrl.pathname, route, caseSensitive, basePath, i18n)
 
     if (match.matched) {
       // Check has/missing conditions
