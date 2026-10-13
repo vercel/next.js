@@ -51,6 +51,9 @@ export function requireFromString(code: string, filename: string) {
   const paths = (Module as any)._nodeModulePaths(dirname(filename))
   const m = new Module(filename, module.parent!) as any
   m.paths = paths
+  // Without a filename, Node.js resolves relative requires against
+  // process.cwd() instead of dirname(filename).
+  m.filename = filename
   m._compile(code, filename)
   return m.exports
 }
