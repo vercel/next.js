@@ -378,7 +378,6 @@ export async function POST(request) {
 }
 ```
 
-
 ### Rendering UI from a POST request
 
 An App Router `page.tsx` does not receive the incoming `Request` or its body. The `params` and `searchParams` props expose route parameters and URL search parameters, not POST data. Use a Route Handler to read a request body. A `route.ts` and a `page.tsx` also cannot occupy the same route segment, so they cannot handle the same URL as a POST endpoint and a page.
