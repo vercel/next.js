@@ -44,7 +44,8 @@ jobs:
         run: |
           set -euo pipefail
           # The bot token bypasses the branch-creation ruleset, so the
-          # releases/ prefix is enforced here instead.
+          # releases/ prefix and the release-tag requirement are enforced
+          # here instead.
           case "$INPUT_BRANCHNAME" in
             releases/*) ;;
             *)
@@ -52,5 +53,17 @@ jobs:
               exit 1
               ;;
           esac
-          sha="$(gh api "repos/vercel/next.js/commits/$INPUT_TAGNAME" --jq .sha)"
+          case "$INPUT_TAGNAME" in
+            v*) ;;
+            *)
+              echo "::error::tagName must be a release tag (got '$INPUT_TAGNAME')"
+              exit 1
+              ;;
+          esac
+          # Resolve via the tags namespace so branches/other refs are rejected.
+          read -r sha type < <(gh api "repos/vercel/next.js/git/refs/tags/$INPUT_TAGNAME" --jq '.object.sha + " " + .object.type')
+          if [ "$type" = "tag" ]; then
+            # Annotated tag: dereference to the commit.
+            sha="$(gh api "repos/vercel/next.js/git/tags/$sha" --jq .object.sha)"
+          fi
           gh api repos/vercel/next.js/git/refs -f "ref=refs/heads/$INPUT_BRANCHNAME" -f "sha=$sha"
