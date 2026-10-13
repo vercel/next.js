@@ -83,12 +83,13 @@ the 15.x line has moved on — create a branch from that tag under the
 (`releases/15-4`). (The old `next-<major>-<minor>` branch names are retired;
 existing ones are frozen and every release is tagged, so they can always be
 re-branched from their tags.) Branch creation under `releases/**` is
-restricted by ruleset to the release bot and repository admins, so an admin
-creates it:
-
-```bash
-git push origin v15.4.8^{commit}:refs/heads/releases/15-4
-```
+restricted by ruleset to the release bot and repository admins, so use the
+[`Create Release Branch`](https://github.com/vercel/next.js/actions/workflows/create_release_branch.yml)
+workflow (dispatch on `canary` with `branchName=releases/15-4` and
+`tagName=v15.4.8`). Any maintainer can dispatch it and no approval is needed —
+the tag's content is already reviewed, and the new branch is protected like
+any other `releases/**` branch. (Admins can equivalently
+`git push origin v15.4.8^{commit}:refs/heads/releases/15-4`.)
 
 Branches matching `releases/**` are covered by the CI push filters, so such a
 branch needs no further setup.

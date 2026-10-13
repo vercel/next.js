@@ -1,0 +1,56 @@
+name: Create Release Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      branchName:
+        description: name of the branch to create under releases/ (releases/15-4)
+        required: true
+        type: string
+
+      tagName:
+        description: Tag to start the branch from (v15.4.8)
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  create:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    # Creating a branch from a tag needs no approval: the tag's content is
+    # already reviewed, and the new branch is protected like any other
+    # releases/** branch (PR + approval + signed commits). The environment
+    # restricts deployments to the default branch, so this can only be
+    # dispatched from canary.
+    environment: bot-autonomous
+    steps:
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-contents: write
+
+      - name: Create branch from tag
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          INPUT_BRANCHNAME: ${{ inputs.branchName }}
+          INPUT_TAGNAME: ${{ inputs.tagName }}
+        run: |
+          set -euo pipefail
+          # The bot token bypasses the branch-creation ruleset, so the
+          # releases/ prefix is enforced here instead.
+          case "$INPUT_BRANCHNAME" in
+            releases/*) ;;
+            *)
+              echo "::error::branchName must start with 'releases/' (got '$INPUT_BRANCHNAME')"
+              exit 1
+              ;;
+          esac
+          sha="$(gh api "repos/vercel/next.js/commits/$INPUT_TAGNAME" --jq .sha)"
+          gh api repos/vercel/next.js/git/refs -f "ref=refs/heads/$INPUT_BRANCHNAME" -f "sha=$sha"
