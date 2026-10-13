@@ -2,13 +2,17 @@ import { isInitialHydrationConnectionClosed } from '../../packages/next/src/clie
 
 describe('isInitialHydrationConnectionClosed', () => {
   it('recognizes the readable Flight stream error', () => {
-    expect(isInitialHydrationConnectionClosed(new Error('Connection closed.'))).toBeTrue()
+    expect(
+      isInitialHydrationConnectionClosed(new Error('Connection closed.'))
+    ).toBeTrue()
   })
 
   it('recognizes the initial server data writer connection error', () => {
     expect(
       isInitialHydrationConnectionClosed(
-        new Error('The connection to the page was unexpectedly closed, possibly due to loss of Wi-Fi.')
+        new Error(
+          'The connection to the page was unexpectedly closed, possibly due to loss of Wi-Fi.'
+        )
       )
     ).toBeTrue()
   })
@@ -23,7 +27,9 @@ describe('isInitialHydrationConnectionClosed', () => {
 
   it('does not treat unrelated hydration errors as a closed stream', () => {
     expect(
-      isInitialHydrationConnectionClosed(new Error('Hydration failed because the UI does not match'))
+      isInitialHydrationConnectionClosed(
+        new Error('Hydration failed because the UI does not match')
+      )
     ).toBeFalse()
   })
 })
