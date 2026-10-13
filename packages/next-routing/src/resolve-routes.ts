@@ -417,7 +417,7 @@ function matchDynamicRouteWithLocaleApiFallback(
     return { matched: false }
   }
 
-  if (isApiPath && !localePath.detectedLocale) {
+  if (isApiPath) {
     const defaultLocale =
       detectDomainLocale(i18n.domains, url.hostname)?.defaultLocale ??
       i18n.defaultLocale
@@ -429,7 +429,9 @@ function matchDynamicRouteWithLocaleApiFallback(
     )
   }
 
-  return matchDynamicRoute(url.pathname, route, caseSensitive)
+  // This route represents a localized API route, so unrelated paths and
+  // unrecognized locale prefixes must not match it through the generic regex.
+  return { matched: false }
 }
 
 /**
