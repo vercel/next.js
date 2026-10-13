@@ -935,6 +935,7 @@ export class NextScript extends React.Component<OriginProps> {
         initialHmrVersion !== undefined ? (
           <script
             nonce={this.props.nonce || this.context.nonce}
+            crossOrigin={this.props.crossOrigin || crossOrigin}
             dangerouslySetInnerHTML={{
               __html: `var __nextHmrInitialVersion=${htmlEscapeJsonString(JSON.stringify(initialHmrVersion))};`,
             }}

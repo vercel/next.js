@@ -195,6 +195,14 @@ export async function handleRouteType({
           const key = getEntryKey('pages', 'server', '_app')
 
           const writtenEndpoint = await entrypoints.global.app.writeToDisk()
+          if (dev) {
+            // Page client chunks exclude modules already provided by _app, so
+            // its global CSS needs its own baseline before we serve the HTML.
+            await hooks?.subscribeToClientHmrChanges?.(
+              getEntryKey('pages', 'client', '_app'),
+              entrypoints.global.app
+            )
+          }
           documentOrAppChanged ||=
             hooks?.handleWrittenEndpoint(key, writtenEndpoint, false) ?? false
           processIssues(
