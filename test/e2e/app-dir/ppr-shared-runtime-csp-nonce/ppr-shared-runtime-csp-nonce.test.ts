@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import cheerio from 'cheerio'
@@ -6,6 +6,12 @@ import cheerio from 'cheerio'
 // The inlined chunk-group bootstrap that `experimental.turbopackSharedRuntime`
 // emits: `(globalThis["TURBOPACK"] || ...).push({"otherChunks":...})`.
 const BOOTSTRAP_MARKER = '"otherChunks"'
+
+// Vercel preview deployments inject this toolbar script, which the fixture's
+// strict CSP blocks. It isn't part of the app, so its violation is expected.
+const VERCEL_TOOLBAR_SCRIPT =
+  'https://vercel.live/_next-live/feedback/feedback.js'
+const VERCEL_TOOLBAR_SCRIPT_VIOLATION = `Loading the script '${VERCEL_TOOLBAR_SCRIPT}' violates`
 
 function getNonce(csp: string | null): string {
   const match = csp?.match(/'nonce-([^']+)'/)
@@ -32,6 +38,27 @@ function getBootstrapParams(html: string): {
     .find((content) => content.includes(BOOTSTRAP_MARKER))!
   const start = script.indexOf('.push(') + '.push('.length
   return JSON.parse(script.slice(start, script.lastIndexOf(')')))
+}
+
+async function expectNoUnexpectedCspViolations(browser: Playwright) {
+  if (global.browserName !== 'chrome') return
+
+  const logs = await browser.log()
+  const cspViolations = logs.filter(
+    (log) =>
+      log.message.includes('Content Security Policy') &&
+      // React's `$RT` timing script in the static shell has no nonce
+      // either. It doesn't affect hydration, so only the inline scripts
+      // that matter are checked below.
+      !log.message.includes('Executing inline script') &&
+      !log.message.startsWith(VERCEL_TOOLBAR_SCRIPT_VIOLATION)
+  )
+  expect(cspViolations).toEqual([])
+  const inlineViolations = logs.filter((log) =>
+    log.message.includes('Executing inline script')
+  )
+  // At most the `$RT` script may be blocked.
+  expect(inlineViolations.length).toBeLessThanOrEqual(1)
 }
 
 // The shared runtime (and thus the inlined bootstrap) only exists in Turbopack
@@ -97,23 +124,44 @@ describe('ppr-shared-runtime-csp-nonce', () => {
     })
     expect(await browser.elementByCss('#dynamic').text()).toBe('dynamic')
 
+    await expectNoUnexpectedCspViolations(browser)
+  })
+
+  it('should hydrate under a nonce-based CSP when Vercel injects its toolbar script', async () => {
+    // Reproduce a preview deployment locally by injecting the toolbar script.
+    const browser = await next.browser('/', {
+      async beforePageLoad(page) {
+        await page.route(
+          (url) => url.pathname === '/',
+          async (route) => {
+            const response = await route.fetch()
+            const html = (await response.text()).replace(
+              '</head>',
+              `<script src="${VERCEL_TOOLBAR_SCRIPT}"></script></head>`
+            )
+            await route.fulfill({ response, body: html })
+          }
+        )
+      },
+    })
+
+    await browser.waitForElementByCss('#counter[data-hydrated="true"]')
+    await browser.elementByCss('#counter').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#counter').text()).toBe('1')
+    })
+
     if (global.browserName === 'chrome') {
+      // Make sure the injected script was actually blocked, so the check
+      // below doesn't pass vacuously.
       const logs = await browser.log()
-      const cspViolations = logs.filter(
-        (log) =>
-          log.message.includes('Content Security Policy') &&
-          // React's `$RT` timing script in the static shell has no nonce
-          // either. It doesn't affect hydration, so only the inline scripts
-          // that matter are checked below.
-          !log.message.includes('Executing inline script')
-      )
-      expect(cspViolations).toEqual([])
-      const inlineViolations = logs.filter((log) =>
-        log.message.includes('Executing inline script')
-      )
-      // At most the `$RT` script may be blocked.
-      expect(inlineViolations.length).toBeLessThanOrEqual(1)
+      expect(
+        logs.some((log) =>
+          log.message.startsWith(VERCEL_TOOLBAR_SCRIPT_VIOLATION)
+        )
+      ).toBe(true)
     }
+    await expectNoUnexpectedCspViolations(browser)
   })
 
   it('should hydrate when the resumed bootstrap runs after the shared runtime has loaded', async () => {
