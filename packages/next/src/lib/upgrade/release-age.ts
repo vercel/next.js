@@ -20,6 +20,7 @@ export type ReleaseAgePolicy = {
 
 export type UpgradeReleaseAge = {
   installer: ReleaseAgePolicy
+  // The codemod may use a different manager to install the target Next.js version.
   codemodInstaller: ReleaseAgePolicy
 }
 
@@ -29,68 +30,399 @@ export type ReleaseMetadata = {
   time: Record<string, string> | undefined
 }
 
-// Query the installed manager rather than reimplementing rc/workspace discovery.
-// Never include its config output in an error: it can contain credentials.
-function configOutput(directory: string, manager: Manager, args: string[]) {
-  const result = spawn.sync(manager, args, {
-    cwd: directory,
-    encoding: 'utf8',
-    timeout: 10_000,
-    maxBuffer: 1024 * 1024,
+// Release eligibility
+
+export function isReleaseAllowed({
+  packageName,
+  version,
+  publishedAt,
+  policy,
+}: {
+  packageName: 'next' | '@next/codemod'
+  version: string
+  publishedAt: string | undefined
+  policy: ReleaseAgePolicy
+}): boolean {
+  if (policy.before === null) {
+    return true
+  }
+  for (const rule of policy.exclude) {
+    // npm exemptions match names only; pnpm/Yarn can name exact versions or descriptors.
+    const separator = rule.indexOf('@', rule.startsWith('@') ? 1 : 0)
+    const name =
+      policy.manager === 'npm' || separator < 0
+        ? rule
+        : rule.slice(0, separator)
+    let matchesName: boolean
+    if (policy.manager === 'pnpm') {
+      const negative = name.startsWith('!')
+      const pattern = negative ? name.slice(1) : name
+      const matches = new RegExp(
+        `^${pattern.split('*').map(escapeStringRegexp).join('.*')}$`
+      ).test(packageName)
+      matchesName = negative ? !matches : matches
+    } else {
+      matchesName = picomatch.isMatch(packageName, name, {
+        nonegate: policy.manager === 'npm',
+        noext: policy.manager === 'npm',
+      })
+    }
+    if (!matchesName) {
+      continue
+    }
+    if (policy.manager === 'npm' || separator < 0) {
+      return true
+    }
+    const requested = rule.slice(separator + 1)
+    const matches =
+      policy.manager === 'pnpm'
+        ? requested
+            .split('||')
+            .some((candidate) => semver.valid(candidate.trim()) === version)
+        : semver.validRange(requested) !== null &&
+          semver.satisfies(version, requested)
+    if (matches) {
+      return true
+    }
+    if (policy.manager === 'pnpm') {
+      break
+    }
+  }
+  const time = publishedAt === undefined ? NaN : Date.parse(publishedAt)
+  return Number.isFinite(time) && time <= policy.before
+}
+
+export function isUpgradeReleaseAllowed({
+  version,
+  publishedAt,
+  installedVersion,
+  policies,
+}: {
+  version: string
+  publishedAt: string | undefined
+  installedVersion: string
+  policies: UpgradeReleaseAge
+}): boolean {
+  return (
+    isReleaseAllowed({
+      packageName: 'next',
+      version,
+      publishedAt,
+      policy: policies.installer,
+    }) &&
+    (semver.major(version) <= semver.major(installedVersion) ||
+      isReleaseAllowed({
+        packageName: 'next',
+        version,
+        publishedAt,
+        policy: policies.codemodInstaller,
+      }))
+  )
+}
+
+// Installation and execution context
+
+export async function getInstallerReleaseAge({
+  directory,
+}: {
+  directory: string
+}): Promise<UpgradeReleaseAge> {
+  const marker = findUp.sync(
+    [
+      'pnpm-workspace.yaml',
+      'pnpm-lock.yaml',
+      'yarn.lock',
+      'bun.lock',
+      'bun.lockb',
+      'package-lock.json',
+    ],
+    { cwd: directory }
+  )
+  const installRoot = marker ? dirname(marker) : directory
+  const appManager = await declaredManager(directory)
+  const rootManager =
+    installRoot === directory ? appManager : await declaredManager(installRoot)
+  const lockManager = marker
+    ? basename(marker).startsWith('pnpm')
+      ? 'pnpm'
+      : basename(marker) === 'yarn.lock'
+        ? 'yarn'
+        : basename(marker).startsWith('bun')
+          ? 'bun'
+          : 'npm'
+    : null
+  const userAgentManager = /^(npm|pnpm|yarn|bun)\//.exec(
+    process.env.npm_config_user_agent ?? ''
+  )?.[1] as Manager | undefined
+  const codemodLock = findUp.sync(
+    [
+      'yarn.lock',
+      'pnpm-lock.yaml',
+      'bun.lock',
+      'bun.lockb',
+      'package-lock.json',
+    ],
+    { cwd: directory }
+  )
+  const codemodLockManager = codemodLock
+    ? basename(codemodLock) === 'yarn.lock'
+      ? 'yarn'
+      : basename(codemodLock) === 'pnpm-lock.yaml'
+        ? 'pnpm'
+        : basename(codemodLock).startsWith('bun')
+          ? 'bun'
+          : 'npm'
+    : null
+  const codemodManager =
+    appManager ?? userAgentManager ?? codemodLockManager ?? 'npm'
+  const installerManager =
+    appManager ?? rootManager ?? lockManager ?? getPkgManager(directory)
+  const installer = readReleaseAgePolicy({
+    directory: installRoot,
+    manager: installerManager,
+    operation: 'install',
+    packageName: 'next',
   })
-  if (result.error || result.status !== 0) {
-    throw new Error(`Could not read ${manager} release-age configuration.`, {
-      cause: result.error,
-    })
-  }
-  return result.stdout
+  const codemodInstaller =
+    codemodManager === installerManager && installRoot === directory
+      ? installer
+      : readReleaseAgePolicy({
+          directory,
+          manager: codemodManager,
+          operation: 'install',
+          packageName: 'next',
+        })
+  return { installer, codemodInstaller }
 }
 
-function configValue(output: string): unknown {
-  if (!output.trim() || output.trim() === 'undefined') {
-    return undefined
-  }
-  try {
-    return JSON.parse(output)
-  } catch (error) {
+export function getRunnerReleaseAge({
+  directory,
+  packageName,
+}: {
+  directory: string
+  packageName: 'next' | '@next/codemod'
+}): ReleaseAgePolicy {
+  const command = getNpxCommand(directory).split(' ')[0]
+  return readReleaseAgePolicy({
+    directory,
+    manager: command === 'npx' ? 'npm' : command === 'pnpm' ? 'pnpm' : 'yarn',
+    operation: 'exec',
+    packageName,
+  })
+}
+
+// Registry metadata
+
+export async function getReleaseMetadata({
+  name,
+}: {
+  name: 'next' | '@next/codemod'
+}): Promise<ReleaseMetadata> {
+  const response = await fetch(`https://registry.npmjs.org/${name}`, {
+    signal: AbortSignal.timeout(10_000),
+    headers: { Accept: 'application/json' },
+    redirect: 'error',
+    cache: 'no-store',
+  })
+  if (!response.ok) {
     throw new Error(
-      'Could not parse package manager release-age configuration.',
-      { cause: error }
+      `Could not fetch ${name} release dates (HTTP ${response.status}).`
     )
   }
-}
-
-function ageCutoff(value: unknown): number | null {
-  if (value === null || value === undefined) {
-    return null
-  }
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    throw new Error(
-      'Invalid minimum release age in package manager configuration.'
-    )
-  }
-  return value === 0 ? null : Date.now() - value * 60_000
-}
-
-function exclusions(value: unknown): string[] {
-  if (value === undefined || value === null) {
-    return []
-  }
+  const value = await response.json()
   if (
-    !Array.isArray(value) ||
-    value.some((entry) => typeof entry !== 'string')
+    !value ||
+    typeof value.versions !== 'object' ||
+    !value.versions ||
+    !value['dist-tags'] ||
+    typeof value['dist-tags'] !== 'object'
   ) {
-    throw new Error(
-      'Invalid release-age exclusions in package manager configuration.'
-    )
+    throw new Error(`Could not determine ${name} release dates.`)
   }
   return value
 }
 
-export function parseNpmReleaseAge(
-  output: string,
-  execution: boolean
-): ReleaseAgePolicy {
+// Native package-manager configuration
+
+export function readReleaseAgePolicy({
+  directory,
+  manager,
+  operation,
+  packageName,
+}: {
+  directory: string
+  manager: Manager
+  operation: 'install' | 'exec'
+  packageName: 'next' | '@next/codemod'
+}): ReleaseAgePolicy {
+  if (manager === 'npm') {
+    const prefix = configOutput({
+      directory,
+      manager,
+      args: ['prefix'],
+    }).trim()
+    if (!isAbsolute(prefix)) {
+      throw new Error('Could not determine the npm installation root.')
+    }
+    return parseNpmReleaseAge({
+      output: configOutput({
+        directory: prefix,
+        manager,
+        args: ['config', 'list', '--long', '--no-workspaces'],
+      }),
+      operation,
+    })
+  }
+  if (manager === 'pnpm') {
+    const version = configOutput({
+      directory,
+      manager,
+      args: ['--version'],
+    }).trim()
+    if (!semver.valid(version)) {
+      throw new Error('Could not determine the pnpm version.')
+    }
+    if (semver.lt(version, '10.16.0')) {
+      return { manager, before: null, exclude: [] }
+    }
+    let queryDirectory = directory
+    let temporary: string | null = null
+    try {
+      if (operation === 'exec' && semver.major(version) < 11) {
+        // Older dlx reads home settings instead of project security settings.
+        // Pin its manager in a disposable context so Corepack preserves the version.
+        temporary = mkdtempSync(join(tmpdir(), 'next-upgrade-policy-'))
+        queryDirectory = temporary
+        writeFileSync(
+          join(temporary, 'package.json'),
+          JSON.stringify({ packageManager: `pnpm@${version}` })
+        )
+        writeFileSync(
+          join(temporary, '.npmrc'),
+          'manage-package-manager-versions=true\n'
+        )
+        if (
+          configOutput({
+            directory: temporary,
+            manager,
+            args: ['--version'],
+          }).trim() !== version
+        ) {
+          throw new Error(
+            'Could not query the running pnpm release-age policy.'
+          )
+        }
+      }
+      const contextArgs = temporary
+        ? [
+            '--dir',
+            homedir(),
+            '--ignore-workspace',
+            '--config.manage-package-manager-versions=false',
+            '--config.package-manager-strict=false',
+          ]
+        : []
+      const rawAge = configValue(
+        configOutput({
+          directory: queryDirectory,
+          manager,
+          args: [
+            ...contextArgs,
+            'config',
+            'get',
+            'minimumReleaseAge',
+            '--json',
+          ],
+        })
+      )
+      // pnpm 11+ does not print defaults through config get; the native age gate
+      // defaults to one day. Older versions have no implicit delay.
+      const age = rawAge ?? (semver.major(version) >= 11 ? 1440 : 0)
+      const exclude = exclusions(
+        configValue(
+          configOutput({
+            directory: queryDirectory,
+            manager,
+            args: [
+              ...contextArgs,
+              'config',
+              'get',
+              'minimumReleaseAgeExclude',
+              '--json',
+            ],
+          })
+        )
+      )
+      for (const rule of exclude) {
+        const separator = rule.indexOf('@', rule.startsWith('@') ? 1 : 0)
+        if (
+          separator >= 0 &&
+          (rule.slice(0, separator).includes('*') ||
+            rule
+              .slice(separator + 1)
+              .split('||')
+              .some((entry) => !semver.valid(entry.trim())))
+        ) {
+          throw new Error('Invalid pnpm release-age version exclusion.')
+        }
+      }
+      return { manager, before: ageCutoff(age), exclude }
+    } finally {
+      if (temporary) {
+        rmSync(temporary, { recursive: true, force: true })
+      }
+    }
+  }
+  if (manager === 'yarn') {
+    const version = configOutput({
+      directory,
+      manager,
+      args: ['--version'],
+    }).trim()
+    if (!semver.valid(version)) {
+      throw new Error('Could not determine the Yarn version.')
+    }
+    if (semver.major(version) === 1) {
+      return { manager, before: null, exclude: [] }
+    }
+    const settings = configOutput({
+      directory,
+      manager,
+      args: ['config', '--json'],
+    })
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => configValue(line) as { key: string; effective: unknown })
+    const age = settings.find((entry) => entry.key === 'npmMinimalAgeGate')
+    const exclude = settings.find(
+      (entry) => entry.key === 'npmPreapprovedPackages'
+    )
+    const scopes = settings.find((entry) => entry.key === 'npmScopes')
+      ?.effective as
+      | Record<string, { npmMinimalAgeGate: number | undefined }>
+      | undefined
+    const scopedAge =
+      packageName === '@next/codemod'
+        ? scopes?.next?.npmMinimalAgeGate
+        : undefined
+    return {
+      manager,
+      before: ageCutoff(scopedAge ?? age?.effective),
+      exclude: exclusions(exclude?.effective),
+    }
+  }
+
+  // Preserve the existing Bun installation path; Bun age support is separate.
+  return { manager, before: null, exclude: [] }
+}
+
+export function parseNpmReleaseAge({
+  output,
+  operation,
+}: {
+  output: string
+  operation: 'install' | 'exec'
+}): ReleaseAgePolicy {
   const supported = new Set<string>()
   const sources: Record<string, unknown>[] = []
   let source: Record<string, unknown> | null = null
@@ -164,161 +496,14 @@ export function parseNpmReleaseAge(
   }
 
   // npm exec's initial manifest lookup does not apply install's exemptions.
-  return { manager: 'npm', before, exclude: execution ? [] : exclude }
+  return {
+    manager: 'npm',
+    before,
+    exclude: operation === 'exec' ? [] : exclude,
+  }
 }
 
-export function readReleaseAgePolicy(
-  directory: string,
-  manager: Manager,
-  execution: boolean,
-  packageName: 'next' | '@next/codemod'
-): ReleaseAgePolicy {
-  if (manager === 'npm') {
-    const prefix = configOutput(directory, manager, ['prefix']).trim()
-    if (!isAbsolute(prefix)) {
-      throw new Error('Could not determine the npm installation root.')
-    }
-    return parseNpmReleaseAge(
-      configOutput(prefix, manager, [
-        'config',
-        'list',
-        '--long',
-        '--no-workspaces',
-      ]),
-      execution
-    )
-  }
-  if (manager === 'pnpm') {
-    const version = configOutput(directory, manager, ['--version']).trim()
-    if (!semver.valid(version)) {
-      throw new Error('Could not determine the pnpm version.')
-    }
-    if (semver.lt(version, '10.16.0')) {
-      return { manager, before: null, exclude: [] }
-    }
-    let queryDirectory = directory
-    let temporary: string | null = null
-    try {
-      if (execution && semver.major(version) < 11) {
-        // Older dlx reads home settings instead of project security settings.
-        // Pin its manager in a disposable context so Corepack preserves the version.
-        temporary = mkdtempSync(join(tmpdir(), 'next-upgrade-policy-'))
-        queryDirectory = temporary
-        writeFileSync(
-          join(temporary, 'package.json'),
-          JSON.stringify({ packageManager: `pnpm@${version}` })
-        )
-        writeFileSync(
-          join(temporary, '.npmrc'),
-          'manage-package-manager-versions=true\n'
-        )
-        if (
-          configOutput(temporary, manager, ['--version']).trim() !== version
-        ) {
-          throw new Error(
-            'Could not query the running pnpm release-age policy.'
-          )
-        }
-      }
-      const contextArgs = temporary
-        ? [
-            '--dir',
-            homedir(),
-            '--ignore-workspace',
-            '--config.manage-package-manager-versions=false',
-            '--config.package-manager-strict=false',
-          ]
-        : []
-      const rawAge = configValue(
-        configOutput(queryDirectory, manager, [
-          ...contextArgs,
-          'config',
-          'get',
-          'minimumReleaseAge',
-          '--json',
-        ])
-      )
-      // pnpm 11+ does not print defaults through config get; the native age gate
-      // defaults to one day. Older versions have no implicit delay.
-      const age = rawAge ?? (semver.major(version) >= 11 ? 1440 : 0)
-      const exclude = exclusions(
-        configValue(
-          configOutput(queryDirectory, manager, [
-            ...contextArgs,
-            'config',
-            'get',
-            'minimumReleaseAgeExclude',
-            '--json',
-          ])
-        )
-      )
-      for (const rule of exclude) {
-        const separator = rule.indexOf('@', rule.startsWith('@') ? 1 : 0)
-        if (
-          separator >= 0 &&
-          (rule.slice(0, separator).includes('*') ||
-            rule
-              .slice(separator + 1)
-              .split('||')
-              .some((entry) => !semver.valid(entry.trim())))
-        ) {
-          throw new Error('Invalid pnpm release-age version exclusion.')
-        }
-      }
-      return { manager, before: ageCutoff(age), exclude }
-    } finally {
-      if (temporary) {
-        rmSync(temporary, { recursive: true, force: true })
-      }
-    }
-  }
-  if (manager === 'yarn') {
-    const version = configOutput(directory, manager, ['--version']).trim()
-    if (!semver.valid(version)) {
-      throw new Error('Could not determine the Yarn version.')
-    }
-    if (semver.major(version) === 1) {
-      return { manager, before: null, exclude: [] }
-    }
-    const settings = configOutput(directory, manager, ['config', '--json'])
-      .trim()
-      .split(/\r?\n/)
-      .map((line) => configValue(line) as { key: string; effective: unknown })
-    const age = settings.find((entry) => entry.key === 'npmMinimalAgeGate')
-    const exclude = settings.find(
-      (entry) => entry.key === 'npmPreapprovedPackages'
-    )
-    const scopes = settings.find((entry) => entry.key === 'npmScopes')
-      ?.effective as
-      | Record<string, { npmMinimalAgeGate: number | undefined }>
-      | undefined
-    const scopedAge =
-      packageName === '@next/codemod'
-        ? scopes?.next?.npmMinimalAgeGate
-        : undefined
-    return {
-      manager,
-      before: ageCutoff(scopedAge ?? age?.effective),
-      exclude: exclusions(exclude?.effective),
-    }
-  }
-
-  // Preserve the existing Bun installation path; Bun age support is separate.
-  return { manager, before: null, exclude: [] }
-}
-
-export function getRunnerReleaseAge(
-  directory: string,
-  packageName: 'next' | '@next/codemod'
-): ReleaseAgePolicy {
-  const command = getNpxCommand(directory).split(' ')[0]
-  return readReleaseAgePolicy(
-    directory,
-    command === 'npx' ? 'npm' : command === 'pnpm' ? 'pnpm' : 'yarn',
-    true,
-    packageName
-  )
-}
+// Configuration parsing and validation
 
 async function declaredManager(directory: string): Promise<Manager | null> {
   let contents: string
@@ -336,179 +521,68 @@ async function declaredManager(directory: string): Promise<Manager | null> {
   return match ? (match[1] as Manager) : null
 }
 
-export async function getInstallerReleaseAge(
+// Query the installed manager rather than reimplementing rc/workspace discovery.
+// Never include its config output in an error: it can contain credentials.
+function configOutput({
+  directory,
+  manager,
+  args,
+}: {
   directory: string
-): Promise<UpgradeReleaseAge> {
-  const marker = findUp.sync(
-    [
-      'pnpm-workspace.yaml',
-      'pnpm-lock.yaml',
-      'yarn.lock',
-      'bun.lock',
-      'bun.lockb',
-      'package-lock.json',
-    ],
-    { cwd: directory }
-  )
-  const installRoot = marker ? dirname(marker) : directory
-  const appManager = await declaredManager(directory)
-  const rootManager =
-    installRoot === directory ? appManager : await declaredManager(installRoot)
-  const lockManager = marker
-    ? basename(marker).startsWith('pnpm')
-      ? 'pnpm'
-      : basename(marker) === 'yarn.lock'
-        ? 'yarn'
-        : basename(marker).startsWith('bun')
-          ? 'bun'
-          : 'npm'
-    : null
-  const userAgentManager = /^(npm|pnpm|yarn|bun)\//.exec(
-    process.env.npm_config_user_agent ?? ''
-  )?.[1] as Manager | undefined
-  const codemodLock = findUp.sync(
-    [
-      'yarn.lock',
-      'pnpm-lock.yaml',
-      'bun.lock',
-      'bun.lockb',
-      'package-lock.json',
-    ],
-    { cwd: directory }
-  )
-  const codemodLockManager = codemodLock
-    ? basename(codemodLock) === 'yarn.lock'
-      ? 'yarn'
-      : basename(codemodLock) === 'pnpm-lock.yaml'
-        ? 'pnpm'
-        : basename(codemodLock).startsWith('bun')
-          ? 'bun'
-          : 'npm'
-    : null
-  const codemodManager =
-    appManager ?? userAgentManager ?? codemodLockManager ?? 'npm'
-  const installerManager =
-    appManager ?? rootManager ?? lockManager ?? getPkgManager(directory)
-  const installer = readReleaseAgePolicy(
-    installRoot,
-    installerManager,
-    false,
-    'next'
-  )
-  const codemodInstaller =
-    codemodManager === installerManager && installRoot === directory
-      ? installer
-      : readReleaseAgePolicy(directory, codemodManager, false, 'next')
-  return { installer, codemodInstaller }
-}
-
-export function isReleaseAllowed(
-  packageName: 'next' | '@next/codemod',
-  version: string,
-  publishedAt: string | undefined,
-  policy: ReleaseAgePolicy
-): boolean {
-  if (policy.before === null) {
-    return true
-  }
-  for (const rule of policy.exclude) {
-    // npm exemptions match names only; pnpm/Yarn can name exact versions or descriptors.
-    const separator = rule.indexOf('@', rule.startsWith('@') ? 1 : 0)
-    const name =
-      policy.manager === 'npm' || separator < 0
-        ? rule
-        : rule.slice(0, separator)
-    let matchesName: boolean
-    if (policy.manager === 'pnpm') {
-      const negative = name.startsWith('!')
-      const pattern = negative ? name.slice(1) : name
-      const matches = new RegExp(
-        `^${pattern.split('*').map(escapeStringRegexp).join('.*')}$`
-      ).test(packageName)
-      matchesName = negative ? !matches : matches
-    } else {
-      matchesName = picomatch.isMatch(packageName, name, {
-        nonegate: policy.manager === 'npm',
-        noext: policy.manager === 'npm',
-      })
-    }
-    if (!matchesName) {
-      continue
-    }
-    if (policy.manager === 'npm' || separator < 0) {
-      return true
-    }
-    const requested = rule.slice(separator + 1)
-    const matches =
-      policy.manager === 'pnpm'
-        ? requested
-            .split('||')
-            .some((candidate) => semver.valid(candidate.trim()) === version)
-        : semver.validRange(requested) !== null &&
-          semver.satisfies(version, requested)
-    if (matches) {
-      return true
-    }
-    if (policy.manager === 'pnpm') {
-      break
-    }
-  }
-  const time = publishedAt === undefined ? NaN : Date.parse(publishedAt)
-  return Number.isFinite(time) && time <= policy.before
-}
-
-export function isUpgradeReleaseAllowed(
-  version: string,
-  publishedAt: string | undefined,
-  installedVersion: string,
-  policies: UpgradeReleaseAge
-): boolean {
-  return (
-    isReleaseAllowed('next', version, publishedAt, policies.installer) &&
-    (semver.major(version) <= semver.major(installedVersion) ||
-      isReleaseAllowed('next', version, publishedAt, policies.codemodInstaller))
-  )
-}
-
-export async function getReleaseMetadata(
-  name: 'next' | '@next/codemod'
-): Promise<ReleaseMetadata> {
-  const response = await fetch(`https://registry.npmjs.org/${name}`, {
-    signal: AbortSignal.timeout(10_000),
-    headers: { Accept: 'application/json' },
-    redirect: 'error',
-    cache: 'no-store',
+  manager: Manager
+  args: string[]
+}) {
+  const result = spawn.sync(manager, args, {
+    cwd: directory,
+    encoding: 'utf8',
+    timeout: 10_000,
+    maxBuffer: 1024 * 1024,
   })
-  if (!response.ok) {
+  if (result.error || result.status !== 0) {
+    throw new Error(`Could not read ${manager} release-age configuration.`, {
+      cause: result.error,
+    })
+  }
+  return result.stdout
+}
+
+function configValue(output: string): unknown {
+  if (!output.trim() || output.trim() === 'undefined') {
+    return undefined
+  }
+  try {
+    return JSON.parse(output)
+  } catch (error) {
     throw new Error(
-      `Could not fetch ${name} release dates (HTTP ${response.status}).`
+      'Could not parse package manager release-age configuration.',
+      { cause: error }
     )
   }
-  const value = await response.json()
+}
+
+function ageCutoff(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error(
+      'Invalid minimum release age in package manager configuration.'
+    )
+  }
+  return value === 0 ? null : Date.now() - value * 60_000
+}
+
+function exclusions(value: unknown): string[] {
+  if (value === undefined || value === null) {
+    return []
+  }
   if (
-    !value ||
-    typeof value.versions !== 'object' ||
-    !value.versions ||
-    !value['dist-tags'] ||
-    typeof value['dist-tags'] !== 'object'
+    !Array.isArray(value) ||
+    value.some((entry) => typeof entry !== 'string')
   ) {
-    throw new Error(`Could not determine ${name} release dates.`)
+    throw new Error(
+      'Invalid release-age exclusions in package manager configuration.'
+    )
   }
   return value
-}
-
-export function assertToolReleaseAllowed(
-  name: 'next' | '@next/codemod',
-  version: string,
-  metadata: ReleaseMetadata,
-  policy: ReleaseAgePolicy
-) {
-  if (
-    metadata.versions[version]?.version !== version ||
-    !isReleaseAllowed(name, version, metadata.time?.[version], policy)
-  ) {
-    throw new Error(
-      `${name}@${version} does not satisfy the package manager release-age policy.`
-    )
-  }
 }

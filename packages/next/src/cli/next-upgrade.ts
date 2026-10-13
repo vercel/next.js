@@ -23,7 +23,6 @@ import {
   getRunnerReleaseAge,
   getReleaseMetadata,
   isReleaseAllowed,
-  assertToolReleaseAllowed,
   type ReleaseMetadata,
 } from '../lib/upgrade/release-age'
 import { getAgentName } from '../telemetry/agent-name'
@@ -314,21 +313,33 @@ export async function spawnNextUpgrade(
       }
 
       failureStage = 'metadata'
-      const runnerPolicy = getRunnerReleaseAge(baseDir, 'next')
+      const runnerPolicy = getRunnerReleaseAge({
+        directory: baseDir,
+        packageName: 'next',
+      })
       let runnerMetadata: ReleaseMetadata | null = null
       const runnerAllowsNext = async (version: string) => {
-        if (isReleaseAllowed('next', version, undefined, runnerPolicy)) {
+        if (
+          isReleaseAllowed({
+            packageName: 'next',
+            version,
+            publishedAt: undefined,
+            policy: runnerPolicy,
+          })
+        ) {
           return true
         }
-        runnerMetadata ??= await getReleaseMetadata('next')
+        runnerMetadata ??= await getReleaseMetadata({
+          name: 'next',
+        })
         return (
           runnerMetadata.versions[version]?.version === version &&
-          isReleaseAllowed(
-            'next',
+          isReleaseAllowed({
+            packageName: 'next',
             version,
-            runnerMetadata.time?.[version],
-            runnerPolicy
-          )
+            publishedAt: runnerMetadata.time?.[version],
+            policy: runnerPolicy,
+          })
         )
       }
 
@@ -550,7 +561,10 @@ export async function spawnNextUpgrade(
           if (!codemodVersion) {
             throw new Error('Could not determine the @next/codemod version.')
           }
-          const codemodPolicy = getRunnerReleaseAge(baseDir, '@next/codemod')
+          const codemodPolicy = getRunnerReleaseAge({
+            directory: baseDir,
+            packageName: '@next/codemod',
+          })
           if (
             !valid(codemodVersion) ||
             (codemodPolicy.before !== null &&
@@ -561,20 +575,29 @@ export async function spawnNextUpgrade(
             )
           }
           if (
-            !isReleaseAllowed(
-              '@next/codemod',
-              codemodVersion,
-              undefined,
-              codemodPolicy
-            )
+            !isReleaseAllowed({
+              packageName: '@next/codemod',
+              version: codemodVersion,
+              publishedAt: undefined,
+              policy: codemodPolicy,
+            })
           ) {
-            const metadata = await getReleaseMetadata('@next/codemod')
-            assertToolReleaseAllowed(
-              '@next/codemod',
-              codemodVersion,
-              metadata,
-              codemodPolicy
-            )
+            const metadata = await getReleaseMetadata({
+              name: '@next/codemod',
+            })
+            if (
+              metadata.versions[codemodVersion]?.version !== codemodVersion ||
+              !isReleaseAllowed({
+                packageName: '@next/codemod',
+                version: codemodVersion,
+                publishedAt: metadata.time?.[codemodVersion],
+                policy: codemodPolicy,
+              })
+            ) {
+              throw new Error(
+                `@next/codemod@${codemodVersion} does not satisfy the package manager release-age policy.`
+              )
+            }
           }
           const codemodCommand = `${getNpxCommand(baseDir)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
           const guide = await readFile(guidePath, 'utf8')

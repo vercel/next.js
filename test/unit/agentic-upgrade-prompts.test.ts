@@ -478,37 +478,50 @@ describe('agentic upgrade prompts', () => {
     }
   )
 
-  it('checks the codemod pin against its own release-age exceptions', async () => {
-    jest.mocked(getRunnerReleaseAge).mockImplementation((_directory, name) => ({
-      manager: 'yarn',
-      before: Date.parse('2026-10-10T12:00:00Z'),
-      exclude: name === 'next' ? ['next'] : [],
-    }))
-    global.fetch = jest.fn(async () =>
-      Response.json({
-        'dist-tags': {},
-        versions: { [cliVersion]: { version: cliVersion } },
-        time: { [cliVersion]: '2026-10-12T12:00:00Z' },
-      })
-    )
-    await spawnNextUpgrade(
-      '/workspace/app',
-      { revision: 'latest', verbose: false, agent: 'latest' },
-      null
-    )
-    expect(process.exitCode).toBe(1)
-    expect(Log.error).toHaveBeenCalledWith(
-      'Could not prepare the upgrade:',
-      expect.stringContaining(`@next/codemod@${cliVersion} does not satisfy`)
-    )
-    expect(crossSpawn).toHaveBeenCalledTimes(0)
-  })
+  it.each(['too young', 'unpublished'])(
+    'blocks handoff when the codemod is %s under its own release-age policy',
+    async (reason) => {
+      jest
+        .mocked(getRunnerReleaseAge)
+        .mockImplementation(({ packageName }) => ({
+          manager: 'yarn',
+          before: Date.parse('2026-10-10T12:00:00Z'),
+          exclude: packageName === 'next' ? ['next'] : [],
+        }))
+      global.fetch = jest.fn(async () =>
+        Response.json({
+          'dist-tags': {},
+          versions:
+            reason === 'unpublished'
+              ? {}
+              : { [cliVersion]: { version: cliVersion } },
+          time: {
+            [cliVersion]:
+              reason === 'unpublished'
+                ? '2026-10-09T12:00:00Z'
+                : '2026-10-12T12:00:00Z',
+          },
+        })
+      )
+      await spawnNextUpgrade(
+        '/workspace/app',
+        { revision: 'latest', verbose: false, agent: 'latest' },
+        null
+      )
+      expect(process.exitCode).toBe(1)
+      expect(Log.error).toHaveBeenCalledWith(
+        'Could not prepare the upgrade:',
+        expect.stringContaining(`@next/codemod@${cliVersion} does not satisfy`)
+      )
+      expect(crossSpawn).toHaveBeenCalledTimes(0)
+    }
+  )
 
   it('blocks a release-age constrained codemod that predates the target', async () => {
-    jest.mocked(getRunnerReleaseAge).mockImplementation((_directory, name) => ({
+    jest.mocked(getRunnerReleaseAge).mockImplementation(({ packageName }) => ({
       manager: 'yarn',
       before: Date.parse('2026-10-10T12:00:00Z'),
-      exclude: [name],
+      exclude: [packageName],
     }))
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',

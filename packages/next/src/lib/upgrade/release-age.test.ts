@@ -8,7 +8,6 @@ import {
   getInstallerReleaseAge,
   isReleaseAllowed,
   isUpgradeReleaseAllowed,
-  assertToolReleaseAllowed,
   type ReleaseAgePolicy,
 } from './release-age'
 
@@ -59,12 +58,22 @@ before = null
 min-release-age = 0
 min-release-age-exclude = ["*"]
 `
-    expect(parseNpmReleaseAge(output, false)).toEqual({
+    expect(
+      parseNpmReleaseAge({
+        output,
+        operation: 'install',
+      })
+    ).toEqual({
       manager: 'npm',
       before,
       exclude: ['next', '@next/*'],
     })
-    expect(parseNpmReleaseAge(output, true)).toEqual({
+    expect(
+      parseNpmReleaseAge({
+        output,
+        operation: 'exec',
+      })
+    ).toEqual({
       manager: 'npm',
       before,
       exclude: [],
@@ -80,7 +89,12 @@ before = "2026-10-10T12:00:00.000Z"
 min-release-age = 2
 min-release-age-exclude = ["*"]
 `
-    expect(parseNpmReleaseAge(output, false)).toEqual({
+    expect(
+      parseNpmReleaseAge({
+        output,
+        operation: 'install',
+      })
+    ).toEqual({
       manager: 'npm',
       before,
       exclude: [],
@@ -98,7 +112,12 @@ min-release-age-exclude = ["*"]
     const output =
       '; "default" config from default values\nbefore = null\nmin-release-age = null\n; "project" config from /app/.npmrc\n' +
       values
-    expect(parseNpmReleaseAge(output, false).before).toBe(cutoff)
+    expect(
+      parseNpmReleaseAge({
+        output,
+        operation: 'install',
+      }).before
+    ).toBe(cutoff)
   })
 
   it('rejects native config command failures without exposing its output', () => {
@@ -107,9 +126,14 @@ min-release-age-exclude = ["*"]
       stdout: 'credential value',
       stderr: 'credential value',
     } as never)
-    expect(() => readReleaseAgePolicy('/app', 'npm', false, 'next')).toThrow(
-      'Could not read npm release-age configuration.'
-    )
+    expect(() =>
+      readReleaseAgePolicy({
+        directory: '/app',
+        manager: 'npm',
+        operation: 'install',
+        packageName: 'next',
+      })
+    ).toThrow('Could not read npm release-age configuration.')
   })
 
   it('handles pnpm with no configured release-age keys', () => {
@@ -119,7 +143,14 @@ min-release-age-exclude = ["*"]
         stdout: args?.includes('--version') ? '10.33.0' : '',
       } as never
     })
-    expect(readReleaseAgePolicy('/app', 'pnpm', false, 'next')).toEqual({
+    expect(
+      readReleaseAgePolicy({
+        directory: '/app',
+        manager: 'pnpm',
+        operation: 'install',
+        packageName: 'next',
+      })
+    ).toEqual({
       manager: 'pnpm',
       before: null,
       exclude: [],
@@ -133,7 +164,14 @@ min-release-age-exclude = ["*"]
         stdout: args?.includes('--version') ? '10.15.0' : '"2880"',
       } as never
     })
-    expect(readReleaseAgePolicy('/app', 'pnpm', true, 'next')).toEqual({
+    expect(
+      readReleaseAgePolicy({
+        directory: '/app',
+        manager: 'pnpm',
+        operation: 'exec',
+        packageName: 'next',
+      })
+    ).toEqual({
       manager: 'pnpm',
       before: null,
       exclude: [],
@@ -150,7 +188,14 @@ min-release-age-exclude = ["*"]
         stdout:
           '{"key":"npmMinimalAgeGate","effective":2880}\n{"key":"npmPreapprovedPackages","effective":["next@npm:^16.0.0"]}',
       } as never)
-    expect(readReleaseAgePolicy('/app', 'yarn', false, 'next')).toEqual({
+    expect(
+      readReleaseAgePolicy({
+        directory: '/app',
+        manager: 'yarn',
+        operation: 'install',
+        packageName: 'next',
+      })
+    ).toEqual({
       manager: 'yarn',
       before,
       exclude: ['next@npm:^16.0.0'],
@@ -167,25 +212,40 @@ min-release-age-exclude = ["*"]
           '{"key":"npmMinimalAgeGate","effective":0}\n{"key":"npmScopes","effective":{"next":{"npmMinimalAgeGate":2880}}}',
       } as never)
     expect(
-      readReleaseAgePolicy('/app', 'yarn', true, '@next/codemod').before
+      readReleaseAgePolicy({
+        directory: '/app',
+        manager: 'yarn',
+        operation: 'exec',
+        packageName: '@next/codemod',
+      }).before
     ).toBe(before)
   })
 
   it('does not widen native Yarn descriptor exemptions', () => {
     for (const rule of ['next@npm:16.5.0-canary.8', 'next@^16.5.0']) {
       expect(
-        isReleaseAllowed('next', '16.5.0-canary.8', fresh, {
-          ...policy,
-          manager: 'yarn',
-          exclude: [rule],
+        isReleaseAllowed({
+          packageName: 'next',
+          version: '16.5.0-canary.8',
+          publishedAt: fresh,
+          policy: {
+            ...policy,
+            manager: 'yarn',
+            exclude: [rule],
+          },
         })
       ).toBe(false)
     }
     expect(
-      isReleaseAllowed('next', '16.5.0-canary.8', fresh, {
-        ...policy,
-        manager: 'yarn',
-        exclude: ['next@16.5.0-canary.8'],
+      isReleaseAllowed({
+        packageName: 'next',
+        version: '16.5.0-canary.8',
+        publishedAt: fresh,
+        policy: {
+          ...policy,
+          manager: 'yarn',
+          exclude: ['next@16.5.0-canary.8'],
+        },
       })
     ).toBe(true)
   })
@@ -195,7 +255,12 @@ min-release-age-exclude = ["*"]
       .mocked(spawn.sync)
       .mockReturnValue({ status: 0, stdout: '1.22.19' } as never)
     expect(
-      readReleaseAgePolicy('/app', 'yarn', false, 'next').before
+      readReleaseAgePolicy({
+        directory: '/app',
+        manager: 'yarn',
+        operation: 'install',
+        packageName: 'next',
+      }).before
     ).toBeNull()
     expect(spawn.sync).toHaveBeenCalledTimes(1)
   })
@@ -231,7 +296,9 @@ min-release-age-exclude = ["*"]
                   : '; "default" config from default values\nbefore = null',
         }) as never
     )
-    const result = await getInstallerReleaseAge(app)
+    const result = await getInstallerReleaseAge({
+      directory: app,
+    })
     expect(result.installer).toEqual(policy)
     expect(result.codemodInstaller).toEqual({
       manager: 'npm',
@@ -262,7 +329,9 @@ min-release-age-exclude = ["*"]
                   : '[]',
         }) as never
     )
-    const result = await getInstallerReleaseAge(root)
+    const result = await getInstallerReleaseAge({
+      directory: root,
+    })
     expect(result.installer).toEqual(policy)
     expect(result.codemodInstaller).toEqual({
       manager: 'yarn',
@@ -278,9 +347,14 @@ min-release-age-exclude = ["*"]
     ['invalid', false],
     ['2026-10-10T12:00:00Z', true],
   ])('handles timestamp %s as eligible=%s', (publishedAt, eligible) => {
-    expect(isReleaseAllowed('next', '16.4.0', publishedAt, policy)).toBe(
-      eligible
-    )
+    expect(
+      isReleaseAllowed({
+        packageName: 'next',
+        version: '16.4.0',
+        publishedAt,
+        policy,
+      })
+    ).toBe(eligible)
   })
 
   it.each([
@@ -291,7 +365,12 @@ min-release-age-exclude = ["*"]
     ['@next/*', false],
   ])('applies pnpm exclusion %s', (rule, allowed) => {
     expect(
-      isReleaseAllowed('next', '16.4.0', fresh, { ...policy, exclude: [rule] })
+      isReleaseAllowed({
+        packageName: 'next',
+        version: '16.4.0',
+        publishedAt: fresh,
+        policy: { ...policy, exclude: [rule] },
+      })
     ).toBe(allowed)
   })
 
@@ -299,9 +378,14 @@ min-release-age-exclude = ["*"]
     'keeps pnpm special pattern %s literal',
     (rule) => {
       expect(
-        isReleaseAllowed('next', '16.4.0', fresh, {
-          ...policy,
-          exclude: [rule],
+        isReleaseAllowed({
+          packageName: 'next',
+          version: '16.4.0',
+          publishedAt: fresh,
+          policy: {
+            ...policy,
+            exclude: [rule],
+          },
         })
       ).toBe(false)
     }
@@ -315,9 +399,14 @@ min-release-age-exclude = ["*"]
           stdout: args?.includes('--version') ? '11.0.0' : '',
         }) as never
     )
-    expect(readReleaseAgePolicy('/app', 'pnpm', false, 'next').before).toBe(
-      Date.parse(fresh) - 1440 * 60_000
-    )
+    expect(
+      readReleaseAgePolicy({
+        directory: '/app',
+        manager: 'pnpm',
+        operation: 'install',
+        packageName: 'next',
+      }).before
+    ).toBe(Date.parse(fresh) - 1440 * 60_000)
   })
 
   it.each(['10.33.0', '11.0.0'])(
@@ -334,7 +423,14 @@ min-release-age-exclude = ["*"]
                 : '[]',
           }) as never
       )
-      expect(readReleaseAgePolicy('/app', 'pnpm', true, 'next')).toEqual(policy)
+      expect(
+        readReleaseAgePolicy({
+          directory: '/app',
+          manager: 'pnpm',
+          operation: 'exec',
+          packageName: 'next',
+        })
+      ).toEqual(policy)
       const configCall = jest
         .mocked(spawn.sync)
         .mock.calls.find(([, args]) => args?.includes('minimumReleaseAge'))!
@@ -367,34 +463,54 @@ min-release-age-exclude = ["*"]
 
   it('honors pnpm first matching rule instead of combining exceptions', () => {
     expect(
-      isReleaseAllowed('next', '16.4.0', fresh, {
-        ...policy,
-        exclude: ['next@16.3.0', 'next'],
+      isReleaseAllowed({
+        packageName: 'next',
+        version: '16.4.0',
+        publishedAt: fresh,
+        policy: {
+          ...policy,
+          exclude: ['next@16.3.0', 'next'],
+        },
       })
     ).toBe(false)
   })
 
   it('does not exempt codemod using a Next.js exemption', () => {
     expect(
-      isReleaseAllowed('@next/codemod', '16.4.0', fresh, {
-        ...policy,
-        exclude: ['next'],
+      isReleaseAllowed({
+        packageName: '@next/codemod',
+        version: '16.4.0',
+        publishedAt: fresh,
+        policy: {
+          ...policy,
+          exclude: ['next'],
+        },
       })
     ).toBe(false)
     expect(
-      isReleaseAllowed('@next/codemod', '16.4.0', fresh, {
-        ...policy,
-        exclude: ['@next/*'],
+      isReleaseAllowed({
+        packageName: '@next/codemod',
+        version: '16.4.0',
+        publishedAt: fresh,
+        policy: {
+          ...policy,
+          exclude: ['@next/*'],
+        },
       })
     ).toBe(true)
   })
 
   it('keeps npm negation and extglobs literal', () => {
     expect(
-      isReleaseAllowed('next', '16.4.0', fresh, {
-        manager: 'npm',
-        before,
-        exclude: ['!other', '+(next)'],
+      isReleaseAllowed({
+        packageName: 'next',
+        version: '16.4.0',
+        publishedAt: fresh,
+        policy: {
+          manager: 'npm',
+          before,
+          exclude: ['!other', '+(next)'],
+        },
       })
     ).toBe(false)
   })
@@ -404,22 +520,21 @@ min-release-age-exclude = ["*"]
       installer: { ...policy, before: null },
       codemodInstaller: policy,
     }
-    expect(isUpgradeReleaseAllowed('16.4.0', fresh, '16.2.0', policies)).toBe(
-      true
-    )
-    expect(isUpgradeReleaseAllowed('17.0.0', fresh, '16.2.0', policies)).toBe(
-      false
-    )
-  })
-
-  it('blocks an unavailable exact reporting CLI', () => {
-    const metadata = {
-      'dist-tags': {},
-      versions: { '16.4.0': { version: '16.4.0' } },
-      time: { '16.4.0': fresh },
-    }
-    expect(() =>
-      assertToolReleaseAllowed('next', '16.4.0', metadata, policy)
-    ).toThrow('next@16.4.0 does not satisfy')
+    expect(
+      isUpgradeReleaseAllowed({
+        version: '16.4.0',
+        publishedAt: fresh,
+        installedVersion: '16.2.0',
+        policies,
+      })
+    ).toBe(true)
+    expect(
+      isUpgradeReleaseAllowed({
+        version: '17.0.0',
+        publishedAt: fresh,
+        installedVersion: '16.2.0',
+        policies,
+      })
+    ).toBe(false)
   })
 })

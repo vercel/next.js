@@ -7,6 +7,7 @@ import loadConfig from '../../server/config'
 import {
   getInstallerReleaseAge,
   isUpgradeReleaseAllowed,
+  type ReleaseMetadata,
   type UpgradeReleaseAge,
 } from './release-age'
 import { PHASE_INFO } from '../../shared/lib/constants'
@@ -41,7 +42,9 @@ export async function prepareUpgrade(
 
   const installedVersion = await getInstalledNextVersion(directory)
 
-  const releaseAge = await getInstallerReleaseAge(directory)
+  const releaseAge = await getInstallerReleaseAge({
+    directory,
+  })
   const { upgrade } = await assessUpgrade(
     installedVersion,
     targetRequest,
@@ -197,14 +200,14 @@ async function assessUpgrade(
       const releases = parseReleases(registry).filter(
         ({ version }) =>
           !releaseAge ||
-          isUpgradeReleaseAllowed(
+          isUpgradeReleaseAllowed({
             version,
-            (registry as { time: Record<string, string> | undefined }).time?.[
-              version
-            ],
+            publishedAt: (
+              registry as { time: Record<string, string> | undefined }
+            ).time?.[version],
             installedVersion,
-            releaseAge
-          )
+            policies: releaseAge,
+          })
       )
       references = [snapshot.reference, registryURL]
       const candidates = securityCandidates(installedVersion, releases)
@@ -415,18 +418,15 @@ async function fetchLatestRelease(
     releaseAge &&
     release &&
     semver.valid(release.version) &&
-    !isUpgradeReleaseAllowed(
-      release.version,
-      undefined,
+    !isUpgradeReleaseAllowed({
+      version: release.version,
+      publishedAt: undefined,
       installedVersion,
-      releaseAge
-    )
+      policies: releaseAge,
+    })
   if (restricted) {
-    const metadata = (await fetchJSON(`${NPM_REGISTRY}next`)).value as {
-      'dist-tags': Record<string, string>
-      versions: Record<string, { version: string }>
-      time: Record<string, string> | undefined
-    }
+    const metadata = (await fetchJSON(`${NPM_REGISTRY}next`))
+      .value as ReleaseMetadata
     const tag = metadata?.['dist-tags']?.[releaseChannel]
     if (
       !semver.valid(tag) ||
@@ -446,12 +446,12 @@ async function fetchLatestRelease(
             (channel === 'canary' ? 'canary' : null) &&
           (channel === 'canary' || !semver.prerelease(version)) &&
           semver.lte(version, tag) &&
-          isUpgradeReleaseAllowed(
+          isUpgradeReleaseAllowed({
             version,
-            metadata.time?.[version],
+            publishedAt: metadata.time?.[version],
             installedVersion,
-            releaseAge
-          )
+            policies: releaseAge,
+          })
       )
       .sort(semver.rcompare)
     if (versions.length === 0) {
