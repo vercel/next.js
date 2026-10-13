@@ -1,6 +1,14 @@
 import { getFontAxes } from './get-font-axes'
 
-describe('getFontAxes errors', () => {
+describe('getFontAxes', () => {
+  test('Setting axes with a discrete weight', () => {
+    expect(getFontAxes('Newsreader', ['700'], ['normal'], ['opsz'])).toEqual({
+      wght: ['700'],
+      ital: undefined,
+      variableAxes: [['opsz', '6..72']],
+    })
+  })
+
   test('Setting axes on font without definable axes', () => {
     expect(() =>
       getFontAxes('Lora', ['variable'], [], [])
