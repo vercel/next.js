@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('intercepted modal refresh Next-Url', () => {
   const { next } = nextTestSetup({ files: __dirname })
@@ -19,10 +19,11 @@ describe('intercepted modal refresh Next-Url', () => {
         .text()
 
       await browser.elementByCss("[href='/settings']").click()
-      await check(
-        () => browser.hasElementByCssSelector('#settings-modal'),
-        true
-      )
+      await retry(async () => {
+        expect(await browser.hasElementByCssSelector('#settings-modal')).toBe(
+          true
+        )
+      })
 
       await browser.elementById('refresh').click()
 
@@ -50,7 +51,11 @@ describe('intercepted modal refresh Next-Url', () => {
       .text()
 
     await browser.elementByCss("[href='/settings']").click()
-    await check(() => browser.hasElementByCssSelector('#settings-modal'), true)
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#settings-modal')).toBe(
+        true
+      )
+    })
     await browser.elementById('revalidate').click()
 
     await retry(async () => {
