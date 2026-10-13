@@ -87,7 +87,7 @@ describe('enableAtomicManifestWrites', () => {
     expect(await writeWith(compiler, target, '{"new":true}')).toBeNull()
 
     expect(shared.writeFile).toHaveBeenCalledTimes(1)
-    const tempPath = shared.writeFile.mock.calls[0][0]
+    const tempPath = shared.writeFile.mock.calls[0][0] as string
     expect(tempPath).not.toBe(target)
     expect(path.dirname(tempPath)).toBe(dir)
     expect(shared.rename).toHaveBeenCalledWith(
@@ -162,7 +162,7 @@ describe('enableAtomicManifestWrites', () => {
 
     expect(await writeWith(compiler, target, 'manifest')).toBe(renameError)
 
-    const tempPath = shared.writeFile.mock.calls[0][0]
+    const tempPath = shared.writeFile.mock.calls[0][0] as string
     expect(shared.unlink).toHaveBeenCalledWith(tempPath, expect.any(Function))
     expect(fs.readdirSync(dir)).toEqual([])
   })
