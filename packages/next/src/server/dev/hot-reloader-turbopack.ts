@@ -2423,7 +2423,7 @@ export async function createHotReloaderTurbopack(
         // Clear the evalManifest() shared cache for each updated chunk so the
         // next RSC render picks up the HMR-applied module changes. Unlike
         // a full restart, this does NOT clear require.cache — the HMR-applied
-        // modules in devModuleCache must persist for dep preservation.
+        // modules in the module cache must persist for dep preservation.
         const manifestPaths = chunkPaths.map((chunkPath) =>
           join(distDir, chunkPath)
         )

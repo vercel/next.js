@@ -858,7 +858,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     // In Turbopack dev mode, fetch the live userland module on every request
     // via the synchronous require() getter so server HMR updates are reflected
-    // immediately. This is cheap — it is just a devModuleCache lookup.
+    // immediately. This is cheap — it is just a module cache lookup.
     // For routes with top-level await, require() may still return a Promise
     // (async module); in that case fall back to the already-resolved
     // userland module resolved by ensureUserland() above.

@@ -2,6 +2,7 @@
 /// <reference path="./runtime-types.d.ts" />
 /// <reference path="./dev-extensions.ts" />
 /// <reference path="./dev-protocol.d.ts" />
+/// <reference path="./dev-runtime-hooks.d.ts" />
 
 type HotModuleFactoryFunction = ModuleFactoryFunction<
   HotModule,
@@ -18,15 +19,19 @@ type HotModuleFactoryFunction = ModuleFactoryFunction<
 
 /**
  * The development module cache shared across the runtime.
- * Browser runtime declares this directly.
- * Node.js runtime assigns globalThis.__turbopack_module_cache__ to this.
  */
-let devModuleCache: ModuleCache<any>
+const moduleCache: ModuleCache<HotModule> = new Map()
 
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
  */
 let runtimeModules: Set<ModuleId>
+
+/**
+ * Whether to set `module.loaded` once a module has evaluated, as Node.js does
+ * for CommonJS modules. Set by the Node.js dev runtime.
+ */
+let markDevModulesLoaded = false
 
 /**
  * Maps module IDs to persisted data between executions of their hot module
@@ -161,7 +166,7 @@ function getAffectedModuleEffects(
       }
     }
 
-    const module = devModuleCache.get(moduleId)
+    const module = moduleCache.get(moduleId)
     const hotState = moduleHotState.get(module)!
 
     if (
@@ -194,7 +199,7 @@ function getAffectedModuleEffects(
     }
 
     for (const parentId of module.parents) {
-      const parent = devModuleCache.get(parentId)
+      const parent = moduleCache.get(parentId)
 
       if (!parent) {
         continue
@@ -461,7 +466,7 @@ function computeOutdatedSelfAcceptedModules(
     errorHandler: true | Function
   }[] = []
   for (const moduleId of outdatedModules) {
-    const module = devModuleCache.get(moduleId)
+    const module = moduleCache.get(moduleId)
     const hotState = moduleHotState.get(module)
     if (module && hotState?.selfAccepted && !hotState.selfInvalidated) {
       outdatedSelfAcceptedModules.push({
@@ -477,11 +482,11 @@ function computeOutdatedSelfAcceptedModules(
  * Disposes of an instance of a module.
  * Runs hot.dispose handlers and manages persistent hot data.
  *
- * NOTE: mode = "replace" will not remove modules from devModuleCache.
+ * NOTE: mode = "replace" will not remove modules from moduleCache.
  * This must be done in a separate step afterwards.
  */
 function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
-  const module = devModuleCache.get(moduleId)
+  const module = moduleCache.get(moduleId)
   if (!module) {
     return
   }
@@ -511,7 +516,7 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
   // It will be added back once the module re-instantiates and imports its
   // children again.
   for (const childId of module.children) {
-    const child = devModuleCache.get(childId)
+    const child = moduleCache.get(childId)
     if (!child) {
       continue
     }
@@ -524,7 +529,7 @@ function disposeModule(moduleId: ModuleId, mode: 'clear' | 'replace') {
 
   switch (mode) {
     case 'clear':
-      devModuleCache.delete(module.id)
+      moduleCache.delete(module.id)
       moduleHotData.delete(module.id)
       break
     case 'replace':
@@ -557,9 +562,11 @@ function disposePhase(
   // We also want to keep track of previous parents of the outdated modules.
   const outdatedModuleParents = new Map<ModuleId, Array<ModuleId>>()
   for (const moduleId of outdatedModules) {
-    const oldModule = devModuleCache.get(moduleId)
-    outdatedModuleParents.set(moduleId, oldModule?.parents)
-    devModuleCache.delete(moduleId)
+    const oldModule = moduleCache.get(moduleId)
+    if (oldModule) {
+      outdatedModuleParents.set(moduleId, oldModule.parents)
+    }
+    moduleCache.delete(moduleId)
   }
 
   // Remove outdated dependencies from parent module's children list.
@@ -567,7 +574,7 @@ function disposePhase(
   // but the parent stays alive. We remove the old child reference so it
   // gets re-added when the child re-imports.
   for (const [parentId, deps] of outdatedDependencies) {
-    const module = devModuleCache.get(parentId)
+    const module = moduleCache.get(parentId)
     if (module) {
       for (const dep of deps) {
         const idx = module.children.indexOf(dep)
@@ -584,27 +591,17 @@ function disposePhase(
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /**
- * Shared module instantiation logic.
- * This handles the full module instantiation flow for both browser and Node.js.
- * Only React Refresh hooks differ between platforms (passed as callback).
+ * Instantiates a module in development mode.
+ *
+ * This calls the module factory directly, and allows different runtimes to supply hooks via
+ * `interceptDevModuleExecution`/`createDevModuleContext` hooks.
  */
-function instantiateModuleShared(
+function instantiateModule(
   moduleId: ModuleId,
   sourceType: SourceType,
-  sourceData: SourceData,
-  moduleFactories: ModuleFactories,
-  devModuleCache: ModuleCache<HotModule>,
-  runtimeModules: Set<ModuleId>,
-  createModuleObjectFn: (id: ModuleId) => HotModule,
-  createContextFn: (module: HotModule, exports: Exports, refresh?: any) => any,
-  runModuleExecutionHooksFn: (
-    module: HotModule,
-    exec: (refresh: any) => void
-  ) => void
+  sourceData: SourceData
 ): HotModule {
-  // 1. Factory validation (same in both browser and Node.js)
-  const id = moduleId
-  const moduleFactory = moduleFactories.get(id)
+  const moduleFactory = moduleFactories.get(moduleId)
   if (typeof moduleFactory !== 'function') {
     throw new Error(
       factoryNotAvailableMessage(moduleId, sourceType, sourceData) +
@@ -614,15 +611,51 @@ function instantiateModuleShared(
     )
   }
 
-  // 2. Hot API setup (same in both - works for browser, included for Node.js)
-  const hotData = moduleHotData.get(id)!
-  const { hot, hotState } = createModuleHot(id, hotData)
+  const module = createDevModule(moduleId, sourceType, sourceData)
+  const exports = module.exports
 
-  // 3. Parent assignment logic (same in both)
+  const finishExecution = interceptDevModuleExecution(module)
+  try {
+    // Called like in the production runtimes, without a `this`, which keeps
+    // this frame smaller.
+    moduleFactory(
+      createDevModuleContext(module, exports, finishExecution !== undefined),
+      module,
+      exports
+    )
+  } catch (error) {
+    module.error = error as any
+    throw error
+  } finally {
+    finishExecution?.()
+  }
+  if (markDevModulesLoaded) {
+    ;(module as any).loaded = true
+  }
+  if (module.namespaceObject && module.exports !== module.namespaceObject) {
+    // in case of a circular dependency: cjs1 -> esm2 -> cjs1
+    interopEsm(module.exports, module.namespaceObject)
+  }
+
+  return module
+}
+
+/**
+ * Creates a module object with its hot API and parents, and adds it to the
+ * module cache.
+ */
+function createDevModule(
+  moduleId: ModuleId,
+  sourceType: SourceType,
+  sourceData: SourceData
+): HotModule {
+  const hotData = moduleHotData.get(moduleId)!
+  const { hot, hotState } = createModuleHot(moduleId, hotData)
+
   let parents: ModuleId[]
   switch (sourceType) {
     case SourceType.Runtime:
-      runtimeModules.add(id)
+      runtimeModules.add(moduleId)
       parents = []
       break
     case SourceType.Parent:
@@ -635,33 +668,13 @@ function instantiateModuleShared(
       throw new Error(`Unknown source type: ${sourceType}`)
   }
 
-  // 4. Module creation (platform creates base module object)
-  const module = createModuleObjectFn(id)
-  const exports = module.exports
+  // The module object becomes a HotModule once `hot` is assigned.
+  const module = createModuleWithDirection(moduleId) as HotModule
   module.parents = parents
-  module.children = []
   module.hot = hot
 
-  devModuleCache.set(id, module)
+  moduleCache.set(moduleId, module)
   moduleHotState.set(module, hotState)
-
-  // 5. Module execution (React Refresh hooks are platform-specific)
-  try {
-    runModuleExecutionHooksFn(module, (refresh) => {
-      const context = createContextFn(module, exports, refresh)
-      moduleFactory.call(exports, context, module, exports)
-    })
-  } catch (error) {
-    module.error = error as any
-    throw error
-  }
-
-  // 6. ESM interop (same in both)
-  if (module.namespaceObject && module.exports !== module.namespaceObject) {
-    // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-    interopEsm(module.exports, module.namespaceObject)
-  }
-
   return module
 }
 
@@ -803,8 +816,6 @@ function applyPhase(
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>,
   outdatedModuleParents: Map<ModuleId, Array<ModuleId>>,
   outdatedDependencies: Map<ModuleId, Set<ModuleId>>,
-  moduleFactories: ModuleFactories,
-  devModuleCache: ModuleCache<HotModule>,
   instantiateModuleFn: (
     moduleId: ModuleId,
     sourceType: SourceType,
@@ -825,7 +836,7 @@ function applyPhase(
   // This runs BEFORE re-instantiating self-accepted modules, matching
   // webpack's behavior.
   for (const [parentId, deps] of outdatedDependencies) {
-    const module = devModuleCache.get(parentId)
+    const module = moduleCache.get(parentId)
     if (!module) continue
 
     const hotState = moduleHotState.get(module)
@@ -888,7 +899,7 @@ function applyPhase(
     } catch (err) {
       if (typeof errorHandler === 'function') {
         try {
-          errorHandler(err, { moduleId, module: devModuleCache.get(moduleId) })
+          errorHandler(err, { moduleId, module: moduleCache.get(moduleId) })
         } catch (err2) {
           reportError(err2)
           reportError(err)
@@ -911,8 +922,6 @@ function applyInternal(
   outdatedDependencies: Map<ModuleId, Set<ModuleId>>,
   disposedModules: Iterable<ModuleId>,
   newModuleFactories: Map<ModuleId, HotModuleFactoryFunction>,
-  moduleFactories: ModuleFactories,
-  devModuleCache: ModuleCache<HotModule>,
   instantiateModuleFn: (
     moduleId: ModuleId,
     sourceType: SourceType,
@@ -949,8 +958,6 @@ function applyInternal(
     newModuleFactories,
     outdatedModuleParents,
     outdatedDependencies,
-    moduleFactories,
-    devModuleCache,
     instantiateModuleFn,
     applyModuleFactoryNameFn,
     reportError
@@ -967,8 +974,6 @@ function applyInternal(
       new Map(),
       [],
       new Map(),
-      moduleFactories,
-      devModuleCache,
       instantiateModuleFn,
       applyModuleFactoryNameFn,
       autoAcceptRootModules
@@ -995,8 +1000,6 @@ function applyEcmascriptMergedUpdateShared(options: {
     sourceData: SourceData
   ) => HotModule
   applyModuleFactoryName: (factory: HotModuleFactoryFunction) => void
-  moduleFactories: ModuleFactories
-  devModuleCache: ModuleCache<HotModule>
   autoAcceptRootModules: boolean
 }) {
   const {
@@ -1006,8 +1009,6 @@ function applyEcmascriptMergedUpdateShared(options: {
     evalModuleEntry,
     instantiateModule,
     applyModuleFactoryName,
-    moduleFactories,
-    devModuleCache,
     autoAcceptRootModules,
   } = options
 
@@ -1024,8 +1025,6 @@ function applyEcmascriptMergedUpdateShared(options: {
     outdatedDependencies,
     disposedModules,
     newModuleFactories,
-    moduleFactories,
-    devModuleCache,
     instantiateModule,
     applyModuleFactoryName,
     autoAcceptRootModules
