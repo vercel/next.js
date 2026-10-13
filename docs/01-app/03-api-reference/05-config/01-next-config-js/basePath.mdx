@@ -45,17 +45,17 @@ This makes sure that you don't have to change all links in your application when
 
 <AppOnly>
 
-When using the [`next/image`](/docs/app/api-reference/components/image) component, you will need to add the `basePath` in front of `src`.
+When using the [`next/image`](/docs/app/api-reference/components/image) component, the `basePath` will be automatically applied to the `src` attribute.
 
 </AppOnly>
 
 <PagesOnly>
 
-When using the [`next/image`](/docs/pages/api-reference/components/image) component, you will need to add the `basePath` in front of `src`.
+When using the [`next/image`](/docs/pages/api-reference/components/image) component, the `basePath` will be automatically applied to the `src` attribute.
 
 </PagesOnly>
 
-For example, using `/docs/me.png` will properly serve your image when `basePath` is set to `/docs`.
+For example, using `/me.png` will automatically become `/docs/me.png` when `basePath` is set to `/docs`.
 
 ```jsx
 import Image from 'next/image'
@@ -65,7 +65,7 @@ function Home() {
     <>
       <h1>My Homepage</h1>
       <Image
-        src="/docs/me.png"
+        src="/me.png"
         alt="Picture of the author"
         width={500}
         height={500}
