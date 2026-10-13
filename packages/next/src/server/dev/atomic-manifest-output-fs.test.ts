@@ -3,15 +3,19 @@ import os from 'os'
 import path from 'path'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import {
-  enableAtomicManifestWrites,
+  createAtomicManifestOutputFileSystem,
   isManifestFile,
 } from './atomic-manifest-output-fs'
 
-type Callback = (err?: NodeJS.ErrnoException | null) => void
+type OutputFileSystem = NonNullable<webpack.Compiler['outputFileSystem']>
 
-function writeWith(compiler: any, filePath: string, content: string) {
+function writeWith(
+  outputFs: OutputFileSystem,
+  filePath: string,
+  content: string | Buffer
+) {
   return new Promise<NodeJS.ErrnoException | null | undefined>((resolve) => {
-    compiler.outputFileSystem.writeFile(filePath, Buffer.from(content), resolve)
+    outputFs.writeFile(filePath, content, resolve)
   })
 }
 
@@ -47,195 +51,128 @@ describe('isManifestFile', () => {
   })
 })
 
-describe('enableAtomicManifestWrites', () => {
+describe('createAtomicManifestOutputFileSystem', () => {
   let dir: string
+  // The real disk file system, standing in for webpack's graceful-fs.
+  const baseFs = fs as unknown as OutputFileSystem
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'atomic-manifest-'))
   })
 
   afterEach(() => {
+    jest.restoreAllMocks()
     fs.rmSync(dir, { recursive: true, force: true })
   })
 
-  // The shared file system the wrapper delegates to.
-  function createFileSystem(overrides: Record<string, any> = {}) {
-    return {
-      writeFile: jest.fn(fs.writeFile),
-      rename: jest.fn(fs.rename),
-      unlink: jest.fn(fs.unlink),
-      mkdir: fs.mkdir,
-      ...overrides,
-    }
-  }
+  it('writes manifest buffers byte for byte', async () => {
+    const outputFs = createAtomicManifestOutputFileSystem(baseFs)
+    const target = path.join(dir, 'build-manifest.json')
+    const bytes = Buffer.from([0x7b, 0xff, 0x00, 0xfe, 0x7d])
 
-  function createCompiler(
-    outputFileSystem: Record<string, any> = createFileSystem(),
-    options?: Parameters<typeof enableAtomicManifestWrites>[1]
-  ) {
-    const compiler = { outputFileSystem }
-    enableAtomicManifestWrites(compiler as unknown as webpack.Compiler, options)
-    return compiler
-  }
+    expect(await writeWith(outputFs, target, bytes)).toBeNull()
+    expect(fs.readFileSync(target).equals(bytes)).toBe(true)
+    expect(fs.readdirSync(dir)).toEqual(['build-manifest.json'])
+  })
 
-  it('writes manifests to a temp file and renames it over the target', async () => {
-    const shared = createFileSystem()
-    const compiler = createCompiler(shared)
-    const target = path.join(dir, 'next-font-manifest.json')
+  it('never exposes a partially written manifest', async () => {
+    const outputFs = createAtomicManifestOutputFileSystem(baseFs)
+    const target = path.join(dir, 'build-manifest.json')
     fs.writeFileSync(target, '{"old":true}')
 
-    expect(await writeWith(compiler, target, '{"new":true}')).toBeNull()
+    const realRenameSync = fs.renameSync
+    let contentAtRename: string | undefined
+    jest.spyOn(fs, 'renameSync').mockImplementation((from, to) => {
+      // The new content is fully written to the temp file, and the target
+      // still has the complete old content until the rename replaces it.
+      contentAtRename = fs.readFileSync(target, 'utf8')
+      expect(fs.readFileSync(from, 'utf8')).toBe('{"new":true}')
+      realRenameSync(from, to)
+    })
 
-    expect(shared.writeFile).toHaveBeenCalledTimes(1)
-    const tempPath = shared.writeFile.mock.calls[0][0] as string
-    expect(tempPath).not.toBe(target)
-    expect(path.dirname(tempPath)).toBe(dir)
-    expect(shared.rename).toHaveBeenCalledWith(
-      tempPath,
-      target,
-      expect.any(Function)
-    )
+    expect(await writeWith(outputFs, target, '{"new":true}')).toBeNull()
+    expect(contentAtRename).toBe('{"old":true}')
     expect(fs.readFileSync(target, 'utf8')).toBe('{"new":true}')
-    expect(fs.readdirSync(dir)).toEqual(['next-font-manifest.json'])
+    expect(fs.readdirSync(dir)).toEqual(['build-manifest.json'])
   })
 
-  it('delegates other files to the original writeFile', async () => {
-    const shared = createFileSystem()
-    const compiler = createCompiler(shared)
-    const target = path.join(dir, 'page.js')
+  it('reports a failed write once and leaves no temp file behind', async () => {
+    const outputFs = createAtomicManifestOutputFileSystem(baseFs)
+    const target = path.join(dir, 'build-manifest.json')
+    fs.writeFileSync(target, '{"old":true}')
+    jest.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw Object.assign(new Error('rename failed'), { code: 'EIO' })
+    })
 
-    expect(await writeWith(compiler, target, 'chunk')).toBeNull()
+    const callback = jest.fn()
+    outputFs.writeFile(target, '{"new":true}', callback)
+    await new Promise((resolve) => setImmediate(resolve))
 
-    expect(shared.writeFile).toHaveBeenCalledWith(
-      target,
-      expect.anything(),
-      expect.any(Function)
+    expect(callback).toHaveBeenCalledTimes(1)
+    expect(callback.mock.calls[0][0]).toMatchObject({ code: 'EIO' })
+    expect(fs.readFileSync(target, 'utf8')).toBe('{"old":true}')
+    expect(fs.readdirSync(dir)).toEqual(['build-manifest.json'])
+  })
+
+  it('reports a missing directory through the callback', async () => {
+    const outputFs = createAtomicManifestOutputFileSystem(baseFs)
+    const err = await writeWith(
+      outputFs,
+      path.join(dir, 'missing', 'build-manifest.json'),
+      '{}'
     )
-    expect(shared.rename).not.toHaveBeenCalled()
-    expect(fs.readFileSync(target, 'utf8')).toBe('chunk')
-  })
-
-  it('never exposes a partially written manifest to concurrent readers', async () => {
-    let releaseRename!: () => void
-    const renamePaused = new Promise<void>((resolve) => {
-      releaseRename = resolve
-    })
-    let onRenameCalled!: () => void
-    const renameCalled = new Promise<void>((resolve) => {
-      onRenameCalled = resolve
-    })
-    const compiler = createCompiler(
-      createFileSystem({
-        rename: (from: string, to: string, cb: Callback) => {
-          onRenameCalled()
-          renamePaused.then(() => fs.rename(from, to, cb))
-        },
-      })
-    )
-    const target = path.join(dir, 'page_client-reference-manifest.js')
-    const oldContent = 'globalThis.__RSC_MANIFEST = { old: true }'
-    const newContent = 'globalThis.__RSC_MANIFEST = { new: true }'
-    fs.writeFileSync(target, oldContent)
-
-    const write = writeWith(compiler, target, newContent)
-
-    // The new content is fully written to the temp file, but not yet renamed.
-    await renameCalled
-    expect(fs.readFileSync(target, 'utf8')).toBe(oldContent)
-
-    releaseRename()
-    expect(await write).toBeNull()
-    expect(fs.readFileSync(target, 'utf8')).toBe(newContent)
-  })
-
-  it('removes the temp file and reports the error when the rename fails', async () => {
-    const renameError = Object.assign(new Error('rename failed'), {
-      code: 'ENOSPC',
-    })
-    const shared = createFileSystem({
-      rename: jest.fn((_from: string, _to: string, cb: Callback) =>
-        cb(renameError)
-      ),
-    })
-    const compiler = createCompiler(shared)
-    const target = path.join(dir, 'page_client-reference-manifest.js')
-
-    expect(await writeWith(compiler, target, 'manifest')).toBe(renameError)
-
-    const tempPath = shared.writeFile.mock.calls[0][0] as string
-    expect(shared.unlink).toHaveBeenCalledWith(tempPath, expect.any(Function))
+    expect(err).toMatchObject({ code: 'ENOENT' })
     expect(fs.readdirSync(dir)).toEqual([])
   })
 
-  it('retries transient rename errors on Windows even if the target exists', async () => {
-    let failures = 1
-    const shared = createFileSystem({
-      rename: jest.fn((from: string, to: string, cb: Callback) => {
-        if (failures-- > 0) {
-          return cb(Object.assign(new Error('locked'), { code: 'EPERM' }))
-        }
-        fs.rename(from, to, cb)
-      }),
-    })
-    const compiler = createCompiler(shared, { platform: 'win32' })
+  it('does not call back twice when the callback throws', () => {
+    const outputFs = createAtomicManifestOutputFileSystem(baseFs)
     const target = path.join(dir, 'build-manifest.json')
-    fs.writeFileSync(target, 'old')
-
-    expect(await writeWith(compiler, target, 'new')).toBeNull()
-
-    expect(shared.rename).toHaveBeenCalledTimes(2)
-    expect(fs.readFileSync(target, 'utf8')).toBe('new')
-  })
-
-  it('does not retry rename errors on other platforms', async () => {
-    const shared = createFileSystem({
-      rename: jest.fn((_from: string, _to: string, cb: Callback) =>
-        cb(Object.assign(new Error('locked'), { code: 'EPERM' }))
-      ),
+    const callback = jest.fn(() => {
+      throw new Error('callback failed')
     })
-    const compiler = createCompiler(shared, { platform: 'linux' })
+    const ticks: Array<() => void> = []
+    jest
+      .spyOn(process, 'nextTick')
+      .mockImplementation((fn: any, ...args: any[]) => {
+        ticks.push(() => fn(...args))
+      })
 
-    const err = await writeWith(
-      compiler,
-      path.join(dir, 'build-manifest.json'),
-      'new'
+    outputFs.writeFile(target, '{}', callback)
+    expect(callback).not.toHaveBeenCalled()
+    expect(ticks).toHaveLength(1)
+    expect(() => ticks[0]()).toThrow('callback failed')
+    expect(callback).toHaveBeenCalledTimes(1)
+  })
+
+  it('delegates non-manifest writes and other methods', async () => {
+    const writeFile = jest.fn(
+      (_file: string, _content: unknown, callback: (err: null) => void) =>
+        callback(null)
     )
+    const mkdir = jest.fn()
+    const original = { writeFile, mkdir } as unknown as OutputFileSystem
+    const outputFs = createAtomicManifestOutputFileSystem(original)
 
-    expect(err?.code).toBe('EPERM')
-    expect(shared.rename).toHaveBeenCalledTimes(1)
+    const chunk = path.join(dir, 'static', 'chunks', 'main.js')
+    expect(await writeWith(outputFs, chunk, 'code')).toBeNull()
+    expect(writeFile).toHaveBeenCalledWith(chunk, 'code', expect.any(Function))
+    expect(outputFs.mkdir).toBe(mkdir)
+
+    // Manifests bypass the original `writeFile`.
+    const manifest = path.join(dir, 'build-manifest.json')
+    expect(await writeWith(outputFs, manifest, '{}')).toBeNull()
+    expect(writeFile).toHaveBeenCalledTimes(1)
+    expect(fs.readFileSync(manifest, 'utf8')).toBe('{}')
   })
 
-  it('does not modify a file system shared between compilers', async () => {
-    const shared = createFileSystem()
-    const originalWriteFile = shared.writeFile
-    const first = createCompiler(shared)
-    const second = createCompiler(shared)
+  it('does not modify the original file system', () => {
+    const writeFile = jest.fn()
+    const original = { writeFile } as unknown as OutputFileSystem
+    const outputFs = createAtomicManifestOutputFileSystem(original)
 
-    expect(shared.writeFile).toBe(originalWriteFile)
-    expect(first.outputFileSystem).not.toBe(shared)
-    expect(second.outputFileSystem).not.toBe(shared)
-    // Other methods are inherited from the shared file system.
-    expect((first.outputFileSystem as any).mkdir).toBe(shared.mkdir)
-
-    expect(
-      await writeWith(second, path.join(dir, 'build-manifest.json'), '{}')
-    ).toBeNull()
-    // One temp write and one rename: the wrappers don't stack.
-    expect(shared.writeFile).toHaveBeenCalledTimes(1)
-    expect(shared.rename).toHaveBeenCalledTimes(1)
-  })
-
-  it('does not wrap a compiler twice', () => {
-    const compiler = createCompiler()
-    const wrapped = compiler.outputFileSystem
-    enableAtomicManifestWrites(compiler as unknown as webpack.Compiler)
-    expect(compiler.outputFileSystem).toBe(wrapped)
-  })
-
-  it('leaves output file systems without rename untouched', () => {
-    const outputFileSystem = { writeFile: jest.fn() }
-    const compiler = createCompiler(outputFileSystem)
-    expect(compiler.outputFileSystem).toBe(outputFileSystem)
-    expect(outputFileSystem.writeFile).toBe(compiler.outputFileSystem.writeFile)
+    expect(outputFs).not.toBe(original)
+    expect(original.writeFile).toBe(writeFile)
+    expect(Object.keys(original)).toEqual(['writeFile'])
   })
 })
