@@ -918,14 +918,8 @@ function updatePackageJsonScripts(packageJsonContent: string): {
                 // Skip ext and its value
                 i++
               } else if (token.startsWith('--')) {
-                // Keep other flags and their values
+                // Keep other flags (boolean flags like --fix don't consume next arg)
                 eslintArgs.push(token)
-                if (
-                  i + 1 < argTokens.length &&
-                  !argTokens[i + 1].startsWith('--')
-                ) {
-                  eslintArgs.push(argTokens[++i])
-                }
               } else {
                 // Positional arguments (paths)
                 paths.push(token)
