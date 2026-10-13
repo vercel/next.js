@@ -1765,6 +1765,58 @@ function getAssetSuffixFromScriptSrc() {
     var qi = src.indexOf('?');
     return qi >= 0 ? src.slice(qi) : '';
 }
+/**
+ * Whether a `src` / `href` attribute value refers to `url`: either exactly, or
+ * with an additional query string (e.g. `?dpl=...`). Also matches the decoded
+ * form of `url`.
+ *
+ * TODO(PACK-2140): drop the decoded variant once all filenames are guaranteed
+ * to be escaped.
+ */ function matchesChunkUrl(value, url, decodedUrl) {
+    return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?'));
+}
+// These lookups iterate the tag collection and compare attribute values as
+// plain strings. A document-wide `querySelectorAll` with attribute selectors
+// costs time proportional to the size of the whole DOM on every call, and
+// would need the URL to be CSS-escaped.
+/**
+ * Returns all `<script>` elements in the document whose `src` refers to `url`.
+ */ function findChunkScripts(url) {
+    var decodedUrl = decodeURI(url);
+    var scripts = document.getElementsByTagName('script');
+    var result = [];
+    for(var i = 0; i < scripts.length; i++){
+        var script = scripts[i];
+        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+            result.push(script);
+        }
+    }
+    return result;
+}
+/**
+ * Returns all `<link>` elements in the document whose `href` refers to `url`.
+ * With `stylesheetsOnly`, only links whose `rel` is exactly `stylesheet`
+ * (ASCII case-insensitive) are returned.
+ */ function findChunkLinks(url) {
+    var stylesheetsOnly = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : false;
+    var decodedUrl = decodeURI(url);
+    var links = document.getElementsByTagName('link');
+    var result = [];
+    for(var i = 0; i < links.length; i++){
+        var _link_getAttribute;
+        var link = links[i];
+        if ((!stylesheetsOnly || ((_link_getAttribute = link.getAttribute('rel')) === null || _link_getAttribute === void 0 ? void 0 : _link_getAttribute.toLowerCase()) === 'stylesheet') && matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)) {
+            result.push(link);
+        }
+    }
+    return result;
+}
+/**
+ * Returns all `<link rel=stylesheet>` elements in the document whose `href`
+ * refers to `url`.
+ */ function findChunkStylesheets(url) {
+    return findChunkLinks(url, true);
+}
 var BACKEND;
 /**
  * Maps chunk paths to the corresponding resolver.
@@ -1956,10 +2008,8 @@ var BACKEND;
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
         } else {
-            // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-            var decodedChunkUrl = decodeURI(chunkUrl);
             if (isCss(chunkUrl)) {
-                var previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                var previousLinks = findChunkStylesheets(chunkUrl);
                 if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
@@ -1990,7 +2040,7 @@ var BACKEND;
                     document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
-                var previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                var previousScripts = findChunkScripts(chunkUrl);
                 if (previousScripts.length > 0) {
                     var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
                     try {
@@ -2004,7 +2054,7 @@ var BACKEND;
                                 once: true
                             });
                         };
-                        for(var _iterator = Array.from(previousScripts)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true)_loop();
+                        for(var _iterator = previousScripts[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true)_loop();
                     } catch (err) {
                         _didIteratorError = true;
                         _iteratorError = err;
