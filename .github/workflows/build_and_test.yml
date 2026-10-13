@@ -2,7 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches: ['canary', 'releases/**', 'next-*-*']
+    branches: ['canary', 'releases/**']
   pull_request:
     types: [opened, synchronize]
 

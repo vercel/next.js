@@ -3,7 +3,7 @@ name: build-and-deploy
 
 on:
   push:
-    branches: ['canary', 'releases/**', 'next-*-*']
+    branches: ['canary', 'releases/**']
     # Run on release tags so publishing is driven by the tag push rather than
     # the release-commit branch push (see the deploy-target step).
     tags:
