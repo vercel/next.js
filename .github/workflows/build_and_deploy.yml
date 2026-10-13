@@ -70,7 +70,7 @@ jobs:
       - name: Determine deploy target
         # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
         # 'automated-preview' for pushes on branches other than the publishable ones for integration testing.
-        # 'staging' for canary and the LTS branches since those will eventually be published i.e. become the production build.
+        # 'staging' for canary and the release branches since those will eventually be published i.e. become the production build.
         id: deploy-target
         run: |
           RELEASE_VERSION="$(node ./scripts/check-is-release.js 2> /dev/null || :)"
@@ -110,8 +110,7 @@ jobs:
               echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
             fi
           elif [[ ''"${GIT_REF}"'' == 'refs/heads/canary' ||
-                  ''"${GIT_REF}"'' == 'refs/heads/releases/lts/active' ||
-                  ''"${GIT_REF}"'' == 'refs/heads/releases/lts/maintenance' ]]
+                  ''"${GIT_REF}"'' == refs/heads/releases/* ]]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]
