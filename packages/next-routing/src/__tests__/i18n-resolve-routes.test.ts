@@ -388,7 +388,42 @@ describe('resolveRoutes with i18n', () => {
           ...baseParams.routes,
           dynamicRoutes: [
             {
-              sourceRegex: '^[/]?/api/users/(?<id>[^/]+?)(?:/)?$',
+              sourceRegex: '^[/]?/api/users/(?<id>[^/]+?)(?:/)?
+    it('should match non-localized dynamic templates when localized variant is absent', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/app-dir/foo'),
+        headers: new Headers({}),
+        pathnames: ['/app-dir/[[...slug]]', '/en/[[...slug]]'],
+        routes: {
+          ...baseParams.routes,
+          dynamicRoutes: [
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})/app\\-dir(?:/(?<nxtPslug>.+?))?(?:/)?$',
+              destination:
+                '/$nextLocale/app-dir/[[...slug]]?nxtPslug=$nxtPslug',
+            },
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})(?:/(?<nxtPslug>.+?))?(?:/)?$',
+              destination: '/$nextLocale/[[...slug]]?nxtPslug=$nxtPslug',
+            },
+          ],
+        },
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'en-GB'],
+          localeDetection: false,
+        },
+      })
+
+      expect(result.redirect).toBeUndefined()
+      expect(result.resolvedPathname).toBe('/app-dir/[[...slug]]')
+    })
+  })
+})
+,
               destination: '/api/users/[id]?id=$id',
             },
           ],
@@ -403,6 +438,130 @@ describe('resolveRoutes with i18n', () => {
         '1': '123',
         id: '123',
       })
+    })
+
+    it('should match dynamic API routes without a locale prefix', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/api/blog/first'),
+        headers: new Headers({}),
+        pathnames: ['/api/blog/[slug]'],
+        routes: {
+          ...baseParams.routes,
+          dynamicRoutes: [
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})/api/blog/(?<nxtPslug>[^/]+?)(?:/)?
+    it('should match non-localized dynamic templates when localized variant is absent', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/app-dir/foo'),
+        headers: new Headers({}),
+        pathnames: ['/app-dir/[[...slug]]', '/en/[[...slug]]'],
+        routes: {
+          ...baseParams.routes,
+          dynamicRoutes: [
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})/app\\-dir(?:/(?<nxtPslug>.+?))?(?:/)?$',
+              destination:
+                '/$nextLocale/app-dir/[[...slug]]?nxtPslug=$nxtPslug',
+            },
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})(?:/(?<nxtPslug>.+?))?(?:/)?$',
+              destination: '/$nextLocale/[[...slug]]?nxtPslug=$nxtPslug',
+            },
+          ],
+        },
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'en-GB'],
+          localeDetection: false,
+        },
+      })
+
+      expect(result.redirect).toBeUndefined()
+      expect(result.resolvedPathname).toBe('/app-dir/[[...slug]]')
+    })
+  })
+})
+,
+              destination:
+                '/$nextLocale/api/blog/[slug]?nxtPslug=$nxtPslug',
+            },
+          ],
+        },
+        i18n: i18nConfigNoDomains,
+      })
+
+      expect(result.resolvedPathname).toBe('/api/blog/[slug]')
+      expect(result.invocationTarget?.pathname).toBe('/api/blog/first')
+      expect(result.routeMatches).toEqual({
+        nextLocale: 'en',
+        nxtPslug: 'first',
+        '1': 'en',
+        '2': 'first',
+      })
+    })
+
+    it('should not match dynamic API routes with a locale prefix', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/fr/api/blog/first'),
+        headers: new Headers({}),
+        pathnames: ['/api/blog/[slug]'],
+        routes: {
+          ...baseParams.routes,
+          dynamicRoutes: [
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})/api/blog/(?<nxtPslug>[^/]+?)(?:/)?
+    it('should match non-localized dynamic templates when localized variant is absent', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/app-dir/foo'),
+        headers: new Headers({}),
+        pathnames: ['/app-dir/[[...slug]]', '/en/[[...slug]]'],
+        routes: {
+          ...baseParams.routes,
+          dynamicRoutes: [
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})/app\\-dir(?:/(?<nxtPslug>.+?))?(?:/)?$',
+              destination:
+                '/$nextLocale/app-dir/[[...slug]]?nxtPslug=$nxtPslug',
+            },
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})(?:/(?<nxtPslug>.+?))?(?:/)?$',
+              destination: '/$nextLocale/[[...slug]]?nxtPslug=$nxtPslug',
+            },
+          ],
+        },
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'en-GB'],
+          localeDetection: false,
+        },
+      })
+
+      expect(result.redirect).toBeUndefined()
+      expect(result.resolvedPathname).toBe('/app-dir/[[...slug]]')
+    })
+  })
+})
+,
+              destination:
+                '/$nextLocale/api/blog/[slug]?nxtPslug=$nxtPslug',
+            },
+          ],
+        },
+        i18n: i18nConfigNoDomains,
+      })
+
+      expect(result.resolvedPathname).toBeUndefined()
+      expect(result.routeMatches).toBeUndefined()
     })
 
     it('should match non-localized dynamic templates when localized variant is absent', async () => {
