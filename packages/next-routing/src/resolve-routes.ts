@@ -399,10 +399,12 @@ function matchDynamicRouteWithLocaleApiFallback(
     return matchDynamicRoute(url.pathname, route, caseSensitive)
   }
 
-  const pathnameWithoutBasePath =
-    basePath && url.pathname.startsWith(basePath)
-      ? url.pathname.slice(basePath.length) || '/'
-      : url.pathname
+  const hasBasePath =
+    basePath &&
+    (url.pathname === basePath || url.pathname.startsWith(`${basePath}/`))
+  const pathnameWithoutBasePath = hasBasePath
+    ? url.pathname.slice(basePath.length) || '/'
+    : url.pathname
   const localePath = normalizeLocalePath(
     pathnameWithoutBasePath,
     i18n.locales
