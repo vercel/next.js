@@ -15,6 +15,16 @@ describe('types-gen-nounuselocal', () => {
     expect($('p').text()).toBe('hello world')
   })
 
+  it('should not import route handler types for metadata-only routes', async () => {
+    const validator = await fsp.readFile(
+      path.join(next.testDir, '.next', 'types', 'validator.ts'),
+      'utf-8'
+    )
+
+    expect(validator).not.toContain('AppRouteHandlerRoutes')
+    expect(validator).not.toContain('NextRequest')
+  })
+
   it('should generate route types successfully', async () => {
     const routeTypes = await fsp.readFile(
       path.join(next.testDir, '.next', 'types', 'routes.d.ts'),
