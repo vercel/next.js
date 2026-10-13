@@ -41,8 +41,7 @@ env:
   TURBO_VERSION: 2.11.7
   NODE_LTS_VERSION: 20
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   start:
@@ -86,9 +85,7 @@ jobs:
 
       - name: Clone Next.js repository
         # We expect to find the latest tag on this branch in the last 1000 commits.
-        run: git clone "https://x-access-token:${CLONE_TOKEN}@github.com/vercel/next.js.git" --depth=1000 --single-branch --branch "${GITHUB_REF_NAME:-canary}" .
-        env:
-          CLONE_TOKEN: ${{ github.token }}
+        run: git clone https://github.com/vercel/next.js.git --depth=1000 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
 
       - name: Check token
         run: gh auth status
