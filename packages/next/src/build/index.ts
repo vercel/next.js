@@ -132,7 +132,7 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner, { finishSpinner } from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
-import { writeAnalyzeRoutes, writeAnalyzeSnapshot } from './analyze/snapshot'
+import { readAnalyzeRoutes, writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
@@ -4855,8 +4855,7 @@ export default async function build(
           recursive: true,
         })
 
-        // Write an index of routes for the route picker
-        const routes = writeAnalyzeRoutes(analyzeDir)
+        const routes = readAnalyzeRoutes(path.join(analyzeDir, 'data'))
 
         // Capture this build alongside any prior builds so the analyzer UI
         // can offer it as a comparison baseline in the future.

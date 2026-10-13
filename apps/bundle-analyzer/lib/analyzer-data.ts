@@ -1,5 +1,6 @@
 import useSWR, { type SWRConfiguration } from 'swr'
 import { AnalyzeData, ModulesData } from './analyze-data'
+import type { RouteSummary } from './diff'
 import type { HistoryIndex } from './snapshot'
 import { fetchStrict, jsonFetcher } from './utils'
 
@@ -30,6 +31,22 @@ export function useSuspenseJsonData<Data>(
   })
 
   return data
+}
+
+/**
+ * Per-route summaries written by Turbopack for a build. This is the analyzer's
+ * only route index: each `route` names the directory its `analyze.data` was
+ * written to.
+ */
+export function useSuspenseRouteSummaries(baseDir: string): RouteSummary[] {
+  return useSuspenseJsonData<RouteSummary[]>(
+    `${baseDir}/route-summaries.json`,
+    staticDataOptions
+  )
+}
+
+export function routesFromSummaries(summaries: RouteSummary[]): string[] {
+  return summaries.map(({ route }) => route)
 }
 
 export async function fetchAnalyzeData(url: string): Promise<AnalyzeData> {

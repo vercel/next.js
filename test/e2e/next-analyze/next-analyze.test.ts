@@ -8,7 +8,7 @@ import { validateGraphDump } from '../../lib/analyze-graph-schema'
 import { shouldUseTurbopack } from 'next-test-utils'
 import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 
 type RouteEntry = {
   route_entry_id: string
@@ -75,11 +75,13 @@ function readRows(binary: Buffer, reference: EdgesReference): number[][] {
   })
 }
 
-// Routes the analyzer writes data for. Metadata routes that use
-// `generateImageMetadata` / `generateSitemaps` are listed under the key their
-// data is stored at, not as `.../[__metadata_id__]` routes-manifest pages.
+// Routes the analyzer writes data for, as listed in `route-summaries.json`.
+// Metadata routes that use `generateImageMetadata` / `generateSitemaps` are
+// listed under the key their data is stored at, not as
+// `.../[__metadata_id__]` routes-manifest pages.
 const EXPECTED_ROUTES = [
   '/',
+  '/_global-error',
   '/_not-found',
   '/api/ping',
   '/legacy',
@@ -88,7 +90,9 @@ const EXPECTED_ROUTES = [
 ].sort()
 
 function readRoutes(directory: string): string[] {
-  return JSON.parse(readFileSync(path.join(directory, 'routes.json'), 'utf8'))
+  return JSON.parse(
+    readFileSync(path.join(directory, 'route-summaries.json'), 'utf8')
+  ).map((summary: { route: string }) => summary.route)
 }
 
 function routeDataFile(directory: string, route: string): string {
@@ -262,9 +266,54 @@ describe('next analyze', () => {
     }
     for (const record of records)
       expect(record).not.toHaveProperty('route_index')
-    // Every listed route, including metadata routes, is exported.
+    // Every summarized route, including metadata routes, is exported.
     expect(exportedRoutes(records)).toEqual(readRoutes(snapshotDir))
     expect([...readRoutes(snapshotDir)].sort()).toEqual(EXPECTED_ROUTES)
+    expect(
+      JSON.parse(readFileSync(path.join(snapshotDir, 'metadata.json'), 'utf8'))
+        .routeCount
+    ).toBe(readRoutes(snapshotDir).length)
+    // route-summaries.json is the only route index.
+    expect(existsSync(path.join(snapshotDir, 'routes.json'))).toBe(false)
+    expect(existsSync(path.join(analyzeDir, 'data/routes.json'))).toBe(false)
+
+    // A stale routes.json left by older captures, with routes-manifest names
+    // that have no data, is ignored.
+    const legacyRoutesFile = path.join(snapshotDir, 'routes.json')
+    try {
+      writeFileSync(
+        legacyRoutesFile,
+        JSON.stringify(['/', '/meta/icon/[__metadata_id__]'])
+      )
+      const legacy = await next.runCommand([
+        'analyze',
+        'export',
+        '--snapshot',
+        name,
+      ])
+      expect(legacy.exitCode).toBe(0)
+      expect(legacy.stdout).toBe(named.stdout)
+    } finally {
+      rmSync(legacyRoutesFile, { force: true })
+    }
+
+    // Snapshots without route summaries cannot be exported.
+    const summariesFile = path.join(snapshotDir, 'route-summaries.json')
+    const originalSummaries = readFileSync(summariesFile)
+    try {
+      rmSync(summariesFile)
+      const missing = await next.runCommand([
+        'analyze',
+        'export',
+        '--snapshot',
+        name,
+      ])
+      expect(missing.exitCode).not.toBe(0)
+      expect(missing.stdout).toBe('')
+      expect(missing.stderr).toMatch(/re-run `next analyze`/i)
+    } finally {
+      writeFileSync(summariesFile, originalSummaries)
+    }
     const latest = await next.runCommand(['analyze', 'export'])
     expect(latest.exitCode).toBe(0)
     expect(latest.stdout).toBe(named.stdout)
@@ -577,6 +626,11 @@ describe('next analyze', () => {
     )
     const routes = readRoutes(snapshotDir)
     expect([...routes].sort()).toEqual(EXPECTED_ROUTES)
+    expect(existsSync(path.join(snapshotDir, 'routes.json'))).toBe(false)
+    expect(
+      JSON.parse(readFileSync(path.join(snapshotDir, 'metadata.json'), 'utf8'))
+        .routeCount
+    ).toBe(routes.length)
     for (const route of routes) {
       expect(existsSync(routeDataFile(snapshotDir, route))).toBe(true)
     }
@@ -611,7 +665,6 @@ describe('next analyze', () => {
         expect(stdout).toContain('.next/diagnostics/analyze')
         for (const file of [
           'index.html',
-          'data/routes.json',
           'data/route-summaries.json',
           'data/modules.data',
           'data/analyze.data',
@@ -633,6 +686,12 @@ describe('next analyze', () => {
           )}`
         )
         expect(readRoutes(latestSnapshotDir)).toEqual(routes)
+        expect(
+          existsSync(path.join(defaultOutputPath, 'data/routes.json'))
+        ).toBe(false)
+        expect(existsSync(path.join(latestSnapshotDir, 'routes.json'))).toBe(
+          false
+        )
         for (const route of routes) {
           expect(
             existsSync(

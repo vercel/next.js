@@ -15,7 +15,6 @@ import {
   getGitDirty,
   getGitMessage,
 } from '../../lib/helpers/git'
-import { UNDERSCORE_GLOBAL_ERROR_ROUTE } from '../../shared/lib/entry-constants'
 
 const MAX_HISTORY = 20
 
@@ -65,50 +64,31 @@ const DATA_DIRNAME = 'data'
 const HISTORY_DIRNAME = 'history'
 const METADATA_FILENAME = 'metadata.json'
 const HISTORY_INDEX_FILENAME = 'history.json'
-const ROUTES_FILENAME = 'routes.json'
 const ROUTE_SUMMARIES_FILENAME = 'route-summaries.json'
-
-// Internal entry that has analyze data but is not a user-facing route.
-const UNLISTED_ROUTES = new Set([UNDERSCORE_GLOBAL_ERROR_ROUTE])
 
 const routeSummariesSchema = z.array(z.object({ route: z.string() }))
 
 /**
- * Write `data/routes.json` (the route picker and `next analyze export` index)
- * from the routes Turbopack wrote analyze data for, and return them.
+ * Read the analyzer's routes from `route-summaries.json` in a live `data/`
+ * directory or a saved snapshot.
  *
- * The list is taken from `route-summaries.json` rather than the routes
- * manifest so each route matches the directory its `analyze.data` was written
- * to. The two differ for metadata routes using `generateImageMetadata` or
- * `generateSitemaps`: the manifest has `/icon/[__metadata_id__]`, but the data
- * is stored under `/icon`.
+ * Turbopack writes one summary per route it wrote `analyze.data` for, keyed by
+ * the directory that data lives in. It is the only route index: the routes
+ * manifest names differ for metadata routes using `generateImageMetadata` or
+ * `generateSitemaps` (`/icon/[__metadata_id__]` vs. the stored `/icon`).
  */
-export function writeAnalyzeRoutes(analyzeDir: string): string[] {
-  const dataDir = path.join(analyzeDir, DATA_DIRNAME)
-  const summariesFile = path.join(dataDir, ROUTE_SUMMARIES_FILENAME)
-  let summaries: z.infer<typeof routeSummariesSchema>
+export function readAnalyzeRoutes(directory: string): string[] {
+  const summariesFile = path.join(directory, ROUTE_SUMMARIES_FILENAME)
   try {
-    summaries = routeSummariesSchema.parse(
-      JSON.parse(readFileSync(summariesFile, 'utf8'))
-    )
+    return routeSummariesSchema
+      .parse(JSON.parse(readFileSync(summariesFile, 'utf8')))
+      .map(({ route }) => route)
   } catch (error) {
     throw new Error(
-      `Failed to read analyzer route summaries from ${summariesFile}`,
+      `Failed to read analyzer route summaries from ${summariesFile}. The analysis may be from an older Next.js version or incomplete; re-run \`next analyze\` to capture it again.`,
       { cause: error }
     )
   }
-  const routes = Array.from(
-    new Set(
-      summaries
-        .map(({ route }) => route)
-        .filter((route) => !UNLISTED_ROUTES.has(route))
-    )
-  )
-  writeFileSync(
-    path.join(dataDir, ROUTES_FILENAME),
-    JSON.stringify(routes, null, 2)
-  )
-  return routes
 }
 
 interface BuildSnapshotInputs {

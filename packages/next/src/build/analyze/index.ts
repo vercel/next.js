@@ -12,7 +12,7 @@ import { Lockfile } from '../lockfile'
 import { installBindings } from '../swc/install-bindings'
 import { cpSync, mkdirSync, rmSync } from 'node:fs'
 import {
-  writeAnalyzeRoutes,
+  readAnalyzeRoutes,
   writeAnalyzeSnapshot,
   snapshotNameSchema,
   type SnapshotMetadata,
@@ -107,7 +107,7 @@ export default async function analyze({
       recursive: true,
     })
     mkdirSync(path.join(analyzeDir, 'data'), { recursive: true })
-    const routes = writeAnalyzeRoutes(analyzeDir)
+    const routes = readAnalyzeRoutes(path.join(analyzeDir, 'data'))
 
     // Capture this build alongside any prior builds so the analyzer UI can
     // offer it as a comparison baseline in the future.
