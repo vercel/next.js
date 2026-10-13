@@ -2,6 +2,12 @@ import { realpath } from 'fs/promises'
 import path from 'path'
 import { loadTestConfig } from '../experimental/testing/config'
 import { discoverTests } from '../experimental/testing/discovery'
+import {
+  acquireTestRunLock,
+  parseMaxWorkers,
+  parseTestShard,
+  shardTestProjects,
+} from '../experimental/testing/scheduling'
 import { createTestTerminal } from '../experimental/testing/reporting/terminal'
 import {
   requireTestCapability,
@@ -17,6 +23,8 @@ export interface NextTestRunnerOptions {
   coverage?: boolean
   project?: string
   filter?: string[]
+  maxWorkers?: string
+  shard?: string
 }
 
 export async function nextTestRunner(
@@ -29,7 +37,9 @@ export async function nextTestRunner(
       options.run ||
       options.watch ||
       options.update ||
-      options.coverage
+      options.coverage ||
+      options.maxWorkers !== undefined ||
+      options.shard !== undefined
     ) {
       throw new Error(
         '--capabilities cannot be combined with execution or listing options.'
@@ -59,14 +69,23 @@ export async function nextTestRunner(
   if (options.update) requireTestCapability('snapshotUpdate')
   const projectDir = await realpath(path.resolve(directory ?? '.'))
   const config = await loadTestConfig(projectDir)
-  const projects = await discoverTests(projectDir, config, {
+  const maxWorkers = parseMaxWorkers(options.maxWorkers ?? config.maxWorkers)
+  const shard =
+    options.shard === undefined ? undefined : parseTestShard(options.shard)
+  if (options.watch && (maxWorkers !== 1 || shard)) {
+    throw new Error(
+      'Parallel file execution and sharding require a one-shot run; watch scheduling is unsupported.'
+    )
+  }
+  let projects = await discoverTests(projectDir, config, {
     project: options.project,
     files: options.filter,
   })
-  const entries = projects.flatMap((project) => project.entries)
-  if (entries.length === 0 && !options.watch) {
+  if (!projects.some((project) => project.entries.length) && !options.watch) {
     throw new Error('No test files matched the selected projects and filters.')
   }
+  if (shard) projects = shardTestProjects(projects, shard)
+  const entries = projects.flatMap((project) => project.entries)
   if (options.list) {
     for (const entry of entries) {
       const { profile } = entry
@@ -75,6 +94,10 @@ export async function nextTestRunner(
       )
     }
     console.log(`${entries.length} test file(s) selected.`)
+    return
+  }
+  if (shard && entries.length === 0) {
+    console.log(`Shard ${shard.index}/${shard.count}: no test files assigned.`)
     return
   }
   for (const project of projects) {
@@ -132,6 +155,7 @@ export async function nextTestRunner(
   const cancel = () => controller.abort(new Error('Test run interrupted.'))
   process.once('SIGINT', cancel)
   process.once('SIGTERM', cancel)
+  let runLock: Awaited<ReturnType<typeof acquireTestRunLock>> | undefined
   try {
     if (options.watch) {
       const { watchTests } = await import(
@@ -151,6 +175,8 @@ export async function nextTestRunner(
         result.status === 'cancelled' ? 130 : result.status === 'failed' ? 1 : 0
       return
     }
+    runLock = await acquireTestRunLock(projectDir)
+    controller.signal.throwIfAborted()
     const { runTests } = await import('../experimental/testing/orchestrator.js')
     const summary = await runTests(projectDir, projects, {
       signal: controller.signal,
@@ -158,6 +184,8 @@ export async function nextTestRunner(
       reporter,
       updateSnapshots: options.update ?? false,
       coverage: options.coverage ?? false,
+      maxWorkers,
+      isolateProjects: true,
     })
     if (reporterFailure) throw reporterFailure
     if (summary.status !== 'passed') {
@@ -167,5 +195,6 @@ export async function nextTestRunner(
     process.removeListener('SIGINT', cancel)
     process.removeListener('SIGTERM', cancel)
     terminal.dispose()
+    await runLock?.unlock()
   }
 }

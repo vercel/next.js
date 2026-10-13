@@ -701,6 +701,14 @@ program
   .option('--coverage', 'Collect one-shot development Node line coverage.')
   .option('--project <name>', 'Select a project from next.test.config.json.')
   .option(
+    '--max-workers <count>',
+    'Maximum concurrent file workers (1–64; default 1). Browser files remain serial.'
+  )
+  .option(
+    '--shard <index/count>',
+    'Run a deterministic, one-based shard of the selected files.'
+  )
+  .option(
     '--filter <substring...>',
     'Select files containing any given substring.'
   )

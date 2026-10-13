@@ -11,9 +11,15 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { createTestCompilerSession } from 'next/dist/experimental/testing/compiler'
 import { createDevTurbopackProject } from 'next/dist/build/swc/dev-project'
+import { Lockfile } from 'next/dist/build/lockfile'
 
 jest.mock('next/dist/build/swc', () => ({
   loadBindings: async () => ({ isWasm: false }),
+}))
+jest.mock('next/dist/build/lockfile', () => ({
+  Lockfile: {
+    tryAcquire: jest.fn(() => ({ unlock: jest.fn(async () => {}) })),
+  },
 }))
 jest.mock('next/dist/build/swc/dev-project', () => ({
   createDevTurbopackProject: jest.fn(),
@@ -176,6 +182,26 @@ describe('test compiler artifact publication', () => {
       profile,
     }
   }
+
+  it('rejects an occupied application output before creating another compiler', async () => {
+    jest.mocked(Lockfile.tryAcquire).mockReturnValueOnce(undefined)
+    await expect(createTestCompilerSession(dir, profile)).rejects.toThrow(
+      'already owned'
+    )
+    expect(createDevTurbopackProject).not.toHaveBeenCalled()
+  })
+
+  it('releases its output lock when compiler creation fails', async () => {
+    jest
+      .mocked(createDevTurbopackProject)
+      .mockRejectedValueOnce(new Error('native startup failed'))
+    await expect(createTestCompilerSession(dir, profile)).rejects.toThrow(
+      'native startup failed'
+    )
+    expect(
+      jest.mocked(Lockfile.tryAcquire).mock.results.at(-1)!.value.unlock
+    ).toHaveBeenCalledTimes(1)
+  })
 
   it('publishes distinct complete revisions and retains earlier bytes until disposal', async () => {
     session = await createTestCompilerSession(dir, profile)
@@ -353,6 +379,7 @@ describe('test compiler artifact publication', () => {
     expect(emit).not.toHaveBeenCalled()
     expect(await readdir(join(dir, '.next'))).toEqual([
       expect.stringMatching(/^\.next-test-pending-parent-/),
+      'dev',
     ])
   })
 
@@ -400,7 +427,7 @@ describe('test compiler artifact publication', () => {
     await expect(
       session.compile(entry(), { signal: new AbortController().signal })
     ).rejects.toThrow('external package links')
-    expect(await readdir(join(dir, '.next'))).toEqual([])
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
   })
 
   it('does not publish compilation failures', async () => {
@@ -409,7 +436,7 @@ describe('test compiler artifact publication', () => {
     await expect(
       session.compile(entry(), { signal: new AbortController().signal })
     ).rejects.toThrow('Invalid server-only boundary')
-    expect(await readdir(join(dir, '.next'))).toEqual([])
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
   })
 
   it('waits for native emission before cleaning up a cancelled compilation', async () => {
@@ -434,7 +461,7 @@ describe('test compiler artifact publication', () => {
     release()
     await expect(result).rejects.toThrow('cancelled')
     await disposed
-    expect(await readdir(join(dir, '.next'))).toEqual([])
+    expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
     expect(shutdown).toHaveBeenCalledTimes(1)
   })
 
@@ -471,7 +498,7 @@ describe('test compiler artifact publication', () => {
           { signal: new AbortController().signal }
         )
       ).rejects.toThrow('Invalid compiled module mocking metadata')
-      expect(await readdir(join(dir, '.next'))).toEqual([])
+      expect(await readdir(join(dir, '.next'))).toEqual(['dev'])
     }
   )
 

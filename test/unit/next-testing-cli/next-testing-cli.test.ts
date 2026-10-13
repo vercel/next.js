@@ -15,6 +15,10 @@ import {
   loadTestConfig,
 } from 'next/dist/experimental/testing/config'
 import { discoverTests } from 'next/dist/experimental/testing/discovery'
+import {
+  parseTestShard,
+  shardTestProjects,
+} from 'next/dist/experimental/testing/scheduling'
 import { nextTestRunner } from 'next/dist/cli/next-test-runner'
 import * as capabilities from 'next/dist/experimental/testing/capabilities'
 import { remapCoverage } from 'next/dist/experimental/testing/coverage/remap'
@@ -43,6 +47,11 @@ jest.mock('next/dist/experimental/testing/capabilities', () => ({
     jest.requireActual('next/dist/experimental/testing/capabilities')
       .requireTestCapability
   ),
+}))
+
+jest.mock('next/dist/experimental/testing/scheduling', () => ({
+  ...jest.requireActual('next/dist/experimental/testing/scheduling'),
+  acquireTestRunLock: async () => ({ unlock: async () => {} }),
 }))
 
 jest.mock('next/dist/experimental/testing/coverage/remap', () => ({
@@ -102,6 +111,42 @@ describe('Next-owned test discovery and configuration', () => {
     expect(projects[1].entries[0].profile.mode).toBe('production')
     expect(path.isAbsolute(projects[0].entries[0].file)).toBe(true)
   })
+
+  it('partitions selected identities exactly once independent of project ordering', async () => {
+    const projects = await discoverTests(
+      directory,
+      parseTestConfig({
+        projects: [{ name: 'z', mode: 'production' }, { name: 'a' }],
+      })
+    )
+    const ids = (items: DiscoveredTestProject[]) =>
+      items.flatMap((item) => item.entries.map((entry) => entry.id)).sort()
+    const shards = [1, 2, 3, 4, 5].map((index) => {
+      const shard = parseTestShard(`${index}/5`)
+      const selected = ids(shardTestProjects(projects, shard))
+      expect(ids(shardTestProjects([...projects].reverse(), shard))).toEqual(
+        selected
+      )
+      return selected
+    })
+    expect(shards.flat().sort()).toEqual(ids(projects))
+    expect(new Set(shards.flat()).size).toBe(4)
+    expect(shards[4]).toEqual([])
+  })
+
+  it.each(['0/2', '3/2', '1/0', '1.5/2', '1', '1/9007199254740992'])(
+    'rejects invalid shard %s',
+    (value) => {
+      expect(() => parseTestShard(value)).toThrow('--shard')
+    }
+  )
+
+  it.each([0, -1, 65, 1.5, 'auto', null])(
+    'rejects invalid worker limit %s',
+    (maxWorkers) => {
+      expect(() => parseTestConfig({ maxWorkers })).toThrow('maxWorkers')
+    }
+  )
 
   it('normalizes registered fixture identities and excludes fixture modules from specs', async () => {
     const config = parseTestConfig({
@@ -570,6 +615,26 @@ describe('Next test orchestration', () => {
       updateSnapshots: true,
     })
     expect(executeFile.mock.calls[1][1].updateSnapshots).toBe(true)
+  })
+
+  it('rejects multiple snapshot writers for the same source before compilation', async () => {
+    const other = { ...project, profile: { ...project.profile, id: 'other' } }
+    other.entries = [
+      {
+        ...project.entries[0],
+        id: 'other:page.spec.tsx',
+        profile: other.profile,
+      },
+    ]
+    await expect(
+      runTests('/application', [project, other], {
+        signal: new AbortController().signal,
+        write: jest.fn(),
+        updateSnapshots: true,
+        maxWorkers: 2,
+      })
+    ).rejects.toThrow('single selected profile per source file')
+    expect(createSession).not.toHaveBeenCalled()
   })
 
   it('distinguishes ordinary failures from unsafe compiler disposal for repeated runs', async () => {
@@ -1520,10 +1585,14 @@ describe('Next test orchestration', () => {
     expect(dispose).toHaveBeenCalledTimes(1)
   })
 
-  it('rejects mixed modes and NODE_ENV conflicts before compiler setup', async () => {
+  it('rejects mixed browser modes and NODE_ENV conflicts before compiler setup', async () => {
     const production = {
       ...project,
-      profile: { ...project.profile, mode: 'production' as const },
+      profile: {
+        ...project.profile,
+        mode: 'production' as const,
+        environment: 'browser' as const,
+      },
     }
     const options = { signal: new AbortController().signal, write: jest.fn() }
     expect(
@@ -1533,6 +1602,162 @@ describe('Next test orchestration', () => {
     expect((await run()).status).toBe('failed')
     expect(createSession).not.toHaveBeenCalled()
     expect(process.env.NODE_ENV).toBe('test')
+  })
+
+  it('bounds complete file leases and drains every worker before compiler disposal', async () => {
+    project.entries = ['a', 'b', 'c', 'd', 'e'].map((name) => ({
+      ...project.entries[0],
+      id: `rsc:${name}`,
+      file: `/application/${name}.tsx`,
+    }))
+    compile.mockImplementation(async (entry) => ({
+      ...artifact,
+      entryId: entry.id,
+    }))
+    let active = 0
+    let peak = 0
+    let release!: () => void
+    let reached!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const overlapped = new Promise<void>((resolve) => {
+      reached = resolve
+    })
+    const original = executeFile.getMockImplementation()!
+    executeFile.mockImplementation(async (...args) => {
+      peak = Math.max(peak, ++active)
+      if (active === 2) reached()
+      await gate
+      try {
+        return await original(...args)
+      } finally {
+        active--
+      }
+    })
+    dispose.mockImplementation(async () => {
+      expect(active).toBe(0)
+    })
+    const running = runTests('/application', [project], {
+      signal: new AbortController().signal,
+      write: jest.fn(),
+      maxWorkers: 2,
+    })
+    await overlapped
+    expect(executeFile).toHaveBeenCalledTimes(2)
+    expect(dispose).not.toHaveBeenCalled()
+    release()
+    expect((await running).status).toBe('passed')
+    expect(peak).toBe(2)
+    expect(
+      executeFile.mock.calls.map(([, options]) => options.entry.id).sort()
+    ).toEqual(project.entries.map((entry) => entry.id))
+    expect(dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels active workers, leaves queued files unstarted, and reports all files once', async () => {
+    project.entries = ['a', 'b', 'c'].map((name) => ({
+      ...project.entries[0],
+      id: `rsc:${name}`,
+      file: `/application/${name}.tsx`,
+    }))
+    const controller = new AbortController()
+    let reached!: () => void
+    const active = new Promise<void>((resolve) => {
+      reached = resolve
+    })
+    executeFile.mockImplementation(async (_, options) => {
+      if (executeFile.mock.calls.length === 2) reached()
+      await new Promise<void>((resolve) =>
+        options.signal.addEventListener('abort', () => resolve(), {
+          once: true,
+        })
+      )
+      return { entryId: options.entry.id, status: 'cancelled', durationMs: 1 }
+    })
+    const events: ResultEvent[] = []
+    const running = runTests('/application', [project], {
+      signal: controller.signal,
+      write: jest.fn(),
+      maxWorkers: 2,
+      onEvent: (event) => events.push(event),
+    })
+    await active
+    controller.abort()
+    expect((await running).status).toBe('cancelled')
+    expect(executeFile).toHaveBeenCalledTimes(2)
+    expect(
+      events
+        .filter((event) => event.type === 'file-end')
+        .map((event) => event.entryId)
+        .sort()
+    ).toEqual(project.entries.map((entry) => entry.id))
+  })
+
+  it('runs mixed profiles in isolated serialized generations with one aggregate run identity', async () => {
+    const production = {
+      ...project,
+      profile: { ...project.profile, id: 'prod', mode: 'production' as const },
+    }
+    production.entries = [
+      {
+        ...project.entries[0],
+        id: 'prod:page.spec.tsx',
+        profile: production.profile,
+      },
+    ]
+    const events: ResultEvent[] = []
+    jest
+      .mocked(runWatchProcess)
+      .mockImplementation(async (request, options) => {
+        if (request.operation !== 'run') throw new Error('Expected run')
+        expect(request.isolatedProfile).toBe(true)
+        expect(request.maxWorkers).toBe(2)
+        const entry = request.projects[0].entries[0]
+        const envelope = {
+          version: 1 as const,
+          runId: entry.id,
+          timestamp: Date.now(),
+        }
+        options.onEvent?.({ ...envelope, type: 'run-start' })
+        options.onEvent?.({ ...envelope, type: 'file-start', entry })
+        options.onEvent?.({
+          ...envelope,
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'passed',
+          durationMs: 1,
+        })
+        options.onEvent?.({
+          ...envelope,
+          type: 'run-end',
+          status: 'passed',
+          durationMs: 1,
+        })
+        return {
+          operation: 'run',
+          result: { status: 'passed', unsafeCleanup: false } as any,
+        }
+      })
+    const result = await runTests('/application', [project, production], {
+      signal: new AbortController().signal,
+      write: jest.fn(),
+      maxWorkers: 2,
+      onEvent: (event) => events.push(event),
+    })
+    expect(result.status).toBe('passed')
+    expect(
+      jest
+        .mocked(runWatchProcess)
+        .mock.calls.map(
+          ([request]) =>
+            request.operation === 'run' && request.projects[0].profile.mode
+        )
+    ).toEqual(['development', 'production'])
+    expect(new Set(events.map((event) => event.runId)).size).toBe(1)
+    expect(events.filter((event) => event.type === 'run-end')).toHaveLength(1)
+    expect(process.env.NODE_ENV).toBe('development')
+    expect(createSession).not.toHaveBeenCalled()
   })
 
   it('compiles all browser drivers before handing output ownership to per-file servers', async () => {

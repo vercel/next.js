@@ -9,6 +9,7 @@ import type {
   TestCompilerSessionOptions,
 } from './contracts'
 import { requireTestCapability } from './capabilities'
+import { forEachTestFile, parseMaxWorkers } from './scheduling'
 import type { DiscoveredTestProject } from './discovery'
 import type { ResultEvent, SerializedDiagnostic } from './reporting/events'
 import { serializeDiagnostic } from './reporting/diagnostics'
@@ -34,6 +35,10 @@ export interface RunTestsOptions {
   coverage?: boolean
   updateSnapshots?: boolean
   testNamePattern?: string
+  /** Upper bound on fresh file workers; compilers and browser servers stay serial. */
+  maxWorkers?: number
+  /** Public one-shot Node/RSC runs supervise the compiler as well as workers. */
+  isolateProjects?: boolean
   /** Watch uses a parent-owned execution broker; compilation stays in this process. */
   execute?: ExecuteTest
   allocateArtifact?: TestCompilerSessionOptions['allocateArtifact']
@@ -47,6 +52,7 @@ export async function runTests(
   projects: DiscoveredTestProject[],
   options: RunTestsOptions
 ) {
+  const maxWorkers = parseMaxWorkers(options.maxWorkers ?? 1)
   if (options.coverage && options.updateSnapshots) {
     throw new Error('Coverage cannot be combined with snapshot updates.')
   }
@@ -74,13 +80,28 @@ export async function runTests(
   if (options.updateSnapshots) {
     requireTestCapability('snapshotUpdate')
     const selected = projects.filter((project) => project.entries.length > 0)
+    const snapshotSources = selected.flatMap((project) =>
+      project.entries.map((entry) => entry.file)
+    )
+    if (new Set(snapshotSources).size !== snapshotSources.length) {
+      throw new Error(
+        'Snapshot updates require a single selected profile per source file. Use --project to avoid conflicting snapshot writers.'
+      )
+    }
     if (selected.some((project) => project.profile.route !== undefined)) {
       throw new Error('Snapshot updates require route-less profiles.')
     }
   }
-  const coverageModule = options.coverage
-    ? await import('./coverage/report.js')
-    : undefined
+  const isolateProjects =
+    options.isolateProjects &&
+    !projects.some(
+      (project) =>
+        project.entries.length > 0 && project.profile.environment === 'browser'
+    )
+  const coverageModule =
+    options.coverage && !isolateProjects
+      ? await import('./coverage/report.js')
+      : undefined
   const coverageReport = coverageModule?.createCoverageReport(
     projects.flatMap((project) => project.entries.map((entry) => entry.id))
   )
@@ -149,6 +170,26 @@ export async function runTests(
     })
   }
 
+  function reportCompilationIssues(
+    entry: TestEntry,
+    artifact: CompiledTestArtifact
+  ) {
+    const hasErrors = artifact.diagnostics.some(
+      (issue) => issue.severity === 'error'
+    )
+    if (hasErrors) failed = true
+    for (const issue of artifact.diagnostics) {
+      onEvent({
+        ...envelope(),
+        type: 'diagnostic',
+        entryId: entry.id,
+        revision: artifact.revision,
+        diagnostic: issue,
+      })
+    }
+    return hasErrors
+  }
+
   function finishFailedFile(entry: TestEntry, fileStarted: number) {
     if (!startedFiles.has(entry.id)) {
       onEvent({ ...envelope(), type: 'file-start', entry })
@@ -212,6 +253,7 @@ export async function runTests(
     let browserHost: import('./browser/host').BrowserHost | undefined
     let browser: import('./contracts').ExecuteTestOptions['browser']
     let acquiringResource = false
+    let executing = false
     const ownsFileEnd = project.profile.environment === 'browser'
     const executionStarted = performance.now()
     let pendingFileEnd: Extract<ResultEvent, { type: 'file-end' }> | undefined
@@ -309,6 +351,7 @@ export async function runTests(
       }
       const execute =
         options.execute ?? (await import('./execution/execute.js')).execute
+      executing = true
       const result = await execute(artifact, {
         runId,
         projectDir,
@@ -364,6 +407,7 @@ export async function runTests(
         onEvent: executionEvent,
         ...(browser ? { browser } : {}),
       })
+      executing = false
       if (coverageReport && !coverageReceived && !controller.signal.aborted) {
         throw new Error('Worker completed without coverage collection.')
       }
@@ -393,7 +437,7 @@ export async function runTests(
       if (!ownsFileEnd) finishFailedFile(entry, fileStarted)
       // A failed acquisition may include failed cleanup without returning a
       // lease to dispose. Conservatively stop rather than acquire another owner.
-      if (acquiringResource) {
+      if (acquiringResource || executing) {
         unsafeCleanup = true
         controller.abort(error)
       }
@@ -449,19 +493,88 @@ export async function runTests(
     }
   }
 
+  async function runIsolatedProject(group: DiscoveredTestProject[]) {
+    const { runWatchProcess, WatchOwnershipError } = await import(
+      './watch-process.js'
+    )
+    try {
+      const completion = await runWatchProcess(
+        {
+          operation: 'run',
+          projectDir,
+          projects: group,
+          maxWorkers,
+          isolatedProfile: true,
+          updateSnapshots: options.updateSnapshots,
+          coverage: options.coverage,
+          testNamePattern: options.testNamePattern,
+        },
+        {
+          signal: controller.signal,
+          write: options.write,
+          writeError: options.reporter?.writeError,
+          report: false,
+          onEvent(event) {
+            if (event.type === 'run-start' || event.type === 'run-end') return
+            onEvent({ ...event, runId })
+          },
+        }
+      )
+      if (completion.operation !== 'run')
+        throw new Error('Invalid isolated project result.')
+      if (completion.result.status !== 'passed') failed = true
+      if (completion.result.unsafeCleanup) {
+        unsafeCleanup = true
+        controller.abort(new Error('Isolated project cleanup failed.'))
+      }
+    } catch (error) {
+      if (!isOnlyCancellation(error)) diagnostic(error, 'runtime')
+      if (error instanceof WatchOwnershipError) {
+        unsafeCleanup = true
+        controller.abort(error)
+      }
+    }
+  }
+
   try {
     onEvent({ ...envelope(), type: 'run-start' })
     const selected = projects.filter((project) => project.entries.length > 0)
     const modes = new Set(selected.map((project) => project.profile.mode))
     if (!selected.length) {
       diagnostic(new Error('No test files selected.'), 'configuration')
-    } else if (modes.size !== 1) {
+    } else if (
+      modes.size === 1 &&
+      previousNodeEnv &&
+      previousNodeEnv !== selected[0].profile.mode
+    ) {
       diagnostic(
         new Error(
-          'Run development and production test projects separately using --project. Mixed compilation modes are not supported in one process.'
+          `Selected test projects require NODE_ENV=${selected[0].profile.mode}; the current NODE_ENV conflicts with their Next compilation profile.`
         ),
         'configuration'
       )
+    } else if (modes.size !== 1 || isolateProjects) {
+      if (
+        selected.some((project) => project.profile.environment === 'browser') ||
+        options.execute ||
+        options.allocateArtifact
+      ) {
+        diagnostic(
+          new Error(
+            'Mixed compilation modes support one-shot Node/RSC projects only; browser and nested orchestration are unsupported. Use --project.'
+          ),
+          'configuration'
+        )
+      } else {
+        // Fresh config/env/module caches for each mode. Configured output
+        // directories can overlap, so await full generation disposal in order.
+        const groups =
+          modes.size === 1 ? [selected] : selected.map((project) => [project])
+        for (const group of groups) {
+          if (controller.signal.aborted) break
+          await runIsolatedProject(group)
+        }
+      }
     } else {
       const mode = selected[0].profile.mode
       if (previousNodeEnv && previousNodeEnv !== mode) {
@@ -476,6 +589,13 @@ export async function runTests(
         ;(process.env as any).NODE_ENV = mode
         for (const project of selected) {
           if (controller.signal.aborted) break
+          if (
+            options.isolateProjects &&
+            project.profile.environment !== 'browser'
+          ) {
+            await runIsolatedProject([project])
+            continue
+          }
           let session:
             | Awaited<
                 ReturnType<
@@ -493,54 +613,45 @@ export async function runTests(
               project.profile,
               { allocateArtifact: options.allocateArtifact }
             )
+            const compilerSession = session
             const browserTests: PreparedTest[] = []
-            for (const entry of project.entries) {
-              if (controller.signal.aborted) break
-              const fileStarted = performance.now()
-              try {
-                const artifact = await session.compile(entry, {
-                  signal: controller.signal,
-                  setupFiles: project.setupFiles,
-                  ...(options.coverage
-                    ? {
-                        coverage: {
-                          version: 1 as const,
-                          kind: 'node-line' as const,
-                        },
-                      }
-                    : {}),
-                })
-                for (const issue of artifact.diagnostics) {
-                  if (issue.severity === 'error') failed = true
-                  onEvent({
-                    ...envelope(),
-                    type: 'diagnostic',
-                    entryId: entry.id,
-                    revision: artifact.revision,
-                    diagnostic: issue,
+            await forEachTestFile(
+              project.entries,
+              project.profile.environment === 'browser' ? 1 : maxWorkers,
+              controller.signal,
+              async (entry) => {
+                const fileStarted = performance.now()
+                try {
+                  const artifact = await compilerSession.compile(entry, {
+                    signal: controller.signal,
+                    setupFiles: project.setupFiles,
+                    ...(options.coverage
+                      ? {
+                          coverage: {
+                            version: 1 as const,
+                            kind: 'node-line' as const,
+                          },
+                        }
+                      : {}),
                   })
-                }
-                if (
-                  artifact.diagnostics.some(
-                    (issue) => issue.severity === 'error'
-                  )
-                ) {
+                  if (reportCompilationIssues(entry, artifact)) {
+                    finishFailedFile(entry, fileStarted)
+                    return
+                  }
+                  controller.signal.throwIfAborted()
+                  const prepared = { entry, artifact, started: fileStarted }
+                  if (project.profile.environment === 'browser') {
+                    browserTests.push(prepared)
+                  } else {
+                    await executePrepared(prepared, project)
+                  }
+                } catch (error) {
+                  if (!isOnlyCancellation(error))
+                    diagnostic(error, 'compilation', entry)
                   finishFailedFile(entry, fileStarted)
-                  continue
                 }
-                controller.signal.throwIfAborted()
-                const prepared = { entry, artifact, started: fileStarted }
-                if (project.profile.environment === 'browser') {
-                  browserTests.push(prepared)
-                } else {
-                  await executePrepared(prepared, project)
-                }
-              } catch (error) {
-                if (!isOnlyCancellation(error))
-                  diagnostic(error, 'compilation', entry)
-                finishFailedFile(entry, fileStarted)
               }
-            }
+            )
             if (browserTests.length && !controller.signal.aborted) {
               projectPhase = 'cleanup'
               // Release actual native output/cache ownership before Next's
@@ -574,6 +685,13 @@ export async function runTests(
       }
     }
   } finally {
+    if (controller.signal.aborted) {
+      for (const project of projects) {
+        for (const entry of project.entries) {
+          if (!endedFiles.has(entry.id)) finishFailedFile(entry, started)
+        }
+      }
+    }
     if (coverageReport && coverageModule) {
       try {
         if (controller.signal.aborted || unsafeCleanup || reporterFailed) {

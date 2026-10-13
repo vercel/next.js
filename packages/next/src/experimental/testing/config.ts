@@ -1,6 +1,7 @@
 import { readFile, readdir } from 'fs/promises'
 import path from 'path'
 import type { RegisteredBrowserFixture, TestProfile } from './contracts'
+import { parseMaxWorkers } from './scheduling'
 
 export interface TestProjectConfig {
   profile: TestProfile
@@ -15,6 +16,7 @@ export interface TestProjectConfig {
 
 export interface TestConfig {
   compatibility: 'vitest'
+  maxWorkers: number
   projects: TestProjectConfig[]
 }
 
@@ -72,7 +74,7 @@ function timeout(value: unknown, fallback: number, label: string): number {
 
 export function parseTestConfig(value: unknown): TestConfig {
   const config = object(value, 'config')
-  keys(config, ['compatibility', 'projects'], 'config')
+  keys(config, ['compatibility', 'projects', 'maxWorkers'], 'config')
   if (config.compatibility !== undefined && config.compatibility !== 'vitest') {
     invalid('compatibility must be "vitest".')
   }
@@ -86,6 +88,9 @@ export function parseTestConfig(value: unknown): TestConfig {
   const names = new Set<string>()
   return {
     compatibility: 'vitest',
+    maxWorkers: parseMaxWorkers(
+      config.maxWorkers === undefined ? 1 : config.maxWorkers
+    ),
     projects: projects.map((projectValue, index) => {
       const label = `projects[${index}]`
       const project = object(projectValue, label)

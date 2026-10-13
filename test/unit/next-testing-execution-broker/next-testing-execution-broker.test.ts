@@ -57,11 +57,12 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-function transport() {
+function transport(allowCoverage = false) {
   const sent: ExecutionBrokerRequest[] = []
   const launched = deferred<ExecutionBrokerRequest>()
   const cancelled = deferred<void>()
   const client = createExecutionBrokerClient({
+    allowCoverage,
     async send(message) {
       sent.push(message)
       if (message.action === 'execute') launched.resolve(message)
@@ -75,6 +76,79 @@ function transport() {
     client,
   }
 }
+
+it('awaits one-shot coverage processing before releasing the artifact on a terminal result', async () => {
+  const channel = transport(true)
+  const processing = deferred<void>()
+  const received = deferred<void>()
+  let settled = false
+  const completion = channel.client.execute(artifact, {
+    ...options,
+    coverage: { version: 1, kind: 'node-line' },
+    async onCoverage(value) {
+      expect(value.entryId).toBe(entry.id)
+      received.resolve()
+      await processing.promise
+    },
+  })
+  void completion.then(() => {
+    settled = true
+  })
+  const request = await channel.launched
+  if (request.action !== 'execute') throw new Error('Expected execution')
+  expect(request.options).not.toHaveProperty('onCoverage')
+  channel.client.handle({
+    type: 'execution-broker-response',
+    action: 'coverage',
+    id: request.id,
+    completion: {
+      version: 1,
+      runId: 'run',
+      entryId: entry.id,
+      revision: 'revision',
+      complete: false,
+      error: { phase: 'runtime', severity: 'error', message: 'incomplete' },
+    },
+  })
+  channel.client.handle({
+    type: 'execution-broker-response',
+    action: 'result',
+    id: request.id,
+    result,
+  })
+  await received.promise
+  expect(settled).toBe(false)
+  processing.resolve()
+  expect(await completion).toEqual(result)
+})
+
+it('fails a file when coverage processing rejects instead of accepting a passing worker result', async () => {
+  const channel = transport(true)
+  const failure = new Error('invalid coverage identity')
+  const completion = channel.client.execute(artifact, {
+    ...options,
+    coverage: { version: 1, kind: 'node-line' },
+    async onCoverage() {
+      throw failure
+    },
+  })
+  const rejected = completion.catch((error) => error)
+  const request = await channel.launched
+  channel.client.handle({
+    type: 'execution-broker-response',
+    action: 'coverage',
+    id: request.id,
+    completion: { version: 1 },
+  })
+  await channel.cancelled
+  channel.client.handle({
+    type: 'execution-broker-response',
+    action: 'result',
+    id: request.id,
+    result,
+  })
+  expect(await rejected).toBe(failure)
+})
 
 it('sends the compiler environment privately and delivers ordered events/result', async () => {
   const channel = transport()

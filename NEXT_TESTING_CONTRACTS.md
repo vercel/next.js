@@ -465,3 +465,23 @@ not produce a successful report. I3 accounts for every selected entry, finalizes
 JSON and text into retained unique output files, and reports errors before
 `run-end`. Missing captures, remapping/report writes and ownership cleanup errors
 fail the run. Reports cannot retain a success percentage when incomplete.
+
+## File scheduling and CI shards
+
+The historical serial-only orchestration restriction above is superseded by
+[NEXT_TESTING_SCHEDULING.md](NEXT_TESTING_SCHEDULING.md). `RunTestsOptions.maxWorkers`
+bounds complete file leases (default 1, range 1–64). Emission remains serialized;
+all execution lanes drain before compiler disposal. Browser leases remain serial.
+The public CLI supervises Node/RSC compiler processes, including one-shot coverage
+and explicit snapshot updates. Coverage broker messages are ordered before the
+terminal file result, and the client awaits parent-produced completion processing
+before releasing the artifact. The ordinary watch broker still rejects coverage.
+Mixed development/production Node/RSC generations are isolated and serialized;
+results are re-enveloped into one outer run without changing entry/case/retry IDs.
+
+`--shard INDEX/COUNT` partitions sorted selected `project:path` identities after
+filters, assigning position `n` to shard `n % COUNT + 1`. Sharding never modifies
+entry identity. Independent shard invocations require independent mutable output
+ownership; the CLI excludes concurrent one-shot invocations in one application directory
+and compiler sessions use the normal Next output lock. Reports remain per shard;
+no distributed merging or simultaneous browser output writers are implied.

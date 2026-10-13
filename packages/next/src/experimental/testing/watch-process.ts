@@ -25,6 +25,10 @@ export type WatchProcessRequest =
       projects: DiscoveredTestProject[]
       testNamePattern?: string
       updateSnapshots?: boolean
+      maxWorkers?: number
+      coverage?: boolean
+      /** One-shot mixed-profile orchestration; never inherit another mode. */
+      isolatedProfile?: boolean
     }
 
 export type WatchProcessResult =
@@ -92,10 +96,13 @@ export async function runWatchProcess(
   options: {
     signal: AbortSignal
     write(text: string): void
+    writeError?: (text: string) => void
     reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
     onEvent?: (event: ResultEvent) => void
     onSnapshotCommitStart?: () => void
     onSnapshotCommitEnd?: () => void
+    /** Keep event validation/aggregation but let an outer run render results. */
+    report?: boolean
   }
 ): Promise<WatchProcessResult> {
   if (process.platform === 'win32')
@@ -110,7 +117,12 @@ export async function runWatchProcess(
   return new Promise<WatchProcessResult>((resolve, reject) => {
     const child = fork(require.resolve('./watch-worker'), [], {
       cwd: request.projectDir,
-      env: { ...process.env },
+      env: {
+        ...process.env,
+        ...(request.operation === 'run' && request.isolatedProfile
+          ? { NODE_ENV: request.projects[0].profile.mode }
+          : {}),
+      },
       execArgv: [],
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
@@ -137,7 +149,7 @@ export async function runWatchProcess(
               0
             ),
             watch: true,
-            write: options.write,
+            write: options.report === false ? () => {} : options.write,
             onError(error) {
               fail(error)
               cancel()
@@ -148,7 +160,7 @@ export async function runWatchProcess(
     disposeReporter = reporter?.dispose
     const snapshotPlans = new Map<
       string,
-      { file: string; updates: SnapshotUpdate[] }
+      { file: string; updates: SnapshotUpdate[]; sourceHash?: string }
     >()
     const emitResult = (event: ResultEvent) => {
       options.onEvent?.(event)
@@ -165,9 +177,12 @@ export async function runWatchProcess(
     }
     const broker = brokerModule?.createExecutionBrokerHost({
       signal: options.signal,
+      maxWorkers: request.operation === 'run' ? request.maxWorkers : undefined,
+      allowCoverage:
+        request.operation === 'run' && request.isolatedProfile === true,
       onSnapshotUpdates:
         request.operation === 'run' && request.updateSnapshots
-          ? async (entryId, file, updates) => {
+          ? async (entryId, file, updates, sourceHash) => {
               const entry = request.projects
                 .flatMap((project) => project.entries)
                 .find((candidate) => candidate.id === entryId)
@@ -177,6 +192,7 @@ export async function runWatchProcess(
               snapshotPlans.set(entryId, {
                 file,
                 updates: structuredClone(updates),
+                sourceHash,
               })
             }
           : undefined,
@@ -256,7 +272,9 @@ export async function runWatchProcess(
         const target = options.reporter?.terminal
           ? (text: string) => options.reporter!.terminal!.write(text, stream)
           : stream === 'stderr'
-            ? (options.reporter?.writeError ?? options.write)
+            ? (options.reporter?.writeError ??
+              options.writeError ??
+              options.write)
             : options.write
         target(data.toString())
       } catch (error) {
@@ -411,9 +429,10 @@ export async function runWatchProcess(
       ) {
         try {
           options.onSnapshotCommitStart?.()
-          for (const { file, updates } of snapshotPlans.values()) {
+          for (const { file, updates, sourceHash } of snapshotPlans.values()) {
             await commitSnapshotUpdates(file, updates, {
               signal: options.signal,
+              sourceHash,
             })
           }
         } catch (error) {

@@ -20,6 +20,7 @@ import {
 } from 'path'
 import { printNonFatalIssue } from '../../../server/dev/turbopack-utils'
 import { loadBindings } from '../../../build/swc'
+import { Lockfile } from '../../../build/lockfile'
 import { createDevTurbopackProject } from '../../../build/swc/dev-project'
 import { createProductionProjectOptions } from '../../../build/swc/production-project'
 import { generateBuildId } from '../../../build/generate-build-id'
@@ -65,53 +66,73 @@ export async function createTestCompilerSession(
   }
   const distDir = resolve(dir, config.distDir)
   const dev = profile.mode === 'development'
-  const buildId = dev
-    ? 'development'
-    : await generateBuildId(config.generateBuildId, randomUUID)
-  const fsChecker = dev
-    ? await setupFsCheck({ dir, dev: true, config })
-    : {
-        rewrites: (await loadCustomRoutes(config)).rewrites,
-        previewProps: await generatePreviewKeys({ isBuild: true, distDir }),
-      }
-  const project = dev
-    ? (
-        await createDevTurbopackProject({
-          projectPath: dir,
-          nextConfig: config,
-          distDir,
-          fsChecker,
-          serverFastRefresh: false,
-        })
-      ).project
-    : await bindings.turbo
-        .createProject(
-          createProductionProjectOptions({
-            dir,
-            distDir,
-            config,
-            buildId,
-            encryptionKey: await generateEncryptionKeyBase64({
-              isBuild: true,
-              distDir,
-            }),
-            previewProps: fsChecker.previewProps,
-            rewrites: fsChecker.rewrites,
-            clientRouterFilters: undefined,
-          }),
-          {
-            turbopackMemoryEviction:
-              config.experimental.turbopackMemoryEvictionMode,
-            dependencyTracking:
-              config.experimental.turbopackFileSystemCacheForBuild || false,
-            gc: config.experimental.turbopackGcOptions,
-            isShortSession: true,
+  // Use the same output lock as normal Next servers/builds, including during
+  // config-derived manifest generation. Never allow a second compiler owner.
+  if (!config.experimental.lockDistDir) {
+    throw new Error('Next test compilation requires experimental.lockDistDir.')
+  }
+  await mkdir(distDir, { recursive: true })
+  const acquiredLock = Lockfile.tryAcquire(join(distDir, 'lock'))
+  if (!acquiredLock)
+    throw new Error(
+      'Next test output is already owned by another compiler or application server.'
+    )
+  const outputLock = acquiredLock
+  const compilation = await (async () => {
+    try {
+      const buildId = dev
+        ? 'development'
+        : await generateBuildId(config.generateBuildId, randomUUID)
+      const fsChecker = dev
+        ? await setupFsCheck({ dir, dev: true, config })
+        : {
+            rewrites: (await loadCustomRoutes(config)).rewrites,
+            previewProps: await generatePreviewKeys({ isBuild: true, distDir }),
           }
-        )
-        .then((result) => {
-          for (const issue of result.issues) printNonFatalIssue(issue)
-          return result.value
-        })
+      const project = dev
+        ? (
+            await createDevTurbopackProject({
+              projectPath: dir,
+              nextConfig: config,
+              distDir,
+              fsChecker,
+              serverFastRefresh: false,
+            })
+          ).project
+        : await bindings.turbo
+            .createProject(
+              createProductionProjectOptions({
+                dir,
+                distDir,
+                config,
+                buildId,
+                encryptionKey: await generateEncryptionKeyBase64({
+                  isBuild: true,
+                  distDir,
+                }),
+                previewProps: fsChecker.previewProps,
+                rewrites: fsChecker.rewrites,
+                clientRouterFilters: undefined,
+              }),
+              {
+                turbopackMemoryEviction:
+                  config.experimental.turbopackMemoryEvictionMode,
+                dependencyTracking:
+                  config.experimental.turbopackFileSystemCacheForBuild || false,
+                gc: config.experimental.turbopackGcOptions,
+                isShortSession: true,
+              }
+            )
+            .then((result) => {
+              for (const issue of result.issues) printNonFatalIssue(issue)
+              return result.value
+            })
+      return { buildId, fsChecker, project }
+    } catch (error) {
+      await outputLock.unlock()
+      throw error
+    }
+  })()
   const directories = new Set<string>()
   let closing = false
   let pending: Promise<unknown> = Promise.resolve()
@@ -161,7 +182,7 @@ export async function createTestCompilerSession(
       .digest('hex')
     const setup = setupFiles.map(projectFile)
     const nativeId = createHash('sha256').update(entry.id).digest('hex')
-    const endpoint = await project.testEntry({
+    const endpoint = await compilation.project.testEntry({
       id: nativeId,
       file,
       setupFiles: setup,
@@ -248,7 +269,7 @@ export async function createTestCompilerSession(
           ? {
               ...(await writeDevRequestManifests(
                 staging,
-                fsChecker.previewProps
+                compilation.fsChecker.previewProps
               )),
               clientReference: `server/app${manifestPage}_client-reference-manifest.js`,
               serverActions: `server/app${manifestPage}/server-reference-manifest.json`,
@@ -352,7 +373,7 @@ export async function createTestCompilerSession(
               manifests: manifests!,
               requestContext: {
                 mode: profile.mode,
-                buildId,
+                buildId: compilation.buildId,
                 deploymentId: config.deploymentId ?? '',
                 incrementalCache: {
                   cacheMaxMemorySize: config.cacheMaxMemorySize,
@@ -413,7 +434,9 @@ export async function createTestCompilerSession(
     closing = true
     return (compilationShutdown ??= (async () => {
       await pending
-      await project.shutdown()
+      await compilation.project.shutdown()
+      // Failed native shutdown retains the lock until process exit.
+      await outputLock.unlock()
     })())
   }
 

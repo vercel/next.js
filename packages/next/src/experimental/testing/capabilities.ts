@@ -130,6 +130,23 @@ export const testCapabilities = {
     note: 'POSIX process ownership is required; independent native/runtime acceptance is recorded for darwin-arm64.',
   },
   features: {
+    scheduling: {
+      supported: true,
+      maxWorkers: { default: 1, minimum: 1, maximum: 64 },
+      scope:
+        'One-shot bounded Node/RSC file workers; one compiler and one browser/server lease at a time.',
+      sharding:
+        'One-based INDEX/COUNT; sorted project:path IDs after filtering, round-robin assignment; empty shards succeed.',
+      mixedProfiles:
+        'Development/production Node/RSC projects run in separate supervised processes, serially to preserve configured output ownership.',
+      unsupported: [
+        'parallel cases within a file',
+        'watch scheduling',
+        'mixed-mode browser projects',
+        'snapshot updates selecting one source file in multiple profiles',
+        'concurrent shards sharing application output',
+      ],
+    },
     listing: { supported: true },
     orderedSetup: {
       supported: true,

@@ -26,6 +26,7 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       './execution/broker.js'
     )
     broker = createExecutionBrokerClient({
+      allowCoverage: request.isolatedProfile === true,
       send: (message) =>
         new Promise<void>((sent, failed) => {
           if (!process.connected)
@@ -40,6 +41,8 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       signal: controller.signal,
       testNamePattern: request.testNamePattern,
       updateSnapshots: request.updateSnapshots,
+      maxWorkers: request.maxWorkers,
+      coverage: request.coverage,
       execute: broker.execute,
       allocateArtifact: (parentDir) =>
         new Promise((resolve, reject) => {

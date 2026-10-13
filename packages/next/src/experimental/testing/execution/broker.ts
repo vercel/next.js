@@ -3,6 +3,7 @@ import type {
   CompiledTestArtifact,
   ExecuteTest,
   ExecuteTestOptions,
+  TestCoverageCompletion,
 } from '../contracts'
 import type {
   FileResult,
@@ -12,6 +13,7 @@ import type {
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { executeWithEnvironment } from './execute'
 import type { SnapshotUpdate } from '../assertions/snapshots'
+import { parseMaxWorkers } from '../scheduling'
 
 type SerializableOptions = Omit<
   ExecuteTestOptions,
@@ -31,6 +33,12 @@ export type ExecutionBrokerRequest =
   | { type: 'execution-broker-request'; id: string; action: 'cancel' }
 
 export type ExecutionBrokerResponse =
+  | {
+      type: 'execution-broker-response'
+      id: string
+      action: 'coverage'
+      completion: TestCoverageCompletion
+    }
   | {
       type: 'execution-broker-response'
       id: string
@@ -54,16 +62,21 @@ export type ExecutionBrokerResponse =
 export function createExecutionBrokerHost(options: {
   signal: AbortSignal
   send(message: ExecutionBrokerResponse): Promise<void>
+  /** One-shot supervisors only. Watch still rejects coverage. */
+  allowCoverage?: boolean
+  maxWorkers?: number
   /** Explicit parent authorization; plans are committed after generation cleanup. */
   onSnapshotUpdates?: (
     entryId: string,
     file: string,
-    updates: SnapshotUpdate[]
+    updates: SnapshotUpdate[],
+    sourceHash?: string
   ) => Promise<void>
 }) {
+  const maxWorkers = parseMaxWorkers(options.maxWorkers ?? 1)
   const active = new Map<
     string,
-    { controller: AbortController; task: Promise<void> }
+    { controller: AbortController; task: Promise<void>; leased: boolean }
   >()
   const seen = new Set<string>()
   let closing: Promise<void> | undefined
@@ -123,16 +136,23 @@ export function createExecutionBrokerHost(options: {
       if (message.action !== 'execute') {
         throw new Error('Invalid execution broker request action')
       }
-      if (closed || transportFailure) {
+      if (closed || transportFailure || cleanupFailures.length > 0) {
         throw new Error('The execution broker is closed')
       }
       if (seen.has(message.id)) {
         throw new Error('Duplicate execution broker request identity')
       }
+      if (
+        [...active.values()].filter((request) => request.leased).length >=
+        maxWorkers
+      ) {
+        throw new Error('Execution broker file-worker limit exceeded')
+      }
       seen.add(message.id)
       const request = {
         controller: new AbortController(),
         task: Promise.resolve(),
+        leased: true,
       }
       active.set(message.id, request)
       if (options.signal.aborted)
@@ -141,7 +161,7 @@ export function createExecutionBrokerHost(options: {
         let executing = false
         try {
           if (
-            message.options.coverage ||
+            (message.options.coverage && !options.allowCoverage) ||
             (message.options.updateSnapshots && !options.onSnapshotUpdates) ||
             message.options.browser ||
             message.artifact.profile.environment === 'browser'
@@ -164,6 +184,17 @@ export function createExecutionBrokerHost(options: {
                   event,
                 }).catch(() => {})
               },
+              ...(message.options.coverage && options.allowCoverage
+                ? {
+                    onCoverage: (completion: TestCoverageCompletion) =>
+                      publish({
+                        type: 'execution-broker-response',
+                        id: message.id,
+                        action: 'coverage',
+                        completion,
+                      }),
+                  }
+                : {}),
             },
             { ...message.env },
             options.onSnapshotUpdates
@@ -171,11 +202,13 @@ export function createExecutionBrokerHost(options: {
                   options.onSnapshotUpdates!(
                     message.artifact.entryId,
                     file,
-                    updates
+                    updates,
+                    message.artifact.sourceHash
                   )
               : undefined
           )
           executing = false
+          request.leased = false
           // Ordered delivery keeps all output/cleanup events before the result.
           await publish({
             type: 'execution-broker-response',
@@ -249,6 +282,7 @@ function remoteError(diagnostic: SerializedDiagnostic): Error {
 /** The fresh compiler child delegates execution and retains its artifact lease. */
 export function createExecutionBrokerClient(options: {
   send(message: ExecutionBrokerRequest): Promise<void>
+  allowCoverage?: boolean
 }) {
   interface Pending {
     resolve(result: FileResult): void
@@ -257,6 +291,8 @@ export function createExecutionBrokerClient(options: {
     signal: AbortSignal
     onAbort(): void
     failure?: { error: unknown }
+    onCoverage?: ExecuteTestOptions['onCoverage']
+    coverage: Promise<void>
   }
   const pending = new Map<string, Pending>()
   let disconnected: Error | undefined
@@ -272,7 +308,10 @@ export function createExecutionBrokerClient(options: {
 
   const execute: ExecuteTest = (artifact, executionOptions) => {
     if (disconnected) return Promise.reject(disconnected)
-    if (executionOptions.coverage || executionOptions.onCoverage) {
+    if (
+      !options.allowCoverage &&
+      (executionOptions.coverage || executionOptions.onCoverage)
+    ) {
       return Promise.reject(
         new Error('Watch execution does not support coverage')
       )
@@ -308,6 +347,8 @@ export function createExecutionBrokerClient(options: {
         onEvent,
         signal,
         onAbort: cancel,
+        onCoverage: executionOptions.onCoverage,
+        coverage: Promise.resolve(),
       }
       pending.set(id, request)
       sent = Promise.resolve().then(() => {
@@ -345,6 +386,19 @@ export function createExecutionBrokerClient(options: {
       }
       const request = pending.get(message.id)
       if (!request) return true
+      if (message.action === 'coverage') {
+        request.coverage = request.coverage
+          .then(async () => {
+            if (!options.allowCoverage || !request.onCoverage)
+              throw new Error('Unexpected broker coverage completion')
+            await request.onCoverage(message.completion)
+          })
+          .catch((error) => {
+            request.failure ??= { error }
+            request.onAbort()
+          })
+        return true
+      }
       if (message.action === 'event') {
         try {
           request.onEvent(message.event)
@@ -357,23 +411,25 @@ export function createExecutionBrokerClient(options: {
       if (message.action !== 'result' && message.action !== 'error') {
         throw new Error('Invalid execution broker response action')
       }
-      pending.delete(message.id)
-      request.signal.removeEventListener('abort', request.onAbort)
-      if (message.action === 'error') {
-        const error = remoteError(message.error)
-        request.reject(
-          request.failure
-            ? new AggregateError(
-                [request.failure.error, error],
-                'Test reporting and execution failed'
-              )
-            : error
-        )
-      } else if (request.failure) {
-        request.reject(request.failure.error)
-      } else {
-        request.resolve(message.result)
-      }
+      void request.coverage.then(() => {
+        pending.delete(message.id)
+        request.signal.removeEventListener('abort', request.onAbort)
+        if (message.action === 'error') {
+          const error = remoteError(message.error)
+          request.reject(
+            request.failure
+              ? new AggregateError(
+                  [request.failure.error, error],
+                  'Test reporting and execution failed'
+                )
+              : error
+          )
+        } else if (request.failure) {
+          request.reject(request.failure.error)
+        } else {
+          request.resolve(message.result)
+        }
+      })
       return true
     },
   }
