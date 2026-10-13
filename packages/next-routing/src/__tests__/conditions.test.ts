@@ -238,6 +238,78 @@ describe('Has conditions', () => {
     expect(result.resolvedPathname).toBe('/mobile')
   })
 
+  it('should NOT match when the value only appears as a substring', async () => {
+    const headers = new Headers({
+      'x-env': 'preproduction',
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/'),
+      headers,
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/$',
+            destination: '/production',
+            has: [
+              {
+                type: 'header',
+                key: 'x-env',
+                value: 'production',
+              },
+            ],
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/', '/production'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/')
+  })
+
+  it('should match a missing condition when the value is only a substring', async () => {
+    const headers = new Headers({
+      'x-env': 'preproduction',
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/'),
+      headers,
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/$',
+            destination: '/not-production',
+            missing: [
+              {
+                type: 'header',
+                key: 'x-env',
+                value: 'production',
+              },
+            ],
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/not-production'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/not-production')
+  })
+
   it('should require ALL has conditions to match', async () => {
     const headers = new Headers({
       'x-user-role': 'admin',
