@@ -15,14 +15,8 @@ export default function TwoColumnWithImage({
         <div className="row">
           {image && imagePosition === "left" && (
             <div className="col-lg-6 order-last order-lg-first">
-              <div className="left-image cta-image ">
-                <Image
-                  src={image}
-                  layout="responsive"
-                  height="400px"
-                  width="600px"
-                  alt=""
-                />
+              <div className="left-image cta-image">
+                <Image src={image} width={600} height={400} alt={headline} />
               </div>
             </div>
           )}
@@ -43,13 +37,7 @@ export default function TwoColumnWithImage({
           {image && imagePosition === "right" && (
             <div className="col-lg-6">
               <div className="right-image cta-image text-lg-end">
-                <Image
-                  src={image}
-                  layout="responsive"
-                  height="400px"
-                  width="600px"
-                  alt=""
-                />
+                <Image src={image} width={600} height={400} alt={headline} />
               </div>
             </div>
           )}
