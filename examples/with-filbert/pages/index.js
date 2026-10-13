@@ -23,7 +23,7 @@ const Heading = styled.h1`
 const Small = styled.div`
   color: black;
 `;
-const Container = styled.div`
+const Container = styled.main`
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -56,10 +56,14 @@ export default function Home() {
       <img
         src="https://raw.githubusercontent.com/kuldeepkeshwar/filbert-js/master/filbert.png"
         width="150"
-        alt="filbert"
+        alt="Filbert logo"
       />
       <Heading>
-        <a target="_black" href="https://filbert-js.vercel.app/">
+        <a
+          target="_blank"
+          href="https://filbert-js.vercel.app/"
+          rel="noopener noreferrer"
+        >
           {" "}
           Welcome to Filbert!
         </a>
