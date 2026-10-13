@@ -18,6 +18,7 @@ import { UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY } from '../shared/lib/entry-constan
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { Bundler } from '../lib/bundler'
 import { wait } from '../lib/wait'
+import { getBuildDistDir } from '../export/utils'
 
 const DEV_STATIC_INFO_RETRY_TIMEOUT = 5_000
 const DEV_STATIC_INFO_RETRY_INTERVAL = 100
@@ -54,17 +55,15 @@ export async function getStaticInfoIncludingLayouts({
   })
 
   if (bundler === Bundler.Turbopack) {
+    // With a custom static-export destination, production build artifacts still live in .next.
+    const buildDistDir = isDev
+      ? nextConfig.distDir
+      : getBuildDistDir(nextConfig)
     const staticInfoPath = isMiddlewareFile(page)
-      ? join(
-          dir,
-          nextConfig.distDir,
-          'server',
-          'middleware',
-          'static-info.json'
-        )
+      ? join(dir, buildDistDir, 'server', 'middleware', 'static-info.json')
       : join(
           dir,
-          nextConfig.distDir,
+          buildDistDir,
           'server',
           isInsideAppDir ? 'app' : 'pages',
           isInsideAppDir ? page : getAssetPathFromRoute(page),
