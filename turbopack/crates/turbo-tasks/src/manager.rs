@@ -141,11 +141,12 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         options: ReadCellOptions,
     ) -> Result<ReadOutcome<TypedCellContent>>;
 
-    /// Reads a [`RawVc::LocalOutput`]. If the task has completed, returns the [`RawVc`] the local
-    /// task points to.
+    /// Reads a [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput]. If the task has
+    /// completed, returns the [`RawVc`] the local task points to.
     ///
-    /// The returned [`RawVc`] may also be a [`RawVc::LocalOutput`], so this may need to be called
-    /// recursively or in a loop.
+    /// The returned [`RawVc`] may also unpack to a
+    /// [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput], so this may need to be
+    /// called recursively or in a loop.
     ///
     /// This does not accept a consistency argument, as you cannot control consistency of a read of
     /// an operation owned by your own task. Strongly consistent reads are only allowed on

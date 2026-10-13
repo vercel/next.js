@@ -59,8 +59,8 @@ impl ShardBits {
         start..=end
     }
 
-    /// Computes the shard bits for a family with size [`bytes`], targeting a shard size and using
-    /// `[self]` bits already.
+    /// Computes the shard bits for a family with size `bytes`, targeting a shard size and using
+    /// `self` bits already.
     ///
     /// The shard count only doubles once shards hold more than 1.5 times `target_shard_size`, and
     /// only halves once they hold less than half of it to prevent resharding around a threshold.

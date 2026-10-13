@@ -81,8 +81,8 @@ pub struct DiskWatcherConfig {
     /// [`None`] disables polling, using the platform's native watcher ([`RecommendedWatcher`])
     /// instead of [`PollWatcher`].
     pub poll_interval: Option<Duration>,
-    /// Attach an [`InvalidationReason`] to every invalidation the watcher causes ([`WatchStart`],
-    /// [`WatchChange`], or [`InvalidateRescan`]), so that it can be reported to the user.
+    /// Attach an [`InvalidationReason`] to every invalidation the watcher causes (`WatchStart`,
+    /// `WatchChange`, or `InvalidateRescan`), so that it can be reported to the user.
     ///
     /// This costs an extra allocation per invalidated path, so it's only worth enabling when
     /// something actually consumes the reasons.

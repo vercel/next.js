@@ -159,11 +159,11 @@ pub struct BackendOptions {
     pub gc: Option<bool>,
 
     /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
-    /// [`DEFAULT_GC_ROOT_TTL`].
+    /// `DEFAULT_GC_ROOT_TTL`.
     pub gc_root_ttl: Option<Duration>,
 
     /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
-    /// [`GC_MIN_PROGRESS`].
+    /// `GC_MIN_PROGRESS`.
     pub gc_min_progress: Option<Duration>,
 }
 

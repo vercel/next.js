@@ -92,7 +92,7 @@ impl From<File> for FileContent {
 /// [`FileContent`] uses `serialization = "hash"`, so only a hash is kept in the persistent cache.
 /// When reading the file content back from the cache, the hash is compared to detect changes, but
 /// the actual data is not available. `PersistedFileContent` provides the full data so that
-/// [`DiskFileSystem::write`] can retrieve it without re-reading from disk.
+/// `DiskFileSystem::write` can retrieve it without re-reading from disk.
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub enum PersistedFileContent {
@@ -622,7 +622,7 @@ impl FileContent {
     /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
     ///
     /// Use this in contexts where the full file content must be serialized to the persistent
-    /// task cache (e.g., in [`DiskFileSystem::write`]).
+    /// task cache (e.g., in `DiskFileSystem::write`).
     #[turbo_tasks::function]
     pub fn persist(&self) -> Vc<PersistedFileContent> {
         match self {
