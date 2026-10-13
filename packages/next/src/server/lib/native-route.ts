@@ -16,14 +16,58 @@ interface Worker {
   killTimer: ReturnType<typeof setTimeout> | undefined
 }
 
+const HOP_BY_HOP_HEADERS = new Set([
+  'connection',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+])
+const EMPTY_PARAMS = Buffer.from('{}').toString('base64url')
+
 /** Owns activation and transport, never compilation or filesystem watching. */
 export class NativeRouteManager {
   private workers = new Map<string, Promise<Worker>>()
   private routes = new Map<string, string>()
+  private executablePaths = new Map<string, string | Promise<string>>()
   private closed = false
   private allWorkers = new Set<Worker>()
 
-  constructor(private readonly distDir: string) {}
+  constructor(
+    private readonly distDir: string,
+    private readonly dev: boolean
+  ) {}
+
+  private async readExecutable(entry: string): Promise<string> {
+    const descriptor = JSON.parse(
+      await fs.readFile(join(this.distDir, 'server', entry), 'utf8')
+    )
+    if (descriptor.version !== 1 || typeof descriptor.executable !== 'string') {
+      throw new Error('Invalid native route descriptor')
+    }
+    const goos = process.platform === 'win32' ? 'windows' : process.platform
+    const goarch =
+      process.arch === 'x64'
+        ? 'amd64'
+        : process.arch === 'ia32'
+          ? '386'
+          : process.arch
+    if (descriptor.goos !== goos || descriptor.goarch !== goarch) {
+      throw new Error(
+        'Native route output was built for a different OS or architecture'
+      )
+    }
+    const serverDir = join(this.distDir, 'server')
+    const executable = join(serverDir, descriptor.executable)
+    const localPath = relative(serverDir, executable)
+    if (localPath.startsWith('..') || isAbsolute(localPath)) {
+      throw new Error('Native route executable is outside the server output')
+    }
+    return executable
+  }
 
   private async start(executable: string): Promise<Worker> {
     const token = randomBytes(32).toString('hex')
@@ -142,30 +186,16 @@ export class NativeRouteManager {
     params: ParsedUrlQuery
   ): Promise<void> {
     if (this.closed) throw new Error('Next.js server is closing')
-    // Read current emitted output in development; this is not a compiler cache.
-    const descriptor = JSON.parse(
-      await fs.readFile(join(this.distDir, 'server', entry), 'utf8')
-    )
-    if (descriptor.version !== 1 || typeof descriptor.executable !== 'string') {
-      throw new Error('Invalid native route descriptor')
+    // Development output can change between requests; production output cannot.
+    let executable = this.dev ? undefined : this.executablePaths.get(entry)
+    if (!executable) {
+      executable = this.readExecutable(entry)
+      if (!this.dev) this.executablePaths.set(entry, executable)
     }
-    const goos = process.platform === 'win32' ? 'windows' : process.platform
-    const goarch =
-      process.arch === 'x64'
-        ? 'amd64'
-        : process.arch === 'ia32'
-          ? '386'
-          : process.arch
-    if (descriptor.goos !== goos || descriptor.goarch !== goarch) {
-      throw new Error(
-        'Native route output was built for a different OS or architecture'
-      )
-    }
-    const serverDir = join(this.distDir, 'server')
-    const executable = join(serverDir, descriptor.executable)
-    const localPath = relative(serverDir, executable)
-    if (localPath.startsWith('..') || isAbsolute(localPath)) {
-      throw new Error('Native route executable is outside the server output')
+    if (typeof executable !== 'string') {
+      const resolved = await executable
+      if (!this.dev) this.executablePaths.set(entry, resolved)
+      executable = resolved
     }
     if (this.closed) throw new Error('Next.js server is closing')
     const previous = this.routes.get(page)
@@ -191,51 +221,50 @@ export class NativeRouteManager {
       old?.then((value) => this.retire(value)).catch(() => {})
     }
     worker.active++
-    const values: Record<string, string[]> = Object.create(null)
-    for (const [name, value] of Object.entries(params)) {
-      if (value !== undefined)
-        values[name] = Array.isArray(value) ? value : [value]
-    }
     // Public values cannot supply private metadata. Authentication is process scoped.
     // Use normalized headers so proxy.ts request-header mutations are respected.
-    const headers = { ...req.headers }
-    const repeated: Record<string, string[]> = Object.create(null)
+    const rawValues: Record<string, string | string[]> = Object.create(null)
     for (let i = 0; i < req.rawHeaders.length; i += 2) {
       const name = req.rawHeaders[i].toLowerCase()
-      ;(repeated[name] ||= []).push(req.rawHeaders[i + 1])
+      const value = req.rawHeaders[i + 1]
+      const existingRawValue = rawValues[name]
+      if (existingRawValue === undefined) rawValues[name] = value
+      else if (typeof existingRawValue === 'string')
+        rawValues[name] = [existingRawValue, value]
+      else existingRawValue.push(value)
     }
-    for (const [name, value] of Object.entries(repeated)) {
+    const connection = String(req.headers.connection || '').toLowerCase()
+    const connectionHeaders = connection
+      ? new Set(connection.split(',').map((name) => name.trim()))
+      : undefined
+    const headers: typeof req.headers = Object.create(null)
+    for (const [name, value] of Object.entries(req.headers)) {
       if (
-        value.length > 1 &&
-        headers[name] === value.join(name === 'cookie' ? '; ' : ', ')
+        HOP_BY_HOP_HEADERS.has(name) ||
+        connectionHeaders?.has(name) ||
+        name.startsWith('x-next-go-')
       ) {
-        headers[name] = value
+        continue
       }
-    }
-    const hopHeaders = [
-      'connection',
-      'keep-alive',
-      'proxy-authenticate',
-      'proxy-authorization',
-      'te',
-      'trailer',
-      'transfer-encoding',
-      'upgrade',
-      ...String(headers.connection || '')
-        .toLowerCase()
-        .split(',')
-        .map((name) => name.trim()),
-    ]
-    for (const name of hopHeaders) delete headers[name]
-    for (const name of Object.keys(headers)) {
-      if (name.startsWith('x-next-go-')) delete headers[name]
+      const raw = rawValues[name]
+      headers[name] =
+        Array.isArray(raw) &&
+        value === raw.join(name === 'cookie' ? '; ' : ', ')
+          ? raw
+          : value
     }
     headers['x-next-go-token'] = worker.token
-    headers['x-next-go-params'] = Buffer.from(JSON.stringify(values)).toString(
-      'base64url'
-    )
-    delete headers.connection
-    delete headers['transfer-encoding']
+    let encodedParams = EMPTY_PARAMS
+    const paramEntries = Object.entries(params)
+    if (paramEntries.length !== 0) {
+      const values: Record<string, string[]> = Object.create(null)
+      for (const [name, value] of paramEntries) {
+        if (value !== undefined)
+          values[name] = Array.isArray(value) ? value : [value]
+      }
+      encodedParams = Buffer.from(JSON.stringify(values)).toString('base64url')
+    }
+    headers['x-next-go-params'] = encodedParams
     try {
       await new Promise<void>((resolve, reject) => {
         const upstream = request({
@@ -330,5 +359,6 @@ export class NativeRouteManager {
     )
     this.workers.clear()
     this.routes.clear()
+    this.executablePaths.clear()
   }
 }
