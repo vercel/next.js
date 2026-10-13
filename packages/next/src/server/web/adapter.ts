@@ -30,10 +30,11 @@ import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
-import { getTracer } from '../lib/trace/tracer'
+import { getTracer, type TraceContextHeaders } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
+import { forwardTraceContextToRequest } from './forward-trace-context'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
@@ -266,6 +267,11 @@ export async function adapter(
   })
   let response
   let cookiesFromResponse
+  // The trace context to forward to the downstream request (see
+  // `forwardTraceContextToRequest`), and the request headers as the middleware
+  // received them.
+  let forwardedTraceContext: TraceContextHeaders | undefined
+  let forwardedRequestHeaders: Headers | undefined
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
@@ -276,6 +282,11 @@ export async function adapter(
       params.page === '/src/proxy'
 
     if (isMiddleware) {
+      // The context the middleware span is parented to (an incoming
+      // `traceparent`, a host span, or next-server's `handleRequest` span).
+      // The render should join it as a sibling of the middleware span.
+      forwardedTraceContext = getTracer().getTraceContextHeaders()
+
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
@@ -293,6 +304,14 @@ export async function adapter(
           },
         },
         async () => {
+          // Without a parent, the middleware span is the trace root, so the
+          // render becomes its child.
+          forwardedTraceContext ??= getTracer().getTraceContextHeaders()
+          if (forwardedTraceContext) {
+            // Snapshot before the handler can mutate `request.headers`.
+            forwardedRequestHeaders = new Headers(request.headers)
+          }
+
           try {
             const onUpdateCookies = (cookies: Array<string>) => {
               cookiesFromResponse = cookies
@@ -519,6 +538,16 @@ export async function adapter(
   }
 
   const finalResponse = response ? response : NextResponse.next()
+
+  if (forwardedRequestHeaders) {
+    // Keep the downstream request (render) in the middleware's trace when the
+    // host invokes it separately from the middleware.
+    forwardTraceContextToRequest(
+      finalResponse.headers,
+      forwardedRequestHeaders,
+      forwardedTraceContext
+    )
+  }
 
   // Flight headers are not overridable / removable so they are applied at the end.
   const middlewareOverrideHeaders = finalResponse.headers.get(

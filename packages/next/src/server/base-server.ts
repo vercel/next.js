@@ -903,8 +903,24 @@ export default abstract class Server<
               'http.target': req.url,
             },
           },
-          async (span) =>
-            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+          async (span) => {
+            if (getRequestMeta(req, 'middlewareInvoke')) {
+              // When middleware lets the request continue, the router server
+              // calls `handleRequest` twice: once to run middleware (this pass)
+              // and once to render. Publish this span's W3C trace context on
+              // the request so the middleware span and the render pass, which
+              // extract it from the request headers, stay in this trace
+              // instead of each starting a new one.
+              const traceContext = tracer.getTraceContextHeaders()
+              if (traceContext) {
+                req.headers.traceparent = traceContext.traceparent
+                if (traceContext.tracestate) {
+                  req.headers.tracestate = traceContext.tracestate
+                }
+              }
+            }
+
+            return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
               if (!span) return
 
               const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
@@ -963,6 +979,7 @@ export default abstract class Server<
                 span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
               }
             })
+          }
         )
       })
 
