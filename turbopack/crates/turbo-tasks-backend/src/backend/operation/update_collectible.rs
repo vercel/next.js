@@ -21,7 +21,7 @@ impl UpdateCollectibleOperation {
         task_id: TaskId,
         collectible: CollectibleRef,
         mut count: i32,
-        mut ctx: ExecuteContext<'_>,
+        ctx: ExecuteContext<'_>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         if count < 0
@@ -75,6 +75,6 @@ impl UpdateCollectibleOperation {
 
         drop(task);
 
-        queue.execute(&mut ctx);
+        queue.execute(&ctx);
     }
 }

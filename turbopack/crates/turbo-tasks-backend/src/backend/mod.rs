@@ -496,7 +496,7 @@ impl TurboTasksBackend {
         task: TaskId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let _ = ctx.task(task, TaskDataCategory::All);
     }
 
@@ -529,7 +529,7 @@ impl TurboTasksBackend {
     fn task_error_to_turbo_tasks_execution_error(
         &self,
         error: &TaskError,
-        ctx: &mut ExecuteContext<'_>,
+        ctx: &ExecuteContext<'_>,
     ) -> TurboTasksExecutionError {
         match error {
             TaskError::Panic(panic) => TurboTasksExecutionError::Panic(panic.clone()),
@@ -603,11 +603,11 @@ struct TaskExecutionCompletePrepareResult {
 /// Locks the task being read, and the reader too when a dependency edge may need to be added.
 ///
 /// Returns `None` if the task being read is gone (collected by GC, or missing from storage).
-fn lock_task_and_optional_reader<'e>(
-    ctx: &mut ExecuteContext<'e>,
+fn lock_task_and_optional_reader<'ctx>(
+    ctx: &'ctx ExecuteContext<'_>,
     task_id: TaskId,
     reader_id: Option<TaskId>,
-) -> Option<(TaskGuard<'e>, Option<TaskGuard<'e>>)> {
+) -> Option<(TaskGuard<'ctx>, Option<TaskGuard<'ctx>>)> {
     let task = ctx.try_task(task_id, TaskDataCategory::All)?;
     let Some(reader_id) = reader_id else {
         return Some((task, None));
@@ -656,7 +656,7 @@ impl TurboTasksBackend {
     ) -> Result<ReadOutcome<RawVc>> {
         self.assert_not_persistent_calling_transient(reader, task_id);
 
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let need_reader_task = reader.and_then(|reader_id| {
             (self.should_track_dependencies()
                 && !matches!(options.tracking, ReadTracking::Untracked)
@@ -664,7 +664,7 @@ impl TurboTasksBackend {
                 .then_some(reader_id)
         });
         let Some((mut task, mut reader_task)) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
+            lock_task_and_optional_reader(&ctx, task_id, need_reader_task)
         else {
             return Err(collected_task_read_error(task_id, "read_task_output"));
         };
@@ -770,7 +770,7 @@ impl TurboTasksBackend {
                     // cloning `self`: pinning keeps the backend alive for the closure's lifetime.
                     let tt = turbo_tasks.pin();
                     move || {
-                        let mut ctx = tt.backend().execute_context(&tt);
+                        let ctx = tt.backend().execute_context(&tt);
                         let mut visited = FxHashSet::default();
                         fn indent(s: &str) -> String {
                             s.split_inclusive('\n')
@@ -778,7 +778,7 @@ impl TurboTasksBackend {
                                 .collect::<String>()
                         }
                         fn get_info(
-                            ctx: &mut ExecuteContext<'_>,
+                            ctx: &ExecuteContext<'_>,
                             task_id: TaskId,
                             parent_and_count: Option<(TaskId, i32)>,
                             visited: &mut FxHashSet<TaskId>,
@@ -866,7 +866,7 @@ impl TurboTasksBackend {
                             }
                             info
                         }
-                        let info = get_info(&mut ctx, task_id, None, &mut visited);
+                        let info = get_info(&ctx, task_id, None, &mut visited);
                         format!(
                             "try_read_task_output (strongly consistent) from {reader:?}\n{info}"
                         )
@@ -877,7 +877,7 @@ impl TurboTasksBackend {
                 if !task_ids_to_schedule.is_empty() {
                     let mut queue = AggregationUpdateQueue::new();
                     queue.extend_find_and_schedule_dirty(task_ids_to_schedule);
-                    queue.execute(&mut ctx);
+                    queue.execute(&ctx);
                 }
 
                 return Ok(ReadOutcome::InProgress(listener));
@@ -941,13 +941,13 @@ impl TurboTasksBackend {
                 }
                 drop(reader_task);
 
-                queue.execute(&mut ctx);
+                queue.execute(&ctx);
             } else {
                 drop(task);
             }
 
             return result.map(ReadOutcome::Value).map_err(|error| {
-                self.task_error_to_turbo_tasks_execution_error(&error, &mut ctx)
+                self.task_error_to_turbo_tasks_execution_error(&error, &ctx)
                     .with_task_context(task_id, turbo_tasks.pin())
                     .into()
             });
@@ -1033,7 +1033,7 @@ impl TurboTasksBackend {
             final_read_hint,
         } = options;
 
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let need_reader_task = reader.and_then(|reader_id| {
             (self.should_track_dependencies()
                 && !matches!(tracking, ReadCellTracking::Untracked)
@@ -1041,7 +1041,7 @@ impl TurboTasksBackend {
                 .then_some(reader_id)
         });
         let Some((mut task, reader_task)) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
+            lock_task_and_optional_reader(&ctx, task_id, need_reader_task)
         else {
             return Err(collected_task_read_error(task_id, "read_task_cell"));
         };
@@ -1721,7 +1721,7 @@ impl TurboTasksBackend {
         // memory lookup on the miss path).
         let shard = get_shard(&self.storage.task_cache, hash);
 
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let mut created_new = false;
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
@@ -1814,7 +1814,7 @@ impl TurboTasksBackend {
                             base_aggregation_number: u32::MAX,
                             distance: None,
                         },
-                        &mut ctx,
+                        &ctx,
                     );
                 } else if native_fn.is_session_dependent && self.should_track_dependencies() {
                     const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
@@ -1824,7 +1824,7 @@ impl TurboTasksBackend {
                             base_aggregation_number: SESSION_DEPENDENT_AGGREGATION_NUMBER,
                             distance: None,
                         },
-                        &mut ctx,
+                        &ctx,
                     );
                 }
             } else {
@@ -1889,7 +1889,7 @@ impl TurboTasksBackend {
         if task_id.is_transient() {
             return;
         }
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
         task.invalidate_serialization();
     }
@@ -1910,7 +1910,7 @@ impl TurboTasksBackend {
         task_id: TaskId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> String {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         // Diagnostic path: the caller may name any id, including one that no longer exists, so this
         // must not assert existence or create storage for a missing task.
         let Some(task) = ctx.try_task(task_id, TaskDataCategory::Data) else {
@@ -1937,7 +1937,7 @@ impl TurboTasksBackend {
         task_id: TaskId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         if let Some(in_progress) = task.take_in_progress() {
             match in_progress {
@@ -1989,7 +1989,7 @@ impl TurboTasksBackend {
         drop(task);
 
         if let Some(data_update) = data_update {
-            AggregationUpdateQueue::run(data_update, &mut ctx);
+            AggregationUpdateQueue::run(data_update, &ctx);
         }
 
         drop(in_progress_cells);
@@ -2006,7 +2006,7 @@ impl TurboTasksBackend {
         #[cfg(feature = "task_dirty_cause")]
         let cause;
         {
-            let mut ctx = self.execute_context(turbo_tasks);
+            let ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id, TaskDataCategory::All);
             task.assert_not_deleted("try_start_task_execution");
             task_type = task.get_task_type().to_owned();
@@ -2175,7 +2175,7 @@ impl TurboTasksBackend {
 
         let is_error = result.is_err();
 
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
 
         let TaskExecutionCompletePrepareResult {
             new_children,
@@ -2189,7 +2189,7 @@ impl TurboTasksBackend {
             is_recomputation,
             is_session_dependent,
         } = match self.task_execution_completed_prepare(
-            &mut ctx,
+            &ctx,
             #[cfg(feature = "trace_task_details")]
             &span,
             task_id,
@@ -2215,7 +2215,7 @@ impl TurboTasksBackend {
 
         if !output_dependent_tasks.is_empty() {
             self.task_execution_completed_invalidate_output_dependent(
-                &mut ctx,
+                &ctx,
                 task_id,
                 #[cfg(feature = "task_dirty_cause")]
                 function_id,
@@ -2228,7 +2228,7 @@ impl TurboTasksBackend {
 
         if has_new_children
             && let Some(stale_priority) =
-                self.task_execution_completed_connect(&mut ctx, task_id, new_children)
+                self.task_execution_completed_connect(&ctx, task_id, new_children)
         {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
@@ -2238,7 +2238,7 @@ impl TurboTasksBackend {
 
         let (stale_priority, in_progress_cells, removed_data) = self
             .task_execution_completed_finish(
-                &mut ctx,
+                &ctx,
                 task_id,
                 #[cfg(feature = "verify_determinism")]
                 no_output_set,
@@ -2265,7 +2265,7 @@ impl TurboTasksBackend {
 
     fn task_execution_completed_prepare(
         &self,
-        ctx: &mut ExecuteContext<'_>,
+        ctx: &ExecuteContext<'_>,
         #[cfg(feature = "trace_task_details")] span: &Span,
         task_id: TaskId,
         result: Result<RawVc, TurboTasksExecutionError>,
@@ -2578,7 +2578,7 @@ impl TurboTasksBackend {
 
     fn task_execution_completed_invalidate_output_dependent(
         &self,
-        ctx: &mut ExecuteContext<'_>,
+        ctx: &ExecuteContext<'_>,
         task_id: TaskId,
         #[cfg(feature = "task_dirty_cause")] function_id: Option<FunctionId>,
         output_dependent_tasks: SmallVec<[TaskId; 4]>,
@@ -2601,7 +2601,7 @@ impl TurboTasksBackend {
         }
 
         fn process_output_dependents(
-            ctx: &mut ExecuteContext<'_>,
+            ctx: &ExecuteContext<'_>,
             task_id: TaskId,
             #[cfg(feature = "task_dirty_cause")] cause: &TaskDirtyCause,
             dependent_task_id: TaskId,
@@ -2660,11 +2660,11 @@ impl TurboTasksBackend {
                     #[cfg(feature = "task_dirty_cause")]
                     let cause = &cause;
                     scope.spawn(move || {
-                        let mut ctx = child_ctx.create();
+                        let ctx = child_ctx.create();
                         let mut queue = AggregationUpdateQueue::new();
                         for dependent_task_id in chunk {
                             process_output_dependents(
-                                &mut ctx,
+                                &ctx,
                                 task_id,
                                 #[cfg(feature = "task_dirty_cause")]
                                 cause,
@@ -2672,7 +2672,7 @@ impl TurboTasksBackend {
                                 &mut queue,
                             )
                         }
-                        queue.execute(&mut ctx);
+                        queue.execute(&ctx);
                     });
                 }
             });
@@ -2694,7 +2694,7 @@ impl TurboTasksBackend {
 
     fn task_execution_completed_connect(
         &self,
-        ctx: &mut ExecuteContext<'_>,
+        ctx: &ExecuteContext<'_>,
         task_id: TaskId,
         new_children: FxHashSet<TaskId>,
     ) -> Option<TaskPriority> {
@@ -2764,7 +2764,7 @@ impl TurboTasksBackend {
     #[allow(clippy::type_complexity)]
     fn task_execution_completed_finish(
         &self,
-        ctx: &mut ExecuteContext<'_>,
+        ctx: &ExecuteContext<'_>,
         task_id: TaskId,
         #[cfg(feature = "verify_determinism")] no_output_set: bool,
         new_output: Option<OutputValue>,
@@ -3253,7 +3253,7 @@ impl TurboTasksBackend {
         cell: CellId,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<TypedCellContent> {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
         task.assert_not_deleted("try_read_own_task_cell");
         if let Some(content) = task.get_cell_data(&cell).cloned() {
@@ -3270,7 +3270,7 @@ impl TurboTasksBackend {
         reader_id: Option<TaskId>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
         {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -3404,7 +3404,7 @@ impl TurboTasksBackend {
     }
 
     fn mark_own_task_as_finished(&self, task: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress(InProgressStateInner {
             marked_as_completed,
@@ -3426,7 +3426,7 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task);
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         // An `OperationVc` held without a pin can name a collected task (soft-deleted or already
         // gone). That is a bug in whoever held it, so fail loudly here, in the connecting task,
         // rather than letting the dead id spread into this task's output or another task's
@@ -3463,7 +3463,7 @@ impl TurboTasksBackend {
         // here also blocks `stop()` from tearing storage down while this runs -- this is called
         // from JS (`root_task_dispose`, or `SubscriptionTask::drop`) on a thread that
         // `stop_and_wait` does not drain.
-        let Some(mut ctx) = self.try_execute_context(turbo_tasks) else {
+        let Some(ctx) = self.try_execute_context(turbo_tasks) else {
             return;
         };
 
@@ -3490,7 +3490,7 @@ impl TurboTasksBackend {
             drop(task);
 
             if !old_edges.is_empty() {
-                cleanup_old_edges(task_id, old_edges, AggregationUpdateQueue::new(), &mut ctx);
+                cleanup_old_edges(task_id, old_edges, AggregationUpdateQueue::new(), &ctx);
             }
         }
     }
@@ -3504,7 +3504,7 @@ impl TurboTasksBackend {
 
         use crate::backend::operation::{get_uppers, is_aggregating_node};
 
-        let mut ctx = self.execute_context(turbo_tasks);
+        let ctx = self.execute_context(turbo_tasks);
         let root_tasks = self.root_tasks.lock().clone();
 
         for task_id in root_tasks.into_iter() {
