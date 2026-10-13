@@ -1,0 +1,10 @@
+  x You're importing a module that depends on "next/headers" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client",
+  | so this module is also a Client Component.
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+  | 
+  | 
+   ,-[input.js:2:1]
+ 1 | // A shared module outside `appDir` that a Client Component imports.
+ 2 | import { cookies } from 'next/headers'
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   `----

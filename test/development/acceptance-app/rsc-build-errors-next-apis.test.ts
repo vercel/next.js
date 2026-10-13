@@ -125,12 +125,13 @@ runRscBuildErrorsTests(({ next, isTurbopack, isRspack }) => {
       )
       const { session } = sandbox
       await session.waitForRedbox()
-      // This app has no `pages` directory, so the Pages Router is not
-      // involved. The message should instead point at the client component
-      // boundary that pulled `next/headers` into the client graph.
-      expect(await session.getRedboxSource()).toInclude(
-        `You're importing a module that depends on "next/headers". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.`
+      // The module lives outside `app/`, but a Client Component pulled it
+      // into the App Router graph. The Pages Router is not involved.
+      const source = await session.getRedboxSource()
+      expect(source).toInclude(
+        `You're importing a module that depends on "next/headers" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client", so this module is also a Client Component.`
       )
+      expect(source).not.toInclude('Pages Router')
     })
   })
 })

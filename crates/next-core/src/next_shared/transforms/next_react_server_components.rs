@@ -106,6 +106,9 @@ impl CustomTransformer for NextJsReactServerComponents {
                 use_cache_enabled: self.use_cache_enabled,
                 taint_enabled: self.taint_enabled,
                 page_extensions: self.page_extensions.clone(),
+                // Only the App Router contexts pass an `app_dir`. The Pages
+                // Router context passes `None`.
+                is_app_router: self.app_dir.is_some(),
             }),
             self.app_dir.as_ref().map(|path| path.path.clone().into()),
         );
