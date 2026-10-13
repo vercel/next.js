@@ -17,6 +17,72 @@ function getAssetSuffixFromScriptSrc() {
   return qi >= 0 ? src.slice(qi) : ''
 }
 
+/**
+ * Checks whether an existing asset tag points at a chunk URL, with or without
+ * a query string. Use the raw attribute value so matching stays consistent with
+ * the original selectors and with URLs that contain encoded characters.
+ */
+function matchesChunkUrl(
+  url: string | null,
+  chunkUrl: string,
+  decodedChunkUrl: string
+): boolean {
+  return (
+    url !== null &&
+    (url === chunkUrl ||
+      url.startsWith(`${chunkUrl}?`) ||
+      url === decodedChunkUrl ||
+      url.startsWith(`${decodedChunkUrl}?`))
+  )
+}
+
+/**
+ * Limits chunk presence checks to script elements rather than running an
+ * attribute/prefix selector over every element in the document.
+ */
+function findExistingChunkScripts(
+  chunkUrl: string,
+  decodedChunkUrl: string
+): HTMLScriptElement[] {
+  const scripts = document.getElementsByTagName('script')
+  const matchingScripts: HTMLScriptElement[] = []
+
+  for (let i = 0; i < scripts.length; i++) {
+    const script = scripts[i]
+    if (
+      matchesChunkUrl(script.getAttribute('src'), chunkUrl, decodedChunkUrl)
+    ) {
+      matchingScripts.push(script)
+    }
+  }
+
+  return matchingScripts
+}
+
+/**
+ * Limits stylesheet chunk presence checks to link elements, avoiding a full
+ * document scan for every CSS chunk.
+ */
+function findExistingStylesheetLinks(
+  chunkUrl: string,
+  decodedChunkUrl: string
+): HTMLLinkElement[] {
+  const links = document.getElementsByTagName('link')
+  const matchingLinks: HTMLLinkElement[] = []
+
+  for (let i = 0; i < links.length; i++) {
+    const link = links[i]
+    if (
+      link.getAttribute('rel')?.toLowerCase() === 'stylesheet' &&
+      matchesChunkUrl(link.getAttribute('href'), chunkUrl, decodedChunkUrl)
+    ) {
+      matchingLinks.push(link)
+    }
+  }
+
+  return matchingLinks
+}
+
 type ChunkResolver = {
   resolved: boolean
   loadingStarted: boolean
@@ -219,8 +285,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       const decodedChunkUrl = decodeURI(chunkUrl)
 
       if (isCss(chunkUrl)) {
-        const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
+        const previousLinks = findExistingStylesheetLinks(
+          chunkUrl,
+          decodedChunkUrl
         )
         if (previousLinks.length > 0) {
           // CSS chunks do not register themselves, and as such must be marked as
@@ -252,8 +319,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           document.head.appendChild(createLink())
         }
       } else if (isJs(chunkUrl)) {
-        const previousScripts = document.querySelectorAll(
-          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
+        const previousScripts = findExistingChunkScripts(
+          chunkUrl,
+          decodedChunkUrl
         )
         if (previousScripts.length > 0) {
           for (const script of Array.from(previousScripts)) {
