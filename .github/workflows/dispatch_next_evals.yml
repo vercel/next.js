@@ -159,7 +159,7 @@ jobs:
   evaluate:
     needs: identify
     if: needs.identify.outputs.should_run == 'true'
-    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@76df9fa713418cee4a4d66d7b472dee77114de48 # PR #134
+    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@87fd108709d144a8b88cf895799a85bae1d487f9 # PR #134
     with:
       releaseKind: ${{ needs.identify.outputs.release_kind }}
       nextVersion: ${{ needs.identify.outputs.version }}
