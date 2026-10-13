@@ -6,19 +6,26 @@
 // Instead, remember that a refresh was requested and run it once the router
 // has mounted. Development only.
 
+import { InvariantError } from '../../../../shared/lib/invariant-error'
+
 let isRouterMounted = false
 let pendingRefresh: (() => void) | null = null
 
 /**
  * Runs `refresh` now if the App Router has mounted. Otherwise runs it once
  * the router mounts. Multiple early requests coalesce into a single refresh,
- * since one refresh fetches the latest server state.
+ * since one refresh fetches the latest server state. Every caller passes the
+ * same router refresh function, so a different one indicates a bug.
  */
 export function requestHmrRefresh(refresh: () => void): void {
   if (isRouterMounted) {
     refresh()
-  } else {
+  } else if (pendingRefresh === null) {
     pendingRefresh = refresh
+  } else if (pendingRefresh !== refresh) {
+    throw new InvariantError(
+      'Expected every deferred HMR refresh to use the same refresh function.'
+    )
   }
 }
 
