@@ -1179,7 +1179,17 @@ export function createPatchedFetcher(
           typeof init === 'object' &&
           shouldProcessFetchConfigForWorkUnit(workUnitStore)
         ) {
-          const { cache } = init
+          const { cache, next = {} } = init
+          const hasNextConfig = 'next' in init
+
+          // `init` may be an options object that the caller reuses for other
+          // fetches, so copy it before deleting `cache` and `next` below.
+          if (
+            Object.hasOwn(init, 'next') ||
+            (isEdgeRuntime && Object.hasOwn(init, 'cache'))
+          ) {
+            init = { ...init }
+          }
 
           // Delete `cache` property as Cloudflare Workers will throw an error
           if (isEdgeRuntime) delete init.cache
@@ -1232,8 +1242,6 @@ export function createPatchedFetcher(
             )
           }
 
-          const hasNextConfig = 'next' in init
-          const { next = {} } = init
           if (
             typeof next.revalidate === 'number' &&
             revalidateStore &&
