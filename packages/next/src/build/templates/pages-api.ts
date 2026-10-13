@@ -61,7 +61,7 @@ export async function handler(
   let srcPage = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
-  // so we need to to process dynamic routes properly
+  // so we need to process dynamic routes properly
   // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
     srcPage = srcPage.replace(/\/index$/, '') || '/'
