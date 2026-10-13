@@ -45,6 +45,41 @@ describeTurbopack('enhanced federation runtime configuration', () => {
     }
   })
 
+  it('validates manifest URL objects without changing legacy script remotes', () => {
+    const { configSchema } = require('next/dist/server/config-schema') as {
+      configSchema: { safeParse: (value: unknown) => { success: boolean } }
+    }
+    const valid = (remote: unknown) =>
+      configSchema.safeParse({
+        experimental: {
+          turbopackModuleFederation: { remotes: { catalog: remote } },
+        },
+      }).success
+
+    expect(valid('https://example.com/mf-manifest.json?v=1#hash')).toBe(true)
+    expect(
+      valid({ manifest: 'https://example.com/mf-manifest.json?v=1#hash' })
+    ).toBe(true)
+    expect(valid({ external: 'catalog@/remoteEntry.js' })).toBe(true)
+    for (const remote of [
+      { manifest: 'file:///tmp/manifest.json' },
+      { manifest: 'https://user:pass@example.com/mf.json' },
+      { manifest: 'https://example.com/entry.js' },
+      {
+        manifest: 'https://example.com/mf.json',
+        external: 'catalog@/entry.js',
+      },
+      {},
+    ]) {
+      expect(valid(remote)).toBe(false)
+    }
+  })
+
+  it('does not publish a producer manifest for a host-only configuration', async () => {
+    const response = await next.fetch('/_next/static/mf-manifest.json')
+    expect(response.status).toBe(404)
+  })
+
   it('infers a host-only name from the project package and initializes one instance', async () => {
     const browser = await next.browser('/')
     await retry(async () => {

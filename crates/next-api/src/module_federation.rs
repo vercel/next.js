@@ -1,11 +1,17 @@
-use anyhow::{Context, Result};
+use std::collections::BTreeSet;
+
+use anyhow::{Context, Result, bail};
 use next_core::app_structure::FileSystemPathVec;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ResolvedVc, Vc};
-use turbopack::module_federation::module_federation_container_source;
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbopack::module_federation::{module_federation_container_source, shared_provider_version};
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
+    asset::AssetContent,
     chunk::{
-        AssetSuffix, ChunkingContext, EntryChunkGroupResult, availability_info::AvailabilityInfo,
+        AssetSuffix, ChunkableModule, ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
+        availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     module::Module,
@@ -14,16 +20,41 @@ use turbopack_core::{
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
-    output::OutputAssets,
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
+    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
+    virtual_output::VirtualOutputAsset,
 };
+use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     app::AppProject,
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
+
+/// Returns a manifest-relative JS or CSS path, checking that the entry actually emits it.
+async fn manifest_asset_path(
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+    static_root: &FileSystemPath,
+    emitted_paths: &BTreeSet<RcStr>,
+) -> Result<Option<RcStr>> {
+    let path = asset.path().owned().await?;
+    let relative = static_root
+        .get_relative_path_to(&path)
+        .context("Federation output must share its filesystem with the static root")?;
+    if !relative.ends_with(".js") && !relative.ends_with(".css") {
+        return Ok(None);
+    }
+    if relative.starts_with("../") || relative.starts_with('/') || relative == ".." {
+        bail!("Federation asset escapes the public static root");
+    }
+    if !emitted_paths.contains(&relative) {
+        bail!("Federation manifest asset {relative} is not referenced by its entry");
+    }
+    Ok(Some(relative))
+}
 
 /// Project-global browser endpoint for a Module Federation container.
 #[turbo_tasks::value]
@@ -130,14 +161,13 @@ impl ModuleFederationEndpoint {
                 .unused_references(binding_usage_info.unused_references().to_resolved().await?);
         }
         let federation_chunking_context = federation_chunking_context.build();
-        let EntryChunkGroupResult { asset, .. } = *federation_chunking_context
+        let static_root = this.project.node_root().owned().await?.join("static")?;
+        let EntryChunkGroupResult {
+            asset,
+            availability_info,
+        } = *federation_chunking_context
             .entry_chunk_group(
-                this.project
-                    .node_root()
-                    .owned()
-                    .await?
-                    .join("static")?
-                    .join(&filename)?,
+                static_root.join(&filename)?,
                 ChunkGroup::Entry(vec![module]),
                 module_graph,
                 OutputAssets::empty(),
@@ -145,7 +175,155 @@ impl ModuleFederationEndpoint {
                 AvailabilityInfo::root(),
             )
             .await?;
-        Ok(Vc::cell(vec![asset]))
+        let (entry_path, entry_name) = filename.rsplit_once('/').unwrap_or(("", filename.as_str()));
+        let mut emitted_paths = BTreeSet::new();
+        let referenced = asset.references().expand_all_assets().await?;
+        for output_asset in std::iter::once(asset).chain(referenced.iter().copied()) {
+            let path = output_asset.path().owned().await?;
+            let relative = static_root.get_relative_path_to(&path).context(
+                "Federation entry output must share its filesystem with the static root",
+            )?;
+            emitted_paths.insert(relative);
+        }
+
+        let mut exposes = Vec::with_capacity(config.exposes.len());
+        let expose_origin = Vc::upcast(PlainResolveOrigin::new(
+            Vc::upcast(this.app_project.federation_expose_module_context()),
+            this.project
+                .project_path()
+                .owned()
+                .await?
+                .join("__turbopack_module_federation_entry__.js")?,
+        ));
+        for expose in &config.exposes {
+            let mut sync_js = BTreeSet::new();
+            let mut async_js = BTreeSet::new();
+            let mut sync_css = BTreeSet::new();
+            let mut async_css = BTreeSet::new();
+            for request in &expose.imports {
+                let exposed_module = esm_resolve(
+                    expose_origin,
+                    Request::parse(Pattern::Constant(request.clone())),
+                    EcmaScriptModulesReferenceSubType::DynamicImport,
+                    ResolveErrorMode::Error,
+                    None,
+                )
+                .await?
+                .await?
+                .first_module()
+                .await?
+                .with_context(|| format!("Federation expose {request} did not resolve"))?;
+                let chunkable =
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(exposed_module)
+                        .with_context(|| format!("Federation expose {request} is not chunkable"))?;
+                // Replay the exact async chunk group that the entry's dynamic import loader uses.
+                let group = federation_chunking_context.chunk_group_assets(
+                    chunkable.ident(),
+                    ChunkGroup::Async(exposed_module),
+                    module_graph,
+                    availability_info.in_async_module(),
+                );
+                let direct = group.await?.assets;
+                for candidate in direct.await?.iter().copied() {
+                    if let Some(path) =
+                        manifest_asset_path(candidate, &static_root, &emitted_paths).await?
+                    {
+                        if path.ends_with(".js") {
+                            sync_js.insert(path);
+                        } else {
+                            sync_css.insert(path);
+                        }
+                    }
+                }
+                for candidate in group.expand_all_assets().await?.iter().copied() {
+                    if let Some(path) =
+                        manifest_asset_path(candidate, &static_root, &emitted_paths).await?
+                    {
+                        if path.ends_with(".js") && !sync_js.contains(&path) {
+                            async_js.insert(path);
+                        } else if path.ends_with(".css") && !sync_css.contains(&path) {
+                            async_css.insert(path);
+                        }
+                    }
+                }
+            }
+            async_js.retain(|path| !sync_js.contains(path));
+            async_css.retain(|path| !sync_css.contains(path));
+            let exposed = expose.request.strip_prefix("./").unwrap_or(&expose.request);
+            exposes.push(serde_json::json!({
+                "id": format!("{name}:{exposed}"),
+                "name": exposed,
+                "path": expose.request,
+                "assets": {
+                    "js": { "sync": sync_js, "async": async_js },
+                    "css": { "sync": sync_css, "async": async_css },
+                },
+            }));
+        }
+        let project_path = this.project.project_path().owned().await?;
+        let mut shared = Vec::new();
+        for provider in config
+            .shared
+            .iter()
+            .filter(|provider| provider.import.is_some())
+        {
+            let version = shared_provider_version(&project_path, provider).await?;
+            shared.push(serde_json::json!({
+                "id": format!("{name}:{}", provider.share_key),
+                "name": provider.share_key,
+                "version": version,
+                "requiredVersion": provider.required_version,
+                "singleton": provider.singleton,
+                "assets": {
+                    "js": { "sync": [], "async": [] },
+                    "css": { "sync": [], "async": [] },
+                },
+            }));
+        }
+        let remotes = config
+            .remotes
+            .iter()
+            .filter_map(|remote| {
+                let (global, url) = if let Some(manifest) = &remote.manifest {
+                    (remote.request.as_str(), manifest.as_str())
+                } else {
+                    let entry = remote.external.first()?;
+                    (entry.global.as_str(), entry.url.as_str())
+                };
+                Some(serde_json::json!({
+                    "federationContainerName": global,
+                    "moduleName": ".",
+                    "alias": remote.request,
+                    "entry": url,
+                }))
+            })
+            .collect::<Vec<_>>();
+        let manifest = serde_json::json!({
+            "id": name,
+            "name": name,
+            "metaData": {
+                "name": name,
+                "globalName": name,
+                "buildInfo": { "buildVersion": "UNKNOWN", "buildName": "UNKNOWN" },
+                "publicPath": "auto",
+                "remoteEntry": { "name": entry_name, "path": entry_path, "type": "global" },
+            },
+            "shared": shared,
+            "remotes": remotes,
+            "exposes": exposes,
+        });
+        let manifest_asset = ResolvedVc::upcast(
+            VirtualOutputAsset::new(
+                static_root.join("mf-manifest.json")?,
+                AssetContent::file(
+                    FileContent::Content(File::from(serde_json::to_string_pretty(&manifest)?))
+                        .cell(),
+                ),
+            )
+            .to_resolved()
+            .await?,
+        );
+        Ok(Vc::cell(vec![asset, manifest_asset]))
     }
 }
 
@@ -173,7 +351,7 @@ impl Endpoint for ModuleFederationEndpoint {
 
     #[turbo_tasks::function]
     async fn client_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        Ok(self.await?.project.client_changed(self.output_assets()))
+        Ok(self.await?.project.federation_changed(self.output_assets()))
     }
 
     #[turbo_tasks::function]

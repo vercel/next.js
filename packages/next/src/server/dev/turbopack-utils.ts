@@ -745,7 +745,18 @@ export async function handleEntrypoints({
       key,
       /** includeIssues=*/ false,
       moduleFederation,
-      () => ({ type: HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES }),
+      async () => {
+        const updatedEndpoint = await moduleFederation.writeToDisk()
+        dev?.hooks.handleWrittenEndpoint(key, updatedEndpoint, false)
+        processIssues(
+          currentEntryIssues,
+          key,
+          updatedEndpoint,
+          false,
+          logErrors
+        )
+        return { type: HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES }
+      },
       (error) => ({
         type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
         data: `error in Module Federation subscription: ${error}`,
