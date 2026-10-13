@@ -1037,7 +1037,14 @@ impl AggregationUpdateQueue {
     /// Intentionally not called from `find_and_schedule_dirty_internal`: that function
     /// schedules dirty tasks but doesn't perform aggregation work that materially benefits
     /// from up-to-date optimization, so we leave its tasks for one of the other recovery
-    /// hooks to pick up. There is currently no dedicated unit test for the drop/recovery
+    /// hooks to pick up.
+    ///
+    /// Also intentionally not called from `increase_active_count`: activeness changes don't
+    /// alter the graph structure. Every `connect_child` of an executing task issues one, so a
+    /// task that reads a large number of children (e.g. one call per module) would otherwise
+    /// serially drain the optimization backlog left by earlier operations, each call with a
+    /// fresh optimization budget. The edge is optimized when it is actually added in
+    /// `connect_children`. There is currently no dedicated unit test for the drop/recovery
     /// paths; coverage relies on integration tests that exercise the aggregation graph.
     fn check_optimization_pending(&mut self, task: &TaskGuard<'_>) {
         if !task.optimization_pending() {
@@ -3162,7 +3169,7 @@ impl AggregationUpdateQueue {
         );
         // Revive the task if GC soft-deleted it.
         let mut task = resurrect_deleted(task, task_id, self, ctx);
-        self.check_optimization_pending(&task);
+        // Intentionally no `check_optimization_pending` here, see its doc comment.
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
