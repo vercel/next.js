@@ -146,7 +146,7 @@ describe('agent feedback block wording', () => {
     const content = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')
 
     expect(content).toContain(
-      'Routine debugging is not feedback; verify candidates first.'
+      'Verify changes before retaining them as feedback candidates.'
     )
     expect(content).not.toContain(
       'Ignore routine debugging and unverified changes.'
