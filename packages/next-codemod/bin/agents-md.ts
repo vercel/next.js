@@ -12,6 +12,7 @@ import {
   getNextjsVersion,
   getBundledDocsInfo,
   getBundledDocsLinkPath,
+  getRelativeLinkPath,
   pullDocs,
   collectDocFiles,
   buildDocTree,
@@ -75,21 +76,28 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
     targetFile = promptedOptions.targetFile
   }
 
-  const agentsMdPath = path.join(cwd, targetFile)
+  const agentsMdPath = path.resolve(cwd, targetFile)
+  // Agents resolve paths in the index from the directory of the output file,
+  // so every link written into it is relative to that directory, not the cwd.
+  const outputDir = path.dirname(agentsMdPath)
 
-  // Next.js >= 16.2.0 ships its docs inside the published package. When the
-  // installed version matches the requested one, index the bundled docs
-  // directly instead of downloading a copy into .next-docs.
-  const bundledDocs = getBundledDocsInfo(cwd)
-  const useBundledDocs =
-    bundledDocs !== null && bundledDocs.version === nextjsVersion
+  // Next.js >= 16.2.0 ships its docs inside the published package. When an
+  // installed version (from the cwd or, in a monorepo, a workspace package)
+  // matches the requested one, index the bundled docs directly instead of
+  // downloading a copy into .next-docs.
+  const bundledDocs = getBundledDocsInfo(cwd, nextjsVersion)
+  const useBundledDocs = bundledDocs !== null
 
   const docsPath = useBundledDocs
     ? bundledDocs.docsPath
     : path.join(cwd, DOCS_DIR_NAME)
   const docsLinkPath = useBundledDocs
-    ? getBundledDocsLinkPath(cwd, bundledDocs.docsPath)
-    : `./${DOCS_DIR_NAME}`
+    ? getBundledDocsLinkPath(
+        outputDir,
+        bundledDocs.docsPath,
+        bundledDocs.resolvedFrom
+      )
+    : getRelativeLinkPath(outputDir, docsPath)
 
   let sizeBefore = 0
   let isNewFile = true
@@ -102,8 +110,14 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   }
 
   if (useBundledDocs) {
+    const fromWorkspacePackage =
+      path.resolve(bundledDocs.resolvedFrom) !== path.resolve(cwd)
+        ? ` from workspace package ${pc.cyan(
+            path.relative(cwd, bundledDocs.resolvedFrom).replace(/\\/g, '/')
+          )}`
+        : ''
     console.log(
-      `\nUsing the docs bundled with Next.js ${pc.cyan(nextjsVersion)} at ${pc.cyan(docsLinkPath)} (no download needed).`
+      `\nUsing the docs bundled with Next.js ${pc.cyan(nextjsVersion)}${fromWorkspacePackage} at ${pc.cyan(docsLinkPath)} (no download needed).`
     )
   } else {
     console.log(
@@ -127,7 +141,8 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const indexContent = generateAgentsMdIndex({
     docsPath: docsLinkPath,
     sections,
-    outputFile: targetFile,
+    // The regeneration hint is run from the output file's directory.
+    outputFile: path.relative(outputDir, agentsMdPath).replace(/\\/g, '/'),
   })
 
   const newContent = injectIntoAgentsMd(existingContent, indexContent)

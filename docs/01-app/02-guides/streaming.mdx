@@ -22,7 +22,7 @@ React's server renderer produces HTML in chunks aligned with `<Suspense>` bounda
 
 ## Example
 
-The companion [streaming demo](https://streaming-demo.labs.vercel.dev/) ([source](https://github.com/vercel-labs/streaming-demo)) lets you see each concept from this guide in action:
+The companion [streaming demo](https://streaming-demo.labs.vercel.dev/) ([source](https://github.com/nextjs/streaming-demo)) lets you see each concept from this guide in action:
 
 - Page-level streaming with `loading.tsx` (skeleton appears instantly, content streams in after ~2s)
 - Granular streaming with sibling `<Suspense>` boundaries that resolve independently

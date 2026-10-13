@@ -138,7 +138,7 @@ async fn wrap_edge_route(
 ) -> Result<Vc<Box<dyn Module>>> {
     let inner = rcstr!("INNER_ROUTE_ENTRY");
     let mut cache_handler_imports = String::new();
-    let mut cache_handler_map_entries = String::new();
+    let mut cache_handler_registration = String::new();
     let mut incremental_cache_handler_import = None;
     let mut cache_handler_inner_assets = fxindexmap! {};
 
@@ -150,8 +150,8 @@ async fn wrap_edge_route(
             "import {cache_handler_var} from {};\n",
             serde_json::to_string(&*cache_handler_inner)?
         ));
-        cache_handler_map_entries.push_str(&format!(
-            "  {}: {cache_handler_var},\n",
+        cache_handler_registration.push_str(&format!(
+            "edgeCacheHandlers[{}] = {cache_handler_var};\n",
             serde_json::to_string(kind.as_str())?
         ));
 
@@ -192,7 +192,7 @@ async fn wrap_edge_route(
             ("cacheHandlerImports", cache_handler_imports.as_str()),
             (
                 "edgeCacheHandlersRegistration",
-                cache_handler_map_entries.as_str(),
+                cache_handler_registration.as_str(),
             ),
         ],
         [(

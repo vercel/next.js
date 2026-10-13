@@ -19,6 +19,11 @@ _You'll need a working node.js environment with pnpm._
   npm install -g pnpm@latest
   ```
 
+  Corepack needs to be version 0.34.5 or newer to run pnpm 11+. Check with
+  `corepack --version`. Older versions are still bundled with some Node.js
+  releases and fail with `Cannot find module '.../bin/pnpm.cjs'`; upgrade with
+  `npm install -g corepack@latest`.
+
   `pnpm` [respects the `packageManager` field in `package.json` by
   default](https://pnpm.io/settings#managepackagemanagerversions), even when
   installed without Corepack. This ensures that pnpm behaves the same locally as

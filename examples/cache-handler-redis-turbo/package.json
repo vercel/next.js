@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@trieb.work/nextjs-turbo-redis-cache": "^1.15.0",
+    "next": "latest",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "redis": "4.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5.3.3"
+  }
+}

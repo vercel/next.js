@@ -86,10 +86,12 @@ function summarizeMemorySamples(span: TraceSpanInfo): string | null {
   if (!summary) return null
   const delta = summary.end - summary.start
   const deltaSign = delta >= 0 ? '+' : '-'
+  const workers = span.memorySamples.map((s) => s[3])
   return (
     `samples=${summary.count}, peak=${formatBytes(summary.peak)}, min=${formatBytes(summary.min)}, ` +
     `start=${formatBytes(summary.start)}, end=${formatBytes(summary.end)}, ` +
-    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}`
+    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}, ` +
+    `activeWorkerThreads=${Math.min(...workers)}–${Math.max(...workers)}`
   )
 }
 
@@ -149,7 +151,7 @@ function renderSpanMarkdown(
 
   const memSummary = summarizeMemorySamples(span)
   if (memSummary) {
-    md += `\n**Memory (TurboMalloc live bytes):** ${memSummary}\n`
+    md += `\n**Process samples (TurboMalloc live bytes, memory pressure, active Tokio workers):** ${memSummary}\n`
   }
 
   if (span.children.length > 0) {
@@ -224,7 +226,7 @@ export async function startTurboTraceServerCli(
         '',
         'For aggregated groups every allocation field is a group total, while `cpuDuration`, `correctedDuration` and `memorySamples` describe the example span only. `firstSpanId` is first in execution order; use `heaviestSpanId` to reach the member holding the most bytes.',
         '',
-        'Set `outputType: "json"` for full precision and the raw `memorySamples` triples `[tsOffsetTicks, bytes, pressure]`; markdown is a human summary.',
+        'Set `outputType: "json"` for full precision and the raw `memorySamples` entries `[tsOffsetTicks, bytes, pressure, active_worker_threads]` (active_worker_threads excludes parked and blocking-pool threads); markdown is a human summary.',
       ].join('\n'),
       inputSchema: {
         parent: z

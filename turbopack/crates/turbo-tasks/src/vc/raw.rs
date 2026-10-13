@@ -637,7 +637,7 @@ impl Future for ResolveRawVcFuture {
                             }
                             Ok(Err(listener)) => (
                                 listener,
-                                Some(ScheduleKey::LocalTask(execution_id, local_task_id)),
+                                Some(ScheduleKey::current_local_task(execution_id, local_task_id)),
                             ),
                             Err(err) => return Poll::Ready(Err(err)),
                         }

@@ -898,18 +898,6 @@ impl GroupedFields {
 // Code Generation Helpers
 // =============================================================================
 
-/// Generate inline field clone assignments: `snapshot.field = self.field.clone();`
-fn gen_clone_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> Vec<TokenStream> {
-    fields
-        .map(|field| {
-            let field_name = &field.field_name;
-            quote! {
-                snapshot.#field_name = self.#field_name.clone();
-            }
-        })
-        .collect()
-}
-
 fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
     if !field.filter_transient {
@@ -3844,25 +3832,6 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
     }
 }
 
-/// Generate clone inline statements for a category.
-fn gen_clone_inline_for_category(
-    grouped_fields: &GroupedFields,
-    category: Category,
-) -> Vec<TokenStream> {
-    gen_clone_inline_fields(grouped_fields.persistent_inline(category))
-}
-
-/// Generate clone lazy match arms for a category.
-fn gen_clone_lazy_arms_for_category(
-    grouped_fields: &GroupedFields,
-    category: Category,
-) -> Vec<TokenStream> {
-    gen_lazy_match_arms(grouped_fields.persistent_lazy(category), |_, field| {
-        let variant_name = &field.variant_name;
-        quote! { snapshot.lazy.push(LazyField::#variant_name(data.clone())); }
-    })
-}
-
 /// Generate restore inline statements for a category.
 fn gen_restore_inline_for_category(
     grouped_fields: &GroupedFields,
@@ -3874,11 +3843,9 @@ fn gen_restore_inline_for_category(
         .collect()
 }
 
-/// Generate snapshot clone and restore methods for TaskStorage.
+/// Generate snapshot restore methods for TaskStorage.
 ///
 /// Generates:
-/// - `clone_meta_snapshot(&self) -> TaskStorage` - Clone only persistent meta fields
-/// - `clone_data_snapshot(&self) -> TaskStorage` - Clone only persistent data fields
 /// - `restore_from(&mut self, source, category)` - Restore data by category from decoded storage
 /// - `restore_meta_from(&mut self, source)` - Restore meta fields from source
 /// - `restore_data_from(&mut self, source)` - Restore data fields from source
@@ -3886,14 +3853,8 @@ fn gen_restore_inline_for_category(
 fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStream {
     let has_meta_flags = grouped_fields.persisted_meta_flags().next().is_some();
     let has_data_flags = grouped_fields.persisted_data_flags().next().is_some();
-    let has_any_flags = has_meta_flags || has_data_flags;
 
     // Generate field operations by category
-    let clone_meta_inline = gen_clone_inline_for_category(grouped_fields, Category::Meta);
-    let clone_data_inline = gen_clone_inline_for_category(grouped_fields, Category::Data);
-    let clone_meta_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Meta);
-    let clone_data_lazy_arms = gen_clone_lazy_arms_for_category(grouped_fields, Category::Data);
-
     let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
     let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
@@ -3911,15 +3872,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
         .filter(|(_, f)| !f.is_transient() && (f.filter_transient || f.custom_drop_partial))
         .map(|(idx, f)| gen_restore_lazy_merge_arm(f, idx as u8))
         .collect();
-
-    let clone_all_flags = if has_any_flags {
-        quote! {
-            // Clone all persisted flags
-            snapshot.flags.set_persisted_bits(self.flags.persisted_bits());
-        }
-    } else {
-        quote! {}
-    };
 
     // Generate flags handling for restore - per category
     let restore_meta_flags = if has_meta_flags {
@@ -3943,34 +3895,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     quote! {
         #[automatically_derived]
         impl TaskStorage {
-            /// Create a snapshot containing all persistent fields
-            pub fn clone_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
-
-                // Clone inline meta fields
-                #(#clone_meta_inline)*
-
-                // Clone inline data fields
-                #(#clone_data_inline)*
-
-                #clone_all_flags
-
-                // Clone all persistent lazy fields (both meta and data).
-                // (No pre-`reserve`: the schema has ≤24 lazy fields, so at most 3 grows
-                // (0→4→8→16→24) total — cheaper than complicating the public API surface
-                // of `TinyVec`.)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_data_lazy_arms)*
-                        #(#clone_meta_lazy_arms)*
-                        // Skip transient fields
-                        _ => {}
-                    }
-                }
-
-                snapshot
-            }
-
             /// Restore persisted data from a decoded TaskStorage.
             ///
             /// This is used during restore operations to copy decoded persisted data
