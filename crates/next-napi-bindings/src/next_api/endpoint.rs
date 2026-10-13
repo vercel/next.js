@@ -12,7 +12,8 @@ use next_api::{
     paths::AssetPath,
     route::{
         Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
-        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
+        endpoint_native_file_systems_operation, endpoint_server_changed_operation,
+        endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
@@ -61,6 +62,13 @@ pub struct NapiWrittenEndpoint {
 impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
     fn from(written_endpoint: Option<EndpointOutputPaths>) -> Self {
         match written_endpoint {
+            Some(EndpointOutputPaths::Native {
+                executable_path, ..
+            }) => Self {
+                r#type: "native".to_string(),
+                entry_path: Some(executable_path.into_owned()),
+                ..Default::default()
+            },
             Some(EndpointOutputPaths::NodeJs {
                 server_entry_path,
                 server_hmr_entry_paths,
@@ -164,18 +172,34 @@ pub async fn endpoint_write_to_disk(
     let (written, issues) = ctx
         .turbo_tasks()
         .run(async move {
-            let written_entrypoint_with_issues_op =
-                get_written_endpoint_with_issues_operation(endpoint_op);
-            let read = read_strongly_consistent_and_apply_effects(
-                written_entrypoint_with_issues_op,
-                |v| &v.effects,
-            )
-            .await?;
-            let WrittenEndpointWithIssues {
-                written, issues, ..
-            } = &*read;
+            for _ in 0..8 {
+                let written_entrypoint_with_issues_op =
+                    get_written_endpoint_with_issues_operation(endpoint_op);
+                let read = read_strongly_consistent_and_apply_effects(
+                    written_entrypoint_with_issues_op,
+                    |v| &v.effects,
+                )
+                .await?;
+                let WrittenEndpointWithIssues {
+                    written, issues, ..
+                } = &*read;
 
-            Ok((written.clone(), issues.clone()))
+                if let Some(EndpointOutputPaths::Native { build, .. }) = written.as_deref()
+                    && !build.is_current()?
+                {
+                    let systems = endpoint_native_file_systems_operation(endpoint_op)
+                        .read_strongly_consistent()
+                        .await?;
+                    for fs in systems.iter() {
+                        fs.await?.invalidate();
+                    }
+                    continue;
+                }
+                return Ok((written.clone(), issues.clone()));
+            }
+            anyhow::bail!(
+                "Go route sources changed repeatedly during compilation; retry the request"
+            )
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;

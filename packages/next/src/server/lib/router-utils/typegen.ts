@@ -528,7 +528,9 @@ export function generateValidatorFile(
     routesManifest.filePathToRoute
   )
   const appRouteHandlerValidations = generateValidations(
-    Array.from(routesManifest.appRouteHandlers).sort(),
+    Array.from(routesManifest.appRouteHandlers)
+      .filter((filePath) => !filePath.endsWith('route.go'))
+      .sort(),
     'RouteHandlerConfig',
     routesManifest.filePathToRoute
   )
@@ -775,7 +777,9 @@ export function generateValidatorFileStrict(
     routesManifest.filePathToRoute
   )
   const appRouteHandlerValidations = generateValidations(
-    Array.from(routesManifest.appRouteHandlers).sort(),
+    Array.from(routesManifest.appRouteHandlers)
+      .filter((filePath) => !filePath.endsWith('route.go'))
+      .sort(),
     'RouteHandlerConfig',
     routesManifest.filePathToRoute
   )
