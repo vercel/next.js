@@ -20,6 +20,7 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 // Cache for fs.existsSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
+const defaultPageExtensions = ['tsx', 'ts', 'jsx', 'js']
 
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
@@ -34,6 +35,32 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
 
 const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
 const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
+
+const getPageExtensionsForRootDir = (rootDir: string) => {
+  for (const configFile of ['next.config.js', 'next.config.cjs']) {
+    const configPath = path.join(rootDir, configFile)
+    if (!fs.existsSync(configPath)) {
+      continue
+    }
+
+    try {
+      const loadedConfig = require(configPath)
+      const nextConfig = loadedConfig?.default ?? loadedConfig
+      const customPageExtensions = nextConfig?.pageExtensions
+
+      if (Array.isArray(customPageExtensions)) {
+        return customPageExtensions.filter(
+          (extension): extension is string =>
+            typeof extension === 'string' && extension.length > 0
+        )
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return defaultPageExtensions
+}
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
@@ -73,6 +100,9 @@ export default defineRule({
     const [customPagesDirectory] = ruleOptions
 
     const rootDirs = getRootDirs(context)
+    const pageExtensions = Array.from(
+      new Set(rootDirs.flatMap((rootDir) => getPageExtensionsForRootDir(rootDir)))
+    )
 
     const pagesDirs = (
       customPagesDirectory
@@ -107,8 +137,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
