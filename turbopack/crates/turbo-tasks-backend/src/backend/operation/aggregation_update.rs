@@ -1139,11 +1139,11 @@ impl AggregationUpdateQueue {
                     // These jobs are never pushed to the queue
                     unreachable!();
                 }
-                AggregationUpdateJob::InnerOfUppersHasNewFollowers(mut boxed) => {
+                AggregationUpdateJob::InnerOfUppersHasNewFollowers(boxed) => {
                     let InnerOfUppersHasNewFollowersJob {
-                        upper_ids,
-                        new_follower_ids,
-                    } = &mut *boxed;
+                        mut upper_ids,
+                        mut new_follower_ids,
+                    } = *boxed;
                     let uppers = upper_ids.len();
                     let followers = new_follower_ids.len();
                     if uppers == 1 && followers == 1 {
@@ -1159,15 +1159,11 @@ impl AggregationUpdateQueue {
                             1,
                         );
                     } else if uppers > followers {
-                        if let Some(new_follower_id) = new_follower_ids.pop() {
-                            let upper_ids = if !new_follower_ids.is_empty() {
-                                let upper_ids = upper_ids.clone();
-                                self.jobs.push_front(AggregationUpdateJobItem::new(
-                                    AggregationUpdateJob::InnerOfUppersHasNewFollowers(boxed),
-                                ));
-                                upper_ids
+                        while let Some(new_follower_id) = new_follower_ids.pop() {
+                            let upper_ids = if new_follower_ids.is_empty() {
+                                take(&mut upper_ids)
                             } else {
-                                take(upper_ids)
+                                upper_ids.clone()
                             };
                             #[cfg(feature = "trace_aggregation_update_stats")]
                             {
@@ -1176,22 +1172,20 @@ impl AggregationUpdateQueue {
                             }
                             self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
                         }
-                    } else if let Some(upper_id) = upper_ids.pop() {
-                        let new_follower_ids = if !upper_ids.is_empty() {
-                            let new_follower_ids = new_follower_ids.clone();
-                            self.jobs.push_front(AggregationUpdateJobItem::new(
-                                AggregationUpdateJob::InnerOfUppersHasNewFollowers(boxed),
-                            ));
-                            new_follower_ids
-                        } else {
-                            take(new_follower_ids)
-                        };
-                        #[cfg(feature = "trace_aggregation_update_stats")]
-                        {
-                            self.stats.new_followers += followers;
-                            self.stats.inner_of_upper_has_new_followers += 1;
+                    } else {
+                        while let Some(upper_id) = upper_ids.pop() {
+                            let new_follower_ids = if upper_ids.is_empty() {
+                                take(&mut new_follower_ids)
+                            } else {
+                                new_follower_ids.clone()
+                            };
+                            #[cfg(feature = "trace_aggregation_update_stats")]
+                            {
+                                self.stats.new_followers += followers;
+                                self.stats.inner_of_upper_has_new_followers += 1;
+                            }
+                            self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                         }
-                        self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                     }
                 }
                 AggregationUpdateJob::InnerOfUppersHasNewFollower {
@@ -1288,11 +1282,11 @@ impl AggregationUpdateQueue {
                     }
                     self.inner_of_upper_lost_follower(ctx, lost_follower_id, upper_id, retry);
                 }
-                AggregationUpdateJob::InnerOfUppersLostFollowers(mut boxed) => {
+                AggregationUpdateJob::InnerOfUppersLostFollowers(boxed) => {
                     let InnerOfUppersLostFollowersJob {
-                        upper_ids,
-                        lost_follower_ids,
-                    } = &mut *boxed;
+                        mut upper_ids,
+                        mut lost_follower_ids,
+                    } = *boxed;
                     let uppers = upper_ids.len();
                     let followers = lost_follower_ids.len();
                     if uppers == 1 && followers == 1 {
@@ -1308,15 +1302,11 @@ impl AggregationUpdateQueue {
                             0,
                         );
                     } else if uppers > followers {
-                        if let Some(lost_follower_id) = lost_follower_ids.pop() {
-                            let upper_ids = if !lost_follower_ids.is_empty() {
-                                let upper_ids = upper_ids.clone();
-                                self.jobs.push_front(AggregationUpdateJobItem::new(
-                                    AggregationUpdateJob::InnerOfUppersLostFollowers(boxed),
-                                ));
-                                upper_ids
+                        while let Some(lost_follower_id) = lost_follower_ids.pop() {
+                            let upper_ids = if lost_follower_ids.is_empty() {
+                                take(&mut upper_ids)
                             } else {
-                                take(upper_ids)
+                                upper_ids.clone()
                             };
                             #[cfg(feature = "trace_aggregation_update_stats")]
                             {
@@ -1325,22 +1315,20 @@ impl AggregationUpdateQueue {
                             }
                             self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, 0);
                         }
-                    } else if let Some(upper_id) = upper_ids.pop() {
-                        let lost_follower_ids = if !upper_ids.is_empty() {
-                            let lost_follower_ids = lost_follower_ids.clone();
-                            self.jobs.push_front(AggregationUpdateJobItem::new(
-                                AggregationUpdateJob::InnerOfUppersLostFollowers(boxed),
-                            ));
-                            lost_follower_ids
-                        } else {
-                            take(lost_follower_ids)
-                        };
-                        #[cfg(feature = "trace_aggregation_update_stats")]
-                        {
-                            self.stats.lost_followers += followers;
-                            self.stats.inner_of_upper_lost_followers += 1;
+                    } else {
+                        while let Some(upper_id) = upper_ids.pop() {
+                            let lost_follower_ids = if upper_ids.is_empty() {
+                                take(&mut lost_follower_ids)
+                            } else {
+                                lost_follower_ids.clone()
+                            };
+                            #[cfg(feature = "trace_aggregation_update_stats")]
+                            {
+                                self.stats.lost_followers += followers;
+                                self.stats.inner_of_upper_lost_followers += 1;
+                            }
+                            self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, 0);
                         }
-                        self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, 0);
                     }
                 }
                 AggregationUpdateJob::InnerOfUppersLostFollower {
@@ -1447,14 +1435,9 @@ impl AggregationUpdateQueue {
                 AggregationUpdateJob::DecreaseActiveCount { task } => {
                     self.decrease_active_count(ctx, task);
                 }
-                AggregationUpdateJob::DecreaseActiveCounts { mut task_ids } => {
-                    if let Some(task_id) = task_ids.pop() {
+                AggregationUpdateJob::DecreaseActiveCounts { task_ids } => {
+                    for task_id in task_ids {
                         self.decrease_active_count(ctx, task_id);
-                        if !task_ids.is_empty() {
-                            self.jobs.push_front(AggregationUpdateJobItem::new(
-                                AggregationUpdateJob::DecreaseActiveCounts { task_ids },
-                            ));
-                        }
                     }
                 }
                 AggregationUpdateJob::IncreaseActiveCount {
@@ -1463,16 +1446,11 @@ impl AggregationUpdateQueue {
                 } => {
                     self.increase_active_count(ctx, task, release_construction_ref);
                 }
-                AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
-                    if let Some(task_id) = task_ids.pop() {
+                AggregationUpdateJob::IncreaseActiveCounts { task_ids } => {
+                    for task_id in task_ids {
                         self.increase_active_count(
                             ctx, task_id, /* release_construction_ref */ false,
                         );
-                        if !task_ids.is_empty() {
-                            self.jobs.push_front(AggregationUpdateJobItem::new(
-                                AggregationUpdateJob::IncreaseActiveCounts { task_ids },
-                            ));
-                        }
                     }
                 }
             }
