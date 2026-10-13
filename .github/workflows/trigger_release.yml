@@ -49,9 +49,10 @@ jobs:
   start:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
-    # canary + preview (and the scheduled daily canary, where inputs are empty)
-    # run autonomously; stable, release-candidate and beta require approval.
-    environment: ${{ (github.event_name == 'schedule' || inputs.releaseType == 'canary' || inputs.releaseType == 'preview') && 'bot-autonomous' || 'bot-approved' }}
+    # Prerelease channels (and the scheduled nightly, where inputs are empty)
+    # run autonomously; only stable requires approval before the tag exists.
+    # Prerelease publishes are still gated by their release-* environments.
+    environment: ${{ (github.event_name == 'schedule' || inputs.releaseType != 'stable') && 'bot-autonomous' || 'bot-approved' }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
 
