@@ -40,8 +40,6 @@ rustflags = [
   "-Zthreads=8",
   # Unlock nightly-only options
   "-Zunstable-options",
-  # Keep warnings fatal for every target instead of relying on per-job CI overrides.
-  "-Dwarnings",
 ]
 
 # macOS: use rust-lld (ld64.lld) for faster linking and enable ICF.

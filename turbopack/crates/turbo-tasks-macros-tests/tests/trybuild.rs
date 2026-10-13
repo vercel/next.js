@@ -6,9 +6,16 @@
 // trybuild's stderr snapshot comparisons. Unsetting it here means only the
 // sub-compilations trybuild spawns are affected — the main test binary was already
 // compiled with sccache.
+//
+// Trybuild copies all workspace dependencies into its generated workspace, but not the
+// workspace lint settings. Allow its unused-dependency warnings even when CI denies
+// warnings for normal builds, and keep them out of stderr snapshot comparisons.
 #[ctor::ctor(unsafe)]
-fn unset_rustc_wrapper() {
-    unsafe { std::env::remove_var("RUSTC_WRAPPER") };
+fn configure_trybuild() {
+    unsafe {
+        std::env::remove_var("RUSTC_WRAPPER");
+        std::env::set_var("CARGO_BUILD_WARNINGS", "allow");
+    }
 }
 
 // Trybuild uses one generated Cargo project per package. Keep every case in one test so nextest
