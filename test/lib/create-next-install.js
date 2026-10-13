@@ -487,6 +487,7 @@ async function createNextInstall({
 }
 
 module.exports = {
+  PNPM_TEST_DIR_SETTINGS,
   createNextInstall,
   getPkgPaths: linkPackages,
   packPackages,
