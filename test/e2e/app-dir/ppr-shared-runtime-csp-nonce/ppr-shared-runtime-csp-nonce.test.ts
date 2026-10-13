@@ -7,12 +7,6 @@ import cheerio from 'cheerio'
 // emits: `(globalThis["TURBOPACK"] || ...).push({"otherChunks":...})`.
 const BOOTSTRAP_MARKER = '"otherChunks"'
 
-// Vercel preview deployments inject this toolbar script, which the fixture's
-// strict CSP blocks. It isn't part of the app, so its violation is expected.
-const VERCEL_TOOLBAR_SCRIPT =
-  'https://vercel.live/_next-live/feedback/feedback.js'
-const VERCEL_TOOLBAR_SCRIPT_VIOLATION = `Loading the script '${VERCEL_TOOLBAR_SCRIPT}' violates`
-
 function getNonce(csp: string | null): string {
   const match = csp?.match(/'nonce-([^']+)'/)
   if (!match) throw new Error(`Expected a nonce in the CSP header: ${csp}`)
@@ -50,8 +44,7 @@ async function expectNoUnexpectedCspViolations(browser: Playwright) {
       // React's `$RT` timing script in the static shell has no nonce
       // either. It doesn't affect hydration, so only the inline scripts
       // that matter are checked below.
-      !log.message.includes('Executing inline script') &&
-      !log.message.startsWith(VERCEL_TOOLBAR_SCRIPT_VIOLATION)
+      !log.message.includes('Executing inline script')
   )
   expect(cspViolations).toEqual([])
   const inlineViolations = logs.filter((log) =>
@@ -79,6 +72,10 @@ describe('ppr-shared-runtime-csp-nonce', () => {
       }
     )
     const nonce = getNonce(csp)
+    // The fixture allows the Vercel toolbar that preview deployments inject.
+    expect(csp).toContain(
+      `script-src 'self' 'nonce-${nonce}' https://vercel.live;`
+    )
 
     expect(dynamicPart).not.toBe('')
     expect(getBootstrapScripts(staticPart)).toEqual([])
@@ -124,43 +121,6 @@ describe('ppr-shared-runtime-csp-nonce', () => {
     })
     expect(await browser.elementByCss('#dynamic').text()).toBe('dynamic')
 
-    await expectNoUnexpectedCspViolations(browser)
-  })
-
-  it('should hydrate under a nonce-based CSP when Vercel injects its toolbar script', async () => {
-    // Reproduce a preview deployment locally by injecting the toolbar script.
-    const browser = await next.browser('/', {
-      async beforePageLoad(page) {
-        await page.route(
-          (url) => url.pathname === '/',
-          async (route) => {
-            const response = await route.fetch()
-            const html = (await response.text()).replace(
-              '</head>',
-              `<script src="${VERCEL_TOOLBAR_SCRIPT}"></script></head>`
-            )
-            await route.fulfill({ response, body: html })
-          }
-        )
-      },
-    })
-
-    await browser.waitForElementByCss('#counter[data-hydrated="true"]')
-    await browser.elementByCss('#counter').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#counter').text()).toBe('1')
-    })
-
-    if (global.browserName === 'chrome') {
-      // Make sure the injected script was actually blocked, so the check
-      // below doesn't pass vacuously.
-      const logs = await browser.log()
-      expect(
-        logs.some((log) =>
-          log.message.startsWith(VERCEL_TOOLBAR_SCRIPT_VIOLATION)
-        )
-      ).toBe(true)
-    }
     await expectNoUnexpectedCspViolations(browser)
   })
 
