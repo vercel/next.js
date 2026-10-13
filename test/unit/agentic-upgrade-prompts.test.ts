@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+import { getNpxCommand } from 'next/dist/lib/helpers/get-npx-command'
 import { resolve } from 'path'
 import {
   access,
@@ -58,7 +59,7 @@ jest.mock('next/dist/lib/get-project-dir', () => ({
   getProjectDir: jest.fn(),
 }))
 jest.mock('next/dist/lib/helpers/get-npx-command', () => ({
-  getNpxCommand: () => 'npx',
+  getNpxCommand: jest.fn(),
 }))
 jest.mock('next/dist/lib/picocolors', () => ({
   bold: (text: string) => text,
@@ -166,6 +167,7 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
+    jest.mocked(getNpxCommand).mockReturnValue('npx')
     jest.mocked(Telemetry).mockImplementation(
       () =>
         ({
@@ -294,6 +296,7 @@ describe('agentic upgrade prompts', () => {
         revision: 'latest',
         verbose: false,
         agent: 'security',
+        internalSkipCliBootstrap: true,
       },
       null
     )
@@ -307,56 +310,33 @@ describe('agentic upgrade prompts', () => {
     expect(prepareUpgrade).toHaveBeenCalledTimes(0)
   })
 
-  it.each([undefined, '1'])(
-    'reuses the current canary after checking npm with legacy guard %s',
-    async (legacyGuard) => {
-      delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-      if (legacyGuard === undefined) {
-        delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
-      } else {
-        process.env.__NEXT_UPGRADE_USE_CURRENT_CLI = legacyGuard
-      }
-      jest
-        .mocked(global.fetch)
-        .mockResolvedValue(
-          new Response(JSON.stringify({ version: cliVersion }))
-        )
-      jest.mocked(prepareUpgrade).mockResolvedValue({
-        status: 'unaffected',
-        reason: 'Already current.',
-      })
+  it('uses the native selected CLI without bootstrapping again', async () => {
+    delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'unaffected',
+      reason: 'Already current.',
+    })
 
-      await spawnNextUpgrade(
-        '/workspace/app',
-        {
-          revision: 'latest',
-          verbose: false,
-          agent: 'security',
-        },
-        null
-      )
+    await spawnNextUpgrade(
+      '/workspace/app',
+      {
+        revision: 'latest',
+        verbose: false,
+        agent: 'security',
+        internalSkipCliBootstrap: true,
+      },
+      null
+    )
 
-      expect(global.fetch).toHaveBeenCalledTimes(1)
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://registry.npmjs.org/next/canary',
-        expect.objectContaining({
-          signal: expect.any(AbortSignal),
-          cache: 'no-store',
-        })
-      )
-      expect(crossSpawn).toHaveBeenCalledTimes(0)
-      expect(prepareUpgrade).toHaveBeenCalledTimes(1)
-    }
-  )
+    expect(global.fetch).toHaveBeenCalledTimes(0)
+    expect(crossSpawn).toHaveBeenCalledTimes(0)
+    expect(prepareUpgrade).toHaveBeenCalledTimes(1)
+  })
 
   it.each([true, 'security', 'latest', 'experimental-future'])(
-    'delegates %s to the exact canary and preserves its failure status',
+    'delegates %s to native canary and preserves its failure status',
     async (agent) => {
       delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-      const version = '99.0.0-canary.35'
-      jest
-        .mocked(global.fetch)
-        .mockResolvedValue(new Response(JSON.stringify({ version })))
       crossSpawn.mockImplementation(() => {
         const child = new EventEmitter()
         process.nextTick(() => child.emit('close', 42, null))
@@ -373,65 +353,64 @@ describe('agentic upgrade prompts', () => {
         null
       )
 
-      expect(global.fetch).toHaveBeenCalledTimes(1)
+      const telemetry = jest.mocked(Telemetry).mock.results[0].value
+      const start = telemetry.record.mock.calls[0][0]
+      expect(global.fetch).toHaveBeenCalledTimes(0)
+      expect(getNpxCommand).toHaveBeenCalledWith('/workspace/app', {
+        preferFresh: true,
+      })
       expect(crossSpawn).toHaveBeenCalledTimes(1)
       expect(crossSpawn).toHaveBeenCalledWith(
         'npx',
         [
-          `next@${version}`,
+          'next@canary',
           'upgrade',
           '/workspace/app',
           agent === true ? '--agent' : `--agent=${agent}`,
+          '--internal-skip-cli-bootstrap',
           '--verbose',
         ],
         expect.objectContaining({
           cwd: '/workspace/app',
           stdio: 'inherit',
           env: expect.objectContaining({
-            __NEXT_UPGRADE_EXPECTED_CLI_VERSION: version,
-            __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
+            __NEXT_AGENT_UPGRADE_RUN_ID: start.payload.runId,
           }),
         })
       )
+      const delegatedEnv = crossSpawn.mock.calls[0][2].env
+      expect(delegatedEnv.__NEXT_UPGRADE_EXPECTED_CLI_VERSION).toBeUndefined()
+      expect(delegatedEnv.__NEXT_UPGRADE_USE_CURRENT_CLI).toBeUndefined()
+      expect(telemetry.record).toHaveBeenCalledTimes(1)
       expect(process.exitCode).toBe(42)
       expect(prepareUpgrade).toHaveBeenCalledTimes(0)
     }
   )
 
-  it.each([
-    ['HTTP error', () => Promise.resolve(new Response('', { status: 503 }))],
-    ['network error', () => Promise.reject(new TypeError('fetch failed'))],
-    [
-      'timeout',
-      () => Promise.reject(new DOMException('Timed out', 'TimeoutError')),
-    ],
-    ['invalid JSON', () => Promise.resolve(new Response('invalid'))],
-    ['missing version', () => Promise.resolve(new Response('{}'))],
-    [
-      'invalid version',
-      () => Promise.resolve(new Response('{"version":"canary"}')),
-    ],
-  ] as const)('stops before upgrading on %s', async (_name, response) => {
+  it('reports bootstrap spawn failures without assessing the app', async () => {
     delete process.env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
-    jest.mocked(global.fetch).mockImplementation(response)
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() =>
+        child.emit('error', new Error('runner unavailable'))
+      )
+      return child
+    })
 
     await spawnNextUpgrade(
       '/workspace/app',
-      {
-        revision: 'latest',
-        verbose: false,
-        agent: 'security',
-      },
+      { revision: 'latest', verbose: false, agent: 'security' },
       null
     )
 
     expect(Log.error).toHaveBeenCalledWith(
       'Could not prepare the upgrade:',
-      'Could not fetch the latest Next.js canary from npm.'
+      'runner unavailable'
     )
     expect(process.exitCode).toBe(1)
-    expect(crossSpawn).toHaveBeenCalledTimes(0)
     expect(prepareUpgrade).toHaveBeenCalledTimes(0)
+    const telemetry = jest.mocked(Telemetry).mock.results[0].value
+    expect(telemetry.record.mock.calls[1][0].payload.result).toBe('cli_failure')
   })
 
   it('uses the planned multiple-agent question and choices', async () => {
@@ -2252,4 +2231,196 @@ describe('upgrade model discovery protocol', () => {
       expect(process.listenerCount(signal)).toBe(initial)
     }
   )
+})
+
+describe('agent upgrade bootstrap runners', () => {
+  const fs = require('fs') as typeof import('fs')
+  const childProcess =
+    require('child_process') as typeof import('child_process')
+  const originalUserAgent = process.env.npm_config_user_agent
+  const nativeCommand = jest.requireActual(
+    'next/dist/lib/helpers/get-npx-command'
+  ).getNpxCommand as typeof getNpxCommand
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+    if (originalUserAgent === undefined) {
+      delete process.env.npm_config_user_agent
+    } else {
+      process.env.npm_config_user_agent = originalUserAgent
+    }
+  })
+
+  it.each([
+    [
+      'npm/11.14.1',
+      'package-lock.json',
+      'npx --yes --prefer-offline=false',
+      'npx --yes',
+    ],
+    [
+      'pnpm/10.33.0',
+      'pnpm-lock.yaml',
+      'pnpm --loglevel=error --config.prefer-offline=false --config.dlx-cache-max-age=0 dlx',
+      'pnpm --loglevel=error dlx',
+    ],
+    ['yarn/4.18.1', 'yarn.lock', 'yarn --quiet dlx', 'yarn --quiet dlx'],
+    ['bun/1.4.0', 'bun.lock', 'bunx', 'pnpm --loglevel=error dlx'],
+    [undefined, 'bun.lock', 'bunx', 'pnpm --loglevel=error dlx'],
+    [undefined, 'bun.lockb', 'bunx', 'pnpm --loglevel=error dlx'],
+    [
+      'npm/11.14.1',
+      'bun.lock',
+      'npx --yes --prefer-offline=false',
+      'npx --yes',
+    ],
+    [
+      'pnpm/10.33.0',
+      'bun.lock',
+      'pnpm --loglevel=error --config.prefer-offline=false --config.dlx-cache-max-age=0 dlx',
+      'pnpm --loglevel=error dlx',
+    ],
+    [
+      undefined,
+      'pnpm-lock.yaml,bun.lock',
+      'pnpm --loglevel=error --config.prefer-offline=false --config.dlx-cache-max-age=0 dlx',
+      'pnpm --loglevel=error dlx',
+    ],
+  ])(
+    'scopes native freshness for %s with %s',
+    (userAgent, locks, fresh, original) => {
+      if (userAgent === undefined) {
+        delete process.env.npm_config_user_agent
+      } else {
+        process.env.npm_config_user_agent = userAgent
+      }
+      jest.spyOn(fs, 'existsSync').mockImplementation((path) =>
+        locks.split(',').some((file) =>
+          String(path)
+            .replace(/\\/g, '/')
+            .endsWith('/' + file)
+        )
+      )
+      jest.spyOn(childProcess, 'execSync').mockImplementation((command) => {
+        if (command === 'yarn --version') {
+          throw new Error('Yarn unavailable')
+        }
+        return Buffer.from('')
+      })
+
+      expect(nativeCommand('/workspace/app', { preferFresh: true })).toBe(fresh)
+      expect(nativeCommand('/workspace/app')).toBe(original)
+    }
+  )
+
+  it('uses fresh npx when Yarn Classic does not support dlx', () => {
+    process.env.npm_config_user_agent = 'yarn/1.22.22'
+    jest.spyOn(fs, 'existsSync').mockReturnValue(false)
+    jest.spyOn(childProcess, 'execSync').mockImplementation(() => {
+      throw new Error('dlx unavailable')
+    })
+
+    expect(nativeCommand('/workspace/app', { preferFresh: true })).toBe(
+      'npx --yes --prefer-offline=false'
+    )
+    expect(nativeCommand('/workspace/app')).toBe('npx --yes')
+  })
+})
+
+describe('agent upgrade bootstrap processes', () => {
+  const fs = require('fs') as typeof import('fs')
+  const path = require('path') as typeof import('path')
+  const { tmpdir } = require('os') as typeof import('os')
+  const { spawnSync } =
+    require('child_process') as typeof import('child_process')
+  const cli = require.resolve('next/dist/bin/next')
+
+  it.each([
+    ['npm/11.14.1', 'npx', ['--yes', '--prefer-offline=false']],
+    [
+      'pnpm/10.33.0',
+      'pnpm',
+      [
+        '--loglevel=error',
+        '--config.prefer-offline=false',
+        '--config.dlx-cache-max-age=0',
+        'dlx',
+      ],
+    ],
+    ['yarn/4.18.1', 'yarn', ['--quiet', 'dlx']],
+    ['bun/1.4.0', 'bunx', []],
+  ])('runs the selected CLI once under %s', (userAgent, runner, flags) => {
+    const directory = fs.realpathSync(
+      fs.mkdtempSync(path.join(tmpdir(), 'next-bootstrap-'))
+    )
+    try {
+      fs.mkdirSync(path.join(directory, 'app'))
+      fs.mkdirSync(path.join(directory, 'bin'))
+      fs.writeFileSync(path.join(directory, 'package.json'), '{"private":true}')
+      const script = path.join(directory, 'bin', 'runner.js')
+      fs.writeFileSync(
+        script,
+        `#!/usr/bin/env node
+const args = process.argv.slice(2);
+const index = args.indexOf('upgrade');
+if (index < 0) process.exit(0);
+console.log('RUNNER:' + JSON.stringify({args, runId: process.env.__NEXT_AGENT_UPGRADE_RUN_ID}));
+const result = require('child_process').spawnSync(process.execPath, [${JSON.stringify(cli)}, ...args.slice(index)], {stdio: 'inherit', env: process.env});
+process.exit(result.status ?? 1);
+`
+      )
+      fs.chmodSync(script, 0o755)
+      if (process.platform === 'win32') {
+        fs.writeFileSync(
+          path.join(directory, 'bin', runner + '.cmd'),
+          `@"${process.execPath}" "${script}" %*\r\n`
+        )
+      } else {
+        fs.copyFileSync(script, path.join(directory, 'bin', runner))
+        fs.chmodSync(path.join(directory, 'bin', runner), 0o755)
+      }
+      const env: NodeJS.ProcessEnv = {
+        ...process.env,
+        PATH: path.join(directory, 'bin') + path.delimiter + process.env.PATH,
+        npm_config_user_agent: userAgent,
+        NEXT_TELEMETRY_DISABLED: '1',
+        NEXT_TELEMETRY_DEBUG: '1',
+      }
+      delete env.__NEXT_UPGRADE_EXPECTED_CLI_VERSION
+      delete env.__NEXT_UPGRADE_USE_CURRENT_CLI
+      delete env.__NEXT_AGENT_UPGRADE_RUN_ID
+      const result = spawnSync(
+        process.execPath,
+        [cli, 'upgrade', directory, '--agent=invalid'],
+        {
+          cwd: directory,
+          env,
+          encoding: 'utf8',
+          timeout: 20_000,
+        }
+      )
+      const output = result.stdout + result.stderr
+      const invocations = output
+        .split('\n')
+        .filter((line) => line.startsWith('RUNNER:'))
+      expect(result.error).toBeUndefined()
+      expect(result.status).toBe(1)
+      expect(invocations).toHaveLength(1)
+      const invocation = JSON.parse(invocations[0].slice('RUNNER:'.length))
+      expect(invocation.args).toEqual([
+        ...flags,
+        'next@canary',
+        'upgrade',
+        directory,
+        '--agent=invalid',
+        '--internal-skip-cli-bootstrap',
+      ])
+      expect(output).toContain('Unsupported agent upgrade type "invalid"')
+      expect(output.match(/NEXT_AGENT_UPGRADE_RUN_STARTED/g)).toHaveLength(1)
+      expect(output.match(/NEXT_AGENT_UPGRADE_CLI_RESULT/g)).toHaveLength(1)
+      expect(output.match(new RegExp(invocation.runId, 'g'))).toHaveLength(3)
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true })
+    }
+  })
 })
