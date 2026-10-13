@@ -111,6 +111,7 @@ import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
+import { enableAtomicManifestWrites } from './atomic-manifest-output-fs'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
 import {
@@ -845,6 +846,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
 
     const fallbackCompiler = getWebpackBundler()(fallbackConfig)
+    enableAtomicManifestWrites(fallbackCompiler)
 
     this.fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false
@@ -1280,6 +1282,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
     for (const compiler of this.multiCompiler.compilers) {
       compiler.inputFileSystem = inputFileSystem
+      // Requests can read manifests while a rebuild is emitting them.
+      enableAtomicManifestWrites(compiler)
       // This is set for the initial compile. After that Watching class in webpack adds it.
       compiler.fsStartTime = Date.now()
       // Ensure NodeEnvironmentPlugin doesn't purge the inputFileSystem. Purging is handled in `done` below.
