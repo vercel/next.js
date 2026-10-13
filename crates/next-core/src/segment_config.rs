@@ -130,6 +130,13 @@ pub struct NextSegmentConfig {
     pub ensure_static: Option<Span>,
 }
 
+/// Legacy config fields that are fallbacks for individual exports outside the App Router.
+#[derive(Default)]
+struct LegacySegmentConfig {
+    runtime: Option<NextRuntime>,
+    max_duration: Option<u32>,
+}
+
 #[turbo_tasks::value_impl]
 impl ValueDefault for NextSegmentConfig {
     #[turbo_tasks::function]
@@ -520,12 +527,14 @@ pub async fn parse_segment_config_from_source(
     let mut config = WrapFuture::new(
         async {
             let mut config = NextSegmentConfig::default();
+            let mut legacy_config = LegacySegmentConfig::default();
 
             let mut parse = async |ident, init, span| {
                 parse_config_value(
                     source,
                     mode,
                     &mut config,
+                    &mut legacy_config,
                     eval_context,
                     &arena,
                     ident,
@@ -610,6 +619,10 @@ pub async fn parse_segment_config_from_source(
                     }
                 }
             }
+            // Individual exports take precedence over legacy config fields, regardless of
+            // export order. App Router ignores legacy config, so its fallback stays empty.
+            config.runtime = config.runtime.or(legacy_config.runtime);
+            config.max_duration = config.max_duration.or(legacy_config.max_duration);
             anyhow::Ok(config)
         },
         |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
@@ -716,6 +729,7 @@ async fn parse_config_value(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
     config: &mut NextSegmentConfig,
+    legacy_config: &mut LegacySegmentConfig,
     eval_context: &EvalContext,
     arena: &ThreadLocal<Bump>,
     key: Cow<'_, str>,
@@ -858,7 +872,7 @@ async fn parse_config_value(
                             continue;
                         }
 
-                        config.runtime = runtime
+                        legacy_config.runtime = runtime
                     }
                     "matcher" => {
                         config.middleware_matcher =
@@ -881,19 +895,20 @@ async fn parse_config_value(
                         .await?;
                     }
                     "maxDuration" => {
-                        let JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) = value
-                        else {
-                            return invalid_config(
-                                source,
-                                "config",
-                                span,
-                                rcstr!("`maxDuration` needs to be a static number."),
-                                Some(value),
-                                IssueSeverity::Error,
-                            )
-                            .await;
+                        legacy_config.max_duration = match parse_max_duration(value) {
+                            Ok(duration) => duration,
+                            Err(error) => {
+                                return invalid_config(
+                                    source,
+                                    "config",
+                                    span,
+                                    format!("`maxDuration` {error}").into(),
+                                    Some(value),
+                                    IssueSeverity::Error,
+                                )
+                                .await;
+                            }
                         };
-                        config.max_duration = Some(*val as u32);
                     }
                     _ => {
                         // Ignore,
