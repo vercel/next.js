@@ -16,7 +16,6 @@ jobs:
   update_dev_manifest:
     name: Update and upload Rspack development test manifest
     runs-on: ubuntu-latest
-    # The release app key lives in this environment (canary-only deploys).
     environment: bot-autonomous
     permissions:
       # Used by `gh api` in test/update-bundler-manifest.js to list and download
@@ -87,7 +86,6 @@ jobs:
   update_build_manifest:
     name: Update and upload Rspack production test manifest
     runs-on: ubuntu-latest
-    # The release app key lives in this environment (canary-only deploys).
     environment: bot-autonomous
     permissions:
       # Used by `gh api` in test/update-bundler-manifest.js to list and download

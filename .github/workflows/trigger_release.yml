@@ -41,7 +41,6 @@ env:
   TURBO_VERSION: 2.11.7
   NODE_LTS_VERSION: 20
 
-# contents: read so the checkout/clone below also works when the repo is private.
 permissions:
   contents: read
 
