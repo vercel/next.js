@@ -68,9 +68,7 @@ pub struct Options {
     pub taint_enabled: bool,
     #[serde(default)]
     pub page_extensions: Vec<String>,
-    /// Whether the module is compiled for the App Router, as opposed to the
-    /// Pages Router. A module outside `appDir` can still be part of the App
-    /// Router graph, e.g. a shared `lib/` file imported by a Client Component.
+    /// Whether the module is compiled for the App Router rather than the Pages Router.
     #[serde(default)]
     pub is_app_router: bool,
 }
@@ -109,8 +107,11 @@ enum RSCErrorKind {
     UseClientWithUseServer(Span),
     UseClientWithUseCache(Span),
     NextRscErrServerImport((String, Span)),
-    /// `(source, span, is_app_router)`
-    NextRscErrClientImport((String, Span, bool)),
+    NextRscErrClientImport {
+        source: String,
+        span: Span,
+        is_app_router: bool,
+    },
     NextRscErrClientDirective(Span),
     NextRscErrReactApi((String, Span)),
     NextRscErrErrorFileServerComponent(Span),
@@ -340,7 +341,11 @@ fn report_error(filepath: &str, error_kind: RSCErrorKind) {
 
             (msg, vec![span])
         }
-        RSCErrorKind::NextRscErrClientImport((source, span, is_app_router)) => {
+        RSCErrorKind::NextRscErrClientImport {
+            source,
+            span,
+            is_app_router,
+        } => {
             let msg = if !is_app_router {
                 format!("You're importing a module that depends on \"{source}\". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
             } else {
@@ -876,11 +881,11 @@ impl ReactServerComponentValidator {
             if self.invalid_client_imports.contains(source) {
                 report_error(
                     &self.filepath,
-                    RSCErrorKind::NextRscErrClientImport((
-                        source.to_string_lossy().into_owned(),
-                        import.source.1,
-                        self.is_app_router,
-                    )),
+                    RSCErrorKind::NextRscErrClientImport {
+                        source: source.to_string_lossy().into_owned(),
+                        span: import.source.1,
+                        is_app_router: self.is_app_router,
+                    },
                 );
             }
 
@@ -890,11 +895,11 @@ impl ReactServerComponentValidator {
                     if invalid_apis.contains(&specifier.0.as_str()) {
                         report_error(
                             &self.filepath,
-                            RSCErrorKind::NextRscErrClientImport((
-                                specifier.0.to_string(),
-                                specifier.1,
-                                self.is_app_router,
-                            )),
+                            RSCErrorKind::NextRscErrClientImport {
+                                source: specifier.0.to_string(),
+                                span: specifier.1,
+                                is_app_router: self.is_app_router,
+                            },
                         );
                     }
                 }
