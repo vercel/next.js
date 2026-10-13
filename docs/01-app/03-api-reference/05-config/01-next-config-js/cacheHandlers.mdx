@@ -270,12 +270,17 @@ Called when tags are revalidated or expired.
 updateTags(tags: string[], durations?: { expire?: number }): Promise<void>
 ```
 
-| Parameter   | Type                  | Description                              |
-| ----------- | --------------------- | ---------------------------------------- |
-| `tags`      | `string[]`            | Array of tags to update.                 |
-| `durations` | `{ expire?: number }` | Optional expiration duration in seconds. |
+| Parameter   | Type                  | Description                                                                     |
+| ----------- | --------------------- | ------------------------------------------------------------------------------- |
+| `tags`      | `string[]`            | Array of tags to update.                                                        |
+| `durations` | `{ expire?: number }` | Present for profile-based revalidation; carries the profile's `expire` seconds. |
 
 Your handler should update its internal state to mark these tags as invalidated.
+
+Whether `durations` is present tells you which kind of invalidation this is:
+
+- **Absent**: invalidate immediately. Entries carrying these tags should not be served again. `updateTag()` and a single-argument `revalidateTag()` take this path, and the caller expects its own next read to miss.
+- **Present**: the tags go stale now, but entries carrying them may still be served while they refresh in the background, until `durations.expire` seconds have passed. `revalidateTag(tag, 'max')` takes this path.
 
 Returns `Promise<void>`.
 
@@ -518,7 +523,12 @@ module.exports = {
         expire: entry.expire,
         revalidate: entry.revalidate,
       }),
-      { EX: entry.expire } // Use Redis TTL for automatic expiration
+      // `EX` needs a positive integer.
+      // By definition `expire: Infinity` ("never expire")
+      // maps to no TTL at all, so omit `EX` and let Redis persist the key.
+      Number.isFinite(entry.expire)
+        ? { EX: Math.max(1, Math.ceil(entry.expire)) }
+        : {}
     )
   },
 
