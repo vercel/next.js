@@ -4155,6 +4155,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "smallvec",
  "swc_core",
  "tempfile",
  "tokio",
@@ -4384,6 +4385,7 @@ dependencies = [
  "urlencoding",
  "vergen-gitcl",
  "windows-sys 0.60.2",
+ "zstd",
 ]
 
 [[package]]
@@ -9522,6 +9524,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_qs",
+ "smallvec",
  "tracing",
  "turbo-bincode",
  "turbo-rcstr",
@@ -9972,6 +9975,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_qs",
+ "smallvec",
  "tracing",
  "turbo-bincode",
  "turbo-rcstr",

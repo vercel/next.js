@@ -41,6 +41,9 @@ pub enum TraceRow<'a> {
         id: u64,
         /// The thread id of the thread that entered the span.
         thread_id: u64,
+        /// What the thread (de)allocated since its previous Enter/Exit row, if anything and if
+        /// memory is tracked. See [`Allocations`].
+        allocations: Option<Allocations>,
     },
     /// A span has been exited. This means it is not spending CPU time anymore.
     Exit {
@@ -50,6 +53,9 @@ pub enum TraceRow<'a> {
         id: u64,
         /// The thread id of the thread that exits the span.
         thread_id: u64,
+        /// What the thread (de)allocated since its previous Enter/Exit row, if anything and if
+        /// memory is tracked. See [`Allocations`].
+        allocations: Option<Allocations>,
     },
     /// A event has happened for some span.
     Event {
@@ -69,37 +75,6 @@ pub enum TraceRow<'a> {
         #[serde(borrow)]
         values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
     },
-    /// Data about (de)allocations that happened
-    Allocation {
-        /// Timestamp
-        ts: u64,
-        /// The thread id of the thread where allocations happened.
-        thread_id: u64,
-        /// Allocations
-        allocations: u64,
-        /// Allocation count
-        allocation_count: u64,
-        /// Deallocations
-        deallocations: u64,
-        /// Deallocation count
-        deallocation_count: u64,
-    },
-    /// Data about (de)allocations per thread counters. Actual allocations can
-    /// be computed from the difference.
-    AllocationCounters {
-        /// Timestamp
-        ts: u64,
-        /// The thread id of the thread where allocations happened.
-        thread_id: u64,
-        /// Allocations
-        allocations: u64,
-        /// Allocation count
-        allocation_count: u64,
-        /// Deallocations
-        deallocations: u64,
-        /// Deallocation count
-        deallocation_count: u64,
-    },
     /// A snapshot of process memory and non-idle Tokio scheduler workers.
     MemorySample {
         /// Timestamp
@@ -113,6 +88,27 @@ pub enum TraceRow<'a> {
         /// Number of non-parked Tokio scheduler worker threads in this process.
         active_worker_threads: u64,
     },
+}
+
+/// The (de)allocations of a thread, as attached to [`TraceRow::Enter`] and
+/// [`TraceRow::Exit`].
+///
+/// These are the (de)allocations of the thread since its previous `Enter` or
+/// `Exit` row (allocations made by the tracing itself are excluded). A row
+/// without allocations means that nothing was (de)allocated, or that memory
+/// isn't tracked. Readers attribute them to the span on top of the thread's
+/// span stack before the row is applied: for `Enter`, the span that was running
+/// before (if any), for `Exit`, the span that is exited.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Allocations {
+    /// Allocated bytes
+    pub allocations: u64,
+    /// Number of allocations
+    pub allocation_count: u64,
+    /// Deallocated bytes
+    pub deallocations: u64,
+    /// Number of deallocations
+    pub deallocation_count: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

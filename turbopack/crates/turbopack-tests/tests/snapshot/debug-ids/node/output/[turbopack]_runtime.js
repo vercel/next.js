@@ -34,6 +34,9 @@ var ASSET_PREFIX = "/";
  * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
  * uses plain Module objects.
  */ let createModuleWithDirectionFlag = false;
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */ const moduleFactories = new Map();
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -49,10 +52,21 @@ const REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 const contextPrototype = Context.prototype;
+contextPrototype.M = moduleFactories;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
+}
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */ function getCachedModule(moduleCache, id) {
+    const module = moduleCache.get(id);
+    if (module?.error) {
+        throw module.error;
+    }
+    return module;
 }
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache.get(id);
@@ -458,7 +472,7 @@ function esmImport(id) {
 }
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
-    const loader = this.r(moduleId);
+    const loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
@@ -530,11 +544,11 @@ contextPrototype.f = moduleContext;
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
 // The flat format alternates one or more module IDs with their factory function.
 // Strict factories can be prepended as a nested array.
-function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+function installCompressedModuleFactories(chunkModules, offset, newModuleId) {
     let i = offset;
     const strictFactories = chunkModules[i];
     if (Array.isArray(strictFactories)) {
-        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
+        installCompressedModuleFactories(strictFactories, 0, newModuleId);
         i++;
     }
     while(i < chunkModules.length){
@@ -737,12 +751,10 @@ Context.prototype.F = resolveFileUrl;
  * Contains chunk loading, module caching, and other non-HMR functionality.
  */ process.env.TURBOPACK = '1';
 const url = require('url');
-const moduleFactories = new Map();
-const moduleCache = new Map();
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
-    const exported = this.r(moduleId);
+    const exported = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     const exportedPath = exported?.default ?? exported;
     if (typeof exportedPath !== 'string') {
         return exported;
@@ -783,7 +795,7 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
     try {
         const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
         const chunkModules = require(resolved);
-        installCompressedModuleFactories(chunkModules, 0, moduleFactories);
+        installCompressedModuleFactories(chunkModules, 0);
         loadedChunks.add(chunkPath);
     } catch (cause) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
@@ -812,7 +824,7 @@ function loadChunkAsync(chunkData) {
             // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
             // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
             const chunkModules = require(resolved);
-            installCompressedModuleFactories(chunkModules, 0, moduleFactories);
+            installCompressedModuleFactories(chunkModules, 0);
             entry = loadedChunk;
         } catch (cause) {
             const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
@@ -847,6 +859,7 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /// <reference path="./runtime-types.d.ts" />
 /// <reference path="./dev-extensions.ts" />
 /// <reference path="./dev-protocol.d.ts" />
+/// <reference path="./dev-runtime-hooks.d.ts" />
 /**
  * Shared HMR (Hot Module Replacement) implementation.
  *
@@ -855,12 +868,14 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
  * tracking, the module.hot API, and the full HMR update flow.
  */ /**
  * The development module cache shared across the runtime.
- * Browser runtime declares this directly.
- * Node.js runtime assigns globalThis.__turbopack_module_cache__ to this.
- */ let devModuleCache;
+ */ const moduleCache = new Map();
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
  */ let runtimeModules;
+/**
+ * Whether to set `module.loaded` once a module has evaluated, as Node.js does
+ * for CommonJS modules. Set by the Node.js dev runtime.
+ */ let markDevModulesLoaded = false;
 /**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
@@ -941,7 +956,7 @@ function formatDependencyChain(dependencyChain) {
                 dependencyChain
             };
         }
-        const module = devModuleCache.get(moduleId);
+        const module = moduleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (// The module is not in the cache. Since this is a "modified" update,
         // it means that the module was never instantiated before.
@@ -969,7 +984,7 @@ function formatDependencyChain(dependencyChain) {
             continue;
         }
         for (const parentId of module.parents){
-            const parent = devModuleCache.get(parentId);
+            const parent = moduleCache.get(parentId);
             if (!parent) {
                 continue;
             }
@@ -1168,7 +1183,7 @@ function formatDependencyChain(dependencyChain) {
  */ function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
     for (const moduleId of outdatedModules){
-        const module = devModuleCache.get(moduleId);
+        const module = moduleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (module && hotState?.selfAccepted && !hotState.selfInvalidated) {
             outdatedSelfAcceptedModules.push({
@@ -1183,10 +1198,10 @@ function formatDependencyChain(dependencyChain) {
  * Disposes of an instance of a module.
  * Runs hot.dispose handlers and manages persistent hot data.
  *
- * NOTE: mode = "replace" will not remove modules from devModuleCache.
+ * NOTE: mode = "replace" will not remove modules from moduleCache.
  * This must be done in a separate step afterwards.
  */ function disposeModule(moduleId, mode) {
-    const module = devModuleCache.get(moduleId);
+    const module = moduleCache.get(moduleId);
     if (!module) {
         return;
     }
@@ -1210,7 +1225,7 @@ function formatDependencyChain(dependencyChain) {
     // It will be added back once the module re-instantiates and imports its
     // children again.
     for (const childId of module.children){
-        const child = devModuleCache.get(childId);
+        const child = moduleCache.get(childId);
         if (!child) {
             continue;
         }
@@ -1221,7 +1236,7 @@ function formatDependencyChain(dependencyChain) {
     }
     switch(mode){
         case 'clear':
-            devModuleCache.delete(module.id);
+            moduleCache.delete(module.id);
             moduleHotData.delete(module.id);
             break;
         case 'replace':
@@ -1245,16 +1260,18 @@ function formatDependencyChain(dependencyChain) {
     // We also want to keep track of previous parents of the outdated modules.
     const outdatedModuleParents = new Map();
     for (const moduleId of outdatedModules){
-        const oldModule = devModuleCache.get(moduleId);
-        outdatedModuleParents.set(moduleId, oldModule?.parents);
-        devModuleCache.delete(moduleId);
+        const oldModule = moduleCache.get(moduleId);
+        if (oldModule) {
+            outdatedModuleParents.set(moduleId, oldModule.parents);
+        }
+        moduleCache.delete(moduleId);
     }
     // Remove outdated dependencies from parent module's children list.
     // When a parent accepts a child's update, the child is re-instantiated
     // but the parent stays alive. We remove the old child reference so it
     // gets re-added when the child re-imports.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = devModuleCache.get(parentId);
+        const module = moduleCache.get(parentId);
         if (module) {
             for (const dep of deps){
                 const idx = module.children.indexOf(dep);
@@ -1269,24 +1286,48 @@ function formatDependencyChain(dependencyChain) {
     };
 }
 /* eslint-disable @typescript-eslint/no-unused-vars */ /**
- * Shared module instantiation logic.
- * This handles the full module instantiation flow for both browser and Node.js.
- * Only React Refresh hooks differ between platforms (passed as callback).
- */ function instantiateModuleShared(moduleId, sourceType, sourceData, moduleFactories, devModuleCache, runtimeModules, createModuleObjectFn, createContextFn, runModuleExecutionHooksFn) {
-    // 1. Factory validation (same in both browser and Node.js)
-    const id = moduleId;
-    const moduleFactory = moduleFactories.get(id);
+ * Instantiates a module in development mode.
+ *
+ * This calls the module factory directly, and allows different runtimes to supply hooks via
+ * `interceptDevModuleExecution`/`createDevModuleContext` hooks.
+ */ function instantiateModule(moduleId, sourceType, sourceData) {
+    const moduleFactory = moduleFactories.get(moduleId);
     if (typeof moduleFactory !== 'function') {
         throw new Error(factoryNotAvailableMessage(moduleId, sourceType, sourceData) + `\nThis is often caused by a stale browser cache, misconfigured Cache-Control headers, or a service worker serving outdated responses.` + `\nTo fix this, make sure your Cache-Control headers allow revalidation of chunks and review your service worker configuration. ` + `As an immediate workaround, try hard-reloading the page, clearing the browser cache, or unregistering any service workers.`);
     }
-    // 2. Hot API setup (same in both - works for browser, included for Node.js)
-    const hotData = moduleHotData.get(id);
-    const { hot, hotState } = createModuleHot(id, hotData);
-    // 3. Parent assignment logic (same in both)
+    const module = createDevModule(moduleId, sourceType, sourceData);
+    const exports = module.exports;
+    const finishExecution = interceptDevModuleExecution(module);
+    try {
+        // Called like in the production runtimes, without a `this`, which keeps
+        // this frame smaller.
+        moduleFactory(createDevModuleContext(module, exports, finishExecution !== undefined), module, exports);
+    } catch (error) {
+        module.error = error;
+        throw error;
+    } finally{
+        finishExecution?.();
+    }
+    if (markDevModulesLoaded) {
+        ;
+        module.loaded = true;
+    }
+    if (module.namespaceObject && module.exports !== module.namespaceObject) {
+        // in case of a circular dependency: cjs1 -> esm2 -> cjs1
+        interopEsm(module.exports, module.namespaceObject);
+    }
+    return module;
+}
+/**
+ * Creates a module object with its hot API and parents, and adds it to the
+ * module cache.
+ */ function createDevModule(moduleId, sourceType, sourceData) {
+    const hotData = moduleHotData.get(moduleId);
+    const { hot, hotState } = createModuleHot(moduleId, hotData);
     let parents;
     switch(sourceType){
         case SourceType.Runtime:
-            runtimeModules.add(id);
+            runtimeModules.add(moduleId);
             parents = [];
             break;
         case SourceType.Parent:
@@ -1300,29 +1341,12 @@ function formatDependencyChain(dependencyChain) {
         default:
             throw new Error(`Unknown source type: ${sourceType}`);
     }
-    // 4. Module creation (platform creates base module object)
-    const module = createModuleObjectFn(id);
-    const exports = module.exports;
+    // The module object becomes a HotModule once `hot` is assigned.
+    const module = createModuleWithDirection(moduleId);
     module.parents = parents;
-    module.children = [];
     module.hot = hot;
-    devModuleCache.set(id, module);
+    moduleCache.set(moduleId, module);
     moduleHotState.set(module, hotState);
-    // 5. Module execution (React Refresh hooks are platform-specific)
-    try {
-        runModuleExecutionHooksFn(module, (refresh)=>{
-            const context = createContextFn(module, exports, refresh);
-            moduleFactory.call(exports, context, module, exports);
-        });
-    } catch (error) {
-        module.error = error;
-        throw error;
-    }
-    // 6. ESM interop (same in both)
-    if (module.namespaceObject && module.exports !== module.namespaceObject) {
-        // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-        interopEsm(module.exports, module.namespaceObject);
-    }
     return module;
 }
 /**
@@ -1429,7 +1453,7 @@ function formatDependencyChain(dependencyChain) {
 /**
  * Updates module factories and re-instantiates self-accepted modules.
  * Uses the instantiateModule function (platform-specific via callback).
- */ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError) {
+ */ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, instantiateModuleFn, applyModuleFactoryNameFn, reportError) {
     // Update module factories
     for (const [moduleId, factory] of newModuleFactories.entries()){
         applyModuleFactoryNameFn(factory);
@@ -1440,7 +1464,7 @@ function formatDependencyChain(dependencyChain) {
     // This runs BEFORE re-instantiating self-accepted modules, matching
     // webpack's behavior.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = devModuleCache.get(parentId);
+        const module = moduleCache.get(parentId);
         if (!module) continue;
         const hotState = moduleHotState.get(module);
         if (!hotState) continue;
@@ -1490,7 +1514,7 @@ function formatDependencyChain(dependencyChain) {
                 try {
                     errorHandler(err, {
                         moduleId,
-                        module: devModuleCache.get(moduleId)
+                        module: moduleCache.get(moduleId)
                     });
                 } catch (err2) {
                     reportError(err2);
@@ -1507,7 +1531,7 @@ function formatDependencyChain(dependencyChain) {
  * invalidation, disposal, and application of new modules.
  *
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
- */ function applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules) {
+ */ function applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules) {
     ;
     ({ outdatedModules, outdatedDependencies } = applyInvalidatedModules(outdatedModules, outdatedDependencies, autoAcceptRootModules));
     // Find self-accepted modules to re-instantiate
@@ -1518,13 +1542,13 @@ function formatDependencyChain(dependencyChain) {
     function reportError(err) {
         if (!error) error = err; // Keep first error
     }
-    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError);
+    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, instantiateModuleFn, applyModuleFactoryNameFn, reportError);
     if (error) {
         throw error;
     }
     // Recursively apply any queued invalidations from new module execution
     if (queuedInvalidatedModules.size > 0) {
-        applyInternal(new Set(), new Map(), [], new Map(), moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules);
+        applyInternal(new Set(), new Map(), [], new Map(), instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules);
     }
 }
 /**
@@ -1535,9 +1559,9 @@ function formatDependencyChain(dependencyChain) {
  *                                   module.hot.accept(). Used for server-side HMR where pages
  *                                   auto-accept at the top level.
  */ function applyEcmascriptMergedUpdateShared(options) {
-    const { added, modified, disposedModules, evalModuleEntry, instantiateModule, applyModuleFactoryName, moduleFactories, devModuleCache, autoAcceptRootModules } = options;
+    const { added, modified, disposedModules, evalModuleEntry, instantiateModule, applyModuleFactoryName, autoAcceptRootModules } = options;
     const { outdatedModules, outdatedDependencies, newModuleFactories } = computeOutdatedModules(added, modified, evalModuleEntry, autoAcceptRootModules);
-    applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModule, applyModuleFactoryName, autoAcceptRootModules);
+    applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, instantiateModule, applyModuleFactoryName, autoAcceptRootModules);
 }
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-base.ts" />
 /// <reference path="../../shared/runtime/dev-extensions.ts" />
@@ -1545,11 +1569,7 @@ function formatDependencyChain(dependencyChain) {
 /**
  * Development Node.js runtime.
  * Uses HotModule and shared HMR logic for hot module replacement support.
- */ // Cast the module cache to HotModule for development mode
-// (hmr-runtime.ts declares devModuleCache as `let` variable expecting assignment)
-// This is safe because HotModule extends Module
-devModuleCache = moduleCache;
-// this is read in runtime-utils.ts so it creates a module with direction for hmr
+ */ // this is read in runtime-utils.ts so it creates a module with direction for hmr
 createModuleWithDirectionFlag = true;
 if (!globalThis.__turbopack_runtime_modules__) {
     globalThis.__turbopack_runtime_modules__ = new Set();
@@ -1557,8 +1577,7 @@ if (!globalThis.__turbopack_runtime_modules__) {
 runtimeModules = globalThis.__turbopack_runtime_modules__;
 const nodeDevContextPrototype = Context.prototype;
 nodeDevContextPrototype.q = exportUrl;
-nodeDevContextPrototype.M = moduleFactories;
-nodeDevContextPrototype.c = devModuleCache;
+nodeDevContextPrototype.c = moduleCache;
 nodeDevContextPrototype.R = resolvePathFromModule;
 nodeDevContextPrototype.C = clearChunkCache;
 if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
@@ -1575,25 +1594,13 @@ if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
     }
     nodeDevContextPrototype.l = loadChunkAsyncOnDemand;
 }
-/**
- * Instantiates a module in development mode using shared HMR logic.
- */ function instantiateModule(id, sourceType, sourceData) {
-    // Node.js: creates base module object (hot API added by shared code)
-    const createModuleObjectFn = (moduleId)=>{
-        return createModuleWithDirection(moduleId);
-    };
-    // Node.js: creates Context (no refresh parameter)
-    const createContext = (module1, exports, _refresh)=>{
-        return new Context(module1, exports);
-    };
-    // Node.js: no hooks wrapper, just execute directly
-    const runWithHooks = (_module, exec)=>{
-        exec(undefined); // no refresh context
-    };
-    // Use shared instantiation logic (includes hot API setup)
-    const newModule = instantiateModuleShared(id, sourceType, sourceData, moduleFactories, devModuleCache, runtimeModules, createModuleObjectFn, createContext, runWithHooks);
-    newModule.loaded = true;
-    return newModule;
+markDevModulesLoaded = true;
+function interceptDevModuleExecution(_module) {
+    // There are no react refresh hooks server side so this is a no-op
+    return undefined;
+}
+function createDevModuleContext(module1, exports, _intercepted) {
+    return new Context(module1, exports);
 }
 /**
  * Instantiates a runtime module in development mode.
@@ -1604,27 +1611,17 @@ if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module1 = devModuleCache.get(moduleId);
-    if (module1) {
-        if (module1.error) {
-            throw module1.error;
-        }
-        return module1;
-    }
-    return instantiateRuntimeModule(chunkPath, moduleId);
+    return getCachedModule(moduleCache, moduleId) ?? instantiateRuntimeModule(chunkPath, moduleId);
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  * Also tracks parent-child relationships for HMR dependency tracking.
  */ // @ts-ignore
 function getOrInstantiateModuleFromParent(id, sourceModule) {
-    // Track parent-child relationship
-    const module1 = devModuleCache.get(id);
-    trackModuleImport(sourceModule, id, module1);
+    // Track parent-child relationship, even when the cached module errored
+    trackModuleImport(sourceModule, id, moduleCache.get(id));
+    const module1 = getCachedModule(moduleCache, id);
     if (module1) {
-        if (module1.error) {
-            throw module1.error;
-        }
         return module1;
     }
     const newModule = instantiateModule(id, SourceType.Parent, sourceModule.id);
@@ -1654,13 +1651,13 @@ module.exports = (sourcePath)=>({
     return code;
 }
 let serverHmrUpdateHandler = null;
-function initializeServerHmr(moduleFactories, devModuleCache) {
+function initializeServerHmr() {
     if (serverHmrUpdateHandler != null) {
         throw new Error('[Server HMR] Server HMR client is already initialized');
     }
     // Register the update handler for the server runtime
     serverHmrUpdateHandler = (msg)=>{
-        handleNodejsUpdate(msg, moduleFactories, devModuleCache);
+        handleNodejsUpdate(msg);
     };
 }
 /**
@@ -1678,7 +1675,7 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
 /**
  * Handles server message updates and applies them to the Node.js runtime.
  * Uses shared HMR update logic from hmr-runtime.ts.
- */ function handleNodejsUpdate(msg, moduleFactories, devModuleCache) {
+ */ function handleNodejsUpdate(msg) {
     if (msg.type !== 'partial') {
         return;
     }
@@ -1695,13 +1692,13 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
             }
             if (instruction.merged) {
                 for (const merged of instruction.merged){
-                    applyEcmascriptMergedUpdate(merged, moduleFactories, devModuleCache);
+                    applyEcmascriptMergedUpdate(merged);
                 }
             }
             return;
         }
         if (instruction.type === 'EcmascriptMergedUpdate') {
-            applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache);
+            applyEcmascriptMergedUpdate(instruction);
             return;
         }
     } catch (e) {
@@ -1709,7 +1706,7 @@ function initializeServerHmr(moduleFactories, devModuleCache) {
         throw e;
     }
 }
-function applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCache) {
+function applyEcmascriptMergedUpdate(instruction) {
     const { entries = {}, chunks = {} } = instruction;
     const evalModuleEntry = (entry)=>{
         const code = entry.map ? inlineSourcemaps(entry) : entry.code;
@@ -1722,7 +1719,7 @@ function applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCach
     // were moved to a renamed chunk. Treat them as modified so the dependency
     // walk runs and they get re-instantiated with the new factory.
     for (const [moduleId, entry] of added){
-        if (entry != null && devModuleCache.has(moduleId)) {
+        if (entry != null && moduleCache.has(moduleId)) {
             added.delete(moduleId);
             modified.set(moduleId, entry);
         }
@@ -1735,8 +1732,6 @@ function applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCach
         evalModuleEntry,
         instantiateModule,
         applyModuleFactoryName: ()=>{},
-        moduleFactories,
-        devModuleCache,
         autoAcceptRootModules: true
     });
 }
@@ -1751,9 +1746,7 @@ function ensureHmrClientInitialized() {
     if (hmrClientInitialized) return;
     hmrClientInitialized = true;
     // initializeServerHmr is from hmr-client.ts (embedded before this file)
-    // moduleFactories is from dev-runtime.ts
-    // devModuleCache is the HotModule-typed cache from dev-runtime.ts
-    initializeServerHmr(moduleFactories, devModuleCache);
+    initializeServerHmr();
 }
 function __turbopack_server_hmr_apply__(update) {
     ensureHmrClientInitialized();

@@ -81,8 +81,8 @@ pub struct DiskWatcherConfig {
     /// [`None`] disables polling, using the platform's native watcher ([`RecommendedWatcher`])
     /// instead of [`PollWatcher`].
     pub poll_interval: Option<Duration>,
-    /// Attach an [`InvalidationReason`] to every invalidation the watcher causes ([`WatchStart`],
-    /// [`WatchChange`], or [`InvalidateRescan`]), so that it can be reported to the user.
+    /// Attach an [`InvalidationReason`] to every invalidation the watcher causes (`WatchStart`,
+    /// `WatchChange`, or `InvalidateRescan`), so that it can be reported to the user.
     ///
     /// This costs an extra allocation per invalidated path, so it's only worth enabling when
     /// something actually consumes the reasons.
@@ -701,7 +701,12 @@ impl DiskWatcher {
                     }
                     // Error raised by notify watcher itself
                     Ok(Err(notify::Error { kind, paths })) => {
-                        println!("watch error ({paths:?}): {kind:?} ");
+                        // A path removed while the watcher was scanning it is expected (e.g.
+                        // `PollWatcher` walking a tree that is being deleted), so don't report
+                        // it. The invalidation below still covers it.
+                        if !is_not_found_error(&kind) {
+                            eprintln!("watch error ({paths:?}): {kind:?} ");
+                        }
 
                         batch.add_error(paths, fs.root_path());
                         schedule.extend(config.batch_delay);
@@ -1193,6 +1198,12 @@ impl InvalidationReasonKind for InvalidateRescanKind {
                 .path
         )
     }
+}
+
+/// Whether a [`notify::Error`] was caused by a path that no longer exists, e.g. a directory
+/// removed between being listed and being read by [`PollWatcher`].
+fn is_not_found_error(kind: &notify::ErrorKind) -> bool {
+    matches!(kind, notify::ErrorKind::Io(err) if err.kind() == std::io::ErrorKind::NotFound)
 }
 
 #[cfg(test)]

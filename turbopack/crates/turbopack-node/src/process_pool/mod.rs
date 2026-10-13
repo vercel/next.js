@@ -33,7 +33,7 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 use crate::{
     AssetsForSourceMapping,
     backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
-    evaluate::{EvaluateOperation, EvaluatePool, Operation},
+    evaluate::{EvaluateOperation, EvaluatePool, NodeJsConnectError, Operation},
     format::FormattingMode,
     pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
     source_map::apply_source_mapping,
@@ -84,6 +84,10 @@ impl PartialEq for NodeJsPoolProcess {
 }
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Exit code used by the child process when it cannot connect to the port we
+/// listen on (see `js/src/child_process/index.ts`).
+const CONNECT_FAILED_EXIT_CODE: i32 = 69;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 struct OutputEntry {
@@ -380,6 +384,9 @@ impl NodeJsPoolProcess {
                 match status {
                     Ok(status) => {
                         let (stdout, stderr) = get_output(&mut child).await?;
+                        if status.code() == Some(CONNECT_FAILED_EXIT_CODE) {
+                            return Err(NodeJsConnectError { stderr }.into());
+                        }
                         bail!("node process exited before we could connect to it with {status}\nProcess output:\n{stdout}\nProcess error output:\n{stderr}");
                     }
                     Err(err) => {

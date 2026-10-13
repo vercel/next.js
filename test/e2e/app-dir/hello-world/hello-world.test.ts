@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// trigger deploy tests v1
 describe('hello-world', () => {
   const { next } = nextTestSetup({
     files: __dirname,

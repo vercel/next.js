@@ -235,7 +235,8 @@ struct TaskStorageSchema {
     pub new_task: bool,
 
     /// GC soft-deletion marker. Set by the garbage collector when a task is marked for deletion.
-    #[field(storage = "flag", category = "transient")]
+    /// `meta` simply to ensure that setting/clearing it tracks a modification.
+    #[field(storage = "flag", category = "meta")]
     deleted: bool,
 
     // =========================================================================
@@ -477,6 +478,9 @@ pub enum UnevictableReason {
     InProgress,
     /// Modified flags are set, or data/meta has not been restored yet.
     Modified,
+    /// GC deleted the task but its tombstone has not been persisted yet, e.g. because the GC pass
+    /// was interrupted and abandoned its snapshot.
+    MarkedForDeletion,
     /// The task is transient
     Transient,
     // Keep `NothingToEvict` last: `COUNT` is derived from its discriminant.
@@ -489,6 +493,7 @@ impl UnevictableReason {
     pub const ALL: [UnevictableReason; Self::COUNT] = [
         UnevictableReason::InProgress,
         UnevictableReason::Modified,
+        UnevictableReason::MarkedForDeletion,
         UnevictableReason::Transient,
         UnevictableReason::NothingToEvict,
     ];
@@ -508,6 +513,7 @@ impl UnevictableReason {
         match self {
             UnevictableReason::InProgress => "skipped_in_progress",
             UnevictableReason::Modified => "skipped_modified",
+            UnevictableReason::MarkedForDeletion => "skipped_marked_for_deletion",
             UnevictableReason::Transient => "skipped_transient",
             UnevictableReason::NothingToEvict => "skipped_nothing_to_evict",
         }
@@ -1168,22 +1174,23 @@ mod tests {
         assert!(storage.flags.current_session_clean());
 
         // Test persisted_bits only includes non-transient flags
-        // optimization_pending=bit 0 (meta, persisted)
-        // invalidator=bit 1, immutable=bit 2 (data, persisted)
-        // current_session_clean=bit 3 (transient)
+        // optimization_pending=bit 0, deleted=bit 1 (meta, persisted)
+        // invalidator=bit 2, immutable=bit 3 (data, persisted)
+        // current_session_clean and the other transient flags come after
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b110); // invalidator + immutable
+        assert_eq!(persisted, 0b1100); // invalidator + immutable
 
         // Test TaskFlags constants
-        assert_eq!(TaskFlags::PERSISTED_MASK, 0b111); // 3 persisted flags
+        assert_eq!(TaskFlags::PERSISTED_MASK, 0b1111); // 4 persisted flags
 
         // Test set_persisted_bits preserves transient flags
         let mut storage2 = TaskStorage::new();
         storage2.flags.set_current_session_clean(true); // Set transient flag
-        storage2.flags.set_persisted_bits(0b100); // Set immutable only
+        storage2.flags.set_persisted_bits(0b1000); // Set immutable only
         assert!(storage2.flags.immutable());
         assert!(!storage2.flags.invalidator());
         assert!(!storage2.flags.optimization_pending());
+        assert!(!storage2.flags.deleted());
         assert!(storage2.flags.current_session_clean()); // Transient flag preserved
     }
 
@@ -1224,14 +1231,14 @@ mod tests {
         assert!(storage.flags.prefetched());
 
         // Verify these are all transient (not in persisted_bits)
-        // Only invalidator, immutable should be persisted
+        // Only optimization_pending, deleted, invalidator and immutable should be persisted
         let persisted = storage.flags.persisted_bits();
         assert_eq!(persisted, 0b00); // No persisted flags set
 
         // Set a persisted flag and verify internal state flags are still transient
         storage.flags.set_immutable(true);
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b100); // Only immutable (bit 2)
+        assert_eq!(persisted, 0b1000); // Only immutable (bit 3)
     }
 
     // Helper to create encoder

@@ -35,7 +35,7 @@ use crate::{
             cleanup_old_edges_deletions_only,
         },
         snapshot_coordinator::SnapshotPhase,
-        storage::{SpecificTaskDataCategory, TaskDataCategory},
+        storage::TaskDataCategory,
         storage_schema::TaskStorageAccessors,
     },
     backing_storage::SnapshotItem,
@@ -106,7 +106,7 @@ impl GcBudget<'_> {
     }
 }
 
-/// Counters describing what one [`TurboTasksBackend::gc_collect`] pass did. Reported only; GC
+/// Counters describing what one `TurboTasksBackend::gc_collect` pass did. Reported only; GC
 /// never reads them back.
 #[derive(Default)]
 pub struct GcStats {
@@ -120,7 +120,7 @@ pub struct GcStats {
     pub aged_out_roots: usize,
 }
 
-/// What one [`TurboTasksBackend::gc_collect`] pass produced, as opposed to the [`GcStats`] it
+/// What one `TurboTasksBackend::gc_collect` pass produced, as opposed to the [`GcStats`] it
 /// reports. The two collections are consumed before `gc_collect` returns; `interrupted` outlives
 /// it, since the caller uses it to decide whether to abandon the persistence loop.
 #[derive(Default)]
@@ -269,13 +269,6 @@ impl TurboTasksBackend {
                 // writes the tombstone.
                 drop(task.take_cell_data());
                 task.set_deleted(true);
-                if task.new_task() {
-                    task.discard_modifications_for_gc_new_task();
-                } else {
-                    // Persisted ensure it is marked modified so the next snapshot tombstones it.
-                    // It is almost certainly already marked modified, so this is mostly a no-op.
-                    let _ = task.track_modification(SpecificTaskDataCategory::Meta, "gc_deleted");
-                }
                 drop(task); // drop the lock so edge cleanup can run
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
