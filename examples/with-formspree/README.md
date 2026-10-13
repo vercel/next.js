@@ -19,6 +19,11 @@ Clone down repo, navigate to the repo directory and…
 # Install dependencies
 npm install
 
+# Set your Formspree form ID
+cp .env.local.example .env.local
+
 # Run next locally at localhost:3000
 npm run dev
 ```
+
+Then set `NEXT_PUBLIC_FORM` in `.env.local` to your Formspree form ID.
