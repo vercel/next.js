@@ -429,9 +429,11 @@ export async function handleRouteType({
       const key = getEntryKey('app', 'server', page)
 
       const writtenEndpoint = await route.endpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true, logErrors)
+      if (writtenEndpoint.value.type !== 'native')
+        hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
-      if (dev) {
+      if (dev && writtenEndpoint.value.type !== 'native') {
         // Advance the hot-reloader's HMR refresh hash whenever this route
         // handler is recompiled, so its `"use cache"` entries are invalidated
         // after an edit. Subscribing runs `subscribeToClientChanges`, which

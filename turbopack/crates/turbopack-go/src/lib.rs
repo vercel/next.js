@@ -236,6 +236,23 @@ impl GoBuildContext {
     }
 }
 
+/// A task-value session lets persistent consumers depend on process-local compiler state
+/// without putting a TransientInstance directly in their child task's input tuple.
+#[turbo_tasks::value(serialization = "skip")]
+pub struct GoBuildSession {
+    pub context: GoBuildContext,
+}
+impl GoBuildSession {
+    pub fn new(context: GoBuildContext) -> Vc<Self> {
+        Self { context }.cell()
+    }
+}
+
+#[turbo_tasks::function]
+fn shared_session(context: GoBuildContext) -> Vc<GoBuildSession> {
+    GoBuildSession::new(context)
+}
+
 #[turbo_tasks::function(operation, root)]
 pub fn filesystem(path: RcStr) -> Vc<DiskFileSystem> {
     DiskFileSystem::new(rcstr!("go"), Vc::cell(path))
@@ -346,6 +363,7 @@ fn module_escape(value: &str) -> String {
 struct BuildPlan {
     files: Vec<RcStr>,
     inputs: Inputs,
+    generated: BTreeMap<RcStr, RcStr>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -371,8 +389,9 @@ static GO_ACTIONS: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(2));
 async fn module_configuration(
     project: RcStr,
     input: FileInput,
-    go_context: GoBuildContext,
+    go_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<RcStr>> {
+    let go_context = go_session.await?.context.clone();
     if !input.exists() {
         return Ok(Vc::cell(rcstr!("{}")));
     }
@@ -429,19 +448,51 @@ fn entry_directory(project: &Path, files: &[RcStr]) -> Result<PathBuf> {
     Ok(project.join(directory).components().collect())
 }
 
+/// Materialize generated source bytes outside the project. The virtual paths remain in the
+/// original package directory; neither source files nor module metadata are modified.
+fn overlay(project: &Path, generated: &BTreeMap<RcStr, RcStr>) -> Result<tempfile::TempDir> {
+    let temp = tempfile::Builder::new()
+        .prefix("turbopack-go-overlay-")
+        .tempdir()?;
+    let mut replacements = BTreeMap::new();
+    for (index, (path, content)) in generated.iter().enumerate() {
+        let virtual_path = project.join(path.as_str());
+        ensure!(
+            !virtual_path.exists(),
+            "generated Go input already exists: {}",
+            virtual_path.display()
+        );
+        let source = temp.path().join(format!("{index}.go"));
+        std::fs::write(&source, content.as_str())?;
+        replacements.insert(virtual_path, source);
+    }
+    std::fs::write(
+        temp.path().join("overlay.json"),
+        serde_json::to_vec(&serde_json::json!({ "Replace": replacements }))?,
+    )?;
+    Ok(temp)
+}
+
 async fn list(
     directory: &Path,
     files: &[RcStr],
     go_context: &GoBuildContext,
+    project: &Path,
+    generated: &BTreeMap<RcStr, RcStr>,
 ) -> Result<Vec<Package>> {
     go_context
         .cancellation
         .lists
         .fetch_add(1, Ordering::Relaxed);
+    let overlay = overlay(project, generated)?;
     let mut command = go_context.command(directory);
     command
+        .arg("list")
+        .arg(format!(
+            "-overlay={}",
+            overlay.path().join("overlay.json").display()
+        ))
         .args([
-            "list",
             "-deps",
             "-json=Dir,ImportPath,Name,Standard,Module,GoFiles,IgnoredGoFiles,InvalidGoFiles,\
              EmbedFiles,EmbedPatterns,Imports,CgoFiles,SFiles,SysoFiles,Error,DepsErrors,\
@@ -573,8 +624,10 @@ async fn observe_packages(
 async fn discover(
     root: FileSystemPath,
     files: Vec<RcStr>,
-    go_context: GoBuildContext,
+    go_session: ResolvedVc<GoBuildSession>,
+    generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<Discovery>> {
+    let go_context = go_session.await?.context.clone();
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
         _ = go_context.cancellation.token.cancelled() => return Ok(Discovery { outcome: DiscoveryOutcome::Cancelled, inputs: Inputs::default() }.cell()),
@@ -613,7 +666,7 @@ async fn discover(
         let config = module_configuration(
             project.to_str().context("non-UTF8 Go project")?.into(),
             tracker.inputs.files[project.join("go.mod").to_str().unwrap()].clone(),
-            go_context.clone(),
+            *go_session,
         )
         .await?;
         let config: ModuleConfig = serde_json::from_str(&config)?;
@@ -647,7 +700,7 @@ async fn discover(
         }
         let module = config.module.as_ref().map_or("", |m| m.path.as_str());
         let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
-        let packages = list(&directory, &files, &go_context).await?;
+        let packages = list(&directory, &files, &go_context, &project, &generated).await?;
         observe_packages(&mut tracker, &packages, &project, module).await?;
         // Newly discovered files/directories were not guarded during the first command.
         // Only that registration window needs a second Go scan. For named files importing
@@ -656,7 +709,7 @@ async fn discover(
             registered != (tracker.inputs.files.len(), tracker.inputs.directories.len());
         let structure_changed = !tracker.dirty
             && added_inputs
-            && packages != list(&directory, &files, &go_context).await?;
+            && packages != list(&directory, &files, &go_context, &project, &generated).await?;
         if tracker.dirty || structure_changed || !tracker.inputs.is_current()? {
             return Ok(None);
         }
@@ -697,6 +750,7 @@ async fn discover(
         ensure!(main, "Go inputs must define package main");
         Ok::<_, anyhow::Error>(Some(BuildPlan {
             files: files.clone(),
+            generated,
             inputs: tracker.inputs.compiler_inputs(),
         }))
     }
@@ -732,8 +786,9 @@ enum Compilation {
 async fn compile(
     project: RcStr,
     plan: BuildPlan,
-    go_context: GoBuildContext,
+    go_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<Compilation>> {
+    let go_context = go_session.await?.context.clone();
     let _permit = tokio::select! {
         permit = GO_ACTIONS.acquire() => permit?,
         _ = go_context.cancellation.token.cancelled() => return Ok(Compilation::Cancelled.cell()),
@@ -758,9 +813,15 @@ async fn compile(
         .cancellation
         .builds
         .fetch_add(1, Ordering::Relaxed);
+    let overlay = overlay(Path::new(project.as_str()), &plan.generated)?;
     let mut command = go_context.command(&directory);
     command
-        .args(["build", "-mod=readonly", "-buildvcs=false", "-trimpath"])
+        .arg("build")
+        .arg(format!(
+            "-overlay={}",
+            overlay.path().join("overlay.json").display()
+        ))
+        .args(["-mod=readonly", "-buildvcs=false", "-trimpath"])
         .arg(format!("-tags={}", go_context.tags))
         .arg("-o")
         .arg(&executable)
@@ -799,14 +860,14 @@ fn directory_input(path: &RcStr) -> Result<inputs::DirectoryInput> {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GoBundleResult {
     pub outcome: GoBuildOutcome,
     inputs: Inputs,
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum GoBuildOutcome {
     Success(ResolvedVc<FileContent>),
     Failed(RcStr),
@@ -828,11 +889,14 @@ impl GoBundleResult {
 async fn bundle(
     root: FileSystemPath,
     mut files: Vec<RcStr>,
-    go_context: GoBuildContext,
+    go_session: ResolvedVc<GoBuildSession>,
+    generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
+    let go_context = go_session.await?.context.clone();
+    files.extend(generated.keys().cloned());
     files.sort();
     files.dedup();
-    let discovery = discover(root.clone(), files, go_context.clone()).await?;
+    let discovery = discover(root.clone(), files, *go_session, generated).await?;
     let outcome = match &discovery.outcome {
         DiscoveryOutcome::Ready(plan) => {
             let project = to_sys_path(root.clone())
@@ -841,7 +905,7 @@ async fn bundle(
             let compiled = compile(
                 project.to_str().context("non-UTF8 project")?.into(),
                 plan.clone(),
-                go_context.clone(),
+                *go_session,
             )
             .await?;
             match &*compiled {
@@ -880,5 +944,29 @@ pub fn go_bundle(
     files: Vec<RcStr>,
     go_context: GoBuildContext,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, go_context)
+    bundle(root, files, shared_session(go_context), BTreeMap::new())
+}
+
+/// Compile named sources with additional generated files in the same directory. Generated
+/// source bytes are part of task identity, and original project inputs retain normal tracking.
+#[turbo_tasks::function(operation, root)]
+pub fn go_bundle_with_generated_files(
+    root: FileSystemPath,
+    files: Vec<RcStr>,
+    go_context: GoBuildContext,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Vc<GoBundleResult> {
+    bundle(root, files, shared_session(go_context), generated)
+}
+
+/// Session-valued entrypoint for Next-specific persistent endpoint tasks. Generated source
+/// content is task input; the resolved toolchain stays a value dependency of compiler tasks.
+#[turbo_tasks::function]
+pub fn go_bundle_with_session(
+    root: FileSystemPath,
+    files: Vec<RcStr>,
+    session: ResolvedVc<GoBuildSession>,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Vc<GoBundleResult> {
+    bundle(root, files, *session, generated)
 }

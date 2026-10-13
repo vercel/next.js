@@ -1,0 +1,93 @@
+---
+title: route.go
+description: Build experimental Go API endpoints with native App Router Route Handlers.
+---
+
+`route.go` defines a native Go Route Handler (API endpoint) in the App Router, served through the existing Next.js Node.js server.
+
+```go filename="app/users/[id]/route.go" highlight={9}
+package main
+
+import (
+  "fmt"
+  "net/http"
+)
+
+var Methods = []string{"GET"}
+func Handle(w http.ResponseWriter, r *http.Request) {
+  fmt.Fprintf(w, "User %s", r.PathValue("id"))
+}
+```
+
+Enable the experiment:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: { goRoutes: true },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  experimental: { goRoutes: true },
+}
+```
+
+Install Go 1.24 or newer on `PATH`, or set `TURBOPACK_GO` to its executable path. Go is required for `next dev` and `next build` when compiling native handlers. `next start` launches the compiled executables without invoking the compiler.
+
+## Reference
+
+### Handler convention
+
+Each route directory is an executable `package main`. Define `Methods` as a slice of supported HTTP method names and `Handle` with the signature shown above. Next.js generates the `main` function. Do not define one yourself or create `zz_next_route_main.go`, which is reserved for the generated wrapper.
+
+All sibling `.go` files except `_test.go` are compiled together with `route.go`. Their package must also be `main`. These are explicit filename inputs: platform filename suffixes and build constraints do not select sibling files. Put platform-dependent implementations in imported packages, where Go applies its normal selection rules. Shared packages can use ordinary module imports, including `internal` packages. Direct `go run` and `go test` do not inject the generated wrapper or `ParamValues` helper; use Next.js to run the route integration. Brackets and parentheses in route directory names do not need Go import paths.
+
+Native routes support `app` and `src/app`, [route groups](/docs/app/api-reference/file-conventions/route-groups), and [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes). A native handler cannot share its URL with another Route Handler or page.
+
+### HTTP methods
+
+`Handle` receives the actual request method. Use a switch on `r.Method` to implement different behavior.
+
+| Method                         | Behavior                                                                                              |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Methods in `Methods`           | Invoke `Handle`.                                                                                      |
+| `HEAD` when `GET` is supported | Invoke `Handle` with `r.Method == "HEAD"`. The HTTP server suppresses response body bytes.            |
+| `OPTIONS`                      | Automatically return `204` and an `Allow` header. Custom OPTIONS handling is not supported initially. |
+| Unsupported methods            | Return `405`.                                                                                         |
+
+### Parameters and HTTP data
+
+| API                                          | Behavior                                                                                     |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `r.PathValue("id")`                          | Read a decoded dynamic parameter. Catch-all segments are joined with `/`.                    |
+| `ParamValues(r, "slug")`                     | Read individual decoded catch-all segments. This helper is generated into the route package. |
+| `r.URL.Query()`                              | Read query parameters, including repeated values.                                            |
+| `r.Header`, `r.Cookie()`                     | Read incoming headers and cookies after Next.js proxy processing.                            |
+| `r.Body`                                     | Read the streamed request body.                                                              |
+| `w.Header()`, `w.WriteHeader()`, `w.Write()` | Set response headers, status and body using `net/http`.                                      |
+| `http.Flusher`                               | Flush streamed response bytes.                                                               |
+| `r.Context().Done()`                         | Observe cancellation when the client disconnects.                                            |
+
+Next.js selects the endpoint after its existing routing, rewrites and `proxy.ts` processing. The native executable receives only the selected request and does not run a second router. JS/TS handlers, React rendering, Pages Router pages and static assets continue to use Node.js.
+
+### Development and errors
+
+Turbopack tracks direct sources, sibling files, local imported packages, module metadata, and embedded assets. Edits rebuild through the Go compiler graph. Requests ensure current compilation before invoking a native process. Compiler failures produce errors instead of serving the previous successful executable; repairing the source allows later requests to recover.
+
+A compiled executable runs as a supervised process with pooled private loopback HTTP connections. Unchanged requests reuse it. A successful rebuild starts a replacement when the route is next invoked. Previously admitted requests can complete on the old process, with a 21-second retirement limit. Route removal and server shutdown retire workers. A child crash fails its active request; later requests restart the emitted executable. A startup failure remains failed for that executable generation until its source changes or the Next.js server restarts. A handler panic aborts its HTTP connection, resulting in an error response if response headers have not already been sent.
+
+## Good to know
+
+- This experiment supports Turbopack `next dev` and self-hosted `next build` / `next start`. Webpack produces an unsupported-mode diagnostic.
+- Copy the complete `.next` output for relocation on the same OS and architecture. Keep executable permissions on native files under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable. Static export, standalone output and deployment adapters are unsupported.
+- WebSocket upgrades and HTTP trailers are not supported initially. Native handlers always execute dynamically. JS route segment config, ISR, Server Actions and React execution do not apply to Go handlers.
+- Runtime file reads are not traced. Use `go:embed` for assets shipped with native handlers. Native handlers read the process environment; `next.config` environment inlining does not apply.
+- Builds use the host platform with CGO disabled. Pure-Go dependencies must already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.mod` / `go.sum`.
+- Go workspaces, module replacements, vendoring, source symlinks and cross-compilation inherit the compiler experiment's unsupported status.
+- `experimental.goRoutes` disables Turbopack's persistent task cache for this process. Go's build cache still persists, and unchanged compiler results are memoized during the session.
+- The initial convention does not add `proxy.go`, Go Pages API routes, `page.go`, or `layout.go`. Applications without native handlers do not require a Go installation.

@@ -468,6 +468,17 @@ function assignDefaultsAndValidate(
     result.experimental.strictRouteMatching = false
   }
 
+  if (result.experimental.goRoutes) {
+    // Native compiler sessions are process-local; Go's own build cache persists.
+    result.experimental.turbopackFileSystemCacheForDev = false
+    result.experimental.turbopackFileSystemCacheForBuild = false
+    if (result.output || result.adapterPath) {
+      throw new Error(
+        'experimental.goRoutes supports self-hosted next start only; output and deployment adapters are unsupported'
+      )
+    }
+  }
+
   // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a
   // resolved object with concrete defaults, so consumers don't have to
   // resolve the values themselves.

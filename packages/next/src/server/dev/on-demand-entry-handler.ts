@@ -492,7 +492,7 @@ export async function findPagePathData(
       const pageUrl = ensureLeadingSlash(
         removePagePathTail(normalizePathSep(pagePath), {
           keepIndex: true,
-          extensions,
+          extensions: pagePath.endsWith('route.go') ? ['go'] : extensions,
         })
       )
 

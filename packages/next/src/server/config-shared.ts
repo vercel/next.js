@@ -509,6 +509,8 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
+  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  goRoutes?: boolean
   /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
   agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
@@ -2587,6 +2589,7 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
+    | 'goRoutes'
     | 'taint'
     | 'agentFeedback'
     | 'serverActions'
@@ -2709,6 +2712,7 @@ export function getNextConfigRuntime(
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
 
+    goRoutes: ex.goRoutes,
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
   } satisfies Requiredish<NextConfigRuntime['experimental']>

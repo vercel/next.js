@@ -2,6 +2,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use std::{
+    collections::BTreeMap,
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::Arc,
@@ -12,7 +13,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TurboTasks};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath};
-use turbopack_go::{GoBuildContext, GoBuildOutcome, filesystem, go_bundle};
+use turbopack_go::{GoBuildContext, GoBuildOutcome, filesystem, go_bundle_with_generated_files};
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
     std::fs::create_dir_all(target)?;
@@ -69,18 +70,26 @@ impl Session {
         })
     }
     async fn fetch(&self, files: &[&str]) -> Result<Vec<u8>> {
+        self.fetch_generated(files, BTreeMap::new()).await
+    }
+    async fn fetch_generated(
+        &self,
+        files: &[&str],
+        generated: BTreeMap<RcStr, RcStr>,
+    ) -> Result<Vec<u8>> {
         let files = files.iter().map(|file| RcStr::from(*file)).collect();
         let fs = self.fs;
         let go_context = self.go_context.clone();
         self.tt
             .run_once(async move {
-                let result = go_bundle(
+                let result = go_bundle_with_generated_files(
                     FileSystemPath {
                         fs: ResolvedVc::upcast(fs),
                         path: rcstr!(""),
                     },
                     files,
                     go_context,
+                    generated,
                 )
                 .read_strongly_consistent()
                 .await?;
@@ -993,5 +1002,39 @@ async fn edits_during_discovery_and_compilation_retry_before_publication() -> Re
             session.stop().await;
         }
     }
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn generated_entry_reuses_original_inputs_and_compiler_cache() -> Result<()> {
+    let session = Session::new().await?;
+    session
+        .replace("cmd/files/main.go", "func main()", "func handle()")
+        .await?;
+    let generated = BTreeMap::from([(
+        rcstr!("cmd/files/zz_generated.go"),
+        rcstr!("package main\nfunc main() { handle() }\n"),
+    )]);
+    let files = ["cmd/files/main.go", "cmd/files/helper.go"];
+    let first = session.fetch_generated(&files, generated.clone()).await?;
+    let counts = session.counts();
+    assert_eq!(
+        first,
+        session.fetch_generated(&files, generated.clone()).await?
+    );
+    assert_eq!(counts, session.counts());
+    assert!(!session.project.join("cmd/files/zz_generated.go").exists());
+    assert!(session.run_bytes(first).await?.contains("embedded-v1"));
+    session
+        .write("cmd/files/assets/message.txt", "embedded-overlay-v2")
+        .await?;
+    let second = session.fetch_generated(&files, generated).await?;
+    assert!(
+        session
+            .run_bytes(second)
+            .await?
+            .contains("embedded-overlay-v2")
+    );
+    assert_eq!(session.counts().1, counts.1 + 1);
     Ok(())
 }
