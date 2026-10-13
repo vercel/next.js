@@ -368,16 +368,11 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       })
     })
 
-    beforeEach(async () => {
-      await next.deleteFile('handler-remote-data.json')
-    })
-
     describe('durable cache reuse across deployments', () => {
       let key1: Awaited<ReturnType<typeof execute>>
       let key2: Awaited<ReturnType<typeof execute>>
       beforeAll(async () => {
         await next.stop()
-        await next.deleteFile('handler-remote-data.json')
         key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1', true)
         key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2', true)
       })
@@ -385,7 +380,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       afterAll(async () => {
         await next.stop()
         delete next.env.NEXT_DEPLOYMENT_ID
-        await next.deleteFile('handler-remote-data.json')
       })
 
       it('should not recompute when nothing changes', () => {
@@ -482,13 +476,8 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
       beforeAll(async () => {
         await next.stop()
-        await next.deleteFile('handler-remote-data.json')
         first = await buildAndRead('generators-first')
         second = await buildAndRead('generators-second')
-      })
-
-      afterAll(async () => {
-        await next.deleteFile('handler-remote-data.json')
       })
 
       it.each([
