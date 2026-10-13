@@ -47,7 +47,6 @@ permissions:
 
 jobs:
   start:
-    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     # Prerelease channels (and the scheduled nightly, where inputs are empty)
     # run autonomously; only stable requires approval before the tag exists.
