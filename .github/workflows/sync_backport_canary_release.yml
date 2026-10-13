@@ -30,6 +30,9 @@ jobs:
   evaluate:
     if: ${{ github.repository_owner == 'vercel' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'canary')) }}
     runs-on: ubuntu-latest
+    # The release app key lives in this environment (canary-only deploys).
+    # workflow_run-triggered runs execute on the default branch.
+    environment: bot-autonomous
     permissions:
       contents: read
     outputs:

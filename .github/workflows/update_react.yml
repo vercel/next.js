@@ -19,6 +19,8 @@ env:
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
+    # The release app key lives in this environment (canary-only deploys).
+    environment: bot-autonomous
     permissions:
       # The built-in token is only used to read the facebook/react compare API
       # for the changelog. Everything that writes to this repository

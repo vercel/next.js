@@ -7,10 +7,16 @@ on:
   # Allow manual runs
   workflow_dispatch:
 
+# contents: read so actions/checkout also works when the repo is private.
+permissions:
+  contents: read
+
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'vercel'
+    # The release app key lives in this environment (canary-only deploys).
+    environment: bot-autonomous
     steps:
       - name: Create GitHub App token
         id: release-app-token
