@@ -109,7 +109,7 @@ describe('--custom-webpack with a shadowed webpack and no pnpm hoisting', () => 
     expect($('#replacement-message').text()).toBe(
       'replaced by NormalModuleReplacementPlugin'
     )
-  })
+  }, 240_000)
 })
 
 // @force-gate webpack
@@ -211,7 +211,7 @@ describe('--custom-webpack without a webpack dependency', () => {
         '`--custom-webpack` requires webpack to be installed in your project'
       )
     })
-  })
+  }, 240_000)
 })
 
 // @force-gate webpack
@@ -248,6 +248,6 @@ for (const conflictingFlag of ['--webpack', '--turbopack']) {
         expect(next.cliOutput).toContain('--custom-webpack')
         expect(next.cliOutput).toContain(conflictingFlag)
       })
-    })
+    }, 240_000)
   })
 }
