@@ -1606,7 +1606,7 @@ pub mod tests {
         // byte layout: const x = `(10) あ(11,12,13) `(14) ;(15)
         // avail_width=12 → re = 0+0+12 = byte 12, inside 'あ' (bytes 11..14)
         let lines = Lines::new(source);
-        let color_scheme = ColorScheme::colored();
+        let color_scheme = ColorScheme::colored(ANSI_CODE_RED_BOLD);
 
         let highlights = extract_highlights(&lines, 0..1, JS, Some((0, 12)));
         assert_eq!(highlights.len(), 1);
