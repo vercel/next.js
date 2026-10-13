@@ -227,11 +227,15 @@ impl NextSegmentConfig {
         merge_parallel(max_duration, &parallel_config.max_duration, "maxDuration")?;
         merge_parallel(fetch_cache, &parallel_config.fetch_cache, "fetchCache")?;
         merge_parallel(runtime, &parallel_config.runtime, "runtime")?;
-        merge_parallel(
-            preferred_region,
-            &parallel_config.preferred_region,
-            "preferredRegion",
-        )?;
+        match (preferred_region.as_ref(), &parallel_config.preferred_region) {
+            (Some(a), Some(b)) if a.to_vec() != b.to_vec() => {
+                bail!("Sibling segment configs have conflicting values for preferredRegion")
+            }
+            (None, Some(b)) => {
+                *preferred_region = Some(b.clone());
+            }
+            _ => {}
+        }
         Ok(())
     }
 
