@@ -15,6 +15,8 @@ jobs:
     name: Update and upload Rspack development test manifest
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    # The release app key lives in this environment (canary-only deploys).
+    environment: bot-autonomous
     steps:
       - name: Create GitHub App token
         id: release-app-token
@@ -78,6 +80,8 @@ jobs:
     name: Update and upload Rspack production test manifest
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    # The release app key lives in this environment (canary-only deploys).
+    environment: bot-autonomous
     steps:
       - name: Create GitHub App token
         id: release-app-token
