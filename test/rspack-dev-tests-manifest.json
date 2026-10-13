@@ -1042,6 +1042,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/instant-validation-causes/instant-validation-causes.test.ts": {
+    "passed": [
+      "instant validation causes aliased export - export { instantConfig as instant }",
+      "instant validation causes does not add an instant stack for random instant exports",
+      "instant validation causes indirect export - const instantConfig = _instant; export { instantConfig as instant }",
+      "instant validation causes named export - export { instant }",
+      "instant validation causes re-export - export { instant } from \"./config\""
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/isolated-dev-build/isolated-dev-build.test.ts": {
     "passed": [
       "isolated-dev-build should create dev artifacts in .next/dev/ directory",
@@ -1096,6 +1109,15 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/next-image-https/next-image-https.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "app dir - next-image (with https) loads images without any errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1386,6 +1408,20 @@
   "test/development/app-dir/watch-distdir-deletion/index.test.ts": {
     "passed": [
       "app-dir watch-distdir-deletion should restart the server when distDir is deleted"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/webpack-loader-errors/webpack-loader-errors.test.ts": {
+    "passed": [
+      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws a plain string",
+      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws an Error",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a filesystem error",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a plain string",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error",
+      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error without stack"
     ],
     "failed": [],
     "pending": [],
@@ -6100,19 +6136,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/instant-validation-causes/instant-validation-causes.test.ts": {
-    "passed": [
-      "instant validation causes aliased export - export { instantConfig as instant }",
-      "instant validation causes does not add an instant stack for random instant exports",
-      "instant validation causes indirect export - const instantConfig = _instant; export { instantConfig as instant }",
-      "instant validation causes named export - export { instant }",
-      "instant validation causes re-export - export { instant } from \"./config\""
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/instant-validation-client/instant-validation-client.test.ts": {
     "passed": [
       "app dir - instant-validation-client should error when a client component exports instant"
@@ -8037,15 +8060,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-image/next-image-https.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app dir - next-image (with https) loads images without any errors"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -10908,20 +10922,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/webpack-loader-errors/webpack-loader-errors.test.ts": {
-    "passed": [
-      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws a plain string",
-      "webpack-loader-errors CLI output should show the loader path and error message when a loader throws an Error",
-      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a filesystem error",
-      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws a plain string",
-      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error",
-      "webpack-loader-errors error overlay should show error overlay with loader path when a loader throws an Error without stack"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/webpack-loader-fs/webpack-loader-fs.test.ts": {
     "passed": ["webpack-loader-fs should allow reading the input FS"],
     "failed": [],
@@ -13031,7 +13031,7 @@
     "runtimeError": false
   },
   "test/e2e/next-analyze/next-analyze.test.ts": {
-    "passed": ["next experimental-analyze skips in non-Turbopack tests"],
+    "passed": ["next analyze skips in non-Turbopack tests"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -15289,8 +15289,8 @@
   },
   "test/integration/create-next-app/index.test.ts": {
     "passed": [
-      "create-next-app should create AGENTS.md and CLAUDE.md with --agents-md flag",
-      "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
+      "create-next-app should create AGENTS.md with --agents-md flag",
+      "create-next-app should not create AGENTS.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
       "create-next-app should not install dependencies if --skip-install",

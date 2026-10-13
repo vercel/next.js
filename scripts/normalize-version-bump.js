@@ -21,35 +21,21 @@ const writeJson = async (filePath, data) =>
   const packages = await fs.readdir(path.join(cwd, 'packages'))
 
   const pkgJsonData = new Map()
-  const pkgNames = []
   await Promise.all(
     packages.map(async (pkgDir) => {
       const data = await readJson(
         path.join(cwd, 'packages', pkgDir, 'package.json')
       )
-      pkgNames.push(data.name)
       pkgJsonData.set(pkgDir, data)
     })
   )
+  // Internal dependencies use the `workspace:*` protocol, so they carry no
+  // version to normalize -- only each package's own `version` field does.
   const normalizeVersions = async (filePath, data) => {
     data = data || (await readJson(filePath))
-    const version = data.version
 
-    if (version) {
+    if (data.version) {
       data.version = NORMALIZED_VERSION
-      const normalizeEntry = (type, key) => {
-        const pkgVersion = data[type][key]
-
-        if (pkgNames.includes(key) && pkgVersion === version) {
-          data[type][key] = NORMALIZED_VERSION
-        }
-      }
-      for (const key of Object.keys(data.dependencies || {})) {
-        normalizeEntry('dependencies', key)
-      }
-      for (const key of Object.keys(data.devDependencies || {})) {
-        normalizeEntry('devDependencies', key)
-      }
       await writeJson(filePath, data)
     }
   }
@@ -61,7 +47,6 @@ const writeJson = async (filePath, data) =>
       )
     )
   )
-  await normalizeVersions(path.join(cwd, 'lerna.json'))
   await fs.unlink(path.join(cwd, 'pnpm-lock.yaml'))
   await fs.writeFile(path.join(cwd, 'pnpm-lock.yaml'), '')
 

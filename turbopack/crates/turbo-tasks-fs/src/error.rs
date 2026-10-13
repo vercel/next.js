@@ -2,11 +2,11 @@
 
 use std::{error::Error as StdError, fmt};
 
-use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+use turbo_tasks::NonLocalValue;
 
 /// Wrapper to convert [`anyhow::Error`] to `impl std::error::Error` for use in [`Effect::apply`].
 // TODO(bgw): use a structured error type instead of anyhow for write/write_link
-#[derive(TraceRawVcs, NonLocalValue)]
+#[derive(NonLocalValue)]
 pub(crate) struct AnyhowWrapper(anyhow::Error);
 
 impl fmt::Display for AnyhowWrapper {

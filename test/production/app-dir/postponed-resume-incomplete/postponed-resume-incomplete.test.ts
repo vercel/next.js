@@ -24,12 +24,12 @@ function validResumeDataCacheTail(): string {
 // failure is logged with content-free structural diagnostics that identify
 // *how* the state was malformed, so the otherwise-opaque error is actionable in
 // production.
+// Synthesizes the minimal-mode resume path locally; does not exercise the
+// deployed platform proxy.
+// @force-gate !deploy
 describe('postponed resume - parse failure diagnostics', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // Synthesizes the minimal-mode resume path locally; does not exercise the
-    // deployed platform proxy.
-    skipDeployment: true,
     env: {
       NEXT_PRIVATE_TEST_HEADERS: '1',
       NEXT_PRIVATE_MINIMAL_MODE: '1',

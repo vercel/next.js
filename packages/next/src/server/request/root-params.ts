@@ -8,7 +8,12 @@ import {
   type PrerenderStoreLegacy,
   type PrerenderStoreModernServer,
 } from '../app-render/work-unit-async-storage.external'
-import { makeFallbackParamsHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeFallbackParamsHangingPromise,
+  trackFallbackParamsAccessed,
+  trackPromiseUsed,
+} from '../dynamic-rendering-utils'
+import { abortOnDynamicAccess } from '../app-render/dynamic-access-async-storage.external'
 import type { ParamValue } from './params'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { accumulateRootVaryParam } from '../app-render/vary-params'
@@ -64,6 +69,33 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         )
       }
       workUnitStore.readRootParamNames.add(paramName)
+      const prerenderStore = workUnitStore.fallbackRootParamsPrerender
+      if (
+        prerenderStore !== null &&
+        prerenderStore.fallbackRouteParams !== null &&
+        prerenderStore.fallbackRouteParams.has(paramName)
+      ) {
+        return trackPromiseUsed(
+          makeFallbackParamsHangingPromise<ParamValue>(
+            prerenderStore.renderSignal,
+            workStore.route,
+            apiName,
+            // Track access and cancel the cache together when consumed below.
+            null
+          ),
+          () => {
+            trackFallbackParamsAccessed(prerenderStore, apiName)
+            // Like fallback `params`, an unknown root makes the whole cache
+            // invocation dynamic, even if it contains its own Suspense.
+            abortOnDynamicAccess(
+              'fallback-params',
+              new Error(
+                `Accessed fallback root parameter "${paramName}" during prerendering.`
+              )
+            )
+          }
+        )
+      }
       return Promise.resolve(workUnitStore.rootParams[paramName])
     }
     case 'prerender':
@@ -102,18 +134,19 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
       break
     }
     case 'private-cache': {
-      // In dev, private caches are persisted and keyed by root params (like
-      // public caches), so we track which ones were read.
-      if (workUnitStore.readRootParamNames) {
-        workUnitStore.readRootParamNames.add(paramName)
-      }
-      break
+      workUnitStore.readRootParamNames.add(paramName)
+      return Promise.resolve(workUnitStore.rootParams[paramName])
     }
     case 'prerender-runtime': {
       break
     }
-    case 'generate-static-params': {
+    case 'build-time-generator': {
       if (!(paramName in workUnitStore.rootParams)) {
+        if (workUnitStore.functionName !== 'generateStaticParams') {
+          throw new Error(
+            `Route ${workStore.route} used ${apiName} inside \`${workUnitStore.functionName}\`, but the \`${paramName}\` parameter is not available in this build-time generator.`
+          )
+        }
         throw new Error(
           `Route ${workStore.route} used ${apiName} inside \`generateStaticParams\`, but the \`${paramName}\` parameter was not provided by a parent \`generateStaticParams\`. In \`generateStaticParams\`, root params are only available for segments nested below the segment that provides them.`
         )

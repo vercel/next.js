@@ -24,7 +24,7 @@ use crate::BrowserChunkingContext;
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Browser Runtime Chunk")]
-pub(crate) struct EcmascriptBrowserRuntimeChunk {
+pub struct EcmascriptBrowserRuntimeChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
     include_async_module_runtime: bool,
 }

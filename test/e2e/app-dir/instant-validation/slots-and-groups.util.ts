@@ -7,7 +7,13 @@ import { type InstantValidationCaseContext } from './harness.util'
 const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
 export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
-  const { isNextDev, navigateTo, expectNoDevValidationErrors, prerender } = ctx
+  const {
+    isNextDev,
+    navigateTo,
+    expectNoDevValidationErrors,
+    getInstantInsight,
+    prerender,
+  } = ctx
 
   describe('invalid - missing suspense in parallel slot', () => {
     // The "caused by" source differs between bundlers due to parallel
@@ -20,7 +26,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -90,7 +96,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -160,7 +166,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -231,7 +237,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -300,7 +306,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -370,7 +376,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -440,7 +446,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -510,7 +516,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -587,7 +593,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -671,7 +677,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -749,7 +755,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -829,7 +835,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         // This page uses a runtime shell, so it can use cookies
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -905,7 +911,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -960,7 +966,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1032,7 +1038,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1105,7 +1111,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
           // This page uses a runtime shell, so it can use cookies
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {

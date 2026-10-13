@@ -202,15 +202,15 @@ function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 function getOverwrittenModule(moduleCache, id) {
-    var module = moduleCache[id];
-    if (!module) {
+    var module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -235,6 +235,9 @@ function createModuleWithDirection(id) {
     };
 }
 var BindingTag_Value = 0;
+/**
+ * Terminates a module's group of entries in an {@link EsmReexports} list.
+ */ var REEXPORT_GROUP_END = 0;
 /**
  * Adds the getters to the exports object.
  */ function esm(exports, bindings, dynamic) {
@@ -300,6 +303,118 @@ var BindingTag_Value = 0;
     esm(exports, bindings, dynamic);
 }
 contextPrototype.s = esmExport;
+/**
+ * Registers re-exports that all forward to properties of other modules.
+ *
+ * This is a compact spelling of the pattern
+ *
+ * ```js
+ * var ns = context.i(moduleId)
+ * context.s([exportName, () => ns[importedName], ...])
+ * ```
+ *
+ * The list is a flat sequence of groups. Each group starts with the source the exports come from,
+ * followed by that group's entries, and is terminated by the `0` sentinel (or the end of the list).
+ *
+ * The group head is either a **module id**, which is instantiated here:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default', 'f', 'named', 'A', 0,
+ *   29842, 'otherModule', 'f',
+ * ])
+ * ```
+ *
+ * or the **namespace value** of a module that has already been imported, which is used directly:
+ *
+ * ```js
+ * var ns1 = context.i(76061)
+ * context.S([ns1, 'default', 'f', 'named', 'A'])
+ * ```
+ *
+ * The producer picks the namespace form when it has generated the import anyway -- because some
+ * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
+ * apart by type: a module id is always a string or number. A CommonJS function export produces a
+ * callable namespace value, so namespace heads can be functions as well as objects.
+ *
+ * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
+ * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default,f,named,A', 0,
+ *   29842, 'otherModule,f',
+ * ])
+ * ```
+ *
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
+ *
+ * Groups whose head is a module id are instantiated in list order, at the point where the call
+ * appears, so the producer must not merge such a group across an import of another module. The
+ * destination reuses a source data value or getter descriptor when one exists, falling back to a
+ * wrapper getter for dynamic/proxy/inherited properties.
+ *
+ * `id` names the module the exports belong to when this module was merged into a scope-hoisting
+ * group, exactly as it does for {@link EsmExport}.
+ *
+ * Only the source descriptor's payload (value or getter) is reused. {@link esm} still defines a
+ * fresh enumerable, non-configurable destination property, and no source setter is ever forwarded.
+ */ function esmReexport(list, id) {
+    var bindings = [];
+    var i = 0;
+    while(i < list.length){
+        var head = list[i++];
+        var start = i;
+        while(i < list.length && list[i] !== REEXPORT_GROUP_END)i++;
+        var end = i;
+        // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
+        i++;
+        // Module ids are always strings or numbers. Other values are already-imported namespaces;
+        // notably, interop with a CommonJS function export produces a callable namespace function.
+        // `esmImport` may return a promise for an async module, but re-exports of async modules keep
+        // going through `context.s`, so the producer never routes them here and this stays synchronous.
+        var namespace = typeof head === 'string' || typeof head === 'number' ? esmImport.call(this, head) : head;
+        if (end - start === 1) {
+            var pairs = list[start].split(',');
+            for(var j = 0; j < pairs.length; j += 2){
+                appendReexportBinding(bindings, pairs[j], namespace, pairs[j + 1]);
+            }
+        } else {
+            for(var j1 = start; j1 < end; j1 += 2){
+                appendReexportBinding(bindings, list[j1], namespace, list[j1 + 1]);
+            }
+        }
+    }
+    esmExport.call(this, bindings, id);
+}
+contextPrototype.S = esmReexport;
+function appendReexportBinding(bindings, exportedName, namespace, importedName) {
+    var descriptor = Reflect.getOwnPropertyDescriptor(namespace, importedName);
+    if (descriptor) {
+        if ('value' in descriptor) {
+            // Code generation only routes immutable imported bindings through this helper, so a data
+            // descriptor is a constant export and can be captured once.
+            bindings.push(exportedName, BindingTag_Value, descriptor.value);
+            return;
+        }
+        if (descriptor.get) {
+            // Accessors remain live by reusing the source getter. `esmReexport` is only called by
+            // generated code: every group head is either produced by
+            // `this.i` or is the namespace variable from a generated `this.i` call. Every getter on such
+            // a namespace is receiver-independent: ESM bindings are compiler-generated arrow functions,
+            // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
+            // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
+            // of allocating another wrapper getter.
+            bindings.push(exportedName, descriptor.get);
+            return;
+        }
+    }
+    // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
+    bindings.push(exportedName, function() {
+        return namespace[importedName];
+    });
+}
 function ensureDynamicExports(module, exports) {
     var reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
@@ -761,6 +876,14 @@ contextPrototype.U = relativeURL;
             });
     }
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
+}
+/**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    return `file:///${encodeURIComponent(root !== null && root !== void 0 ? root : 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
 }
 /**
  * A stub function to make `require` available but non-functional in ESM.
@@ -1324,14 +1447,10 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
- * Returns a placeholder `file://` URL for the given module path. The browser
- * runtime intentionally does not expose the real filesystem path. Path
- * segments are percent-encoded so the result is always a valid file URI.
- */ function resolveFileUrl(modulePath) {
-    if (!modulePath) return 'file:///ROOT/';
-    return `file:///ROOT/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
-}
-browserContextPrototype.F = resolveFileUrl;
+ * Returns a placeholder `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`. The browser runtime
+ * intentionally does not expose the real filesystem path.
+ */ browserContextPrototype.F = placeholderFileUrl;
 /**
  * Exports a URL with the static suffix appended.
  */ function exportUrl(url, id) {
@@ -1424,14 +1543,14 @@ function isCss(chunkUrl) {
 }
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
-var moduleCache = {};
+var moduleCache = new Map();
 contextPrototype.c = moduleCache;
 /**
  * Gets or instantiates a runtime module.
  */ // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    var module = moduleCache[moduleId];
+    var module = moduleCache.get(moduleId);
     if (module) {
         if (module.error) {
             throw module.error;
@@ -1446,7 +1565,7 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 var getOrInstantiateModuleFromParent = function getOrInstantiateModuleFromParent(id, sourceModule) {
-    var module = moduleCache[id];
+    var module = moduleCache.get(id);
     if (module) {
         if (module.error) {
             throw module.error;
@@ -1465,7 +1584,7 @@ function instantiateModule(id, sourceType, sourceData) {
     }
     var module = createModuleObject(id);
     var exports = module.exports;
-    moduleCache[id] = module;
+    moduleCache.set(id, module);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     var context = new Context(module, exports);
     try {

@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { parseUrl } from '../../../lib/url'
 import { warnOnce } from '../../../build/output/log'
 import { isCsrfOriginAllowed } from '../../app-render/csrf-protection'
+import { parsePath } from '../../../shared/lib/router/utils/parse-path'
 
 const allowedDevOriginsDocs =
   'https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins'
@@ -96,21 +97,19 @@ function parseHostnameFromHeader(
 function isInternalEndpoint(req: IncomingMessage): boolean {
   if (!req.url) return false
 
-  try {
-    // TODO: We should standardize on a single prefix for this
-    const isMiddlewareRequest = req.url.includes('/__nextjs')
-    const isInternalAsset = req.url.includes('/_next')
-    // Static media requests are excluded, as they might be loaded via CSS and would fail
-    // CORS checks.
-    const isIgnoredRequest =
-      req.url.includes('/_next/image') ||
-      req.url.includes('/_next/static/media') ||
-      req.url.includes('/_next/static/immutable/media')
+  const { pathname } = parsePath(req.url)
 
-    return !isIgnoredRequest && (isInternalAsset || isMiddlewareRequest)
-  } catch (err) {
-    return false
-  }
+  // TODO: We should standardize on a single prefix for this
+  const isMiddlewareRequest = pathname.includes('/__nextjs')
+  const isInternalAsset = pathname.includes('/_next')
+  // Static media requests are excluded, as they might be loaded via CSS and would fail
+  // CORS checks.
+  const isIgnoredRequest =
+    pathname.includes('/_next/image') ||
+    pathname.includes('/_next/static/media') ||
+    pathname.includes('/_next/static/immutable/media')
+
+  return !isIgnoredRequest && (isInternalAsset || isMiddlewareRequest)
 }
 
 export const blockCrossSiteDEV = (

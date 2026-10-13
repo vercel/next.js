@@ -50,7 +50,7 @@ export function formatRoutePattern(tree: FlightRouterState): string {
       // and route groups (parenthesized segments like "(marketing)")
       if (
         segment !== '' &&
-        !segment.startsWith('__PAGE__') &&
+        segment !== '__PAGE__' &&
         segment !== '__DEFAULT__' &&
         !(segment.startsWith('(') && segment.endsWith(')'))
       ) {

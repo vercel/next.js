@@ -7,6 +7,7 @@ import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
+import { getBuildDistDir } from '../export/utils'
 import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
@@ -357,7 +358,9 @@ export function getDefineEnv({
       config.experimental.allowedRevalidateHeaderKeys ?? [],
     ...(isNodeServer || isEdgeServer
       ? {
-          'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
+          'process.env.__NEXT_RELATIVE_DIST_DIR': dev
+            ? config.distDir
+            : getBuildDistDir(config),
           'process.env.__NEXT_RELATIVE_PROJECT_DIR': path.relative(
             process.cwd(),
             projectPath
@@ -369,6 +372,10 @@ export function getDefineEnv({
       (config.logging && config.logging.browserToTerminal) || false
     ),
     'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
+    'process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR':
+      dev &&
+      (config.experimental.exposeRuntimeErrorsToHMR ||
+        Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)),
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's

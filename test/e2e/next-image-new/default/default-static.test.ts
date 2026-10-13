@@ -1,14 +1,15 @@
 import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Build Error Tests', () => {
-  const { next, isNextDeploy, isRspack } = nextTestSetup({
+  const { next, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (isNextDeploy) return
 
   if (isNextDev) {
     it('no-op in dev', () => {})
@@ -37,13 +38,14 @@ describe('Build Error Tests', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Static Image Component Tests', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) return
 
   let browser: Playwright
   let $: ReturnType<typeof cheerio.load>

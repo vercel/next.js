@@ -20,20 +20,11 @@ use swc_core::{
 };
 use swc_emotion::ImportMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, OperationValue, ValueDefault, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, OperationValue, ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    TraceRawVcs,
-    Deserialize,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, PartialEq, Eq, Debug, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum EmotionLabelKind {
@@ -42,9 +33,7 @@ pub enum EmotionLabelKind {
     Never,
 }
 
-#[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
-)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, NonLocalValue, OperationValue)]
 #[serde(rename_all = "camelCase")]
 pub struct EmotionImportItemConfig {
     pub canonical_import: EmotionItemSpecifier,
@@ -60,9 +49,7 @@ impl From<&EmotionImportItemConfig> for swc_emotion::ImportItemConfig {
     }
 }
 
-#[derive(
-    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
-)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, NonLocalValue, OperationValue)]
 pub struct EmotionItemSpecifier(pub RcStr, pub RcStr);
 
 impl From<&EmotionItemSpecifier> for swc_emotion::ItemSpecifier {

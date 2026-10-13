@@ -1,5 +1,7 @@
 import { FileRef, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { createTestDataServer } from 'test-data-service/writer'
+import { createTestLog } from 'test-log'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 import path from 'path'
 
@@ -15,6 +17,7 @@ const COLLECTOR_PORT = 9001
 const ROUTE_PREPARATION_COLLECTOR_PORT = 9002
 const INSTRUMENTATION_STARTUP_COLLECTOR_PORT = 9003
 const APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT = 9004
+const CLIENT_COMPONENT_GATE_PORT = 9005
 
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
@@ -54,6 +57,8 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
       ? {
           env: {
             TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+            TEST_CLIENT_COMPONENT_GATE_PORT: String(CLIENT_COMPONENT_GATE_PORT),
+            NEXT_OTEL_PERFORMANCE_PREFIX: 'client-component-loading-test',
             NEXT_TELEMETRY_DISABLED: '1',
           },
         }
@@ -147,6 +152,349 @@ describe.each(
     expect(response.headers.get('connection')).toBe('close')
   })
 
+  // The custom entrypoint server has an explicit route table and does not
+  // include this streamed page.
+  if (!useDirectEntrypointHandler) {
+    describe('client component loading across streamed renders', () => {
+      const pendingGates = new Map<string, () => void>()
+      const gateServer = createTestDataServer((id, response) => {
+        pendingGates.set(id, () => response.resolve())
+        gateArrivals.log(id)
+      })
+      let gateArrivals = createTestLog()
+      let traceNumber = 0
+
+      function newTraceId() {
+        return (++traceNumber).toString(16).padStart(32, '0')
+      }
+
+      function traceparent(traceId: string) {
+        return `00-${traceId}-${'1'.repeat(16)}-01`
+      }
+
+      beforeAll(() => gateServer.listen(CLIENT_COMPONENT_GATE_PORT))
+      beforeEach(() => {
+        gateArrivals = createTestLog()
+      })
+      afterEach(() => {
+        for (const release of pendingGates.values()) release()
+        pendingGates.clear()
+      })
+      afterAll(() => gateServer.close())
+
+      function releaseGate(id: string) {
+        const gate = pendingGates.get(id)
+        expect(gate).toBeDefined()
+        pendingGates.delete(id)
+        gate!()
+      }
+
+      async function openPage({
+        id,
+        traceId,
+        extra = false,
+      }: {
+        id: string
+        traceId: string
+        extra?: boolean
+      }) {
+        const responsePromise = next.fetch(
+          `/app/test/client-component-loading?id=${id}${extra ? '&variant=extra' : ''}`,
+          { headers: { traceparent: traceparent(traceId) } }
+        )
+        await gateArrivals.waitFor([id])
+        const response = await responsePromise
+        expect(response.status).toBe(200)
+        return response
+      }
+
+      async function finishPage(response: Response, extra = false) {
+        const html = await response.text()
+        expect(html).toContain('<span id="early-client">')
+        expect(html).toContain('<span id="late-client">')
+        if (extra) expect(html).toContain('<span id="extra-late-client">')
+      }
+
+      function loadingSpans(traceId: string): SavedSpan[] {
+        return getCollector()
+          .getSpans()
+          .filter(
+            (span) =>
+              span.traceId === traceId &&
+              span.attributes?.['next.span_type'] ===
+                'NextNodeServer.clientComponentLoading'
+          )
+      }
+
+      async function expectNoLoadingSpanWhileBlocked(traceId: string) {
+        // Flush in-flight exports before making a negative assertion.
+        const response = await next.fetch(
+          '/api/app/test/client-component-flush',
+          { method: 'POST' }
+        )
+        expect(response.status).toBe(204)
+        expect(loadingSpans(traceId)).toEqual([])
+      }
+
+      async function loadCount(traceId: string): Promise<number> {
+        return retry(() => {
+          const spans = loadingSpans(traceId)
+          expect(spans).toHaveLength(1)
+          const requestSpans = getCollector()
+            .getSpans()
+            .filter(
+              (span) =>
+                span.traceId === traceId &&
+                span.attributes?.['next.span_type'] ===
+                  'BaseServer.handleRequest'
+            )
+          expect(requestSpans).toHaveLength(1)
+          expect(spans[0].parentId).toBe(requestSpans[0].id)
+          const count = spans[0].attributes?.[
+            'next.clientComponentLoadCount'
+          ] as number
+          expect(count).toBeGreaterThan(0)
+          return count
+        })
+      }
+
+      async function renderBaseline(extra: boolean): Promise<number> {
+        const traceId = newTraceId()
+        const id = `baseline-${traceId}`
+        const response = await openPage({ id, traceId, extra })
+        releaseGate(id)
+        await finishPage(response, extra)
+        return loadCount(traceId)
+      }
+
+      it.each(['a', 'b'] as const)(
+        'keeps overlapping render metrics when %s finishes first',
+        async (finishFirst) => {
+          // Warm both module sets before measuring the sequential baselines.
+          await renderBaseline(false)
+          await renderBaseline(true)
+          const normalCount = await renderBaseline(false)
+          const extraCount = await renderBaseline(true)
+          expect(extraCount).toBeGreaterThan(normalCount)
+
+          const traceA = newTraceId()
+          const traceB = newTraceId()
+          const responseA = await openPage({ id: 'a', traceId: traceA })
+          const responseB = await openPage({
+            id: 'b',
+            traceId: traceB,
+            extra: true,
+          })
+          await expectNoLoadingSpanWhileBlocked(traceA)
+          await expectNoLoadingSpanWhileBlocked(traceB)
+
+          const requests = {
+            a: {
+              id: 'a',
+              response: responseA,
+              traceId: traceA,
+              count: normalCount,
+              extra: false,
+            },
+            b: {
+              id: 'b',
+              response: responseB,
+              traceId: traceB,
+              count: extraCount,
+              extra: true,
+            },
+          }
+          const first = requests[finishFirst]
+          const second = requests[finishFirst === 'a' ? 'b' : 'a']
+
+          releaseGate(first.id)
+          await finishPage(first.response, first.extra)
+          expect(await loadCount(first.traceId)).toBe(first.count)
+
+          expect(pendingGates.has(second.id)).toBe(true)
+          await expectNoLoadingSpanWhileBlocked(second.traceId)
+          releaseGate(second.id)
+          await finishPage(second.response, second.extra)
+          expect(await loadCount(second.traceId)).toBe(second.count)
+        }
+      )
+
+      const actionPath = '/app/test/client-component-action'
+
+      async function getActionPage(traceId: string) {
+        const $ = await next.render$(actionPath, undefined, {
+          headers: { traceparent: traceparent(traceId) },
+        })
+        expect($('#action-result').text()).toBe('none')
+        return { $, count: await loadCount(traceId) }
+      }
+
+      it('reports HTML loading after a form POST and leaves the next GET unchanged', async () => {
+        await getActionPage(newTraceId())
+        const { $, count: baseline } = await getActionPage(newTraceId())
+        const form = $('form').first()
+        expect(form.length).toBe(1)
+        const formData = new FormData()
+        form.find('input[type="hidden"]').each((_, input) => {
+          const name = $(input).attr('name')
+          if (name) formData.append(name, $(input).attr('value') ?? '')
+        })
+        formData.set('marker', 'action-completed')
+
+        const actionTrace = newTraceId()
+        const response = await next.fetch(actionPath, {
+          method: 'POST',
+          headers: {
+            traceparent: traceparent(actionTrace),
+            origin: new URL(next.url).origin,
+          },
+          body: formData,
+        })
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain(
+          '<p id="action-result">action-completed</p>'
+        )
+        await retry(() => {
+          expect(
+            getCollector()
+              .getSpans()
+              .filter(
+                (span) =>
+                  span.traceId === actionTrace &&
+                  span.name === 'test.serverActionCompleted'
+              )
+          ).toHaveLength(1)
+        })
+        await loadCount(actionTrace)
+
+        const { count: nextGetCount } = await getActionPage(newTraceId())
+        expect(nextGetCount).toBe(baseline)
+      })
+
+      it('does not report HTML loading metrics for an enhanced Server Action', async () => {
+        const browser = await next.browser(actionPath)
+        expect(await browser.elementByCss('#action-result').text()).toBe('none')
+
+        // Flush the initial document's metrics before measuring the action.
+        const flush = async () => {
+          const response = await next.fetch(
+            '/api/app/test/client-component-flush',
+            { method: 'POST' }
+          )
+          expect(response.status).toBe(204)
+        }
+        await flush()
+        getCollector().reset()
+
+        await browser.elementByCss('button[type="submit"]').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#action-result').text()).toBe(
+            'action-completed'
+          )
+        })
+        await flush()
+        const actionRequest = await retry(() => {
+          const requests = getCollector()
+            .getSpans()
+            .filter(
+              (span) =>
+                span.attributes?.['http.method'] === 'POST' &&
+                span.attributes?.['http.target'] === actionPath &&
+                span.attributes?.['next.span_type'] ===
+                  'BaseServer.handleRequest'
+            )
+          expect(requests).toHaveLength(1)
+          return requests[0]
+        })
+        await retry(() => {
+          expect(
+            getCollector()
+              .getSpans()
+              .filter(
+                (span) =>
+                  span.traceId === actionRequest.traceId &&
+                  span.name === 'test.serverActionCompleted'
+              )
+          ).toHaveLength(1)
+        })
+        expect(loadingSpans(actionRequest.traceId)).toEqual([])
+      })
+
+      it('reports HTML loading before unused delayed Flight content finishes', async () => {
+        const traceId = newTraceId()
+        const id = `html-boundary-${traceId}`
+        const responsePromise = next.fetch(
+          `/app/test/client-component-html-boundary?id=${id}`,
+          { headers: { traceparent: traceparent(traceId) } }
+        )
+        await gateArrivals.waitFor([id])
+        const response = await responsePromise
+        expect(response.status).toBe(200)
+
+        const flush = async () => {
+          const result = await next.fetch(
+            '/api/app/test/client-component-flush',
+            { method: 'POST' }
+          )
+          expect(result.status).toBe(204)
+        }
+        await flush()
+
+        let html: string
+        let earlySpan: SavedSpan | undefined
+        try {
+          // The closed panel lets HTML finish even though its unused Flight
+          // child remains behind the gate.
+          await retry(() => {
+            const renderSpans = getCollector()
+              .getSpans()
+              .filter(
+                (span) =>
+                  span.traceId === traceId &&
+                  span.attributes?.['next.span_type'] ===
+                    'AppRender.getBodyResult'
+              )
+            expect(renderSpans).toHaveLength(1)
+            const spans = loadingSpans(traceId)
+            expect(spans).toHaveLength(1)
+            earlySpan = spans[0]
+          })
+          expect(pendingGates.has(id)).toBe(true)
+        } finally {
+          releaseGate(id)
+          html = await response.text()
+        }
+
+        expect(html).toContain('id="closed-panel"')
+        expect(html).toContain('closed')
+        expect(html).not.toContain('id="unused-client"')
+        expect(earlySpan).toBeDefined()
+        await flush()
+        expect(loadingSpans(traceId)).toEqual([earlySpan])
+      })
+
+      it('includes async client module evaluation in HTML loading duration', async () => {
+        const measurePath = '/api/app/test/client-component-measure'
+        const reset = await next.fetch(measurePath, { method: 'DELETE' })
+        expect(reset.status).toBe(204)
+
+        const response = await next.fetch('/app/test/slow-async-client', {
+          headers: { traceparent: traceparent(newTraceId()) },
+        })
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain(
+          '<span id="slow-async-client">async client component</span>'
+        )
+
+        const measurements = await next.fetch(measurePath)
+        expect(measurements.status).toBe(200)
+        const durations = (await measurements.json()) as number[]
+        expect(durations).toHaveLength(1)
+        expect(durations[0]).toBeGreaterThan(1_000)
+      })
+    })
+  }
+
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
 
@@ -197,6 +545,15 @@ describe.each(
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
                 spans: [
+                  {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: { code: 0 },
+                  },
                   {
                     name: 'render route (app) /app/[param]/rsc-fetch',
                     attributes: {
@@ -276,18 +633,6 @@ describe.each(
                         },
                         kind: 0,
                         status: { code: 0 },
-                      },
-                      {
-                        attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
-                          'next.span_type':
-                            'NextNodeServer.clientComponentLoading',
-                        },
-                        kind: 0,
-                        name: 'NextNodeServer.clientComponentLoading',
-                        status: {
-                          code: 0,
-                        },
                       },
                       {
                         name: 'start response',
@@ -616,6 +961,95 @@ describe.each(
             ])
           })
 
+          it('should preserve the committed status when a route response stream errors', async () => {
+            const response = await next.fetch(
+              '/api/app/param/stream-error',
+              env.fetchInit
+            )
+
+            expect(response.status).toBe(200)
+            await expect(response.text()).rejects.toThrow()
+
+            await retry(() => {
+              expect(next.cliOutput).toContain(
+                '[instrumentation] observed app route stream error'
+              )
+            })
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/app/[param]/stream-error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/app/[param]/stream-error',
+                  'http.status_code': 200,
+                  'http.target': '/api/app/param/stream-error',
+                  'next.route': '/api/app/[param]/stream-error',
+                  'next.span_name': 'GET /api/app/[param]/stream-error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                  'error.type': 'Error',
+                },
+                kind: 1,
+                status: { code: 2, message: 'failed to pipe response' },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (app) /api/app/[param]/stream-error',
+                    attributes: {
+                      'next.route': '/api/app/[param]/stream-error',
+                      'next.span_name':
+                        'executing api route (app) /api/app/[param]/stream-error',
+                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/api/app/[param]/stream-error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
+          if (useDirectEntrypointHandler && env.name === 'root context') {
+            it('should end a committed response when pending revalidation fails', async () => {
+              const response = await next.fetch(
+                '/api/app/param/revalidation-error'
+              )
+
+              expect(response.status).toBe(200)
+
+              const rejectResponse = await next.fetch(
+                '/api/app/param/revalidation-error/reject'
+              )
+              expect(rejectResponse.status).toBe(204)
+              await expect(response.text()).resolves.toBe('committed')
+            })
+          }
+
           it('should record accurate status code for non-200 route handler responses', async () => {
             await next.fetch('/api/app/param/status', env.fetchInit)
 
@@ -806,6 +1240,15 @@ describe.each(
                 parentId: env.span.rootParentId,
                 spans: [
                   {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 12 : 10,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: { code: 0 },
+                  },
+                  {
                     name: 'render route (app) /app/[param]/rsc-fetch/error',
                     attributes: {
                       'next.route': '/app/[param]/rsc-fetch/error',
@@ -873,18 +1316,6 @@ describe.each(
                         status: { code: 0 },
                       },
                       {
-                        attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 12 : 10,
-                          'next.span_type':
-                            'NextNodeServer.clientComponentLoading',
-                        },
-                        kind: 0,
-                        name: 'NextNodeServer.clientComponentLoading',
-                        status: {
-                          code: 0,
-                        },
-                      },
-                      {
                         name: 'start response',
                         attributes: {
                           'next.span_name': 'start response',
@@ -938,6 +1369,15 @@ describe.each(
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
                 spans: [
+                  {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 9 : 8,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: { code: 0 },
+                  },
                   {
                     name: 'render route (app) /app/[param]/loading/error',
                     attributes: {
@@ -999,18 +1439,6 @@ describe.each(
                         },
                         kind: 0,
                         status: { code: 0 },
-                      },
-                      {
-                        attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 9 : 8,
-                          'next.span_type':
-                            'NextNodeServer.clientComponentLoading',
-                        },
-                        kind: 0,
-                        name: 'NextNodeServer.clientComponentLoading',
-                        status: {
-                          code: 0,
-                        },
                       },
                       {
                         name: 'start response',
@@ -1397,6 +1825,16 @@ describe.each(
                   ...(isNextDev
                     ? [
                         {
+                          name: 'NextNodeServer.clientComponentLoading',
+                          attributes: {
+                            'next.clientComponentLoadCount': expect.any(Number),
+                            'next.span_type':
+                              'NextNodeServer.clientComponentLoading',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                        {
                           name: 'render route (app) /_not-found',
                           attributes: {
                             'next.route': '/_not-found',
@@ -1598,7 +2036,6 @@ if (isNextStart) {
     let collector: Collector | undefined
     const { next, skipped } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       startCommand: 'pnpm start-entrypoint',
@@ -2089,6 +2526,9 @@ describe('opentelemetry with disabled fetch tracing', () => {
               parentId: undefined,
               spans: [
                 {
+                  name: 'NextNodeServer.clientComponentLoading',
+                },
+                {
                   name: 'render route (app) /app/[param]/rsc-fetch',
                   spans: [
                     {
@@ -2109,9 +2549,6 @@ describe('opentelemetry with disabled fetch tracing', () => {
                       name: 'generateMetadata /app/[param]/rsc-fetch/page',
                     },
                     {
-                      name: 'NextNodeServer.clientComponentLoading',
-                    },
-                    {
                       name: 'start response',
                     },
                   ],
@@ -2128,10 +2565,12 @@ describe('opentelemetry with disabled fetch tracing', () => {
   )
 })
 
+// These tests start a custom Next.js server (custom-server.ts),
+// which is not supported in deploy mode.
+// @force-gate !deploy
 describe('opentelemetry with custom server', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
     dependencies: require('./package.json').dependencies,
     startCommand: 'pnpm start',
@@ -2147,10 +2586,6 @@ describe('opentelemetry with custom server', () => {
       NODE_ENV: isNextDev ? 'development' : 'production',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   const getCollector = setupCollector(next, COLLECTOR_PORT)
 
@@ -2178,6 +2613,15 @@ describe('opentelemetry with custom server', () => {
             kind: 1,
             status: { code: 0 },
             spans: [
+              {
+                attributes: {
+                  'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                  'next.span_type': 'NextNodeServer.clientComponentLoading',
+                },
+                kind: 0,
+                name: 'NextNodeServer.clientComponentLoading',
+                status: { code: 0 },
+              },
               {
                 name: 'render route (app) /app/[param]/rsc-fetch',
                 attributes: {
@@ -2255,17 +2699,6 @@ describe('opentelemetry with custom server', () => {
                     status: { code: 0 },
                   },
                   {
-                    attributes: {
-                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
-                      'next.span_type': 'NextNodeServer.clientComponentLoading',
-                    },
-                    kind: 0,
-                    name: 'NextNodeServer.clientComponentLoading',
-                    status: {
-                      code: 0,
-                    },
-                  },
-                  {
                     name: 'start response',
                     attributes: {
                       'next.span_name': 'start response',
@@ -2298,7 +2731,6 @@ if (isNextStart) {
   describe('opentelemetry with direct entrypoint handler', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: require('./package.json').dependencies,
       startCommand: 'pnpm start-entrypoint',

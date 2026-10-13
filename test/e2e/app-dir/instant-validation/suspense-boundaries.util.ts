@@ -17,6 +17,7 @@ export function registerSuspenseBoundariesTests(
     warmCachesAndNavigateTo,
     restartDevServerToEnsureColdCaches,
     expectNoDevValidationErrors,
+    getInstantInsight,
     getCliOutputSinceMark,
     prerender,
   } = ctx
@@ -58,7 +59,7 @@ export function registerSuspenseBoundariesTests(
         // This page uses a runtime shell, so it can use cookies
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -122,7 +123,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/static/missing-suspense-around-dynamic'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -181,7 +182,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/runtime/missing-suspense-around-dynamic'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -247,7 +248,7 @@ export function registerSuspenseBoundariesTests(
         // This page uses a runtime shell, so it can use cookies
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -310,7 +311,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/runtime/missing-suspense-around-dynamic-layout'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -373,7 +374,7 @@ export function registerSuspenseBoundariesTests(
       '/suspense-in-root/static/missing-suspense-around-params/123'
     )
     if (partialPrefetching) {
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -400,7 +401,7 @@ export function registerSuspenseBoundariesTests(
          }
         `)
     } else {
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -434,7 +435,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/runtime/invalid-no-suspense-around-params/123'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -575,7 +576,7 @@ export function registerSuspenseBoundariesTests(
         }
       } else {
         if (partialPrefetching) {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -601,7 +602,7 @@ export function registerSuspenseBoundariesTests(
            }
           `)
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -724,7 +725,7 @@ export function registerSuspenseBoundariesTests(
          }"
         `)
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -809,7 +810,7 @@ export function registerSuspenseBoundariesTests(
         // This page uses a runtime shell, so it can use cookies
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
          {
            "cause": [
              {
@@ -876,7 +877,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/runtime/suspense-too-high'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -954,7 +955,7 @@ export function registerSuspenseBoundariesTests(
       it('with cold caches', async () => {
         if (isNextDev) {
           const browser = await navigateTo(route)
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1011,7 +1012,7 @@ export function registerSuspenseBoundariesTests(
         it('with warm caches', async () => {
           const browser = await warmCachesAndNavigateTo(route)
 
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1066,7 +1067,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/static/invalid-loading-above-route-group'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {
@@ -1129,7 +1130,7 @@ export function registerSuspenseBoundariesTests(
       const browser = await navigateTo(
         '/suspense-in-root/static/invalid-dynamic-layout-with-loading'
       )
-      await expect(browser).toDisplayCollapsedRedbox(`
+      expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
        {
          "cause": [
            {

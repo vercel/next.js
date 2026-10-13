@@ -5,9 +5,7 @@
 mod util;
 
 use anyhow::Result;
-use turbo_tasks::{
-    ResolvedVc, State, TaskId, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
+use turbo_tasks::{ResolvedVc, State, TaskId, Vc};
 
 use crate::util::create_tt;
 
@@ -62,8 +60,6 @@ async fn parent_count_tracks_connect_and_disconnect() {
     let tt2 = tt.clone();
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-
         let selector_op = create_selector(false);
         let selector_vc = selector_op.resolve().strongly_consistent().await?;
         let selector = selector_op.read_strongly_consistent().await?;
@@ -73,9 +69,9 @@ async fn parent_count_tracks_connect_and_disconnect() {
         assert_eq!(*output.read_strongly_consistent().await?, 11);
 
         // Resolve the branch task ids (calling the cached functions returns the same tasks).
-        let branch_a_id = task_id_of(branch_a().resolve().await?);
-        let leaf10_id = task_id_of(leaf(10).resolve().await?);
-        let branch_b_id = task_id_of(branch_b().resolve().await?);
+        let branch_a_id = task_id_of(branch_a());
+        let leaf10_id = task_id_of(leaf(10));
+        let branch_b_id = task_id_of(branch_b());
 
         assert_eq!(
             tt2.backend().parent_count_for_testing(branch_a_id),
@@ -148,8 +144,6 @@ async fn parent_count_not_double_counted_on_revalidation() {
     let tt2 = tt.clone();
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-
         let selector_op = create_selector(false);
         let selector_vc = selector_op.resolve().strongly_consistent().await?;
         let selector = selector_op.read_strongly_consistent().await?;
@@ -157,7 +151,7 @@ async fn parent_count_not_double_counted_on_revalidation() {
         let output = stable_child_parent(selector_vc);
         assert_eq!(*output.read_strongly_consistent().await?, 30);
 
-        let leaf30_id = task_id_of(leaf(30).resolve().await?);
+        let leaf30_id = task_id_of(leaf(30));
         assert_eq!(
             tt2.backend().parent_count_for_testing(leaf30_id),
             1,

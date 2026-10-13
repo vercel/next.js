@@ -124,7 +124,8 @@ impl OutputAssetsReference for EcmascriptBrowserChunk {
         let include_source_map = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
+            .await?
+            && *self.own_content().has_source_map().await?;
         let ref_assets = chunk_references.assets.await?;
         let mut assets =
             Vec::with_capacity(ref_assets.len() + if include_source_map { 1 } else { 0 });

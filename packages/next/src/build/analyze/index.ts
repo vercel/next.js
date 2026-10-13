@@ -8,13 +8,19 @@ import loadConfig from '../../server/config'
 import { PHASE_ANALYZE } from '../../shared/lib/constants'
 import { turbopackAnalyze, type AnalyzeContext } from '../turbopack-analyze'
 import { durationToString } from '../duration-to-string'
-import { cp, writeFile, mkdir } from 'node:fs/promises'
+import { Lockfile } from '../lockfile'
+import { installBindings } from '../swc/install-bindings'
+import { cpSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { discoverRoutes } from '../route-discovery'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { writeAnalyzeSnapshot } from './snapshot'
+import {
+  writeAnalyzeSnapshot,
+  snapshotNameSchema,
+  type SnapshotMetadata,
+} from './snapshot'
 import http from 'node:http'
 
 // @ts-expect-error types are in @types/serve-handler
@@ -32,8 +38,8 @@ export type AnalyzeOptions = {
   appDirOnly?: boolean
   output?: boolean
   port?: number
-  /** User-supplied baseline name stored in the snapshot metadata, overriding branch/sha in the UI. */
-  baselineName?: string
+  /** Reusing an explicit name replaces its retained snapshot. */
+  snapshot?: string
 }
 
 export default async function analyze({
@@ -43,8 +49,10 @@ export default async function analyze({
   appDirOnly = false,
   output = false,
   port = 4000,
-  baselineName,
-}: AnalyzeOptions): Promise<void> {
+  snapshot,
+}: AnalyzeOptions): Promise<SnapshotMetadata> {
+  if (snapshot !== undefined) snapshotNameSchema.parse(snapshot)
+  let lockfile: Lockfile | undefined
   try {
     // analyze is Turbopack-only. Mirror what parseBundlerArgs does for build/dev
     // so every process.env.TURBOPACK consumer in this run agrees with the bundler choice.
@@ -57,12 +65,25 @@ export default async function analyze({
 
     process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
 
-    const distDir = path.join(dir, '.next')
+    const distDir = path.join(dir, config.distDir)
     const telemetry = new Telemetry({ distDir })
     setGlobal('phase', PHASE_ANALYZE)
     setGlobal('distDir', distDir)
     setGlobal('telemetry', telemetry)
 
+    // Native locks require synchronous access to bindings. Like next build,
+    // install them before acquiring the lock, but still lock before writes.
+    await installBindings(config.experimental?.useWasmBinary)
+
+    // Lock the directory while capture reads/writes it. Static serving and
+    // saved-data replay do not need to hold the capture lock.
+    if (config.experimental.lockDistDir) {
+      mkdirSync(distDir, { recursive: true })
+      lockfile = await Lockfile.acquireWithRetriesOrExit(
+        path.join(distDir, 'lock'),
+        'next analyze'
+      )
+    }
     Log.info('Analyzing a production build...')
 
     const analyzeContext: AnalyzeContext = {
@@ -73,6 +94,12 @@ export default async function analyze({
       appDirOnly,
     }
 
+    // Start a fresh live dataset so removed routes cannot leak into a replacement.
+    rmSync(path.join(distDir, 'diagnostics/analyze/data'), {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+    })
     const { duration: analyzeDuration, shutdownPromise } =
       await turbopackAnalyze(analyzeContext)
 
@@ -83,29 +110,29 @@ export default async function analyze({
 
     const routes = await collectRoutesForAnalyze(dir, config, appDirOnly)
 
-    await cp(path.join(__dirname, '../../bundle-analyzer'), analyzeDir, {
+    cpSync(path.join(__dirname, '../../bundle-analyzer'), analyzeDir, {
       recursive: true,
     })
-    await mkdir(path.join(analyzeDir, 'data'), { recursive: true })
-    await writeFile(
+    mkdirSync(path.join(analyzeDir, 'data'), { recursive: true })
+    writeFileSync(
       path.join(analyzeDir, 'data', 'routes.json'),
       JSON.stringify(routes, null, 2)
     )
 
     // Capture this build alongside any prior builds so the analyzer UI can
     // offer it as a comparison baseline in the future.
-    await writeAnalyzeSnapshot({
+    const metadata = writeAnalyzeSnapshot({
       projectDir: dir,
       analyzeDir,
       routes,
       appDirOnly,
       noMangling,
-      baselineName,
+      snapshot,
     })
 
     let logMessage = `Analyze completed in ${durationString}.`
     if (output) {
-      logMessage += ` Results written to ${analyzeDir}.\nTo explore the analyze results interactively, run \`next experimental-analyze\` without \`--output\`.`
+      logMessage += ` Results written to ${analyzeDir}.\nTo explore the analyze results interactively, run \`next analyze\` without \`--output\`.`
     }
     Log.event(logMessage)
 
@@ -120,6 +147,7 @@ export default async function analyze({
     if (!output) {
       await startServer(analyzeDir, port)
     }
+    return metadata
   } catch (e) {
     const telemetry = traceGlobals.get('telemetry') as Telemetry | undefined
     if (telemetry) {
@@ -131,6 +159,8 @@ export default async function analyze({
     }
 
     throw e
+  } finally {
+    await lockfile?.unlock()
   }
 }
 
@@ -199,9 +229,13 @@ async function collectRoutesForAnalyze(
     isAppPPREnabled,
   })
 
-  return routesManifest.dynamicRoutes
-    .map((r) => r.page)
-    .concat(routesManifest.staticRoutes.map((r) => r.page))
+  return Array.from(
+    new Set(
+      routesManifest.dynamicRoutes
+        .map((r) => r.page)
+        .concat(routesManifest.staticRoutes.map((r) => r.page))
+    )
+  )
 }
 
 function startServer(dir: string, port: number): Promise<void> {

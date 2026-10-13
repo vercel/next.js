@@ -12,9 +12,8 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
-import type { MemoryEvictionMode } from '../build/swc/types'
+import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
 
 /**
@@ -41,6 +40,7 @@ export type NextConfigComplete = Required<
   Omit<
     NextConfig,
     | 'configFile'
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -52,6 +52,7 @@ export type NextConfigComplete = Required<
   // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
   Pick<
     NextConfig,
+    | 'generateBuildId'
     | 'cacheLife'
     | 'expireTime'
     | 'output'
@@ -79,6 +80,9 @@ export type NextConfigComplete = Required<
       instantInsights: { validationLevel: ValidationLevel }
       // Normalized by finalized config with a default and the expected type
       turbopackMemoryEvictionMode: MemoryEvictionMode
+      // Normalized by config.ts: `false`/unset becomes `undefined` (GC off),
+      // `true` becomes `{}` (GC on with default timings)
+      turbopackGcOptions: TurbopackGcOptions | undefined
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
     // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
@@ -245,7 +249,7 @@ export interface TurbopackOptions {
    */
   resolveAlias?: Record<
     string,
-    string | string[] | Record<string, string | string[]>
+    false | string | string[] | Record<string, false | string | string[]>
   >
 
   /**
@@ -355,6 +359,15 @@ export interface ReactCompilerOptions {
    * @see https://react.dev/reference/react-compiler/compilationMode
    */
   compilationMode?: 'infer' | 'annotation' | 'all'
+  environment?: {
+    /**
+     * Controls whether the React Compiler preserves existing memoization
+     * guarantees from `useMemo`, `useCallback`, and `React.memo`.
+     *
+     * When omitted, the installed React Compiler's default is used.
+     */
+    enablePreserveExistingMemoizationGuarantees?: boolean
+  }
   /**
    * Controls how the React Compiler handles errors during compilation.
    *
@@ -485,7 +498,38 @@ export function resolveCssChunkingMode(
   return 'loose'
 }
 
+export interface DeprecatedConfig {
+  /**
+   * Use the legacy loose App Router matching behavior instead of requiring
+   * every URL to construct a complete parallel route tree.
+   *
+   * @default false
+   */
+  looseRouteMatching?: true
+}
+
 export interface ExperimentalConfig {
+  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
+  agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
+  /**
+   * Adds managed instructions to AGENTS.md that let AI coding agents prepare
+   * anonymized Next.js feedback for user review.
+   */
+  agentFeedback?: boolean
+  /**
+   * Additional filesystem roots that symlinked dependencies may resolve into.
+   * Relative paths are resolved from the current working directory.
+   *
+   * Root names must contain 1-40 characters, using only ASCII letters, digits,
+   * underscores, or hyphens. They must not be Windows device names and must be
+   * unique under ASCII case-insensitive comparison. Invalid roots produce a
+   * warning and are ignored.
+   */
+  turbopackAdditionalRoots?: Record<
+    string,
+    { path: string; ignoreIfMissing?: boolean }
+  >
+
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
@@ -780,6 +824,21 @@ export interface ExperimentalConfig {
   turbopackMemoryEviction?: false | 'full' | 'auto'
 
   /**
+   * Enables Turbopack's garbage collector, which deletes unreachable
+   * tasks from the persistent cache and from memory.
+   *
+   *
+   * - `false` (default): never collect.
+   * - `true`: collect
+   * - An object: collect, overriding individual timings.
+   *   - `minProgressMs`: how long a GC pass runs before it will honour an
+   *     interrupt. Defaults to 100ms.
+   *   - `rootTtlMs`: how long a GC root may go un-anchored before it ages out.
+   *     Defaults to 3 days.
+   */
+  turbopackGc?: boolean | { minProgressMs?: number; rootTtlMs?: number }
+
+  /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
    * loaders, Babel, or PostCSS.
    *
@@ -829,8 +888,7 @@ export interface ExperimentalConfig {
   /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
-   * true on canary releases and false on stable releases. Only applies to production builds; has
-   * no effect in development mode.
+   * true. Only applies to production builds; has no effect in development mode.
    */
   turbopackSharedRuntime?: boolean
 
@@ -957,6 +1015,13 @@ export interface ExperimentalConfig {
   turbopackLazyDynamicImports?: boolean
 
   /**
+   * Compile SSR dynamic import targets when they are first reached during server rendering in development.
+   *
+   * Defaults to `false`.
+   */
+  turbopackLazyDynamicImportsSSR?: boolean
+
+  /**
    * Enable filesystem cache for the turbopack dev server.
    *
    * Defaults to `true`.
@@ -1033,9 +1098,19 @@ export interface ExperimentalConfig {
    * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a
    * CommonJS `require()`) keeps its original names.
    *
-   * Defaults to `false`
+   * Defaults to `true` for production builds and `false` in development.
    */
   turbopackMangleExportNames?: boolean
+
+  /**
+   * Materialize namespace objects behind a facade so their local export keys can still be
+   * mangled. This can interfere with code that patches modules, since a module might be split
+   * into multiple parts.
+   *
+   * Defaults to `true` only when `turbopackMangleExportNames` is explicitly `true`; otherwise
+   * defaults to `false`, including when export mangling is enabled by default.
+   */
+  turbopackMangleViaMaterializedNamespaceObject?: boolean
 
   /**
    * Enable scope hoisting of static CommonJS modules.
@@ -1413,6 +1488,13 @@ export interface ExperimentalConfig {
   durableUseCacheEntries?: boolean
 
   /**
+   * Collects root param dependencies for `'use cache'` in Turbopack production
+   * builds. Defaults to `false`. When disabled, the server-reference manifest
+   * omits `rootParamDependencies`.
+   */
+  useCacheStaticRootParamTracking?: boolean
+
+  /**
    * Enables detection and reporting of slow modules during development builds.
    * Enabling this may impact build performance to ensure accurate measurements.
    */
@@ -1439,9 +1521,9 @@ export interface ExperimentalConfig {
 
   /**
    * Omits catch-all-derived App Router matchers that cannot construct a
-   * complete parallel route tree for their URL. This requires
-   * `explicitParallelRouteChildren`; setting that option to `false` also
-   * disables strict route matching.
+   * complete parallel route tree.
+   *
+   * @internal Used by the Next.js internals only.
    */
   strictRouteMatching?: boolean
 
@@ -1514,6 +1596,9 @@ export interface ExperimentalConfig {
    * @default true
    */
   mcpServer?: boolean
+
+  /** Report runtime errors and their catching boundary over the development HMR socket. */
+  exposeRuntimeErrorsToHMR?: boolean
 
   /**
    * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
@@ -1602,6 +1687,9 @@ export type ExportPathMap = {
      * @internal
      */
     _fallbackRouteParams?: readonly FallbackRouteParam[]
+
+    /** Parameters whose novel values are rejected by routing. @internal */
+    _notFoundParams?: readonly string[]
 
     /**
      * @internal
@@ -2105,14 +2193,20 @@ export interface NextConfig {
 
   /**
    * When `next dev` detects an AI coding agent and no managed
-   * agent-rules block is present, Next.js auto-generates `AGENTS.md`
-   * and `CLAUDE.md` at the project root so the agent reads
-   * version-matched docs from `node_modules/next/dist/docs/` instead
-   * of stale training data. Set to `false` to disable this behavior.
+   * agent-rules block is present, Next.js auto-generates `AGENTS.md` at the
+   * project root so the agent reads version-matched docs from
+   * `node_modules/next/dist/docs/` instead of stale training data. Set to
+   * `false` to disable this behavior.
    *
    * @default true
    */
   agentRules?: boolean
+
+  /**
+   * Options for deprecated features that are still available for backwards
+   * compatibility.
+   */
+  deprecated?: DeprecatedConfig
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -2182,16 +2276,6 @@ export interface NextConfig {
    * @internal
    */
   configOrigin?: string | undefined
-
-  /**
-   * @internal
-   */
-  _originalRedirects?: any
-
-  /**
-   * @internal
-   */
-  _originalRewrites?: any
 }
 
 export const defaultConfig = Object.freeze({
@@ -2210,7 +2294,6 @@ export const defaultConfig = Object.freeze({
   cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
@@ -2293,7 +2376,10 @@ export const defaultConfig = Object.freeze({
     static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
+  deprecated: {} as DeprecatedConfig,
   experimental: {
+    agentUpgrade: 'security',
+    agentFeedback: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
     devValidationWorker: true,
@@ -2383,26 +2469,28 @@ export const defaultConfig = Object.freeze({
     gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
+    useCacheStaticRootParamTracking: false,
     slowModuleDetection: undefined,
     globalNotFound: false,
     explicitParallelRouteChildren: true,
-    strictRouteMatching: false,
+    strictRouteMatching: true,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
     disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
+    exposeRuntimeErrorsToHMR: false,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
     turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
-    turbopackSharedRuntime: !isStableBuild(),
-    // Pinned off for stable releases. Left unset on canary so the Turbopack side picks the
-    // default from the build mode (on for production builds, off in development) — see
-    // `NextConfig::turbopack_mangle_export_names`. An explicit value always wins either way.
-    turbopackMangleExportNames: isStableBuild() ? false : undefined,
+    turbopackSharedRuntime: true,
+    // Left unset so the Turbopack side picks the default from the build mode (on for production
+    // builds, off in development) — see `NextConfig::turbopack_mangle_export_names`. An explicit
+    // value always wins either way.
+    turbopackMangleExportNames: undefined,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
@@ -2469,6 +2557,7 @@ export interface NextConfigRuntime {
   experimental: Pick<
     NextConfigComplete['experimental'],
     | 'taint'
+    | 'agentFeedback'
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
@@ -2540,6 +2629,7 @@ export function getNextConfigRuntime(
 
   const experimental = {
     taint: ex.taint,
+    agentFeedback: ex.agentFeedback,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,
     dynamicOnHover: ex.dynamicOnHover,

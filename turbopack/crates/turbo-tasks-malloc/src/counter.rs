@@ -11,7 +11,7 @@
 
 use std::{cell::UnsafeCell, ptr::NonNull};
 
-#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
 pub use self::global::get;
 use crate::AllocationCounters;
 
@@ -20,7 +20,7 @@ use crate::AllocationCounters;
 /// Only compiled without the `custom_allocator` feature; see the module docs. Each thread holds
 /// its buffer in its own [`ThreadLocalCounter`] and passes it in, so the counter's state lives in
 /// exactly one place.
-#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+#[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
 mod global {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -105,7 +105,7 @@ struct ThreadLocalCounter {
     /// global counter desprite not being allocated yet. It is unsigned so that
     /// means the global counter is always equal or greater than the real
     /// value.
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
     buffer: usize,
     allocation_counters: AllocationCounters,
 }
@@ -113,7 +113,11 @@ struct ThreadLocalCounter {
 impl ThreadLocalCounter {
     const fn new() -> Self {
         Self {
-            #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+            #[cfg(not(all(
+                feature = "custom_allocator",
+                not(target_family = "wasm"),
+                not(miri)
+            )))]
             buffer: 0,
             allocation_counters: AllocationCounters::new(),
         }
@@ -124,7 +128,7 @@ impl ThreadLocalCounter {
         self.allocation_counters.allocations += size;
         self.allocation_counters.allocation_count += 1;
 
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         self.buffered_add(size);
     }
 
@@ -133,7 +137,7 @@ impl ThreadLocalCounter {
         self.allocation_counters.deallocations += size;
         self.allocation_counters.deallocation_count += 1;
 
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         self.buffered_remove(size);
     }
 
@@ -144,7 +148,7 @@ impl ThreadLocalCounter {
         self.allocation_counters.allocations += new_size;
         self.allocation_counters.allocation_count += 1;
 
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             match old_size.cmp(&new_size) {
                 std::cmp::Ordering::Equal => {}
@@ -155,7 +159,7 @@ impl ThreadLocalCounter {
     }
 
     fn unload(&mut self) {
-        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         global::flush_all(&mut self.buffer);
         self.allocation_counters = AllocationCounters::default();
     }
@@ -279,7 +283,7 @@ mod tests {
     /// read — it is process-wide, and this binary installs [`crate::TurboMalloc`] as its global
     /// allocator, so every other thread moves it concurrently. `buffer` is thread-local and
     /// exact.
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
     #[test]
     fn counting() {
         use super::global::{MAX_BUFFER, TARGET_BUFFER};

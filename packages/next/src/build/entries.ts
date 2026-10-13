@@ -64,6 +64,8 @@ import { MissingCanonicalInterceptionRoutesError } from '../shared/lib/errors/mi
 import { IncompatibleParallelRouteSlotsError } from '../shared/lib/errors/incompatible-parallel-route-slots-error'
 import { findMissingCanonicalInterceptionRoutes } from '../shared/lib/router/utils/interception-routes'
 import { findPageFile } from '../server/lib/find-page-file'
+import * as Log from './output/log'
+import { getStrictRouteMatchingDefaultWarning } from '../server/lib/router-utils/strict-route-matching-config'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
@@ -507,6 +509,12 @@ export async function createEntrypoints(
           })
         )
       )
+    }
+    if (routeMatchingErrors.length > 0) {
+      const warning = getStrictRouteMatchingDefaultWarning(config)
+      if (warning) {
+        Log.warnOnce(warning)
+      }
     }
     if (routeMatchingErrors.length === 1) {
       throw routeMatchingErrors[0]

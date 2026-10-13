@@ -3,13 +3,9 @@ import fsp from 'fs/promises'
 import path from 'path'
 
 describe('500-page - mixed-router-with-custom-pages-error', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not override 500.html with app router global-error when pages _error.tsx exists', async () => {
     const $ = await next.render$('/pages-error')

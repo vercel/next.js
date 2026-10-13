@@ -1,5 +1,6 @@
 import { writeFileSync } from 'fs'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { printAndExit } from '../server/lib/utils'
 import loadConfig from '../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
@@ -65,6 +66,10 @@ export async function nextTest(
     baseDir = getProjectDir()
     nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir) // let this error bubble up if the `basePath` is still not a valid Next.js project
   }
+
+  // The directory may have been a runner argument; check the app only after
+  // the fallback above has resolved its actual project directory.
+  warnMissingReactDependencies(baseDir)
 
   // set the test runner. priority is CLI option > next config > default 'playwright'
   const configuredTestRunner =

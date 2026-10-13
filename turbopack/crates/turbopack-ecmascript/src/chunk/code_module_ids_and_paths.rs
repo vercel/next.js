@@ -4,7 +4,6 @@ use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ModuleId},
@@ -31,7 +30,7 @@ async fn code_module_id_and_path(
     })
 }
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct CodeModuleIdAndPath {
     pub id: ModuleId,
     pub code: ReadRef<Code>,

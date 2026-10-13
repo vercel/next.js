@@ -47,6 +47,13 @@ describe('generate-static-params-errors', () => {
     )
   })
 
+  it('should error when revalidateTag() is called inside generateStaticParams', async () => {
+    await buildRoute('app/[lang]/revalidate-tag/[slug]/page.tsx')
+    expect(getCliOutput()).toContain(
+      'Error: Route "/[lang]/revalidate-tag/[slug]": `revalidateTag("data")` can\'t be called inside `generateStaticParams`. Call it from a Server Action or Route Handler instead.\nLearn more: https://nextjs.org/docs/messages/revalidate-in-use-cache'
+    )
+  })
+
   it('should allow root params access inside generateStaticParams', async () => {
     await buildRoute('app/[lang]/root-params/[slug]/page.tsx')
     expect(getCliOutput()).not.toContain('Error')

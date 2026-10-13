@@ -1,0 +1,8 @@
+{
+  "policy": "security",
+  "target": "16.5.1",
+  "range": ">=16.0.0 <16.5.1",
+  "versions": ["16.5.0", "16.5.1", "16.4.0"],
+  "severity": "high",
+  "syntheticTargets": true
+}

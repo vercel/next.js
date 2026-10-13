@@ -55,15 +55,15 @@ function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 function getOverwrittenModule(moduleCache, id) {
-    let module = moduleCache[id];
-    if (!module) {
+    let module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -88,6 +88,9 @@ function createModuleWithDirection(id) {
     };
 }
 const BindingTag_Value = 0;
+/**
+ * Terminates a module's group of entries in an {@link EsmReexports} list.
+ */ const REEXPORT_GROUP_END = 0;
 /**
  * Adds the getters to the exports object.
  */ function esm(exports, bindings, dynamic) {
@@ -153,6 +156,116 @@ const BindingTag_Value = 0;
     esm(exports, bindings, dynamic);
 }
 contextPrototype.s = esmExport;
+/**
+ * Registers re-exports that all forward to properties of other modules.
+ *
+ * This is a compact spelling of the pattern
+ *
+ * ```js
+ * var ns = context.i(moduleId)
+ * context.s([exportName, () => ns[importedName], ...])
+ * ```
+ *
+ * The list is a flat sequence of groups. Each group starts with the source the exports come from,
+ * followed by that group's entries, and is terminated by the `0` sentinel (or the end of the list).
+ *
+ * The group head is either a **module id**, which is instantiated here:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default', 'f', 'named', 'A', 0,
+ *   29842, 'otherModule', 'f',
+ * ])
+ * ```
+ *
+ * or the **namespace value** of a module that has already been imported, which is used directly:
+ *
+ * ```js
+ * var ns1 = context.i(76061)
+ * context.S([ns1, 'default', 'f', 'named', 'A'])
+ * ```
+ *
+ * The producer picks the namespace form when it has generated the import anyway -- because some
+ * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
+ * apart by type: a module id is always a string or number. A CommonJS function export produces a
+ * callable namespace value, so namespace heads can be functions as well as objects.
+ *
+ * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
+ * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default,f,named,A', 0,
+ *   29842, 'otherModule,f',
+ * ])
+ * ```
+ *
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
+ *
+ * Groups whose head is a module id are instantiated in list order, at the point where the call
+ * appears, so the producer must not merge such a group across an import of another module. The
+ * destination reuses a source data value or getter descriptor when one exists, falling back to a
+ * wrapper getter for dynamic/proxy/inherited properties.
+ *
+ * `id` names the module the exports belong to when this module was merged into a scope-hoisting
+ * group, exactly as it does for {@link EsmExport}.
+ *
+ * Only the source descriptor's payload (value or getter) is reused. {@link esm} still defines a
+ * fresh enumerable, non-configurable destination property, and no source setter is ever forwarded.
+ */ function esmReexport(list, id) {
+    const bindings = [];
+    let i = 0;
+    while(i < list.length){
+        const head = list[i++];
+        const start = i;
+        while(i < list.length && list[i] !== REEXPORT_GROUP_END)i++;
+        const end = i;
+        // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
+        i++;
+        // Module ids are always strings or numbers. Other values are already-imported namespaces;
+        // notably, interop with a CommonJS function export produces a callable namespace function.
+        // `esmImport` may return a promise for an async module, but re-exports of async modules keep
+        // going through `context.s`, so the producer never routes them here and this stays synchronous.
+        const namespace = typeof head === 'string' || typeof head === 'number' ? esmImport.call(this, head) : head;
+        if (end - start === 1) {
+            const pairs = list[start].split(',');
+            for(let j = 0; j < pairs.length; j += 2){
+                appendReexportBinding(bindings, pairs[j], namespace, pairs[j + 1]);
+            }
+        } else {
+            for(let j = start; j < end; j += 2){
+                appendReexportBinding(bindings, list[j], namespace, list[j + 1]);
+            }
+        }
+    }
+    esmExport.call(this, bindings, id);
+}
+contextPrototype.S = esmReexport;
+function appendReexportBinding(bindings, exportedName, namespace, importedName) {
+    const descriptor = Reflect.getOwnPropertyDescriptor(namespace, importedName);
+    if (descriptor) {
+        if ('value' in descriptor) {
+            // Code generation only routes immutable imported bindings through this helper, so a data
+            // descriptor is a constant export and can be captured once.
+            bindings.push(exportedName, BindingTag_Value, descriptor.value);
+            return;
+        }
+        if (descriptor.get) {
+            // Accessors remain live by reusing the source getter. `esmReexport` is only called by
+            // generated code: every group head is either produced by
+            // `this.i` or is the namespace variable from a generated `this.i` call. Every getter on such
+            // a namespace is receiver-independent: ESM bindings are compiler-generated arrow functions,
+            // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
+            // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
+            // of allocating another wrapper getter.
+            bindings.push(exportedName, descriptor.get);
+            return;
+        }
+    }
+    // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
+    bindings.push(exportedName, ()=>namespace[importedName]);
+}
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
@@ -515,6 +628,14 @@ contextPrototype.U = relativeURL;
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 /**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -591,12 +712,19 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
 }
 Context.prototype.P = resolveAbsolutePath;
 /**
- * Returns an absolute `file://` URL for the given module path.
+ * Returns an absolute `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`.
  *
  * Uses `url.pathToFileURL` so that the resulting URL is a valid file URI on
  * all platforms (forward slashes on Windows, drive letters handled
  * correctly, path segments URL-encoded).
- */ function resolveFileUrl(modulePath) {
+ *
+ * The location of a named `root` isn't known at runtime (the output may have
+ * been moved away from the sources), so this returns a placeholder URL for it.
+ */ function resolveFileUrl(modulePath, root) {
+    if (root !== undefined) {
+        return placeholderFileUrl(modulePath, root);
+    }
     return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
 }
 Context.prototype.F = resolveFileUrl;
@@ -610,7 +738,7 @@ Context.prototype.F = resolveFileUrl;
  */ process.env.TURBOPACK = '1';
 const url = require('url');
 const moduleFactories = new Map();
-const moduleCache = Object.create(null);
+const moduleCache = new Map();
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
@@ -813,7 +941,7 @@ function formatDependencyChain(dependencyChain) {
                 dependencyChain
             };
         }
-        const module = devModuleCache[moduleId];
+        const module = devModuleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (// The module is not in the cache. Since this is a "modified" update,
         // it means that the module was never instantiated before.
@@ -841,7 +969,7 @@ function formatDependencyChain(dependencyChain) {
             continue;
         }
         for (const parentId of module.parents){
-            const parent = devModuleCache[parentId];
+            const parent = devModuleCache.get(parentId);
             if (!parent) {
                 continue;
             }
@@ -1040,7 +1168,7 @@ function formatDependencyChain(dependencyChain) {
  */ function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
     for (const moduleId of outdatedModules){
-        const module = devModuleCache[moduleId];
+        const module = devModuleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (module && hotState?.selfAccepted && !hotState.selfInvalidated) {
             outdatedSelfAcceptedModules.push({
@@ -1058,7 +1186,7 @@ function formatDependencyChain(dependencyChain) {
  * NOTE: mode = "replace" will not remove modules from devModuleCache.
  * This must be done in a separate step afterwards.
  */ function disposeModule(moduleId, mode) {
-    const module = devModuleCache[moduleId];
+    const module = devModuleCache.get(moduleId);
     if (!module) {
         return;
     }
@@ -1082,7 +1210,7 @@ function formatDependencyChain(dependencyChain) {
     // It will be added back once the module re-instantiates and imports its
     // children again.
     for (const childId of module.children){
-        const child = devModuleCache[childId];
+        const child = devModuleCache.get(childId);
         if (!child) {
             continue;
         }
@@ -1093,7 +1221,7 @@ function formatDependencyChain(dependencyChain) {
     }
     switch(mode){
         case 'clear':
-            delete devModuleCache[module.id];
+            devModuleCache.delete(module.id);
             moduleHotData.delete(module.id);
             break;
         case 'replace':
@@ -1117,16 +1245,16 @@ function formatDependencyChain(dependencyChain) {
     // We also want to keep track of previous parents of the outdated modules.
     const outdatedModuleParents = new Map();
     for (const moduleId of outdatedModules){
-        const oldModule = devModuleCache[moduleId];
+        const oldModule = devModuleCache.get(moduleId);
         outdatedModuleParents.set(moduleId, oldModule?.parents);
-        delete devModuleCache[moduleId];
+        devModuleCache.delete(moduleId);
     }
     // Remove outdated dependencies from parent module's children list.
     // When a parent accepts a child's update, the child is re-instantiated
     // but the parent stays alive. We remove the old child reference so it
     // gets re-added when the child re-imports.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = devModuleCache[parentId];
+        const module = devModuleCache.get(parentId);
         if (module) {
             for (const dep of deps){
                 const idx = module.children.indexOf(dep);
@@ -1178,7 +1306,7 @@ function formatDependencyChain(dependencyChain) {
     module.parents = parents;
     module.children = [];
     module.hot = hot;
-    devModuleCache[id] = module;
+    devModuleCache.set(id, module);
     moduleHotState.set(module, hotState);
     // 5. Module execution (React Refresh hooks are platform-specific)
     try {
@@ -1312,7 +1440,7 @@ function formatDependencyChain(dependencyChain) {
     // This runs BEFORE re-instantiating self-accepted modules, matching
     // webpack's behavior.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = devModuleCache[parentId];
+        const module = devModuleCache.get(parentId);
         if (!module) continue;
         const hotState = moduleHotState.get(module);
         if (!hotState) continue;
@@ -1362,7 +1490,7 @@ function formatDependencyChain(dependencyChain) {
                 try {
                     errorHandler(err, {
                         moduleId,
-                        module: devModuleCache[moduleId]
+                        module: devModuleCache.get(moduleId)
                     });
                 } catch (err2) {
                     reportError(err2);
@@ -1433,6 +1561,20 @@ nodeDevContextPrototype.M = moduleFactories;
 nodeDevContextPrototype.c = devModuleCache;
 nodeDevContextPrototype.R = resolvePathFromModule;
 nodeDevContextPrototype.C = clearChunkCache;
+if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
+    const chunksBeingEnsured = new Map();
+    function loadChunkAsyncOnDemand(chunkData) {
+        const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path;
+        const ensureChunk = globalThis.__turbopack_ensure_chunk__;
+        if (ensureChunk === undefined || chunkCache.has(chunkPath)) {
+            return loadChunkAsync.call(this, chunkData);
+        }
+        const ensured = chunksBeingEnsured.get(chunkPath) ?? Promise.resolve().then(()=>ensureChunk(chunkPath)).finally(()=>chunksBeingEnsured.delete(chunkPath));
+        chunksBeingEnsured.set(chunkPath, ensured);
+        return ensured.then(()=>loadChunkAsync.call(this, chunkData));
+    }
+    nodeDevContextPrototype.l = loadChunkAsyncOnDemand;
+}
 /**
  * Instantiates a module in development mode using shared HMR logic.
  */ function instantiateModule(id, sourceType, sourceData) {
@@ -1445,7 +1587,7 @@ nodeDevContextPrototype.C = clearChunkCache;
         return new Context(module1, exports);
     };
     // Node.js: no hooks wrapper, just execute directly
-    const runWithHooks = (module1, exec)=>{
+    const runWithHooks = (_module, exec)=>{
         exec(undefined); // no refresh context
     };
     // Use shared instantiation logic (includes hot API setup)
@@ -1462,7 +1604,7 @@ nodeDevContextPrototype.C = clearChunkCache;
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module1 = devModuleCache[moduleId];
+    const module1 = devModuleCache.get(moduleId);
     if (module1) {
         if (module1.error) {
             throw module1.error;
@@ -1477,8 +1619,8 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
  */ // @ts-ignore
 function getOrInstantiateModuleFromParent(id, sourceModule) {
     // Track parent-child relationship
-    trackModuleImport(sourceModule, id, devModuleCache[id]);
-    const module1 = devModuleCache[id];
+    const module1 = devModuleCache.get(id);
+    trackModuleImport(sourceModule, id, module1);
     if (module1) {
         if (module1.error) {
             throw module1.error;
@@ -1580,7 +1722,7 @@ function applyEcmascriptMergedUpdate(instruction, moduleFactories, devModuleCach
     // were moved to a renamed chunk. Treat them as modified so the dependency
     // walk runs and they get re-instantiated with the new factory.
     for (const [moduleId, entry] of added){
-        if (entry != null && devModuleCache[moduleId] != null) {
+        if (entry != null && devModuleCache.has(moduleId)) {
             added.delete(moduleId);
             modified.set(moduleId, entry);
         }
@@ -1634,9 +1776,10 @@ if (handlers.size === 0) {
         // updates) or nested inside `merged` entries (chunks covered by a
         // merger). Collect both so routing isn't skipped just because a mergeable
         // chunk's update only reports its paths inside `merged`.
+        const instruction = update.instruction;
         const updateChunkPaths = new Set([
-            ...Object.keys(update.instruction?.chunks ?? {}),
-            ...(update.instruction?.merged ?? []).flatMap((merged)=>Object.keys(merged.chunks ?? {}))
+            ...Object.keys(instruction?.chunks ?? {}),
+            ...(instruction?.type === 'ChunkListUpdate' && instruction.merged || []).flatMap((merged)=>Object.keys(merged.chunks ?? {}))
         ]);
         const toCall = [];
         if (updateChunkPaths.size === 0) {

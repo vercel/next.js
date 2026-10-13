@@ -21,7 +21,9 @@
  */
 const path = require('path')
 const fs = require('fs')
-const { execFileSync, spawnSync } = require('child_process')
+const { spawnSync } = require('child_process')
+const { packPackage } = require('./evals/lib/pack')
+const { linkEnvironment } = require('./evals/lib/environment')
 
 const ROOT = __dirname
 
@@ -32,7 +34,7 @@ const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 
-/** @typedef {{ skills?: string[], timeout?: number }} EvalConfig */
+/** @typedef {{ skills?: string[], timeout?: number, agentFeedback?: boolean }} EvalConfig */
 /** @type {Record<string, EvalConfig>} */
 const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 
@@ -53,21 +55,11 @@ const BASE_VARIANTS = [
 ]
 
 function pack() {
-  fs.mkdirSync(TARBALL_DIR, { recursive: true })
-  const out = execFileSync(
-    'pnpm',
-    ['pack', '--pack-destination', TARBALL_DIR],
-    { cwd: path.join(ROOT, 'packages/next'), encoding: 'utf8' }
-  )
-  const produced = out.trim().split('\n').pop()
-  const src = path.isAbsolute(produced)
-    ? produced
-    : path.join(TARBALL_DIR, produced)
-  fs.renameSync(src, TARBALL)
+  packPackage(path.join(ROOT, 'packages/next'), TARBALL)
 }
 
 /** @param {string | null} evalName  null means all evals */
-function writeExperiments(evalName, variants, timeout) {
+function writeExperiments(evalName, variants, timeout, runs) {
   fs.rmSync(EXPERIMENTS_DIR, { recursive: true, force: true })
   fs.mkdirSync(EXPERIMENTS_DIR, { recursive: true })
 
@@ -88,10 +80,11 @@ const config: ExperimentConfig = {
   // run is graded by the same model regardless of the model under test.
   judge: { model: 'claude-haiku-4-5' },
   scripts: ['build'],
-  runs: 1,
-  earlyExit: true,
+  runs: ${runs},
+  earlyExit: ${runs === 1},
   timeout: ${timeout},
   sandbox: 'auto',
+  ${v.onRunComplete ? `onRunComplete: ${v.onRunComplete},` : ''}
   setup: async (sandbox) => {
     ${v.setup}
   },
@@ -129,7 +122,19 @@ function readFixtureConfig(evalName) {
       `${EVAL_CONFIG_PATH}: ${evalName}.timeout must be a positive number`
     )
   }
-  return { skills: skillNames, timeout: config.timeout ?? 720 }
+  if (
+    config.agentFeedback !== undefined &&
+    typeof config.agentFeedback !== 'boolean'
+  ) {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.agentFeedback must be a boolean`
+    )
+  }
+  return {
+    skills: skillNames,
+    timeout: config.timeout ?? 720,
+    agentFeedback: config.agentFeedback ?? false,
+  }
 }
 
 function getExperimentSettings(evalName) {
@@ -141,10 +146,6 @@ function getExperimentSettings(evalName) {
   const configuredSkillEvals = skillEvals.filter(
     ({ skills }) => skills.length > 0
   )
-
-  if (configuredSkillEvals.length === 0) {
-    return { variants: BASE_VARIANTS, timeout }
-  }
 
   /** @type {Map<string, { skills: string[], evals: string[] }>} */
   const skillGroups = new Map()
@@ -164,9 +165,37 @@ function getExperimentSettings(evalName) {
     evals,
   }))
 
+  /** @type {Map<string, { skills: string[], evals: string[] }>} */
+  const feedbackGroups = new Map()
+  for (const { name, skills, agentFeedback } of skillEvals) {
+    if (!agentFeedback) continue
+    const skillNames = [...new Set(skills)].sort()
+    const key = skillNames.join(',')
+    const group = feedbackGroups.get(key) ?? { skills: skillNames, evals: [] }
+    group.evals.push(name)
+    feedbackGroups.set(key, group)
+  }
+
+  const multipleFeedbackGroups = feedbackGroups.size > 1
+  const feedbackVariants = [...feedbackGroups.values()].map(
+    ({ skills, evals }) => ({
+      suffix: multipleFeedbackGroups
+        ? `agent-feedback-${skills.join('-') || 'no-skills'}`
+        : 'agent-feedback',
+      imports: `import { analyzeAgentFeedbackRun, installLocalSkills, installNextJs, prepareFixture, writeAgentFeedbackInstructions } from '../lib/setup.js'`,
+      setup: `await installNextJs(sandbox)\n    await prepareFixture(sandbox)${
+        skills.length > 0
+          ? `\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`
+          : ''
+      }\n    await writeAgentFeedbackInstructions(sandbox)`,
+      onRunComplete: 'analyzeAgentFeedbackRun',
+      evals,
+    })
+  )
+
   return {
     timeout,
-    variants: [...BASE_VARIANTS, ...skillVariants],
+    variants: [...BASE_VARIANTS, ...skillVariants, ...feedbackVariants],
   }
 }
 
@@ -185,6 +214,12 @@ function main() {
     .describe('all', 'Run every eval (slow — normally only CI does this)')
     .boolean('dry')
     .describe('dry', 'Preview without executing')
+    .number('runs')
+    .default('runs', 1)
+    .describe('runs', 'Run each selected eval this many times')
+    .array('variant')
+    .string('variant')
+    .describe('variant', 'Run only the named generated variant (repeatable)')
     .conflicts('all', 'eval-name')
     .check((argv) => {
       if (!argv.all && !argv.evalName) {
@@ -202,6 +237,9 @@ function main() {
           `Unknown eval: ${argv.evalName}\n(looked in ${FIXTURES_DIR})`
         )
       }
+      if (!Number.isInteger(argv.runs) || argv.runs < 1) {
+        throw new Error('--runs must be a positive integer')
+      }
       return true
     })
     .strict()
@@ -209,7 +247,25 @@ function main() {
 
   /** @type {string | null} */
   const evalName = argv.all ? null : /** @type {string} */ (argv.evalName)
-  const { variants, timeout } = getExperimentSettings(evalName)
+  const { variants: availableVariants, timeout } =
+    getExperimentSettings(evalName)
+  const requestedVariants = argv.variant ?? []
+  const unknownVariants = requestedVariants.filter(
+    (name) => !availableVariants.some((variant) => variant.suffix === name)
+  )
+  if (unknownVariants.length > 0) {
+    throw new Error(
+      `Unknown variant: ${unknownVariants.join(', ')}\nAvailable variants: ${availableVariants
+        .map((variant) => variant.suffix)
+        .join(', ')}`
+    )
+  }
+  const variants =
+    requestedVariants.length > 0
+      ? availableVariants.filter((variant) =>
+          requestedVariants.includes(variant.suffix)
+        )
+      : availableVariants
   // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
   // and `status` is the read-only preview.
   const agentEvalArgs = argv.dry
@@ -234,19 +290,9 @@ function main() {
 
   // agent-eval loads .env / .env.local from its own cwd (evals/). `vc env pull`
   // writes to the repo root, so symlink them into evals/ for agent-eval to find.
-  for (const envFile of ['.env', '.env.local']) {
-    const src = path.join(ROOT, envFile)
-    const dest = path.join(EVALS_DIR, envFile)
-    try {
-      // Remove stale symlink or file before creating a fresh one.
-      fs.rmSync(dest, { force: true })
-      if (fs.existsSync(src)) {
-        fs.symlinkSync(src, dest)
-      }
-    } catch {}
-  }
+  linkEnvironment(ROOT, EVALS_DIR)
 
-  writeExperiments(evalName, variants, timeout)
+  writeExperiments(evalName, variants, timeout, argv.runs)
   console.log(
     evalName
       ? `> Running ${evalName} (${variants.map((v) => v.suffix).join(' + ')})`

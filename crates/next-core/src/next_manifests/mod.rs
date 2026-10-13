@@ -8,9 +8,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -296,18 +294,7 @@ impl Default for MiddlewaresManifest {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Clone,
-    Hash,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
+    Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProxyMatcher {
@@ -466,6 +453,12 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub is_async: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub durability: Option<ActionManifestWorkerEntryDurability<'a>>,
+    /// The sorted root param dependencies collected from the cache module's
+    /// graph. An empty list means that collection found no root params. The
+    /// build omits this field when it does not collect dependencies for the
+    /// module.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub root_param_dependencies: Option<&'a [RcStr]>,
 }
 
 #[derive(Serialize, Debug)]
@@ -485,19 +478,7 @@ pub enum ActionManifestModuleId<'a> {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Hash,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    Encode,
-    Decode,
+    Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Encode, Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ActionLayer {

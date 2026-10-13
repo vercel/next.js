@@ -358,6 +358,8 @@ async fn counted_leaf(nonce: u32) -> Result<Vc<Value>> {
 
 /// Inline execution nests: reading the deepest task of a chain of uncomputed tasks executes them
 /// one inside the other. The nesting cap keeps that from growing the stack without bounds.
+// This test is too slow to run under Miri.
+#[cfg(not(miri))]
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_deep_dependency_chain() {
     let mut nonce = 0;

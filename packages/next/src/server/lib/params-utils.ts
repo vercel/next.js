@@ -22,7 +22,11 @@ export function isEmptyParams(params: Params): boolean {
 
 export function hasFallbackRouteParams(
   underlyingParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams | null | undefined
+  fallbackParams:
+    | OpaqueFallbackRouteParams
+    | ReadonlySet<string>
+    | null
+    | undefined
 ): boolean {
   if (fallbackParams) {
     for (let key in underlyingParams) {

@@ -11,6 +11,12 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function createStringDecoder() {
+      return new util.TextDecoder("utf-8", {
+        ignoreBOM:
+          0 < arguments.length && void 0 !== arguments[0] ? arguments[0] : !1
+      });
+    }
     function checkEvalAvailabilityOnceDev() {
       if (!hasConfirmedEval) {
         hasConfirmedEval = !0;
@@ -2948,6 +2954,8 @@
               key,
               loadServerReference
             );
+          case "H":
+            return;
           case "T":
             parentObject = "$" + value.slice(2);
             response = response._tempRefs;
@@ -3115,7 +3123,7 @@
       this._encodeFormAction = encodeFormAction;
       this._nonce = nonce;
       this._chunks = chunks;
-      this._stringDecoder = new util.TextDecoder();
+      this._stringDecoder = createStringDecoder(!0);
       this._closed = !1;
       this._closedReason = null;
       this._allowPartialStream = allowPartialStream;

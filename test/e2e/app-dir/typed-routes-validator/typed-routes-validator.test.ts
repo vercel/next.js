@@ -5,16 +5,14 @@ import { getDistDir, retry } from 'next-test-utils'
 const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('typed-routes-validator', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should generate route validation correctly', async () => {
     if (isNextDev) {
@@ -154,8 +152,13 @@ describe('typed-routes-validator', () => {
           /Type error: Type 'typeof import\(.*' does not satisfy the expected type 'AppPageConfig</
         )
       } else {
-        expect(cliOutput).toMatch(
-          /Type error: Type 'typeof import\(.*' does not satisfy the constraint 'AppPageConfig</
+        // Non-strict AppPageConfig accepts any props. The per-page type check
+        // rejects invalid props instead.
+        expect(cliOutput.replace(/\\/g, '/')).toContain(
+          'Type error: Page "app/invalid/page.tsx" has an invalid "default" export:'
+        )
+        expect(cliOutput).toContain(
+          'Type "{ invalidProp: string; }" is not valid.'
         )
       }
     })

@@ -2,7 +2,6 @@ mod deterministic_hash_macro;
 pub(crate) mod non_local_value_macro;
 mod operation_value_macro;
 mod task_storage_macro;
-pub(crate) mod trace_raw_vcs_macro;
 mod value_debug_format_macro;
 mod value_debug_macro;
 pub(crate) mod value_to_string_macro;
@@ -10,21 +9,24 @@ pub(crate) mod value_to_string_macro;
 pub use deterministic_hash_macro::derive_deterministic_hash;
 pub use non_local_value_macro::derive_non_local_value;
 pub use operation_value_macro::derive_operation_value;
-use syn::{Attribute, Meta, Token, punctuated::Punctuated, spanned::Spanned};
+use syn::{Attribute, Field, Meta, Token, punctuated::Punctuated, spanned::Spanned};
 pub use task_storage_macro::task_storage;
-pub use trace_raw_vcs_macro::derive_trace_raw_vcs;
 pub use value_debug_format_macro::derive_value_debug_format;
 pub use value_debug_macro::derive_value_debug;
 
+pub(crate) fn filter_field(field: &Field) -> bool {
+    !FieldAttributes::from(field.attrs.as_slice()).unsafe_ignore
+}
+
 struct FieldAttributes {
-    trace_ignore: bool,
+    unsafe_ignore: bool,
     debug_ignore: bool,
 }
 
 impl From<&[Attribute]> for FieldAttributes {
     fn from(attrs: &[Attribute]) -> Self {
         let mut result = Self {
-            trace_ignore: false,
+            unsafe_ignore: false,
             debug_ignore: false,
         };
 
@@ -45,7 +47,7 @@ impl From<&[Attribute]> for FieldAttributes {
                         .span()
                         .unwrap()
                         .error(format!(
-                            "expected `trace_ignore` or `debug_ignore`, got: {e}"
+                            "expected `unsafe_ignore` or `debug_ignore`, got: {e}"
                         ))
                         .emit();
                     Punctuated::default()
@@ -54,15 +56,15 @@ impl From<&[Attribute]> for FieldAttributes {
             for meta in nested {
                 match meta {
                     Meta::Path(path) => {
-                        if path.is_ident("trace_ignore") {
-                            result.trace_ignore = true;
+                        if path.is_ident("unsafe_ignore") {
+                            result.unsafe_ignore = true;
                         } else if path.is_ident("debug_ignore") {
                             result.debug_ignore = true;
                         } else {
                             path.span()
                                 .span()
                                 .unwrap()
-                                .error("expected `trace_ignore` or `debug_ignore`")
+                                .error("expected `unsafe_ignore` or `debug_ignore`")
                                 .emit()
                         }
                     }
@@ -70,7 +72,7 @@ impl From<&[Attribute]> for FieldAttributes {
                         .path()
                         .span()
                         .unwrap()
-                        .error("expected `trace_ignore` or `debug_ignore`")
+                        .error("expected `unsafe_ignore` or `debug_ignore`")
                         .emit(),
                 }
             }

@@ -12,15 +12,12 @@ pub(crate) mod process;
 pub(crate) mod references;
 
 use bincode::{Decode, Encode};
-use turbo_tasks::trace::TraceRawVcs;
 
 use crate::references::import::ImportAssetReference;
 pub use crate::{asset::CssModule, module_asset::EcmascriptCssModule, process::*};
 
 #[turbo_tasks::task_input]
-#[derive(
-    PartialOrd, Ord, Eq, PartialEq, Hash, Debug, Copy, Clone, Default, TraceRawVcs, Encode, Decode,
-)]
+#[derive(PartialOrd, Ord, Eq, PartialEq, Hash, Debug, Copy, Clone, Default, Encode, Decode)]
 pub enum CssModuleType {
     /// Default parsing mode.
     #[default]

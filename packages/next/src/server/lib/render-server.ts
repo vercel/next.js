@@ -24,8 +24,12 @@ export type ServerInitResult = {
   cacheComponents: boolean
   // Whether partial prefetching is enabled
   partialPrefetching?: boolean
-  // Whether AGENTS.md / CLAUDE.md auto-generation is enabled (default true)
+  // Whether AGENTS.md auto-generation is enabled (default true)
   agentRules?: boolean
+  // Whether managed agent-feedback instructions are enabled (default false)
+  agentFeedback?: boolean
+  // Whether managed upgrade instructions are enabled by the reminder policy
+  agentUpgrade: boolean | undefined
   // Whether the development server memory threshold restart is enabled
   devMemoryThresholdRestart: boolean
 }
@@ -188,6 +192,7 @@ async function initializeImpl(opts: {
     experimentalFeatures: opts.experimentalFeatures,
     cacheComponents: opts.cacheComponents,
     partialPrefetching: opts.partialPrefetching,
+    agentUpgrade: undefined,
     devMemoryThresholdRestart: opts.devMemoryThresholdRestart,
   }
 }

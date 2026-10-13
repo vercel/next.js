@@ -8,16 +8,21 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import ws from 'next/dist/compiled/ws'
 
 import type { OutputState } from '../../build/output/store'
+import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import { store as consoleStore } from '../../build/output/store'
 import type {
   CompilationError,
   HmrMessageSentToBrowser,
+  RuntimeErrorStateMessage,
   NextJsHotReloaderInterface,
   ReloadPageMessage,
   SyncMessage,
   TurbopackConnectedMessage,
 } from './hot-reloader-types'
-import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+} from './hot-reloader-types'
 import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import type {
   Update as TurbopackUpdate,
@@ -31,7 +36,11 @@ import type {
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
-import { BLOCKED_PAGES } from '../../shared/lib/constants'
+import {
+  BLOCKED_PAGES,
+  CLIENT_REFERENCE_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
+} from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
@@ -39,7 +48,9 @@ import {
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { clearManifestCache } from '../load-manifest.external'
+import { clearManifestCache, loadManifest } from '../load-manifest.external'
+import { loadClientReferenceManifestForPage } from '../load-components'
+import { setManifestsSingleton } from '../app-render/manifests-singleton'
 import { deleteCache } from './require-cache'
 import {
   dropDevValidationWorker,
@@ -112,6 +123,7 @@ import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compi
 import { DeferredEmit } from '../../shared/lib/turbopack/deferred-emit'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import { printBuildErrors } from '../../build/print-build-errors'
+import { getStrictRouteMatchingDefaultWarning } from '../lib/router-utils/strict-route-matching-config'
 import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
@@ -140,6 +152,7 @@ import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { createRuntimeErrorStateHandler } from './runtime-error-state'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
@@ -193,6 +206,9 @@ declare global {
    * Sync with  `turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/runtime/nodejs-globals.d.ts`.
    */
   var __turbopack_server_hmr_handlers__: Map<string, unknown> | undefined
+  var __turbopack_ensure_chunk__:
+    | ((chunkPath: string) => void | Promise<void>)
+    | undefined
 }
 
 /**
@@ -405,6 +421,8 @@ export async function createHotReloaderTurbopack(
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
   const lazyDynamicImports = nextConfig.experimental.turbopackLazyDynamicImports
+  const lazyDynamicImportsSSR =
+    nextConfig.experimental.turbopackLazyDynamicImportsSSR
 
   const bindings = getBindingsSync()
 
@@ -489,7 +507,7 @@ export async function createHotReloaderTurbopack(
     })
   }
 
-  const project = await bindings.turbo.createProject(
+  const projectResult = await bindings.turbo.createProject(
     {
       rootPath,
       projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
@@ -530,9 +548,14 @@ export async function createHotReloaderTurbopack(
     {
       turbopackMemoryEviction:
         opts.nextConfig.experimental.turbopackMemoryEvictionMode,
+      gc: opts.nextConfig.experimental.turbopackGcOptions,
       isShortSession: false,
     }
   )
+  for (const issue of projectResult.issues) {
+    printNonFatalIssue(issue)
+  }
+  const project = projectResult.value
   backgroundLogCompilationEvents(project, {
     eventTypes: [
       'StartupCacheInvalidationEvent',
@@ -564,7 +587,11 @@ export async function createHotReloaderTurbopack(
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     setBundlerFindSourceMapURLImplementation(() => null)
-    await project.onExit()
+    if (process.env.__NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1') {
+      await project.shutdown()
+    } else {
+      await project.onExit()
+    }
     await lockfile?.unlock()
   })
   // Subscription detects route additions/removals; returned endpoints stay lazy.
@@ -606,6 +633,7 @@ export async function createHotReloaderTurbopack(
   )
 
   const assetMapper = new AssetMapper()
+  const serverAssetMapper = new AssetMapper()
 
   // Deferred entries state management
   const deferredEntriesConfig = nextConfig.experimental.deferredEntries
@@ -859,6 +887,11 @@ export async function createHotReloaderTurbopack(
 
   const clientsWithoutHtmlRequestId = new Set<ws>()
   const clientsByHtmlRequestId = new Map<string, ws>()
+  const runtimeErrorStates =
+    nextConfig.experimental.exposeRuntimeErrorsToHMR ||
+    Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+      ? new Map<string, RuntimeErrorStateMessage>()
+      : null
   const cacheStatusesByHtmlRequestId = new Map<string, ServerCacheStatus>()
   const clientStates = new WeakMap<ws, ClientState>()
 
@@ -870,6 +903,22 @@ export async function createHotReloaderTurbopack(
 
     client.send(data)
   }
+
+  let hasVulnerabilityInsight = false
+  opts.hasVulnerabilityInsight.then((enabled) => {
+    if (enabled) {
+      hasVulnerabilityInsight = true
+      for (const client of [
+        ...clientsWithoutHtmlRequestId,
+        ...clientsByHtmlRequestId.values(),
+      ]) {
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT,
+          hasVulnerabilityInsight: true,
+        })
+      }
+    }
+  })
 
   let updateInProgress = false
   let pendingServerComponentChanges = false
@@ -1121,7 +1170,10 @@ export async function createHotReloaderTurbopack(
 
       // Certain crtical issues prevent any entrypoints from being constructed so return early
       if (!('routes' in entrypoints.value)) {
-        printBuildErrors(entrypoints, true)
+        printBuildErrors(entrypoints, true, {
+          strictRouteMatchingDefaultWarning:
+            getStrictRouteMatchingDefaultWarning(nextConfig),
+        })
 
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
@@ -1536,7 +1588,23 @@ export async function createHotReloaderTurbopack(
           subscriptions,
         })
 
+        if (runtimeErrorStates) {
+          for (const message of runtimeErrorStates.values()) {
+            sendToClient(client, message)
+          }
+        }
+
+        const runtimeErrorStateHandler =
+          nextConfig.experimental.exposeRuntimeErrorsToHMR ||
+          Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+            ? createRuntimeErrorStateHandler((message) =>
+                hotReloader.send({ ...message, htmlRequestId })
+              )
+            : undefined
+
         client.on('close', () => {
+          runtimeErrorStateHandler?.dispose()
+
           // Remove active subscriptions
           for (const subscription of subscriptions.values()) {
             subscription.return?.()
@@ -1627,6 +1695,11 @@ export async function createHotReloaderTurbopack(
               break
             }
 
+            case HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS: {
+              void runtimeErrorStateHandler?.handle(parsedData).catch(() => {})
+              break
+            }
+
             case 'mcp-error-state-response': {
               handleErrorStateResponse(
                 parsedData.requestId,
@@ -1713,6 +1786,7 @@ export async function createHotReloaderTurbopack(
             warnings: [],
             hash: '',
             versionInfo,
+            hasVulnerabilityInsight,
             debug: {
               devtoolsFrontendUrl,
             },
@@ -1731,6 +1805,17 @@ export async function createHotReloaderTurbopack(
     },
 
     send(action) {
+      if (
+        runtimeErrorStates &&
+        action.type === HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS
+      ) {
+        if (action.errors.length === 0) {
+          runtimeErrorStates.delete(action.clientId)
+        } else {
+          runtimeErrorStates.set(action.clientId, action)
+        }
+      }
+
       const payload = JSON.stringify(action)
 
       for (const client of [
@@ -1995,6 +2080,10 @@ export async function createHotReloaderTurbopack(
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result.value)
                     assetMapper.setPathsForKey(id, result.value.clientPaths)
+                    serverAssetMapper.setPathsForKey(
+                      id,
+                      result.value.serverPaths.map(({ path }) => path)
+                    )
                     return clearRequireCache(id, result.value, {
                       force: forceDeleteCache,
                     })
@@ -2073,6 +2162,10 @@ export async function createHotReloaderTurbopack(
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result.value)
                   assetMapper.setPathsForKey(id, result.value.clientPaths)
+                  serverAssetMapper.setPathsForKey(
+                    id,
+                    result.value.serverPaths.map(({ path }) => path)
+                  )
                   shouldPullServerHmr ||= participatesInServerHmr(
                     id,
                     result.value
@@ -2114,6 +2207,7 @@ export async function createHotReloaderTurbopack(
       }
       clientsWithoutHtmlRequestId.clear()
       clientsByHtmlRequestId.clear()
+      runtimeErrorStates?.clear()
     },
   }
 
@@ -2238,6 +2332,60 @@ export async function createHotReloaderTurbopack(
     console.error(err)
     process.exit(1)
   })
+
+  if (lazyDynamicImportsSSR) {
+    const previousEnsureChunk = globalThis.__turbopack_ensure_chunk__
+    const ensureChunk = async (chunkPath: string) => {
+      if (!chunkPath.includes('lazy-compilation-')) return
+
+      const keys = serverAssetMapper.getKeysByAsset(chunkPath)
+      if (keys.length === 0 || !(await project.activateLazyChunk(chunkPath))) {
+        return
+      }
+
+      for (const key of keys) {
+        const { page, type } = splitEntryKey(key)
+        await hotReloader.ensurePage({
+          page,
+          clientOnly: false,
+          definition: undefined,
+        })
+        if (type === 'app') {
+          clearManifestCache(
+            join(
+              distDir,
+              'server',
+              'app',
+              page.replace(/%5F/g, '_') +
+                '_' +
+                CLIENT_REFERENCE_MANIFEST +
+                '.js'
+            )
+          )
+          const clientReferenceManifest =
+            await loadClientReferenceManifestForPage(distDir, page, 1)
+          if (clientReferenceManifest) {
+            setManifestsSingleton({
+              page,
+              clientReferenceManifest,
+              serverActionsManifest: loadManifest<ActionManifest>(
+                join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json'),
+                false
+              ),
+            })
+          }
+        }
+      }
+      deleteCache([join(distDir, chunkPath)])
+    }
+
+    globalThis.__turbopack_ensure_chunk__ = ensureChunk
+    opts.onDevServerCleanup?.(async () => {
+      if (globalThis.__turbopack_ensure_chunk__ === ensureChunk) {
+        globalThis.__turbopack_ensure_chunk__ = previousEnsureChunk
+      }
+    })
+  }
 
   let serverHmr: ReturnType<typeof setupServerHmr> | undefined
   if (serverFastRefresh) {

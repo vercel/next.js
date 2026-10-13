@@ -15,8 +15,10 @@ use crate::{
 /// recomputing this is very cheap.
 #[turbo_tasks::value(serialization = "skip")]
 pub enum AfterResolvePluginCondition {
+    /// Matches the glob against the resolved path relative to `root`. A `root` of `None` matches
+    /// resolved paths on any filesystem, relative to that filesystem's root.
     Glob {
-        root: FileSystemPath,
+        root: Option<FileSystemPath>,
         glob: ReadRef<Glob>,
     },
     // these variants are used by utoo
@@ -27,7 +29,10 @@ pub enum AfterResolvePluginCondition {
 #[turbo_tasks::value_impl]
 impl AfterResolvePluginCondition {
     #[turbo_tasks::function]
-    pub async fn new_with_glob(root: FileSystemPath, glob: ResolvedVc<Glob>) -> Result<Vc<Self>> {
+    pub async fn new_with_glob(
+        root: Option<FileSystemPath>,
+        glob: ResolvedVc<Glob>,
+    ) -> Result<Vc<Self>> {
         let glob = glob.await?;
         Ok(AfterResolvePluginCondition::Glob { root, glob }.cell())
     }
@@ -38,7 +43,11 @@ impl AfterResolvePluginCondition {
     pub fn matches(&self, fs_path: &FileSystemPath) -> bool {
         match self {
             AfterResolvePluginCondition::Glob { root, glob } => {
-                root.get_path_to(fs_path).is_some_and(|p| glob.matches(p))
+                let path = match root {
+                    Some(root) => root.get_path_to(fs_path),
+                    None => Some(&*fs_path.path),
+                };
+                path.is_some_and(|p| glob.matches(p))
             }
             AfterResolvePluginCondition::Always => true,
             AfterResolvePluginCondition::Never => false,

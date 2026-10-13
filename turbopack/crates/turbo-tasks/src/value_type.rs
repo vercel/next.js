@@ -467,13 +467,13 @@ mod tests {
     use crate::{self as turbo_tasks, VcValueType, registry};
 
     #[turbo_tasks::value(serialization = "skip")]
-    struct SkipValue(#[turbo_tasks(trace_ignore)] u32);
+    struct SkipValue(u32);
 
     #[turbo_tasks::value(serialization = "hash")]
     struct HashValue(u32);
 
     #[turbo_tasks::value(serialization = "skip", evict = "last")]
-    struct SkipExpensiveValue(#[turbo_tasks(trace_ignore)] u32);
+    struct SkipExpensiveValue(u32);
 
     #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
     struct SessionStatefulValue;

@@ -14,11 +14,13 @@ use swc_core::{
     atoms::atom,
     common::{FileName, Mark},
     ecma::{
+        ast::fn_pass,
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
             testing::{FixtureTestConfig, test_fixture},
         },
+        visit::VisitWith,
     },
 };
 use testing::fixture;
@@ -201,6 +203,62 @@ fn react_server_actions_errors(input: PathBuf) {
                     Default::default(),
                     ServerActionsMode::Webpack,
                 ),
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            allow_error: true,
+            module: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+// Turbopack runs the server actions transform before the React Server Components assert on
+// the RSC layer (unlike webpack, which runs the RSC transform first). See
+// `crates/next-core/src/next_server/context.rs` (AppRSC module rules).
+#[fixture("tests/errors/server-actions-turbopack-rsc/**/input.js")]
+fn server_actions_turbopack_rsc_errors(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{
+        Config, Options, server_components_assert,
+    };
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            let unresolved_mark = Mark::new();
+            (
+                resolver(unresolved_mark, Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    None,
+                    server_actions::Config {
+                        is_react_server_layer: true,
+                        is_development: true,
+                        use_cache_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
+                    },
+                    tr.comments.as_ref().clone(),
+                    unresolved_mark,
+                    tr.cm.clone(),
+                    Default::default(),
+                    ServerActionsMode::Turbopack,
+                ),
+                fn_pass(|program| {
+                    program.visit_with(&mut server_components_assert(
+                        FileName::Real(PathBuf::from("/app/item.js")),
+                        Config::WithOptions(Options {
+                            is_react_server_layer: true,
+                            cache_components_enabled: true,
+                            use_cache_enabled: true,
+                            taint_enabled: true,
+                            page_extensions: vec![],
+                        }),
+                        None,
+                    ));
+                }),
             )
         },
         &input,

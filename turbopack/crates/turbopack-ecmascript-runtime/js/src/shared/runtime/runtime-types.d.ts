@@ -73,6 +73,14 @@ type EsmExport = (
   id: ModuleId | undefined,
   dynamic?: boolean
 ) => void
+/**
+ * A flat list of `head, ...entries` groups separated by the `0` sentinel. Each head is either a
+ * module id, which {@link EsmReexport} instantiates, or the namespace object of an already-imported
+ * module, which it uses directly. Each group's entries are either `exportName, importedName` pairs,
+ * or a single comma-joined string of those pairs.
+ */
+type EsmReexports = Array<ModuleId | EsmNamespaceObject | string | 0>
+type EsmReexport = (list: EsmReexports, id?: ModuleId) => void
 type ExportValue = (value: any, id: ModuleId | undefined) => void
 type ExportUrl = (url: string, id: ModuleId | undefined) => void
 type ExportNamespace = (namespace: any, id: ModuleId | undefined) => void
@@ -84,7 +92,10 @@ type DynamicExport = (
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
 type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
 
-type ModuleCache<M> = Record<ModuleId, M>
+/**
+ * The runtime's module cache.  Stores the memoized 'Module' object for each instantiated module.
+ */
+type ModuleCache<M> = Map<ModuleId, M>
 // TODO properly type values here
 type ModuleFactories = Map<ModuleId, Function>
 /**
@@ -112,7 +123,7 @@ type AsyncModule = (
 ) => void
 
 type ResolveAbsolutePath = (modulePath?: string) => string
-type ResolveFileUrl = (modulePath?: string) => string
+type ResolveFileUrl = (modulePath: string, root?: string) => string
 
 type ExternalRequire = (
   id: DependencySpecifier,
@@ -147,6 +158,7 @@ interface TurbopackBaseContext<M> {
   i: EsmImport
   A: InvokeAsyncLoader
   s: EsmExport
+  S: EsmReexport
   j: DynamicExport
   v: ExportValue
   q: ExportUrl

@@ -25,6 +25,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
     isClientNav,
     navigateTo,
     expectNoDevValidationErrors,
+    getInstantInsight,
     getCliOutputSinceMark,
     prerender,
   } = ctx
@@ -35,7 +36,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
         const browser = await navigateTo(
           '/suspense-in-root/static/invalid-client-data-blocks-validation'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -208,6 +209,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
         const browser = await navigateTo(
           '/suspense-in-root/static/invalid-client-error-in-parent-blocks-children'
         )
+        await waitForValidation(await browser.url(), getCliOutputSinceMark)
         // We expect a collapsed redbox. We need to open it to assert on the messages.
         await openRedbox(browser)
 
@@ -313,6 +315,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
         const browser = await navigateTo(
           '/suspense-in-root/static/invalid-error-in-node-modules-blocks-children'
         )
+        await waitForValidation(await browser.url(), getCliOutputSinceMark)
         // We expect a collapsed redbox. We need to open it to assert on the messages.
         await openRedbox(browser)
 
@@ -399,7 +402,7 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
         const browser = await navigateTo(
           '/suspense-in-root/static/invalid-csr-bailout-blocks-children'
         )
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            [
              {
                "description": "Route "/suspense-in-root/static/invalid-csr-bailout-blocks-children": Could not validate \`instant\` because the target segment was prevented from rendering, likely due to the following error.",

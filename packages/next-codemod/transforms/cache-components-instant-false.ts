@@ -18,9 +18,17 @@ import { NEXT_CODEMOD_IGNORE_ERROR_PREFIX } from '../lib/utils'
  *   a server segment that accepts route segment config like the other two.
  */
 export default function transformer(file: FileInfo, _api: API) {
+  const isRouteSegment =
+    /(^|[/\\])app[/\\](?:.*[/\\])?(page|layout|default)\.[^/\\]+$/.test(
+      file.path
+    )
+  const isColocatedTestOrStory = /\.(?:test|spec|story|stories)\.[^/\\]+$/.test(
+    file.path
+  )
+
   if (
     process.env.NODE_ENV !== 'test' &&
-    !/(^|[/\\])app[/\\].*?(page|layout|default)\.[^/\\]+$/.test(file.path)
+    (!isRouteSegment || isColocatedTestOrStory)
   ) {
     return file.source
   }
