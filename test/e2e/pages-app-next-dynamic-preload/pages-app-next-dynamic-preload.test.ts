@@ -51,7 +51,6 @@ describe('pages-app-next-dynamic-preload', () => {
     }
   )
 
-  // @gate !turbopack || dev
   it('preloads the same _app next/dynamic chunks on every page', async () => {
     const preloadedChunks: Record<string, string[]> = {}
     for (const pathname of pages) {

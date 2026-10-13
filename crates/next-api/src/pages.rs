@@ -658,7 +658,8 @@ async fn client_entry_modules(
         .collect())
 }
 
-/// The chunks to preload for the `next/dynamic` imports of a page's client graph.
+/// The chunks to preload for the `next/dynamic` imports of a page's client graph, including the
+/// ones of `/_app` (which is rendered as part of every page).
 async fn page_next_dynamic_chunks(
     endpoint: Vc<PageEndpoint>,
     next_dynamic_imports: ReadRef<DynamicImportEntriesWithImporter>,
@@ -668,13 +669,7 @@ async fn page_next_dynamic_chunks(
     let project = this.pages_project.project();
     let client_chunking_context = project.client_chunking_context();
 
-    // With a per-page module graph, a page's client graph is chained after `/_app`'s (see
-    // `client_module_graph`), so `next_dynamic_imports` also contains the `next/dynamic` imports
-    // of `/_app`. Those are loaded by `/_app`'s async loaders, which are chunked with `/_app`'s
-    // graph and availability, so preload them with the chunks `/_app` itself lists. Chunked with
-    // the page's availability, they would name chunks that don't match what those loaders
-    // request (and that may not be emitted at all).
-    if this.pathname == "/_app" || !*project.per_page_module_graph().await? {
+    if this.pathname == "/_app" {
         return collect_next_dynamic_chunks(
             endpoint.client_module_graph(),
             client_chunking_context,
@@ -684,9 +679,18 @@ async fn page_next_dynamic_chunks(
         .await;
     }
 
+    // `/_app`'s `next/dynamic` imports are loaded by `/_app`'s async loaders, which are chunked
+    // with `/_app`'s graph and availability, so preload them with the chunks `/_app` itself
+    // lists. Chunked with the page's availability, they would name chunks that don't match what
+    // those loaders request (and that may not be emitted at all).
+    // With a per-page module graph, a page's client graph is chained after `/_app`'s (see
+    // `client_module_graph`), so `next_dynamic_imports` also contains `/_app`'s imports: chunk
+    // only the page's own imports with the page's graph and availability. With a whole-app graph
+    // they aren't reachable from the page, so `/_app`'s imports are only added here.
+    let per_page_module_graph = *project.per_page_module_graph().await?;
     let app_endpoint = this.pages_project.app_page_endpoint();
     let app_module_graph = app_endpoint.client_module_graph();
-    let app_next_dynamic_imports = NextDynamicGraphs::new(app_module_graph, true)
+    let app_next_dynamic_imports = NextDynamicGraphs::new(app_module_graph, per_page_module_graph)
         .get_next_dynamic_imports_for_endpoint(app_endpoint.client_module())
         .await?;
     let app_dynamic_entries = app_next_dynamic_imports
