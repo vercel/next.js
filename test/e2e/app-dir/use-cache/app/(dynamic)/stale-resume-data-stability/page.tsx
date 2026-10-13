@@ -20,9 +20,5 @@ export default async function Page() {
 
   const secondValue = await getValue()
 
-  return (
-    <p id="values">
-      {firstValue}|{secondValue}
-    </p>
-  )
+  return <p id="values">{firstValue}|{secondValue}</p>
 }
