@@ -17,17 +17,26 @@ export function defineConfig<T extends NextOptionsConfig, W>(
 export function defineConfig<T extends NextOptionsConfig = NextOptionsConfig>(
   config: base.PlaywrightTestConfig<T>
 ): base.PlaywrightTestConfig<T> {
-  if (config.webServer !== undefined) {
-    // Playwright doesn't merge the `webServer` field as we'd expect, so remove our default if the user specifies one.
-    const { webServer, ...partialDefaultPlaywrightConfig } =
-      defaultPlaywrightConfig as base.PlaywrightTestConfig<T>
-    return base.defineConfig<T>(partialDefaultPlaywrightConfig, config)
-  } else {
-    return base.defineConfig<T>(
-      defaultPlaywrightConfig as base.PlaywrightTestConfig<T>,
-      config
-    )
+  // Playwright doesn't merge certain fields (such as `webServer`, `projects`, `reporter`, `testMatch`)
+  // as expected when using `base.defineConfig`, so remove our defaults if the user specifies their own.
+  const partialDefaultPlaywrightConfig = {
+    ...(defaultPlaywrightConfig as base.PlaywrightTestConfig<T>),
   }
+
+  if (config.webServer !== undefined) {
+    delete partialDefaultPlaywrightConfig.webServer
+  }
+  if (config.projects !== undefined) {
+    delete partialDefaultPlaywrightConfig.projects
+  }
+  if (config.reporter !== undefined) {
+    delete partialDefaultPlaywrightConfig.reporter
+  }
+  if (config.testMatch !== undefined) {
+    delete partialDefaultPlaywrightConfig.testMatch
+  }
+
+  return base.defineConfig<T>(partialDefaultPlaywrightConfig, config)
 }
 
 export type { NextFixture, NextOptions }
