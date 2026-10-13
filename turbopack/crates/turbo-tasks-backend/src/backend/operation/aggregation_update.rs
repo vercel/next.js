@@ -650,7 +650,6 @@ impl AggregatedDataUpdate {
 }
 
 /// An aggregation number update job that is enqueued.
-#[derive(Clone)]
 struct AggregationNumberUpdate {
     base_aggregation_number: u32,
     distance: Option<NonZeroU32>,
@@ -659,7 +658,6 @@ struct AggregationNumberUpdate {
 }
 
 /// An aggregated data update job that is enqueued. See `AggregatedDataUpdate`.
-#[derive(Clone)]
 struct AggregationUpdateJobItem {
     job: AggregationUpdateJob,
     #[cfg(feature = "trace_aggregation_update_queue")]
@@ -691,7 +689,6 @@ struct AggregationUpdateJobGuard {
 }
 
 /// A balancing job that is enqueued. See `balance_edge`.
-#[derive(Clone)]
 struct BalanceJob {
     upper_id: TaskId,
     task_id: TaskId,
@@ -726,7 +723,6 @@ impl PartialEq for BalanceJob {
 impl Eq for BalanceJob {}
 
 /// An optimization job that is enqueued. See `optimize_task`.
-#[derive(Clone)]
 struct OptimizeJob {
     task_id: TaskId,
     /// Whether the `optimization_pending` flag was known to already be set on the task at
@@ -779,7 +775,6 @@ impl PartialEq for OptimizeJob {
 impl Eq for OptimizeJob {}
 
 /// A job to find and schedule dirty tasks that is enqueued. See `find_and_schedule_dirty`.
-#[derive(Clone)]
 struct FindAndScheduleJob {
     task_id: TaskId,
     #[cfg(feature = "trace_find_and_schedule")]
