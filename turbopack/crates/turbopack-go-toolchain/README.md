@@ -58,7 +58,11 @@ immutability contract; the cache is not a sandbox against its owner.
 
 Supported mappings: macOS amd64/arm64, Windows MSVC amd64/arm64, and GNU/musl Linux
 amd64/arm64. GNU and musl share the official Linux archive; qualify both runtimes
-before shipping. Go 1.27 requires macOS 13+. Cross-building Rust chooses TARGET's
+before shipping. The consumer keeps its macOS 11 deployment target; the archive is
+data and does not link Go into the binary. Embedded Go 1.27 requires macOS 13+.
+Preparation on macOS 11/12 fails before cache extraction and reports the detected
+OS version. External installations bypass this embedded-only requirement.
+Cross-building Rust chooses TARGET's
 payload without running it. Go application cross-compilation and CGO are consumer
 policy; the CLI currently supports neither.
 

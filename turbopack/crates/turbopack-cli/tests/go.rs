@@ -1063,6 +1063,33 @@ fn watch_observes_imported_packages_and_embedded_assets() {
     wait_for_output("metadata-repaired:asset-v2:nested");
 }
 
+#[test]
+fn javascript_and_typescript_do_not_prepare_embedded_go() {
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/javascript");
+    for entry in ["main.js", "typed.ts"] {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        std::fs::copy(fixtures.join(entry), project.join(entry)).unwrap();
+        // Preparing embedded Go would fail on this file instead of a cache directory.
+        let cache = temp.path().join("blocked-go-cache");
+        std::fs::write(&cache, "untouched").unwrap();
+        let output = cli(&project)
+            .args(["build", entry, "--target", "node"])
+            .env("TURBOPACK_GO_TOOLCHAIN_CACHE", &cache)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{entry}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(project.join("dist").exists());
+        assert_eq!(std::fs::read_to_string(&cache).unwrap(), "untouched");
+        assert!(!temp.path().join("toolchains").exists());
+    }
+}
+
 #[cfg(feature = "embedded-go")]
 #[test]
 fn embedded_toolchain_works_without_go_on_path_and_repairs_cache() {

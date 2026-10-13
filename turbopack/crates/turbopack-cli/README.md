@@ -130,6 +130,12 @@ resolved environment must stay unchanged during a build or watch session.
 
 ### Toolchain selection and cache
 
+The CLI keeps its macOS 11 deployment target for JavaScript/TypeScript commands.
+Go is bundled as data and prepared only by Go commands. On macOS 11/12, embedded
+Go preparation reports that Go 1.27 requires macOS 13+, includes the detected OS
+version, and leaves the toolchain cache untouched. A compatible external `--go`
+toolchain is still usable on these systems.
+
 The embedded toolchain supports macOS 13+ on amd64/arm64, Windows on amd64/arm64,
 and GNU/musl Linux on amd64/arm64. Cross-built CLI binaries embed their Rust
 TARGET's Go distribution. Application builds support only the host platform with CGO disabled.

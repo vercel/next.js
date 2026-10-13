@@ -2,6 +2,7 @@
 pub mod artifact;
 #[cfg_attr(not(feature = "embedded"), allow(dead_code))]
 mod cache;
+mod platform;
 pub mod process;
 
 use std::{
@@ -81,6 +82,21 @@ pub async fn prepare(
     options: PrepareOptions,
     cancellation: CancellationToken,
 ) -> Result<PreparedToolchain> {
+    prepare_with_host_check(source, options, cancellation, platform::check_host).await
+}
+
+async fn prepare_with_host_check<F, Fut>(
+    source: ToolchainSource,
+    options: PrepareOptions,
+    cancellation: CancellationToken,
+    embedded_host_check: F,
+) -> Result<PreparedToolchain>
+where
+    F: FnOnce(String, CancellationToken) -> Fut,
+    Fut: std::future::Future<Output = Result<()>>,
+{
+    #[cfg(not(feature = "embedded"))]
+    let _ = embedded_host_check;
     // Dropping this future also cancels a blocking extraction worker. It cannot publish
     // after checking this token, and its TempDir/lock guards clean up on completion.
     let guard = cancellation.clone().drop_guard();
@@ -108,6 +124,9 @@ pub async fn prepare(
             {
                 let artifact =
                     artifact::for_target(include_str!(concat!(env!("OUT_DIR"), "/target.txt")))?;
+                // The archive is data, so its OS requirement applies only when preparing
+                // embedded Go. Reject unsupported hosts before any cache access/extraction.
+                embedded_host_check(artifact.version.clone(), cancellation.clone()).await?;
                 let entries: Vec<artifact::Entry> =
                     serde_json::from_str(include_str!(concat!(env!("OUT_DIR"), "/entries.json")))?;
                 let bytes = include_bytes!(concat!(env!("OUT_DIR"), "/go.archive"));
@@ -233,4 +252,73 @@ pub async fn prepare(
     };
     guard.disarm();
     Ok(toolchain)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(feature = "embedded")]
+    #[tokio::test]
+    async fn unsupported_macos_is_rejected_before_cache_creation() -> Result<()> {
+        for version in ["11.7.10", "12.7.6"] {
+            let temp = tempfile::tempdir()?;
+            let cache = temp.path().join("must-not-be-created");
+            let error =
+                prepare_with_host_check(
+                    ToolchainSource::Embedded,
+                    PrepareOptions {
+                        cache_directory: Some(cache.clone()),
+                    },
+                    CancellationToken::new(),
+                    |go_version, _| async move {
+                        platform::validate_macos_version(&go_version, version)
+                    },
+                )
+                .await
+                .unwrap_err();
+            let message = error.to_string();
+            assert!(message.contains("embedded Go 1.27.2 requires macOS 13+"));
+            assert!(message.contains(&format!("detected macOS {version}")));
+            assert!(message.contains("--go"));
+            assert!(!cache.exists());
+            assert_eq!(std::fs::read_dir(temp.path())?.count(), 0);
+        }
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn external_toolchain_bypasses_embedded_macos_requirement() -> Result<()> {
+        use std::os::unix::fs::PermissionsExt;
+        let temp = tempfile::tempdir()?;
+        let executable = temp.path().join("go");
+        let environment = serde_json::json!({
+            "GOROOT": temp.path(),
+            "GOVERSION": "go1.24.13",
+            "GOHOSTOS": "darwin",
+            "GOHOSTARCH": "arm64",
+            "GOCACHE": temp.path().join("build-cache"),
+            "GOMODCACHE": temp.path().join("module-cache"),
+            "GOPATH": temp.path(),
+        });
+        let quoted = environment.to_string().replace('\'', "'\\''");
+        std::fs::write(&executable, format!("#!/bin/sh\nprintf '%s' '{quoted}'\n"))?;
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))?;
+        for version in ["11.7.10", "12.7.6"] {
+            let toolchain =
+                prepare_with_host_check(
+                    ToolchainSource::Executable(executable.clone()),
+                    PrepareOptions::default(),
+                    CancellationToken::new(),
+                    |go_version, _| async move {
+                        platform::validate_macos_version(&go_version, version)
+                    },
+                )
+                .await?;
+            assert_eq!(toolchain.version, "go1.24.13");
+            assert!(!toolchain.is_managed());
+        }
+        Ok(())
+    }
 }

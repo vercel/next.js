@@ -14,6 +14,8 @@ on:
       - '.github/workflows/turbopack_go_toolchain.yml'
   workflow_dispatch:
 permissions: {}
+env:
+  MACOSX_DEPLOYMENT_TARGET: 11.0
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -54,6 +56,20 @@ jobs:
         run: |
           set -euo pipefail
           cargo test --locked -p turbopack-cli --target "$RUST_TARGET" embedded_toolchain_works_without_go_on_path_and_repairs_cache
+      - name: Verify macOS 11 CLI deployment target
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          RUST_TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          python3 - "$RUST_TARGET" <<'PY'
+          import pathlib, re, subprocess, sys
+          binary = pathlib.Path("target") / sys.argv[1] / "debug/turbopack-cli"
+          headers = subprocess.check_output(["otool", "-l", str(binary)], text=True)
+          versions = re.findall(r"^\s*minos\s+(\S+)", headers, re.MULTILINE)
+          assert versions and all(version in ("11.0", "11.0.0") for version in versions), versions
+          PY
       - name: Build distributable CLI and notices
         if: github.event_name == 'workflow_dispatch'
         shell: bash
