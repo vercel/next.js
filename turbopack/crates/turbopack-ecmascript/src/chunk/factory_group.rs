@@ -1,29 +1,36 @@
 use std::{io::Write, ops::AddAssign};
 
 use anyhow::Result;
-use turbopack_core::code_builder::{CodeBuilder, ComposedCodeBuilder};
+use turbopack_core::{chunk::ModuleId, code_builder::CodeCompositionBuilder};
 
 use crate::{chunk::CodeModuleIdAndPath, utils::StringifyJs};
 
-/// Where [`write_module_factories`] writes to.
-pub trait ModuleFactorySink: Write + AddAssign<&'static str> {
-    fn push_factory(&mut self, item: &CodeModuleIdAndPath);
+/// A module factory placed in a chunk by [`write_module_factories`].
+pub trait ModuleFactory {
+    fn id(&self) -> &ModuleId;
+    fn strict(&self) -> bool;
 }
 
-impl ModuleFactorySink for CodeBuilder {
-    fn push_factory(&mut self, item: &CodeModuleIdAndPath) {
-        self.push_code(&item.code);
+impl ModuleFactory for CodeModuleIdAndPath {
+    fn id(&self) -> &ModuleId {
+        &self.id
+    }
+
+    fn strict(&self) -> bool {
+        self.strict
     }
 }
 
+/// Where [`write_module_factories`] writes to.
+pub trait ModuleFactorySink<F>: Write + AddAssign<&'static str> {
+    fn push_factory(&mut self, factory: &F);
+}
+
 /// References each factory's cells, so that the chunk's persisted representation doesn't copy
-/// them.
-impl ModuleFactorySink for ComposedCodeBuilder {
-    fn push_factory(&mut self, item: &CodeModuleIdAndPath) {
-        match &item.cells {
-            Some(cells) => self.push_code_cells(cells, &item.code),
-            None => self.push_code(&item.code),
-        }
+/// them, and doesn't depend on their bytes.
+impl ModuleFactorySink<CodeModuleIdAndPath> for CodeCompositionBuilder {
+    fn push_factory(&mut self, factory: &CodeModuleIdAndPath) {
+        self.push_code_cells(factory.cells, factory.code);
     }
 }
 
@@ -68,10 +75,10 @@ pub enum StrictFactoryMode {
 /// The chunk items must be sorted with all strict items first, see
 /// [`EcmascriptChunkContent::chunk_item_code_module_ids_and_paths`](crate::chunk::EcmascriptChunkContent::chunk_item_code_module_ids_and_paths).
 pub fn strict_factory_mode(
-    chunk_items: &[CodeModuleIdAndPath],
+    chunk_items: &[impl ModuleFactory],
     factories_have_directives: bool,
 ) -> StrictFactoryMode {
-    let strict = chunk_items.iter().filter(|item| item.strict).count();
+    let strict = chunk_items.iter().filter(|item| item.strict()).count();
     let non_strict = chunk_items.len() - strict;
     if strict == 0 {
         return StrictFactoryMode::Flat;
@@ -113,30 +120,30 @@ const fn mixed_prefix(supports_arrow_functions: bool) -> &'static str {
 /// a strict IIFE returning them.
 ///
 /// The chunk items must be sorted with all strict items first.
-pub fn write_module_factories(
-    code: &mut impl ModuleFactorySink,
-    chunk_items: &[CodeModuleIdAndPath],
+pub fn write_module_factories<F: ModuleFactory>(
+    code: &mut impl ModuleFactorySink<F>,
+    chunk_items: &[F],
     mode: StrictFactoryMode,
     supports_arrow_functions: bool,
 ) -> Result<()> {
     debug_assert!(
-        chunk_items.is_sorted_by_key(|item| !item.strict),
+        chunk_items.is_sorted_by_key(|item| !item.strict()),
         "strict chunk items must come first"
     );
     let mut in_strict_group = false;
     for (i, item) in chunk_items.iter().enumerate() {
-        if mode == StrictFactoryMode::Mixed && item.strict != in_strict_group {
+        if mode == StrictFactoryMode::Mixed && item.strict() != in_strict_group {
             if in_strict_group {
                 *code += MIXED_SUFFIX;
                 *code += ",";
             } else {
                 *code += mixed_prefix(supports_arrow_functions);
             }
-            in_strict_group = item.strict;
+            in_strict_group = item.strict();
         } else if i > 0 {
             *code += ",";
         }
-        write!(code, "{},", StringifyJs(&item.id))?;
+        write!(code, "{},", StringifyJs(item.id()))?;
         code.push_factory(item);
     }
     if in_strict_group {
@@ -147,8 +154,7 @@ pub fn write_module_factories(
 
 #[cfg(test)]
 mod tests {
-    use turbo_tasks::ReadRef;
-    use turbopack_core::chunk::ModuleId;
+    use turbopack_core::code_builder::CodeBuilder;
 
     use super::*;
 
@@ -177,19 +183,36 @@ mod tests {
         assert_threshold(ALL_STRICT_THRESHOLD, ALL_STRICT_PREFIX.len());
     }
 
-    fn item(id: u64, strict: bool) -> CodeModuleIdAndPath {
-        let mut code = CodeBuilder::new(false, false);
-        code += if strict { "s" } else { "n" };
-        CodeModuleIdAndPath {
+    struct TestFactory {
+        id: ModuleId,
+        strict: bool,
+    }
+
+    impl ModuleFactory for TestFactory {
+        fn id(&self) -> &ModuleId {
+            &self.id
+        }
+
+        fn strict(&self) -> bool {
+            self.strict
+        }
+    }
+
+    /// Writes each factory as `s` (strict) or `n`.
+    impl ModuleFactorySink<TestFactory> for CodeBuilder {
+        fn push_factory(&mut self, factory: &TestFactory) {
+            *self += if factory.strict { "s" } else { "n" };
+        }
+    }
+
+    fn item(id: u64, strict: bool) -> TestFactory {
+        TestFactory {
             id: ModuleId::Number(id),
-            code: ReadRef::new_owned(code.build()),
-            cells: None,
-            path: Default::default(),
             strict,
         }
     }
 
-    fn write(items: &[CodeModuleIdAndPath], factories_have_directives: bool) -> String {
+    fn write(items: &[TestFactory], factories_have_directives: bool) -> String {
         let mode = strict_factory_mode(items, factories_have_directives);
         let mut code = CodeBuilder::new(false, false);
         if let Some(prefix) = strict_chunk_prefix(mode) {
