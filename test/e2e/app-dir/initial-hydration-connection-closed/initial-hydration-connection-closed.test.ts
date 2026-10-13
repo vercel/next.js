@@ -17,10 +17,7 @@ describe('initial hydration after a truncated document', () => {
       const request = route.request()
       const url = new URL(request.url())
 
-      if (
-        request.resourceType() !== 'document' ||
-        url.pathname !== '/'
-      ) {
+      if (request.resourceType() !== 'document' || url.pathname !== '/') {
         await route.continue()
         return
       }
@@ -63,7 +60,7 @@ describe('initial hydration after a truncated document', () => {
     })
 
     await retry(async () => {
-      expect(getDocumentRequestCount()).toBeGreaterThanOrEqual(2)
+      expect(getDocumentRequestCount()).toBe(2)
       expect(
         await browser.eval('document.documentElement.dataset.hydrated')
       ).toBe('true')
@@ -79,7 +76,7 @@ describe('initial hydration after a truncated document', () => {
   it('does not loop if every initial document response is incomplete', async () => {
     let getDocumentRequestCount = () => 0
 
-    await next.browser('/', {
+    const browser = await next.browser('/', {
       async beforePageLoad(page: Playwright.Page) {
         getDocumentRequestCount = await routeDocumentThroughTruncation(page, {
           truncateEveryResponse: true,
@@ -94,5 +91,6 @@ describe('initial hydration after a truncated document', () => {
     // Give a possible accidental reload loop time to request another document.
     await waitFor(1000)
     expect(getDocumentRequestCount()).toBe(2)
+    await browser.close()
   })
 })
