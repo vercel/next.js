@@ -232,8 +232,9 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
       'A successful fix changes the report outcome; it does not erase the friction that qualified it.'
     )
     expect(content).toContain(
-      'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
+      'npx --no-install next internal agent-feedback-instructions'
     )
+    expect(content).not.toContain('node node_modules/next/dist/bin/next')
     expect(content).toContain('without piping or truncating its output')
     expect(content).toContain(
       'Before the final response, run one reporting pass'
