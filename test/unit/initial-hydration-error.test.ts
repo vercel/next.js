@@ -5,6 +5,14 @@ describe('isInitialHydrationConnectionClosed', () => {
     expect(isInitialHydrationConnectionClosed(new Error('Connection closed.'))).toBeTrue()
   })
 
+  it('recognizes the initial server data writer connection error', () => {
+    expect(
+      isInitialHydrationConnectionClosed(
+        new Error('The connection to the page was unexpectedly closed, possibly due to loss of Wi-Fi.')
+      )
+    ).toBeTrue()
+  })
+
   it('recognizes the minified production React error', () => {
     expect(
       isInitialHydrationConnectionClosed(
