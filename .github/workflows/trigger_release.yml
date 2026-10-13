@@ -29,6 +29,11 @@ on:
         default: false
         type: boolean
 
+      dryRun:
+        description: pass --dry-run to start-release.js (no tag, no release)
+        default: false
+        type: boolean
+
 name: Trigger Release
 
 env:
@@ -36,12 +41,17 @@ env:
   TURBO_VERSION: 2.11.7
   NODE_LTS_VERSION: 20
 
-permissions: {}
+# contents: read so the checkout/clone below also works when the repo is private.
+permissions:
+  contents: read
 
 jobs:
   start:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    # canary + preview (and the scheduled daily canary, where inputs are empty)
+    # run autonomously; stable, release-candidate and beta require approval.
+    environment: ${{ (github.event_name == 'schedule' || inputs.releaseType == 'canary' || inputs.releaseType == 'preview') && 'bot-autonomous' || 'bot-approved' }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
 
@@ -77,7 +87,9 @@ jobs:
 
       - name: Clone Next.js repository
         # We expect to find the latest tag on this branch in the last 1000 commits.
-        run: git clone https://github.com/vercel/next.js.git --depth=1000 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
+        run: git clone "https://x-access-token:${CLONE_TOKEN}@github.com/vercel/next.js.git" --depth=1000 --single-branch --branch "${GITHUB_REF_NAME:-canary}" .
+        env:
+          CLONE_TOKEN: ${{ github.token }}
 
       - name: Check token
         run: gh auth status
@@ -137,7 +149,7 @@ jobs:
         run: pnpm install
 
       - if: steps.new-commits.outputs.has_new_commits == 'true'
-        run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"
+        run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"${{ inputs.dryRun && ' --dry-run' || '' }}
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}

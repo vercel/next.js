@@ -17,6 +17,8 @@ jobs:
     name: Update and upload Rspack development test manifest
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    # The release app key lives in this environment (canary-only deploys).
+    environment: bot-autonomous
     permissions:
       # Used by `gh api` in test/update-bundler-manifest.js to list and download
       # test result artifacts.
@@ -87,6 +89,8 @@ jobs:
     name: Update and upload Rspack production test manifest
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    # The release app key lives in this environment (canary-only deploys).
+    environment: bot-autonomous
     permissions:
       # Used by `gh api` in test/update-bundler-manifest.js to list and download
       # test result artifacts.
