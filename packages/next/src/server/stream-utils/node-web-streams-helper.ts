@@ -22,6 +22,7 @@ import {
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 import type { AnyStream } from '../app-render/stream-ops'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -33,6 +34,28 @@ function voidCatch() {
 // Notably we cannot do the same for TextDecoder because it is stateful
 // when handling streaming data
 const encoder = new TextEncoder()
+
+/** Adapt a Node stream to the byte contract used by Web response consumers. */
+export function nodeToWebByteStream(
+  stream: import('node:stream').Readable
+): ReadableStream<Uint8Array> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      'Node.js Readable cannot be converted to a web stream in the edge runtime'
+    )
+  } else {
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    }
+    return Readable.toWeb(stream) as ReadableStream<Uint8Array>
+  }
+}
 
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
