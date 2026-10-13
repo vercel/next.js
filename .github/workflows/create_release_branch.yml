@@ -17,7 +17,6 @@ permissions: {}
 
 jobs:
   create:
-    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     # Creating a branch from a tag needs no approval: the tag's content is
     # already reviewed, and the new branch is protected like any other
