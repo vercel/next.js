@@ -226,11 +226,9 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     )
     expect(content).toContain('- Unexpected CLI, codemod, Skill')
     expect(content).toContain(
-      'Keep a qualifying candidate through the reporting pass even if you resolve or work around it.'
+      'Before the final response, keep qualifying candidates even after resolving or working around them, then run one reporting pass.'
     )
-    expect(content).toContain(
-      'A successful fix changes the report outcome; it does not erase the friction that qualified it.'
-    )
+    expect(content).not.toContain('A successful fix changes the report outcome')
     expect(content).toContain(
       'npx --no-install next internal agent-feedback-instructions'
     )
