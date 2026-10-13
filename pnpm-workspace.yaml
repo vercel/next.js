@@ -42,11 +42,13 @@ minimumReleaseAgeExclude:
   - '@types/react@19.2.18'
   - '@types/react-dom@19.2.4'
   - '@vercel/*'
-  - '@vitest/expect@5.0.1'
-  - '@vitest/pretty-format@5.0.1'
-  - '@vitest/snapshot@5.0.1'
-  - '@vitest/spy@5.0.1'
-  - '@vitest/utils@5.0.1'
+  - '@vitest/expect@5.0.4'
+  - '@vitest/mocker@5.0.4'
+  - '@vitest/pretty-format@5.0.4'
+  - '@vitest/runner@5.0.4'
+  - '@vitest/snapshot@5.0.4'
+  - '@vitest/spy@5.0.4'
+  - '@vitest/utils@5.0.4'
   - '@workflow/*'
   - babel-plugin-react-compiler
   - httpxy@0.5.5
@@ -58,3 +60,4 @@ minimumReleaseAgeExclude:
   - satori@0.33.5
   - scheduler
   - turbo
+  - vitest@5.0.4

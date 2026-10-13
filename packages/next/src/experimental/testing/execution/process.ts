@@ -69,6 +69,7 @@ export function runTestProcess(
       if (!failures.includes(error)) failures.push(error)
     }
     let closed = false
+    let groupTerminated = false
     let killTimer: ReturnType<typeof setTimeout> | undefined
 
     const disposeOutput = () => {
@@ -76,9 +77,13 @@ export function runTestProcess(
       child.stderr!.destroy()
     }
     const killGroup = () => {
-      if (!child.pid) return
+      if (!child.pid || groupTerminated) return
       try {
         process.kill(-child.pid, 'SIGKILL')
+        // The exit callback also reclaims descendants. After a deadline kill
+        // succeeds, signaling again can hit an empty group (EPERM on Darwin)
+        // or a reused group identity. A failed first signal is still retained.
+        groupTerminated = true
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
           recordFailure(

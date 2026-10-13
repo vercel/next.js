@@ -1,4 +1,5 @@
 import type { TestEntry } from '../contracts'
+import type { SnapshotUpdateMode } from '../assertions/snapshots'
 
 /** Source coordinates are one-based; omitted coordinates are unknown. */
 export interface SourceLocation {
@@ -80,7 +81,7 @@ export interface FileResult {
 }
 
 type EventPayload =
-  | { type: 'run-start' }
+  | { type: 'run-start'; snapshotUpdateMode?: SnapshotUpdateMode }
   | { type: 'file-start'; entry: TestEntry; revision?: string }
   | ({ type: 'case-start' } & Pick<
       CaseResult,
@@ -96,6 +97,19 @@ type EventPayload =
     >)
   | ({ type: 'case-end' } & CaseResult)
   | ({ type: 'file-end' } & FileResult)
+  | ({
+      type: 'snapshot-summary'
+      snapshot: {
+        filepath: string
+        added: number
+        matched: number
+        unchecked: number
+        uncheckedKeys: string[]
+        unmatched: number
+        updated: number
+        fileDeleted: boolean
+      }
+    } & ResultScope)
   | ({
       type: 'diagnostic'
       diagnostic: SerializedDiagnostic

@@ -234,10 +234,10 @@
     "@vercel/nft": "1.10.2",
     "@vercel/routing-utils": "5.2.0",
     "@vercel/turbopack-ecmascript-runtime": "*",
-    "@vitest/expect": "5.0.1",
-    "@vitest/snapshot": "5.0.1",
-    "@vitest/spy": "5.0.1",
-    "@vitest/utils": "5.0.1",
+    "@vitest/expect": "5.0.4",
+    "@vitest/snapshot": "5.0.4",
+    "@vitest/spy": "5.0.4",
+    "@vitest/utils": "5.0.4",
     "acorn": "8.14.0",
     "anser": "1.4.9",
     "arg": "4.1.0",
@@ -373,7 +373,8 @@
     "write-file-atomic": "7.0.1",
     "ws": "8.2.3",
     "zod": "3.25.76",
-    "zod-validation-error": "3.4.0"
+    "zod-validation-error": "3.4.0",
+    "expect-type": "1.4.0"
   },
   "keywords": [
     "react",

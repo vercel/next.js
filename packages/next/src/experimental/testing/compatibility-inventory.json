@@ -1,0 +1,5275 @@
+{
+  "version": 1,
+  "reference": {
+    "version": "5.0.4",
+    "revision": "6a11cf66f99fa610b7364363d5ca42b66d994f40",
+    "integrity": "sha512-z0WxZRV2Sg48wF0FSgMq3TFG8JS38/Qr96vZVZdX6+Em9raQTvnXQvdTFJe2m3rfyJnEHeHQ/snceIdi8D1pVg=="
+  },
+  "scope": "Published declaration inventory. An implemented export is not full behavioral/type conformance. Overloads, modifier combinations, configuration semantics, CLI, environments and tooling remain release blockers until separately evidenced.",
+  "subpaths": [
+    ".",
+    "./browser",
+    "./config",
+    "./globals",
+    "./import-meta",
+    "./importMeta",
+    "./internal/browser",
+    "./internal/traces",
+    "./jsdom",
+    "./node",
+    "./optional-runtime-types.js",
+    "./optional-types.js",
+    "./package.json",
+    "./runtime",
+    "./worker"
+  ],
+  "capabilities": [
+    {
+      "api": "config.appType",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.assetsInclude",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.base",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.build",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.builder",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.cacheDir",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.clearScreen",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.css",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.customLogger",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.define",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.dev",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.devtools",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.envDir",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.envPrefix",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.environments",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.esbuild",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.experimental",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.future",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.html",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.input",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.isBundled",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.json",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.legacy",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.logLevel",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.mode",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.optimizeDeps",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.oxc",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.plugins",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.preview",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.publicDir",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.resolve",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.root",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.server",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.ssr",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.alias",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.allowOnly",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.api",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.attachmentsDir",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.bail",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.benchmark",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.commands",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.connectTimeout",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.dependencySourcemaps",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.detailsPanelPosition",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.enabled",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.expect",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.headless",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.instances",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.locators",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.orchestratorScripts",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.provider",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.screenshotDirectory",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.screenshotFailures",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.testerHtmlPath",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.trace",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.traceView",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.trackUnhandledErrors",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.ui",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.browser.viewport",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.cache",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.chaiConfig",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.chaiConfig.includeStack",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.chaiConfig.showDiff",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.chaiConfig.truncateThreshold",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.changed",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.clearMocks",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.allowExternal",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.autoAttachSubprocess",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.changed",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.clean",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.cleanOnRerun",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.customProviderModule",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.enabled",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.exclude",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.excludeAfterRemap",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.htmlDir",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.ignoreClassMethods",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.include",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.instrumenter",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.processingConcurrency",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.provider",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.reportOnFailure",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.reporter",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.reportsDirectory",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.skipFull",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.thresholds",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.coverage.watermarks",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.css",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.dangerouslyIgnoreUnhandledErrors",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.deps",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.deps.interopDefault",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.deps.moduleDirectories",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.deps.optimizer",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.deps.web",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.detectAsyncLeaks",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.diff",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.dir",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.disableConsoleIntercept",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.env",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.environment",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.environmentOptions",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.exclude",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.execArgv",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.expandSnapshotDiff",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.expect",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.experimental",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.fakeTimers",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.fileParallelism",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.forceRerunTriggers",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.fsModuleCache",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.fsModuleCachePath",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.globalSetup",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.globals",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.hideSkippedTests",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.hookTimeout",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.include",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.includeSource",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.includeTaskLocation",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.injectCjsGlobals",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.inspect",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.inspectBrk",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.inspector",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.isolate",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.logHeapUsage",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.maxConcurrency",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.maxWorkers",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.mockReset",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.mode",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.name",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.onConsoleLog",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.onStackTrace",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.onUnhandledError",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.open",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.outputFile",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.passWithNoTests",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.pool",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.printConsoleTrace",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.projects",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.provide",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.repeats",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.reporters",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.resolveSnapshotPath",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.restoreMocks",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.retry",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.root",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.runner",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.sequence",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.sequence.concurrent",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.sequence.groupOrder",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.sequence.hooks",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.sequence.seed",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.sequence.sequencer",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.sequence.setupFiles",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.sequence.shuffle",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.server",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.setupFiles",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.sharedViteServer",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.silent",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.slowTestThreshold",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.snapshotEnvironment",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.snapshotFormat",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.snapshotSerializers",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.strictTags",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.tags",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.taskTitleValueFormatTruncate",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.teardownTimeout",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.testNamePattern",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.testTimeout",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.allowJs",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.build",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.checker",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.enabled",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.exclude",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.ignoreSourceErrors",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.include",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.only",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.spawnTimeout",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.typecheck.tsconfig",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.ui",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.uiBase",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.unstubEnvs",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.unstubGlobals",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.update",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.vmMemoryLimit",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.watch",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.test.watchTriggerPatterns",
+      "surface": "test configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.tsconfig",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "config.worker",
+      "surface": "configuration",
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/browser:BrowserCommands",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/browser:BrowserTraceEntryKind",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/browser:CDPSession",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/browser:FsOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/browser:MarkOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:ConfigEnv",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:Plugin",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:TestProjectConfiguration",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:TestProjectInlineConfiguration",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:TestTagDefinition",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:TestUserConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:UserProjectConfigExport",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:UserProjectConfigFn",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:UserWorkspaceConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:ViteUserConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:ViteUserConfigExport",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:ViteUserConfigFn",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:ViteUserConfigFnObject",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:ViteUserConfigFnPromise",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:WatcherTriggerPattern",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:configDefaults",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:coverageConfigDefaults",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:defaultBrowserPort",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:defaultExclude",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:defaultInclude",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:defineConfig",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(config: UserConfig): UserConfig",
+        "(config: Promise<UserConfig>): Promise<UserConfig>",
+        "(config: ViteUserConfigFnObject): ViteUserConfigFnObject",
+        "(config: ViteUserConfigFnPromise): ViteUserConfigFnPromise",
+        "(config: ViteUserConfigExport): ViteUserConfigExport"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:defineProject",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(config: UserWorkspaceConfig): UserWorkspaceConfig",
+        "(config: Promise<UserWorkspaceConfig>): Promise<UserWorkspaceConfig>",
+        "(config: UserProjectConfigFn): UserProjectConfigFn",
+        "(config: UserProjectConfigExport): UserProjectConfigExport"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/config:mergeConfig",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "<D extends Record<string, any>, O extends Record<string, any>>(defaults: D extends Function ? never : D, overrides: O extends Function ? never : O, isRoot?: boolean | undefined): Record<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/import-meta",
+      "surface": "ambient declarations",
+      "implemented": false,
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/importMeta",
+      "surface": "ambient declarations",
+      "implemented": false,
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:BrowserCommands",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:BrowserTraceEntryKind",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:CDPSession",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:DecodedMap",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:FileSpecification",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:FsOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:MarkOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:ParsedStack",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:SpyModule",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:StringifyOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:collectTests",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(specs: string[] | FileSpecification[], runner: VitestRunner): Promise<File[]>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:format",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(args: unknown[], options?: InspectOptions | undefined): string"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:getOriginalPosition",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(map: DecodedMap, needle: Needle): OriginalMapping | null"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:getSafeTimers",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(): SafeTimers"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:getType",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(value: unknown): string"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:inspect",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(obj: unknown, options?: InspectOptions | undefined): string"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:loadDiffConfig",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(config: SerializedConfig, moduleRunner: PublicModuleRunner): Promise<SerializedDiffOptions | undefined>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:loadSnapshotSerializers",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(config: SerializedConfig, moduleRunner: PublicModuleRunner): Promise<void>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:processError",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(_err: any, diffOptions?: DiffOptions | undefined, seen?: WeakSet<WeakKey> | undefined): TestError"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:setSafeTimers",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:setupCommonEnv",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(config: SerializedConfig): Promise<void>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:setupEnv",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(env: Record<string, any>, metaEnv: Record<string, any>): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:startCoverageInsideWorker",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(options: SerializedCoverageConfig, loader: RuntimeCoverageModuleLoader, runtimeOptions: { isolate: boolean; }): Promise<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:startTests",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(specs: string[] | FileSpecification[], runner: VitestRunner): Promise<File[]>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:stopCoverageInsideWorker",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(options: SerializedCoverageConfig, loader: RuntimeCoverageModuleLoader, runtimeOptions: { isolate: boolean; }): Promise<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:stringify",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(object: unknown, maxDepth?: number | undefined, { maxLength, filterNode, ...options }?: StringifyOptions | undefined): string"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/internal/browser:takeCoverageInsideWorker",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(options: SerializedCoverageConfig, loader: RuntimeCoverageModuleLoader): Promise<unknown>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:AgentReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ApiConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BaseCoverageOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BaseCoverageProvider",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BaseReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BaseSequencer",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BenchmarkUserOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserBuiltinProvider",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserCommand",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserCommandContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserConfigOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserConnectionError",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserInstanceOption",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserModuleMocker",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserOrchestrator",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserProvider",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserProviderCloseOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserProviderOption",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserScript",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserServerContribution",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserServerFactory",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserServerState",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserServerStateSession",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BrowserTraceViewOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BuiltinEnvironment",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BuiltinReporterOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:BuiltinReporters",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CDPSession",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CSSModuleScopeStrategy",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CacheKeyIdGenerator",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CacheKeyIdGeneratorContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CachedTestFileResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CliOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CliParseOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CoverageInstrumenter",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CoverageIstanbulOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CoverageOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CoverageProvider",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CoverageProviderModule",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CoverageReporter",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CoverageV8Options",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:CustomProviderOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:DefaultReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:DepsOptimizationOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:DotReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:EnvironmentOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ForksPoolWorker",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:GitNotFoundError",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:GithubActionsReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:HTMLOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:HangingProcessReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:InlineConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:InstrumenterOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:JUnitOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:JUnitReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:JsonAssertionResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:JsonOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:JsonReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:JsonTestResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:JsonTestResults",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:Logger",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:MinimalReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ModuleDiagnostic",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:OnServerRestartHandler",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:OnTestsRerunHandler",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ParentProjectBrowser",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:PluginHarness",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:Pool",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:PoolOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:PoolRunnerInitializer",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:PoolTask",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:PoolWorker",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ProcessPool",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ProjectBrowser",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ProjectConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:Report",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ReportContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ReportedHookContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:Reporter",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ReportersMap",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ResolveSnapshotPathHandler",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ResolveSnapshotPathHandlerContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ResolvedBrowserOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ResolvedConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ResolvedCoverageOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ResolvedProjectConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:RunnerTask",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:RunnerTaskResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:RunnerTaskResultPack",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:RunnerTestCase",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:RunnerTestFile",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:RunnerTestSuite",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:RuntimeConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:SequenceHooks",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:SequenceSetupFiles",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:SerializedError",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:SerializedTestProject",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:SuiteNameTemplateVariables",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TapFlatReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TapReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TaskOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestCase",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestCollection",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestDiagnostic",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestExecutionType",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestModule",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestModuleState",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestProject",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestResultFailed",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestResultPassed",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestResultPending",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestResultSkipped",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestRunEndReason",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestRunResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestSequencer",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestSequencerConstructor",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestSpecification",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestSpecificationOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestState",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestSuite",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestSuiteState",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestUserConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TestsNotFoundError",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ThreadsPoolWorker",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ToMatchScreenshotComparators",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:ToMatchScreenshotOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TypeCheckCollectLineNumbers",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TypeCheckCollectLines",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TypeCheckContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TypeCheckErrorInfo",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TypeCheckRawErrorsMap",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TypeCheckRootAndTarget",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TypecheckConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:TypecheckPoolWorker",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:UIOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:UserWorkspaceConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:VerboseReporter",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:Vite",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:Vitest",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:VitestEnvironment",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:VitestOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:VitestPackageInstaller",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:VitestPluginContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:VitestRunMode",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:VmForksPoolWorker",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:VmThreadsPoolWorker",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:WatcherTriggerPattern",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:WorkerContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:WorkerRequest",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:WorkerResponse",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:_BrowserNames",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:createCLI",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(options?: CliParseOptions | undefined): CAC"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:createDebugger",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(namespace: `vitest:${string}`): Debugger | undefined"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:createMethodsRPC",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(project: TestProject, methodsOptions?: MethodsOptions | undefined): RuntimeRPC"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:createViteLogger",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(console: Logger, level?: LogLevel | undefined, options?: LoggerOptions | undefined): Logger"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:createViteServer",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(inlineConfig?: ResolvedConfig | InlineConfig | undefined): Promise<ViteDevServer>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:createVitest",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(options: CliOptions, viteOverrides?: UserConfig | undefined, vitestOptions?: VitestOptions | undefined): Promise<Vitest>",
+        "(mode: \"test\", options: CliOptions, viteOverrides?: UserConfig | undefined, vitestOptions?: VitestOptions | undefined): Promise<Vitest>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:disableDefaultColors",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:distDir",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:esbuildVersion",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:escapeTestName",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(label: string, dynamic: boolean): string"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:experimental_getRunnerTask",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(entity: TestCase): Test<object>",
+        "(entity: TestSuite): Suite",
+        "(entity: TestModule): File",
+        "(entity: TestCase | TestModule | TestSuite): Test<object> | Suite | File"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:generateFileHash",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(file: string, projectName: string | undefined, meta?: HashMeta | undefined): string"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:getFilePoolName",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(project: TestProject): Pool"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:isCSSRequest",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(request: string): boolean"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:isFileLoadingAllowed",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(config: ResolvedConfig, filePath: string): boolean"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:isFileServingAllowed",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(config: ResolvedConfig, url: string): boolean",
+        "(url: string, server: ViteDevServer): boolean"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:isValidApiRequest",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(config: ResolvedConfig, req: IncomingMessage): boolean"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:parseAst",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(sourceText: string, options?: ParserOptions | null | undefined, filename?: string | undefined): Program"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:parseAstAsync",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(sourceText: string, options?: ParserOptions | null | undefined, filename?: string | undefined): Promise<Program>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:parseCLI",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(argv: string | string[], config?: CliParseOptions | undefined): { filter: string[]; options: CliOptions; }"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:registerConsoleShortcuts",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(ctx: Vitest, stdin: ReadStream | undefined, stdout: WriteStream | Writable): () => void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:resolveApiServerConfig",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(config: UserConfig, defaultPort: number, logger: Logger): ApiConfig"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:resolveConfig",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(options?: UserConfig | undefined, viteOverrides?: UserConfig | undefined, pluginsHarness?: PluginHarness | undefined): Promise<ResolvedConfig>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:resolveFsAllow",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(projectRoot: string, rootConfigFile: string | false | undefined): string[]"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:rolldownVersion",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:rollupVersion",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:rootDir",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:startVitest",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(cliFilters?: string[] | undefined, options?: CliOptions | undefined, viteOverrides?: UserConfig | undefined, vitestOptions?: VitestOptions | undefined): Promise<...>",
+        "(mode: \"test\", cliFilters?: string[] | undefined, options?: CliOptions | undefined, viteOverrides?: UserConfig | undefined, vitestOptions?: VitestOptions | undefined): Promise<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:version",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/node:viteVersion",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/optional-runtime-types.js:Disposable",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/optional-types.js:happyDomTypes",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/optional-types.js:jsdomTypes",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/runtime:Environment",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/runtime:EnvironmentReturn",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/runtime:SerializedConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/runtime:SnapshotEnvironment",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/runtime:VitestRunner",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/runtime:VitestSnapshotEnvironment",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/runtime:VmEnvironmentReturn",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/runtime:builtinEnvironments",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/runtime:populateGlobal",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(global: any, win: any, options?: PopulateOptions | undefined): { keys: Set<string>; skipKeys: string[]; originals: Map<string | symbol, PropertyDescriptor>; }"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/worker:init",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(worker: Options): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/worker:runBaseTests",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(method: \"run\" | \"collect\", state: WorkerGlobalState, traces: Traces): Promise<void>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest/worker:setupEnvironment",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(context: WorkerSetupContext): Promise<() => Promise<void>>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:AfterSuiteRunMeta",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:AssertType",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:Assertion",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:AsymmetricMatchersContaining",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:AsyncMatcherResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BaselineData",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:Bench",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchCompareOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchFn",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchFnOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchFromSource",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchRegistration",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchRegistrationInput",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchRunOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchStorage",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchmarkGroup",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BenchmarkProvider",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BrowserTesterOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BrowserTraceArtifact",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:BrowserUI",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:CancelReason",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ContextRPC",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ContextTestEnvironment",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:DeeplyAllowMatchers",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:DiffOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:DomainMatchResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:DomainSnapshotAdapter",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:EvaluatedModules",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ExpectPollOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ExpectStatic",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ExpectTypeOf",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:Experimental",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ExternalResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:FailureScreenshotArtifact",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ImportDuration",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:JestAssertion",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:LabelColor",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:Matcher",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MatcherResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MatcherState",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:Matchers",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MatchersObject",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:Mock",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockInstance",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockResultIncomplete",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockResultReturn",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockResultThrow",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockSettledResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockSettledResultFulfilled",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockSettledResultIncomplete",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockSettledResultRejected",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:Mocked",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockedClass",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockedFunction",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:MockedObject",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ModuleGraphData",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:OnTestFailedHandler",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:OnTestFinishedHandler",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ParsedStack",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:ProvidedContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunMode",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunnerRPC",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunnerTask",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunnerTaskBase",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunnerTaskEventPack",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunnerTaskResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunnerTaskResultPack",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunnerTestCase",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunnerTestFile",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RunnerTestSuite",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RuntimeConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:RuntimeRPC",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SerializedConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SerializedCoverageConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SerializedError",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SerializedRootConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SerializedTestSpecification",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SnapshotData",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SnapshotMatchOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SnapshotResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SnapshotSerializer",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SnapshotStateOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SnapshotSummary",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SnapshotUpdateState",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:Snapshots",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SuiteAPI",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SuiteCollector",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SuiteFactory",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SuiteOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:SyncMatcherResult",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TaskCustomOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TaskMeta",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TaskState",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestAPI",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestAnnotation",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestAnnotationArtifact",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestAnnotationLocation",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestArtifact",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestArtifactBase",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestArtifactLocation",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestArtifactRegistry",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestAttachment",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestBenchmark",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestBenchmarkTask",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestContext",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestError",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestExecutionMethod",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestFunction",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestRunner",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestRunnerConfig",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestTagDefinition",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestTags",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TestTryOptions",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:TransformResultWithSource",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:UncheckedSnapshot",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:UserConsoleLog",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:VisualRegressionArtifact",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:VitestTestRunner",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:VitestUtils",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:WebSocketEvents",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:WebSocketHandlers",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:WebSocketRPC",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:WorkerGlobalState",
+      "surface": "public type",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:afterAll",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<ExtraContext = object>(this: unknown, fn: AfterAllListener<ExtraContext>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:afterEach",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<ExtraContext = object>(fn: AfterEachListener<ExtraContext>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:aroundAll",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "<ExtraContext = object>(this: unknown, fn: AroundAllListener<ExtraContext>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:aroundEach",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "<ExtraContext = object>(fn: AroundEachListener<ExtraContext>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:assert",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "(expression: any, message?: string | undefined): asserts expression"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:assertType",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": ["<T>(value: T): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:beforeAll",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<ExtraContext = object>(this: unknown, fn: BeforeAllListener<ExtraContext>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:beforeEach",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<ExtraContext = object>(fn: BeforeEachListener<ExtraContext>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:chai",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:createExpect",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "(test?: Test<object> | TaskPopulated | undefined): ExpectStatic"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.concurrent",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.each",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends any[] | [any]>(cases: readonly T[]): EachFunctionReturn<T>",
+        "<T extends ReadonlyArray<any>>(cases: readonly T[]): EachFunctionReturn<ExtractEachCallbackArgs<T>>",
+        "<T>(cases: readonly T[]): EachFunctionReturn<T[]>",
+        "(args_0: TemplateStringsArray, ...args: any[]): EachFunctionReturn<any[]>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.fn",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: Record<\"concurrent\" | \"only\" | \"skip\" | \"todo\" | \"shuffle\", any>, name: string | Function, options: SuiteOptions, fn?: SuiteFactory<object> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.for",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(cases: readonly T[]): EachFunctionReturn<[T]>",
+        "(args_0: TemplateStringsArray, ...args: any[]): EachFunctionReturn<any[]>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.only",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.runIf",
+      "surface": "authoring member",
+      "overloads": ["(condition: any): ChainableSuiteAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.shuffle",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.skip",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.skipIf",
+      "surface": "authoring member",
+      "overloads": ["(condition: any): ChainableSuiteAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:describe.todo",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<T>(actual: T, message?: string | undefined): Assertion<void, T>",
+        "(val: any, message?: string | undefined): Assertion"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.addEqualityTesters",
+      "surface": "authoring member",
+      "overloads": ["(testers: Tester[]): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.addSnapshotSerializer",
+      "surface": "authoring member",
+      "overloads": ["(plugin: Plugin): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.any",
+      "surface": "authoring member",
+      "overloads": ["(constructor: unknown): any"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.anything",
+      "surface": "authoring member",
+      "overloads": ["(): any"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.arrayContaining",
+      "surface": "authoring member",
+      "overloads": ["<T = unknown>(expected: DeeplyAllowMatchers<T>[]): any"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.assert",
+      "surface": "authoring member",
+      "overloads": [
+        "(expression: any, message?: string | undefined): asserts expression"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.assertions",
+      "surface": "authoring member",
+      "overloads": ["(expected: number): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.closeTo",
+      "surface": "authoring member",
+      "overloads": ["(expected: number, precision?: number | undefined): any"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.extend",
+      "surface": "authoring member",
+      "overloads": ["(expects: MatchersObject<MatcherState>): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.fail",
+      "surface": "authoring member",
+      "overloads": [
+        "(message?: string | undefined): never",
+        "(actual: any, expected: any, message?: string | undefined, operator?: string | undefined): never"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.getState",
+      "surface": "authoring member",
+      "overloads": ["(): MatcherState"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.hasAssertions",
+      "surface": "authoring member",
+      "overloads": ["(): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.not",
+      "surface": "authoring member",
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.objectContaining",
+      "surface": "authoring member",
+      "overloads": ["<T = any>(expected: DeeplyAllowMatchers<T>): any"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.poll",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(actual: (options: { signal: AbortSignal; }) => T, options?: ExpectPollOptions | undefined): PromisifyAssertion<Awaited<T>>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.schemaMatching",
+      "surface": "authoring member",
+      "overloads": ["(schema: unknown): any"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.setState",
+      "surface": "authoring member",
+      "overloads": ["(state: Partial<MatcherState>): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.soft",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(actual: T, message?: string | undefined): Assertion<void, T>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.stringContaining",
+      "surface": "authoring member",
+      "overloads": ["(expected: string): any"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.stringMatching",
+      "surface": "authoring member",
+      "overloads": ["(expected: string | RegExp): any"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.toBeOneOf",
+      "surface": "authoring member",
+      "overloads": ["<T>(sample: readonly T[] | ReadonlySet<T>): any"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.toSatisfy",
+      "surface": "authoring member",
+      "overloads": [
+        "(matcher: (value: any) => boolean, message?: string | undefined): any"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expect.unreachable",
+      "surface": "authoring member",
+      "overloads": ["(message?: string | undefined): never"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:expectTypeOf",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<Actual>(actual: Actual): PositiveExpectTypeOf<Actual>",
+        "<Actual>(): PositiveExpectTypeOf<Actual>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:inject",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "<T extends keyof ProvidedContext & string>(key: T): ProvidedContext[T]"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.afterAll",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: unknown, fn: AfterAllListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.afterEach",
+      "surface": "authoring member",
+      "overloads": [
+        "(fn: AfterEachListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.aroundAll",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: unknown, fn: AroundAllListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.aroundEach",
+      "surface": "authoring member",
+      "overloads": [
+        "(fn: AroundEachListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.beforeAll",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: unknown, fn: BeforeAllListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.beforeEach",
+      "surface": "authoring member",
+      "overloads": [
+        "(fn: BeforeEachListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.concurrent",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.describe",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.each",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends any[] | [any]>(cases: readonly T[]): EachFunctionReturn<T>",
+        "<T extends ReadonlyArray<any>>(cases: readonly T[]): EachFunctionReturn<ExtractEachCallbackArgs<T>>",
+        "<T>(cases: readonly T[]): EachFunctionReturn<T[]>",
+        "(args_0: TemplateStringsArray, ...args: any[]): EachFunctionReturn<any[]>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.extend",
+      "surface": "authoring member",
+      "overloads": [
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: WorkerScopeFixtureOptions, fn: BuilderFixtureFn<T, object>): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: FileScopeFixtureOptions, fn: BuilderFixtureFn<T, object>): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: TestScopeFixtureOptions, fn: BuilderFixtureFn<T, TestScopeContext<object>>): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, fn: BuilderFixtureFn<T, TestScopeContext<object>>): TestAPI<AddBuilderTest<object, K, T>>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: WorkerScopeFixtureOptions, value: T extends (...args: any[]) => any ? never : T): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: FileScopeFixtureOptions, value: T extends (...args: any[]) => any ? never : T): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: TestScopeFixtureOptions, value: T extends (...args: any[]) => any ? never : T): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, value: T extends (...args: any[]) => any ? never : T): TestAPI<AddBuilderTest<object, K, T>>",
+        "<T extends ScopedFixturesDef>(fixtures: ScopedFixturesObject<T, object>): TestAPI<([Exclude<T[\"$test\"], undefined>] extends [never] ? object : Exclude<...>) & ([...] extends [...] ? object : Exclude<...>) & ([...] extends [...] ? object : Exclude<...>) & object>",
+        "<T extends Record<string, any> = object>(fixtures: Fixtures<T, object>): TestAPI<{ [K in keyof T]: K extends keyof T ? T[K] : K extends never ? object[K] : never; }>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.fails",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.fn",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: Record<\"concurrent\" | \"only\" | \"skip\" | \"todo\" | \"fails\", any>, name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<object> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.for",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(cases: readonly T[]): TestForFunctionReturn<T, TestContext & object>",
+        "(strings: TemplateStringsArray, ...values: any[]): TestForFunctionReturn<any, TestContext & object>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.only",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.override",
+      "surface": "authoring member",
+      "overloads": [
+        "<K extends never>(name: K, options: FixtureOptions, fn: BuilderFixtureFn<object[K], object & TestContext>): TestAPI<object>",
+        "<K extends never>(name: K, fn: BuilderFixtureFn<object[K], object & TestContext>): TestAPI<object>",
+        "<K extends never>(name: K, options: FixtureOptions, value: object[K] extends (...args: any[]) => any ? never : object[K]): TestAPI<object>",
+        "<K extends never>(name: K, value: object[K] extends (...args: any[]) => any ? never : object[K]): TestAPI<object>",
+        "(fixtures: object): TestAPI<object>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.runIf",
+      "surface": "authoring member",
+      "overloads": ["(condition: any): ChainableTestAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.scoped",
+      "surface": "authoring member",
+      "overloads": ["(fixtures: object): TestAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.skip",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.skipIf",
+      "surface": "authoring member",
+      "overloads": ["(condition: any): ChainableTestAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.suite",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:it.todo",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:onTestFailed",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "(fn: OnTestFailedHandler, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:onTestFinished",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "(fn: OnTestFinishedHandler, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:recordArtifact",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": [
+        "<Artifact extends TestArtifact>(task: Test<object>, artifact: Artifact): Promise<Artifact>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:should",
+      "surface": "runtime export",
+      "implemented": false,
+      "overloads": ["(): Should"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.concurrent",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.each",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends any[] | [any]>(cases: readonly T[]): EachFunctionReturn<T>",
+        "<T extends ReadonlyArray<any>>(cases: readonly T[]): EachFunctionReturn<ExtractEachCallbackArgs<T>>",
+        "<T>(cases: readonly T[]): EachFunctionReturn<T[]>",
+        "(args_0: TemplateStringsArray, ...args: any[]): EachFunctionReturn<any[]>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.fn",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: Record<\"concurrent\" | \"only\" | \"skip\" | \"todo\" | \"shuffle\", any>, name: string | Function, options: SuiteOptions, fn?: SuiteFactory<object> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.for",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(cases: readonly T[]): EachFunctionReturn<[T]>",
+        "(args_0: TemplateStringsArray, ...args: any[]): EachFunctionReturn<any[]>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.only",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.runIf",
+      "surface": "authoring member",
+      "overloads": ["(condition: any): ChainableSuiteAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.shuffle",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.skip",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.skipIf",
+      "surface": "authoring member",
+      "overloads": ["(condition: any): ChainableSuiteAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:suite.todo",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.afterAll",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: unknown, fn: AfterAllListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.afterEach",
+      "surface": "authoring member",
+      "overloads": [
+        "(fn: AfterEachListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.aroundAll",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: unknown, fn: AroundAllListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.aroundEach",
+      "surface": "authoring member",
+      "overloads": [
+        "(fn: AroundEachListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.beforeAll",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: unknown, fn: BeforeAllListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.beforeEach",
+      "surface": "authoring member",
+      "overloads": [
+        "(fn: BeforeEachListener<object>, timeout?: number | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.concurrent",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.describe",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.each",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends any[] | [any]>(cases: readonly T[]): EachFunctionReturn<T>",
+        "<T extends ReadonlyArray<any>>(cases: readonly T[]): EachFunctionReturn<ExtractEachCallbackArgs<T>>",
+        "<T>(cases: readonly T[]): EachFunctionReturn<T[]>",
+        "(args_0: TemplateStringsArray, ...args: any[]): EachFunctionReturn<any[]>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.extend",
+      "surface": "authoring member",
+      "overloads": [
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: WorkerScopeFixtureOptions, fn: BuilderFixtureFn<T, object>): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: FileScopeFixtureOptions, fn: BuilderFixtureFn<T, object>): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: TestScopeFixtureOptions, fn: BuilderFixtureFn<T, TestScopeContext<object>>): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, fn: BuilderFixtureFn<T, TestScopeContext<object>>): TestAPI<AddBuilderTest<object, K, T>>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: WorkerScopeFixtureOptions, value: T extends (...args: any[]) => any ? never : T): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: FileScopeFixtureOptions, value: T extends (...args: any[]) => any ? never : T): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, options: TestScopeFixtureOptions, value: T extends (...args: any[]) => any ? never : T): TestAPI<...>",
+        "<K extends string, T extends K extends never ? object[K] : unknown>(name: K, value: T extends (...args: any[]) => any ? never : T): TestAPI<AddBuilderTest<object, K, T>>",
+        "<T extends ScopedFixturesDef>(fixtures: ScopedFixturesObject<T, object>): TestAPI<([Exclude<T[\"$test\"], undefined>] extends [never] ? object : Exclude<...>) & ([...] extends [...] ? object : Exclude<...>) & ([...] extends [...] ? object : Exclude<...>) & object>",
+        "<T extends Record<string, any> = object>(fixtures: Fixtures<T, object>): TestAPI<{ [K in keyof T]: K extends keyof T ? T[K] : K extends never ? object[K] : never; }>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.fails",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.fn",
+      "surface": "authoring member",
+      "overloads": [
+        "(this: Record<\"concurrent\" | \"only\" | \"skip\" | \"todo\" | \"fails\", any>, name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<object> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.for",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(cases: readonly T[]): TestForFunctionReturn<T, TestContext & object>",
+        "(strings: TemplateStringsArray, ...values: any[]): TestForFunctionReturn<any, TestContext & object>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.only",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.override",
+      "surface": "authoring member",
+      "overloads": [
+        "<K extends never>(name: K, options: FixtureOptions, fn: BuilderFixtureFn<object[K], object & TestContext>): TestAPI<object>",
+        "<K extends never>(name: K, fn: BuilderFixtureFn<object[K], object & TestContext>): TestAPI<object>",
+        "<K extends never>(name: K, options: FixtureOptions, value: object[K] extends (...args: any[]) => any ? never : object[K]): TestAPI<object>",
+        "<K extends never>(name: K, value: object[K] extends (...args: any[]) => any ? never : object[K]): TestAPI<object>",
+        "(fixtures: object): TestAPI<object>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.runIf",
+      "surface": "authoring member",
+      "overloads": ["(condition: any): ChainableTestAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.scoped",
+      "surface": "authoring member",
+      "overloads": ["(fixtures: object): TestAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.skip",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.skipIf",
+      "surface": "authoring member",
+      "overloads": ["(condition: any): ChainableTestAPI<object>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.suite",
+      "surface": "authoring member",
+      "overloads": [
+        "<OverrideExtraContext extends object = object>(name: string | Function, fn?: SuiteFactory<OverrideExtraContext> | undefined, options?: number | undefined): SuiteCollector<...>",
+        "<OverrideExtraContext extends object = object>(name: string | Function, options: SuiteOptions, fn?: SuiteFactory<OverrideExtraContext> | undefined): SuiteCollector<...>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:test.todo",
+      "surface": "authoring member",
+      "overloads": [
+        "<ExtraContext extends object>(name: string | Function, fn?: TestFunction<ExtraContext> | undefined, options?: number | undefined): void",
+        "<ExtraContext extends object>(name: string | Function, options?: TestCollectorOptions | undefined, fn?: TestFunction<ExtraContext> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.advanceTimersByTime",
+      "surface": "authoring member",
+      "overloads": ["(ms: number): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.advanceTimersByTimeAsync",
+      "surface": "authoring member",
+      "overloads": ["(ms: number): Promise<VitestUtils>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.advanceTimersToNextFrame",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.advanceTimersToNextTimer",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.advanceTimersToNextTimerAsync",
+      "surface": "authoring member",
+      "overloads": ["(): Promise<VitestUtils>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.clearAllMocks",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.clearAllTimers",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.defineHelper",
+      "surface": "authoring member",
+      "overloads": ["<F extends (...args: any) => any>(fn: F): F"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.doMock",
+      "surface": "authoring member",
+      "overloads": [
+        "(path: string, factory?: ModuleMockFactoryWithHelper | ModuleMockOptions | undefined): Disposable",
+        "<T>(module: Promise<T>, factory?: ModuleMockOptions | ModuleMockFactoryWithHelper<T> | undefined): Disposable"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.doUnmock",
+      "surface": "authoring member",
+      "overloads": ["(path: string): void", "(module: Promise<unknown>): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.dynamicImportSettled",
+      "surface": "authoring member",
+      "overloads": ["(): Promise<void>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.fn",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends Procedure | Constructable = Procedure>(originalImplementation?: T | undefined): Mock<T>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.getMockedSystemTime",
+      "surface": "authoring member",
+      "overloads": ["(): Date | null"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.getRealSystemTime",
+      "surface": "authoring member",
+      "overloads": ["(): number"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.getTimerCount",
+      "surface": "authoring member",
+      "overloads": ["(): number"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.hoisted",
+      "surface": "authoring member",
+      "overloads": ["<T>(factory: () => T): T"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.importActual",
+      "surface": "authoring member",
+      "overloads": ["<T = ESModuleExports>(path: string): Promise<T>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.importMock",
+      "surface": "authoring member",
+      "overloads": [
+        "<T = ESModuleExports>(path: string): Promise<MaybeMockedDeep<T>>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.isFakeTimers",
+      "surface": "authoring member",
+      "overloads": ["(): boolean"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.isMockFunction",
+      "surface": "authoring member",
+      "overloads": ["(fn: any): fn is MockInstance<Procedure>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.isWhenChain",
+      "surface": "authoring member",
+      "overloads": ["(input: object): input is When<Procedure>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.mock",
+      "surface": "authoring member",
+      "overloads": [
+        "(path: string, factory?: ModuleMockFactoryWithHelper | ModuleMockOptions | undefined): void",
+        "<T>(module: Promise<T>, factory?: ModuleMockOptions | ModuleMockFactoryWithHelper<T> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.mockObject",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(value: T, options?: ModuleMockOptions | undefined): MaybeMockedDeep<T>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.mocked",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(item: T, deep?: false | undefined): MaybeMocked<T>",
+        "<T>(item: T, deep: true): MaybeMockedDeep<T>",
+        "<T>(item: T, options: { partial?: false | undefined; deep?: false | undefined; }): MaybeMocked<T>",
+        "<T>(item: T, options: { partial?: false | undefined; deep: true; }): MaybeMockedDeep<T>",
+        "<T>(item: T, options: { partial: true; deep?: false | undefined; }): MaybePartiallyMocked<T>",
+        "<T>(item: T, options: { partial: true; deep: true; }): MaybePartiallyMockedDeep<T>",
+        "<T>(item: T): MaybeMocked<T>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.resetAllMocks",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.resetConfig",
+      "surface": "authoring member",
+      "overloads": ["(): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.resetModules",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.restoreAllMocks",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.runAllTicks",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.runAllTimers",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.runAllTimersAsync",
+      "surface": "authoring member",
+      "overloads": ["(): Promise<VitestUtils>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.runOnlyPendingTimers",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.runOnlyPendingTimersAsync",
+      "surface": "authoring member",
+      "overloads": ["(): Promise<VitestUtils>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.setConfig",
+      "surface": "authoring member",
+      "overloads": ["(config: Partial<RuntimeConfig>): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.setSystemTime",
+      "surface": "authoring member",
+      "overloads": ["(time: string | number | Date): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.setTimerTickMode",
+      "surface": "authoring member",
+      "overloads": [
+        "(mode: \"manual\" | \"nextTimerAsync\"): VitestUtils",
+        "(mode: \"interval\", interval?: number | undefined): VitestUtils"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.spyOn",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends object, S extends Properties<Required<T>>>(object: T, key: S, accessor: \"get\"): Mock<() => T[S]>",
+        "<T extends object, G extends Properties<Required<T>>>(object: T, key: G, accessor: \"set\"): Mock<(arg: T[G]) => void>",
+        "<T extends object, M extends Classes<Required<T>> | Methods<Required<T>>>(object: T, key: M): Required<T>[M] extends Procedure | Constructable ? Mock<...> : never",
+        "<T extends object, K extends keyof any>(object: T, key: SpyOnMethodKey<T, K>): Mock<SpyOnMethod<T, K>>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.stubEnv",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends string>(name: T, value: T extends \"PROD\" | \"DEV\" | \"SSR\" ? boolean | undefined : string | undefined): VitestUtils"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.stubGlobal",
+      "surface": "authoring member",
+      "overloads": [
+        "(name: string | number | symbol, value: unknown): VitestUtils"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.unmock",
+      "surface": "authoring member",
+      "overloads": ["(path: string): void", "(module: Promise<unknown>): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.unstubAllEnvs",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.unstubAllGlobals",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.useFakeTimers",
+      "surface": "authoring member",
+      "overloads": ["(config?: Config$1 | undefined): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.useRealTimers",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.waitFor",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(callback: WaitForCallback<T>, options?: number | WaitForOptions | undefined): Promise<T>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.waitUntil",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(callback: WaitUntilCallback<T>, options?: number | WaitUntilOptions | undefined): Promise<Truthy<T>>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vi.when",
+      "surface": "authoring member",
+      "overloads": [
+        "<Fn extends Procedure>(spy: Fn | Mock<Fn>, options?: WhenOptions<Fn> | undefined): When<Fn>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest",
+      "surface": "runtime export",
+      "implemented": true,
+      "overloads": [],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.advanceTimersByTime",
+      "surface": "authoring member",
+      "overloads": ["(ms: number): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.advanceTimersByTimeAsync",
+      "surface": "authoring member",
+      "overloads": ["(ms: number): Promise<VitestUtils>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.advanceTimersToNextFrame",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.advanceTimersToNextTimer",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.advanceTimersToNextTimerAsync",
+      "surface": "authoring member",
+      "overloads": ["(): Promise<VitestUtils>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.clearAllMocks",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.clearAllTimers",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.defineHelper",
+      "surface": "authoring member",
+      "overloads": ["<F extends (...args: any) => any>(fn: F): F"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.doMock",
+      "surface": "authoring member",
+      "overloads": [
+        "(path: string, factory?: ModuleMockFactoryWithHelper | ModuleMockOptions | undefined): Disposable",
+        "<T>(module: Promise<T>, factory?: ModuleMockOptions | ModuleMockFactoryWithHelper<T> | undefined): Disposable"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.doUnmock",
+      "surface": "authoring member",
+      "overloads": ["(path: string): void", "(module: Promise<unknown>): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.dynamicImportSettled",
+      "surface": "authoring member",
+      "overloads": ["(): Promise<void>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.fn",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends Procedure | Constructable = Procedure>(originalImplementation?: T | undefined): Mock<T>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.getMockedSystemTime",
+      "surface": "authoring member",
+      "overloads": ["(): Date | null"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.getRealSystemTime",
+      "surface": "authoring member",
+      "overloads": ["(): number"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.getTimerCount",
+      "surface": "authoring member",
+      "overloads": ["(): number"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.hoisted",
+      "surface": "authoring member",
+      "overloads": ["<T>(factory: () => T): T"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.importActual",
+      "surface": "authoring member",
+      "overloads": ["<T = ESModuleExports>(path: string): Promise<T>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.importMock",
+      "surface": "authoring member",
+      "overloads": [
+        "<T = ESModuleExports>(path: string): Promise<MaybeMockedDeep<T>>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.isFakeTimers",
+      "surface": "authoring member",
+      "overloads": ["(): boolean"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.isMockFunction",
+      "surface": "authoring member",
+      "overloads": ["(fn: any): fn is MockInstance<Procedure>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.isWhenChain",
+      "surface": "authoring member",
+      "overloads": ["(input: object): input is When<Procedure>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.mock",
+      "surface": "authoring member",
+      "overloads": [
+        "(path: string, factory?: ModuleMockFactoryWithHelper | ModuleMockOptions | undefined): void",
+        "<T>(module: Promise<T>, factory?: ModuleMockOptions | ModuleMockFactoryWithHelper<T> | undefined): void"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.mockObject",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(value: T, options?: ModuleMockOptions | undefined): MaybeMockedDeep<T>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.mocked",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(item: T, deep?: false | undefined): MaybeMocked<T>",
+        "<T>(item: T, deep: true): MaybeMockedDeep<T>",
+        "<T>(item: T, options: { partial?: false | undefined; deep?: false | undefined; }): MaybeMocked<T>",
+        "<T>(item: T, options: { partial?: false | undefined; deep: true; }): MaybeMockedDeep<T>",
+        "<T>(item: T, options: { partial: true; deep?: false | undefined; }): MaybePartiallyMocked<T>",
+        "<T>(item: T, options: { partial: true; deep: true; }): MaybePartiallyMockedDeep<T>",
+        "<T>(item: T): MaybeMocked<T>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.resetAllMocks",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.resetConfig",
+      "surface": "authoring member",
+      "overloads": ["(): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.resetModules",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.restoreAllMocks",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.runAllTicks",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.runAllTimers",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.runAllTimersAsync",
+      "surface": "authoring member",
+      "overloads": ["(): Promise<VitestUtils>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.runOnlyPendingTimers",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.runOnlyPendingTimersAsync",
+      "surface": "authoring member",
+      "overloads": ["(): Promise<VitestUtils>"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.setConfig",
+      "surface": "authoring member",
+      "overloads": ["(config: Partial<RuntimeConfig>): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.setSystemTime",
+      "surface": "authoring member",
+      "overloads": ["(time: string | number | Date): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.setTimerTickMode",
+      "surface": "authoring member",
+      "overloads": [
+        "(mode: \"manual\" | \"nextTimerAsync\"): VitestUtils",
+        "(mode: \"interval\", interval?: number | undefined): VitestUtils"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.spyOn",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends object, S extends Properties<Required<T>>>(object: T, key: S, accessor: \"get\"): Mock<() => T[S]>",
+        "<T extends object, G extends Properties<Required<T>>>(object: T, key: G, accessor: \"set\"): Mock<(arg: T[G]) => void>",
+        "<T extends object, M extends Classes<Required<T>> | Methods<Required<T>>>(object: T, key: M): Required<T>[M] extends Procedure | Constructable ? Mock<...> : never",
+        "<T extends object, K extends keyof any>(object: T, key: SpyOnMethodKey<T, K>): Mock<SpyOnMethod<T, K>>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.stubEnv",
+      "surface": "authoring member",
+      "overloads": [
+        "<T extends string>(name: T, value: T extends \"PROD\" | \"DEV\" | \"SSR\" ? boolean | undefined : string | undefined): VitestUtils"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.stubGlobal",
+      "surface": "authoring member",
+      "overloads": [
+        "(name: string | number | symbol, value: unknown): VitestUtils"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.unmock",
+      "surface": "authoring member",
+      "overloads": ["(path: string): void", "(module: Promise<unknown>): void"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.unstubAllEnvs",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.unstubAllGlobals",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.useFakeTimers",
+      "surface": "authoring member",
+      "overloads": ["(config?: Config$1 | undefined): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.useRealTimers",
+      "surface": "authoring member",
+      "overloads": ["(): VitestUtils"],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.waitFor",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(callback: WaitForCallback<T>, options?: number | WaitForOptions | undefined): Promise<T>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.waitUntil",
+      "surface": "authoring member",
+      "overloads": [
+        "<T>(callback: WaitUntilCallback<T>, options?: number | WaitUntilOptions | undefined): Promise<Truthy<T>>"
+      ],
+      "classification": "Missing or unverified"
+    },
+    {
+      "api": "vitest:vitest.when",
+      "surface": "authoring member",
+      "overloads": [
+        "<Fn extends Procedure>(spy: Fn | Mock<Fn>, options?: WhenOptions<Fn> | undefined): When<Fn>"
+      ],
+      "classification": "Missing or unverified"
+    }
+  ]
+}

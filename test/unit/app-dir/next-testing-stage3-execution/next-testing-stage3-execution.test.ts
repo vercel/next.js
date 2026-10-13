@@ -98,14 +98,14 @@ describe('coverage lifecycle admission and completion', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
-  it('retains the development-only snapshot boundary for production artifacts', async () => {
+  it('rejects a mismatched production snapshot profile before launching a worker', async () => {
     await expect(
       executeWithEnvironment(
         { ...artifact, profile: { ...artifact.profile, mode: 'production' } },
         { ...executionOptions, updateSnapshots: true },
         { ...process.env, NODE_ENV: 'production' }
       )
-    ).rejects.toThrow('development Node or RSC')
+    ).rejects.toThrow('Compiled test artifact identity or profile mismatch')
   })
 
   it('requires an explicit supported request and awaited consumer', () => {

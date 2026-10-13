@@ -2,5 +2,12 @@
 // One bundle keeps the matcher and spy registries shared without a Vitest runtime.
 export * from '@vitest/expect'
 export * as spies from '@vitest/spy'
-export { SnapshotClient, addSerializer, getSerializers } from '@vitest/snapshot'
+export {
+  SnapshotClient,
+  addSerializer,
+  getSerializers,
+  stripSnapshotIndentation,
+} from '@vitest/snapshot'
 export { NodeSnapshotEnvironment } from '@vitest/snapshot/environment'
+
+export { expectTypeOf } from 'expect-type'

@@ -19,7 +19,9 @@ import {
 } from './reporting/reporter'
 import {
   commitSnapshotUpdates,
+  resolveSnapshotUpdateMode,
   type SnapshotUpdate,
+  type SnapshotUpdateMode,
 } from './assertions/snapshots'
 
 interface PreparedTest {
@@ -34,6 +36,7 @@ export interface RunTestsOptions {
   reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
   coverage?: boolean
   updateSnapshots?: boolean
+  snapshotUpdateMode?: SnapshotUpdateMode
   testNamePattern?: string
   /** Upper bound on fresh file workers; compilers and browser servers stay serial. */
   maxWorkers?: number
@@ -53,7 +56,13 @@ export async function runTests(
   options: RunTestsOptions
 ) {
   const maxWorkers = parseMaxWorkers(options.maxWorkers ?? 1)
-  if (options.coverage && options.updateSnapshots) {
+  const snapshotUpdateMode = resolveSnapshotUpdateMode(options)
+  options = {
+    ...options,
+    snapshotUpdateMode,
+    updateSnapshots: snapshotUpdateMode !== 'none',
+  }
+  if (options.coverage && snapshotUpdateMode === 'all') {
     throw new Error('Coverage cannot be combined with snapshot updates.')
   }
   if (
@@ -83,7 +92,10 @@ export async function runTests(
     const snapshotSources = selected.flatMap((project) =>
       project.entries.map((entry) => entry.file)
     )
-    if (new Set(snapshotSources).size !== snapshotSources.length) {
+    if (
+      snapshotUpdateMode === 'all' &&
+      new Set(snapshotSources).size !== snapshotSources.length
+    ) {
       throw new Error(
         'Snapshot updates require a single selected profile per source file. Use --project to avoid conflicting snapshot writers.'
       )
@@ -358,6 +370,7 @@ export async function runTests(
         entry,
         setupFiles: project.setupFiles,
         updateSnapshots: options.updateSnapshots ?? false,
+        snapshotUpdateMode,
         ...(project.profile.environment === 'browser' && options.updateSnapshots
           ? {
               onSnapshotUpdates: async (
@@ -506,6 +519,7 @@ export async function runTests(
           maxWorkers,
           isolatedProfile: true,
           updateSnapshots: options.updateSnapshots,
+          snapshotUpdateMode,
           coverage: options.coverage,
           testNamePattern: options.testNamePattern,
         },
@@ -537,7 +551,7 @@ export async function runTests(
   }
 
   try {
-    onEvent({ ...envelope(), type: 'run-start' })
+    onEvent({ ...envelope(), type: 'run-start', snapshotUpdateMode })
     const selected = projects.filter((project) => project.entries.length > 0)
     const modes = new Set(selected.map((project) => project.profile.mode))
     if (!selected.length) {

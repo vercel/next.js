@@ -291,6 +291,8 @@
     "typescript": "6.0.2",
     "typescript-eslint": "8.46.0",
     "unfetch": "4.2.0",
+    "vite": "8.3.4",
+    "vitest": "5.0.4",
     "wait-port": "0.2.2",
     "webpack": "5.98.0",
     "webpack-bundle-analyzer": "4.7.0",
@@ -328,6 +330,16 @@
         "dependencies": {
           "@babel/plugin-proposal-private-methods": "^7.18.6"
         }
+      },
+      "octokit@3.1.0": {
+        "dependencies": {
+          "@octokit/graphql": "7.0.1"
+        }
+      },
+      "@octokit/plugin-paginate-graphql@4.0.0": {
+        "dependencies": {
+          "@octokit/graphql": "7.0.1"
+        }
       }
     },
     "patchedDependencies": {
@@ -343,7 +355,7 @@
       "@types/node@20.17.7": "patches/@types__node@20.17.7.patch",
       "@vercel/agent-eval@2.2.1": "patches/@vercel__agent-eval@2.2.1.patch",
       "@vercel/og@1.0.1": "patches/@vercel__og@1.0.1.patch",
-      "@vitest/snapshot@5.0.1": "patches/@vitest__snapshot@5.0.1.patch"
+      "@vitest/snapshot@5.0.4": "patches/@vitest__snapshot@5.0.4.patch"
     }
   }
 }

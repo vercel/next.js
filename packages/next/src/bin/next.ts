@@ -712,6 +712,19 @@ program
     '--filter <substring...>',
     'Select files containing any given substring.'
   )
+  .option(
+    '-t, --testNamePattern <pattern>',
+    'Run tests whose full suite and test name matches this regular expression.'
+  )
+  .option(
+    '--reporter <name...>',
+    'Result reporter: default, json, junit, or blob.'
+  )
+  .option('--outputFile <path>', 'Write a machine result report to this file.')
+  .option(
+    '--merge-reports <directory>',
+    'Merge Next test result blobs without executing tests.'
+  )
   .action(async (directory, options) => {
     try {
       const { nextTestRunner } = await import('../cli/next-test-runner.js')

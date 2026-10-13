@@ -6,7 +6,11 @@ export {
   SnapshotClient,
   addSerializer,
   getSerializers,
+  stripSnapshotIndentation,
   type SnapshotStateOptions,
   type SnapshotResult,
 } from '@vitest/snapshot'
 export { NodeSnapshotEnvironment } from '@vitest/snapshot/environment'
+
+export { expectTypeOf } from 'expect-type'
+export type { ExpectTypeOf } from 'expect-type'

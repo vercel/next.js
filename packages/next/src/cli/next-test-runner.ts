@@ -1,4 +1,9 @@
 import { realpath } from 'fs/promises'
+import {
+  createMachineReporter,
+  parseResultReporters,
+  mergeResultReports,
+} from '../experimental/testing/reporting/machine'
 import path from 'path'
 import { loadTestConfig } from '../experimental/testing/config'
 import { discoverTests } from '../experimental/testing/discovery'
@@ -23,8 +28,12 @@ export interface NextTestRunnerOptions {
   coverage?: boolean
   project?: string
   filter?: string[]
+  testNamePattern?: string
   maxWorkers?: string
   shard?: string
+  reporter?: string[]
+  outputFile?: string
+  mergeReports?: string
 }
 
 export async function nextTestRunner(
@@ -39,7 +48,11 @@ export async function nextTestRunner(
       options.update ||
       options.coverage ||
       options.maxWorkers !== undefined ||
-      options.shard !== undefined
+      options.shard !== undefined ||
+      options.testNamePattern !== undefined ||
+      options.reporter !== undefined ||
+      options.outputFile !== undefined ||
+      options.mergeReports !== undefined
     ) {
       throw new Error(
         '--capabilities cannot be combined with execution or listing options.'
@@ -67,7 +80,64 @@ export async function nextTestRunner(
   }
   if (options.watch) requireTestCapability('watch')
   if (options.update) requireTestCapability('snapshotUpdate')
+  if (options.list && options.testNamePattern !== undefined) {
+    throw new Error(
+      '--list currently lists files only; testNamePattern requires test collection.'
+    )
+  }
+  if (options.testNamePattern !== undefined) {
+    try {
+      new RegExp(options.testNamePattern)
+    } catch {
+      throw new Error(
+        'Invalid testNamePattern: expected a valid regular expression.'
+      )
+    }
+  }
+  const reporters = parseResultReporters(options.reporter)
+  if (
+    (options.watch || options.list) &&
+    reporters.some((name) => name !== 'default')
+  ) {
+    throw new Error(
+      'Machine reporters currently require a one-shot run; watch and collection reports remain unimplemented.'
+    )
+  }
+  if (options.outputFile && !reporters.some((name) => name !== 'default')) {
+    throw new Error('--outputFile requires a machine reporter.')
+  }
+  if (
+    options.outputFile &&
+    reporters.filter((name) => name !== 'default').length !== 1
+  ) {
+    throw new Error('--outputFile requires exactly one machine reporter.')
+  }
   const projectDir = await realpath(path.resolve(directory ?? '.'))
+  if (options.mergeReports !== undefined) {
+    if (
+      options.watch ||
+      options.list ||
+      options.update ||
+      options.coverage ||
+      options.project ||
+      options.filter ||
+      options.testNamePattern ||
+      options.maxWorkers ||
+      options.shard
+    ) {
+      throw new Error(
+        '--merge-reports cannot be combined with test execution or selection options.'
+      )
+    }
+    const status = await mergeResultReports(options.mergeReports, {
+      projectDir,
+      reporters,
+      outputFile: options.outputFile,
+    })
+    process.exitCode =
+      status === 'passed' ? 0 : status === 'cancelled' ? 130 : 1
+    return
+  }
   const config = await loadTestConfig(projectDir)
   const maxWorkers = parseMaxWorkers(options.maxWorkers ?? config.maxWorkers)
   const shard =
@@ -119,6 +189,12 @@ export async function nextTestRunner(
       )
     }
   }
+  const machine = createMachineReporter({
+    projectDir,
+    reporters,
+    outputFile: options.outputFile,
+  })
+  const human = reporters.includes('default')
   const controller = new AbortController()
   const isTTY =
     process.stdout.isTTY === true &&
@@ -135,9 +211,11 @@ export async function nextTestRunner(
   const forceColor = process.env.FORCE_COLOR
   const reporter = {
     version: process.env.__NEXT_VERSION ?? 'unknown',
-    writeError: (text: string) => terminal.write(text, 'stderr'),
-    terminal,
-    isTTY,
+    writeError: (text: string) => {
+      if (human) terminal.write(text, 'stderr')
+    },
+    terminal: human ? terminal : undefined,
+    isTTY: human && isTTY,
     columns: process.stdout.columns,
     onError(error: unknown) {
       reporterFailure = error
@@ -166,6 +244,8 @@ export async function nextTestRunner(
         output: process.stdout,
         project: options.project,
         files: options.filter,
+        testNamePattern: options.testNamePattern,
+        snapshotUpdateMode: process.env.CI ? 'none' : 'new',
         signal: controller.signal,
         write: (text) => terminal.write(text),
         reporter,
@@ -180,14 +260,24 @@ export async function nextTestRunner(
     const { runTests } = await import('../experimental/testing/orchestrator.js')
     const summary = await runTests(projectDir, projects, {
       signal: controller.signal,
-      write: (text) => terminal.write(text),
+      write: (text) => {
+        if (human) terminal.write(text)
+      },
       reporter,
+      onEvent: machine.onEvent,
       updateSnapshots: options.update ?? false,
+      snapshotUpdateMode: options.update
+        ? 'all'
+        : process.env.CI
+          ? 'none'
+          : 'new',
+      testNamePattern: options.testNamePattern,
       coverage: options.coverage ?? false,
       maxWorkers,
       isolateProjects: true,
     })
     if (reporterFailure) throw reporterFailure
+    await machine.finish()
     if (summary.status !== 'passed') {
       process.exitCode = summary.status === 'cancelled' ? 130 : 1
     }
@@ -195,6 +285,7 @@ export async function nextTestRunner(
     process.removeListener('SIGINT', cancel)
     process.removeListener('SIGTERM', cancel)
     terminal.dispose()
+    machine.dispose()
     await runLock?.unlock()
   }
 }

@@ -41,6 +41,7 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       signal: controller.signal,
       testNamePattern: request.testNamePattern,
       updateSnapshots: request.updateSnapshots,
+      snapshotUpdateMode: request.snapshotUpdateMode,
       maxWorkers: request.maxWorkers,
       coverage: request.coverage,
       execute: broker.execute,

@@ -363,23 +363,20 @@ describe('Next-owned assertion primitives', () => {
     await scope!.finalize()
   })
 
-  it('rejects implicit new-snapshot mode before touching skipped snapshots', async () => {
+  it('stages new-snapshot mode without changing existing snapshots during setup', async () => {
     await runtime.finishFile()
     const path = join(directory, '__snapshots__', 'example.test.ts.snap')
     const before = await readFile(path, 'utf8')
-    for (const updateSnapshot of ['new'] as const) {
-      await assert.rejects(
-        createAssertionRuntime({
-          testPath: join(directory, 'example.test.ts'),
-          getCurrentAttempt: () => undefined,
-          snapshotOptions: {
-            updateSnapshot,
-            snapshotEnvironment: new NodeSnapshotEnvironment(),
-          },
-        }),
-        /new mode is unsupported/
-      )
-    }
+    const local = await createAssertionRuntime({
+      testPath: join(directory, 'example.test.ts'),
+      getCurrentAttempt: () => undefined,
+      snapshotOptions: {
+        updateSnapshot: 'new',
+        snapshotEnvironment: new NodeSnapshotEnvironment(),
+      },
+    })
+    await local.finishFile()
+    assert.deepEqual(local.takeSnapshotUpdates(), [])
     assert.equal(await readFile(path, 'utf8'), before)
   })
 

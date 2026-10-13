@@ -278,6 +278,102 @@ describe('Next test process ownership', () => {
     }
   )
 
+  it('does not signal a successfully terminated process group again on child exit', async () => {
+    const controller = new AbortController()
+    const original = process.kill.bind(process)
+    const groups = new Set<number>()
+    let descendant: number | undefined
+    const signal = jest
+      .spyOn(process, 'kill')
+      .mockImplementation((pid, value) => {
+        if (pid < 0 && value === 'SIGKILL') {
+          if (groups.has(pid))
+            throw Object.assign(new Error('kill EPERM'), { code: 'EPERM' })
+          const result = original(pid, value)
+          groups.add(pid)
+          return result
+        }
+        return original(pid, value)
+      })
+    try {
+      const result = await runTestProcess(worker, {
+        ...options,
+        input: 'descendant-busy',
+        signal: controller.signal,
+        onMessage(message) {
+          descendant = (message as { descendant: number }).descendant
+          controller.abort()
+        },
+      })
+      expect(result.reason).toBe('cancelled')
+      expect(groups.size).toBe(1)
+      expect(
+        signal.mock.calls.filter(
+          ([pid, value]) => pid < 0 && value === 'SIGKILL'
+        )
+      ).toHaveLength(1)
+      await retry(async () => {
+        let running = false
+        try {
+          original(descendant!, 0)
+          running =
+            process.platform !== 'linux' ||
+            !readFileSync(`/proc/${descendant}/stat`, 'utf8').includes(') Z ')
+        } catch (error) {
+          if (!['ESRCH', 'ENOENT'].includes(error.code)) throw error
+        }
+        expect(running).toBe(false)
+      })
+    } finally {
+      signal.mockRestore()
+      if (descendant)
+        try {
+          original(descendant, 'SIGKILL')
+        } catch (error) {
+          if (error.code !== 'ESRCH') throw error
+        }
+    }
+  })
+
+  it('retains a failed first group signal even when fallback cleanup succeeds', async () => {
+    const controller = new AbortController()
+    const original = process.kill.bind(process)
+    const failure = Object.assign(new Error('kill EPERM'), { code: 'EPERM' })
+    let rejected = false
+    let descendant: number | undefined
+    const signal = jest
+      .spyOn(process, 'kill')
+      .mockImplementation((pid, value) => {
+        if (pid < 0 && value === 'SIGKILL' && !rejected) {
+          rejected = true
+          throw failure
+        }
+        return original(pid, value)
+      })
+    try {
+      await expect(
+        runTestProcess(worker, {
+          ...options,
+          input: 'descendant-busy',
+          signal: controller.signal,
+          onMessage(message) {
+            descendant = (message as { descendant: number }).descendant
+            controller.abort()
+          },
+        })
+      ).rejects.toBe(failure)
+      expect(rejected).toBe(true)
+    } finally {
+      signal.mockRestore()
+      if (descendant)
+        try {
+          original(descendant, 'SIGKILL')
+        } catch (error) {
+          if (error.code !== 'ESRCH') throw error
+        }
+    }
+  })
+
   it('isolates evaluated globals and modules in parallel and successive files', async () => {
     const messages: { count: number; pid: number }[] = []
     const run = () =>

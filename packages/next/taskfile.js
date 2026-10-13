@@ -2920,6 +2920,10 @@ export async function experimental_testing(task, opts) {
       dev: opts.dev,
     })
     .target('dist/experimental/testing')
+  await fs.copyFile(
+    join(__dirname, 'src/experimental/testing/compatibility-inventory.json'),
+    join(__dirname, 'dist/experimental/testing/compatibility-inventory.json')
+  )
 }
 
 export async function experimental_testmode(task, opts) {

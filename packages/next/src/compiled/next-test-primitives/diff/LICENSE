@@ -1,4 +1,4 @@
-@vitest/pretty-format@5.0.1
+@vitest/pretty-format@5.0.4
 
 MIT License
 
@@ -23,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-@vitest/utils@5.0.1
+@vitest/utils@5.0.4
 
 MIT License
 
@@ -75,7 +75,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 
-tinyrainbow@3.1.1
+tinyrainbow@3.2.0
 
 MIT License
 

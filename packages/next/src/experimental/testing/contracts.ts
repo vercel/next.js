@@ -9,7 +9,7 @@ import type {
 } from './coverage/types'
 import type { WorkStoreContext } from '../../server/async-storage/work-store'
 import type { NextConfigComplete } from '../../server/config-shared'
-import type { SnapshotUpdate } from './assertions/snapshots'
+import type { SnapshotUpdate, SnapshotUpdateMode } from './assertions/snapshots'
 
 /** Requested Next compilation context, not a replacement compiler configuration. */
 export interface TestProfile {
@@ -189,8 +189,9 @@ export interface ExecuteTestOptions {
   projectDir: string
   entry: TestEntry
   setupFiles: string[]
-  /** Explicit update for this run only. Omitted/false must never write snapshots. */
+  /** Legacy explicit-all request. A mode, when supplied, owns this run's policy. */
   updateSnapshots?: boolean
+  snapshotUpdateMode?: SnapshotUpdateMode
   /** Parent-only staging callback; the outer resource owner authorizes commit. */
   onSnapshotUpdates?: (file: string, updates: SnapshotUpdate[]) => Promise<void>
   testNamePattern?: string

@@ -14,7 +14,10 @@ import {
 import { serializeDiagnostic } from './reporting/diagnostics'
 import {
   commitSnapshotUpdates,
+  combineSnapshotUpdatePlans,
+  resolveSnapshotUpdateMode,
   type SnapshotUpdate,
+  type SnapshotUpdateMode,
 } from './assertions/snapshots'
 
 export type WatchProcessRequest =
@@ -25,6 +28,7 @@ export type WatchProcessRequest =
       projects: DiscoveredTestProject[]
       testNamePattern?: string
       updateSnapshots?: boolean
+      snapshotUpdateMode?: SnapshotUpdateMode
       maxWorkers?: number
       coverage?: boolean
       /** One-shot mixed-profile orchestration; never inherit another mode. */
@@ -105,6 +109,14 @@ export async function runWatchProcess(
     report?: boolean
   }
 ): Promise<WatchProcessResult> {
+  if (request.operation === 'run') {
+    const snapshotUpdateMode = resolveSnapshotUpdateMode(request)
+    request = {
+      ...request,
+      snapshotUpdateMode,
+      updateSnapshots: snapshotUpdateMode !== 'none',
+    }
+  }
   if (process.platform === 'win32')
     throw new Error('Test watch requires POSIX process ownership.')
   options.signal.throwIfAborted()
@@ -428,8 +440,9 @@ export async function runWatchProcess(
         !message.value.result.unsafeCleanup
       ) {
         try {
+          const plans = combineSnapshotUpdatePlans(snapshotPlans.values())
           options.onSnapshotCommitStart?.()
-          for (const { file, updates, sourceHash } of snapshotPlans.values()) {
+          for (const { file, updates, sourceHash } of plans) {
             await commitSnapshotUpdates(file, updates, {
               signal: options.signal,
               sourceHash,

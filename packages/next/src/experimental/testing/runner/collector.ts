@@ -6,6 +6,7 @@ import {
 import type { FixtureDefinition, FixtureDefinitions } from './fixtures'
 import { assertScopeActive } from './async-context'
 import { formatWithOptions, inspect } from 'node:util'
+import { AsyncLocalStorage } from 'node:async_hooks'
 
 export type TestMode = 'run' | 'skip' | 'todo' | 'only'
 export type HookName = 'beforeAll' | 'afterAll' | 'beforeEach' | 'afterEach'
@@ -138,8 +139,8 @@ export interface TestDeclaration<T extends object = {}> {
 }
 
 export interface SuiteDeclaration {
-  (name: Name, fn: () => void, timeout?: number): void
-  (name: Name, options: TestOptions, fn: () => void): void
+  (name: Name, fn: () => unknown, timeout?: number): void
+  (name: Name, options: TestOptions, fn: () => unknown): void
   (name: Name): void
   readonly skip: SuiteDeclaration
   readonly only: SuiteDeclaration
@@ -261,8 +262,11 @@ function templateCases(strings: readonly string[], values: readonly unknown[]) {
 /** One collector per evaluated file. No loader or Vitest runtime is started here. */
 export function createCollector(fileId: string) {
   const root = suite(fileId, '', 'run')
-  let current = root
+  const suiteStorage = new AsyncLocalStorage<TestSuite>()
+  const pending: Promise<PromiseSettledResult<unknown>>[] = []
   let closed = false
+
+  const currentSuite = () => suiteStorage.getStore() ?? root
 
   function assertCollecting() {
     assertScopeActive()
@@ -289,6 +293,7 @@ export function createCollector(fileId: string) {
       ...extra: unknown[]
     ) => {
       assertCollecting()
+      const current = currentSuite()
       if (extra.length) unsupported('additional declaration arguments')
       name = formatName(name)
       const id = `${current.id}/${current.children.length}`
@@ -324,17 +329,16 @@ export function createCollector(fileId: string) {
           inheritedOptions
         )
         current.children.push(child)
-        const parent = current
-        current = child
-        try {
-          const result = fn ? fn() : undefined
-          if (result && typeof result.then === 'function') {
-            // Observe rejection even though asynchronous declaration is unsupported.
-            Promise.resolve(result).catch(() => {})
-            unsupported('asynchronous describe callbacks')
-          }
-        } finally {
-          current = parent
+        const result = fn ? suiteStorage.run(child, () => fn()) : undefined
+        if (result && typeof result.then === 'function') {
+          // Observe immediately, but report after every nested collection job
+          // settles. The suite identity follows awaits without changing siblings.
+          pending.push(
+            Promise.resolve(result).then(
+              (value) => ({ status: 'fulfilled' as const, value }),
+              (reason) => ({ status: 'rejected' as const, reason })
+            )
+          )
         }
       } else {
         let options: TestOptions
@@ -385,6 +389,7 @@ export function createCollector(fileId: string) {
         if (key === 'extend' && kind === 'test')
           return (extra: Record<string, FixtureDefinition>) => {
             assertScopeActive()
+            const current = currentSuite()
             if (!extra || typeof extra !== 'object' || Array.isArray(extra))
               throw new TypeError('test.extend requires a fixture object.')
             const extended = extendFixtures(fixtures, extra)
@@ -398,6 +403,7 @@ export function createCollector(fileId: string) {
         if (key === 'override' && kind === 'test')
           return (extra: Record<string, FixtureDefinition>) => {
             assertCollecting()
+            const current = currentSuite()
             if (!extra || typeof extra !== 'object' || Array.isArray(extra))
               throw new TypeError('test.override requires a fixture object.')
             const inherited = fixturesFor(current)
@@ -508,7 +514,7 @@ export function createCollector(fileId: string) {
     if (typeof fn !== 'function')
       throw new TypeError(`${name} requires a callback.`)
     if (timeout !== undefined) validateOptions({ timeout })
-    current.hooks[name].push({ fn, timeout })
+    currentSuite().hooks[name].push({ fn, timeout })
   }
 
   return {
@@ -523,6 +529,18 @@ export function createCollector(fileId: string) {
       beforeEach: hook('beforeEach'),
       afterEach: hook('afterEach'),
     },
+    async settle() {
+      const errors: unknown[] = []
+      // Awaiting a suite can register more async suites. Read the live queue
+      // length until all collection work, including rejected siblings, finishes.
+      for (let index = 0; index < pending.length; index++) {
+        const result = await pending[index]
+        if (result.status === 'rejected') errors.push(result.reason)
+      }
+      if (errors.length === 1) throw errors[0]
+      if (errors.length > 1)
+        throw new AggregateError(errors, 'Test suite collection failed.')
+    },
     close() {
       closed = true
       return root
@@ -530,18 +548,19 @@ export function createCollector(fileId: string) {
   }
 }
 
+export function hasFocusedTests(node: TestSuite | TestCase): boolean {
+  if (node.mode === 'skip' || node.mode === 'todo') return false
+  return (
+    node.mode === 'only' ||
+    (node.type === 'suite' && node.children.some(hasFocusedTests))
+  )
+}
+
 export function selectedCases(
   root: TestSuite
 ): Map<TestCase, 'run' | 'skip' | 'todo'> {
   const cases = new Map<TestCase, 'run' | 'skip' | 'todo'>()
-  function hasOnly(node: TestSuite | TestCase): boolean {
-    if (node.mode === 'skip' || node.mode === 'todo') return false
-    return (
-      node.mode === 'only' ||
-      (node.type === 'suite' && node.children.some(hasOnly))
-    )
-  }
-  const focused = hasOnly(root)
+  const focused = hasFocusedTests(root)
   function visit(
     node: TestSuite | TestCase,
     inherited: TestMode,

@@ -179,5 +179,32 @@ export function onTestFailed(handler: TestBody, timeout?: number) {
   if (!context) throw new Error('onTestFailed requires an active test.')
   context.onTestFailed(handler, timeout)
 }
-export const assertType = () => unsupported('assertType')
-export const expectTypeOf = () => unsupported('expectTypeOf')
+// These are type assertions: TypeScript checks their generics. They neither
+// inspect runtime values nor initialize another test/controller runtime.
+export function assertType<T>(value: T): void {
+  void value
+}
+export { expectTypeOf } from '../../compiled/next-test-primitives'
+export type { ExpectTypeOf } from '../../compiled/next-test-primitives'
+
+export const assert: ReturnType<typeof getAssertionRuntime>['assert'] =
+  new Proxy(
+    function (
+      ...args: Parameters<ReturnType<typeof getAssertionRuntime>['assert']>
+    ) {
+      return Reflect.apply(getAssertionRuntime().assert, undefined, args)
+    } as ReturnType<typeof getAssertionRuntime>['assert'],
+    {
+      get(_target, key) {
+        const value = Reflect.get(getAssertionRuntime().assert, key)
+        return typeof value === 'function'
+          ? (...args: unknown[]) =>
+              Reflect.apply(
+                Reflect.get(getAssertionRuntime().assert, key),
+                undefined,
+                args
+              )
+          : value
+      },
+    }
+  )

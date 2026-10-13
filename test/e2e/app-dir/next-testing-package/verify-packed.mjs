@@ -63,12 +63,26 @@ const npmExecutable = (process.env.PATH ?? '')
 assert(npmExecutable, 'npm must be available on PATH')
 const npmCli = realpathSync(npmExecutable)
 assert(npmCli.endsWith('/npm-cli.js'), 'Expected the Node npm CLI')
+const pnpmExecutable = (process.env.PATH ?? '')
+  .split(delimiter)
+  .map((directory) => join(directory, 'pnpm'))
+  .find((file) => existsSync(file))
+assert(pnpmExecutable, 'pnpm must be available for workspace-aware packing')
+// Keep the existing Node supervisor as the owner of the CLI and its entire
+// process group, including standalone pnpm executables that embed Node.
+const pnpmWrapper = `const cp = require('node:child_process'); const result = cp.spawnSync(${JSON.stringify(pnpmExecutable)}, process.argv.slice(1), { stdio: 'inherit' }); if (result.error) throw result.error; process.exit(result.status ?? 1);`
 let commandId = 0
 async function run(command, args, cwd = consumer, extraEnv = {}) {
   const name = `${++commandId}-${command.replaceAll('/', '_')}`
-  assert(command === process.execPath || command === 'npm')
+  assert(
+    command === process.execPath || command === 'npm' || command === 'pnpm'
+  )
   const result = await runOwnedNode(
-    command === 'npm' ? [npmCli, ...args] : args,
+    command === 'npm'
+      ? [npmCli, ...args]
+      : command === 'pnpm'
+        ? ['-e', pnpmWrapper, ...args]
+        : args,
     {
       cwd,
       env: { ...env, ...extraEnv },
@@ -100,12 +114,13 @@ async function run(command, args, cwd = consumer, extraEnv = {}) {
 async function pack(directory) {
   const result = JSON.parse(
     await run(
-      'npm',
-      ['pack', '--ignore-scripts', '--json', '--pack-destination', packs],
-      directory
+      'pnpm',
+      ['pack', '--json', '--pack-destination', packs],
+      directory,
+      { npm_config_ignore_scripts: 'true' }
     )
   )
-  return join(packs, result[0].filename)
+  return resolve(packs, result[0]?.filename ?? result.filename)
 }
 const version = JSON.parse(
   readFileSync(join(repository, 'packages/next/package.json'))

@@ -1,3 +1,6 @@
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import 'next/dist/server/node-environment-baseline'
 import { execFileSync } from 'node:child_process'
 import {
@@ -11,6 +14,11 @@ import {
   formatWatchStatus,
   type TestReporterOptions,
 } from 'next/dist/experimental/testing/reporting/reporter'
+import {
+  createMachineReporter,
+  parseResultReporters,
+  mergeResultReports,
+} from 'next/dist/experimental/testing/reporting/machine'
 import { createTestTerminal } from 'next/dist/experimental/testing/reporting/terminal'
 import { serializeDiagnostic } from 'next/dist/experimental/testing/reporting/diagnostics'
 import type {
@@ -1054,3 +1062,258 @@ describe('Next structured source attribution', () => {
     expect(formatDiagnostic(diagnostic)).toContain('[generated]')
   })
 })
+
+describe('Next machine result reporters', () => {
+  it('retains retry evidence while reporting final outcomes, todo, and collection errors', async () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'failed') })
+    emit({ type: 'case-end', ...result(1, 'passed') })
+    emit({
+      type: 'case-end',
+      ...result(0, 'skipped'),
+      caseId: 'todo',
+      attempt: { id: 'todo', retry: 0, repeat: 0 },
+      mode: 'todo',
+      name: 'todo',
+    })
+    emit({
+      type: 'diagnostic',
+      entryId: entry.id,
+      diagnostic: serializeDiagnostic(new Error('teardown <failed>'), {
+        phase: 'cleanup',
+      }),
+    })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      durationMs: 20,
+      status: 'failed',
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 20 })
+    const report = machine.getJson()
+    expect(report).toMatchObject({
+      numTotalTests: 2,
+      numPassedTests: 1,
+      numFailedTests: 0,
+      numTodoTests: 1,
+      success: false,
+    })
+    expect(
+      report.next.events.filter((event) => event.type === 'case-end')
+    ).toHaveLength(3)
+    expect(report.testResults[0].message).toContain('teardown <failed>')
+    expect(machine.getJUnit()).toContain('teardown &lt;failed&gt;')
+    expect(machine.getJUnit()).toContain('<error')
+    machine.dispose()
+  })
+
+  it('refuses incomplete reports and propagates output failures', async () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+      write: () => {
+        throw new Error('reporter output failed')
+      },
+    })
+    machine.onEvent({ ...envelope, type: 'run-start' })
+    await expect(machine.finish()).rejects.toThrow(
+      'before authoritative run cleanup'
+    )
+    machine.onEvent({
+      ...envelope,
+      type: 'run-end',
+      status: 'passed',
+      durationMs: 0,
+    })
+    await expect(machine.finish()).rejects.toThrow('reporter output failed')
+    machine.dispose()
+  })
+
+  it('diagnoses unsupported and duplicate reporter selection', () => {
+    expect(() => parseResultReporters(['json', 'json'])).toThrow(
+      'without duplicates'
+    )
+    expect(() => parseResultReporters(['custom'])).toThrow(
+      'Custom reporter adapters remain unimplemented'
+    )
+  })
+})
+
+it('merges disjoint Next blobs while preserving failures and rejects duplicated shards', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-merged-reports-'))
+  const input = join(root, 'blobs')
+  const outputFile = join(root, 'merged.json')
+  await mkdir(input)
+  try {
+    for (let index = 0; index < 2; index++) {
+      const identity = `shard-${index}`
+      const selected = {
+        ...entry,
+        id: identity,
+        file: `/project/shard-${index}.test.ts`,
+      }
+      const wrap = (event: object) => ({
+        ...envelope,
+        runId: identity,
+        ...event,
+      })
+      const status = index ? 'failed' : 'passed'
+      const blob = {
+        version: 1,
+        kind: 'next-test-results',
+        referenceVersion: '5.0.4',
+        projectDir: '/project',
+        events: [
+          wrap({ type: 'run-start' }),
+          wrap({ type: 'file-start', entry: selected }),
+          wrap({ type: 'case-end', ...result(0, status), entryId: identity }),
+          wrap({ type: 'file-end', entryId: identity, status, durationMs: 10 }),
+          wrap({ type: 'run-end', status, durationMs: 10 }),
+        ],
+      }
+      await writeFile(join(input, `shard-${index}.json`), JSON.stringify(blob))
+    }
+    expect(
+      await mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).toBe('failed')
+    const content = await readFile(outputFile, 'utf8')
+    const merged = JSON.parse(content)
+    expect(merged).toMatchObject({
+      numTotalTests: 2,
+      numPassedTests: 1,
+      numFailedTests: 1,
+      success: false,
+    })
+    expect(merged.testResults[0].name).toBe(join(root, 'shard-0.test.ts'))
+    await writeFile(
+      join(input, 'duplicate.json'),
+      await readFile(join(input, 'shard-0.json'))
+    )
+    await expect(
+      mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).rejects.toThrow('Duplicate or invalid blob run identity')
+    expect(await readFile(outputFile, 'utf8')).toBe(content)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it.each([
+  [
+    'nested run-start',
+    (events: any[]) => events.splice(2, 0, { ...events[0] }),
+  ],
+  [
+    'nested run-end',
+    (events: any[]) => events.splice(2, 0, { ...events.at(-1) }),
+  ],
+  [
+    'duplicate file-end',
+    (events: any[]) => events.splice(4, 0, { ...events[3] }),
+  ],
+  [
+    'duplicate attempt',
+    (events: any[]) => events.splice(3, 0, { ...events[2] }),
+  ],
+  ['missing file-end', (events: any[]) => events.splice(3, 1)],
+  [
+    'foreign shard ownership',
+    (events: any[]) => {
+      events[2].entryId = 'first'
+    },
+  ],
+  [
+    'invalid diagnostic',
+    (events: any[]) =>
+      events.splice(3, 0, {
+        ...events[0],
+        type: 'diagnostic',
+        diagnostic: {
+          severity: 'silenced',
+          message: 'lost failure',
+          phase: 'runtime',
+        },
+      }),
+  ],
+  [
+    'invalid case error',
+    (events: any[]) => {
+      events[2].errors = [{}]
+    },
+  ],
+  [
+    'invalid output',
+    (events: any[]) =>
+      events.splice(3, 0, {
+        ...events[0],
+        type: 'output',
+        stream: 'stdout',
+        text: {},
+      }),
+  ],
+  [
+    'invalid completion duration',
+    (events: any[]) => {
+      events.at(-1).durationMs = -1
+    },
+  ],
+] as const)(
+  'rejects %s before publishing a merged report',
+  async (_name, mutate) => {
+    const root = await mkdtemp(join(tmpdir(), 'next-invalid-merge-'))
+    const input = join(root, 'blobs')
+    const outputFile = join(root, 'merged.json')
+    await mkdir(input)
+    await writeFile(outputFile, 'previous report')
+    try {
+      for (const id of ['first', 'second']) {
+        const events = [
+          { type: 'run-start' },
+          {
+            type: 'file-start',
+            entry: { ...entry, id, file: `/project/${id}.test.ts` },
+          },
+          { type: 'case-end', ...result(0, 'passed'), entryId: id },
+          { type: 'file-end', entryId: id, status: 'passed', durationMs: 1 },
+          { type: 'run-end', status: 'passed', durationMs: 1 },
+        ].map((event) => ({ ...envelope, runId: id, ...event }))
+        if (id === 'second') mutate(events)
+        await writeFile(
+          join(input, `${id}.json`),
+          JSON.stringify({
+            version: 1,
+            kind: 'next-test-results',
+            referenceVersion: '5.0.4',
+            projectDir: '/project',
+            events,
+          })
+        )
+      }
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow()
+      expect(await readFile(outputFile, 'utf8')).toBe('previous report')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  }
+)

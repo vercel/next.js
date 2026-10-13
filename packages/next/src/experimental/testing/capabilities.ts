@@ -1,3 +1,5 @@
+import compatibilityInventory from './compatibility-inventory.json'
+
 /**
  * Execution support, independently of which profiles discovery can describe.
  * Change an unavailable entry only with its compiler/runtime integration.
@@ -6,17 +8,23 @@ export const testCapabilities = {
   version: 1,
   compatibility: {
     api: 'vitest',
-    reference: '0780a8e5b7967a4168173599e9c74fb79aab2483',
+    targetVersion: '5.0.4',
+    supportedVersionRange: null,
+    stableReady: false,
+    reference: '6a11cf66f99fa610b7364363d5ca42b66d994f40',
     scope: 'Explicit Next-owned subset; not the full Vitest API or ecosystem.',
   },
+  compatibilityInventory,
   authoring: {
     schemaVersion: 1,
     reference: {
-      vitestRevision: '0780a8e5b7967a4168173599e9c74fb79aab2483',
-      primitiveVersion: '5.0.1',
-      snapshotPatch: 'patches/@vitest__snapshot@5.0.1.patch',
+      vitestRevision: '6a11cf66f99fa610b7364363d5ca42b66d994f40',
+      primitiveVersion: '5.0.4',
+      snapshotPatch: 'patches/@vitest__snapshot@5.0.4.patch',
     },
     declarations: ['test', 'it', 'describe', 'suite'],
+    asynchronousSuites:
+      'Async callbacks retain suite ownership across await; nested collection settles before execution and rejected collection is retained.',
     declarationModifiers: ['skip', 'only', 'todo', 'fails', 'skipIf', 'runIf'],
     parameterization: [
       'test.each',
@@ -58,6 +66,11 @@ export const testCapabilities = {
       'expect.assertions',
       'expect.hasAssertions',
     ],
+    typeAssertions: ['assertType', 'expectTypeOf'],
+    typeAssertionScope:
+      'Pinned expect-type primitives and TypeScript/editor assertions. Running compiler-backed type-test suites and typecheck configuration remains unimplemented.',
+    chaiAssertions:
+      'assert (Chai 6 compatible static API; attempt/file scope access guards)',
     assertionModifiers: ['not', 'resolves', 'rejects'],
     verifiedMatcherSubset: [
       'toBe',
@@ -88,23 +101,24 @@ export const testCapabilities = {
       'vi.runAllTimers',
     ],
     snapshots: {
-      default: 'read-only',
+      default: 'create missing snapshots locally and in watch; read-only in CI',
       update:
-        'explicit one-shot or watch u command; coordinated external, inline, and raw bytes commit only after successful authoritative parent exit and cleanup',
+        'new-only locally, or explicit all with --update/watch u; coordinated external, inline, and raw bytes commit only after successful authoritative parent exit and cleanup',
       profiles:
         'route-less development and production Node/RSC/browser; browser commits after browser and application-server disposal',
       inlineSourceRevision:
         'the parent requires the exact source hash captured across compilation and rejects concurrent edits',
-      unchecked: 'always preserve; no pruning',
-      noFinalSnapshotAssertions: 'no write plan or normalization',
-      unsupported: ['automatic watch updates'],
+      unchecked:
+        'skipped tests are retained; full all-mode selections prune obsolete entries, while partial selections preserve unchecked keys',
+      obsolete:
+        'full read-only selections fail on obsolete snapshots; all-mode empty snapshot files are removed after parent authorization',
+      publicationFailure:
+        'restore published bytes on a later failure; preserve concurrent user edits and retain recovery backups if restoration is refused',
+      unsupported: ['complete filtered obsolete/pruning parity'],
     },
     unsupported: [
       'concurrent execution and shuffled suites',
-      'async describe',
       'aroundEach/aroundAll',
-      'implicit new snapshot mode',
-      'assertType/expectTypeOf',
       'full Vitest task/result introspection',
       'worker scope/rest-nested-computed dependency destructuring/builder fixture forms',
       'untransformed vi.mock/vi.importActual/vi.hoisted',
@@ -184,7 +198,7 @@ export const testCapabilities = {
     snapshotUpdate: {
       supported: true,
       scope:
-        'Explicit one-shot for route-less development/production Node, RSC, and browser profiles, plus watch u for development Node/RSC. Browser writes wait for browser/server disposal; unchecked snapshots are preserved.',
+        'Local new-only and explicit all updates for route-less development/production Node, RSC, and browser profiles, plus watch for development Node/RSC. Browser writes wait for browser/server disposal; partial selections preserve unchecked snapshots.',
     },
     production: {
       supported: true,
@@ -212,6 +226,17 @@ export const testCapabilities = {
         'arbitrary module paths, React values or functions over transport',
         'browser watch',
       ],
+    },
+    resultReports: {
+      supported: true,
+      reporters: ['default', 'json', 'junit', 'blob'],
+      scope:
+        'One-shot results, final retry outcomes, full attempt evidence, mapped errors, attributed output, attachments and snapshot summaries. Full reporter schema conformance, snapshot statistics, watch/custom reporter adapters and Vitest blob-format compatibility remain release blockers. --merge-reports merges disjoint versioned Next blobs without compilation.',
+    },
+    testNamePattern: {
+      supported: true,
+      scope:
+        'One-shot and initial watch selection using -t/--testNamePattern against full ancestor-qualified names. Name-filtered listing requires collection and remains unimplemented.',
     },
     typescriptConfig: {
       supported: false,

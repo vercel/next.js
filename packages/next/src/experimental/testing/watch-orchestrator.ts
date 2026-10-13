@@ -1,4 +1,5 @@
 import { createHash } from 'crypto'
+import type { SnapshotUpdateMode } from './assertions/snapshots'
 import {
   createWatchKeyboard,
   type WatchCommand,
@@ -24,6 +25,7 @@ interface Discovery extends WatchDiscovery {
   projects: DiscoveredTestProject[]
   directories: WatchDirectories
   updateSnapshots?: boolean
+  snapshotUpdateMode?: SnapshotUpdateMode
   testNamePattern?: string
 }
 
@@ -35,6 +37,8 @@ export async function watchTests(
     output?: NodeJS.WriteStream
     project?: string
     files?: string[]
+    testNamePattern?: string
+    snapshotUpdateMode?: SnapshotUpdateMode
     signal: AbortSignal
     write(text: string): void
     reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
@@ -48,7 +52,7 @@ export async function watchTests(
   else options.signal.addEventListener('abort', cancel, { once: true })
   let selectedProject = options.project
   let selectedFiles = options.files
-  let testNamePattern: string | undefined
+  let testNamePattern = options.testNamePattern
   let updateSnapshots = false
   let running = true
   let committingSnapshots = false
@@ -266,6 +270,9 @@ export async function watchTests(
           return {
             ...discovery,
             updateSnapshots: updateThisRun,
+            snapshotUpdateMode: updateThisRun
+              ? 'all'
+              : (options.snapshotUpdateMode ?? 'none'),
             testNamePattern,
           }
         } finally {
@@ -298,6 +305,7 @@ export async function watchTests(
               projects,
               testNamePattern: discovery.testNamePattern,
               updateSnapshots: discovery.updateSnapshots,
+              snapshotUpdateMode: discovery.snapshotUpdateMode,
             },
             {
               signal,

@@ -316,6 +316,18 @@ describe('Next-owned test discovery and configuration', () => {
     ])
   })
 
+  it('rejects invalid name patterns and name-filtered file listing before compilation', async () => {
+    await expect(
+      nextTestRunner(path.join(directory, 'missing'), { testNamePattern: '[' })
+    ).rejects.toThrow('Invalid testNamePattern')
+    await expect(
+      nextTestRunner(directory, { list: true, testNamePattern: 'work' })
+    ).rejects.toThrow('--list currently lists files only')
+    await expect(
+      nextTestRunner(directory, { capabilities: true, testNamePattern: 'work' })
+    ).rejects.toThrow('--capabilities cannot')
+  })
+
   it('publishes capabilities without reading project configuration or compiling', async () => {
     const log = jest.spyOn(console, 'log').mockImplementation(() => {})
     await nextTestRunner(path.join(directory, 'missing'), {

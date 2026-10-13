@@ -103,6 +103,19 @@ pub(crate) async fn test_resolve_options_context(
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_package = get_next_package(project_path.clone()).await?;
     let mut imports = ImportMap::empty();
+    let unsupported = ImportMapping::Error(ResolvedVc::upcast(
+        TestInputIssue {
+            path: project_path.clone(),
+            message: rcstr!(
+                "Unsupported Vitest subpath in a Next-owned test. Public subpath adapters are not \
+                 implemented; importing a Vitest controller, worker or Vite runtime is never a \
+                 fallback. Import supported test-authoring APIs from 'vitest'."
+            ),
+        }
+        .resolved_cell(),
+    ))
+    .resolved_cell();
+    imports.insert_wildcard_alias(rcstr!("vitest/"), unsupported);
     let mut aliases = vec![("vitest", "dist/experimental/testing/vitest.js")];
     if browser {
         aliases.push((

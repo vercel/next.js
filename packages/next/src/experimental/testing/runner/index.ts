@@ -4,8 +4,12 @@ import {
   getOriginatingAttempt,
   getOriginatingHook,
 } from './async-context'
-import { createCollector } from './collector'
+import { createCollector, hasFocusedTests } from './collector'
 import { createAssertionRuntime } from '../assertions'
+import {
+  resolveSnapshotUpdateMode,
+  type SnapshotUpdateMode,
+} from '../assertions/snapshots'
 import {
   runCollected,
   type AttemptContext,
@@ -43,15 +47,25 @@ export function initializeTestFile({
   fileId,
   filePath,
   updateSnapshots = false,
+  snapshotUpdateMode,
+  mapSnapshotLocation,
 }: {
   fileId: string
   filePath: string
   updateSnapshots?: boolean
+  snapshotUpdateMode?: SnapshotUpdateMode
+  mapSnapshotLocation?: Parameters<
+    typeof createAssertionRuntime
+  >[0]['mapSnapshotLocation']
 }) {
   if (activeFile)
     throw new Error('A test file is already active in this realm.')
   if (typeof updateSnapshots !== 'boolean')
     throw new TypeError('updateSnapshots must be a boolean.')
+  const updateMode = resolveSnapshotUpdateMode({
+    updateSnapshots,
+    snapshotUpdateMode,
+  })
   const collector = createCollector(fileId)
   activeFile = collector
   const lateErrors: Error[] = []
@@ -87,11 +101,28 @@ export function initializeTestFile({
         assertions = await createAssertionRuntime({
           testPath: filePath,
           updateSnapshots,
+          snapshotUpdateMode: updateMode,
+          mapSnapshotLocation,
           getCurrentAttempt: getActiveAttempt,
           getCurrentHook: getActiveHook,
         })
         fileAssertions = assertions
-        await scope.run(load)
+        await scope.run(async () => {
+          const errors: unknown[] = []
+          try {
+            await load()
+          } catch (error) {
+            errors.push(error)
+          }
+          try {
+            await collector.settle()
+          } catch (error) {
+            errors.push(error)
+          }
+          if (errors.length === 1) throw errors[0]
+          if (errors.length > 1)
+            throw new AggregateError(errors, 'Test file collection failed.')
+        })
         state = 'collected'
       } catch (error) {
         state = 'finished'
@@ -200,6 +231,13 @@ export function initializeTestFile({
           [...finalCases.values()].every(
             (test) => test.status === 'passed' || test.status === 'skipped'
           )
+        runtime.finishSnapshotSelection([...finalCases.values()], {
+          partial:
+            options.testNamePattern !== undefined ||
+            hasFocusedTests(collector.root),
+          complete:
+            runSucceeded && !result.interrupted && !options.signal.aborted,
+        })
         return result
       } finally {
         state = 'finished'
@@ -228,8 +266,11 @@ export function initializeTestFile({
       disposalSucceeded = true
       return result
     },
+    getSnapshotSummary() {
+      return fileAssertions?.getSnapshotSummary()
+    },
     takeSnapshotUpdates() {
-      if (!updateSnapshots) return []
+      if (updateMode === 'none') return []
       if (
         state !== 'disposed' ||
         !disposalSucceeded ||

@@ -249,7 +249,7 @@ describe('next-testing-scheduling', () => {
     }
   })
 
-  it('aggregates parallel coverage and authorizes snapshots only on explicit updates', async () => {
+  it('aggregates parallel coverage and applies local-new, CI-read-only and explicit snapshot modes', async () => {
     const coverage = await success(['--project', 'dev', '--coverage'])
     expect(coverage.stdout).toContain('subject.mjs')
     const serial = await success([
@@ -276,8 +276,14 @@ describe('next-testing-scheduling', () => {
       await coverageReport(serial.eventsFile)
     )
     await configure({ include: ['snapshots/*.case.mjs'] })
-    const readonly = await launch([]).done
+    const readonly = await launch([], { CI: '1' }).done
     expect(readonly.code).toBe(1)
+    await expect(
+      readFile(
+        join(next.testDir, 'snapshots/__snapshots__/first.case.mjs.snap')
+      )
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+    await success([])
     await success(['--update'])
     const first = await readFile(
       join(next.testDir, 'snapshots/__snapshots__/first.case.mjs.snap'),

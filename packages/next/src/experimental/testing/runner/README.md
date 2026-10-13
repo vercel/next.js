@@ -111,3 +111,40 @@ the bounded Next implementation; it does not advertise the entire Vitest API.
 `test/unit/next-testing-stage2-api` uses built `next/dist` modules in a fresh
 process to check these components. Actual setup compilation and the authoritative
 worker-pass-then-nonzero snapshot veto belong to B/A/L integration acceptance.
+
+## Stable compatibility work
+
+The selected stable reference is Vitest 5.0.4 at
+`6a11cf66f99fa610b7364363d5ca42b66d994f40`. The historical stage-two inventory
+above records the experiment's earlier scope and exceptions; those limitations
+have not been approved as stable exceptions.
+
+The facade now exposes Chai's `assert` API with scope-access guards, `assertType`,
+and the pinned standalone `expectTypeOf` implementation. Public type contracts
+include positive and negative assertions and typed mock inference. Executing
+compiler-backed type-test suites and `typecheck` configuration remains missing.
+
+Inline snapshot invocation locations are captured before assertion wrappers or
+promise continuations, mapped using the execution host's immutable artifact,
+and normalized with the pinned snapshot primitive. Compiled update/read tests
+cover ordinary, property-matcher and resolved-promise assertions. External
+snapshot headers match the selected reference. Snapshot pruning policy and the
+rest of the stable lifecycle/fixture contract remain release work.
+
+Async suite callbacks now retain collection context across awaits, including
+nested and parameterized suites. Collection drains all registered jobs before
+execution and retains rejected siblings. The unchanged-body 5.0.4 corpus verifies
+suite ownership and outcomes; concurrent case execution remains missing.
+
+The public CLI now uses the reference's new-only snapshot mode for local and
+watch runs, read-only mode in CI, and all mode for explicit updates. External,
+inline, and file snapshot bytes and mismatch refusal are compared against 5.0.4.
+The mode crosses the execution broker without weakening parent authorization.
+Full read-only selections now fail on obsolete snapshots; full explicit updates
+prune obsolete keys and remove empty managed snapshot files. Skipped snapshot
+keys remain checked. Partial/focused selections conservatively preserve all
+unchecked keys, so complete filtered pruning parity remains release work.
+Publication failures restore earlier writes unless a user has edited the target;
+in that case, the edit survives and original bytes remain in a recovery backup.
+The earlier read-only/default, retention, and async-suite restrictions above are
+historical.

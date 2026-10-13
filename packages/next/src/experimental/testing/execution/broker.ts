@@ -12,7 +12,10 @@ import type {
 } from '../reporting/events'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { executeWithEnvironment } from './execute'
-import type { SnapshotUpdate } from '../assertions/snapshots'
+import {
+  resolveSnapshotUpdateMode,
+  type SnapshotUpdate,
+} from '../assertions/snapshots'
 import { parseMaxWorkers } from '../scheduling'
 
 type SerializableOptions = Omit<
@@ -162,7 +165,8 @@ export function createExecutionBrokerHost(options: {
         try {
           if (
             (message.options.coverage && !options.allowCoverage) ||
-            (message.options.updateSnapshots && !options.onSnapshotUpdates) ||
+            (resolveSnapshotUpdateMode(message.options) !== 'none' &&
+              !options.onSnapshotUpdates) ||
             message.options.browser ||
             message.artifact.profile.environment === 'browser'
           ) {

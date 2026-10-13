@@ -24,6 +24,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
+import type { SnapshotStateOptions } from '../../../compiled/next-test-primitives'
 import { getSourceMappedStackFrames } from '../../../server/patch-error-inspect'
 import { serializeDiagnostic, type DiagnosticOptions } from './diagnostics'
 import type { SerializedDiagnostic } from './events'
@@ -107,4 +110,26 @@ export function serializeSourceMappedDiagnostic(
       })
     },
   })
+}
+
+/** Inline edits use the same immutable artifact maps as failure reporting. */
+export const mapSnapshotLocation: NonNullable<
+  SnapshotStateOptions['snapshotEnvironment']['processStackTrace']
+> = (stack) => {
+  const [frame] = getSourceMappedStackFrames(
+    `Error\n    at ${stack.method || '<anonymous>'} (${stack.file}:${stack.line}:${stack.column})`
+  )
+  if (!frame?.original || !frame.file || !frame.line1 || !frame.column1) {
+    throw new Error(
+      'Inline snapshots require an original source location from the compiled test artifact.'
+    )
+  }
+  return {
+    method: frame.methodName ?? stack.method,
+    file: frame.file.startsWith('file:')
+      ? fileURLToPath(frame.file)
+      : resolve(frame.file),
+    line: frame.line1,
+    column: frame.column1,
+  }
 }

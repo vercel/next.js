@@ -1,7 +1,7 @@
 import * as chai from './chai';
 export { chai };
 
-/* eslint-disable ts/ban-ts-comment */
+/* oxlint-disable typescript/ban-ts-comment */
 
 interface Disposable {
   // @ts-ignore -- Symbol.dispose might not be in user types
@@ -11,7 +11,7 @@ interface Disposable {
 interface MockResultReturn<T> {
 	type: "return";
 	/**
-	* The value that was returned from the function. If function returned a Promise, then this will be a resolved value.
+	* The value that was returned from the function. If the function returned a Promise, then this will be the Promise, not its resolved value.
 	*/
 	value: T;
 }
@@ -61,12 +61,12 @@ interface MockContext<T extends Procedure | Constructable = Procedure> {
 	*/
 	calls: MockParameters<T>[];
 	/**
-	* This is an array containing all instances that were instantiated when mock was called with a `new` keyword. Note that this is an actual context (`this`) of the function, not a return value.
+	* An array with one value for each call: the object returned by `new`, or the context (`this`) of the call if the mock was called without `new`.
 	* @see https://vitest.dev/api/mock#mock-instances
 	*/
 	instances: MockProcedureContext<T>[];
 	/**
-	* An array of `this` values that were used during each call to the mock function.
+	* An array of `this` values that were used during each call to the mock function. If the mock was called with `new`, the value is the same as in `instances`.
 	* @see https://vitest.dev/api/mock#mock-contexts
 	*/
 	contexts: MockProcedureContext<T>[];
@@ -119,7 +119,7 @@ interface MockContext<T extends Procedure | Constructable = Procedure> {
 	/**
 	* An array containing all values that were `resolved` or `rejected` from the function.
 	*
-	* This array will be empty if the function was never resolved or rejected.
+	* Until the value is resolved or rejected, the type will be `incomplete`.
 	*
 	* @see https://vitest.dev/api/mock#mock-settledresults
 	* @example
@@ -157,11 +157,11 @@ interface MockContext<T extends Procedure | Constructable = Procedure> {
 	lastCall: MockParameters<T> | undefined;
 }
 type Procedure = (...args: any[]) => any;
-type NormalizedProcedure<T extends Procedure | Constructable> = T extends Constructable ? ({
+type NormalizedProcedure<T extends Procedure | Constructable> = T extends Constructable ? {
 	new (...args: ConstructorParameters<T>): InstanceType<T>;
-}) | ({
+} | {
 	(this: InstanceType<T>, ...args: ConstructorParameters<T>): void;
-}) : T extends Procedure ? (...args: Parameters<T>) => ReturnType<T> : never;
+} : T extends Procedure ? (...args: Parameters<T>) => ReturnType<T> : never;
 type Methods<T> = keyof { [K in keyof T as T[K] extends Procedure ? K : never]: T[K] };
 type Properties<T> = { [K in keyof T]: T[K] extends Procedure ? never : K }[keyof T] & (string | symbol);
 type Classes<T> = { [K in keyof T]: T[K] extends new (...args: any[]) => any ? K : never }[keyof T] & (string | symbol);
@@ -203,7 +203,7 @@ interface MockInstance<T extends Procedure | Constructable = Procedure> extends 
 	*/
 	mockRestore(): void;
 	/**
-	* Returns current permanent mock implementation if there is one.
+	* Returns current mock implementation if there is one. If an implementation was queued with `mockImplementationOnce`, it returns the first queued implementation instead.
 	*
 	* If mock was created with `vi.fn`, it will consider passed down method as a mock implementation.
 	*
@@ -262,7 +262,7 @@ interface MockInstance<T extends Procedure | Constructable = Procedure> extends 
 	*/
 	mockReturnValue(value: MockReturnType<T>): this;
 	/**
-	* Accepts a value that will be returned whenever the mock function is called. TypeScript will only accept values that match the return type of the original function.
+	* Accepts a value that will be returned during the next function call. TypeScript will only accept values that match the return type of the original function. If chained, each consecutive call will return the specified value.
 	*
 	* When the mocked function runs out of implementations, it will invoke the default implementation set with `vi.fn(() => defaultValue)` or `.mockImplementation(() => defaultValue)` if they were called.
 	* @example
@@ -338,29 +338,29 @@ interface MockInstance<T extends Procedure | Constructable = Procedure> extends 
 	*/
 	mockRejectedValueOnce(error: unknown): this;
 }
-type Mock<T extends Procedure | Constructable = Procedure> = MockInstance<T> & (T extends Constructable ? (T extends Procedure ? {
+type Mock<T extends Procedure | Constructable = Procedure> = MockInstance<T> & (T extends Constructable ? T extends Procedure ? {
 	new (...args: ConstructorParameters<T>): InstanceType<T>;
 	(...args: Parameters<T>): ReturnType<T>;
 } : {
 	new (...args: ConstructorParameters<T>): InstanceType<T>;
-}) : {
+} : {
 	new (...args: MockParameters<T>): MockReturnType<T>;
 	(...args: MockParameters<T>): MockReturnType<T>;
 }) & { [P in keyof T]: T[P] };
 type PartialMaybePromise<T> = T extends Promise<Awaited<T>> ? Promise<Partial<Awaited<T>>> : Partial<T>;
-type PartialResultFunction<T> = T extends Constructable ? ({
+type PartialResultFunction<T> = T extends Constructable ? {
 	new (...args: ConstructorParameters<T>): InstanceType<T>;
-}) | ({
+} | {
 	(this: InstanceType<T>, ...args: ConstructorParameters<T>): void;
-}) : T extends Procedure ? (...args: Parameters<T>) => PartialMaybePromise<ReturnType<T>> : T;
+} : T extends Procedure ? (...args: Parameters<T>) => PartialMaybePromise<ReturnType<T>> : T;
 type PartialMock<T extends Procedure | Constructable = Procedure> = Mock<PartialResultFunction<T extends Mock ? NonNullable<ReturnType<T["getMockImplementation"]>> : T>>;
 type DeepPartial<T> = T extends Procedure ? T : T extends Array<infer U> ? Array<DeepPartial<U>> : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 type DeepPartialMaybePromise<T> = T extends Promise<Awaited<T>> ? Promise<DeepPartial<Awaited<T>>> : DeepPartial<T>;
-type DeepPartialResultFunction<T> = T extends Constructable ? ({
+type DeepPartialResultFunction<T> = T extends Constructable ? {
 	new (...args: ConstructorParameters<T>): InstanceType<T>;
-}) | ({
+} | {
 	(this: InstanceType<T>, ...args: ConstructorParameters<T>): void;
-}) : T extends Procedure ? (...args: Parameters<T>) => DeepPartialMaybePromise<ReturnType<T>> : T;
+} : T extends Procedure ? (...args: Parameters<T>) => DeepPartialMaybePromise<ReturnType<T>> : T;
 type DeepPartialMock<T extends Procedure | Constructable = Procedure> = Mock<DeepPartialResultFunction<T extends Mock ? NonNullable<ReturnType<T["getMockImplementation"]>> : T>>;
 type MaybeMockedConstructor<T> = T extends Constructable ? Mock<T> : T;
 type MockedFunction<T extends Procedure | Constructable> = Mock<T> & MockedObject<T>;
@@ -1865,6 +1865,7 @@ declare class SnapshotState {
 	private _inlineSnapshotStacks;
 	private _testIdToKeys;
 	private _rawSnapshots;
+	private _rawSnapshotFiles;
 	private _uncheckedKeys;
 	private _snapshotFormat;
 	private _environment;
@@ -1900,6 +1901,10 @@ declare class SnapshotState {
 	probeExpectedSnapshot(options: Pick<SnapshotMatchOptions, "testName" | "testId" | "isInline" | "inlineSnapshot">): ExpectedSnapshot;
 	match({ testId, testName, received, key, inlineSnapshot, isInline, error, rawSnapshot, assertionName }: SnapshotMatchOptions): SnapshotReturnOptions;
 	processDomainSnapshot({ testId, received, expectedSnapshot, matchResult, isInline, error, assertionName }: ProcessDomainSnapshotOptions): SnapshotReturnOptions;
+	/**
+	* The snapshot file, if the test file stores snapshots in it, and every asserted file snapshot.
+	*/
+	getSnapshotFiles(): string[];
 	pack(): Promise<SnapshotResult>;
 }
 type SnapshotUpdateState = "all" | "new" | "none";
@@ -1997,6 +2002,8 @@ declare class SnapshotClient {
 	clear(): void;
 }
 
+declare function stripSnapshotIndentation(inlineSnapshot: string): string;
+
 /**
 * Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 *
@@ -2020,5 +2027,1836 @@ declare class NodeSnapshotEnvironment implements SnapshotEnvironment {
 	removeSnapshotFile(filepath: string): Promise<void>;
 }
 
-export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, NodeSnapshotEnvironment, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, customMatchers, equals, fnNameFor, generateToBeMessage, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, hasAsymmetric, hasProperty, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, pluralize, recordAsyncExpect, setState, sparseArrayEquality, index_d as spies, subsetEquality, typeEquality, wrapAssertion };
-export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, Mock, MockInstance, PromisifyAssertion, RawMatcherFn, SnapshotResult, SnapshotStateOptions, SyncExpectationResult, Tester, TesterContext };
+/**
+ * Negates a boolean type.
+ */
+type Not<T extends boolean> = T extends true ? false : true;
+/**
+ * Returns `true` if at least one of the types in the
+ * {@linkcode Types} array is `true`, otherwise returns `false`.
+ */
+type Or<Types extends boolean[]> = Types[number] extends false ? false : true;
+/**
+ * Checks if all the boolean types in the {@linkcode Types} array are `true`.
+ */
+type And<Types extends boolean[]> = Types[number] extends true ? true : false;
+/**
+ * Represents an equality type that returns {@linkcode Right} if
+ * {@linkcode Left} is `true`,
+ * otherwise returns the negation of {@linkcode Right}.
+ */
+type Eq<Left extends boolean, Right extends boolean> = Left extends true ? Right : Not<Right>;
+/**
+ * @internal
+ */
+declare const secret: unique symbol;
+/**
+ * @internal
+ */
+type Secret = typeof secret;
+/**
+ * Checks if the given type is `never`.
+ */
+type IsNever<T> = [T] extends [never] ? true : false;
+/**
+ * Checks if the given type is `any`.
+ */
+type IsAny<T> = [T] extends [Secret] ? Not<IsNever<T>> : false;
+/**
+ * Determines if the given type is `unknown`.
+ */
+type IsUnknown<T> = [unknown] extends [T] ? Not<IsAny<T>> : false;
+/**
+ * Subjective "useful" keys from a type. For objects it's just `keyof` but for
+ * tuples/arrays it's the number keys.
+ *
+ * @example
+ * ```ts
+ * UsefulKeys<{ a: 1; b: 2 }> // 'a' | 'b'
+ *
+ * UsefulKeys<['a', 'b']> // '0' | '1'
+ *
+ * UsefulKeys<string[]> // number
+ * ```
+ */
+type UsefulKeys<T> = T extends any[] ? {
+    [K in keyof T]: K;
+}[number] : keyof T;
+/**
+ * Extracts the keys from a type that are required (not optional).
+ */
+type RequiredKeys<T> = Extract<{
+    [K in keyof T]-?: {} extends Pick<T, K> ? never : K;
+}[keyof T], keyof T>;
+/**
+ * Gets the keys of an object type that are optional.
+ */
+type OptionalKeys<T> = Exclude<keyof T, RequiredKeys<T>>;
+/**
+ * Extracts the keys from a type that are not `readonly`.
+ */
+type ReadonlyKeys<T> = Extract<{
+    [K in keyof T]-?: ReadonlyEquivalent<{
+        [_K in K]: T[K];
+    }, {
+        -readonly [_K in K]: T[K];
+    }> extends true ? never : K;
+}[keyof T], keyof T>;
+/**
+ * Determines if two types, are equivalent in a `readonly` manner.
+ *
+ * @internal
+ */
+type ReadonlyEquivalent<X, Y> = Extends<(<T>() => T extends X ? true : false), (<T>() => T extends Y ? true : false)>;
+/**
+ * Checks if one type extends another. Note: this is not quite the same as `Left extends Right` because:
+ * 1. If either type is `never`, the result is `true` iff the other type is also `never`.
+ * 2. Types are wrapped in a 1-tuple so that union types are not distributed - instead we consider `string | number` to _not_ extend `number`. If we used `Left extends Right` directly you would get `Extends<string | number, number>` => `false | true` => `boolean`.
+ */
+type Extends<Left, Right> = IsNever<Left> extends true ? IsNever<Right> : [Left] extends [Right] ? true : false;
+/**
+ * Checks if the {@linkcode Left} type extends the {@linkcode Right} type,
+ * excluding `any` or `never`.
+ */
+type ExtendsExcludingAnyOrNever<Left, Right> = IsAny<Left> extends true ? IsAny<Right> : Extends<Left, Right>;
+/**
+ * Checks if two types are strictly equal using
+ * the TypeScript internal identical-to operator.
+ *
+ * @see {@link https://github.com/microsoft/TypeScript/issues/55188#issuecomment-1656328122 | much history}
+ */
+type StrictEqualUsingTSInternalIdenticalToOperator<L, R> = (<T>() => T extends (L & T) | T ? true : false) extends <T>() => T extends (R & T) | T ? true : false ? IsNever<L> extends IsNever<R> ? true : false : false;
+/**
+ * Checks that {@linkcode Left} and {@linkcode Right} extend each other.
+ * Not quite the same as an equality check since `any` can make it resolve
+ * to `true`. So should only be used when {@linkcode Left} and
+ * {@linkcode Right} are known to avoid `any`.
+ */
+type MutuallyExtends<Left, Right> = And<[Extends<Left, Right>, Extends<Right, Left>]>;
+/**
+ * @internal
+ */
+declare const mismatch: unique symbol;
+/**
+ * @internal
+ */
+type Mismatch = {
+    [mismatch]: 'mismatch';
+};
+/**
+ * A type which should match anything passed as a value but *doesn't*
+ * match {@linkcode Mismatch}. It helps TypeScript select the right overload
+ * for {@linkcode PositiveExpectTypeOf.toEqualTypeOf | .toEqualTypeOf()} and
+ * {@linkcode PositiveExpectTypeOf.toMatchTypeOf | .toMatchTypeOf()}.
+ *
+ * @internal
+ */
+declare const avalue: unique symbol;
+/**
+ * Represents a value that can be of various types.
+ */
+type AValue = {
+    [avalue]?: undefined;
+} | string | number | boolean | symbol | bigint | null | undefined | void;
+/**
+ * Represents the type of mismatched arguments between
+ * the actual result and the expected result.
+ *
+ * If {@linkcode ActualResult} and {@linkcode ExpectedResult} are equivalent,
+ * the type resolves to an empty tuple `[]`, indicating no mismatch.
+ * If they are not equivalent, it resolves to a tuple containing the element
+ * {@linkcode Mismatch}, signifying a discrepancy between
+ * the expected and actual results.
+ */
+type MismatchArgs<ActualResult extends boolean, ExpectedResult extends boolean> = Eq<ActualResult, ExpectedResult> extends true ? [] : [Mismatch];
+/**
+ * Convert a union to an intersection.
+ * `A | B | C` -\> `A & B & C`
+ */
+type UnionToIntersection<Union> = (Union extends any ? (distributedUnion: Union) => void : never) extends (mergedIntersection: infer Intersection) => void ? Intersection : never;
+/**
+ * Get the last element of a union.
+ * First, converts to a union of `() => T` functions,
+ * then uses {@linkcode UnionToIntersection} to get the last one.
+ */
+type LastOf<Union> = UnionToIntersection<Union extends any ? () => Union : never> extends () => infer R ? R : never;
+/**
+ * Intermediate type for {@linkcode UnionToTuple} which pushes the
+ * "last" union member to the end of a tuple, and recursively prepends
+ * the remainder of the union.
+ */
+type TuplifyUnion<Union, LastElement = LastOf<Union>> = IsNever<Union> extends true ? [] : [...TuplifyUnion<Exclude<Union, LastElement>>, LastElement];
+/**
+ * Convert a union like `1 | 2 | 3` to a tuple like `[1, 2, 3]`.
+ */
+type UnionToTuple<Union> = TuplifyUnion<Union>;
+/** The numbers between 0 and 9 that you learned in school */
+type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+/**
+ * e.g. `['a', 'b']` -> `{ 0: 'a', 1: 'b' }`
+ * Looks at the keys to see which look digit-like, so could do the wrong thing for types like
+ * `['a', 'b'] & {'1foo': string}`
+ */
+type TupleToRecord<T extends any[]> = {
+    [K in keyof T as `${Extract<K, `${Digit}${string}`>}`]: T[K];
+};
+/** `true` iff `T` is a tuple, as opposed to an indeterminate-length array */
+type IsTuple<T extends readonly any[]> = number extends T['length'] ? false : true;
+/** `true` iff `T` is a record accepting any string keys, or accepting any number keys */
+type IsRecord<T> = Or<[Extends<string, keyof T>, Extends<number, keyof T>]>;
+type IsUnion<T> = Not<Extends<UnionToTuple<T>['length'], 1>>;
+/**
+ * A recursive version of `Pick` that selects properties from the left type that are present in the right type.
+ * The "leaf" types from `Left` are used - only the keys of `Right` are considered.
+ *
+ * @example
+ * ```ts
+ * const user = {email: 'a@b.com', name: 'John Doe', address: {street: '123 2nd St', city: 'New York', zip: '10001', state: 'NY', country: 'USA'}}
+ *
+ * type Result = DeepPickMatchingProps<typeof user, {name: unknown; address: {city: unknown}}> // {name: string, address: {city: string}}
+ * ```
+ */
+type DeepPickMatchingProps<Left, Right> = Left extends Record<string, unknown> ? Pick<{
+    [K in keyof Left]: K extends keyof Right ? DeepPickMatchingProps<Left[K], Right[K]> : never;
+}, Extract<keyof Left, keyof Right>> : Left;
+
+/**
+ * The simple(ish) way to get overload info from a function
+ * {@linkcode FunctionType}. Recent versions of TypeScript will match any
+ * function against a generic 10-overload type, filling in slots with
+ * duplicates of the function. So, we can just match against a single type
+ * and get all the overloads.
+ *
+ * For older versions of TypeScript, we'll need to painstakingly do
+ * ten separate matches.
+ */
+type TSPost53OverloadsInfoUnion<FunctionType> = FunctionType extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+    (...args: infer A3): infer R3;
+    (...args: infer A4): infer R4;
+    (...args: infer A5): infer R5;
+    (...args: infer A6): infer R6;
+    (...args: infer A7): infer R7;
+    (...args: infer A8): infer R8;
+    (...args: infer A9): infer R9;
+    (...args: infer A10): infer R10;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) | ((...p: A3) => R3) | ((...p: A4) => R4) | ((...p: A5) => R5) | ((...p: A6) => R6) | ((...p: A7) => R7) | ((...p: A8) => R8) | ((...p: A9) => R9) | ((...p: A10) => R10) : never;
+/**
+ * A function with `unknown` parameters and return type.
+ */
+type UnknownFunction = (...args: unknown[]) => unknown;
+/**
+ * `true` iff {@linkcode FunctionType} is
+ * equivalent to `(...args: unknown[]) => unknown`,
+ * which is what an overload variant looks like for a non-existent overload.
+ * This is useful because older versions of TypeScript end up with
+ * 9 "useless" overloads and one real one for parameterless/generic functions.
+ *
+ * @see {@link https://github.com/microsoft/TypeScript/issues/28867 | Related}
+ */
+type IsUselessOverloadInfo<FunctionType> = StrictEqualUsingTSInternalIdenticalToOperator<FunctionType, UnknownFunction>;
+/**
+ * Old versions of TypeScript can sometimes seem to refuse to separate out
+ * union members unless you put them each in a pointless tuple and add an
+ * extra `infer X` expression. There may be a better way to work around this
+ * problem, but since it's not a problem in newer versions of TypeScript,
+ * it's not a priority right now.
+ */
+type Tuplify<Union> = Union extends infer X ? [X] : never;
+/**
+ * For older versions of TypeScript, we need two separate workarounds
+ * to get overload info. First, we need need to use
+ * {@linkcode DecreasingOverloadsInfoUnion} to get the overload info for
+ * functions with 1-10 overloads. Then, we need to filter out the
+ * "useless" overloads that are present in older versions of TypeScript,
+ * for parameterless functions. To do this we use
+ * {@linkcode IsUselessOverloadInfo} to remove useless overloads.
+ *
+ * @see {@link https://github.com/microsoft/TypeScript/issues/28867 | Related}
+ */
+type TSPre53OverloadsInfoUnion<FunctionType> = Tuplify<DecreasingOverloadsInfoUnion<FunctionType>> extends infer Tup ? Tup extends [infer Fn] ? IsUselessOverloadInfo<Fn> extends true ? never : Fn : never : never;
+/**
+ * For versions of TypeScript below 5.3, we need to check for 10 overloads,
+ * then 9, then 8, etc., to get a union of the overload variants.
+ */
+type DecreasingOverloadsInfoUnion<F> = F extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+    (...args: infer A3): infer R3;
+    (...args: infer A4): infer R4;
+    (...args: infer A5): infer R5;
+    (...args: infer A6): infer R6;
+    (...args: infer A7): infer R7;
+    (...args: infer A8): infer R8;
+    (...args: infer A9): infer R9;
+    (...args: infer A10): infer R10;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) | ((...p: A3) => R3) | ((...p: A4) => R4) | ((...p: A5) => R5) | ((...p: A6) => R6) | ((...p: A7) => R7) | ((...p: A8) => R8) | ((...p: A9) => R9) | ((...p: A10) => R10) : F extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+    (...args: infer A3): infer R3;
+    (...args: infer A4): infer R4;
+    (...args: infer A5): infer R5;
+    (...args: infer A6): infer R6;
+    (...args: infer A7): infer R7;
+    (...args: infer A8): infer R8;
+    (...args: infer A9): infer R9;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) | ((...p: A3) => R3) | ((...p: A4) => R4) | ((...p: A5) => R5) | ((...p: A6) => R6) | ((...p: A7) => R7) | ((...p: A8) => R8) | ((...p: A9) => R9) : F extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+    (...args: infer A3): infer R3;
+    (...args: infer A4): infer R4;
+    (...args: infer A5): infer R5;
+    (...args: infer A6): infer R6;
+    (...args: infer A7): infer R7;
+    (...args: infer A8): infer R8;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) | ((...p: A3) => R3) | ((...p: A4) => R4) | ((...p: A5) => R5) | ((...p: A6) => R6) | ((...p: A7) => R7) | ((...p: A8) => R8) : F extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+    (...args: infer A3): infer R3;
+    (...args: infer A4): infer R4;
+    (...args: infer A5): infer R5;
+    (...args: infer A6): infer R6;
+    (...args: infer A7): infer R7;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) | ((...p: A3) => R3) | ((...p: A4) => R4) | ((...p: A5) => R5) | ((...p: A6) => R6) | ((...p: A7) => R7) : F extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+    (...args: infer A3): infer R3;
+    (...args: infer A4): infer R4;
+    (...args: infer A5): infer R5;
+    (...args: infer A6): infer R6;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) | ((...p: A3) => R3) | ((...p: A4) => R4) | ((...p: A5) => R5) | ((...p: A6) => R6) : F extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+    (...args: infer A3): infer R3;
+    (...args: infer A4): infer R4;
+    (...args: infer A5): infer R5;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) | ((...p: A3) => R3) | ((...p: A4) => R4) | ((...p: A5) => R5) : F extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+    (...args: infer A3): infer R3;
+    (...args: infer A4): infer R4;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) | ((...p: A3) => R3) | ((...p: A4) => R4) : F extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+    (...args: infer A3): infer R3;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) | ((...p: A3) => R3) : F extends {
+    (...args: infer A1): infer R1;
+    (...args: infer A2): infer R2;
+} ? ((...p: A1) => R1) | ((...p: A2) => R2) : F extends (...args: infer A1) => infer R1 ? ((...p: A1) => R1) : never;
+/**
+ * Get a union of overload variants for a function {@linkcode FunctionType}.
+ * Does a check for whether we can do the one-shot
+ * 10-overload matcher (which works for ts\>5.3), and if not,
+ * falls back to the more complicated utility.
+ */
+type OverloadsInfoUnion<FunctionType> = IsNever<TSPost53OverloadsInfoUnion<(a: 1) => 2>> extends true ? TSPre53OverloadsInfoUnion<FunctionType> : TSPost53OverloadsInfoUnion<FunctionType>;
+/**
+ * Allows inferring any function using the `infer` keyword.
+ */
+type InferFunctionType<FunctionType extends (...args: any) => any> = FunctionType;
+/**
+ * A union type of the parameters allowed for any
+ * overload of function {@linkcode FunctionType}.
+ */
+type OverloadParameters<FunctionType> = OverloadsInfoUnion<FunctionType> extends InferFunctionType<infer Fn> ? Parameters<Fn> : never;
+/**
+ * A union type of the return types for any overload of
+ * function {@linkcode FunctionType}.
+ */
+type OverloadReturnTypes<FunctionType> = OverloadsInfoUnion<FunctionType> extends InferFunctionType<infer Fn> ? ReturnType<Fn> : never;
+/**
+ * Like {@linkcode TSPost53OverloadsInfoUnion} but extracts only the
+ * `this` parameter types, using `(this: infer T, ...)` to preserve `this`
+ * before it gets stripped.
+ *
+ * @template FunctionType - the function type to extract `this` parameter types from.
+ */
+type TSPost53OverloadThisParameterTypes<FunctionType> = FunctionType extends {
+    (this: infer T1, ...args: any[]): any;
+    (this: infer T2, ...args: any[]): any;
+    (this: infer T3, ...args: any[]): any;
+    (this: infer T4, ...args: any[]): any;
+    (this: infer T5, ...args: any[]): any;
+    (this: infer T6, ...args: any[]): any;
+    (this: infer T7, ...args: any[]): any;
+    (this: infer T8, ...args: any[]): any;
+    (this: infer T9, ...args: any[]): any;
+    (this: infer T10, ...args: any[]): any;
+} ? T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 | T9 | T10 : never;
+/**
+ * Like {@linkcode DecreasingOverloadsInfoUnion} but preserves the
+ * `this` parameter in each extracted function variant so that it can be
+ * used for filtering and `this` type extraction.
+ *
+ * @template FunctionType - the function type to extract overload info from.
+ */
+type DecreasingOverloadsInfoUnionWithThis<FunctionType> = FunctionType extends {
+    (this: infer T1, ...args: infer A1): infer R1;
+    (this: infer T2, ...args: infer A2): infer R2;
+    (this: infer T3, ...args: infer A3): infer R3;
+    (this: infer T4, ...args: infer A4): infer R4;
+    (this: infer T5, ...args: infer A5): infer R5;
+    (this: infer T6, ...args: infer A6): infer R6;
+    (this: infer T7, ...args: infer A7): infer R7;
+    (this: infer T8, ...args: infer A8): infer R8;
+    (this: infer T9, ...args: infer A9): infer R9;
+    (this: infer T10, ...args: infer A10): infer R10;
+} ? ((this: T1, ...args: A1) => R1) | ((this: T2, ...args: A2) => R2) | ((this: T3, ...args: A3) => R3) | ((this: T4, ...args: A4) => R4) | ((this: T5, ...args: A5) => R5) | ((this: T6, ...args: A6) => R6) | ((this: T7, ...args: A7) => R7) | ((this: T8, ...args: A8) => R8) | ((this: T9, ...args: A9) => R9) | ((this: T10, ...args: A10) => R10) : FunctionType extends {
+    (this: infer T1, ...args: infer A1): infer R1;
+    (this: infer T2, ...args: infer A2): infer R2;
+    (this: infer T3, ...args: infer A3): infer R3;
+    (this: infer T4, ...args: infer A4): infer R4;
+    (this: infer T5, ...args: infer A5): infer R5;
+    (this: infer T6, ...args: infer A6): infer R6;
+    (this: infer T7, ...args: infer A7): infer R7;
+    (this: infer T8, ...args: infer A8): infer R8;
+    (this: infer T9, ...args: infer A9): infer R9;
+} ? ((this: T1, ...args: A1) => R1) | ((this: T2, ...args: A2) => R2) | ((this: T3, ...args: A3) => R3) | ((this: T4, ...args: A4) => R4) | ((this: T5, ...args: A5) => R5) | ((this: T6, ...args: A6) => R6) | ((this: T7, ...args: A7) => R7) | ((this: T8, ...args: A8) => R8) | ((this: T9, ...args: A9) => R9) : FunctionType extends {
+    (this: infer T1, ...args: infer A1): infer R1;
+    (this: infer T2, ...args: infer A2): infer R2;
+    (this: infer T3, ...args: infer A3): infer R3;
+    (this: infer T4, ...args: infer A4): infer R4;
+    (this: infer T5, ...args: infer A5): infer R5;
+    (this: infer T6, ...args: infer A6): infer R6;
+    (this: infer T7, ...args: infer A7): infer R7;
+    (this: infer T8, ...args: infer A8): infer R8;
+} ? ((this: T1, ...args: A1) => R1) | ((this: T2, ...args: A2) => R2) | ((this: T3, ...args: A3) => R3) | ((this: T4, ...args: A4) => R4) | ((this: T5, ...args: A5) => R5) | ((this: T6, ...args: A6) => R6) | ((this: T7, ...args: A7) => R7) | ((this: T8, ...args: A8) => R8) : FunctionType extends {
+    (this: infer T1, ...args: infer A1): infer R1;
+    (this: infer T2, ...args: infer A2): infer R2;
+    (this: infer T3, ...args: infer A3): infer R3;
+    (this: infer T4, ...args: infer A4): infer R4;
+    (this: infer T5, ...args: infer A5): infer R5;
+    (this: infer T6, ...args: infer A6): infer R6;
+    (this: infer T7, ...args: infer A7): infer R7;
+} ? ((this: T1, ...args: A1) => R1) | ((this: T2, ...args: A2) => R2) | ((this: T3, ...args: A3) => R3) | ((this: T4, ...args: A4) => R4) | ((this: T5, ...args: A5) => R5) | ((this: T6, ...args: A6) => R6) | ((this: T7, ...args: A7) => R7) : FunctionType extends {
+    (this: infer T1, ...args: infer A1): infer R1;
+    (this: infer T2, ...args: infer A2): infer R2;
+    (this: infer T3, ...args: infer A3): infer R3;
+    (this: infer T4, ...args: infer A4): infer R4;
+    (this: infer T5, ...args: infer A5): infer R5;
+    (this: infer T6, ...args: infer A6): infer R6;
+} ? ((this: T1, ...args: A1) => R1) | ((this: T2, ...args: A2) => R2) | ((this: T3, ...args: A3) => R3) | ((this: T4, ...args: A4) => R4) | ((this: T5, ...args: A5) => R5) | ((this: T6, ...args: A6) => R6) : FunctionType extends {
+    (this: infer T1, ...args: infer A1): infer R1;
+    (this: infer T2, ...args: infer A2): infer R2;
+    (this: infer T3, ...args: infer A3): infer R3;
+    (this: infer T4, ...args: infer A4): infer R4;
+    (this: infer T5, ...args: infer A5): infer R5;
+} ? ((this: T1, ...args: A1) => R1) | ((this: T2, ...args: A2) => R2) | ((this: T3, ...args: A3) => R3) | ((this: T4, ...args: A4) => R4) | ((this: T5, ...args: A5) => R5) : FunctionType extends {
+    (this: infer T1, ...args: infer A1): infer R1;
+    (this: infer T2, ...args: infer A2): infer R2;
+    (this: infer T3, ...args: infer A3): infer R3;
+    (this: infer T4, ...args: infer A4): infer R4;
+} ? ((this: T1, ...args: A1) => R1) | ((this: T2, ...args: A2) => R2) | ((this: T3, ...args: A3) => R3) | ((this: T4, ...args: A4) => R4) : FunctionType extends {
+    (this: infer T1, ...args: infer A1): infer R1;
+    (this: infer T2, ...args: infer A2): infer R2;
+    (this: infer T3, ...args: infer A3): infer R3;
+} ? ((this: T1, ...args: A1) => R1) | ((this: T2, ...args: A2) => R2) | ((this: T3, ...args: A3) => R3) : FunctionType extends {
+    (this: infer T1, ...args: infer A1): infer R1;
+    (this: infer T2, ...args: infer A2): infer R2;
+} ? ((this: T1, ...args: A1) => R1) | ((this: T2, ...args: A2) => R2) : FunctionType extends (this: infer T1, ...args: infer A1) => infer R1 ? (this: T1, ...args: A1) => R1 : never;
+/**
+ * Like {@linkcode TSPre53OverloadsInfoUnion} but extracts the
+ * `this` parameter types, using
+ * {@linkcode DecreasingOverloadsInfoUnionWithThis} to preserve `this`
+ * through the filtering step.
+ *
+ * @template FunctionType - the function type to extract `this` parameter types from.
+ */
+type TSPre53OverloadThisParameterTypes<FunctionType> = Tuplify<DecreasingOverloadsInfoUnionWithThis<FunctionType>> extends infer TupleType ? TupleType extends [infer OverloadedFunctionType] ? IsUselessOverloadInfo<OverloadedFunctionType> extends true ? never : OverloadedFunctionType extends (this: infer InferredThisType, ...args: any[]) => any ? InferredThisType : never : never : never;
+/**
+ * A union type of the `this` parameter types for any overload of
+ * function {@linkcode FunctionType}.
+ *
+ * @template FunctionType - the function type to extract `this` parameter types from.
+ */
+type OverloadThisParameterTypes<FunctionType> = FunctionType extends (...args: any[]) => any ? IsNever<TSPost53OverloadsInfoUnion<(a: 1) => 2>> extends true ? TSPre53OverloadThisParameterTypes<FunctionType> : TSPost53OverloadThisParameterTypes<FunctionType> : ThisParameterType<FunctionType>;
+/**
+ * Takes an overload variants {@linkcode Union},
+ * produced from {@linkcode OverloadsInfoUnion} and rejects
+ * the ones incompatible with parameters {@linkcode Args}.
+ */
+type SelectOverloadsInfo<Union extends UnknownFunction, Args extends unknown[]> = Union extends InferFunctionType<infer Fn> ? (Args extends Parameters<Fn> ? Fn : never) : never;
+/**
+ * Creates a new overload (an intersection type) from an existing one,
+ * which only includes variant(s) which can accept
+ * {@linkcode Args} as parameters.
+ */
+type OverloadsNarrowedByParameters<FunctionType, Args extends OverloadParameters<FunctionType>> = UnionToIntersection<SelectOverloadsInfo<OverloadsInfoUnion<FunctionType>, Args>>;
+/**
+ * The simple(ish) way to get overload info from a constructor
+ * {@linkcode ConstructorType}. Recent versions of TypeScript will match any
+ * constructor against a generic 10-overload type, filling in slots with
+ * duplicates of the constructor. So, we can just match against a single type
+ * and get all the overloads.
+ *
+ * For older versions of TypeScript,
+ * we'll need to painstakingly do ten separate matches.
+ */
+type TSPost53ConstructorOverloadsInfoUnion<ConstructorType> = ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+    new (...args: infer A3): infer R3;
+    new (...args: infer A4): infer R4;
+    new (...args: infer A5): infer R5;
+    new (...args: infer A6): infer R6;
+    new (...args: infer A7): infer R7;
+    new (...args: infer A8): infer R8;
+    new (...args: infer A9): infer R9;
+    new (...args: infer A10): infer R10;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) | (new (...p: A3) => R3) | (new (...p: A4) => R4) | (new (...p: A5) => R5) | (new (...p: A6) => R6) | (new (...p: A7) => R7) | (new (...p: A8) => R8) | (new (...p: A9) => R9) | (new (...p: A10) => R10) : never;
+/**
+ * A constructor function with `unknown` parameters and return type.
+ */
+type UnknownConstructor = new (...args: unknown[]) => unknown;
+/**
+ * Same as {@linkcode IsUselessOverloadInfo}, but for constructors.
+ */
+type IsUselessConstructorOverloadInfo<FunctionType> = StrictEqualUsingTSInternalIdenticalToOperator<FunctionType, UnknownConstructor>;
+/**
+ * For older versions of TypeScript, we need two separate workarounds to
+ * get constructor overload info. First, we need need to use
+ * {@linkcode DecreasingConstructorOverloadsInfoUnion} to get the overload
+ * info for constructors with 1-10 overloads. Then, we need to filter out the
+ * "useless" overloads that are present in older versions of TypeScript,
+ * for parameterless constructors. To do this we use
+ * {@linkcode IsUselessConstructorOverloadInfo} to remove useless overloads.
+ *
+ * @see {@link https://github.com/microsoft/TypeScript/issues/28867 | Related}
+ */
+type TSPre53ConstructorOverloadsInfoUnion<ConstructorType> = Tuplify<DecreasingConstructorOverloadsInfoUnion<ConstructorType>> extends infer Tup ? Tup extends [infer Ctor] ? IsUselessConstructorOverloadInfo<Ctor> extends true ? never : Ctor : never : never;
+/**
+ * For versions of TypeScript below 5.3, we need to check for 10 overloads,
+ * then 9, then 8, etc., to get a union of the overload variants.
+ */
+type DecreasingConstructorOverloadsInfoUnion<ConstructorType> = ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+    new (...args: infer A3): infer R3;
+    new (...args: infer A4): infer R4;
+    new (...args: infer A5): infer R5;
+    new (...args: infer A6): infer R6;
+    new (...args: infer A7): infer R7;
+    new (...args: infer A8): infer R8;
+    new (...args: infer A9): infer R9;
+    new (...args: infer A10): infer R10;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) | (new (...p: A3) => R3) | (new (...p: A4) => R4) | (new (...p: A5) => R5) | (new (...p: A6) => R6) | (new (...p: A7) => R7) | (new (...p: A8) => R8) | (new (...p: A9) => R9) | (new (...p: A10) => R10) : ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+    new (...args: infer A3): infer R3;
+    new (...args: infer A4): infer R4;
+    new (...args: infer A5): infer R5;
+    new (...args: infer A6): infer R6;
+    new (...args: infer A7): infer R7;
+    new (...args: infer A8): infer R8;
+    new (...args: infer A9): infer R9;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) | (new (...p: A3) => R3) | (new (...p: A4) => R4) | (new (...p: A5) => R5) | (new (...p: A6) => R6) | (new (...p: A7) => R7) | (new (...p: A8) => R8) | (new (...p: A9) => R9) : ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+    new (...args: infer A3): infer R3;
+    new (...args: infer A4): infer R4;
+    new (...args: infer A5): infer R5;
+    new (...args: infer A6): infer R6;
+    new (...args: infer A7): infer R7;
+    new (...args: infer A8): infer R8;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) | (new (...p: A3) => R3) | (new (...p: A4) => R4) | (new (...p: A5) => R5) | (new (...p: A6) => R6) | (new (...p: A7) => R7) | (new (...p: A8) => R8) : ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+    new (...args: infer A3): infer R3;
+    new (...args: infer A4): infer R4;
+    new (...args: infer A5): infer R5;
+    new (...args: infer A6): infer R6;
+    new (...args: infer A7): infer R7;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) | (new (...p: A3) => R3) | (new (...p: A4) => R4) | (new (...p: A5) => R5) | (new (...p: A6) => R6) | (new (...p: A7) => R7) : ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+    new (...args: infer A3): infer R3;
+    new (...args: infer A4): infer R4;
+    new (...args: infer A5): infer R5;
+    new (...args: infer A6): infer R6;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) | (new (...p: A3) => R3) | (new (...p: A4) => R4) | (new (...p: A5) => R5) | (new (...p: A6) => R6) : ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+    new (...args: infer A3): infer R3;
+    new (...args: infer A4): infer R4;
+    new (...args: infer A5): infer R5;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) | (new (...p: A3) => R3) | (new (...p: A4) => R4) | (new (...p: A5) => R5) : ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+    new (...args: infer A3): infer R3;
+    new (...args: infer A4): infer R4;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) | (new (...p: A3) => R3) | (new (...p: A4) => R4) : ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+    new (...args: infer A3): infer R3;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) | (new (...p: A3) => R3) : ConstructorType extends {
+    new (...args: infer A1): infer R1;
+    new (...args: infer A2): infer R2;
+} ? (new (...p: A1) => R1) | (new (...p: A2) => R2) : ConstructorType extends new (...args: infer A1) => infer R1 ? (new (...p: A1) => R1) : never;
+/**
+ * Get a union of overload variants for a constructor
+ * {@linkcode ConstructorType}. Does a check for whether we can do the
+ * one-shot 10-overload matcher (which works for ts\>5.3), and if not,
+ * falls back to the more complicated utility.
+ */
+type ConstructorOverloadsUnion<ConstructorType> = IsNever<TSPost53ConstructorOverloadsInfoUnion<new (a: 1) => any>> extends true ? TSPre53ConstructorOverloadsInfoUnion<ConstructorType> : TSPost53ConstructorOverloadsInfoUnion<ConstructorType>;
+/**
+ * Allows inferring any constructor using the `infer` keyword.
+ */
+type InferConstructor<ConstructorType extends new (...args: any) => any> = ConstructorType;
+/**
+ * A union type of the parameters allowed for any overload
+ * of constructor {@linkcode ConstructorType}.
+ */
+type ConstructorOverloadParameters<ConstructorType> = ConstructorOverloadsUnion<ConstructorType> extends InferConstructor<infer Ctor> ? ConstructorParameters<Ctor> : never;
+/**
+ * Calculates the number of overloads for a given function type.
+ */
+type NumOverloads<FunctionType> = UnionToTuple<OverloadsInfoUnion<FunctionType>>['length'];
+
+type DeepBrandOptions = {
+    nominalTypes: {};
+};
+type DeepBrandOptionsDefaults = {
+    nominalTypes: {
+        Date: Date;
+    };
+};
+type NominalType<T, Options extends DeepBrandOptions> = Options['nominalTypes'] extends infer N ? {
+    [K in keyof N]: MutuallyExtends<N[K], T> extends true ? K : never;
+}[keyof N] : never;
+/**
+ * Represents a deeply branded type.
+ *
+ * Recursively walk a type and replace it with a branded type related to the
+ * original. This is useful for equality-checking stricter than
+ * `A extends B ? B extends A ? true : false : false`, because it detects the
+ * difference between a few edge-case types that vanilla TypeScript
+ * doesn't by default:
+ * - `any` vs `unknown`
+ * - `{ readonly a: string }` vs `{ a: string }`
+ * - `{ a?: string }` vs `{ a: string | undefined }`
+ *
+ * __Note__: not very performant for complex types - this should only be used
+ * when you know you need it. If doing an equality check, it's almost always
+ * better to use {@linkcode StrictEqualUsingTSInternalIdenticalToOperator}.
+ */
+type DeepBrand<T, Options extends DeepBrandOptions> = IsNever<T> extends true ? {
+    type: 'never';
+} : IsAny<T> extends true ? {
+    type: 'any';
+} : IsUnknown<T> extends true ? {
+    type: 'unknown';
+} : NominalType<T, Options> extends infer Nominal ? IsNever<Nominal> extends true ? T extends string | number | boolean | symbol | bigint | null | undefined | void ? {
+    type: 'primitive';
+    value: T;
+} : T extends new (...args: any[]) => any ? {
+    type: 'constructor';
+    params: ConstructorOverloadParameters<T>;
+    instance: DeepBrand<InstanceType<Extract<T, new (...args: any) => any>>, Options>;
+} : T extends (...args: infer P) => infer R ? NumOverloads<T> extends 1 ? {
+    type: 'function';
+    params: DeepBrand<P, Options>;
+    return: DeepBrand<R, Options>;
+    this: DeepBrand<ThisParameterType<T>, Options>;
+    props: DeepBrand<Omit<T, keyof Function>, Options>;
+} : UnionToTuple<OverloadsInfoUnion<T>> extends infer OverloadsTuple ? {
+    type: 'overloads';
+    overloads: {
+        [K in keyof OverloadsTuple]: DeepBrand<OverloadsTuple[K], Options>;
+    };
+} : never : T extends any[] ? IsTuple<T> extends true ? {
+    type: 'tuple';
+    items: {
+        [K in keyof T]: DeepBrand<T[K], Options>;
+    };
+} : {
+    type: 'array';
+    items: DeepBrand<T[number], Options>;
+} : IsRecord<T> extends true ? {
+    type: 'record';
+    keys: keyof T;
+    values: DeepBrand<T[keyof T], Options>;
+} : {
+    type: 'object';
+    properties: {
+        [K in keyof T]: DeepBrand<T[K], Options>;
+    };
+    readonly: ReadonlyKeys<T>;
+    required: RequiredKeys<T>;
+    optional: OptionalKeys<T>;
+    constructorParams: ConstructorOverloadParameters<T> extends infer P ? IsNever<P> extends true ? never : DeepBrand<P, Options> : never;
+} : {
+    type: Nominal;
+} : never;
+/**
+ * Checks if two types are strictly equal using branding.
+ */
+type StrictEqualUsingBranding<Left, Right, Options extends DeepBrandOptions> = MutuallyExtends<DeepBrand<Left, Options>, DeepBrand<Right, Options>>;
+/**
+ * @internal don't use this unless you are deeply familiar with it!
+ *
+ * Walks over a type `T`, assuming that it's the output of the {@linkcode DeepBrand} utility. It looks for leaf nodes looking like `{type: FindType}`.
+ * When it finds them, it merges them into a string->string record, keeping track of a rough representation of the path-location.
+ * For simple objects, this path will roughly match dot-prop notation but it also traverses into all the structures that `DeepBrand` can emit.
+ * But it also goes into overloads, function parameters, return types, etc. The output is an ugly intersection of objects along with a marker `{deepBrandLeafNode: true}`
+ * which is purely for internal use. The output should not be shown to end-users!
+ */
+type _DeepPropTypesOfBranded<T, PathTo extends string, FindType extends string> = IsNever<T> extends true ? {} : T extends string ? {} : T extends {
+    type: FindType;
+} ? {
+    [K in PathTo]: T['type'];
+} & {
+    deepBrandLeafNode: true;
+} : T extends any[] ? _DeepPropTypesOfBranded<TupleToRecord<T>, PathTo, FindType> : UnionToIntersection<{
+    [K in keyof T]: Extract<_DeepPropTypesOfBranded<T[K], `${PathTo}${DeepBrandPropPathSuffix<T, Prop<K>>}`, FindType>, {
+        deepBrandLeafNode: true;
+    }>;
+}[keyof T]>;
+/** Required options for for {@linkcode DeepBrandPropNotes}. */
+type DeepBrandPropNotesOptions = Partial<DeepBrandOptions> & {
+    findType: 'any' | 'never' | 'unknown';
+};
+/** Default options for for {@linkcode DeepBrandPropNotes}. */
+type DeepBrandPropNotesOptionsDefaults = {
+    findType: 'any' | 'never';
+};
+/**
+ * For an input type `T`, finds all deeply-nested properties in the {@linkcode DeepBrand} representation of it.
+ *
+ * The output is a developer-readable shallow record of prop-path -> resolved type.
+ * @example
+ * ```ts
+ * type X = {a: any; b: boolean; c: {d: any}}
+ * const notes: DeepBrandPropNotes<X, {findType: 'any'}> = {
+ *   '.a': 'any',
+ *   '.c.d': 'any',
+ * }
+ * ```
+ */
+type DeepBrandPropNotes<T, Options extends DeepBrandPropNotesOptions> = _DeepPropTypesOfBranded<DeepBrand<T, DeepBrandOptionsDefaults & Options>, '', Options['findType']> extends infer X ? {} extends X ? Record<string | number | symbol, 'No flagged props found!'> : {
+    [K in Exclude<keyof X, 'deepBrandLeafNode'>]: X[K];
+} : never;
+/**
+ * @internal
+ *
+ * Helper to coerce a type `K` that you are already pretty sure is a string because it camed from a `keyof T` type expression.
+ * Useful because sometimes TypeScript forgets that.
+ * When it's not a string or number, it will output a big ugly literal type `'UNEXPECTED_NON_LITERAL_PROP'` - try to avoid this!
+ */
+type Prop<K> = K extends string | number ? K : 'UNEXPECTED_NON_LITERAL_PROP';
+/**
+ * Gets a sensible suffix to a property path for a {@linkcode DeepBrand} output type.
+ * `[number]` for arrays, empty string for objects, and parenthesised-input for anything else.
+ */
+type DeepBrandPropPathSuffix<T, K> = T extends {
+    type: string;
+} ? K extends 'items' ? '[number]' : K extends 'properties' ? '' : `(${Prop<K>})` : `.${Prop<K>}`;
+
+/**
+ * Determines the printable type representation for a given type.
+ */
+type PrintType<T> = IsUnknown<T> extends true ? 'unknown' : IsNever<T> extends true ? 'never' : IsAny<T> extends true ? never : boolean extends T ? 'boolean' : T extends boolean ? `literal boolean: ${T}` : string extends T ? 'string' : T extends string ? `literal string: ${T}` : number extends T ? 'number' : T extends number ? `literal number: ${T}` : bigint extends T ? 'bigint' : T extends bigint ? `literal bigint: ${T}` : T extends null ? 'null' : T extends undefined ? 'undefined' : T extends (...args: any[]) => any ? 'function' : '...';
+/**
+ * Helper for showing end-user a hint why their type assertion is failing.
+ * This swaps "leaf" types with a literal message about what the actual and
+ * expected types are. Needs to check for `Not<IsAny<Actual>>` because
+ * otherwise `LeafTypeOf<Actual>` returns `never`, which extends everything 🤔
+ */
+type MismatchInfo<Actual, Expected, Options extends DeepBrandOptions = DeepBrandOptionsDefaults> = And<[Extends<PrintType<Actual>, '...'>, Not<IsAny<Actual>>]> extends true ? And<[Extends<any[], Actual>, Extends<any[], Expected>]> extends true ? Array<MismatchInfo<Extract<Actual, any[]>[number], Extract<Expected, any[]>[number], Options>> : Optionalify<{
+    [K in UsefulKeys<Actual> | UsefulKeys<Expected>]: MismatchInfo<K extends keyof Actual ? Actual[K] : never, K extends keyof Expected ? Expected[K] : never, Options>;
+}, OptionalKeys<Expected>> : StrictEqualUsingBranding<Actual, Expected, Options> extends true ? Actual : `Expected: ${PrintType<Expected>}, Actual: ${PrintType<Exclude<Actual, Expected>>}`;
+/**
+ * Helper for making some keys of a type optional. Only useful so far for `MismatchInfo` - it makes sure we
+ * don't get bogus errors about optional properties mismatching, when actually it's something else that's wrong.
+ *
+ * - Note: this helper is a no-op if there are no optional keys in the type.
+ */
+type Optionalify<T, TOptionalKeys> = [TOptionalKeys] extends [never] ? T : ({
+    [K in Exclude<keyof T, TOptionalKeys>]: T[K];
+} & {
+    [K in Extract<keyof T, TOptionalKeys>]?: T[K];
+}) extends infer X ? {
+    [K in keyof X]: X[K];
+} : never;
+/**
+ * @internal
+ */
+declare const inverted: unique symbol;
+/**
+ * @internal
+ */
+type Inverted<T> = {
+    [inverted]: T;
+};
+/**
+ * @internal
+ */
+declare const expectNull: unique symbol;
+type ExpectNull<T> = {
+    [expectNull]: T;
+    result: ExtendsExcludingAnyOrNever<T, null>;
+};
+/**
+ * @internal
+ */
+declare const expectUndefined: unique symbol;
+type ExpectUndefined<T> = {
+    [expectUndefined]: T;
+    result: ExtendsExcludingAnyOrNever<T, undefined>;
+};
+/**
+ * @internal
+ */
+declare const expectNumber: unique symbol;
+type ExpectNumber<T> = {
+    [expectNumber]: T;
+    result: ExtendsExcludingAnyOrNever<T, number>;
+};
+/**
+ * @internal
+ */
+declare const expectString: unique symbol;
+type ExpectString<T> = {
+    [expectString]: T;
+    result: ExtendsExcludingAnyOrNever<T, string>;
+};
+/**
+ * @internal
+ */
+declare const expectBoolean: unique symbol;
+type ExpectBoolean<T> = {
+    [expectBoolean]: T;
+    result: ExtendsExcludingAnyOrNever<T, boolean>;
+};
+/**
+ * @internal
+ */
+declare const expectVoid: unique symbol;
+type ExpectVoid<T> = {
+    [expectVoid]: T;
+    result: ExtendsExcludingAnyOrNever<T, void>;
+};
+/**
+ * @internal
+ */
+declare const expectFunction: unique symbol;
+type ExpectFunction<T> = {
+    [expectFunction]: T;
+    result: ExtendsExcludingAnyOrNever<T, (...args: any[]) => any>;
+};
+/**
+ * @internal
+ */
+declare const expectObject: unique symbol;
+type ExpectObject<T> = {
+    [expectObject]: T;
+    result: ExtendsExcludingAnyOrNever<T, object>;
+};
+/**
+ * @internal
+ */
+declare const expectArray: unique symbol;
+type ExpectArray<T> = {
+    [expectArray]: T;
+    result: ExtendsExcludingAnyOrNever<T, any[]>;
+};
+/**
+ * @internal
+ */
+declare const expectSymbol: unique symbol;
+type ExpectSymbol<T> = {
+    [expectSymbol]: T;
+    result: ExtendsExcludingAnyOrNever<T, symbol>;
+};
+/**
+ * @internal
+ */
+declare const expectAny: unique symbol;
+type ExpectAny<T> = {
+    [expectAny]: T;
+    result: IsAny<T>;
+};
+/**
+ * @internal
+ */
+declare const expectUnknown: unique symbol;
+type ExpectUnknown<T> = {
+    [expectUnknown]: T;
+    result: IsUnknown<T>;
+};
+/**
+ * @internal
+ */
+declare const expectNever: unique symbol;
+type ExpectNever<T> = {
+    [expectNever]: T;
+    result: IsNever<T>;
+};
+/**
+ * @internal
+ */
+declare const expectNullable: unique symbol;
+type ExpectNullable<T> = {
+    [expectNullable]: T;
+    result: Not<StrictEqualUsingTSInternalIdenticalToOperator<T, NonNullable<T>>>;
+};
+/**
+ * @internal
+ */
+declare const expectBigInt: unique symbol;
+type ExpectBigInt<T> = {
+    [expectBigInt]: T;
+    result: ExtendsExcludingAnyOrNever<T, bigint>;
+};
+/**
+ * Checks if the result of an expecter matches the specified options, and
+ * resolves to a fairly readable error message if not.
+ */
+type Scolder<Expecter extends {
+    result: boolean;
+}, Options extends {
+    positive: boolean;
+}> = Expecter['result'] extends Options['positive'] ? () => true : Options['positive'] extends true ? Expecter : Inverted<Expecter>;
+
+/**
+ * Represents the positive assertion methods available for type checking in the
+ * {@linkcode expectTypeOf()} utility.
+ */
+interface PositiveExpectTypeOf<Actual> extends BaseExpectTypeOf<Actual, {
+    positive: true;
+    branded: false;
+}> {
+    /**
+     * Similar to jest's `expect(...).toMatchObject(...)` but for types.
+     * Deeply "picks" the properties of the actual type based on the expected type, then performs a strict check to make sure the types match `Expected`.
+     *
+     * **Note**: optional properties on the {@linkcode Expected | expected type} are not allowed to be missing on the {@linkcode Actual | actual type}.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf({ a: 1, b: 1 }).toMatchObjectType<{ a: number }>()
+     *
+     * expectTypeOf({ a: 1, b: 1 }).not.toMatchObjectType<{ a: number; c?: number }>()
+     * ```
+     *
+     * @param MISMATCH - The mismatch arguments.
+     * @returns `true`.
+     */
+    toMatchObjectType: <Expected extends IsUnion<Expected> extends true ? 'toMatchObject does not support union types' : Not<Extends<Expected, Record<string, unknown>>> extends true ? 'toMatchObject only supports object types' : StrictEqualUsingTSInternalIdenticalToOperator<DeepPickMatchingProps<Actual, Expected>, Expected> extends true ? unknown : MismatchInfo<DeepPickMatchingProps<Actual, Expected>, Expected>>(...MISMATCH: MismatchArgs<StrictEqualUsingTSInternalIdenticalToOperator<DeepPickMatchingProps<Actual, Expected>, Expected>, true>) => true;
+    /**
+     * Check if your type extends the expected type
+     *
+     * A less strict version of {@linkcode toEqualTypeOf | .toEqualTypeOf()} that allows for extra properties.
+     * This is roughly equivalent to an `extends` constraint in a function type argument.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf({ a: 1, b: 1 }).toExtend<{ a: number }>()
+     *
+     * expectTypeOf({ a: 1 }).not.toExtend<{ b: number }>()
+     * ```
+     *
+     * @param MISMATCH - The mismatch arguments.
+     * @returns `true`.
+     */
+    toExtend: <Expected extends Extends<Actual, Expected> extends true ? unknown : MismatchInfo<Actual, Expected>>(...MISMATCH: MismatchArgs<Extends<Actual, Expected>, true>) => true;
+    toEqualTypeOf: {
+        /**
+         * Uses TypeScript's internal technique to check for type "identicalness".
+         *
+         * It will check if the types are fully equal to each other.
+         * It will not fail if two objects have different values, but the same type.
+         * It will fail however if an object is missing a property.
+         *
+         * **_Unexpected failure_**? For a more permissive but less performant
+         * check that accommodates for equivalent intersection types,
+         * use {@linkcode branded | .branded.toEqualTypeOf()}.
+         * @see {@link https://github.com/mmkal/expect-type#why-is-my-assertion-failing | The documentation for details}.
+         *
+         * @example
+         * <caption>Using generic type argument syntax</caption>
+         * ```ts
+         * expectTypeOf({ a: 1 }).toEqualTypeOf<{ a: number }>()
+         *
+         * expectTypeOf({ a: 1, b: 1 }).not.toEqualTypeOf<{ a: number }>()
+         * ```
+         *
+         * @example
+         * <caption>Using inferred type syntax by passing a value</caption>
+         * ```ts
+         * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 1 })
+         *
+         * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 2 })
+         * ```
+         *
+         * @param value - The value to compare against the expected type.
+         * @param MISMATCH - The mismatch arguments.
+         * @returns `true`.
+         */
+        <Expected extends StrictEqualUsingTSInternalIdenticalToOperator<Actual, Expected> extends true ? unknown : MismatchInfo<Actual, Expected>>(value: Expected & AValue, // reason for `& AValue`: make sure this is only the selected overload when the end-user passes a value for an inferred typearg. The `Mismatch` type does match `AValue`.
+        ...MISMATCH: MismatchArgs<StrictEqualUsingTSInternalIdenticalToOperator<Actual, Expected>, true>): true;
+        /**
+         * Uses TypeScript's internal technique to check for type "identicalness".
+         *
+         * It will check if the types are fully equal to each other.
+         * It will not fail if two objects have different values, but the same type.
+         * It will fail however if an object is missing a property.
+         *
+         * **_Unexpected failure_**? For a more permissive but less performant
+         * check that accommodates for equivalent intersection types,
+         * use {@linkcode branded | .branded.toEqualTypeOf()}.
+         * @see {@link https://github.com/mmkal/expect-type#why-is-my-assertion-failing | The documentation for details}.
+         *
+         * @example
+         * <caption>Using generic type argument syntax</caption>
+         * ```ts
+         * expectTypeOf({ a: 1 }).toEqualTypeOf<{ a: number }>()
+         *
+         * expectTypeOf({ a: 1, b: 1 }).not.toEqualTypeOf<{ a: number }>()
+         * ```
+         *
+         * @example
+         * <caption>Using inferred type syntax by passing a value</caption>
+         * ```ts
+         * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 1 })
+         *
+         * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 2 })
+         * ```
+         *
+         * @param MISMATCH - The mismatch arguments.
+         * @returns `true`.
+         */
+        <Expected extends StrictEqualUsingTSInternalIdenticalToOperator<Actual, Expected> extends true ? unknown : MismatchInfo<Actual, Expected>>(...MISMATCH: MismatchArgs<StrictEqualUsingTSInternalIdenticalToOperator<Actual, Expected>, true>): true;
+    };
+    /**
+     * @deprecated Since v1.2.0 - Use either {@linkcode toMatchObjectType} or {@linkcode toExtend} instead
+     *
+     * - Use {@linkcode toMatchObjectType} to perform a strict check on a subset of your type's keys
+     * - Use {@linkcode toExtend} to check if your type extends the expected type
+     */
+    toMatchTypeOf: {
+        /**
+         * @deprecated Since v1.2.0 - Use either {@linkcode toMatchObjectType} or {@linkcode toExtend} instead
+         *
+         * - Use {@linkcode toMatchObjectType} to perform a strict check on a subset of your type's keys
+         * - Use {@linkcode toExtend} to check if your type extends the expected type
+         *
+         * A less strict version of {@linkcode toEqualTypeOf | .toEqualTypeOf()}
+         * that allows for extra properties.
+         * This is roughly equivalent to an `extends` constraint
+         * in a function type argument.
+         *
+         * @example
+         * <caption>Using generic type argument syntax</caption>
+         * ```ts
+         * expectTypeOf({ a: 1, b: 1 }).toMatchTypeOf<{ a: number }>()
+         * ```
+         *
+         * @example
+         * <caption>Using inferred type syntax by passing a value</caption>
+         * ```ts
+         * expectTypeOf({ a: 1, b: 1 }).toMatchTypeOf({ a: 2 })
+         * ```
+         *
+         * @param value - The value to compare against the expected type.
+         * @param MISMATCH - The mismatch arguments.
+         * @returns `true`.
+         */
+        <Expected extends Extends<Actual, Expected> extends true ? unknown : MismatchInfo<Actual, Expected>>(value: Expected & AValue, // reason for `& AValue`: make sure this is only the selected overload when the end-user passes a value for an inferred typearg. The `Mismatch` type does match `AValue`.
+        ...MISMATCH: MismatchArgs<Extends<Actual, Expected>, true>): true;
+        /**
+         * @deprecated Since v1.2.0 - Use either {@linkcode toMatchObjectType} or {@linkcode toExtend} instead
+         *
+         * - Use {@linkcode toMatchObjectType} to perform a strict check on a subset of your type's keys
+         * - Use {@linkcode toExtend} to check if your type extends the expected type
+         *
+         * A less strict version of {@linkcode toEqualTypeOf | .toEqualTypeOf()}
+         * that allows for extra properties.
+         * This is roughly equivalent to an `extends` constraint
+         * in a function type argument.
+         *
+         * @example
+         * <caption>Using generic type argument syntax</caption>
+         * ```ts
+         * expectTypeOf({ a: 1, b: 1 }).toMatchTypeOf<{ a: number }>()
+         * ```
+         *
+         * @example
+         * <caption>Using inferred type syntax by passing a value</caption>
+         * ```ts
+         * expectTypeOf({ a: 1, b: 1 }).toMatchTypeOf({ a: 2 })
+         * ```
+         *
+         * @param MISMATCH - The mismatch arguments.
+         * @returns `true`.
+         */
+        <Expected extends Extends<Actual, Expected> extends true ? unknown : MismatchInfo<Actual, Expected>>(...MISMATCH: MismatchArgs<Extends<Actual, Expected>, true>): true;
+    };
+    /**
+     * Checks whether an object has a given property.
+     *
+     * @example
+     * <caption>check that properties exist</caption>
+     * ```ts
+     * const obj = { a: 1, b: '' }
+     *
+     * expectTypeOf(obj).toHaveProperty('a')
+     *
+     * expectTypeOf(obj).not.toHaveProperty('c')
+     * ```
+     *
+     * @param key - The property key to check for.
+     * @param MISMATCH - The mismatch arguments.
+     * @returns `true`.
+     */
+    toHaveProperty: <KeyType extends keyof Actual>(key: KeyType, ...MISMATCH: MismatchArgs<Extends<KeyType, keyof Actual>, true>) => KeyType extends keyof Actual ? PositiveExpectTypeOf<Actual[KeyType]> : true;
+    /**
+     * Inverts the result of the following assertions.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf({ a: 1 }).not.toMatchTypeOf({ b: 1 })
+     * ```
+     */
+    not: NegativeExpectTypeOf<Actual>;
+    /**
+     * Intersection types can cause issues with
+     * {@linkcode toEqualTypeOf | .toEqualTypeOf()}:
+     * ```ts
+     * // ❌ The following line doesn't compile, even though the types are arguably the same.
+     * expectTypeOf<{ a: 1 } & { b: 2 }>().toEqualTypeOf<{ a: 1; b: 2 }>()
+     * ```
+     * This helper works around this problem by using
+     * a more permissive but less performant check.
+     *
+     * __Note__: This comes at a performance cost, and can cause the compiler
+     * to 'give up' if used with excessively deep types, so use sparingly.
+     *
+     * @see {@link https://github.com/mmkal/expect-type/pull/21 | Reference}
+     */
+    branded: Branded<Actual, DeepBrandOptionsDefaults>;
+}
+interface Branded<Actual, Options extends DeepBrandOptions> {
+    /**
+     * Uses TypeScript's internal technique to check for type "identicalness".
+     *
+     * It will check if the types are fully equal to each other.
+     * It will not fail if two objects have different values, but the same type.
+     * It will fail however if an object is missing a property.
+     *
+     * **_Unexpected failure_**? For a more permissive but less performant
+     * check that accommodates for equivalent intersection types,
+     * use {@linkcode PositiveExpectTypeOf.branded | .branded.toEqualTypeOf()}.
+     * @see {@link https://github.com/mmkal/expect-type#why-is-my-assertion-failing | The documentation for details}.
+     *
+     * @example
+     * <caption>Using generic type argument syntax</caption>
+     * ```ts
+     * expectTypeOf({ a: 1 }).toEqualTypeOf<{ a: number }>()
+     *
+     * expectTypeOf({ a: 1, b: 1 }).not.toEqualTypeOf<{ a: number }>()
+     * ```
+     *
+     * @example
+     * <caption>Using inferred type syntax by passing a value</caption>
+     * ```ts
+     * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 1 })
+     *
+     * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 2 })
+     * ```
+     *
+     * @param MISMATCH - The mismatch arguments.
+     * @returns `true`.
+     */
+    toEqualTypeOf: <Expected extends StrictEqualUsingBranding<Actual, Expected, Options> extends true ? unknown : MismatchInfo<Actual, Expected, Options>>(...MISMATCH: MismatchArgs<StrictEqualUsingBranding<Actual, Expected, Options>, true>) => true;
+    /**
+     * Walk a type to find every deeply-nested path that resolves to `any` or `never`, useful for catching
+     * badly-defined types hiding inside large or complex objects.
+     *
+     * Pass `{foundProps: {}}` to assert there are none - a type error will list the offending paths if there are.
+     * Otherwise pass `foundProps` as a record of `path -> flagged type` to acknowledge the ones you expect.
+     * The compiler tells you the exact paths (and what they resolve to) if you get it wrong.
+     *
+     * Use the `findType` type argument to search for `'any'`, `'never'`, or `'unknown'` instead of the default (`'any' | 'never'`).
+     *
+     * @param params An object with a `foundProps` record mapping each flagged path to its resolved type. For a
+     * well-defined type with no issues, pass `{foundProps: {}}`.
+     * @returns true
+     *
+     * @example
+     * ```ts
+     * type BadType = {a: any; nested: {b: never}; list: Array<{c: any}>}
+     *
+     * // \@ts-expect-error there are `any`/`never` paths, so you can't claim there are none.
+     * expectTypeOf<BadType>().branded.inspect({foundProps: {}})
+     *
+     * // ...instead, enumerate them (the compiler reports the exact paths if this is wrong):
+     * expectTypeOf<BadType>().branded.inspect({
+     *   foundProps: {
+     *     '.a': 'any',
+     *     '.nested.b': 'never',
+     *     '.list[number].c': 'any',
+     *   },
+     * })
+     * ```
+     *
+     * @example
+     * ```ts
+     * type GoodType = {b: boolean; c: string}
+     *
+     * expectTypeOf<GoodType>().branded.inspect({foundProps: {}})
+     * ```
+     *
+     * @example
+     * ```ts
+     * // search for `unknown` instead of `any`/`never`:
+     * expectTypeOf<{u: unknown}>().branded.inspect<{findType: 'unknown'}>({foundProps: {'.u': 'unknown'}})
+     * ```
+     */
+    inspect: <PropNoteOptions extends Exclude<DeepBrandPropNotesOptions, DeepBrandOptions> = DeepBrandPropNotesOptionsDefaults>(params: {
+        foundProps: DeepBrandPropNotes<Actual, Options & PropNoteOptions>;
+    }) => true;
+    configure<O extends DeepBrandOptions>(): Branded<Actual, O>;
+}
+/**
+ * Represents the negative expectation type for the {@linkcode Actual} type.
+ */
+interface NegativeExpectTypeOf<Actual> extends BaseExpectTypeOf<Actual, {
+    positive: false;
+}> {
+    /**
+     * Similar to jest's `expect(...).toMatchObject(...)` but for types.
+     * Deeply "picks" the properties of the actual type based on the expected type, then performs a strict check to make sure the types match `Expected`.
+     *
+     * **Note**: optional properties on the {@linkcode Expected | expected type} are not allowed to be missing on the {@linkcode Actual | actual type}.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf({ a: 1, b: 1 }).toMatchObjectType<{ a: number }>()
+     *
+     * expectTypeOf({ a: 1, b: 1 }).not.toMatchObjectType<{ a: number; c?: number }>()
+     * ```
+     *
+     * @param MISMATCH - The mismatch arguments.
+     * @returns `true`.
+     */
+    toMatchObjectType: <Expected>(...MISMATCH: MismatchArgs<StrictEqualUsingTSInternalIdenticalToOperator<Pick<Actual, keyof Actual & keyof Expected>, Expected>, false>) => true;
+    /**
+     * Check if your type extends the expected type
+     *
+     * A less strict version of {@linkcode PositiveExpectTypeOf.toEqualTypeOf | .toEqualTypeOf()} that allows for extra properties.
+     * This is roughly equivalent to an `extends` constraint in a function type argument.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf({ a: 1, b: 1 }).toExtend<{ a: number }>()]
+     *
+     * expectTypeOf({ a: 1 }).not.toExtend<{ b: number }>()
+     * ```
+     *
+     * @param MISMATCH - The mismatch arguments.
+     * @returns `true`.
+     */
+    toExtend<Expected>(...MISMATCH: MismatchArgs<Extends<Actual, Expected>, false>): true;
+    toEqualTypeOf: {
+        /**
+         * Uses TypeScript's internal technique to check for type "identicalness".
+         *
+         * It will check if the types are fully equal to each other.
+         * It will not fail if two objects have different values, but the same type.
+         * It will fail however if an object is missing a property.
+         *
+         * **_Unexpected failure_**? For a more permissive but less performant
+         * check that accommodates for equivalent intersection types,
+         * use {@linkcode PositiveExpectTypeOf.branded | .branded.toEqualTypeOf()}.
+         * @see {@link https://github.com/mmkal/expect-type#why-is-my-assertion-failing | The documentation for details}.
+         *
+         * @example
+         * <caption>Using generic type argument syntax</caption>
+         * ```ts
+         * expectTypeOf({ a: 1 }).toEqualTypeOf<{ a: number }>()
+         *
+         * expectTypeOf({ a: 1, b: 1 }).not.toEqualTypeOf<{ a: number }>()
+         * ```
+         *
+         * @example
+         * <caption>Using inferred type syntax by passing a value</caption>
+         * ```ts
+         * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 1 })
+         *
+         * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 2 })
+         * ```
+         *
+         * @param value - The value to compare against the expected type.
+         * @param MISMATCH - The mismatch arguments.
+         * @returns `true`.
+         */
+        <Expected>(value: Expected & AValue, ...MISMATCH: MismatchArgs<StrictEqualUsingTSInternalIdenticalToOperator<Actual, Expected>, false>): true;
+        /**
+         * Uses TypeScript's internal technique to check for type "identicalness".
+         *
+         * It will check if the types are fully equal to each other.
+         * It will not fail if two objects have different values, but the same type.
+         * It will fail however if an object is missing a property.
+         *
+         * **_Unexpected failure_**? For a more permissive but less performant
+         * check that accommodates for equivalent intersection types,
+         * use {@linkcode PositiveExpectTypeOf.branded | .branded.toEqualTypeOf()}.
+         * @see {@link https://github.com/mmkal/expect-type#why-is-my-assertion-failing | The documentation for details}.
+         *
+         * @example
+         * <caption>Using generic type argument syntax</caption>
+         * ```ts
+         * expectTypeOf({ a: 1 }).toEqualTypeOf<{ a: number }>()
+         *
+         * expectTypeOf({ a: 1, b: 1 }).not.toEqualTypeOf<{ a: number }>()
+         * ```
+         *
+         * @example
+         * <caption>Using inferred type syntax by passing a value</caption>
+         * ```ts
+         * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 1 })
+         *
+         * expectTypeOf({ a: 1 }).toEqualTypeOf({ a: 2 })
+         * ```
+         *
+         * @param MISMATCH - The mismatch arguments.
+         * @returns `true`.
+         */
+        <Expected>(...MISMATCH: MismatchArgs<StrictEqualUsingTSInternalIdenticalToOperator<Actual, Expected>, false>): true;
+    };
+    /**
+     * @deprecated Since v1.2.0 - Use either {@linkcode toMatchObjectType} or {@linkcode toExtend} instead
+     *
+     * - Use {@linkcode toMatchObjectType} to perform a strict check on a subset of your type's keys
+     * - Use {@linkcode toExtend} to check if your type extends the expected type
+     */
+    toMatchTypeOf: {
+        /**
+         * @deprecated Since v1.2.0 - Use either {@linkcode toMatchObjectType} or {@linkcode toExtend} instead
+         *
+         * - Use {@linkcode toMatchObjectType} to perform a strict check on a subset of your type's keys
+         * - Use {@linkcode toExtend} to check if your type extends the expected type
+         *
+         * A less strict version of
+         * {@linkcode PositiveExpectTypeOf.toEqualTypeOf | .toEqualTypeOf()}
+         * that allows for extra properties.
+         * This is roughly equivalent to an `extends` constraint
+         * in a function type argument.
+         *
+         * @example
+         * <caption>Using generic type argument syntax</caption>
+         * ```ts
+         * expectTypeOf({ a: 1, b: 1 }).toMatchTypeOf<{ a: number }>()
+         * ```
+         *
+         * @example
+         * <caption>Using inferred type syntax by passing a value</caption>
+         * ```ts
+         * expectTypeOf({ a: 1, b: 1 }).toMatchTypeOf({ a: 2 })
+         * ```
+         *
+         * @param value - The value to compare against the expected type.
+         * @param MISMATCH - The mismatch arguments.
+         * @returns `true`.
+         */
+        <Expected>(value: Expected & AValue, // reason for `& AValue`: make sure this is only the selected overload when the end-user passes a value for an inferred typearg. The `Mismatch` type does match `AValue`.
+        ...MISMATCH: MismatchArgs<Extends<Actual, Expected>, false>): true;
+        /**
+         * @deprecated Since v1.2.0 - Use either {@linkcode toMatchObjectType} or {@linkcode toExtend} instead
+         *
+         * - Use {@linkcode toMatchObjectType} to perform a strict check on a subset of your type's keys
+         * - Use {@linkcode toExtend} to check if your type extends the expected type
+         *
+         * A less strict version of
+         * {@linkcode PositiveExpectTypeOf.toEqualTypeOf | .toEqualTypeOf()}
+         * that allows for extra properties.
+         * This is roughly equivalent to an `extends` constraint
+         * in a function type argument.
+         *
+         * @example
+         * <caption>Using generic type argument syntax</caption>
+         * ```ts
+         * expectTypeOf({ a: 1, b: 1 }).toMatchTypeOf<{ a: number }>()
+         * ```
+         *
+         * @example
+         * <caption>Using inferred type syntax by passing a value</caption>
+         * ```ts
+         * expectTypeOf({ a: 1, b: 1 }).toMatchTypeOf({ a: 2 })
+         * ```
+         *
+         * @param MISMATCH - The mismatch arguments.
+         * @returns `true`.
+         */
+        <Expected>(...MISMATCH: MismatchArgs<Extends<Actual, Expected>, false>): true;
+    };
+    /**
+     * Checks whether an object has a given property.
+     *
+     * @example
+     * <caption>check that properties exist</caption>
+     * ```ts
+     * const obj = { a: 1, b: '' }
+     *
+     * expectTypeOf(obj).toHaveProperty('a')
+     *
+     * expectTypeOf(obj).not.toHaveProperty('c')
+     * ```
+     *
+     * @param key - The property key to check for.
+     * @param MISMATCH - The mismatch arguments.
+     * @returns `true`.
+     */
+    toHaveProperty: <KeyType extends string | number | symbol>(key: KeyType, ...MISMATCH: MismatchArgs<Extends<KeyType, keyof Actual>, false>) => true;
+}
+/**
+ * Represents a conditional type that selects either
+ * {@linkcode PositiveExpectTypeOf} or {@linkcode NegativeExpectTypeOf} based
+ * on the value of the `positive` property in the {@linkcode Options} type.
+ */
+type ExpectTypeOf<Actual, Options extends {
+    positive: boolean;
+}> = Options['positive'] extends true ? PositiveExpectTypeOf<Actual> : NegativeExpectTypeOf<Actual>;
+/**
+ * Represents the base interface for the
+ * {@linkcode expectTypeOf()} function.
+ * Provides a set of assertion methods to perform type checks on a value.
+ */
+interface BaseExpectTypeOf<Actual, Options extends {
+    positive: boolean;
+}> {
+    /**
+     * Checks whether the type of the value is `any`.
+     */
+    toBeAny: Scolder<ExpectAny<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `unknown`.
+     */
+    toBeUnknown: Scolder<ExpectUnknown<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `never`.
+     */
+    toBeNever: Scolder<ExpectNever<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `function`.
+     */
+    toBeFunction: Scolder<ExpectFunction<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `object`.
+     */
+    toBeObject: Scolder<ExpectObject<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is an {@linkcode Array}.
+     */
+    toBeArray: Scolder<ExpectArray<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `number`.
+     */
+    toBeNumber: Scolder<ExpectNumber<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `string`.
+     */
+    toBeString: Scolder<ExpectString<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `boolean`.
+     */
+    toBeBoolean: Scolder<ExpectBoolean<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `void`.
+     */
+    toBeVoid: Scolder<ExpectVoid<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `symbol`.
+     */
+    toBeSymbol: Scolder<ExpectSymbol<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `null`.
+     */
+    toBeNull: Scolder<ExpectNull<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `undefined`.
+     */
+    toBeUndefined: Scolder<ExpectUndefined<Actual>, Options>;
+    /**
+     * Checks whether the type of the value is `null` or `undefined`.
+     */
+    toBeNullable: Scolder<ExpectNullable<Actual>, Options>;
+    /**
+     * Transform that type of the value via a callback.
+     *
+     * @param fn - A callback that transforms the input value. Note that this function is not actually called - it's only used for type inference.
+     * @returns A new type which can be used for further assertions.
+     */
+    map: <T>(fn: (value: Actual) => T) => ExpectTypeOf<T, Options>;
+    /**
+     * Checks whether the type of the value is **`bigint`**.
+     *
+     * @example
+     * <caption>#### Distinguish between **`number`** and **`bigint`**</caption>
+     *
+     * ```ts
+     * import { expectTypeOf } from 'expect-type'
+     *
+     * const aVeryBigInteger = 10n ** 100n
+     *
+     * expectTypeOf(aVeryBigInteger).not.toBeNumber()
+     *
+     * expectTypeOf(aVeryBigInteger).toBeBigInt()
+     * ```
+     *
+     * @since 1.1.0
+     */
+    toBeBigInt: Scolder<ExpectBigInt<Actual>, Options>;
+    /**
+     * Checks whether a function is callable with the given parameters.
+     *
+     * __Note__: You cannot negate this assertion with
+     * {@linkcode PositiveExpectTypeOf.not | .not}, you need to use
+     * `ts-expect-error` instead.
+     *
+     * @example
+     * ```ts
+     * const f = (a: number) => [a, a]
+     *
+     * expectTypeOf(f).toBeCallableWith(1)
+     * ```
+     *
+     * __Known Limitation__: This assertion will likely fail if you try to use it
+     * with a generic function or an overload.
+     * @see {@link https://github.com/mmkal/expect-type/issues/50 | This issue} for an example and a workaround.
+     *
+     * @param args - The arguments to check for callability.
+     * @returns `true`.
+     */
+    toBeCallableWith: Options['positive'] extends true ? <Args extends OverloadParameters<Actual>>(...args: Args) => ExpectTypeOf<OverloadsNarrowedByParameters<Actual, Args>, Options> : never;
+    /**
+     * Checks whether a class is constructible with the given parameters.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf(Date).toBeConstructibleWith('1970')
+     *
+     * expectTypeOf(Date).toBeConstructibleWith(0)
+     *
+     * expectTypeOf(Date).toBeConstructibleWith(new Date())
+     *
+     * expectTypeOf(Date).toBeConstructibleWith()
+     * ```
+     *
+     * @param args - The arguments to check for constructibility.
+     * @returns `true`.
+     */
+    toBeConstructibleWith: Options['positive'] extends true ? <Args extends ConstructorOverloadParameters<Actual>>(...args: Args) => true : never;
+    /**
+     * Equivalent to the {@linkcode Extract} utility type.
+     * Helps narrow down complex union types.
+     *
+     * @example
+     * ```ts
+     * type ResponsiveProp<T> = T | T[] | { xs?: T; sm?: T; md?: T }
+     *
+     * interface CSSProperties {
+     *   margin?: string
+     *   padding?: string
+     * }
+     *
+     * function getResponsiveProp<T>(_props: T): ResponsiveProp<T> {
+     *   return {}
+     * }
+     *
+     * const cssProperties: CSSProperties = { margin: '1px', padding: '2px' }
+     *
+     * expectTypeOf(getResponsiveProp(cssProperties))
+     *   .extract<{ xs?: any }>() // extracts the last type from a union
+     *   .toEqualTypeOf<{
+     *     xs?: CSSProperties
+     *     sm?: CSSProperties
+     *     md?: CSSProperties
+     *   }>()
+     *
+     * expectTypeOf(getResponsiveProp(cssProperties))
+     *   .extract<unknown[]>() // extracts an array from a union
+     *   .toEqualTypeOf<CSSProperties[]>()
+     * ```
+     *
+     * __Note__: If no type is found in the union, it will return `never`.
+     *
+     * @param v - The type to extract from the union.
+     * @returns The type after extracting the type from the union.
+     */
+    extract: <V>(v?: V) => ExpectTypeOf<Extract<Actual, V>, Options>;
+    /**
+     * Equivalent to the {@linkcode Exclude} utility type.
+     * Removes types from a union.
+     *
+     * @example
+     * ```ts
+     * type ResponsiveProp<T> = T | T[] | { xs?: T; sm?: T; md?: T }
+     *
+     * interface CSSProperties {
+     *   margin?: string
+     *   padding?: string
+     * }
+     *
+     * function getResponsiveProp<T>(_props: T): ResponsiveProp<T> {
+     *   return {}
+     * }
+     *
+     * const cssProperties: CSSProperties = { margin: '1px', padding: '2px' }
+     *
+     * expectTypeOf(getResponsiveProp(cssProperties))
+     *   .exclude<unknown[]>()
+     *   .exclude<{ xs?: unknown }>() // or just `.exclude<unknown[] | { xs?: unknown }>()`
+     *   .toEqualTypeOf<CSSProperties>()
+     * ```
+     */
+    exclude: <V>(v?: V) => ExpectTypeOf<Exclude<Actual, V>, Options>;
+    /**
+     * Equivalent to the {@linkcode Pick} utility type.
+     * Helps select a subset of properties from an object type.
+     *
+     * @example
+     * ```ts
+     * interface Person {
+     *   name: string
+     *   age: number
+     * }
+     *
+     * expectTypeOf<Person>()
+     *   .pick<'name'>()
+     *   .toEqualTypeOf<{ name: string }>()
+     * ```
+     *
+     * @param keyToPick - The property key to pick.
+     * @returns The type after picking the property.
+     */
+    pick: <KeyToPick extends keyof Actual>(keyToPick?: KeyToPick) => ExpectTypeOf<Pick<Actual, KeyToPick>, Options>;
+    /**
+     * Equivalent to the {@linkcode Omit} utility type.
+     * Helps remove a subset of properties from an object type.
+     *
+     * @example
+     * ```ts
+     * interface Person {
+     *   name: string
+     *   age: number
+     * }
+     *
+     * expectTypeOf<Person>().omit<'name'>().toEqualTypeOf<{ age: number }>()
+     * ```
+     *
+     * @param keyToOmit - The property key to omit.
+     * @returns The type after omitting the property.
+     */
+    omit: <KeyToOmit extends keyof Actual | (PropertyKey & Record<never, never>)>(keyToOmit?: KeyToOmit) => ExpectTypeOf<Omit<Actual, KeyToOmit>, Options>;
+    /**
+     * Extracts a certain function argument with `.parameter(number)` call to
+     * perform other assertions on it.
+     *
+     * @example
+     * ```ts
+     * function foo(a: number, b: string) {
+     *   return [a, b]
+     * }
+     *
+     * expectTypeOf(foo).parameter(0).toBeNumber()
+     *
+     * expectTypeOf(foo).parameter(1).toBeString()
+     * ```
+     *
+     * @param index - The index of the parameter to extract.
+     * @returns The extracted parameter type.
+     */
+    parameter: <Index extends number>(index: Index) => ExpectTypeOf<OverloadParameters<Actual>[Index], Options>;
+    /**
+     * Equivalent to the {@linkcode Parameters} utility type.
+     * Extracts function parameters to perform assertions on its value.
+     * Parameters are returned as an array.
+     *
+     * @example
+     * ```ts
+     * function noParam() {}
+     *
+     * function hasParam(s: string) {}
+     *
+     * expectTypeOf(noParam).parameters.toEqualTypeOf<[]>()
+     *
+     * expectTypeOf(hasParam).parameters.toEqualTypeOf<[string]>()
+     * ```
+     */
+    parameters: ExpectTypeOf<OverloadParameters<Actual>, Options>;
+    /**
+     * Equivalent to the {@linkcode ConstructorParameters} utility type.
+     * Extracts constructor parameters as an array of values and
+     * perform assertions on them with this method.
+     *
+     * For overloaded constructors it will return a union of all possible parameter-tuples.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf(Date).constructorParameters.toEqualTypeOf<
+     *   [] | [string | number | Date]
+     * >()
+     * ```
+     */
+    constructorParameters: ExpectTypeOf<ConstructorOverloadParameters<Actual>, Options>;
+    /**
+     * Equivalent to the {@linkcode ThisParameterType} utility type.
+     * Extracts the `this` parameter of a function to
+     * perform assertions on its value.
+     *
+     * @example
+     * ```ts
+     * function greet(this: { name: string }, message: string) {
+     *   return `Hello ${this.name}, here's your message: ${message}`
+     * }
+     *
+     * expectTypeOf(greet).thisParameter.toEqualTypeOf<{ name: string }>()
+     * ```
+     */
+    thisParameter: ExpectTypeOf<OverloadThisParameterTypes<Actual>, Options>;
+    /**
+     * Equivalent to the {@linkcode InstanceType} utility type.
+     * Extracts the instance type of a class to perform assertions on.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf(Date).instance.toHaveProperty('toISOString')
+     * ```
+     */
+    instance: Actual extends new (...args: any[]) => infer I ? ExpectTypeOf<I, Options> : never;
+    /**
+     * Equivalent to the {@linkcode ReturnType} utility type.
+     * Extracts the return type of a function.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf(() => {}).returns.toBeVoid()
+     *
+     * expectTypeOf((a: number) => [a, a]).returns.toEqualTypeOf([1, 2])
+     * ```
+     */
+    returns: Actual extends Function ? ExpectTypeOf<OverloadReturnTypes<Actual>, Options> : never;
+    /**
+     * Extracts resolved value of a Promise,
+     * so you can perform other assertions on it.
+     *
+     * @example
+     * ```ts
+     * async function asyncFunc() {
+     *   return 123
+     * }
+     *
+     * expectTypeOf(asyncFunc).returns.resolves.toBeNumber()
+     *
+     * expectTypeOf(Promise.resolve('string')).resolves.toBeString()
+     * ```
+     *
+     * Type Equivalent:
+     * ```ts
+     * type Resolves<PromiseType> = PromiseType extends PromiseLike<infer ResolvedType>
+     *   ? ResolvedType
+     *   : never
+     * ```
+     */
+    resolves: Actual extends PromiseLike<infer ResolvedType> ? ExpectTypeOf<ResolvedType, Options> : never;
+    /**
+     * Extracts array item type to perform assertions on.
+     *
+     * @example
+     * ```ts
+     * expectTypeOf([1, 2, 3]).items.toEqualTypeOf<number>()
+     *
+     * expectTypeOf([1, 2, 3]).items.not.toEqualTypeOf<string>()
+     * ```
+     *
+     * __Type Equivalent__:
+     * ```ts
+     * type Items<ArrayType> = ArrayType extends ArrayLike<infer ItemType>
+     *   ? ItemType
+     *   : never
+     * ```
+     */
+    items: Actual extends ArrayLike<infer ItemType> ? ExpectTypeOf<ItemType, Options> : never;
+    /**
+     * Extracts the type guarded by a function to perform assertions on.
+     *
+     * @example
+     * ```ts
+     * function isString(v: any): v is string {
+     *   return typeof v === 'string'
+     * }
+     *
+     * expectTypeOf(isString).guards.toBeString()
+     * ```
+     */
+    guards: Actual extends (v: any, ...args: any[]) => v is infer T ? ExpectTypeOf<T, Options> : never;
+    /**
+     * Extracts the type asserted by a function to perform assertions on.
+     *
+     * @example
+     * ```ts
+     * function assertNumber(v: any): asserts v is number {
+     *   if (typeof v !== 'number')
+     *     throw new TypeError('Nope !')
+     * }
+     *
+     * expectTypeOf(assertNumber).asserts.toBeNumber()
+     * ```
+     */
+    asserts: Actual extends (v: any, ...args: any[]) => asserts v is infer T ? unknown extends T ? never : ExpectTypeOf<T, Options> : never;
+}
+/**
+ * Represents a function that allows asserting the expected type of a value.
+ */
+type _ExpectTypeOf = {
+    /**
+     * Asserts the expected type of a value.
+     *
+     * @param actual - The actual value being asserted.
+     * @returns An object representing the expected type assertion.
+     */
+    <Actual>(actual: Actual): ExpectTypeOf<Actual, {
+        positive: true;
+        branded: false;
+    }>;
+    /**
+     * Asserts the expected type of a value without providing an actual value.
+     *
+     * @returns An object representing the expected type assertion.
+     */
+    <Actual>(): ExpectTypeOf<Actual, {
+        positive: true;
+        branded: false;
+    }>;
+};
+/**
+ * Similar to Jest's `expect`, but with type-awareness.
+ * Gives you access to a number of type-matchers that let you make assertions about the
+ * form of a reference or generic type parameter.
+ *
+ * @example
+ * ```ts
+ * import { foo, bar } from '../foo'
+ * import { expectTypeOf } from 'expect-type'
+ *
+ * test('foo types', () => {
+ *   // make sure `foo` has type { a: number }
+ *   expectTypeOf(foo).toMatchTypeOf({ a: 1 })
+ *   expectTypeOf(foo).toHaveProperty('a').toBeNumber()
+ *
+ *   // make sure `bar` is a function taking a string:
+ *   expectTypeOf(bar).parameter(0).toBeString()
+ *   expectTypeOf(bar).returns.not.toBeAny()
+ * })
+ * ```
+ *
+ * @description
+ * See the [full docs](https://npmjs.com/package/expect-type#documentation) for lots more examples.
+ */
+declare const expectTypeOf: _ExpectTypeOf;
+
+export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, NodeSnapshotEnvironment, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, customMatchers, equals, expectTypeOf, fnNameFor, generateToBeMessage, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, hasAsymmetric, hasProperty, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, pluralize, recordAsyncExpect, setState, sparseArrayEquality, index_d as spies, stripSnapshotIndentation, subsetEquality, typeEquality, wrapAssertion };
+export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectTypeOf, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, Mock, MockInstance, PromisifyAssertion, RawMatcherFn, SnapshotResult, SnapshotStateOptions, SyncExpectationResult, Tester, TesterContext };

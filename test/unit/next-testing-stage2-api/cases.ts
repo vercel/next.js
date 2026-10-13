@@ -457,7 +457,7 @@ check(
 )
 
 check(
-  'retry snapshot rollback preserves unchecked originals and uses only final values',
+  'retry snapshot rollback uses only final values and prunes obsolete full-selection keys',
   async () => {
     await fixture(async (path, snapshot) => {
       await writeFile(snapshot, initial())
@@ -488,8 +488,7 @@ check(
       const content = await readFile(snapshot, 'utf8')
       assert.match(content, /final value/)
       assert.doesNotMatch(content, /failed value|failed extra/)
-      assert.match(content, /also keep/)
-      assert.match(content, /legacy/)
+      assert.doesNotMatch(content, /also keep|legacy/)
     })
   }
 )
@@ -523,7 +522,7 @@ check(
 )
 
 check(
-  'explicit update does not normalize files with no snapshots in final selected attempts',
+  'explicit update prunes obsolete names after retries while preserving checked and skipped snapshots',
   async () => {
     await fixture(async (path, snapshot) => {
       await writeFile(snapshot, initial())
@@ -544,8 +543,13 @@ check(
       })
       await file.run(options())
       await file.dispose()
-      assert.deepEqual(file.takeSnapshotUpdates(), [])
-      assert.equal(await readFile(snapshot, 'utf8'), initial())
+      await commitSnapshotUpdates(path, file.takeSnapshotUpdates())
+      const content = await readFile(snapshot, 'utf8')
+      assert.match(content, /"keep"/)
+      // The pinned primitive retains an original key checked by an earlier
+      // attempt, even when the final retry does not assert a snapshot.
+      assert.match(content, /selected 1.*"old"/)
+      assert.doesNotMatch(content, /also keep|legacy|failed change/)
     })
   }
 )

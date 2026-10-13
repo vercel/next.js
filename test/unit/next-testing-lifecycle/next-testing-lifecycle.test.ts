@@ -16,6 +16,56 @@ const run = (collector: ReturnType<typeof createCollector>) =>
   runCollected(collector.close(), options(), () => {})
 
 describe('Next-owned Vitest lifecycle', () => {
+  it('settles nested asynchronous collection and preserves sibling suite ownership', async () => {
+    const c = createCollector('file')
+    let release!: () => void
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    c.api.describe('async', async () => {
+      await barrier
+      c.api.beforeEach(() => {})
+      c.api.test('after await', () => {})
+      c.api.describe('nested', async () => {
+        await Promise.resolve()
+        c.api.test('nested case', () => {})
+      })
+    })
+    c.api.describe('sibling', () => {
+      c.api.test('sibling case', () => {})
+    })
+    release()
+    await c.settle()
+    expect([...selectedCases(c.close()).keys()].map((test) => test.id)).toEqual(
+      ['file/0/0', 'file/0/1/0', 'file/1/0']
+    )
+    expect((c.root.children[0] as any).hooks.beforeEach).toHaveLength(1)
+    expect((c.root.children[1] as any).hooks.beforeEach).toHaveLength(0)
+  })
+
+  it('observes every asynchronous collection rejection and settles surviving siblings', async () => {
+    const c = createCollector('file')
+    for (const name of ['first', 'second']) {
+      c.api.describe(name, async () => {
+        await Promise.resolve()
+        throw new Error(name)
+      })
+    }
+    c.api.describe('survivor', async () => {
+      await Promise.resolve()
+      c.api.test('collected', () => {})
+    })
+    const failure = await c.settle().catch((error) => error)
+    expect(failure).toBeInstanceOf(AggregateError)
+    expect(failure.errors.map((error: Error) => error.message)).toEqual([
+      'first',
+      'second',
+    ])
+    expect(
+      [...selectedCases(c.close()).keys()].map((test) => test.name)
+    ).toEqual(['collected'])
+  })
+
   it('filters ancestor-qualified names before hooks without overriding focus or skip', async () => {
     const c = createCollector('file')
     const log: string[] = []
@@ -526,7 +576,7 @@ describe('Next-owned Vitest lifecycle', () => {
     c.api.test.for([{ label: 'answer', value: 42 }])(
       '$label is $value',
       (item, context) => {
-        values.push(item.value, context.name)
+        values.push(item.value, context.signal.aborted)
       }
     )
     c.api.describe.each(['first', 'second'])('%s suite', (label) => {
@@ -545,7 +595,7 @@ describe('Next-owned Vitest lifecycle', () => {
       ['second suite > <anonymous>', 'passed'],
       ['pending without callback', 'skipped'],
     ])
-    expect(values).toEqual([3, 3, 6, 6, 42, 'answer is 42', 'first', 'second'])
+    expect(values).toEqual([3, 3, 6, 6, 42, false, 'first', 'second'])
   })
 
   it('tracks repeat and retry identity and recreates test fixtures', async () => {

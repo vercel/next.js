@@ -1,0 +1,3 @@
+{
+  "projects": [{ "name": "conformance", "include": ["*.case.mjs"] }]
+}

@@ -41,3 +41,33 @@ retry evidence, and source attribution. The public CLI integration suites cover
 plain and colored results, snapshot updates, lifecycle callbacks, and watch
 reruns. Package verification reads structured events through a fixture-only
 preload instead of parsing human terminal output.
+
+## Machine reports and CI shards
+
+`next test --reporter json --outputFile results.json` writes parser-friendly
+one-shot results after authoritative cleanup. The standard result fields retain
+all retry errors, including failed attempts of a passing test. `next.events`
+retains every attempt, source-mapped diagnostic, attributed console output,
+attachment, and snapshot summary. JUnit escapes XML content and includes file
+and run errors even when no test body ran. Output errors fail the command.
+
+Use `--reporter blob --outputFile shard-1.json` for each CI shard, then
+`next test --merge-reports reports --reporter json --outputFile merged.json`.
+This is a versioned Next-owned blob format, not Vitest's blob format. Merging
+never starts compilation or execution. It rejects overlapping files, duplicate
+run identities, unsupported versions, and incomplete evidence; paths from
+separate checkout roots resolve in the merging checkout.
+Nested run boundaries, duplicate completions, references to another shard's
+files, and invalid result payloads are rejected before replacing output.
+
+Standard JSON snapshot totals now use the pinned reference accumulation rules,
+including statistics from obsolete-snapshot failures. The unchanged-body corpus
+compares them with an isolated published 5.0.4 installation whose integrity is
+checked and whose workspace has no Next patches. This does not establish every
+report schema, failure interaction, or snapshot policy.
+
+The conformance target is Vitest 5.0.4. Full JSON/JUnit schema parity, complete
+snapshot/report failure interactions, empty-suite metadata, watch/custom reporter adapters and
+editor/debugging contracts remain unverified or missing. Human formatting's
+historical 5.0.1 source attribution above is retained; it is not 5.0.4 terminal
+conformance evidence.

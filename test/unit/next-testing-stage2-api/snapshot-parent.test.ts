@@ -1,8 +1,47 @@
-import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
-import { commitSnapshotUpdates } from 'next/dist/experimental/testing/assertions/snapshots'
+import {
+  combineSnapshotUpdatePlans,
+  commitSnapshotUpdates,
+} from 'next/dist/experimental/testing/assertions/snapshots'
+
+it('combines identical profile plans while rejecting conflicting values, revisions, and file owners before publication', () => {
+  const plan = {
+    file: '/project/case.ts',
+    sourceHash: 'revision',
+    updates: [
+      { path: '/project/case.txt', previousContent: null, content: 'value' },
+    ],
+  }
+  expect(combineSnapshotUpdatePlans([plan, structuredClone(plan)])).toEqual([
+    plan,
+  ])
+  expect(combineSnapshotUpdatePlans([{ ...plan, updates: [] }, plan])).toEqual([
+    plan,
+  ])
+  expect(() =>
+    combineSnapshotUpdatePlans([
+      plan,
+      { ...plan, updates: [{ ...plan.updates[0], content: 'different' }] },
+    ])
+  ).toThrow('Conflicting snapshot update plans')
+  expect(() =>
+    combineSnapshotUpdatePlans([plan, { ...plan, sourceHash: 'other' }])
+  ).toThrow('Conflicting source revisions')
+  expect(() =>
+    combineSnapshotUpdatePlans([plan, { ...plan, file: '/project/other.ts' }])
+  ).toThrow('Different test files')
+})
 
 it('commits in a parent with an existing assertion host without loading another matcher registry', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'next-snapshot-parent-'))
@@ -86,6 +125,77 @@ it('refuses a stale compiled source revision without partially writing the set',
     expect(await readFile(externalPath, 'utf8')).toBe('external-original')
     expect(await readFile(testPath, 'utf8')).toBe('current source')
   } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('restores already published bytes when a later snapshot replacement fails', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-snapshot-rollback-'))
+  const testPath = join(directory, 'parent.test.ts')
+  const external = join(directory, '__snapshots__/parent.test.ts.snap')
+  const raw = join(directory, 'raw.txt')
+  await mkdir(join(directory, '__snapshots__'))
+  await writeFile(external, 'original')
+  const fs = require('node:fs/promises')
+  const rename = fs.rename
+  let calls = 0
+  jest.spyOn(fs, 'rename').mockImplementation(async (...args: unknown[]) => {
+    if (++calls === 2) throw new Error('replacement failed')
+    return Reflect.apply(rename, fs, args)
+  })
+  try {
+    await expect(
+      commitSnapshotUpdates(testPath, [
+        { path: external, previousContent: 'original', content: 'updated' },
+        { path: raw, previousContent: null, content: 'new raw' },
+      ])
+    ).rejects.toThrow('replacement failed')
+    expect(await readFile(external, 'utf8')).toBe('original')
+    await expect(readFile(raw)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readdir(join(directory, '__snapshots__'))).toEqual([
+      'parent.test.ts.snap',
+    ])
+    expect(await readdir(directory)).toEqual(['__snapshots__'])
+  } finally {
+    jest.restoreAllMocks()
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('preserves a concurrent user edit and retains recoverable bytes if rollback is refused', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-snapshot-edited-'))
+  const testPath = join(directory, 'parent.test.ts')
+  const external = join(directory, '__snapshots__/parent.test.ts.snap')
+  const raw = join(directory, 'raw.txt')
+  await mkdir(join(directory, '__snapshots__'))
+  await writeFile(external, 'original')
+  const fs = require('node:fs/promises')
+  const rename = fs.rename
+  let calls = 0
+  jest.spyOn(fs, 'rename').mockImplementation(async (...args: unknown[]) => {
+    if (++calls === 2) {
+      await writeFile(external, 'user edit')
+      throw new Error('replacement failed')
+    }
+    return Reflect.apply(rename, fs, args)
+  })
+  try {
+    await expect(
+      commitSnapshotUpdates(testPath, [
+        { path: external, previousContent: 'original', content: 'updated' },
+        { path: raw, previousContent: null, content: 'new raw' },
+      ])
+    ).rejects.toThrow('recovery backups were retained')
+    expect(await readFile(external, 'utf8')).toBe('user edit')
+    const backup = (await readdir(join(directory, '__snapshots__'))).find(
+      (name) => name.endsWith('.backup')
+    )!
+    expect(
+      await readFile(join(directory, '__snapshots__', backup), 'utf8')
+    ).toBe('original')
+    await expect(readFile(raw)).rejects.toMatchObject({ code: 'ENOENT' })
+  } finally {
+    jest.restoreAllMocks()
     await rm(directory, { recursive: true, force: true })
   }
 })

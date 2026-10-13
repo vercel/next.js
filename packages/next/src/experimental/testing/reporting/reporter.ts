@@ -650,6 +650,12 @@ export function createTestReporter(options: TestReporterOptions) {
     onEvent,
     dispose,
     getSummary,
+    getResults: () =>
+      structuredClone({
+        entries: [...entries.values()],
+        files: [...files.values()],
+        cases: [...cases.values()],
+      }),
     /** Includes every retry's errors, output and artifact paths in arrival order. */
     getEvents: (): ResultEvent[] => structuredClone(events),
   }

@@ -89,10 +89,8 @@ export declare function endpointServerChangedSubscribe(
 ): { __napiType: 'RootTask' }
 
 export declare function endpointWriteToDisk(
-  endpoint: {
-    __napiType: 'Endpoint'
-  },
-  snapshotDirectory?: RcStr
+  endpoint: { __napiType: 'Endpoint' },
+  snapshotDirectory?: RcStr | undefined | null
 ): Promise<TurbopackResult<NapiWrittenEndpoint>>
 
 export declare function expandNextJsTemplate(
@@ -388,7 +386,7 @@ export interface NapiProject {
 
 export interface NapiProjectOptions {
   /** Private development-only fixture registration. */
-  browserFixtureHost?: string
+  browserFixtureHost?: RcStr
   /**
    * An absolute root path (Unix or Windows path) from which all files must be nested under.
    * Trying to access a file outside this root will fail, so think of this as a chroot.
@@ -617,16 +615,6 @@ export declare function projectCompilationEventsSubscribe(
   eventTypes?: Array<string> | undefined | null
 ): void
 
-export declare function projectTestEntrySetupVersion(): number
-
-export declare function projectTestEntry(
-  project: { __napiType: 'Project' },
-  file: RcStr,
-  id: RcStr,
-  environment: RcStr,
-  setupFiles?: Array<RcStr> | undefined | null
-): Promise<{ __napiType: 'Endpoint' }>
-
 export declare function projectEntrypoints(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
@@ -710,6 +698,18 @@ export declare function projectOnExit(project: {
 export declare function projectShutdown(project: {
   __napiType: 'Project'
 }): Promise<void>
+
+/** Create an explicit test endpoint without adding it to application routes. */
+export declare function projectTestEntry(
+  project: { __napiType: 'Project' },
+  file: RcStr,
+  id: RcStr,
+  environment: RcStr,
+  setupFiles?: Array<RcStr> | undefined | null
+): Promise<{ __napiType: 'Endpoint' }>
+
+/** Explicit feature negotiation: older bindings ignore additional NAPI arguments. */
+export declare function projectTestEntrySetupVersion(): number
 
 export declare function projectTraceSource(
   project: { __napiType: 'Project' },

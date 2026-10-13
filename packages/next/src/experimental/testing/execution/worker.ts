@@ -8,7 +8,10 @@ import {
   evalManifest,
   loadManifest,
 } from '../../../server/load-manifest.external'
-import { serializeSourceMappedDiagnostic as serializeDiagnostic } from '../reporting/source-mapped-diagnostics'
+import {
+  mapSnapshotLocation,
+  serializeSourceMappedDiagnostic as serializeDiagnostic,
+} from '../reporting/source-mapped-diagnostics'
 import type { ResultEvent, ResultStatus } from '../reporting/events'
 import type { RunnerFailure } from '../runner/lifecycle'
 import type { WorkerInput, WorkerMessage } from './protocol'
@@ -24,6 +27,7 @@ type EventPayload<T = ResultEvent> = T extends ResultEvent
   ? Omit<T, 'version' | 'runId' | 'timestamp'>
   : never
 
+const realDateNow = Date.now.bind(Date)
 const controller = new AbortController()
 let running = false
 
@@ -61,7 +65,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
         ...payload,
         version: 1,
         runId: options.runId,
-        timestamp: Date.now(),
+        timestamp: realDateNow(),
       } as ResultEvent,
     })
   const diagnostic = (
@@ -232,6 +236,8 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       fileId: artifact.entryId,
       filePath: options.entry.file,
       updateSnapshots: options.updateSnapshots,
+      snapshotUpdateMode: options.snapshotUpdateMode,
+      mapSnapshotLocation,
     })
     if (
       options.updateSnapshots &&
@@ -403,6 +409,22 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
   } finally {
     try {
       await file?.dispose()
+    } catch (error) {
+      coverageComplete = false
+      status = 'failed'
+      if (!lateFailures.has(error)) await diagnostic(error, 'cleanup')
+    }
+    try {
+      // Obsolete read-only snapshots can fail disposal after the primitive
+      // has computed statistics. Preserve that evidence on failing files too.
+      const snapshot = file?.getSnapshotSummary()
+      if (snapshot)
+        await event({
+          type: 'snapshot-summary',
+          entryId: artifact.entryId,
+          revision: artifact.revision,
+          snapshot,
+        })
     } catch (error) {
       coverageComplete = false
       status = 'failed'

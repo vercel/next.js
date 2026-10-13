@@ -8,6 +8,7 @@ import type { FileResult } from '../reporting/events'
 import type { WorkerInput, WorkerMessage } from './protocol'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { runTestProcess } from './process'
+import { assertArtifactProfile } from './artifact-profile'
 import { withFileCacheDirectory } from './file-cache'
 import {
   assertCoverageRequest,
@@ -16,6 +17,7 @@ import {
 } from './coverage'
 import {
   commitSnapshotUpdates,
+  resolveSnapshotUpdateMode,
   type SnapshotUpdate,
 } from '../assertions/snapshots'
 
@@ -33,12 +35,19 @@ export async function executeWithEnvironment(
   ) => Promise<void>
 ): Promise<FileResult> {
   const started = performance.now()
+  const snapshotUpdateMode = resolveSnapshotUpdateMode(options)
+  options = {
+    ...options,
+    snapshotUpdateMode,
+    updateSnapshots: snapshotUpdateMode !== 'none',
+  }
   const { onEvent, onCoverage, onSnapshotUpdates, signal, ...workerOptions } =
     options
-  if (options.coverage && options.updateSnapshots) {
+  if (options.coverage && snapshotUpdateMode === 'all') {
     throw new Error('Coverage and snapshot updates cannot run together')
   }
   assertCoverageRequest(artifact, options)
+  assertArtifactProfile(artifact, options.entry)
   const attempts = createCoverageAttemptTracker()
   const envelope = () => ({
     version: 1 as const,

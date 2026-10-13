@@ -1,5 +1,9 @@
 /// <reference lib="es2021.promise" />
-import { stageSnapshotUpdates } from './snapshots'
+import {
+  resolveSnapshotUpdateMode,
+  stageSnapshotUpdates,
+  type SnapshotUpdateMode,
+} from './snapshots'
 import { createAttemptUtilities, type AttemptUtilities } from './utilities'
 import {
   ASYMMETRIC_MATCHERS_OBJECT,
@@ -24,8 +28,15 @@ import {
   NodeSnapshotEnvironment,
   addSerializer,
   getSerializers,
+  stripSnapshotIndentation,
   type SnapshotStateOptions,
 } from '../../../compiled/next-test-primitives'
+
+class VitestSnapshotEnvironment extends NodeSnapshotEnvironment {
+  getHeader() {
+    return `// Vitest Snapshot v${this.getVersion()}, https://vitest.dev/guide/snapshot.html`
+  }
+}
 
 const realSetTimeout = globalThis.setTimeout.bind(globalThis)
 const realDateNow = Date.now.bind(Date)
@@ -99,15 +110,9 @@ export async function createAssertionRuntime(options: {
   getCurrentHook?: () => AssertionHook | undefined
   snapshotOptions?: SnapshotStateOptions
   updateSnapshots?: boolean
+  snapshotUpdateMode?: SnapshotUpdateMode
+  mapSnapshotLocation?: SnapshotStateOptions['snapshotEnvironment']['processStackTrace']
 }) {
-  if (
-    options.snapshotOptions &&
-    options.snapshotOptions.updateSnapshot === 'new'
-  ) {
-    throw new Error(
-      'Snapshot updates support only explicit all mode; new mode is unsupported'
-    )
-  }
   if (runtimeActive)
     throw new Error('Only one assertion runtime may own a test realm')
   runtimeActive = true
@@ -121,16 +126,18 @@ export async function createAssertionRuntime(options: {
       equals(received, expected, [iterableEquality, subsetEquality]),
   })
   const snapshotOptions = options.snapshotOptions ?? {
-    updateSnapshot: options.updateSnapshots
-      ? ('all' as const)
-      : ('none' as const),
-    snapshotEnvironment: new NodeSnapshotEnvironment(),
+    updateSnapshot: resolveSnapshotUpdateMode(options),
+    snapshotEnvironment: new VitestSnapshotEnvironment(),
   }
   const stagedSnapshots = stageSnapshotUpdates(
     snapshotOptions.snapshotEnvironment,
-    snapshotOptions.updateSnapshot === 'all'
+    snapshotOptions.updateSnapshot !== 'none'
   )
   try {
+    if (options.mapSnapshotLocation) {
+      stagedSnapshots.environment.processStackTrace =
+        options.mapSnapshotLocation
+    }
     await snapshots.setup(options.testPath, {
       ...snapshotOptions,
       snapshotEnvironment: stagedSnapshots.environment,
@@ -152,6 +159,8 @@ export async function createAssertionRuntime(options: {
       }
     | undefined
   const snapshotTests = new Set<string>()
+  let snapshotSelection: { partial: boolean; complete: boolean } | undefined
+  let snapshotResult: Awaited<ReturnType<SnapshotClient['finish']>> | undefined
   let disposed = false
   function current() {
     // Consult origin accessors even after disposal: C records late work here,
@@ -196,19 +205,30 @@ export async function createAssertionRuntime(options: {
         )
       }
     }
-    function wrap(value: object, receiver?: object): object {
+    function wrap(
+      value: object,
+      receiver?: object,
+      inlineSnapshot = false
+    ): object {
       const cached = proxies.get(value)
       if (cached) return cached
-      const proxy = new Proxy(value, {
+      const handler: ProxyHandler<object> = {
         get(target, property) {
           check()
           const result = Reflect.get(target, property, target)
-          if (typeof result === 'function') return wrap(result, target)
+          if (typeof result === 'function')
+            return wrap(result, target, property === 'toMatchInlineSnapshot')
           if (result instanceof chai.Assertion) return wrap(result)
           return result
         },
-        apply(target, thisArg, args) {
+        // The pinned snapshot primitive recognizes this marker and uses the
+        // next frame. Capture at invocation, before Chai adds wrappers or an
+        // asynchronous resolves/rejects continuation loses the caller.
+        apply: function __INLINE_SNAPSHOT_OFFSET_1__(target, thisArg, args) {
           check()
+          if (inlineSnapshot) {
+            chai.util.flag(assertion, 'next-test-inline-callsite', new Error())
+          }
           const result = Reflect.apply(
             target as (...args: unknown[]) => unknown,
             receiver ?? thisArg,
@@ -217,7 +237,14 @@ export async function createAssertionRuntime(options: {
           // Promise results retain the primitive's own consumption tracking.
           return result instanceof chai.Assertion ? wrap(result) : result
         },
+      }
+      // Production compilation minifies function identifiers. This runtime
+      // name is the snapshot primitive's public stack-offset protocol.
+      Object.defineProperty(handler.apply, 'name', {
+        value: '__INLINE_SNAPSHOT_OFFSET_1__',
+        configurable: true,
       })
+      const proxy = new Proxy(value, handler)
       proxies.set(value, proxy)
       return proxy
     }
@@ -502,19 +529,24 @@ export async function createAssertionRuntime(options: {
       const hasProperties =
         typeof propertiesOrSnapshot === 'object' &&
         propertiesOrSnapshot !== null
-      const error = new Error()
-      Error.captureStackTrace?.(error, (this as any).toMatchInlineSnapshot)
+      const error =
+        chai.util.flag(this.assertion, 'next-test-inline-callsite') ??
+        new Error()
+      const inlineSnapshot = hasProperties
+        ? snapshotOrMessage
+        : typeof propertiesOrSnapshot === 'string'
+          ? propertiesOrSnapshot
+          : undefined
       return snapshots.match({
         received,
         filepath: options.testPath,
         name: context.name,
         testId: context.testId,
         properties: hasProperties ? propertiesOrSnapshot : undefined,
-        inlineSnapshot: hasProperties
-          ? snapshotOrMessage
-          : typeof propertiesOrSnapshot === 'string'
-            ? propertiesOrSnapshot
-            : undefined,
+        inlineSnapshot:
+          inlineSnapshot === undefined
+            ? undefined
+            : stripSnapshotIndentation(inlineSnapshot),
         message: hasProperties ? message : snapshotOrMessage,
         error,
         isInline: true,
@@ -806,8 +838,31 @@ export async function createAssertionRuntime(options: {
     }
   }
 
+  const assertMethods = new Map<PropertyKey, Function>()
+  const assert = new Proxy(chai.assert, {
+    apply(target, thisArg, args) {
+      requireScopeAccess()
+      return Reflect.apply(target, thisArg, args)
+    },
+    get(target, key) {
+      requireScopeAccess()
+      const value = Reflect.get(target, key)
+      if (typeof value !== 'function') return value
+      let method = assertMethods.get(key)
+      if (!method) {
+        method = (...args: unknown[]) => {
+          requireScopeAccess()
+          return Reflect.apply(Reflect.get(chai.assert, key), chai.assert, args)
+        }
+        assertMethods.set(key, method)
+      }
+      return method
+    },
+  })
+
   return {
     expect,
+    assert,
     spies: trackedSpies,
     utilities: new Proxy({} as AttemptUtilities, {
       get(_target, property) {
@@ -819,11 +874,34 @@ export async function createAssertionRuntime(options: {
     }),
     beginAttempt: (context: AssertionAttempt) => beginScope(context, 'attempt'),
     beginHook: (context: AssertionHook) => beginScope(context, 'hook'),
+    finishSnapshotSelection(
+      cases: readonly { name: string; status: string }[],
+      selection: { partial: boolean; complete: boolean }
+    ) {
+      for (const test of cases) {
+        if (test.status === 'skipped' || test.status === 'cancelled')
+          snapshots.skipTest(options.testPath, test.name)
+      }
+      snapshotSelection = selection
+    },
+    getSnapshotSummary() {
+      return snapshotResult
+        ? {
+            ...snapshotResult,
+            uncheckedKeys: [...snapshotResult.uncheckedKeys],
+          }
+        : undefined
+    },
     takeSnapshotUpdates() {
       if (!disposed)
         throw new Error('Finish assertions before taking snapshot updates.')
       const updates = stagedSnapshots.take()
-      return snapshotTests.size ? updates : []
+      return snapshotTests.size ||
+        (snapshotSelection?.complete &&
+          !snapshotSelection.partial &&
+          snapshotOptions.updateSnapshot === 'all')
+        ? updates
+        : []
     },
     async finishFile() {
       if (active)
@@ -833,16 +911,28 @@ export async function createAssertionRuntime(options: {
       const errors: unknown[] = []
       let result: Awaited<ReturnType<SnapshotClient['finish']>> | undefined
       try {
-        // Preserve every unchecked entry, including undeclared, filtered, skipped,
-        // cancelled, and removed assertions. Pruning requires a separate contract.
         const state = snapshots.getSnapshotState(options.testPath)
-        if (snapshotOptions.updateSnapshot === 'all') {
-          // The pinned primitive's pack() always calls this public method.
-          // Override it on this file state only: even nonstandard legacy keys
-          // must survive, and unchecked statistics must remain truthful.
+        if (
+          !snapshotSelection ||
+          snapshotSelection.partial ||
+          !snapshotSelection.complete
+        ) {
+          // A partial selection cannot authorize deletion of unselected keys.
+          // Collection/cleanup failures never authorize an update either.
           state.removeUncheckedKeys = () => {}
         }
         result = await snapshots.finish(options.testPath)
+        snapshotResult = result
+        if (
+          snapshotOptions.updateSnapshot === 'none' &&
+          snapshotSelection?.complete &&
+          !snapshotSelection.partial &&
+          result.unchecked > 0
+        ) {
+          throw new Error(
+            `Obsolete snapshots found (${result.unchecked}); run with --update to remove them.`
+          )
+        }
       } catch (error) {
         errors.push(error)
       }
