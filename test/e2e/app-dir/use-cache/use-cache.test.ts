@@ -474,8 +474,8 @@ describe('use-cache', () => {
       expect(staleResponseValues[0]).toBe(initialValues[0])
       expect(staleResponseValues[1]).toBe(initialValues[0])
 
-      await browser.refresh()
       await retry(async () => {
+        await browser.refresh()
         const refreshedValues = (
           await browser.elementById('values').text()
         ).split('|')
