@@ -388,42 +388,7 @@ describe('resolveRoutes with i18n', () => {
           ...baseParams.routes,
           dynamicRoutes: [
             {
-              sourceRegex: '^[/]?/api/users/(?<id>[^/]+?)(?:/)?
-    it('should match non-localized dynamic templates when localized variant is absent', async () => {
-      const result = await resolveRoutes({
-        ...baseParams,
-        url: new URL('http://example.com/app-dir/foo'),
-        headers: new Headers({}),
-        pathnames: ['/app-dir/[[...slug]]', '/en/[[...slug]]'],
-        routes: {
-          ...baseParams.routes,
-          dynamicRoutes: [
-            {
-              sourceRegex:
-                '^[/]?(?<nextLocale>[^/]{1,})/app\\-dir(?:/(?<nxtPslug>.+?))?(?:/)?$',
-              destination:
-                '/$nextLocale/app-dir/[[...slug]]?nxtPslug=$nxtPslug',
-            },
-            {
-              sourceRegex:
-                '^[/]?(?<nextLocale>[^/]{1,})(?:/(?<nxtPslug>.+?))?(?:/)?$',
-              destination: '/$nextLocale/[[...slug]]?nxtPslug=$nxtPslug',
-            },
-          ],
-        },
-        i18n: {
-          defaultLocale: 'en',
-          locales: ['en', 'en-GB'],
-          localeDetection: false,
-        },
-      })
-
-      expect(result.redirect).toBeUndefined()
-      expect(result.resolvedPathname).toBe('/app-dir/[[...slug]]')
-    })
-  })
-})
-,
+              sourceRegex: '^[/]?/api/users/(?<id>[^/]+?)(?:/)?$',
               destination: '/api/users/[id]?id=$id',
             },
           ],
@@ -452,7 +417,6 @@ describe('resolveRoutes with i18n', () => {
             {
               sourceRegex:
                 '^[/]?(?<nextLocale>[^/]{1,})/api/blog/(?<nxtPslug>[^/]+?)(?:/)?
-    it('should match non-localized dynamic templates when localized variant is absent', async () => {
       const result = await resolveRoutes({
         ...baseParams,
         url: new URL('http://example.com/app-dir/foo'),
@@ -517,7 +481,6 @@ describe('resolveRoutes with i18n', () => {
             {
               sourceRegex:
                 '^[/]?(?<nextLocale>[^/]{1,})/api/blog/(?<nxtPslug>[^/]+?)(?:/)?
-    it('should match non-localized dynamic templates when localized variant is absent', async () => {
       const result = await resolveRoutes({
         ...baseParams,
         url: new URL('http://example.com/app-dir/foo'),
