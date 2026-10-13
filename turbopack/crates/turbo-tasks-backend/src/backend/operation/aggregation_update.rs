@@ -1056,44 +1056,27 @@ impl AggregationUpdateQueue {
         queue.execute(ctx);
     }
 
-    /// Whether only rebalance work (`balance_edge` / `optimize`) is left.
+    /// Runs everything up to the rebalance work (`balance_edge` / `optimize`), then takes the
+    /// pending balance edges out of the queue and returns them instead of running them.
     ///
     /// GC uses this to stop once edge removal is done and defer the rebalance until the parallel
-    /// collect is quiescent.
-    pub fn only_rebalance_remains(&self) -> bool {
-        let Self {
-            jobs,
-            aggregation_number_updates,
-            find_and_schedule,
-            balance_queue: _,
-            optimize_queue: _,
-            optimizations_executed: _,
-            done_aggregation_number_updates: _,
-            scheduled_tasks,
-            #[cfg(feature = "trace_aggregation_update_stats")]
-                stats: _,
-        } = self;
-
+    /// collect is quiescent; see [`super::cleanup_old_edges_deletions_only`], which is the only
+    /// caller. The queue must be built with [`Self::new_without_optimizations`].
+    pub(super) fn execute_until_rebalance(
+        &mut self,
+        ctx: &mut ExecuteContext<'_>,
+    ) -> Vec<(TaskId, TaskId)> {
+        // `process` runs `jobs` and `aggregation_number_updates` before every other queue, so
+        // nothing below them has run yet when both are empty.
+        while !(self.jobs.is_empty() && self.aggregation_number_updates.is_empty()) {
+            self.process(ctx);
+        }
         assert!(
-            find_and_schedule.is_empty() && scheduled_tasks.is_empty(),
+            self.find_and_schedule.is_empty() && self.scheduled_tasks.is_empty(),
             "GC deletion must not schedule task executions, but {} find_and_schedule and {} \
              scheduled_tasks jobs are pending",
-            find_and_schedule.len(),
-            scheduled_tasks.len(),
-        );
-        jobs.is_empty() && aggregation_number_updates.is_empty()
-    }
-
-    /// Takes the deferred balance edges, leaving the queue empty of them.
-    ///
-    /// Only meaningful for a queue stopped at the rebalance boundary; see
-    /// [`super::cleanup_old_edges_deletions_only`], which is the only caller.
-    pub(super) fn take_deferred_balance_edges(
-        &mut self,
-    ) -> impl Iterator<Item = (TaskId, TaskId)> + use<> {
-        assert!(
-            self.only_rebalance_remains(),
-            "take_deferred_balance_edges expects a queue stopped at the rebalance boundary"
+            self.find_and_schedule.len(),
+            self.scheduled_tasks.len(),
         );
         assert!(
             self.optimize_queue.is_empty(),
@@ -1102,6 +1085,7 @@ impl AggregationUpdateQueue {
         take(&mut self.balance_queue)
             .into_iter()
             .map(|job| (job.upper_id, job.task_id))
+            .collect()
     }
 
     /// Queues balance jobs for `edges`, skipping any whose endpoints have since been collected:
@@ -1125,7 +1109,7 @@ impl AggregationUpdateQueue {
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
-    pub fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
+    fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
         if let Some(job) = self.jobs.pop_front() {
             let job: AggregationUpdateJobGuard = job.entered();
             match job.job {
@@ -1516,6 +1500,21 @@ impl AggregationUpdateQueue {
                 }
             }
             false
+        } else if self.is_optimization_budget_exhausted() && !self.optimize_queue.is_empty() {
+            // Budget exhausted: drop all remaining jobs and mark their tasks so the optimizations
+            // are recovered later by a future aggregation update operation. Dropping a job
+            // pushes no new work, and no optimize jobs can be enqueued once the budget is
+            // exhausted, so the queue stays empty after this.
+            let task_ids: SmallVec<[TaskId; 4]> = self
+                .optimize_queue
+                .drain(..)
+                .filter(|job| !job.optimization_pending_flag_already_set)
+                .map(|job| job.task_id)
+                .collect();
+            ctx.for_each_task_meta(task_ids, "mark optimization pending", |mut task, _| {
+                task.set_optimization_pending(true);
+            });
+            false
         } else if let Some(OptimizeJob {
             task_id,
             optimization_pending_flag_already_set,
@@ -1523,16 +1522,6 @@ impl AggregationUpdateQueue {
             span,
         }) = self.optimize_queue.pop_front()
         {
-            if self.is_optimization_budget_exhausted() {
-                // Budget exhausted: drop this job and mark the task so the optimization is
-                // recovered later by a future aggregation update operation. We process one
-                // dropped job per `process()` call to spread the (cheap) flag-setting work
-                // and to keep yielding to other queues.
-                if !optimization_pending_flag_already_set {
-                    lock_and_mark_optimization_pending(ctx, task_id);
-                }
-                return false;
-            }
             // Note: We must process one optimization completely before starting with the next
             // one. Otherwise this could lead to optimizing every node of a subgraph of inner
             // nodes, as all have the same upper count. Optimizing the root first lets the
