@@ -181,11 +181,11 @@ function getBuildOutput(cliOutput: string, isNextDeploy: boolean): string {
   let skipLines = true
 
   for (const line of cliOutput.split('\n')) {
-    // The command exit status and inspect metadata are not compiler output.
+    // Package-manager command failures and inspect metadata are not compiler output.
     if (
       isNextDeploy &&
-      /^Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$/.test(
-        line
+      /^(?:ELIFECYCLE\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
+        stripAnsi(line).trim()
       )
     ) {
       break
