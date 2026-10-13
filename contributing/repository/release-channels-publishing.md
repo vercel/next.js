@@ -41,20 +41,24 @@ the channel.
 The release bot's credentials are stored in GitHub environments, not in
 repository secrets, so using them is gated by deployment rules:
 
-- `canary` and `preview` releases run autonomously (environment
-  `bot-autonomous`, deployable only from the `canary` branch and prerelease
-  tags). This is what keeps the nightly canary unattended.
+- `canary` releases run fully autonomously (environment `bot-autonomous`,
+  deployable only from the `canary` branch and prerelease tags). This is what
+  keeps the nightly canary unattended.
+- `preview` releases are _triggered_ autonomously (also `bot-autonomous`),
+  but publishing them requires approval (see below).
 - `stable`, `release-candidate`, and `beta` releases require a deployment
   approval from the NextJS Admins team **before the release tag is created**
   (environment `bot-approved`). The person who dispatched the release cannot
   approve it themselves.
-- Publishing to npm is gated a second time: the publish job only runs in the
+- Publishing to npm is gated per channel: the publish job only runs in the
   channel's `release-*` environment (deployable only from matching tags), and
-  the stable-line channels (`release-stable`, `release-beta`,
-  `release-release-candidate`) also require NextJS Admins approval.
+  every channel except canary (`release-stable`, `release-beta`,
+  `release-release-candidate`, `release-preview`) requires NextJS Admins
+  approval there.
 
-So a stable-line release is approved twice: once before its tag exists, and
-once before the packages reach npm.
+So a stable-line release is approved twice — once before its tag exists and
+once before the packages reach npm — a preview release is approved once (at
+publish time), and a canary release never.
 
 Releases happen on `canary` and the two long-lived LTS branches
 `releases/lts/active` (the current major's release line) and
