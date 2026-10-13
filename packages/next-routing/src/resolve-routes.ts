@@ -380,7 +380,7 @@ function matchDynamicRoute(
  * of those routes, and never let a locale-prefixed API URL match them.
  */
 function matchDynamicRouteWithLocaleApiFallback(
-  pathname: string,
+  url: URL,
   route: Route,
   caseSensitive: boolean,
   basePath: string,
@@ -396,13 +396,13 @@ function matchDynamicRouteWithLocaleApiFallback(
     destinationPathname === '/$nextLocale/api'
 
   if (!isLocalizedApiRoute || !i18n) {
-    return matchDynamicRoute(pathname, route, caseSensitive)
+    return matchDynamicRoute(url.pathname, route, caseSensitive)
   }
 
   const pathnameWithoutBasePath =
-    basePath && pathname.startsWith(basePath)
-      ? pathname.slice(basePath.length) || '/'
-      : pathname
+    basePath && url.pathname.startsWith(basePath)
+      ? url.pathname.slice(basePath.length) || '/'
+      : url.pathname
   const localePath = normalizeLocalePath(
     pathnameWithoutBasePath,
     i18n.locales
@@ -416,14 +416,18 @@ function matchDynamicRouteWithLocaleApiFallback(
   }
 
   if (isApiPath && !localePath.detectedLocale) {
+    const defaultLocale =
+      detectDomainLocale(i18n.domains, url.hostname)?.defaultLocale ??
+      i18n.defaultLocale
+
     return matchDynamicRoute(
-      `/${i18n.defaultLocale}${pathnameWithoutBasePath}`,
+      `/${defaultLocale}${pathnameWithoutBasePath}`,
       route,
       caseSensitive
     )
   }
 
-  return matchDynamicRoute(pathname, route, caseSensitive)
+  return matchDynamicRoute(url.pathname, route, caseSensitive)
 }
 
 /**
@@ -479,7 +483,13 @@ function checkDynamicRoutes(
   }
 
   for (const route of dynamicRoutes) {
-    const match = matchDynamicRouteWithLocaleApiFallback(checkUrl.pathname, route, caseSensitive, basePath, i18n)
+    const match = matchDynamicRouteWithLocaleApiFallback(
+      checkUrl,
+      route,
+      caseSensitive,
+      basePath,
+      i18n
+    )
 
     if (match.matched) {
       // Check has/missing conditions
@@ -932,7 +942,13 @@ export async function resolveRoutes(
   let matchedPath = matchesPathname(currentUrl.pathname, pathnames)
   if (matchedPath) {
     for (const route of routes.dynamicRoutes) {
-      const match = matchDynamicRouteWithLocaleApiFallback(currentUrl.pathname, route, caseSensitive, basePath, i18n)
+      const match = matchDynamicRouteWithLocaleApiFallback(
+        currentUrl,
+        route,
+        caseSensitive,
+        basePath,
+        i18n
+      )
 
       if (!match.matched) {
         continue
@@ -1173,7 +1189,13 @@ export async function resolveRoutes(
 
   // Check dynamic routes
   for (const route of routes.dynamicRoutes) {
-    const match = matchDynamicRouteWithLocaleApiFallback(currentUrl.pathname, route, caseSensitive, basePath, i18n)
+    const match = matchDynamicRouteWithLocaleApiFallback(
+        currentUrl,
+        route,
+        caseSensitive,
+        basePath,
+        i18n
+      )
 
     if (match.matched) {
       // Check has/missing conditions
