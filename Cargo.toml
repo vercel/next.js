@@ -285,6 +285,7 @@ futures-retry = "0.6.0"
 futures-util = "0.3.31"
 hashbrown = "0.15.4"
 image = { version = "0.25.8", default-features = false }
+imagesize = { version = "0.15.0", default-features = false }
 indexmap = "2.14.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
