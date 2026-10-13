@@ -341,9 +341,6 @@ fn report_error(filepath: &str, error_kind: RSCErrorKind) {
             (msg, vec![span])
         }
         RSCErrorKind::NextRscErrClientImport((source, span, is_app_router)) => {
-            // Pick the message by the graph the module is compiled into, not by
-            // its location. A module outside `appDir` that a Client Component
-            // imports is still part of the App Router graph.
             let msg = if !is_app_router {
                 format!("You're importing a module that depends on \"{source}\". This API is only available in Server Components in the App Router, but you are using it in the Pages Router.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
             } else {

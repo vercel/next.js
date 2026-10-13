@@ -110,10 +110,7 @@ fn react_server_components_errors(input: PathBuf) {
         .iter()
         .position(|s| s.to_str() == Some("app-dir"))
         .map(|pos| input.iter().take(pos + 1).collect());
-    // A path segment named `app-router` compiles the fixture into the App Router
-    // graph without placing it inside `appDir`, like a shared `lib/` module
-    // imported by a Client Component.
-    let is_app_router = app_dir.is_some() || input.iter().any(|s| s.to_str() == Some("app-router"));
+    let is_app_router = app_dir.is_some();
 
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
