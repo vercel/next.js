@@ -1,5 +1,9 @@
 import type { Readable } from 'node:stream'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  encodeTextChunk,
+  nodeToWebByteStream,
+} from '../stream-utils/node-web-streams-helper'
 
 export type AnyStream = ReadableStream<Uint8Array> | Readable
 
@@ -55,9 +59,7 @@ export class ReactServerResult {
           __non_webpack_require__('node:stream') as typeof import('node:stream')
         ).Readable
       }
-      const webStream = Readable.toWeb(
-        this._stream
-      ) as ReadableStream<Uint8Array>
+      const webStream = nodeToWebByteStream(this._stream)
       const tee = webStream.tee()
       this._stream = Readable.fromWeb(
         tee[0] as import('stream/web').ReadableStream
@@ -269,7 +271,7 @@ export async function createReactServerPrerenderResultFromRender(
     }
   } else {
     for await (const chunk of underlying) {
-      chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
+      chunks.push(encodeTextChunk(chunk))
     }
   }
 

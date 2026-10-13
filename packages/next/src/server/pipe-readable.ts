@@ -200,7 +200,7 @@ export async function pipeNodeReadableToNodeResponse(
       finished.resolve()
     })
 
-    readable.on('data', (chunk: Buffer) => {
+    readable.on('data', (chunk: string | Uint8Array) => {
       if (!started) {
         started = true
 

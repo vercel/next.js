@@ -27,6 +27,7 @@ import {
   createDocumentClosingStream as webCreateDocumentClosingStream,
   createRuntimePrefetchTransformStream,
   CLOSE_TAG,
+  nodeToWebByteStream,
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
@@ -112,9 +113,7 @@ function nodeReadableToWebReadableStream(
   if (stream instanceof ReadableStream) {
     return stream
   }
-  // Readable.toWeb returns stream/web ReadableStream which is structurally
-  // identical to the global ReadableStream<Uint8Array>.
-  return Readable.toWeb(stream) as unknown as ReadableStream<Uint8Array>
+  return nodeToWebByteStream(stream)
 }
 
 function webToReadable(
