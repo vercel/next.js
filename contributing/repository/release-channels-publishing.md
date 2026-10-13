@@ -97,6 +97,12 @@ tags (`v*`).
 Branches matching `releases/**` are covered by the CI push filters, so such a
 branch needs no further setup.
 
+If the branch is cut from a tag that predates the environment-based bot
+credentials, its workflow files still expect the old repository-level bot
+secret. Backport the workflow changes that moved the bot credentials into
+GitHub environments onto the new branch before dispatching `Trigger Release`
+on it — otherwise the App-token mint fails.
+
 Backport the fix into the branch, then dispatch `Trigger Release` (stable,
 `patch`) on it. The dispatch requires a `bot-approved` deployment approval
 (see [Approvals](#approvals-four-eyes-principle)) before the tag is created.
