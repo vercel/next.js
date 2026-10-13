@@ -24,6 +24,7 @@ export class NextDeployInstance extends NextInstance {
   private _writtenHostsLine: string | null = null
   private _restoreDnsLookup: (() => void) | null = null
   private _startPromise: Promise<void> | undefined
+  private _npmrcAuthFile: string | undefined
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -542,6 +543,13 @@ export class NextDeployInstance extends NextInstance {
         'NEXT_TELEMETRY_DISABLED=1',
         '--build-env',
         'VERCEL_NEXT_BUNDLED_SERVER=1',
+        // See: https://pnpm.io/npmrc#environment-variables-in-auth-settings
+        ...(this._npmrcAuthFile
+          ? [
+              '--build-env',
+              `PNPM_CONFIG_NPMRC_AUTH_FILE=${this._npmrcAuthFile}`,
+            ]
+          : []),
         ...additionalEnv.flatMap((pair) => [
           '--env',
           pair,
@@ -827,10 +835,9 @@ export class NextDeployInstance extends NextInstance {
         }
         this.writeFixtureConfiguration(filePath, dump(workspace))
       } else if (contents !== '') {
-        const separator = contents.endsWith('\n') ? '' : '\n'
         this.writeFixtureConfiguration(
           filePath,
-          `${contents}${separator}!/${directoryName}\n!/${directoryName}/**\n`
+          `${contents}\n!/${directoryName}\n!/${directoryName}/**\n`
         )
         break
       }
@@ -840,32 +847,25 @@ export class NextDeployInstance extends NextInstance {
     )
   }
 
-  // When preview builds are private, the deploy build installs Next.js
-  // artifacts from an auth-protected route and needs credentials. The build
-  // authenticates with the Vercel OIDC token that Vercel automatically
-  // provides to builds (vercel-packages accepts it for allowlisted teams), so
-  // we write an `.npmrc` referencing it. Referencing the environment variable
-  // instead of inlining a token keeps credentials out of the uploaded
-  // deployment source. Only written for private preview builds since public
-  // ones need no credentials and pnpm fails when an `.npmrc` references an
-  // unset environment variable.
-  // TODO: pnpm >= 10.34.2 no longer expands environment variables in
-  // repository .npmrc files (GHSA-3qhv-2rgh-x77r). An install command writing
-  // to the user-level pnpm config (like vercel/front does) did not work with
-  // `vercel deploy` and needs more investigation.
+  // Private preview builds authenticate with the remote build's Vercel OIDC
+  // token. pnpm only expands auth placeholders in trusted configuration, so
+  // pass a separate mirror auth file through PNPM_CONFIG_NPMRC_AUTH_FILE.
+  // https://pnpm.io/npmrc#environment-variables-in-auth-settings
+  // This keeps tokens out of uploaded source without trusting fixture .npmrc
+  // files. Public builds need no auth file or OIDC token.
   private async writeMirrorNpmrcIfNecessary(): Promise<void> {
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
     const access = process.env.PREVIEW_BUILDS_ACCESS
 
     if (access !== 'private') {
       require('console').log(
-        `Skipping .npmrc write for preview-builds mirror: preview builds are public`
+        `Skipping mirror auth file: preview builds are public`
       )
       return
     }
     if (!baseUrlRaw) {
       require('console').warn(
-        `Skipping .npmrc write for preview-builds mirror: PREVIEW_BUILDS_ACCESS=private but NEXT_TEST_PREVIEW_BUILDS_BASE_URL is not set, so the remote build cannot authenticate to the mirror`
+        `Skipping mirror auth file: PREVIEW_BUILDS_ACCESS=private but NEXT_TEST_PREVIEW_BUILDS_BASE_URL is not set, so the remote build cannot authenticate to the mirror`
       )
       return
     }
@@ -875,21 +875,13 @@ export class NextDeployInstance extends NextInstance {
     // ensure a trailing slash so it matches requests to that registry path.
     const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
 
-    require('console').log(
-      `Writing .npmrc for preview-builds mirror: ${registryKey}`
-    )
-    // Appended rather than written, because a fixture may ship its own `.npmrc`
-    // (several do) and overwriting it silently drops that configuration.
-    const npmrcPath = path.join(this.testDir, '.npmrc')
-    const existing = (await fs.pathExists(npmrcPath))
-      ? await fs.readFile(npmrcPath, 'utf8')
-      : ''
-    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n'
-
+    require('console').log(`Writing mirror auth file: ${registryKey}`)
+    const authFile = '.next-test-auth.npmrc'
     await fs.writeFile(
-      npmrcPath,
-      `${existing}${separator}${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
+      path.join(this.testDir, authFile),
+      `${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
     )
+    this._npmrcAuthFile = authFile
   }
 
   /**
