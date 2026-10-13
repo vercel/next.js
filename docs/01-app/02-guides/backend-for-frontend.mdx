@@ -505,13 +505,13 @@ Or use:
 
 ## NextRequest and NextResponse
 
-Next.js extends the [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) Web APIs with methods that simplify common operations. These extensions are available in both Route Handlers and Proxy.
+Next.js extends the [`Request`](https://developer.mozilla.org/en-US/docs/Web/API/Request) and [`Response`](https://developer.mozilla.org/en-US/docs/Web/API/Response) Web APIs with methods that simplify common operations. These extensions are available in Route Handlers and Proxy, but the supported response helpers differ between them.
 
 Both provide methods for reading and manipulating cookies.
 
 `NextRequest` includes the [`nextUrl`](/docs/app/api-reference/functions/next-request#nexturl) property, which exposes parsed values from the incoming request, for example, it makes it easier to access request pathname and search params.
 
-`NextResponse` provides helpers like `next()`, `json()`, `redirect()`, and `rewrite()`.
+`NextResponse` provides helpers like `json()` and `redirect()` in Route Handlers. The `next()` and `rewrite()` helpers are only supported in Proxy because they control how Next.js continues routing the incoming request.
 
 You can pass `NextRequest` to any function expecting `Request`. Likewise, you can return `NextResponse` where a `Response` is expected.
 
@@ -523,10 +523,6 @@ export async function GET(request: NextRequest) {
 
   if (nextUrl.searchParams.get('redirect')) {
     return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  if (nextUrl.searchParams.get('rewrite')) {
-    return NextResponse.rewrite(new URL('/', request.url))
   }
 
   return NextResponse.json({ pathname: nextUrl.pathname })
@@ -541,10 +537,6 @@ export async function GET(request) {
 
   if (nextUrl.searchParams.get('redirect')) {
     return NextResponse.redirect(new URL('/', request.url))
-  }
-
-  if (nextUrl.searchParams.get('rewrite')) {
-    return NextResponse.rewrite(new URL('/', request.url))
   }
 
   return NextResponse.json({ pathname: nextUrl.pathname })
