@@ -556,7 +556,15 @@ export function renderToNodeFlightStream(
   // the request signal, which can outlive it.
   const { signal, ...renderOptions } = opts ?? {}
 
-  const pt = new PassThrough()
+  // Retain React's original writes for the Node Flight reader and hydration.
+  // Normalize each string independently to match UTF-8 encoding's replacement
+  // of lone surrogates, without encoding and decoding the entire string.
+  const pt = new Transform({
+    objectMode: true,
+    transform(chunk: string | Uint8Array, _encoding, callback) {
+      callback(null, typeof chunk === 'string' ? chunk.toWellFormed() : chunk)
+    },
+  })
   const pipeable = ComponentMod.renderToPipeableStream!(
     payload,
     clientModules,
@@ -978,8 +986,8 @@ const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
 // Batch available mixed chunks to avoid a script for every React write, without
 // encoding the original strings just to decode them for inline data.
-// Object-mode input must retain original string boundaries and contain
-// well-formed Unicode.
+// Native strings arrive from renderToNodeFlightStream, which normalizes each
+// original write to valid Unicode before replay or direct consumption.
 // String arrays contain escaped JSON fragments; Buffers use the byte path.
 function readInlineFlightData(stream: Readable): string[] | Buffer | null {
   const first: string | Uint8Array | null = stream.read()
@@ -999,7 +1007,7 @@ function readInlineFlightData(stream: Readable): string[] | Buffer | null {
     const chunk = chunks[i]
     let text: string
     if (typeof chunk === 'string') {
-      // Native input strings are already normalized to valid Unicode.
+      // Capture normalized each original write before sharing it with SSR.
       text = chunk
     } else {
       const start = i
