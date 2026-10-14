@@ -1722,15 +1722,18 @@ async fn emit_all_output_assets_once_with_issues_operation(
     let start = Instant::now();
     let wall_start = SystemTime::now();
     let result = async {
-        let entrypoints_operation =
-            EntrypointsOperation::new(emit_all_output_assets_once_operation(
-                container,
-                app_dir_only,
-                has_deferred_entrypoints,
-            ));
+        // Read the emit operation directly. Wrapping it in `EntrypointsOperation::new` would
+        // create one `pick_endpoint` root operation per endpoint, each of which becomes a new
+        // aggregation upper of the whole emit graph, while the entrypoints value is discarded
+        // here anyway.
+        let emit_operation = emit_all_output_assets_once_operation(
+            container,
+            app_dir_only,
+            has_deferred_entrypoints,
+        );
         let filter = container.project().issue_filter().await?;
         let (_, issues, effects) =
-            strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+            strongly_consistent_catch_collectables(emit_operation, &filter).await?;
         Ok(OperationResult { issues, effects }.cell())
     }
     .await;
