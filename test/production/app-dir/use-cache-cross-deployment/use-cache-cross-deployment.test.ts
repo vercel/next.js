@@ -13,6 +13,9 @@ async function execute(
   }
   try {
     await next.start()
+    // `next.start()` resets the CLI output, so at this point it holds this deployment's
+    // `next build` output (plus the `next start` banner).
+    const buildOutput = next.cliOutput
 
     let keyRoot: string,
       keyNested: string,
@@ -197,6 +200,7 @@ async function execute(
     }
 
     return {
+      buildOutput,
       runtimeValues,
       keyRoot,
       keyNested,
@@ -236,11 +240,24 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       skipStart: true,
     })
 
+    // Each `next build` gets its own hook (and thus its own timeout budget), and the builds are
+    // shared by all tests below instead of every test building again.
+    let key1: Awaited<ReturnType<typeof execute>>
+    let key2: Awaited<ReturnType<typeof execute>>
+    beforeAll(async () => {
+      key1 = await execute(next, envKey, 'dpl-id-1')
+    })
+    beforeAll(async () => {
+      key2 = await execute(next, envKey, 'dpl-id-2')
+    })
+
+    afterAll(async () => {
+      await next.stop()
+    })
+
     // In the future, this assertion can be relaxed to only prevent sharing if the implementation
     // changed.
-    it('should not have the same cache key across deployments', async () => {
-      const key1 = await execute(next, envKey, 'dpl-id-1')
-      const key2 = await execute(next, envKey, 'dpl-id-2')
+    it('should not have the same cache key across deployments', () => {
       // Second run should not use the same key
       expect(key1.keyRoot).not.toBe(key2.keyRoot)
       expect(key1.dataRoot).not.toBe(key2.dataRoot)
@@ -270,8 +287,12 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     })
 
     it('should share a durable cache entry between an App Page and an API route', async () => {
+      // Restart the dpl-id-2 deployment from the build above, with a fresh server process.
       await next.stop()
-      await next.start()
+      await next.start({
+        skipBuild: true,
+        env: envKey !== 'default' ? { [envKey]: 'dpl-id-2' } : {},
+      })
 
       try {
         const page = await next.render$('/page-api')
@@ -302,87 +323,129 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       env: { DURABLE_USE_CACHE_ENTRIES: '1' },
     })
 
-    let key1: Awaited<ReturnType<typeof execute>>
+    // `next build` dominates the runtime of this suite, so most tests share the two baseline
+    // deployments of the unmodified app built below. Each build runs in its own hook (or test) so
+    // that it gets its own timeout budget.
+    //
+    // Tests that need a differently configured or modified app build it themselves with a
+    // different deployment ID. These have to come after the tests that reuse the baseline build
+    // via `startBaselineDeployment()`, which verifies that the build on disk is still the baseline.
+    const BASELINE_DPL_1 = 'dpl-id-1'
+    const BASELINE_DPL_2 = 'dpl-id-2'
+
+    type GeneratorValues = Record<string, { pathname: string; value: string }>
+
+    async function readGenerators(): Promise<GeneratorValues> {
+      const values: GeneratorValues = {}
+      // Use the manifest only to discover concrete prerendered URLs; check
+      // cache reuse through their observable HTTP responses below.
+      const manifest = await next.readJSON('.next/prerender-manifest.json')
+      for (const route of [
+        'generator-layout',
+        'generator-route',
+        'generator-sitemap',
+        'generator-image',
+        'static-params',
+      ]) {
+        const routes = Object.keys(manifest.routes).filter(
+          (pathname) =>
+            pathname.startsWith(`/${route}/`) && !pathname.includes('[')
+        )
+        expect(routes).toHaveLength(1)
+        const pathname = routes[0]
+        const response = await next.fetch(pathname)
+        expect({ pathname, status: response.status }).toEqual({
+          pathname,
+          status: 200,
+        })
+        const value =
+          pathname.includes('generator-layout') ||
+          pathname.includes('static-params')
+            ? (await next.render$(pathname))('p').text()
+            : await response.text()
+        values[route] = { pathname, value }
+      }
+      return values
+    }
+
+    let base1: Awaited<ReturnType<typeof execute>>
+    let base2: Awaited<ReturnType<typeof execute>>
+    let generators1: GeneratorValues
+    let generators2: GeneratorValues
+    let base1ClientTitle: string
+    let base1ClientState: string
+    // The remote cache right after the first baseline deployment.
+    let base1RemoteData: string
+
     beforeAll(async () => {
       await next.stop()
       await next.deleteFile('handler-remote-data.json')
-      key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1', true)
+      base1 = await execute(next, 'NEXT_DEPLOYMENT_ID', BASELINE_DPL_1, true)
+      generators1 = await readGenerators()
+
+      const browser = await next.browser('/import-use-client')
+      try {
+        base1ClientTitle = await browser.elementById('title').text()
+        await browser.elementByCss('button').click()
+        base1ClientState = await browser.elementById('state').text()
+      } finally {
+        await browser.close()
+      }
+
+      await next.stop()
+      base1RemoteData = await next.readFile('handler-remote-data.json')
     })
 
-    describe('behavioral tests', () => {
-      it('client component should return baseline', async () => {
-        const browser = await next.browser('/import-use-client')
-        expect(await browser.elementById('title').text()).toBe(
-          'Client Component A'
-        )
-        await browser.elementByCss('button').click()
-        expect(await browser.elementById('state').text()).toBe('Button clicked')
-        await browser.close()
+    beforeAll(async () => {
+      base2 = await execute(next, 'NEXT_DEPLOYMENT_ID', BASELINE_DPL_2, true)
+      generators2 = await readGenerators()
+      await next.stop()
+    })
+
+    beforeEach(async () => {
+      // Stop any running server first so that its in-memory remote cache can't write stale
+      // entries back to the file-backed store.
+      await next.stop()
+      await next.deleteFile('handler-remote-data.json')
+    })
+
+    afterAll(async () => {
+      await next.stop()
+      await next.deleteFile('handler-remote-data.json')
+    })
+
+    /** Restarts the second baseline deployment without rebuilding it. */
+    async function startBaselineDeployment() {
+      await next.stop()
+      const { config } = await next.readJSON('.next/required-server-files.json')
+      // If this fails, a test that builds its own app was moved before this one.
+      expect(config.deploymentId).toBe(BASELINE_DPL_2)
+      await next.start({
+        skipBuild: true,
+        env: { NEXT_DEPLOYMENT_ID: BASELINE_DPL_2 },
       })
+    }
 
-      it('should share a durable cache entry between an App Page and an API route', async () => {
-        await next.stop()
-        await next.start()
+    /**
+     * Resets the remote cache to its state right after the first baseline deployment, to build a
+     * modified second deployment on top of it.
+     */
+    async function restoreBase1RemoteData() {
+      await next.stop()
+      await next.patchFile('handler-remote-data.json', base1RemoteData)
+    }
 
-        try {
-          const page = await next.render$('/page-api')
-          const pageValue = page('#page-api-data').text()
-          expect(pageValue).not.toBeEmpty()
-
-          const response = await next.fetch('/page-api/api')
-          expect(response.status).toBe(200)
-          expect(await response.text()).toBe(pageValue)
-
-          const secondPage = await next.render$('/page-api')
-          expect(secondPage('#page-api-data').text()).toBe(pageValue)
-        } finally {
-          await next.stop()
-        }
-      })
-
-      it('should not share a durable cache entry returning an asset URL between an App Page and an API route', async () => {
-        await next.stop()
-        await next.start()
-
-        try {
-          const page = await next.render$('/page-api-url')
-          const pageValue = page('#page-api-url').text()
-          expect(pageValue).toMatch(/^\/_next\/static\/media\//)
-
-          const response = await next.fetch('/page-api-url/api')
-          expect(response.status).toBe(200)
-          const apiValue = await response.text()
-          expect(apiValue).toMatch(/^file:\/\//)
-          // Even with identical source code and arguments, the asset URL is
-          // resolved in a different chunking context and must not reuse the entry.
-          expect(apiValue).not.toBe(pageValue)
-
-          const secondPage = await next.render$('/page-api-url')
-          expect(secondPage('#page-api-url').text()).toBe(pageValue)
-          const secondResponse = await next.fetch('/page-api-url/api')
-          expect(secondResponse.status).toBe(200)
-          expect(await secondResponse.text()).toBe(apiValue)
-        } finally {
-          await next.stop()
-        }
-      })
+    it('client component should return baseline', () => {
+      // Observed on the first baseline deployment, the starting point of the client reference
+      // tests below.
+      expect(base1ClientTitle).toBe('Client Component A')
+      expect(base1ClientState).toBe('Button clicked')
     })
 
     describe('durable cache reuse across deployments', () => {
-      let key1: Awaited<ReturnType<typeof execute>>
-      let key2: Awaited<ReturnType<typeof execute>>
-      beforeAll(async () => {
-        await next.stop()
-        key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1', true)
-        key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2', true)
-      })
-
-      afterAll(async () => {
-        await next.stop()
-        delete next.env.NEXT_DEPLOYMENT_ID
-      })
-
       it('should not recompute when nothing changes', () => {
+        const key1 = base1
+        const key2 = base2
         // The root page renders at request time and lives in a route group.
         expect(key1.keyRoot).toBe(key2.keyRoot)
         expect(key1.dataRoot).toBe(key2.dataRoot)
@@ -419,67 +482,64 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         ['a parallel route', 'parallel'],
         ['an intercepted route', 'intercept'],
       ])('should reuse durable entries in %s', (_name, kind) => {
-        expect(key1.runtimeValues[kind]).not.toBeEmpty()
-        expect(key2.runtimeValues[kind]).toBe(key1.runtimeValues[kind])
+        expect(base1.runtimeValues[kind]).not.toBeEmpty()
+        expect(base2.runtimeValues[kind]).toBe(base1.runtimeValues[kind])
       })
 
       // TODO This is the usual case of RSC -> client component -> server action
       // @force-gate TODO
       it('should reuse durable entries in a Server Action', () => {
-        expect(key1.runtimeValues.action).not.toBeEmpty()
-        expect(key2.runtimeValues.action).toBe(key1.runtimeValues.action)
+        expect(base1.runtimeValues.action).not.toBeEmpty()
+        expect(base2.runtimeValues.action).toBe(base1.runtimeValues.action)
       })
     })
 
-    describe('durable build-time generators', () => {
-      let first: Record<string, { pathname: string; value: string }>
-      let second: Record<string, { pathname: string; value: string }>
+    it('should share a durable cache entry between an App Page and an API route', async () => {
+      await startBaselineDeployment()
 
-      async function buildAndRead(deploymentId: string) {
-        await next.start({ env: { NEXT_DEPLOYMENT_ID: deploymentId } })
-        try {
-          const values: Record<string, { pathname: string; value: string }> = {}
-          // Use the manifest only to discover concrete prerendered URLs; check
-          // cache reuse through their observable HTTP responses below.
-          const manifest = await next.readJSON('.next/prerender-manifest.json')
-          for (const route of [
-            'generator-layout',
-            'generator-route',
-            'generator-sitemap',
-            'generator-image',
-            'static-params',
-          ]) {
-            const routes = Object.keys(manifest.routes).filter(
-              (pathname) =>
-                pathname.startsWith(`/${route}/`) && !pathname.includes('[')
-            )
-            expect(routes).toHaveLength(1)
-            const pathname = routes[0]
-            const response = await next.fetch(pathname)
-            expect({ pathname, status: response.status }).toEqual({
-              pathname,
-              status: 200,
-            })
-            const value =
-              pathname.includes('generator-layout') ||
-              pathname.includes('static-params')
-                ? (await next.render$(pathname))('p').text()
-                : await response.text()
-            values[route] = { pathname, value }
-          }
+      try {
+        const page = await next.render$('/page-api')
+        const pageValue = page('#page-api-data').text()
+        expect(pageValue).not.toBeEmpty()
 
-          return values
-        } finally {
-          await next.stop()
-        }
-      }
+        const response = await next.fetch('/page-api/api')
+        expect(response.status).toBe(200)
+        expect(await response.text()).toBe(pageValue)
 
-      beforeAll(async () => {
+        const secondPage = await next.render$('/page-api')
+        expect(secondPage('#page-api-data').text()).toBe(pageValue)
+      } finally {
         await next.stop()
-        first = await buildAndRead('generators-first')
-        second = await buildAndRead('generators-second')
-      })
+      }
+    })
 
+    it('should not share a durable cache entry returning an asset URL between an App Page and an API route', async () => {
+      await startBaselineDeployment()
+
+      try {
+        const page = await next.render$('/page-api-url')
+        const pageValue = page('#page-api-url').text()
+        expect(pageValue).toMatch(/^\/_next\/static\/media\//)
+
+        const response = await next.fetch('/page-api-url/api')
+        expect(response.status).toBe(200)
+        const apiValue = await response.text()
+        expect(apiValue).toMatch(/^file:\/\//)
+        // Even with identical source code and arguments, the asset URL is
+        // resolved in a different chunking context and must not reuse the entry.
+        expect(apiValue).not.toBe(pageValue)
+
+        const secondPage = await next.render$('/page-api-url')
+        expect(secondPage('#page-api-url').text()).toBe(pageValue)
+        const secondResponse = await next.fetch('/page-api-url/api')
+        expect(secondResponse.status).toBe(200)
+        expect(await secondResponse.text()).toBe(apiValue)
+      } finally {
+        await next.stop()
+      }
+    })
+
+    describe('durable build-time generators', () => {
       it.each([
         ['layout generateStaticParams', 'generator-layout'],
         ['child generateStaticParams', 'generator-layout'],
@@ -488,8 +548,8 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         ['generateImageMetadata', 'generator-image'],
         ['page generateStaticParams', 'static-params'],
       ])('should reuse durable entries in %s', (_name, route) => {
-        expect(first[route].value).not.toBeEmpty()
-        expect(second[route]).toEqual(first[route])
+        expect(generators1[route].value).not.toBeEmpty()
+        expect(generators2[route]).toEqual(generators1[route])
       })
     })
 
@@ -506,11 +566,18 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       // passed to cached functions are deterministic.
       //
       // Error: Route "foo": Next.js encountered uncached or runtime data during prerendering.
-      await next.stop()
-      delete next.env.MUTATED_DURING_CACHE_GENERATION
 
+      // The baseline builds prerendered /env-mutation/known.
+      for (const { buildOutput } of [base1, base2]) {
+        expect(buildOutput).not.toContain('Error')
+        expect(buildOutput).not.toContain(
+          'Unexpected cache miss after cache warming phase during prerendering'
+        )
+      }
+
+      delete next.env.MUTATED_DURING_CACHE_GENERATION
       try {
-        await next.start()
+        await startBaselineDeployment()
         const output = next.getCliOutputFromHere()
         const browser = await next.browser('/env-mutation/test')
 
@@ -526,6 +593,9 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     })
 
     it('should recompute when transitive implementation changes', async () => {
+      const key1 = base1
+      await restoreBase1RemoteData()
+
       let value = String(Math.random())
       await next.patchFile(
         'app/logic.ts',
@@ -533,7 +603,11 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
   return ${JSON.stringify(value)}
 }`,
         async () => {
-          const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
+          const key2 = await execute(
+            next,
+            'NEXT_DEPLOYMENT_ID',
+            'dpl-id-transitive'
+          )
           // Should not be the same key (because the implementation did change)
           expect(key1.keyRoot).not.toBe(key2.keyRoot)
           expect(key1.dataRoot).not.toBe(key2.dataRoot)
@@ -574,11 +648,18 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     // entropy in the argument-part of the cache key.
     // But currently, you cannot do anything with the passed server reference anyway.
     it.skip('should recompute when a use cache reference argument changes', async () => {
+      const key1 = base1
+      await restoreBase1RemoteData()
+
       await next.patchFile(
         'app/argument-use-cache/action.ts',
         (content) => content.replace("return 'first'", "return 'second'"),
         async () => {
-          const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
+          const key2 = await execute(
+            next,
+            'NEXT_DEPLOYMENT_ID',
+            'dpl-id-argument-use-cache'
+          )
 
           expect(key1.keyArgumentUseCache).not.toBe(key2.keyArgumentUseCache)
           expect(key1.dataArgumentUseCache).not.toBe(key2.dataArgumentUseCache)
@@ -591,11 +672,18 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     // But currently, you cannot do anything with the passed server reference anyway.
     // Furthermore, we need to compute the metadata information for `use cache` functions as well.
     it.skip('should recompute when a use server reference argument changes', async () => {
+      const key1 = base1
+      await restoreBase1RemoteData()
+
       await next.patchFile(
         'app/argument-use-server/action.ts',
         (content) => content.replace("return 'first'", "return 'second'"),
         async () => {
-          const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
+          const key2 = await execute(
+            next,
+            'NEXT_DEPLOYMENT_ID',
+            'dpl-id-argument-use-server'
+          )
 
           expect(key1.keyArgumentUseServer).not.toBe(key2.keyArgumentUseServer)
           expect(key1.dataArgumentUseServer).not.toBe(
@@ -605,15 +693,29 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       )
     })
 
-    it('should recompute when runtime env var changes', async () => {
-      let foobar1 = String(Math.random())
-      let foobar2 = String(Math.random())
-      try {
-        next.env['FOOBAR'] = foobar1
-        const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
+    describe('with a runtime env var', () => {
+      const foobar1 = String(Math.random())
+      const foobar2 = String(Math.random())
+      let key1: Awaited<ReturnType<typeof execute>>
+      let key2: Awaited<ReturnType<typeof execute>>
 
+      beforeAll(async () => {
+        await next.stop()
+        await next.deleteFile('handler-remote-data.json')
+        next.env['FOOBAR'] = foobar1
+        key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-foobar-1')
+      })
+
+      beforeAll(async () => {
         next.env['FOOBAR'] = foobar2
-        const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
+        key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-foobar-2')
+      })
+
+      afterAll(() => {
+        delete next.env['FOOBAR']
+      })
+
+      it('should recompute when runtime env var changes', () => {
         // Should not be the same key (because process.env.FOOBAR is read at runtime and changed)
         expect(key1.keyRoot).not.toBe(key2.keyRoot)
         expect(key1.dataRoot).toEndWith(`:${foobar1}`)
@@ -653,69 +755,76 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         expect(key2.dataRoute).toEndWith(`:${foobar2}`)
         expect(key1.keyRoute).not.toContain(foobar1)
         expect(key2.keyRoute).not.toContain(foobar2)
-      } finally {
-        delete next.env['FOOBAR']
-      }
+      })
     })
 
-    it('should recompute when runtime env var truthiness changes', async () => {
-      await next.patchFile(
-        'app/logic.ts',
-        `export function getDate() {
+    describe('with a runtime env var truthiness check', () => {
+      let originalLogic: string | undefined
+      let unset: Awaited<ReturnType<typeof execute>>
+      let falsy: Awaited<ReturnType<typeof execute>>
+      let truthy1: Awaited<ReturnType<typeof execute>>
+      let truthy2: Awaited<ReturnType<typeof execute>>
+
+      beforeAll(async () => {
+        await next.stop()
+        await next.deleteFile('handler-remote-data.json')
+        originalLogic = await next.readFile('app/logic.ts')
+        await next.patchFile(
+          'app/logic.ts',
+          `export function getDate() {
   return new Date().toISOString() + ':' + Boolean(process.env.FOOBAR)
-}`,
-        async () => {
-          try {
-            delete next.env['FOOBAR']
-            const unset = await execute(
-              next,
-              'NEXT_DEPLOYMENT_ID',
-              'dpl-id-unset'
-            )
+}`
+        )
+        delete next.env['FOOBAR']
+        unset = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-unset')
+      })
 
-            next.env['FOOBAR'] = ''
-            const falsy = await execute(
-              next,
-              'NEXT_DEPLOYMENT_ID',
-              'dpl-id-falsy'
-            )
+      beforeAll(async () => {
+        next.env['FOOBAR'] = ''
+        falsy = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-falsy')
+      })
 
-            // unset -> falsy revalidates
-            expect(unset.keyRoot).not.toBe(falsy.keyRoot)
-            expect(unset.dataRoot).not.toBe(falsy.dataRoot)
-            expect(unset.dataRoot).toEndWith(':false')
+      beforeAll(async () => {
+        next.env['FOOBAR'] = 'truthy-1'
+        truthy1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-truthy-1')
+      })
 
-            next.env['FOOBAR'] = 'truthy-1'
-            const truthy1 = await execute(
-              next,
-              'NEXT_DEPLOYMENT_ID',
-              'dpl-id-truthy-1'
-            )
+      beforeAll(async () => {
+        next.env['FOOBAR'] = 'truthy-2'
+        truthy2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-truthy-2')
+      })
 
-            // falsy -> truthy revalidates
-            expect(falsy.keyRoot).not.toBe(truthy1.keyRoot)
-            expect(falsy.dataRoot).not.toBe(truthy1.dataRoot)
-            expect(falsy.dataRoot).toEndWith(':false')
-            expect(truthy1.dataRoot).toEndWith(':true')
-
-            next.env['FOOBAR'] = 'truthy-2'
-            const truthy2 = await execute(
-              next,
-              'NEXT_DEPLOYMENT_ID',
-              'dpl-id-truthy-2'
-            )
-
-            // truthy -> different truthy DOESN'T revalidate
-            expect(truthy1.keyRoot).toBe(truthy2.keyRoot)
-            expect(truthy1.dataRoot).toBe(truthy2.dataRoot)
-          } finally {
-            delete next.env['FOOBAR']
-          }
+      afterAll(async () => {
+        delete next.env['FOOBAR']
+        if (originalLogic !== undefined) {
+          await next.patchFile('app/logic.ts', originalLogic)
         }
-      )
+      })
+
+      it('should recompute when runtime env var truthiness changes', () => {
+        // unset -> falsy revalidates
+        expect(unset.keyRoot).not.toBe(falsy.keyRoot)
+        expect(unset.dataRoot).not.toBe(falsy.dataRoot)
+        expect(unset.dataRoot).toEndWith(':false')
+
+        // falsy -> truthy revalidates
+        expect(falsy.keyRoot).not.toBe(truthy1.keyRoot)
+        expect(falsy.dataRoot).not.toBe(truthy1.dataRoot)
+        expect(falsy.dataRoot).toEndWith(':false')
+        expect(truthy1.dataRoot).toEndWith(':true')
+
+        // truthy -> different truthy DOESN'T revalidate
+        expect(truthy1.keyRoot).toBe(truthy2.keyRoot)
+        expect(truthy1.dataRoot).toBe(truthy2.dataRoot)
+      })
     })
 
     it('should still work when imported client reference changes', async () => {
+      const key1 = base1
+      expect(base1ClientTitle).toBe('Client Component A')
+      expect(base1ClientState).toBe('Button clicked')
+      await restoreBase1RemoteData()
+
       await next.patchFile(
         'app/import-use-client/client.tsx',
         (oldContent) =>
@@ -723,7 +832,11 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
             .replace('Client Component A', 'Client Component B')
             .replace('Button clicked', 'Handle clicked'),
         async () => {
-          const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
+          const key2 = await execute(
+            next,
+            'NEXT_DEPLOYMENT_ID',
+            'dpl-id-imported-client'
+          )
 
           expect(key1.keyRoot).toBe(key2.keyRoot)
           expect(key1.dataRoot).toBe(key2.dataRoot)
@@ -759,6 +872,10 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
     it('should still work when a client reference argument changes', async () => {
       // The client reference is passed as an opaque argument. Instead, we need to make sure that
       // the client reference still uses the up-to-date chunks.
+      const key1 = base1
+      expect(base1ClientTitle).toBe('Client Component A')
+      expect(base1ClientState).toBe('Button clicked')
+      await restoreBase1RemoteData()
 
       await next.patchFile(
         'app/argument-use-client/client.tsx',
@@ -767,7 +884,11 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
             .replace('Client Component A', 'Client Component B')
             .replace('Button clicked', 'Handle clicked'),
         async () => {
-          const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
+          const key2 = await execute(
+            next,
+            'NEXT_DEPLOYMENT_ID',
+            'dpl-id-client-argument'
+          )
 
           expect(key1.keyArgumentUseClient).toBe(key2.keyArgumentUseClient)
           expect(key1.dataArgumentUseClient).toBe(key2.dataArgumentUseClient)
