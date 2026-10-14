@@ -336,22 +336,17 @@ fn cleanup_old_edges_inner(
         }
     }
 
-    while !stop_when_only_rebalance_remains || !queue.only_rebalance_remains() {
-        if queue.process(ctx) {
-            #[cfg(feature = "trace_aggregation_update_stats")]
-            let stats = take(&mut queue.stats);
-            #[cfg(not(feature = "trace_aggregation_update_stats"))]
-            let stats = ();
-            return (stats, None);
-        }
+    if stop_when_only_rebalance_remains {
+        // Edge removal is done; hand the rebalance back to the caller. Any
+        // other pending work would be dropped here, so `execute_until_rebalance`
+        // asserts that nothing else is left.
+        let balance_edges = queue.execute_until_rebalance(ctx);
+        return (Default::default(), Some(DeferredCleanup { balance_edges }));
     }
-    // Edge removal is done; hand the rebalance back to the caller. Any
-    // other pending work would be dropped here, so `only_rebalance_remains`
-    // asserts that nothing else is left.
-    (
-        Default::default(),
-        Some(DeferredCleanup {
-            balance_edges: queue.take_deferred_balance_edges().collect(),
-        }),
-    )
+    queue.execute(ctx);
+    #[cfg(feature = "trace_aggregation_update_stats")]
+    let stats = take(&mut queue.stats);
+    #[cfg(not(feature = "trace_aggregation_update_stats"))]
+    let stats = ();
+    (stats, None)
 }
