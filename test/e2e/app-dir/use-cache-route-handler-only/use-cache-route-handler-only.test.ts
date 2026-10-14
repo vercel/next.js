@@ -7,7 +7,7 @@ import stripAnsi from 'strip-ansi'
 // Explicitly don't mix route handlers with pages in this test app, to make sure
 // that this also works in isolation.
 describe('use-cache-route-handler-only', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, isNextDeploy, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
@@ -97,20 +97,25 @@ describe('use-cache-route-handler-only', () => {
     expect(getOutput()).toIncludeRepeated(escapeStringRegexp(generating), 1)
   })
 
-  if (isNextDeploy) {
-    // `next start` answers non-GET/HEAD requests for prerendered routes with a
-    // 405, but on Vercel they invoke the function, which regenerates the route
-    // through the prerender path.
-    it('should respond to auto-implemented OPTIONS requests', async () => {
-      const response = await next.fetch('/options-auto-implemented', {
-        method: 'OPTIONS',
-      })
+  it('should respond to auto-implemented OPTIONS requests', async () => {
+    const response = await next.fetch('/options-auto-implemented', {
+      method: 'OPTIONS',
+    })
 
+    if (isNextStart) {
+      // TODO: `next start` answers non-GET/HEAD requests for prerendered
+      // routes with a 405 before the route handler runs, because the method
+      // guard in `BaseServer.renderToResponseWithComponentsImpl` treats any
+      // route in the prerender manifest as SSG. On Vercel the request invokes
+      // the function, and in dev the route isn't treated as SSG.
+      expect(response.status).toBe(405)
+      expect(response.headers.get('allow')).toBe('GET, HEAD')
+    } else {
       expect(response.status).toBe(204)
       expect(response.headers.get('allow')).toContain('GET')
       expect(await response.text()).toBe('')
-    })
-  }
+    }
+  })
 
   it('should prerender route handlers that respond with 204', async () => {
     const response = await next.fetch('/no-content')
