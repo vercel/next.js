@@ -58,6 +58,13 @@ details, and give them the GitHub URL to create the PR themselves. See
    git commit -m "<concise message>"
    ```
 
+   Run `git add` and `git commit` as separate tool calls because they may need
+   different execution settings. In a linked worktree, index-writing commands
+   such as `git add` may need sandbox escalation because `.git/worktrees/`
+   lives under the primary checkout. On machines using 1Password SSH signing,
+   run `git commit` with both an interactive TTY and sandbox escalation from
+   the outset. TTY alone cannot reach a signing socket blocked by the sandbox.
+
    Keep commit messages concise and do not add generated-tool or co-author
    footers.
 
@@ -66,6 +73,10 @@ details, and give them the GitHub URL to create the PR themselves. See
    ```bash
    git push -u origin <branch>
    ```
+
+   On machines using 1Password for SSH authentication, run the push in an
+   interactive TTY so the approval flow can appear. Use sandbox escalation too
+   when the sandbox restricts the SSH socket or network.
 
 5. Create the PR as a draft unless the user explicitly asks otherwise:
 

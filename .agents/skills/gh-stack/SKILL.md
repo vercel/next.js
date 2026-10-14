@@ -41,6 +41,12 @@ git config remote.pushDefault origin   # required if the repo has more than one 
 static text; under a PTY the same commands open a prompt or a full-screen TUI and block forever.
 Agent harnesses differ, so always pass the flags below instead of relying on that detection.
 
+The standalone Git commands in this skill still follow the repository's authentication and
+sandbox rules. Run `git add` and `git commit` as separate tool calls. In a linked worktree,
+`git add` may need sandbox escalation; when 1Password provides SSH signing, `git commit` needs
+both an interactive TTY and sandbox escalation. Do not add a TTY to `gh stack` commands merely
+because the adjacent commit needs one; preserve the explicit non-interactive flags below.
+
 **Multiple remotes:** never run `push`, `submit`, `sync`, `rebase`, or `link` without
 `--remote <name>` unless `remote.pushDefault` is configured. `checkout` and `trunk` have no
 `--remote` flag and require the config.
@@ -71,7 +77,8 @@ Agent harnesses differ, so always pass the flags below instead of relying on tha
 
 ```bash
 gh stack down                   # or: gh stack checkout api
-git add ... && git commit -m "Add get-user endpoint"
+git add ...
+git commit -m "Add get-user endpoint"
 gh stack rebase --upstack       # replay every branch above onto the change
 gh stack top                    # return to where you were
 gh stack push
@@ -81,9 +88,11 @@ gh stack push
 
 ```bash
 gh stack init auth              # create the stack and check out its branch
-git add ... && git commit -m "Add auth middleware"
+git add ...
+git commit -m "Add auth middleware"
 gh stack add api                # next layer, branched from the current one
-git add ... && git commit -m "Add API routes"
+git add ...
+git commit -m "Add API routes"
 gh stack submit --auto          # push every branch and open draft PRs
 gh stack view --json            # confirm
 ```

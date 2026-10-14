@@ -49,6 +49,10 @@ branch.
    git fetch origin canary:refs/remotes/origin/canary <target-branch>:refs/remotes/origin/<target-branch>
    ```
 
+   When Git authentication uses 1Password, run the fetch in an interactive
+   TTY. Use sandbox escalation when the sandbox restricts the SSH socket or
+   network.
+
 3. Identify the commit that landed the PR on `canary`:
 
    ```bash
@@ -76,6 +80,11 @@ branch.
    ```bash
    git cherry-pick -x <merged-commit-sha>
    ```
+
+   A cherry-pick creates a signed commit. On machines using 1Password SSH
+   signing, run it with both an interactive TTY and sandbox escalation. If
+   resolving conflicts in a linked worktree, `git add` may also need sandbox
+   escalation because the index is stored under the primary checkout.
 
    Resolve conflicts in favor of preserving the release branch's compatibility
    constraints. If the cherry-pick is empty, verify whether the change is already
