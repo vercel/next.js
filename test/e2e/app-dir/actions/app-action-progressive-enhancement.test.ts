@@ -3,13 +3,37 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('app-dir action progressive enhancement', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     dependencies: {
       nanoid: '4.0.1',
+      pg: '8.23.1',
       'server-only': 'latest',
     },
   })
+
+  if (isTurbopack) {
+    it('should submit actions that import an async external module without JS', async () => {
+      let responseCode: number | undefined
+      const browser = await next.browser('/async-external', {
+        disableJavaScript: true,
+        beforePageLoad(page) {
+          page.on('response', (response) => {
+            if (new URL(response.url()).pathname === '/async-external') {
+              responseCode = response.status()
+            }
+          })
+        },
+      })
+
+      await browser.elementById('submit').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('submitted')
+      })
+      expect(responseCode).toBe(303)
+    })
+  }
 
   it('should support formData and redirect without JS', async () => {
     let responseCode: number | undefined
