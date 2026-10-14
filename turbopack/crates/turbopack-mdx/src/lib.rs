@@ -80,18 +80,12 @@ impl SourceTransform for MdxTransform {
         source: ResolvedVc<Box<dyn Source>>,
         _asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Box<dyn Source>> {
-        Vc::upcast(
-            MdxTransformedAsset {
-                options: self.options,
-                source,
-            }
-            .cell(),
-        )
+        Vc::upcast(MdxTransformedAsset::new(*source, *self.options))
     }
 }
 
 #[turbo_tasks::value]
-struct MdxTransformedAsset {
+pub struct MdxTransformedAsset {
     options: ResolvedVc<MdxTransformOptions>,
     source: ResolvedVc<Box<dyn Source>>,
 }
@@ -126,6 +120,14 @@ impl Asset for MdxTransformedAsset {
 
 #[turbo_tasks::value_impl]
 impl MdxTransformedAsset {
+    #[turbo_tasks::function]
+    pub fn new(
+        source: ResolvedVc<Box<dyn Source>>,
+        options: ResolvedVc<MdxTransformOptions>,
+    ) -> Vc<Self> {
+        Self { options, source }.cell()
+    }
+
     #[turbo_tasks::function]
     async fn process(&self) -> Result<Vc<MdxTransformResult>> {
         let content = self.source.content().await?;

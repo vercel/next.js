@@ -18,14 +18,12 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{JoinIterExt, NonLocalValue, ResolvedVc, ValueDefault, Vc, util::WrapFuture};
-use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
-    virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
@@ -34,12 +32,13 @@ use turbopack_ecmascript::{
     },
     parse::{ParseResult, parse},
 };
+use turbopack_mdx::{MdxTransformOptions, MdxTransformedAsset};
 
 use crate::{
     app_structure::AppPageLoaderTree,
     next_config::RouteHas,
     next_manifests::ProxyMatcher,
-    util::{MiddlewareMatcherKind, NextRuntime, file_content_rope},
+    util::{MiddlewareMatcherKind, NextRuntime},
 };
 
 #[derive(
@@ -492,28 +491,13 @@ pub async fn parse_segment_config_from_source(
         return Ok(Default::default());
     }
 
-    // Runtime selection happens before loaders run. Compile MDX here so its
-    // actual exports are visible, without treating fenced code as config.
+    // Runtime selection happens before loaders run. Use the cached MDX transform
+    // so actual exports are visible without treating fenced code as config.
     let source = if path.path.ends_with(".mdx") {
-        let content = file_content_rope(source.content().file_content()).await?;
-        let Ok(compiled) = mdxjs::compile(
-            &content.to_str()?,
-            &mdxjs::Options {
-                filepath: Some(path.to_string()),
-                ..Default::default()
-            },
-        ) else {
-            // Let the MDX loader report syntax errors as compilation issues instead
-            // of turning invalid source during HMR into a fatal task error.
-            return Ok(Default::default());
-        };
         ResolvedVc::upcast(
-            VirtualSource::new_with_ident(
-                source.ident(),
-                AssetContent::file(FileContent::Content(File::from(compiled)).cell()),
-            )
-            .to_resolved()
-            .await?,
+            MdxTransformedAsset::new(*source, MdxTransformOptions::default().cell())
+                .to_resolved()
+                .await?,
         )
     } else {
         source
