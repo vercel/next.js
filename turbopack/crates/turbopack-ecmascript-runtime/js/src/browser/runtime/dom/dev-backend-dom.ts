@@ -29,7 +29,7 @@ let DEV_BACKEND: DevRuntimeBackend
       } else if (isJs(chunkUrl)) {
         // Unloading a JS chunk would have no effect, as it lives in the JS
         // runtime once evaluated.
-        // However, we still want to remove the script tag from the DOM to keep
+        // However, we still want to remove the script tag from `<head>` to keep
         // the HTML somewhat consistent from the user's perspective.
         for (const script of findChunkScripts(baseChunkUrl)) {
           script.remove()

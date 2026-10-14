@@ -1775,15 +1775,21 @@ function getAssetSuffixFromScriptSrc() {
  */ function matchesChunkUrl(value, url, decodedUrl) {
     return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?'));
 }
-// These lookups iterate the tag collection and compare attribute values as
-// plain strings. A document-wide `querySelectorAll` with attribute selectors
-// costs time proportional to the size of the whole DOM on every call, and
-// would need the URL to be CSS-escaped.
+// These lookups only search `<head>`: the runtime inserts its chunk tags there,
+// and chunk tags rendered into the HTML are expected there too. Tags in
+// `<body>` are deliberately ignored, so that the cost of a lookup does not grow
+// with the size of the page content. A chunk whose tag is only in `<body>` is
+// loaded again through a new tag in `<head>`, and unloading a chunk leaves its
+// `<body>` tags in place.
+//
+// They iterate the tag collection and compare attribute values as plain
+// strings. `querySelectorAll` with attribute selectors would need the URL to be
+// CSS-escaped.
 /**
- * Returns all `<script>` elements in the document whose `src` refers to `url`.
+ * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
  */ function findChunkScripts(url) {
     var decodedUrl = decodeURI(url);
-    var scripts = document.getElementsByTagName('script');
+    var scripts = document.head.getElementsByTagName('script');
     var result = [];
     for(var i = 0; i < scripts.length; i++){
         var script = scripts[i];
@@ -1794,13 +1800,13 @@ function getAssetSuffixFromScriptSrc() {
     return result;
 }
 /**
- * Returns all `<link>` elements in the document whose `href` refers to `url`.
+ * Returns all `<link>` elements in `<head>` whose `href` refers to `url`.
  * With `stylesheetsOnly`, only links whose `rel` is exactly `stylesheet`
  * (ASCII case-insensitive) are returned.
  */ function findChunkLinks(url) {
     var stylesheetsOnly = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : false;
     var decodedUrl = decodeURI(url);
-    var links = document.getElementsByTagName('link');
+    var links = document.head.getElementsByTagName('link');
     var result = [];
     for(var i = 0; i < links.length; i++){
         var _link_getAttribute;
@@ -1812,7 +1818,7 @@ function getAssetSuffixFromScriptSrc() {
     return result;
 }
 /**
- * Returns all `<link rel=stylesheet>` elements in the document whose `href`
+ * Returns all `<link rel=stylesheet>` elements in `<head>` whose `href`
  * refers to `url`.
  */ function findChunkStylesheets(url) {
     return findChunkLinks(url, true);

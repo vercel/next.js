@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="ef69da0e-1e88-28eb-53b3-a456eef8bf15")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -2293,15 +2293,21 @@ function getAssetSuffixFromScriptSrc() {
  */ function matchesChunkUrl(value, url, decodedUrl) {
     return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?'));
 }
-// These lookups iterate the tag collection and compare attribute values as
-// plain strings. A document-wide `querySelectorAll` with attribute selectors
-// costs time proportional to the size of the whole DOM on every call, and
-// would need the URL to be CSS-escaped.
+// These lookups only search `<head>`: the runtime inserts its chunk tags there,
+// and chunk tags rendered into the HTML are expected there too. Tags in
+// `<body>` are deliberately ignored, so that the cost of a lookup does not grow
+// with the size of the page content. A chunk whose tag is only in `<body>` is
+// loaded again through a new tag in `<head>`, and unloading a chunk leaves its
+// `<body>` tags in place.
+//
+// They iterate the tag collection and compare attribute values as plain
+// strings. `querySelectorAll` with attribute selectors would need the URL to be
+// CSS-escaped.
 /**
- * Returns all `<script>` elements in the document whose `src` refers to `url`.
+ * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
  */ function findChunkScripts(url) {
     const decodedUrl = decodeURI(url);
-    const scripts = document.getElementsByTagName('script');
+    const scripts = document.head.getElementsByTagName('script');
     const result = [];
     for(let i = 0; i < scripts.length; i++){
         const script = scripts[i];
@@ -2312,12 +2318,12 @@ function getAssetSuffixFromScriptSrc() {
     return result;
 }
 /**
- * Returns all `<link>` elements in the document whose `href` refers to `url`.
+ * Returns all `<link>` elements in `<head>` whose `href` refers to `url`.
  * With `stylesheetsOnly`, only links whose `rel` is exactly `stylesheet`
  * (ASCII case-insensitive) are returned.
  */ function findChunkLinks(url, stylesheetsOnly = false) {
     const decodedUrl = decodeURI(url);
-    const links = document.getElementsByTagName('link');
+    const links = document.head.getElementsByTagName('link');
     const result = [];
     for(let i = 0; i < links.length; i++){
         const link = links[i];
@@ -2328,7 +2334,7 @@ function getAssetSuffixFromScriptSrc() {
     return result;
 }
 /**
- * Returns all `<link rel=stylesheet>` elements in the document whose `href`
+ * Returns all `<link rel=stylesheet>` elements in `<head>` whose `href`
  * refers to `url`.
  */ function findChunkStylesheets(url) {
     return findChunkLinks(url, true);
@@ -2560,7 +2566,7 @@ let DEV_BACKEND;
             } else if (isJs(chunkUrl)) {
                 // Unloading a JS chunk would have no effect, as it lives in the JS
                 // runtime once evaluated.
-                // However, we still want to remove the script tag from the DOM to keep
+                // However, we still want to remove the script tag from `<head>` to keep
                 // the HTML somewhat consistent from the user's perspective.
                 for (const script of findChunkScripts(baseChunkUrl)){
                     script.remove();
@@ -2653,5 +2659,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=ef69da0e-1e88-28eb-53b3-a456eef8bf15
+//# debugId=bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
