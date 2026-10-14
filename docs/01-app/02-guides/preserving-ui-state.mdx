@@ -19,6 +19,8 @@ Instead of unmounting pages on navigation, Next.js hides them using React's [`<A
 Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and will re-render fresh.
 
 > **Good to know:** Activity cleans up Effects when a route is hidden and runs them again when the route becomes visible. In development, [Strict Mode runs an extra setup and cleanup cycle](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development), so cleanup functions should be safe to run more than once.
+>
+> Use [`useRouter().bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) as a [React `key`](https://react.dev/learn/preserving-and-resetting-state#option-2-resetting-state-with-a-key): a single `<Fragment key={bfcacheId}>` resets an entire subtree on push or replace navigations (including `<Link>` clicks and `router.push` / `router.replace`) while still restoring state on browser back/forward. `bfcacheId` is mainly a migration tool. For new code, prefer the per-pattern resets below.
 
 ## Choosing what to preserve
 
