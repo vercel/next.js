@@ -23,6 +23,7 @@ use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     rope::{Rope, RopeBuilder},
 };
+use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
     SOURCE_URL_PROTOCOL, asset::AssetContent, source::Source,
@@ -38,6 +39,19 @@ pub use source_map_asset::SourceMapAsset;
 
 /// Represents an empty value in a u32 variable in the sourcemap crate.
 static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
+
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
+pub enum SourceMapType {
+    /// Extracts source maps from input files and writes source maps for output files.
+    #[default]
+    Full,
+    /// Ignores existing input source maps, but writes source maps for output files.
+    Partial,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionSourceMapType(Option<SourceMapType>);
 
 /// Allows callers to generate source maps.
 #[turbo_tasks::value_trait]
