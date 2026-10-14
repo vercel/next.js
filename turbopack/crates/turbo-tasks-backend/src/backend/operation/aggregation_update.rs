@@ -1502,18 +1502,17 @@ impl AggregationUpdateQueue {
             false
         } else if self.is_optimization_budget_exhausted() && !self.optimize_queue.is_empty() {
             // Budget exhausted: drop all remaining jobs and mark their tasks so the optimizations
-            // are recovered later by a future aggregation update operation. Dropping a job
-            // pushes no new work, and no optimize jobs can be enqueued once the budget is
-            // exhausted, so the queue stays empty after this.
-            let task_ids: SmallVec<[TaskId; 4]> = self
-                .optimize_queue
-                .drain(..)
-                .filter(|job| !job.optimization_pending_flag_already_set)
-                .map(|job| job.task_id)
-                .collect();
-            ctx.for_each_task_meta(task_ids, "mark optimization pending", |mut task, _| {
-                task.set_optimization_pending(true);
-            });
+            // are recovered later by a future aggregation update operation.
+            ctx.for_each_task_meta(
+                self.optimize_queue
+                    .drain(..)
+                    .filter(|job| !job.optimization_pending_flag_already_set)
+                    .map(|job| job.task_id),
+                "mark optimization pending",
+                |mut task, _| {
+                    task.set_optimization_pending(true);
+                },
+            );
             false
         } else if let Some(OptimizeJob {
             task_id,
