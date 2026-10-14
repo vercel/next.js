@@ -53,10 +53,13 @@ describe('deployment lifecycle', () => {
   let inspectResults: Array<Result | Error | ((call: InspectCall) => Result)>
   let inspectCalls: InspectCall[]
   let deployDurationMs: number
+  // Results for successive `vercel deploy` calls; `deployResult` once exhausted.
+  let deployResults: Result[]
 
   beforeEach(() => {
     mockClock = null
     deployDurationMs = 0
+    deployResults = []
     inspectResults = []
     inspectCalls = []
     jest.replaceProperty(process, 'env', {
@@ -113,7 +116,7 @@ describe('deployment lifecycle', () => {
               break
             case 'deploy':
               if (mockClock) mockClock.now += deployDurationMs
-              result = deployResult
+              result = deployResults.shift() ?? deployResult
               break
             case 'inspect': {
               const [, , options] = jest
@@ -586,6 +589,94 @@ describe('deployment lifecycle', () => {
       await expect(next.start()).rejects.toThrow(
         /The last vercel inspect call timed out after \d+ms/
       )
+    })
+  })
+
+  describe('retrying vercel deploy', () => {
+    const fetchFailed: Result = {
+      exitCode: 1,
+      stdout: '',
+      stderr:
+        'Vercel CLI 63.1.0\nDeploying vtest314-e2e-tests\nError: fetch failed\n',
+    }
+    const deployCalls = () =>
+      jest.mocked(execa).mock.calls.filter(([, args]) => args?.[0] === 'deploy')
+
+    beforeEach(() => {
+      // Pin the setup budget, whose default depends on the platform.
+      process.env.NEXT_E2E_TEST_TIMEOUT = '120000'
+    })
+
+    it('retries a network error from before a deployment was reported', async () => {
+      const clock = installClock()
+      successfulDeployment()
+      deployResults = [fetchFailed]
+      const next = await instance()
+      await next.start()
+      expect(next.buildId).toBe('build-id')
+      expect(deployCalls()).toHaveLength(2)
+      expect(clock.waits).toEqual([5_000])
+    })
+
+    it('gives up after three attempts', async () => {
+      const clock = installClock()
+      deployResult = fetchFailed
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow(
+        'Failed to deploy project: Vercel CLI 63.1.0'
+      )
+      expect(deployCalls()).toHaveLength(3)
+      expect(clock.waits).toEqual([5_000, 10_000])
+    })
+
+    it('does not retry when too little of the setup budget is left', async () => {
+      installClock(40_000)
+      deployResult = fetchFailed
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow('Failed to deploy project')
+      expect(deployCalls()).toHaveLength(1)
+    })
+
+    it.each([
+      ['an authentication error', { stdout: '', stderr: 'Unauthorized' }],
+      [
+        'a network error after a deployment URL was printed',
+        { stdout: deploymentUrl, stderr: 'Error: read ECONNRESET' },
+      ],
+      [
+        'a network error after the Inspect line',
+        {
+          stdout: '',
+          stderr:
+            '  Inspect         https://vercel.com/team/project/abc\nError: fetch failed',
+        },
+      ],
+      ['a build failure', { stdout: deploymentUrl, stderr: 'Build failed' }],
+      [
+        'a build diagnostic that mentions fetch failed',
+        {
+          stdout: '',
+          stderr: 'Build failed\n  TypeError: fetch failed\n    at prerender\n',
+        },
+      ],
+      [
+        'an authentication error next to a network error',
+        { stdout: '', stderr: 'Error: Unauthorized\nError: fetch failed\n' },
+      ],
+      [
+        'a network error after an ANSI-colored Inspect line',
+        {
+          stdout: '',
+          stderr:
+            '\x1b[2K\x1b[G  Inspect         \x1b[36mhttps://vercel.com/team/project/abc\x1b[39m\nError: fetch failed',
+        },
+      ],
+    ])('does not retry %s', async (_, output) => {
+      installClock()
+      deployResult = { exitCode: 1, ...output }
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow('Failed to deploy project')
+      expect(deployCalls()).toHaveLength(1)
     })
   })
 })
