@@ -105,7 +105,7 @@ const nextFontGoogleFontLoader: FontLoader = async ({
 
     // Download the font files extracted from the CSS
     const downloadedFiles = await Promise.all(
-      fontFiles.map(async ({ googleFontFileUrl, preloadFontFile }) => {
+      fontFiles.map(async ({ googleFontFileUrl, preloadFontFile, format }) => {
         const hasCachedFont = fontCache.has(googleFontFileUrl)
         // Download the font file or get it from cache
         const fontFileBuffer = hasCachedFont
@@ -123,7 +123,14 @@ const nextFontGoogleFontLoader: FontLoader = async ({
           nextFontError(`Failed to fetch \`${fontFamily}\` from Google Fonts.`)
         }
 
-        const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)![1]
+        // Google Fonts sometimes returns font URLs without a file extension
+        // (e.g. https://fonts.gstatic.com/l/font?kit=...). In that case, fall
+        // back to the format('...') hint on the same `src:` line, and to
+        // `woff2` when there is no usable hint.
+        const ext =
+          /\.(woff|woff2|eot|ttf|otf)$/.exec(googleFontFileUrl)?.[1] ??
+          /^(woff|woff2|eot|ttf|otf)$/i.exec(format ?? '')?.[1]?.toLowerCase() ??
+          'woff2'
         // Emit font file to .next/static/media
         const selfHostedFileUrl = emitFontFile(
           fontFileBuffer,

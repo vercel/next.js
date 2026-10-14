@@ -148,4 +148,77 @@ describe('next/font/google loader', () => {
       }
     )
   })
+
+  describe('extensionless font file URLs', () => {
+    const extensionlessCss = `/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/l/font?kit=UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiA&skey=c491285d6722e4fa&v=v20) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+`
+
+    async function runLoaderWithCss(css: string) {
+      mockFetchResource.mockImplementation((url: string) =>
+        Promise.resolve(
+          url.includes('css2')
+            ? Buffer.from(css)
+            : Buffer.from('fake font file contents')
+        )
+      )
+      const emitFontFile = jest
+        .fn()
+        .mockReturnValue('/_next/static/media/inter-latin.woff2')
+      const result = await nextFontGoogleFontLoader({
+        functionName: 'Roboto',
+        data: [
+          {
+            adjustFontFallback: false,
+            subsets: ['latin'],
+            weight: '400',
+          },
+        ],
+        emitFontFile,
+        resolve: jest.fn(),
+        loaderContext: {} as any,
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
+      })
+      return { result, emitFontFile }
+    }
+
+    it('does not crash and emits the font as woff2', async () => {
+      const { result, emitFontFile } = await runLoaderWithCss(extensionlessCss)
+
+      expect(emitFontFile).toHaveBeenCalledTimes(1)
+      expect(emitFontFile).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        'woff2',
+        expect.any(Boolean),
+        expect.any(Boolean)
+      )
+      expect(result.css).toContain('/_next/static/media/inter-latin.woff2')
+      expect(result.css).not.toContain('fonts.gstatic.com/l/font')
+    })
+
+    it('keeps using the URL extension when one is present', async () => {
+      const cssWithExtension = extensionlessCss.replace(
+        'https://fonts.gstatic.com/l/font?kit=UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiA&skey=c491285d6722e4fa&v=v20',
+        'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyaW1.woff2'
+      )
+      const { emitFontFile } = await runLoaderWithCss(cssWithExtension)
+
+      expect(emitFontFile).toHaveBeenCalledTimes(1)
+      expect(emitFontFile).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        'woff2',
+        expect.any(Boolean),
+        expect.any(Boolean)
+      )
+    })
+  })
 })
