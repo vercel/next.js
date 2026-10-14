@@ -1,18 +1,20 @@
 import { nextTestSetup } from 'e2e-utils'
 
 for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
+  const options = {
+    files: __dirname,
+    dependencies: {
+      '@next/mdx': 'workspace:*',
+      '@mdx-js/loader': '^2.2.1',
+      '@mdx-js/react': '^2.2.1',
+    },
+    env: {
+      WITH_MDX_RS: type === 'with-mdx-rs' ? 'true' : 'false',
+    },
+  }
+
   describe(`MDX route segment config ${type}`, () => {
-    const { next, isNextStart } = nextTestSetup({
-      files: __dirname,
-      dependencies: {
-        '@next/mdx': 'workspace:*',
-        '@mdx-js/loader': '^2.2.1',
-        '@mdx-js/react': '^2.2.1',
-      },
-      env: {
-        WITH_MDX_RS: type === 'with-mdx-rs' ? 'true' : 'false',
-      },
-    })
+    const { next, isNextStart } = nextTestSetup(options)
 
     it('should render pages with route segment config exports', async () => {
       for (const [path, heading] of [
@@ -68,5 +70,23 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
         expect(manifest.routes['/segment-config/edge']).toBeUndefined()
       })
     }
+  })
+
+  // Build-failure assertions require a local production build.
+  // @force-gate start
+  describe(`MDX syntax errors ${type}`, () => {
+    const { next } = nextTestSetup({ ...options, skipStart: true })
+
+    it('should report invalid MDX through the loader rather than static info extraction', async () => {
+      await next.patchFile(
+        'app/segment-config/node/page.mdx',
+        (content) => `${content}\n<Figure>\n`
+      )
+
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain('Expected a closing tag for')
+      expect(cliOutput).not.toContain('Failed to parse MDX segment config')
+    })
   })
 }

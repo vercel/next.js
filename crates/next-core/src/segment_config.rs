@@ -496,14 +496,17 @@ pub async fn parse_segment_config_from_source(
     // actual exports are visible, without treating fenced code as config.
     let source = if path.path.ends_with(".mdx") {
         let content = file_content_rope(source.content().file_content()).await?;
-        let compiled = mdxjs::compile(
+        let Ok(compiled) = mdxjs::compile(
             &content.to_str()?,
             &mdxjs::Options {
                 filepath: Some(path.to_string()),
                 ..Default::default()
             },
-        )
-        .map_err(|err| anyhow::anyhow!("Failed to parse MDX segment config in {path}: {err}"))?;
+        ) else {
+            // Let the MDX loader report syntax errors as compilation issues instead
+            // of turning invalid source during HMR into a fatal task error.
+            return Ok(Default::default());
+        };
         ResolvedVc::upcast(
             VirtualSource::new_with_ident(
                 source.ident(),

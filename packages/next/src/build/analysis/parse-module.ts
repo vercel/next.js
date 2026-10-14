@@ -15,7 +15,12 @@ export const parseModule = withPromiseCache(
     // a regexp that could mistake fenced code blocks for actual exports.
     if (filename.endsWith('.mdx')) {
       const bindings = await loadBindings()
-      content = await bindings.mdx.compile(content, { filepath: filename })
+      try {
+        content = await bindings.mdx.compile(content, { filepath: filename })
+      } catch {
+        // Let the MDX loader report syntax errors, just as for JavaScript below.
+        return null
+      }
     }
     return parse(content, { isModule: 'unknown', filename }).catch(() => null)
   },

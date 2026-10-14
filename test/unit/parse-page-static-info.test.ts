@@ -1,4 +1,7 @@
-import { getPagesPageStaticInfo } from 'next/dist/build/analysis/get-page-static-info'
+import {
+  getAppPageStaticInfo,
+  getPagesPageStaticInfo,
+} from 'next/dist/build/analysis/get-page-static-info'
 import { installBindings } from 'next/dist/build/swc/install-bindings'
 import { PAGE_TYPES } from 'next/dist/lib/page-types'
 import { join } from 'path'
@@ -13,6 +16,17 @@ describe('parse page static info', () => {
   beforeAll(async () => {
     await installBindings()
   })
+  it('should defer MDX syntax errors to the loader', async () => {
+    const { runtime } = await getAppPageStaticInfo({
+      page: 'invalid-mdx',
+      pageFilePath: join(fixtureDir, 'page-runtime/invalid.mdx'),
+      nextConfig: createNextConfig(),
+      pageType: PAGE_TYPES.APP,
+      isDev: false,
+    })
+    expect(runtime).toBeUndefined()
+  })
+
   it('should parse nodejs runtime correctly', async () => {
     const { runtime } = await getPagesPageStaticInfo({
       page: 'nodejs-ssr',
