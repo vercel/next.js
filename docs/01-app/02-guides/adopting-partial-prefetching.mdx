@@ -285,10 +285,10 @@ A prefetch of real-time content would be stale by the click, so there is nothing
 
 ## Adopting incrementally
 
-Adoption doesn't have to happen in one change. [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) is the global flag scoped to one route, so with the global flag still off, you can adopt and deploy each destination on its own.
+Adoption doesn't have to happen in one change. [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) is the global flag scoped to one route, so with the global flag still off, you can adopt and verify one destination at a time.
 
 1. **Adopt one destination.** [Preserve its prefetched UI and opt the route into Partial Prefetching](#adopt-one-destination).
-2. **Deploy and repeat.** [Verify each adopted destination](#deploy-and-repeat), then continue until every destination in scope is ready.
+2. **Build and verify.** [Verify the adopted destination against a production build](#build-and-verify), then repeat until every destination in scope is ready.
 3. **Enable Partial Prefetching globally.** [Turn on the flag and remove the per-route exports](#enable-partial-prefetching-globally).
 
 ### Adopt one destination
@@ -355,9 +355,9 @@ export default function Page() {
 
 > **Good to know**: If the page or layout already calls [`prefetch()`](/docs/app/api-reference/functions/prefetch), import it under another name, for example `import { prefetch as prefetchStage } from 'next/cache'`, so it doesn't collide with the `prefetch` export.
 
-### Deploy and repeat
+### Build and verify
 
-Deploy the change and verify that links to the adopted destination load the intended App Shell. The insight keeps surfacing for destinations you haven't reached. Repeat until every destination in scope is adopted.
+Verify that links to the adopted destination load the intended App Shell against a production build, where automatic prefetching runs. Re-run the same `instant()` test or manual comparison you used before the change. The insight keeps surfacing in development for destinations you haven't reached. Repeat until every destination in scope is adopted.
 
 ### Enable Partial Prefetching globally
 
