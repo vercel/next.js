@@ -131,11 +131,29 @@ test('should navigate to the about page', async ({ page }) => {
 
 > **Good to know**: You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, if you add [`"baseURL": "http://localhost:3000"`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) to the `playwright.config.ts` [configuration file](https://playwright.dev/docs/test-configuration).
 
+## Running your Playwright tests
+
+Playwright will simulate a user navigating your application using three browsers: Chromium, Firefox and WebKit, this requires your Next.js server to be running. We recommend running your tests against your production code to more closely resemble how your application will behave.
+
+Run `npm run build` and `npm run start`, then run `npx playwright test` in another terminal window to run the Playwright tests.
+
+> **Good to know**: Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-webserver/) feature to let Playwright start the development server and wait until it's fully available.
+
+## Running Playwright on Continuous Integration (CI)
+
+Playwright will by default run your tests in the [headless mode](https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
+
+You can learn more about Playwright and Continuous Integration from these resources:
+
+- [Next.js with Playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright)
+- [Playwright on your CI provider](https://playwright.dev/docs/ci)
+- [Playwright Discord](https://discord.com/invite/playwright-807756831384403968)
+
 <AppOnly>
 
-### Testing routes preserved by Cache Components
+## Testing routes preserved by Cache Components
 
-When [Cache Components](/docs/app/getting-started/caching) is enabled, Next.js can keep a previously visited route in the DOM with `display: none`. A locator may therefore match elements from both the visible page and a hidden route.
+When [Cache Components](/docs/app/getting-started/caching) is enabled, Next.js can keep a previously visited route in the DOM with `display: none`. A locator may match elements from both the visible page and a hidden route.
 
 Prefer `getByRole`, which excludes hidden elements by default. For locators such as `getByLabel`, add a visibility filter when the same field can exist on more than one route:
 
@@ -150,21 +168,3 @@ await page
 See [Preserving UI state](/docs/app/guides/preserving-ui-state#testing) for more visibility-aware selector patterns.
 
 </AppOnly>
-
-### Running your Playwright tests
-
-Playwright will simulate a user navigating your application using three browsers: Chromium, Firefox and WebKit, this requires your Next.js server to be running. We recommend running your tests against your production code to more closely resemble how your application will behave.
-
-Run `npm run build` and `npm run start`, then run `npx playwright test` in another terminal window to run the Playwright tests.
-
-> **Good to know**: Alternatively, you can use the [`webServer`](https://playwright.dev/docs/test-webserver/) feature to let Playwright start the development server and wait until it's fully available.
-
-### Running Playwright on Continuous Integration (CI)
-
-Playwright will by default run your tests in the [headless mode](https://playwright.dev/docs/ci#running-headed). To install all the Playwright dependencies, run `npx playwright install-deps`.
-
-You can learn more about Playwright and Continuous Integration from these resources:
-
-- [Next.js with Playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright)
-- [Playwright on your CI provider](https://playwright.dev/docs/ci)
-- [Playwright Discord](https://discord.com/invite/playwright-807756831384403968)

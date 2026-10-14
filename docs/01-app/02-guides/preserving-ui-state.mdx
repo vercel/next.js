@@ -12,18 +12,13 @@ related:
 
 > **Good to know:** This guide assumes [Cache Components](/docs/app/getting-started/caching) is enabled. Enable it by setting [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents) in your Next config file.
 
-Before Cache Components, preserving page-level state across navigations required workarounds like hoisting state to a [shared layout](/docs/app/getting-started/layouts-and-pages#nesting-layouts) or using an external store. With Cache Components, Next.js preserves recently visited routes and their UI state.
+Before Cache Components, preserving page-level state across navigations required workarounds like hoisting state to a [shared layout](/docs/app/getting-started/layouts-and-pages#nesting-layouts) or using an external store. With Cache Components, Next.js preserves state and DOM out of the box.
 
-Instead of unmounting a page when you navigate away, Next.js hides it using React's [`<Activity>`](https://react.dev/reference/react/Activity) component. This changes the route lifecycle:
+Instead of unmounting pages on navigation, Next.js hides them using React's [`<Activity>`](https://react.dev/reference/react/Activity) component. Activity keeps the DOM in the document (hidden with `display: none`), so both React state and DOM state are preserved: form drafts, scroll positions, expanded `<details>` elements, video playback progress, and more.
 
-- React state and DOM state are preserved, including form values, expanded `<details>` elements, and media playback positions.
-- The hidden DOM remains in the document with `display: none`.
-- Effect cleanup functions run when the route is hidden. React runs the Effects again when the route becomes visible.
-- Hidden components can continue to render at a lower priority when their props or state change.
+Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and will re-render fresh.
 
-Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and renders with fresh state when you visit it again.
-
-> **Good to know:** An Effect cleanup indicates that React disconnected the Effect. It is not a navigation event. In development, [Strict Mode runs an extra setup and cleanup cycle](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development). Keep cleanup functions idempotent, and don't rely on an exact number of setup or cleanup calls.
+> **Good to know:** Activity cleans up Effects when a route is hidden and runs them again when the route becomes visible. In development, [Strict Mode runs an extra setup and cleanup cycle](https://react.dev/reference/react/StrictMode#fixing-bugs-found-by-re-running-effects-in-development), so cleanup functions should be safe to run more than once.
 
 ## Choosing what to preserve
 
@@ -37,9 +32,9 @@ When a user navigates away and returns, Activity preserves the open/closed state
 
 **When to reset it:** A dropdown menu or popover triggered by a button click. These are transient interactions, not persistent view state. Returning to a page with a dropdown already open is not user friendly.
 
-For browser-managed UI such as a [popover](https://developer.mozilla.org/docs/Web/API/Popover_API), close it in a `useLayoutEffect` cleanup function. Calling `hidePopover()` more than once is safe, so the cleanup remains correct when React runs an extra setup and cleanup cycle in development:
+For browser-managed UI such as a [popover](https://developer.mozilla.org/docs/Web/API/Popover_API), close it in a `useLayoutEffect` cleanup function:
 
-```tsx highlight={9-13}
+```tsx highlight={8-10}
 'use client'
 
 import { useLayoutEffect, useRef } from 'react'
@@ -48,9 +43,7 @@ function SettingsDropdown() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
-    return () => {
-      menuRef.current?.hidePopover()
-    }
+    return () => menuRef.current?.hidePopover()
   }, [])
 
   return (
@@ -65,74 +58,105 @@ function SettingsDropdown() {
 }
 ```
 
-When Activity hides this component, the cleanup closes the popover before the route is hidden. You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback to close UI immediately when a navigation link is clicked.
+When Activity hides this component, the cleanup closes the popover before the route is hidden. Avoid calling a React state setter from cleanup to detect navigation. In development, the extra Effect cycle can run when Activity shows a route and reset state after the route becomes visible.
 
-Avoid calling a React state setter from cleanup to detect navigation. In development, the extra Effect cycle can also run when Activity shows a route, which could reset state after the route becomes visible. Reset React state in the event that completes the interaction, or key a state-owning boundary when its identity changes.
+You can also use `Link`'s [`onNavigate`](/docs/app/api-reference/components/link#onnavigate) callback to close dropdowns immediately when a navigation link is clicked.
 
-### Dialogs and other top-layer UI
+### Dialog and initialization logic
 
-Activity preserves dialog open/closed state. A modal dialog, popover, or overlay can also stay in the browser's top layer after its route is hidden, where it may intercept interactions with the visible page.
+Activity preserves dialog open/closed state. This also affects Effects that run based on that state.
 
-Derive whether the dialog is open from the URL or other current data instead of using mount-time state. Close the dialog in the layout Effect cleanup so it leaves the top layer before the route is hidden:
+**When to keep it:** A multi-step wizard or a settings panel that the user was actively working in. Preserving the step and input state avoids losing progress.
 
-```tsx filename="app/products/product-dialog.tsx" highlight={10,24-34}
+**When to reset it:** A dialog that runs initialization logic (like focusing an input) each time it opens. If the user navigated away while the dialog was open, Activity preserves `isDialogOpen: true`. Opening it again sets it to `true` when it's already `true`, so no state change happens and the Effect doesn't re-run.
+
+Consider this example:
+
+```tsx
 'use client'
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useLayoutEffect, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
-export function ProductDialog() {
-  const pathname = usePathname()
+function ProductTab() {
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      inputRef.current?.focus()
+    }
+  }, [isDialogOpen])
+
+  // ...
+}
+```
+
+If the user navigated away while the dialog was open, returning and opening the dialog won't trigger the focus Effect because `isDialogOpen` was already `true`.
+
+To fix this, derive the dialog state from something outside the preserved component state like a search param:
+
+```tsx highlight={3,7-9,20,25}
+'use client'
+
+import { useSearchParams, useRouter } from 'next/navigation'
+import { useEffect, useRef } from 'react'
+
+function ProductTab() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const isDialogOpen = searchParams.get('edit') === 'true'
-  const dialogRef = useRef<HTMLDialogElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  function setDialogOpen(open: boolean) {
-    const params = new URLSearchParams(searchParams.toString())
-    if (open) {
-      params.set('edit', 'true')
-    } else {
-      params.delete('edit')
-    }
-    const query = params.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
-  }
-
-  useLayoutEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-
-    if (isDialogOpen && !dialog.open) dialog.showModal()
-    if (!isDialogOpen && dialog.open) dialog.close()
-
-    return () => {
-      if (dialog.open) dialog.close()
+  useEffect(() => {
+    if (isDialogOpen) {
+      inputRef.current?.focus()
     }
   }, [isDialogOpen])
 
   return (
     <div>
-      <button onClick={() => setDialogOpen(true)}>Edit Product</button>
-      <dialog
-        ref={dialogRef}
-        onCancel={(event) => {
-          event.preventDefault()
-          setDialogOpen(false)
-        }}
-      >
-        <label>
-          Product name
-          <input name="name" />
-        </label>
-        <button onClick={() => setDialogOpen(false)}>Close</button>
-      </dialog>
+      <button onClick={() => router.push('?edit=true')}>Edit Product</button>
+
+      {isDialogOpen && (
+        <dialog open>
+          <input ref={inputRef} placeholder="Product name" />
+          <button onClick={() => router.replace('?', { scroll: false })}>
+            Close
+          </button>
+        </dialog>
+      )}
     </div>
   )
 }
 ```
 
-When Activity shows the route again, the Effect reads the current `isDialogOpen` value and restores the dialog only when the URL calls for it. The cleanup also handles navigation through browser controls or links outside this component.
+With this approach, `isDialogOpen` derives from the URL rather than component state. When navigating away and returning, the search param is cleared (the URL changed), so `isDialogOpen` becomes `false`. Opening the dialog sets the param, which changes `isDialogOpen` and triggers the Effect.
+
+If you open a native `<dialog>` with `showModal()`, close it in a layout Effect cleanup so it leaves the browser's top layer when Activity hides the route:
+
+```tsx
+'use client'
+
+import { useLayoutEffect, useRef } from 'react'
+
+function ModalDialog({ isOpen }: { isOpen: boolean }) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+
+    if (isOpen && !dialog.open) dialog.showModal()
+    if (!isOpen && dialog.open) dialog.close()
+
+    return () => {
+      if (dialog.open) dialog.close()
+    }
+  }, [isOpen])
+
+  return <dialog ref={dialogRef}>Dialog content</dialog>
+}
+```
 
 ### Forms, inputs, and state
 
@@ -172,68 +196,17 @@ export default function NewItemPage() {
 }
 ```
 
-Reset status messages in the same event that completes the interaction. When state belongs to a particular record, search, or user, key the component that owns the state by that identity. Avoid resetting React state from Effect or ref cleanup: cleanup can run more than once in development, including while Activity shows a route.
+Reset status messages in the same event that completes the interaction. When state belongs to a particular record, search, or user, key the component that owns the state by that identity. Avoid resetting React state from Effect or ref cleanup because cleanup can also run while Activity shows a route in development.
 
 If you use [`useActionState`](https://react.dev/reference/react/useActionState), see [Reset state](https://react.dev/reference/react/useActionState#reset-state) in the React docs for how to add a `RESET` action to your reducer. For more on building responsive interactions with these hooks, see the [Building interactive apps](/docs/app/guides/interactive-apps) guide.
 
-#### Syncing an uncontrolled input with the URL
-
-An uncontrolled search input keeps its DOM value while its route is hidden. If the URL changes before the route becomes visible again, synchronize the input from the current URL in a layout Effect.
-
-Pass the initial query from the page's [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams) so the server-rendered input has the right value. Keep the input uncontrolled so typing doesn't wait for the navigation Transition:
-
-```tsx filename="app/search/search-input.tsx"
-'use client'
-
-import { useRouter } from 'next/navigation'
-import { useLayoutEffect, useRef } from 'react'
-
-export function SearchInput({ initialQuery }: { initialQuery: string }) {
-  const router = useRouter()
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useLayoutEffect(() => {
-    const input = inputRef.current
-    if (!input) return
-    input.value = new URL(window.location.href).searchParams.get('q') ?? ''
-  }, [])
-
-  return (
-    <label>
-      Search
-      <input
-        ref={inputRef}
-        type="search"
-        defaultValue={initialQuery}
-        onChange={(event) => {
-          const url = new URL(window.location.href)
-          const query = event.currentTarget.value
-
-          if (query) {
-            url.searchParams.set('q', query)
-          } else {
-            url.searchParams.delete('q')
-          }
-
-          router.replace(`${url.pathname}${url.search}${url.hash}`, {
-            scroll: false,
-          })
-        }}
-      />
-    </label>
-  )
-}
-```
-
-React re-runs the layout Effect when Activity shows the route, so the DOM value matches the current URL before the revealed route paints. Updating the existing `URL` preserves unrelated search parameters and the hash.
-
 ## State and authentication
 
-Activity can preserve local component state and DOM input values across authentication changes. Receiving a different user as a prop doesn't reset existing state. Without an explicit boundary, a form draft created by one user can appear in another user's session.
+Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior: props changing (such as receiving a new user) triggers a re-render but does not reset existing state. A draft composed by one user shouldn't be visible to another.
 
-Key the boundary that owns user-specific client state by the authenticated user's stable ID. React remounts the boundary when the user changes, which resets React state and uncontrolled DOM state together:
+Key the boundary that owns user-specific client state by the authenticated user's stable ID:
 
-```tsx filename="app/account/page.tsx"
+```tsx
 import { UserScopedForm } from './user-scoped-form'
 
 export default async function AccountPage() {
@@ -243,19 +216,17 @@ export default async function AccountPage() {
 }
 ```
 
-Place the key above every component that stores state for that user. Continue to authorize all mutations on the server. Resetting client state prevents stale UI from appearing, but it is not an authorization boundary.
+React remounts `UserScopedForm` when the user changes, which resets its React state and uncontrolled DOM state. Continue to authorize mutations on the server because resetting client state is not an authorization boundary.
 
 ## Effects while a route is hidden
 
-React cleans up a route's Effects when Activity hides it and sets them up again when the route becomes visible. An Effect with an empty dependency array therefore runs more than once during the route's lifetime.
-
-This behavior prevents hidden routes from keeping subscriptions, timers, and event listeners active. It also means:
+React cleans up a route's Effects when Activity hides it and sets them up again when the route becomes visible. This means:
 
 - A `beforeunload` listener inside a page stops protecting that page's draft while the route is hidden. If the warning must cover drafts across routes, store the dirty state in a shared layout and install the listener there.
-- Setup logic runs again when the route becomes visible. Make it safe to repeat, and don't assume it only runs after the first mount.
+- Setup logic runs again when the route becomes visible. Make it safe to repeat, and don't assume an Effect with an empty dependency array only runs once.
 - CSS entry animations can play again when the preserved DOM becomes visible. Track whether an animation has completed when it should only run once.
 
-Use Effect cleanup to stop or undo external behavior. Prefer event handlers, URL state, or data-derived keys when you need to reset React state.
+Use Effect cleanup to stop or undo external behavior. Prefer event handlers or data-derived keys when you need to reset React state.
 
 ## Global styles
 
@@ -331,26 +302,24 @@ This isn't only a React data-flow or Next.js concern. Broad `:has()` selectors a
 
 Hiding an element with `display: none` can reset the scroll position of a nested scroll container. Track the container's `scrollTop` as it scrolls, then restore it when the route becomes visible:
 
-```tsx filename="app/components/scrollable-panel.tsx"
+```tsx
 'use client'
 
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 
-export function ScrollablePanel({ children }: { children: ReactNode }) {
+function ScrollablePanel({ children }: { children: ReactNode }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const savedScrollTop = useRef(0)
 
   useLayoutEffect(() => {
-    const panel = panelRef.current
-    if (!panel) return
-
-    panel.scrollTop = savedScrollTop.current
+    if (panelRef.current) {
+      panelRef.current.scrollTop = savedScrollTop.current
+    }
   }, [])
 
   return (
     <div
       ref={panelRef}
-      className="scrollable-panel"
       onScroll={(event) => {
         savedScrollTop.current = event.currentTarget.scrollTop
       }}
@@ -361,7 +330,7 @@ export function ScrollablePanel({ children }: { children: ReactNode }) {
 }
 ```
 
-The ref survives Activity hide and show cycles. If the route is evicted from the 3-route retention window, the component unmounts and the ref is lost. Store the position in a shared layout, URL, or another persistent store when it must survive eviction.
+The ref survives Activity hide and show cycles. If Next.js evicts the route from its 3-route retention window, store the position in a shared layout, URL, or another persistent store.
 
 ## Testing
 
@@ -381,7 +350,7 @@ await page.getByRole('button', { name: 'Submit' }).click()
 await page.getByRole('textbox', { name: 'Email' }).fill('test@example.com')
 ```
 
-Other locators, including `getByLabel` and `getByPlaceholder`, can match both the visible page and a hidden route. Use [visibility filtering](https://playwright.dev/docs/api/class-locator#locator-filter-option-visible) when `getByRole` isn't suitable:
+Other locators, including `getByLabel` and `getByPlaceholder`, can match elements from both the visible page and a hidden route. Add a visibility filter when `getByRole` isn't suitable:
 
 ```ts
 // Fallback - filter by visibility explicitly
@@ -399,11 +368,140 @@ await page
 await page.locator('.product-card').first().click()
 ```
 
-`getByRole` is robust to Activity, tabbed navigation, accordions, and other patterns that keep hidden content in the DOM. For other testing tools, check their documentation for visibility-aware selectors.
+`getByRole` works with Activity, tabbed navigation, accordions, and other patterns that keep hidden content in the DOM. It queries the accessibility tree, which excludes hidden elements. For other testing tools, check their documentation for visibility-aware selectors.
+
+## Using Activity in your components
+
+Cache Components uses Activity automatically at the route level, but you can also use `<Activity>` directly in your own components. This is useful for tabs, expandable panels, or any UI where you want to hide content without unmounting it.
+
+### Prerendering hidden content
+
+Activity can prerender content the user hasn't seen yet. Hidden boundaries render at lower priority. Combined with Suspense, this lets you prefetch data for content the user is likely to view next.
+
+A Server Component can start fetching data immediately and pass the promise to a client component. The client component uses Activity to hide the content until the user requests it, and `use()` to resolve the promise when rendering:
+
+```tsx filename="app/page.tsx"
+import { Suspense } from 'react'
+import { ExpandableComments } from './expandable-comments'
+
+async function getCommentsData() {
+  return db.comments.findMany()
+}
+
+export default function Page() {
+  const commentsPromise = getCommentsData()
+
+  return (
+    <article>
+      <h1>Post Title</h1>
+      <p>Main content visible immediately...</p>
+
+      <ExpandableComments commentsPromise={commentsPromise} />
+    </article>
+  )
+}
+```
+
+```tsx filename="app/expandable-comments.tsx"
+'use client'
+
+import { Activity, Suspense, useState, use } from 'react'
+
+type Comment = { id: string; text: string; author: string }
+
+export function ExpandableComments({
+  commentsPromise,
+}: {
+  commentsPromise: Promise<Comment[]>
+}) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <>
+      <button onClick={() => setExpanded((e) => !e)}>
+        {expanded ? 'Hide Comments' : 'Show Comments'}
+      </button>
+
+      <Activity mode={expanded ? 'visible' : 'hidden'}>
+        <Suspense fallback={<CommentsSkeleton />}>
+          <Comments commentsPromise={commentsPromise} />
+        </Suspense>
+      </Activity>
+    </>
+  )
+}
+
+function Comments({
+  commentsPromise,
+}: {
+  commentsPromise: Promise<Comment[]>
+}) {
+  const comments = use(commentsPromise)
+  return (
+    <ul>
+      {comments.map((c) => (
+        <li key={c.id}>{c.text}</li>
+      ))}
+    </ul>
+  )
+}
+
+function CommentsSkeleton() {
+  return <div>Loading comments...</div>
+}
+```
+
+The Server Component starts fetching comments immediately and passes the promise down. While hidden, the data streams at lower priority. When the user clicks "Show Comments", the `Comments` component resolves the promise with `use()` and the content appears instantly.
+
+### Effect and media cleanup
+
+When Activity hides content, React runs effect cleanup functions as it does on unmount. This means timers, subscriptions, and media playback pause automatically if you have proper cleanup:
+
+```tsx
+'use client'
+
+import { useEffect, useState } from 'react'
+
+function LiveTimer() {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    const id = setInterval(() => setCount((c) => c + 1), 1000)
+    return () => clearInterval(id) // Pauses when hidden
+  }, [])
+
+  return <p>Count: {count}</p>
+}
+```
+
+For media elements like `<video>` and `<audio>`, `display: none` does not stop playback. Add explicit cleanup with `useLayoutEffect`:
+
+```tsx
+'use client'
+
+import { useLayoutEffect, useRef } from 'react'
+
+function VideoPlayer({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useLayoutEffect(() => {
+    const video = videoRef.current
+    return () => {
+      video?.pause() // Pauses when hidden, preserves playback position
+    }
+  }, [])
+
+  return <video ref={videoRef} src={src} controls />
+}
+```
+
+When the component becomes visible again, effects re-run and playback position is preserved since the DOM node was never removed.
+
+Don't use Effect setup or cleanup as a navigation signal. Strict Mode can run an extra setup and cleanup cycle without a visibility change in development.
 
 ## Examples
 
-For direct use of `<Activity>` in your components, see the [React Activity reference](https://react.dev/reference/react/Activity). The [Activity Patterns Demo](https://react-activity-patterns.labs.vercel.dev) ([source](https://github.com/nextjs/react-activity-patterns)) combines direct Activity examples with three Next.js routes preserved by Cache Components:
+The [Activity Patterns Demo](https://react-activity-patterns.labs.vercel.dev) ([source](https://github.com/nextjs/react-activity-patterns)) is a Next.js app with Cache Components enabled and three routes. Navigate between them to see state preservation in action:
 
 - **Data** — sortable table and selectable list that keep their state across navigations, plus a reviews section that prerenders in the background
 - **Forms** — filter panel with DOM state (`<details>`, checkboxes, text inputs) that persists, and a newsletter submission flow
