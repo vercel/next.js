@@ -15,7 +15,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
     output::{OutputAsset, OutputAssetsReference},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps},
 };
 
 static REGISTRATION: Registration = register!();
@@ -23,29 +23,41 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn split_chunk() {
     run_once(&REGISTRATION, async || {
-        let mut code = CodeBuilder::new(true, false);
+        let mut code = CodeBuilder::new(
+            SourceMapGenerationOptions {
+                full: false,
+                partial: true,
+            },
+            false,
+        );
         code += "Hello world!\n";
         code += "This is a test file.\n";
         code.push_source(
             &Rope::from("Hello world!\n123"),
-            Some(Rope::from(serde_json::to_string_pretty(&json! ({
-                "version": 3,
-                "mappings": "AAAA;AACA",
-                "sources": ["source1.js"],
-                "names": [],
-                "sourcesContent": ["console.log('Hello world!');"]
-            }))?)),
+            SourceMaps {
+                full: None,
+                partial: Some(Rope::from(serde_json::to_string_pretty(&json! ({
+                    "version": 3,
+                    "mappings": "AAAA;AACA",
+                    "sources": ["source1.js"],
+                    "names": [],
+                    "sourcesContent": ["console.log('Hello world!');"]
+                }))?)),
+            },
         );
         code += "This is the middle of the file.\n";
         code.push_source(
             &Rope::from("This is the middle of the file.\n"),
-            Some(Rope::from(serde_json::to_string_pretty(&json! ({
-                "version": 3,
-                "mappings": "AAAA",
-                "sources": ["source2.js"],
-                "names": [],
-                "sourcesContent": ["console.log('Middle of file');"]
-            }))?)),
+            SourceMaps {
+                full: None,
+                partial: Some(Rope::from(serde_json::to_string_pretty(&json! ({
+                    "version": 3,
+                    "mappings": "AAAA",
+                    "sources": ["source2.js"],
+                    "names": [],
+                    "sourcesContent": ["console.log('Middle of file');"]
+                }))?)),
+            },
         );
         code += "This is the end of the file.\n";
         let code = code.build();
@@ -157,7 +169,7 @@ impl Asset for TestAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for TestAsset {
     #[turbo_tasks::function]
-    pub fn generate_source_map(&self) -> Vc<FileContent> {
-        self.code.generate_source_map()
+    pub fn generate_source_map(&self, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+        self.code.generate_source_map(ty)
     }
 }

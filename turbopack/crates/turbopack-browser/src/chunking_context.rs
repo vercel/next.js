@@ -30,7 +30,7 @@ use turbopack_core::{
         chunk_group_info::ChunkGroup,
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
-    source_map::{OptionSourceMapType, SourceMapType},
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions, SourceMapType},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -143,8 +143,18 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn source_maps(mut self, source_maps: Option<SourceMapType>) -> Self {
-        self.chunking_context.source_maps_type = source_maps;
+    /// Retains these maps in addition to the emitted map, regardless of setter order.
+    pub fn source_map_generation_options(mut self, generation: SourceMapGenerationOptions) -> Self {
+        self.chunking_context.source_map_generation_options = generation;
+        self
+    }
+
+    /// Selects the emitted map without replacing explicitly requested internal maps.
+    pub fn emitted_source_map_type(
+        mut self,
+        emitted_source_map_type: Option<SourceMapType>,
+    ) -> Self {
+        self.chunking_context.emitted_source_map_type = emitted_source_map_type;
         self
     }
 
@@ -288,7 +298,11 @@ impl BrowserChunkingContextBuilder {
         Ok(self)
     }
 
-    pub fn build(self) -> Vc<BrowserChunkingContext> {
+    pub fn build(mut self) -> Vc<BrowserChunkingContext> {
+        let emitted =
+            SourceMapGenerationOptions::from_emitted(self.chunking_context.emitted_source_map_type);
+        self.chunking_context.source_map_generation_options.full |= emitted.full;
+        self.chunking_context.source_map_generation_options.partial |= emitted.partial;
         BrowserChunkingContext::cell(self.chunking_context)
     }
 }
@@ -380,7 +394,8 @@ pub struct BrowserChunkingContext {
     /// Content hashing for asset filenames.
     asset_content_hashing: ContentHashing,
     /// Whether to generate source maps
-    source_maps_type: Option<SourceMapType>,
+    emitted_source_map_type: Option<SourceMapType>,
+    source_map_generation_options: SourceMapGenerationOptions,
     /// Method to use when figuring out the current chunk src
     current_chunk_method: CurrentChunkMethod,
     /// Whether to use manifest chunks for lazy compilation
@@ -454,7 +469,8 @@ impl BrowserChunkingContext {
                 minify_type: MinifyType::NoMinify,
                 chunk_content_hashing: None,
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
-                source_maps_type: Some(SourceMapType::Full),
+                emitted_source_map_type: Some(SourceMapType::Full),
+                source_map_generation_options: SourceMapGenerationOptions::NONE,
                 current_chunk_method: CurrentChunkMethod::StringLiteral,
                 manifest_chunks: false,
                 module_id_strategy: None,
@@ -600,11 +616,6 @@ impl BrowserChunkingContext {
     }
 
     /// Returns the source map type.
-    #[turbo_tasks::function]
-    pub fn source_maps_type(&self) -> Vc<OptionSourceMapType> {
-        Vc::cell(self.source_maps_type)
-    }
-
     /// Returns the minify type.
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
@@ -656,6 +667,15 @@ impl BrowserChunkingContext {
 
 #[turbo_tasks::value_impl]
 impl ChunkingContext for BrowserChunkingContext {
+    #[turbo_tasks::function]
+    fn source_map_generation_options(&self) -> Vc<SourceMapGenerationOptions> {
+        self.source_map_generation_options.cell()
+    }
+    #[turbo_tasks::function]
+    fn emitted_source_map_type(&self) -> Vc<OptionSourceMapType> {
+        Vc::cell(self.emitted_source_map_type)
+    }
+
     #[turbo_tasks::function]
     fn name(&self) -> Vc<RcStr> {
         if let Some(name) = &self.name {
@@ -776,12 +796,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
-        Vc::cell(self.source_maps_type.is_some())
-    }
-
-    #[turbo_tasks::function]
-    fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
-        Vc::cell(self.source_maps_type.is_some())
+        Vc::cell(self.emitted_source_map_type.is_some())
     }
 
     #[turbo_tasks::function]

@@ -26,7 +26,7 @@ use turbopack_core::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
     resolve::{parse::Request, pattern::Pattern},
-    source_map::OptionSourceMapType,
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions},
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
@@ -232,6 +232,7 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
+    source_map_generation_options: Vc<SourceMapGenerationOptions>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -337,7 +338,7 @@ pub async fn get_client_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
-    let source_maps = *next_config.client_source_maps(mode).await?;
+    let source_map_generation_options = *source_map_generation_options.await?;
 
     let preset_env_config = (*next_config.experimental_swc_env_options().await?)
         .as_ref()
@@ -371,7 +372,7 @@ pub async fn get_client_module_options_context(
             esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
-            source_maps,
+            source_map_generation_options,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
@@ -387,7 +388,7 @@ pub async fn get_client_module_options_context(
             ..Default::default()
         },
         css: CssOptionsContext {
-            source_maps,
+            source_map_generation_options,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
             module_css_debuggable_idents: next_mode.is_development(),
@@ -492,7 +493,8 @@ pub struct ClientChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<OptionSourceMapType>,
+    pub emitted_source_map_type: Vc<OptionSourceMapType>,
+    pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
@@ -542,7 +544,8 @@ pub async fn get_client_chunking_context(
         export_usage,
         unused_references,
         minify,
-        source_maps,
+        emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
         nested_async_chunking,
@@ -595,7 +598,8 @@ pub async fn get_client_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(*source_maps.await?)
+    .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .cross_origin(cross_origin_loading)
@@ -672,7 +676,8 @@ pub struct ServiceWorkerChunkingContextOptions {
     pub output_root_to_root_path: RcStr,
     pub environment: Vc<Environment>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<OptionSourceMapType>,
+    pub emitted_source_map_type: Vc<OptionSourceMapType>,
+    pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub hash_salt: ResolvedVc<RcStr>,
 }
@@ -688,7 +693,8 @@ pub async fn get_service_worker_chunking_context(
         output_root_to_root_path,
         environment,
         minify,
-        source_maps,
+        emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         hash_salt,
     } = options;
@@ -713,7 +719,8 @@ pub async fn get_service_worker_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(*source_maps.await?)
+    .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .hash_salt(hash_salt)
     .single_chunk()
     .await?;

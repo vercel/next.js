@@ -246,7 +246,7 @@ impl CachedExternalModule {
 
         Ok(EcmascriptModuleContent {
             inner_code: code.build(),
-            source_map: None,
+            source_maps: Default::default(),
             is_esm: self.external_type != CachedExternalType::CommonJs,
             strict: false,
             additional_ids: Default::default(),

@@ -11,7 +11,7 @@ use turbopack_core::{
     ident::AssetIdent,
     introspect::Introspectable,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source_map::GenerateSourceMap,
+    source_map::{GenerateSourceMap, SourceMapType},
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
@@ -51,7 +51,7 @@ impl SingleItemCssChunk {
         let this = self.await?;
         let source_maps = *this
             .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
+            .source_map_generation_options()
             .await?;
         // CSS chunks never have debug IDs
         let mut code = CodeBuilder::new(source_maps, false);
@@ -66,7 +66,7 @@ impl SingleItemCssChunk {
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
-        code.push_source(&content.inner_code, content.source_map.clone());
+        code.push_source(&content.inner_code, content.source_maps.clone());
         write!(code, "{close}")?;
 
         let c = code.build().cell();
@@ -141,7 +141,12 @@ impl Asset for SingleItemCssChunk {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
 
-        let rope = if code.has_source_map() {
+        let emitted_ty = *self
+            .await?
+            .chunking_context
+            .emitted_source_map_type()
+            .await?;
+        let rope = if emitted_ty.is_some_and(|ty| code.has_source_map_for(ty)) {
             use std::io::Write;
             let mut rope_builder = RopeBuilder::default();
             rope_builder.concat(code.source_code());
@@ -165,8 +170,8 @@ impl Asset for SingleItemCssChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }
 
