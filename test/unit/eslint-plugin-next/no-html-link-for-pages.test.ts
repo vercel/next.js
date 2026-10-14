@@ -7,6 +7,10 @@ import path from 'path'
 const NextESLintRule = rules['no-html-link-for-pages']
 
 const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
+const withCustomPageExtensionsDir = path.join(
+  __dirname,
+  'with-custom-page-extensions'
+)
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
@@ -22,6 +26,10 @@ const linters = {
   }),
   withNestedPages: new Linter({
     cwd: withNestedPagesDir,
+    configType: 'eslintrc',
+  }),
+  withCustomPageExtensions: new Linter({
+    cwd: withCustomPageExtensionsDir,
     configType: 'eslintrc',
   }),
   withCustomPages: new Linter({
@@ -69,6 +77,14 @@ const linterConfigWithNestedContentRootDirDirectory = {
   settings: {
     next: {
       rootDir: path.join(withNestedPagesDir, 'demos/with-nextjs'),
+    },
+  },
+}
+const linterConfigWithCustomPageExtensions = {
+  ...linterConfig,
+  settings: {
+    next: {
+      pageExtensions: ['page.jsx'],
     },
   },
 }
@@ -351,6 +367,18 @@ describe('no-html-link-for-pages', function () {
     const [report] = linters.withCustomPages.verify(
       invalidStaticCode,
       linterConfigWithCustomDirectory,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('invalid static route with custom pageExtensions', function () {
+    const [report] = linters.withCustomPageExtensions.verify(
+      invalidStaticCode,
+      linterConfigWithCustomPageExtensions,
       { filename: 'foo.js' }
     )
     assert.notEqual(report, undefined, 'No lint errors found.')
