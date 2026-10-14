@@ -1225,7 +1225,9 @@ impl<'a> TaskGuard<'a> {
     #[inline]
     pub fn assert_not_deleted(&self, operation: &str) {
         debug_assert!(
-            !self.deleted(),
+            // Small hack to work around check_access. Technically a 'deleted' flag is never
+            // persisted so it cannot be recovered either.
+            !self.task.flags.deleted(),
             "{operation} on GC-deleted task {} — a resurrection path was missed",
             self.id()
         );
@@ -1614,12 +1616,6 @@ impl<'a> TaskGuard<'a> {
             self.category
         );
         self.category = access;
-    }
-
-    /// Clears all modified/new flags for a GC-collected task that was **never persisted**
-    /// (`new_task`).
-    pub fn discard_modifications_for_gc_new_task(&mut self) {
-        self.task.discard_modifications_for_gc_new_task();
     }
 
     pub fn invalidate_serialization(&mut self) {
