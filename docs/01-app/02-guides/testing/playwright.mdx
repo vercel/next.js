@@ -2,6 +2,10 @@
 title: How to set up Playwright with Next.js
 nav_title: Playwright
 description: Learn how to set up Playwright with Next.js for End-to-End (E2E) Testing.
+related:
+  description: Learn more about testing instant navigations.
+  links:
+    - app/guides/instant-navigation
 ---
 
 Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** testing. This guide will show you how to set up Playwright with Next.js and write your first tests.
@@ -131,6 +135,14 @@ test('should navigate to the about page', async ({ page }) => {
 
 > **Good to know**: You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, if you add [`"baseURL": "http://localhost:3000"`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) to the `playwright.config.ts` [configuration file](https://playwright.dev/docs/test-configuration).
 
+<AppOnly>
+
+### Testing instant navigations
+
+If you're using Cache Components, the `instant()` helper from `@next/playwright` lets you assert what is visible immediately after a navigation, before any dynamic content streams in. See the [Instant navigation guide](/docs/app/guides/instant-navigation) and the [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for setup and examples.
+
+</AppOnly>
+
 ### Running your Playwright tests
 
 Playwright will simulate a user navigating your application using three browsers: Chromium, Firefox and WebKit, this requires your Next.js server to be running. We recommend running your tests against your production code to more closely resemble how your application will behave.
@@ -148,87 +160,3 @@ You can learn more about Playwright and Continuous Integration from these resour
 - [Next.js with Playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright)
 - [Playwright on your CI provider](https://playwright.dev/docs/ci)
 - [Playwright Discord](https://discord.com/invite/playwright-807756831384403968)
-
-<AppOnly>
-
-## Testing instant navigations
-
-A navigation is [instant](/docs/app/guides/instant-navigation#what-instant-means) when the browser can render the new page's static, cached, and fallback UI the moment the user clicks, while the remaining content streams in. Next.js surfaces navigations that aren't instant during development, but as your codebase grows, a refactor can quietly break a route that used to be instant.
-
-To catch these regressions in CI, the `@next/playwright` package provides an `instant()` helper. It holds back dynamic content while a callback runs, so your assertions only see the UI that's available immediately.
-
-> **Good to know**: Instant navigation requires [Cache Components](/docs/app/guides/migrating-to-cache-components) to be enabled. For the best results, also adopt [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching). See the [Instant navigation guide](/docs/app/guides/instant-navigation) for setup.
-
-First, install `@next/playwright`:
-
-```bash package="pnpm"
-pnpm add -D @next/playwright
-```
-
-```bash package="npm"
-npm install -D @next/playwright
-```
-
-```bash package="yarn"
-yarn add -D @next/playwright
-```
-
-```bash package="bun"
-bun add -D @next/playwright
-```
-
-Then wrap the assertions you want to run against the instant UI in `instant()`:
-
-```ts filename="tests/instant.spec.ts" highlight={8-14}
-import { expect, test } from '@playwright/test'
-import { instant } from '@next/playwright'
-
-test('product title is available immediately', async ({ page }) => {
-  await page.goto('/products/shoes')
-
-  // Assert what's visible without waiting for network
-  await instant(page, async () => {
-    await page.click('a[href="/products/hats"]')
-    await page.waitForURL((url) => url.pathname === '/products/hats')
-    await expect(page.locator('h1')).toContainText('Baseball Cap')
-    await expect(page.getByText('Checking inventory...')).toBeVisible()
-  })
-
-  // Dynamic content has streamed in once the callback finishes
-  await expect(page.getByText('12 in stock')).toBeVisible()
-})
-```
-
-Inside the callback, a client navigation shows the destination's prefetched UI, and an initial page load shows the static UI. Other dynamic content stays blocked until the callback finishes, so assertions after it can wait for the rest of the page to stream in. This lets you (or your agent) assert more granularly what must be visible immediately after each link click.
-
-For client navigations, wait for the destination URL with `page.waitForURL()` before asserting on its UI. Otherwise, a shared selector like `h1` can match the page you're navigating away from.
-
-> **Good to know**:
->
-> - The start of the `instant()` scope is equivalent to turning on **Pause on navigations** in the Navigation Inspector in the Next.js DevTools, and the end of the scope releases the pause like **Resume** does.
-> - If `page.goto()` is the first navigation inside the callback, pass Playwright's `baseURL` as the third argument: `instant(page, callback, { baseURL })`. The helper needs the origin before it requests the document.
-
-### Testing against a production build
-
-`instant()` works automatically when you run your tests against `next dev`. If you run tests against a production build, as recommended above, enable [`exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) only for the test build:
-
-```ts filename="next.config.ts" highlight={3,8}
-import type { NextConfig } from 'next'
-
-const exposeTestingApi = process.env.EXPOSE_TESTING_API === '1'
-
-const nextConfig: NextConfig = {
-  cacheComponents: true,
-  experimental: {
-    exposeTestingApiInProductionBuild: exposeTestingApi,
-  },
-}
-
-export default nextConfig
-```
-
-Set `EXPOSE_TESTING_API=1` when running `next build`. Setting it only for `next start` does not add the testing API to an existing build.
-
-To learn more, see the [Instant navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) and the [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation).
-
-</AppOnly>
