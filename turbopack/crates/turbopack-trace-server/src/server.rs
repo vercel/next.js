@@ -288,14 +288,8 @@ fn handle_connection(
                             let store = state.store.read();
                             if let Some((span, is_graph)) = store.span(id) {
                                 let root_start = store.root_span().start();
-                                let (query_start, query_end) =
-                                    if state.view_rect.view_mode == "timeline" && !is_graph {
-                                        (span.actual_start(), span.actual_end())
-                                    } else {
-                                        (span.start(), span.end())
-                                    };
-                                let span_start = query_start.saturating_sub(root_start);
-                                let span_end = query_end.saturating_sub(root_start);
+                                let span_start = span.start() - root_start;
+                                let span_end = span.end() - root_start;
                                 let duration = span.corrected_total_time();
                                 let cpu = span.total_time();
                                 let allocations = span.total_allocations();
@@ -314,16 +308,16 @@ fn handle_connection(
                                 }
                                 path.reverse();
                                 let memory_samples =
-                                    store.memory_samples_for_range(query_start, query_end);
-                                let memory_pressure_samples =
-                                    store.memory_pressure_samples_for_range(query_start, query_end);
+                                    store.memory_samples_for_range(span.start(), span.end());
+                                let memory_pressure_samples = store
+                                    .memory_pressure_samples_for_range(span.start(), span.end());
                                 let active_worker_threads_samples = store
                                     .active_worker_threads_samples_for_range(
-                                        query_start,
-                                        query_end,
+                                        span.start(),
+                                        span.end(),
                                     );
                                 let concurrency_samples =
-                                    store.concurrency_samples_for_range(query_start, query_end);
+                                    store.concurrency_samples_for_range(span.start(), span.end());
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,

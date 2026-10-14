@@ -1,13 +1,15 @@
-//! Chronological, flat interval lanes. Unlike flame layouts, neither search nor the
-//! viewport changes lane assignment or turns elapsed time into a sum of work.
+//! Chronological, flat lanes of active execution from the self-time tree. A span
+//! may have several disjoint intervals; waiting and child execution leave gaps.
+//! Neither search nor the viewport changes lane assignment or scales time.
 use std::{cmp::Reverse, collections::BinaryHeap};
 
 use rustc_hash::FxHashSet;
 
-use super::{Update, ViewLineUpdate, ViewSpan};
 use crate::{
     server::ViewRect,
     store::{SpanId, Store},
+    timestamp::Timestamp,
+    viewer::{Update, ViewLineUpdate, ViewSpan},
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -25,20 +27,23 @@ pub(super) struct Timeline {
 impl Timeline {
     pub(super) fn new(store: &Store) -> Self {
         let origin = store.root_span().start();
-        let intervals = (1..store.spans.len())
-            .filter_map(|index| {
-                let id = SpanId::new(index << 1)?;
-                let (span, _) = store.span(id)?;
-                let start = *span.actual_start().saturating_sub(origin);
-                let end = *span.actual_end().saturating_sub(origin);
-                // A zero-duration event is a one-tick marker, not an invalid interval.
-                Some(Interval {
-                    id,
-                    start,
-                    end: end.max(start.saturating_add(1)),
-                })
-            })
-            .collect();
+        let mut intervals = Vec::new();
+        if let Some(tree) = &store.self_time_tree {
+            tree.for_each_in_range(Timestamp::ZERO, Timestamp::MAX, &mut |start, end, index| {
+                if end <= start {
+                    return;
+                }
+                // Each tree entry is one activation, not the owning span's extent.
+                // In particular, do not join separate activations across idle gaps.
+                if let Some(id) = SpanId::new(index.get() << 1) {
+                    intervals.push(Interval {
+                        id,
+                        start: *start.saturating_sub(origin),
+                        end: *end.saturating_sub(origin),
+                    });
+                }
+            });
+        }
         Self::from_intervals(intervals)
     }
 
@@ -117,7 +122,7 @@ impl Timeline {
                     previous.id = 0;
                     previous.width = interval.end - previous.start;
                     previous.count += 1;
-                    previous.text = "Spans (zoom in)".to_string();
+                    previous.text = "Self-time intervals (zoom in)".to_string();
                     previous.category.clear();
                     previous.secondary = 0;
                     previous.kind = if matched || previous.kind == 0 || previous.kind == 1 {
@@ -137,7 +142,8 @@ impl Timeline {
                     kind: if matched { 0 } else { 10 },
                     start_in_parent: 0,
                     end_in_parent: 0,
-                    secondary: *span.total_time(),
+                    // Width is this activation's time; span totals belong in details.
+                    secondary: 0,
                 });
                 last_bucket = tiny.then_some(bucket);
             }
@@ -187,9 +193,9 @@ mod tests {
         let spans = vec![
             interval(1, 0, 100),
             interval(2, 10, 30),
-            interval(3, 10, 20),
+            interval(1, 10, 20), // the same span can execute concurrently
             interval(4, 30, 50),
-            interval(5, 110, 120),
+            interval(1, 110, 120), // and resume after a waiting gap
             interval(6, 110, 130),
         ];
         let layout = Timeline::from_intervals(spans.clone());
@@ -205,7 +211,11 @@ mod tests {
             layout
                 .lanes
                 .iter()
-                .map(|lane| lane.iter().map(|span| span.id).collect::<Vec<_>>())
+                .map(|lane| {
+                    lane.iter()
+                        .map(|span| (span.id, span.start, span.end))
+                        .collect::<Vec<_>>()
+                })
                 .collect::<Vec<_>>()
         };
         assert_eq!(ids(&layout), ids(&other));
@@ -247,7 +257,7 @@ mod tests {
         add(&mut store, 400, 0);
         let layout = Timeline::new(&store);
         let full = layout.compute_update(&store, &rect());
-        assert_eq!(full.max, 301);
+        assert_eq!(full.max, 250); // the zero-duration span contributes no work
         assert_eq!(full.count, 2);
         assert_eq!(full.lines[0].spans[0].start, 0);
         assert_eq!(full.lines[1].spans[0].start, 50);
@@ -270,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    fn children_outliving_a_parent_do_not_extend_its_recorded_interval() {
+    fn children_outliving_a_parent_keep_their_own_self_time() {
         let mut store = Store::new();
         let mut outdated = FxHashSet::default();
         let parent = store.add_span(
@@ -335,6 +345,99 @@ mod tests {
         assert_eq!(update.max, 250);
         assert_eq!(update.count, 2);
         assert_eq!(update.lines[1].spans[0].start, 50);
+    }
+
+    #[test]
+    fn tree_entries_not_span_extents_are_the_geometry_source() {
+        let mut store = Store::new();
+        let mut outdated = FxHashSet::default();
+        let owner = store.add_span(
+            None,
+            Timestamp::from_value(100),
+            rcstr!("test"),
+            rcstr!("resumed"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        let tree = store.self_time_tree.as_mut().unwrap();
+        // Deliberately keep these out of the span's events/extent: the tree alone
+        // must determine the bars, including repeated and simultaneous owners.
+        for (start, end) in [(110, 120), (115, 118), (150, 160), (170, 170)] {
+            tree.insert(
+                Timestamp::from_value(start),
+                Timestamp::from_value(end),
+                owner,
+            );
+        }
+        let layout = Timeline::new(&store);
+        assert_eq!(layout.max, 60);
+        assert_eq!(layout.lanes.len(), 2);
+        assert_eq!(
+            layout.lanes[0]
+                .iter()
+                .map(|i| (i.start, i.end))
+                .collect::<Vec<_>>(),
+            [(10, 20), (50, 60)]
+        );
+        assert_eq!((layout.lanes[1][0].start, layout.lanes[1][0].end), (15, 18));
+        assert!(
+            layout
+                .lanes
+                .iter()
+                .flatten()
+                .all(|i| i.id.get() == owner.get() * 2)
+        );
+        let update = layout.compute_update(&store, &rect());
+        assert!(
+            update
+                .lines
+                .iter()
+                .flat_map(|line| &line.spans)
+                .all(|span| span.secondary == 0)
+        );
+    }
+
+    #[test]
+    fn missing_tree_and_lifecycle_only_spans_do_not_fabricate_work() {
+        let mut store = Store::new();
+        add(&mut store, 100, 500);
+        store.self_time_tree = None;
+        let layout = Timeline::new(&store);
+        assert_eq!(layout.max, 1);
+        assert!(layout.lanes.is_empty());
+        store.self_time_tree = Some(Default::default());
+        assert!(Timeline::new(&store).lanes.is_empty());
+    }
+
+    #[test]
+    fn appended_activation_invalidates_the_layout_without_bridging_the_gap() {
+        use crate::viewer::Viewer;
+        let mut store = Store::new();
+        add(&mut store, 100, 10);
+        let owner = crate::span::SpanIndex::new(1).unwrap();
+        let mut viewer = Viewer::new();
+        let initial = viewer.compute_update(&store, &rect());
+        assert_eq!(initial.max, 10);
+        let mut outdated = FxHashSet::default();
+        store.add_self_time(
+            owner,
+            Timestamp::from_value(200),
+            Timestamp::from_value(220),
+            &mut outdated,
+        );
+        viewer.invalidate_timeline();
+        let update = viewer.compute_update(&store, &rect());
+        assert_eq!(update.count, 1);
+        assert_eq!(update.max, 120);
+        assert_eq!(update.lines[0].spans.len(), 2);
+        assert_eq!(update.lines[0].spans[0].id, update.lines[0].spans[1].id);
+        assert_eq!(
+            (
+                update.lines[0].spans[1].start,
+                update.lines[0].spans[1].width
+            ),
+            (100, 20)
+        );
     }
 
     #[test]

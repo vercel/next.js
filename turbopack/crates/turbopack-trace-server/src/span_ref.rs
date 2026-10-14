@@ -54,17 +54,6 @@ impl<'a> SpanRef<'a> {
         self.span.start
     }
 
-    pub fn actual_start(&self) -> Timestamp {
-        self.span.recorded_start
-    }
-
-    pub fn actual_end(&self) -> Timestamp {
-        self.time_data().recorded_end.unwrap_or_else(|| {
-            // Without a completion record, show the elapsed extent observed so far.
-            max(self.actual_start(), self.end())
-        })
-    }
-
     pub fn time_data(&self) -> &'a SpanTimeData {
         &self.span.time_data
     }

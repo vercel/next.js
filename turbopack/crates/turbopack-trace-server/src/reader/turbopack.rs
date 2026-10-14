@@ -30,9 +30,7 @@ enum InternalRowType {
         target: RcStr,
         values: SpanArgs,
     },
-    End {
-        ts: Timestamp,
-    },
+    End,
     SelfTime {
         start: Timestamp,
         end: Timestamp,
@@ -143,14 +141,12 @@ impl TurbopackFormat {
                     },
                 );
             }
-            TraceRow::End { ts, id } => {
+            TraceRow::End { ts: _, id } => {
                 self.process_internal_row(
                     store,
                     InternalRow {
                         id: Some(id),
-                        ty: InternalRowType::End {
-                            ts: Timestamp::from_micros(ts),
-                        },
+                        ty: InternalRowType::End,
                     },
                 );
             }
@@ -310,7 +306,7 @@ impl TurbopackFormat {
         let id = if let Some(id) = row.id {
             if matches!(
                 row.ty,
-                InternalRowType::End { .. }
+                InternalRowType::End
                     | InternalRowType::Event { .. }
                     | InternalRowType::Record { .. }
                     | InternalRowType::SelfTime { .. }
@@ -364,8 +360,7 @@ impl TurbopackFormat {
             InternalRowType::Record { values } => {
                 store.add_args(id.unwrap(), values, &mut self.outdated_spans);
             }
-            InternalRowType::End { ts } => {
-                store.set_span_end(id.unwrap(), ts);
+            InternalRowType::End => {
                 store.complete_span(id.unwrap());
             }
             InternalRowType::SelfTime { start, end } => {
@@ -387,7 +382,6 @@ impl TurbopackFormat {
                     &mut self.outdated_spans,
                 );
                 store.add_self_time(id, start, ts, &mut self.outdated_spans);
-                store.set_span_end(id, ts);
                 store.complete_span(id);
             }
             InternalRowType::Allocation {
@@ -566,22 +560,34 @@ mod tests {
     }
 
     #[test]
-    fn lifecycle_end_preserves_idle_tail_after_cpu_exit() {
+    fn timeline_uses_binary_activations_not_lifecycles_and_accepts_live_slices() {
+        use crate::{server::ViewRect, viewer::Viewer};
+        let enter = |ts, id, thread_id| TraceRow::Enter {
+            ts,
+            id,
+            thread_id,
+            allocations: None,
+        };
+        let exit = |ts, id, thread_id| TraceRow::Exit {
+            ts,
+            id,
+            thread_id,
+            allocations: None,
+        };
         let rows = [
             start(1, None, "async"),
-            TraceRow::Enter {
-                ts: 1,
-                id: 1,
-                thread_id: 1,
-                allocations: None,
-            },
-            TraceRow::Exit {
-                ts: 2,
-                id: 1,
-                thread_id: 1,
-                allocations: None,
-            },
-            TraceRow::End { ts: 5, id: 1 },
+            start(2, Some(1), "child"),
+            start(3, None, "blocking"),
+            start(4, None, "inactive"),
+            enter(10, 1, 1),
+            enter(12, 1, 2),
+            exit(18, 1, 2),
+            enter(20, 2, 1),
+            exit(30, 2, 1),
+            exit(40, 1, 1),
+            enter(50, 3, 4),
+            exit(60, 3, 4),
+            enter(70, 1, 3),
         ];
         let data: Vec<_> = rows
             .iter()
@@ -590,13 +596,78 @@ mod tests {
         let store = Arc::new(StoreContainer::new());
         let mut format = TurbopackFormat::new(store.clone());
         let mut reuse = TurbopackFormat::create_reused();
-        TraceFormat::read(&mut format, &data, &mut reuse).unwrap();
-        let store = store.read();
-        let span = store.root_spans().next().unwrap();
-        assert_eq!(*span.actual_start(), 0);
-        assert_eq!(*span.actual_end(), 500);
-        assert_eq!(*span.end(), 200); // existing flame extent is unchanged
-        assert_eq!(*span.total_time(), 100); // CPU time still excludes idle waiting
+        assert_eq!(format.read(&data, &mut reuse).unwrap(), data.len());
+        let rect = ViewRect {
+            x: 0,
+            y: 0,
+            width: 10000,
+            height: 100,
+            horizontal_pixels: 10000,
+            query: String::new(),
+            view_mode: "timeline".into(),
+            value_mode: "duration".into(),
+            value_filter: None,
+            count_filter: None,
+        };
+        let mut viewer = Viewer::new();
+        let initial = viewer.compute_update(&store.read(), &rect);
+        assert_eq!(initial.max, 4000); // only completed active slices, not the open span
+        assert_eq!(initial.count, 2); // same owning span executes on two threads
+        let tail: Vec<_> = [
+            exit(80, 1, 3),
+            TraceRow::End { ts: 1000, id: 1 },
+            TraceRow::End { ts: 2000, id: 4 },
+        ]
+        .iter()
+        .flat_map(|row| postcard::to_stdvec(row).unwrap())
+        .collect();
+        // A partial encoded row must be left for the next read, not create a bar.
+        assert_eq!(format.read(&tail[..1], &mut reuse).unwrap(), 0);
+        assert_eq!(format.read(&tail, &mut reuse).unwrap(), tail.len());
+        viewer.invalidate_timeline();
+        let update = viewer.compute_update(&store.read(), &rect);
+        assert_eq!(update.max, 8000); // lifecycle end and waiting do not extend work
+        let lines = serde_json::to_value(&update.lines).unwrap();
+        let spans: Vec<_> = lines
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|line| line["spans"].as_array().unwrap())
+            .collect();
+        let mut segments: Vec<_> = spans
+            .iter()
+            .map(|s| {
+                (
+                    s["t"].as_str().unwrap(),
+                    s["x"].as_u64().unwrap(),
+                    s["w"].as_u64().unwrap(),
+                )
+            })
+            .collect();
+        segments.sort_unstable();
+        assert_eq!(
+            segments,
+            [
+                ("async", 1000, 1000),
+                ("async", 1200, 600),
+                ("async", 3000, 1000),
+                ("async", 7000, 1000),
+                ("child", 2000, 1000),
+            ]
+        );
+        let ids: Vec<_> = spans
+            .iter()
+            .filter(|s| s["t"] == "async")
+            .map(|s| &s["id"])
+            .collect();
+        assert_eq!(ids.len(), 4);
+        assert!(ids.iter().all(|id| *id == ids[0]));
+        for line in lines.as_array().unwrap() {
+            assert!(line["spans"].as_array().unwrap().windows(2).all(|pair| {
+                pair[0]["x"].as_u64().unwrap() + pair[0]["w"].as_u64().unwrap()
+                    <= pair[1]["x"].as_u64().unwrap()
+            }));
+        }
     }
 
     #[test]

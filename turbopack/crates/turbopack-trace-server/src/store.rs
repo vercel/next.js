@@ -47,7 +47,6 @@ fn new_root_span() -> Span {
         parent: None,
         depth: 0,
         start: Timestamp::MAX,
-        recorded_start: Timestamp::MAX,
         category: RcStr::default(),
         name: rcstr!("(root)"),
         args: SpanArgs::new(),
@@ -123,7 +122,6 @@ impl Store {
             parent,
             depth: 0,
             start,
-            recorded_start: start,
             category,
             name,
             args,
@@ -243,8 +241,6 @@ impl Store {
         total_time: Timestamp,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
-        self.spans[span_index.get()].recorded_start = start_time;
-        self.spans[span_index.get()].time_data.recorded_end = Some(start_time + total_time);
         if self.spans[span_index.get()].time_data.ignore_self_time {
             let span = &mut self.spans[span_index.get()];
             span.start = start_time;
@@ -473,10 +469,6 @@ impl Store {
             .memory_samples
             .partition_point(|(ts, _, _, _)| *ts <= end);
         &self.memory_samples[lo..hi]
-    }
-
-    pub fn set_span_end(&mut self, span_index: SpanIndex, end: Timestamp) {
-        self.spans[span_index.get()].time_data.recorded_end = Some(end);
     }
 
     pub fn complete_span(&mut self, span_index: SpanIndex) {
