@@ -250,6 +250,53 @@ This resets all fields whenever the user navigates away.
 
 </details>
 
+#### Syncing an input with a URL search param
+
+A search input typically holds its value itself (an uncontrolled input, or local state) and writes it to the URL with `router.replace`. Activity preserves that held value while the URL can change underneath it. Type `shoes`, navigate away, then follow a link back to plain `/search`, and the input still shows `shoes` while the URL has no query.
+
+Effects re-run when Activity shows the component again, so a `useLayoutEffect` can re-sync the input from the URL before the browser paints:
+
+```tsx filename="app/search/search-input.tsx"
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useLayoutEffect, useRef, type RefObject } from 'react'
+
+function useSyncInputToSearchParam(
+  ref: RefObject<HTMLInputElement | null>,
+  param: string
+) {
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.value = new URLSearchParams(window.location.search).get(param) ?? ''
+  }, [ref, param])
+}
+
+export function SearchInput() {
+  const router = useRouter()
+  const inputRef = useRef<HTMLInputElement>(null)
+  useSyncInputToSearchParam(inputRef, 'q')
+
+  return (
+    <input
+      ref={inputRef}
+      type="search"
+      onChange={(e) => {
+        const q = e.target.value
+        router.replace(q ? `/search?q=${encodeURIComponent(q)}` : '/search', {
+          scroll: false,
+        })
+      }}
+    />
+  )
+}
+```
+
+A value derived from [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) on every render (`value={searchParams.get('q') ?? ''}`) stays correct without the hook, the same way the dialog example above derives its open state. But URL updates run in a transition, so a controlled input's value lags behind fast typing. Search inputs hold their value instead, which is what makes the re-sync necessary.
+
+Reading `window.location` is safe because the effect never runs on the server. On a cold load, the effect fills the input after hydration, so the input is briefly empty on first paint. To set the value before paint, see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
+
 ## State and authentication
 
 Activity preserves local component state (`useState`, DOM input values) across navigations, including authentication changes. This is standard React behavior: props changing (such as receiving a new user) triggers a re-render but does not reset existing state. A draft composed by one user shouldn't be visible to another.
