@@ -8,6 +8,18 @@ const { execFileSync } = require('child_process')
 const { runAgentsMd } = require('../../bin/agents-md')
 const { getNextjsVersion } = require('../../lib/agents-md')
 
+function execNodeWithoutNodePath(script, options = {}) {
+  // pnpm 12's Jest launcher exposes hoisted dependencies through NODE_PATH.
+  // A fresh Node process must omit it to resolve only the fixture's dependencies.
+  const env = { ...process.env, ...options.env }
+  delete env.NODE_PATH
+  return execFileSync(process.execPath, ['-e', script], {
+    ...options,
+    env,
+    encoding: 'utf8',
+  })
+}
+
 /**
  * TRUE E2E TESTS
  * These tests invoke the actual CLI entry point (runAgentsMd),
@@ -712,11 +724,25 @@ This is my project documentation.
         return require('strip-ansi')(consoleOutput.join('\n'))
       }
 
-      it('uses the bundled docs of a workspace package when run from the root', async () => {
-        setupWorkspace(['apps/*'], { 'apps/web': '16.4.0' })
-        process.chdir(testProjectDir)
+      function runFromWorkspaceRoot() {
+        return require('strip-ansi')(
+          execNodeWithoutNodePath(
+            `const { runAgentsMd } = require(${JSON.stringify(
+              path.join(__dirname, '../../bin/agents-md.js')
+            )})
+              runAgentsMd({ output: 'AGENTS.md' }).catch((error) => {
+                console.error(error)
+                process.exitCode = 1
+              })`,
+            { cwd: testProjectDir }
+          )
+        )
+      }
 
-        await runAgentsMd({ output: 'AGENTS.md' })
+      it('uses the bundled docs of a workspace package when run from the root', () => {
+        setupWorkspace(['apps/*'], { 'apps/web': '16.4.0' })
+
+        const cliOutput = runFromWorkspaceRoot()
 
         const agentsMdPath = path.join(testProjectDir, 'AGENTS.md')
         expect(readIndex(agentsMdPath).root).toBe(
@@ -725,49 +751,49 @@ This is my project documentation.
         expect(
           fs.existsSync(path.join(resolveRoot(agentsMdPath), '01-app'))
         ).toBe(true)
-        expect(pullDocsSpy).not.toHaveBeenCalled()
         expect(fs.existsSync(path.join(testProjectDir, '.next-docs'))).toBe(
           false
         )
         expect(fs.existsSync(path.join(testProjectDir, '.gitignore'))).toBe(
           false
         )
-        expect(output()).toContain('workspace package apps/web')
+        expect(cliOutput).toContain('workspace package apps/web')
       })
 
-      it('indexes the package with the highest Next.js version', async () => {
+      it('indexes the package with the highest Next.js version', () => {
         setupWorkspace(['apps/a', 'apps/b'], {
           'apps/a': '16.3.0',
           'apps/b': '16.4.0',
         })
-        process.chdir(testProjectDir)
 
-        await runAgentsMd({ output: 'AGENTS.md' })
+        const cliOutput = runFromWorkspaceRoot()
 
         const { root, content } = readIndex(
           path.join(testProjectDir, 'AGENTS.md')
         )
         expect(root).toBe('./apps/b/node_modules/next/dist/docs')
         expect(content).toContain('docs-16.4.0.md')
-        expect(pullDocsSpy).not.toHaveBeenCalled()
+        expect(cliOutput).not.toContain('Downloading')
+        expect(fs.existsSync(path.join(testProjectDir, '.next-docs'))).toBe(
+          false
+        )
       })
 
-      it('picks the first matching package in workspace order and logs it', async () => {
+      it('picks the first matching package in workspace order and logs it', () => {
         // Listed b before a, so the choice follows the workspace patterns
         // rather than alphabetical order.
         setupWorkspace(['apps/b', 'apps/a'], {
           'apps/a': '16.4.0',
           'apps/b': '16.4.0',
         })
-        process.chdir(testProjectDir)
 
-        await runAgentsMd({ output: 'AGENTS.md' })
+        const cliOutput = runFromWorkspaceRoot()
 
         expect(readIndex(path.join(testProjectDir, 'AGENTS.md')).root).toBe(
           './apps/b/node_modules/next/dist/docs'
         )
-        expect(output()).toContain('workspace package apps/b')
-        expect(output()).not.toContain('workspace package apps/a')
+        expect(cliOutput).toContain('workspace package apps/b')
+        expect(cliOutput).not.toContain('workspace package apps/a')
       })
 
       it('prefers a matching install resolved from the cwd', async () => {
@@ -841,25 +867,13 @@ This is my project documentation.
     })
 
     it('returns error when Next.js is not installed', () => {
-      // pnpm's Jest launcher adds hoisted dependencies to NODE_PATH, which causes `require.resolve`
-      // to succeed despite us passing in a bad cwd. We need to fork a child node process with
-      // `NODE_PATH` unset.
-      //
-      // This isn't an issue when the CLI is normally run: `pnpx` won't have a hoisted `next`
-      // package in the path.
-      const env = { ...process.env }
-      delete env.NODE_PATH
       const result = JSON.parse(
-        execFileSync(
-          process.execPath,
-          [
-            '-e',
-            `const { getNextjsVersion } = require(process.argv[1])
-            console.log(JSON.stringify(getNextjsVersion(process.argv[2])))`,
-            path.join(__dirname, '../agents-md.js'),
-            testProjectDir,
-          ],
-          { env, encoding: 'utf8' }
+        execNodeWithoutNodePath(
+          `const { getNextjsVersion } = require(${JSON.stringify(
+            path.join(__dirname, '../agents-md.js')
+          )})
+          console.log(JSON.stringify(getNextjsVersion(process.cwd())))`,
+          { cwd: testProjectDir }
         )
       )
 
