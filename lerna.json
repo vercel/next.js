@@ -12,7 +12,7 @@
       "npmClient": "npm",
       "allowBranch": [
         "canary",
-        "next-15-5"
+        "releases/lts/maintenance"
       ],
       "registry": "https://registry.npmjs.org/"
     }
