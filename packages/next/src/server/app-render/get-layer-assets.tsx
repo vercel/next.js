@@ -46,7 +46,7 @@ export function getLayerAssets({
     if (preloadedFontFiles.length) {
       for (let i = 0; i < preloadedFontFiles.length; i++) {
         const fontFilename = preloadedFontFiles[i]
-        const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
+        const ext = /\.(woff|woff2|eot|ttf|otf)(\?.*)?$/i.exec(fontFilename)?.[1] ?? 'woff2'
         const type = `font/${ext}`
         const href = `${ctx.assetPrefix}/_next/${encodeURIPath(fontFilename)}${getAssetQueryString(ctx, true)}`
 

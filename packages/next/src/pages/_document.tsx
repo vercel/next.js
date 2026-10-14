@@ -389,7 +389,7 @@ function getNextFontLinkTags(
     ) : null,
     preload: preloadedFontFiles
       ? preloadedFontFiles.map((fontFile) => {
-          const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile)![1]
+          const ext = /\.(woff|woff2|eot|ttf|otf)(\?.*)?$/i.exec(fontFile)?.[1] ?? 'woff2'
           return (
             <link
               key={fontFile}
