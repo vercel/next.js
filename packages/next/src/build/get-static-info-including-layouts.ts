@@ -44,16 +44,6 @@ export async function getStaticInfoIncludingLayouts({
   page: string
   bundler: Bundler
 }): Promise<Omit<PageStaticInfo, 'config'>> {
-  let reference = await getStaticInfoIncludingLayoutsInner({
-    isInsideAppDir,
-    pageExtensions,
-    pageFilePath,
-    appDir,
-    config: nextConfig,
-    isDev,
-    page,
-  })
-
   if (bundler === Bundler.Turbopack) {
     // With a custom static-export destination, production build artifacts still live in .next.
     const buildDistDir = isDev
@@ -70,81 +60,112 @@ export async function getStaticInfoIncludingLayouts({
           'static-info.json'
         )
 
-    let baseline = { ...reference } as any
-    // Excluded in Turbopack info. Already emitted as issue by Turbopack
-    delete baseline.hadUnsupportedValue
-    // Normalization
-    // The baseline may skip parsing, so false and missing metadata-export flags
-    // are equivalent. Turbopack omits false flags.
-    if (!baseline.generateImageMetadata) delete baseline.generateImageMetadata
-    if (!baseline.generateSitemaps) delete baseline.generateSitemaps
-    // Empty and missing middleware configurations are equivalent.
-    if (
-      baseline.middleware &&
-      Object.entries(baseline.middleware).length === 0
-    ) {
-      delete baseline.middleware
+    function readStaticInfo(): PageStaticInfo {
+      const staticInfo = JSON.parse(
+        fs.readFileSync(staticInfoPath, 'utf8')
+      ) as PageStaticInfo
+
+      if (staticInfo.middleware?.matchers) {
+        for (const matcher of staticInfo.middleware.matchers) {
+          // Turbopack emits the path, not a regex.
+          matcher.regexp = pathToRegexp(matcher.regexp).source
+        }
+      }
+
+      return staticInfo
     }
-    // Downstream runtime selection treats both aliases as Edge; Turbopack emits the canonical
-    // 'edge'.
-    if (baseline.runtime === 'experimental-edge') {
-      baseline.runtime = 'edge'
-    }
-    // Return type is Omit<PageStaticInfo, 'config'> anyway
-    delete baseline.config
 
-    function sort(v: Record<string, any> | undefined): any {
-      return v
-        ? Object.keys(v)
-            .sort()
-            .reduce((acc, key) => {
-              acc[key] = v[key]
-              return acc
-            }, {} as any)
-        : v
-    }
-    baseline = sort(baseline)
+    if (process.env.__NEXT_TEST_MODE && process.env.IS_TURBOPACK_TEST) {
+      /// In the e2e tests, ensure parity between webpack and Turbopack static info
 
-    const retryUntil = Date.now() + DEV_STATIC_INFO_RETRY_TIMEOUT
-    while (true) {
-      let validationError: Error
+      let reference = await getStaticInfoIncludingLayoutsInner({
+        isInsideAppDir,
+        pageExtensions,
+        pageFilePath,
+        appDir,
+        config: nextConfig,
+        isDev,
+        page,
+      })
 
-      try {
-        let turbopack = JSON.parse(
-          fs.readFileSync(staticInfoPath, 'utf8')
-        ) as PageStaticInfo
+      let baseline = { ...reference } as any
+      // Excluded in Turbopack info. Already emitted as issue by Turbopack
+      delete baseline.hadUnsupportedValue
+      // Normalization
+      // The baseline may skip parsing, so false and missing metadata-export flags
+      // are equivalent. Turbopack omits false flags.
+      if (!baseline.generateImageMetadata) delete baseline.generateImageMetadata
+      if (!baseline.generateSitemaps) delete baseline.generateSitemaps
+      // Empty and missing middleware configurations are equivalent.
+      if (
+        baseline.middleware &&
+        Object.entries(baseline.middleware).length === 0
+      ) {
+        delete baseline.middleware
+      }
+      // Downstream runtime selection treats both aliases as Edge; Turbopack emits the canonical
+      // 'edge'.
+      if (baseline.runtime === 'experimental-edge') {
+        baseline.runtime = 'edge'
+      }
+      // Return type is Omit<PageStaticInfo, 'config'> anyway
+      delete baseline.config
 
-        if (turbopack.middleware?.matchers) {
-          for (const matcher of turbopack.middleware.matchers) {
-            // Turbopack emits the path, not a regex
-            matcher.regexp = pathToRegexp(matcher.regexp).source
+      function sort(v: Record<string, any> | undefined): any {
+        return v
+          ? Object.keys(v)
+              .sort()
+              .reduce((acc, key) => {
+                acc[key] = v[key]
+                return acc
+              }, {} as any)
+          : v
+      }
+      baseline = sort(baseline)
+
+      const retryUntil = Date.now() + DEV_STATIC_INFO_RETRY_TIMEOUT
+      while (true) {
+        let validationError: Error
+
+        try {
+          const turbopack = readStaticInfo()
+
+          if (JSON.stringify(baseline) === JSON.stringify(sort(turbopack))) {
+            return turbopack
           }
+
+          validationError = new Error(
+            `Static info mismatch for ${pageFilePath}: ` +
+              JSON.stringify({ baseline, turbopack }, null, 2)
+          )
+        } catch (cause) {
+          validationError = new Error(
+            'Failed to read Turbopack static info from disk',
+            { cause }
+          )
         }
 
-        if (JSON.stringify(baseline) === JSON.stringify(sort(turbopack))) {
-          return turbopack
+        if (!isDev || Date.now() >= retryUntil) {
+          throw validationError
         }
-
-        validationError = new Error(
-          `Static info mismatch for ${pageFilePath}: ` +
-            JSON.stringify({ baseline, turbopack }, null, 2)
-        )
-      } catch (cause) {
-        validationError = new Error(
-          'Failed to read Turbopack static info from disk',
-          { cause }
-        )
+        await wait(DEV_STATIC_INFO_RETRY_INTERVAL)
       }
-
-      if (!isDev || Date.now() >= retryUntil) {
-        throw validationError
-      }
-      await wait(DEV_STATIC_INFO_RETRY_INTERVAL)
+    } else {
+      return readStaticInfo()
     }
+  } else {
+    return getStaticInfoIncludingLayoutsInner({
+      isInsideAppDir,
+      pageExtensions,
+      pageFilePath,
+      appDir,
+      config: nextConfig,
+      isDev,
+      page,
+    })
   }
-
-  return reference
 }
+
 async function getStaticInfoIncludingLayoutsInner({
   isInsideAppDir,
   pageExtensions,
