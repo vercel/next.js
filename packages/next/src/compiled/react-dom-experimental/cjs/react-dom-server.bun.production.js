@@ -6713,9 +6713,7 @@ function performWork(request$jscomp$1) {
             switchContext(task.context);
             var childrenLength = request$jscomp$0.children.length,
               chunkLength = request$jscomp$0.chunks.length,
-              startNode$jscomp$0 = task.node,
-              startKeyPath = task.keyPath,
-              startChildIndex = task.childIndex;
+              startNode$jscomp$0 = task.node;
             try {
               retryNode(request, task),
                 pushSegmentFinale(
@@ -6749,8 +6747,6 @@ function performWork(request$jscomp$1) {
                 thrownValue === SuspenseException &&
                   (task.thenableState = getThenableStateAfterSuspending()),
                   (request.currentTask = prevTask$jscomp$0),
-                  (task.keyPath = startKeyPath),
-                  (task.childIndex = startChildIndex),
                   (request$jscomp$0 = request),
                   abortTask(task, request$jscomp$0),
                   task.abortSet.delete(task),
@@ -7678,14 +7674,15 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-experimental-07dde64d-20261013" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-99c106c4-20261014" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-experimental-07dde64d-20261013\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-experimental-99c106c4-20261014\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
+hasOwnProperty.call(ArrayBuffer.prototype, "detached");
 var textEncoder = new util.TextEncoder();
 ensureCorrectIsomorphicReactVersion();
 function createDrainHandler(destination, request) {
@@ -8175,4 +8172,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-experimental-07dde64d-20261013";
+exports.version = "19.3.0-experimental-99c106c4-20261014";
