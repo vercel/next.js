@@ -1,4 +1,7 @@
+import { readFileSync } from 'fs'
+import { basename, dirname, join } from 'path'
 import spawn from 'next/dist/compiled/cross-spawn'
+import findUp from 'next/dist/compiled/find-up'
 import semver from 'next/dist/compiled/semver'
 import { getNpxCommand } from '../helpers/get-npx-command'
 import { getPkgManager, type PackageManager } from '../helpers/get-pkg-manager'
@@ -47,13 +50,13 @@ export type Packument = {
 export const NO_RELEASE_AGE_CHECK: ReleaseAgeCheck = { gates: [] }
 
 export function getReleaseAgeChecks(directory: string): ReleaseAgeChecks {
-  const install = tryRead(() =>
-    readGate({
-      directory,
-      manager: getPkgManager(directory),
-      operation: 'install',
-    })
-  )
+  const install = tryRead(() => {
+    const { manager, root } = installer(directory)
+    // Bun has no release-age gate.
+    return manager === 'bun'
+      ? null
+      : readGate({ directory: root, manager, operation: 'install' })
+  })
   const runner = tryRead(() =>
     readGate({
       directory,
@@ -131,18 +134,23 @@ export function getPackument(
 }
 
 async function fetchPackument(name: string): Promise<Packument> {
-  const response = await fetch(`https://registry.npmjs.org/${name}`, {
-    signal: AbortSignal.timeout(10_000),
-    headers: { Accept: 'application/json' },
-    redirect: 'error',
-    cache: 'no-store',
-  })
-  if (!response.ok) {
-    throw new Error(
-      `Could not fetch ${name} release dates (HTTP ${response.status}).`
-    )
+  let value
+  try {
+    const response = await fetch(`https://registry.npmjs.org/${name}`, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { Accept: 'application/json' },
+      redirect: 'error',
+      cache: 'no-store',
+    })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+    value = await response.json()
+  } catch (error) {
+    throw new Error('Could not fetch upgrade metadata. Please try again.', {
+      cause: error,
+    })
   }
-  const value = await response.json()
   if (!value?.versions || !value['dist-tags']) {
     throw new Error(`Could not determine ${name} release dates.`)
   }
@@ -282,6 +290,50 @@ function yarnGate(directory: string): ReleaseAgeGate | null {
     exemptions: exemptions(settings.get('npmPreapprovedPackages'), {
       versions: true,
     }),
+  }
+}
+
+const INSTALL_MARKERS: Record<string, PackageManager | 'bun'> = {
+  'pnpm-workspace.yaml': 'pnpm',
+  'pnpm-lock.yaml': 'pnpm',
+  'yarn.lock': 'yarn',
+  'bun.lock': 'bun',
+  'bun.lockb': 'bun',
+  'package-lock.json': 'npm',
+}
+
+// The agent installs with the app's manager from its install root, detected the
+// way the guide describes: the declared manager, then the nearest lockfile, and
+// only then whichever manager launched this CLI. `npx` in a pnpm app must still
+// read pnpm's policy.
+function installer(directory: string): {
+  manager: PackageManager | 'bun'
+  root: string
+} {
+  const marker = findUp.sync(Object.keys(INSTALL_MARKERS), { cwd: directory })
+  const root = marker ? dirname(marker) : directory
+  return {
+    manager:
+      declaredManager(directory) ??
+      declaredManager(root) ??
+      (marker ? INSTALL_MARKERS[basename(marker)] : getPkgManager(directory)),
+    root,
+  }
+}
+
+function declaredManager(
+  directory: string
+): PackageManager | 'bun' | undefined {
+  try {
+    const { packageManager } = JSON.parse(
+      readFileSync(join(directory, 'package.json'), 'utf8')
+    )
+    return /^(npm|pnpm|yarn|bun)@/.exec(packageManager)?.[1] as
+      | PackageManager
+      | 'bun'
+      | undefined
+  } catch {
+    return undefined
   }
 }
 

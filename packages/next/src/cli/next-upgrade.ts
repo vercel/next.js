@@ -311,7 +311,8 @@ export async function spawnNextUpgrade(
       }
 
       // Release-age policies can refuse a release the registry already lists.
-      const { runner: runnerCheck } = getReleaseAgeChecks(baseDir)
+      const releaseAgeChecks = getReleaseAgeChecks(baseDir)
+      const { runner: runnerCheck } = releaseAgeChecks
       const runnerAllows = (version: string) =>
         isReleaseInstallable({
           check: runnerCheck,
@@ -410,9 +411,11 @@ export async function spawnNextUpgrade(
       const { prepareUpgrade } =
         require('../lib/upgrade/prepare-upgrade') as typeof import('../lib/upgrade/prepare-upgrade')
       const assessmentSpinner = createSpinner('Preparing upgrade')
-      const result = await prepareUpgrade(baseDir, upgradeType).finally(() =>
-        assessmentSpinner?.stop()
-      )
+      const result = await prepareUpgrade(
+        baseDir,
+        upgradeType,
+        releaseAgeChecks
+      ).finally(() => assessmentSpinner?.stop())
 
       // Expected assessment failures retain their status and stop before handoff.
       if (result.status === 'blocked' || result.status === 'unknown') {

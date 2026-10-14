@@ -9,6 +9,7 @@ import {
 } from 'next/dist/lib/upgrade/prepare-upgrade'
 import loadConfig from 'next/dist/server/config'
 import {
+  getPackument,
   getReleaseAgeChecks,
   type ReleaseAgeGate,
 } from 'next/dist/lib/upgrade/release-age'
@@ -425,6 +426,30 @@ describe('prepare latest upgrade', () => {
     expect(JSON.parse(String(requests[2][1]?.body))).toEqual({
       next: ['17.3.0', '18.0.1'],
     })
+  })
+
+  it('reuses the registry metadata the CLI already fetched', async () => {
+    mockSecurityMetadata({
+      ranges: ['17.2.0'],
+      published: ['17.2.0', '17.2.1'],
+    })
+    const directory = await createApp('17.2.0')
+    const checks = mockReleaseAgeChecks({ gates: [] })
+    // The CLI's runner lookup fetches the packument before the assessment.
+    await getPackument(checks.runner, 'next')
+    jest.mocked(getReleaseAgeChecks).mockClear()
+
+    await expect(
+      prepareUpgrade(directory, 'security', checks)
+    ).resolves.toMatchObject({ status: 'ready' })
+    expect(
+      jest
+        .mocked(global.fetch)
+        .mock.calls.filter(
+          ([url]) => String(url) === 'https://registry.npmjs.org/next'
+        )
+    ).toHaveLength(1)
+    expect(getReleaseAgeChecks).not.toHaveBeenCalled()
   })
 
   it('keeps a confirmed warning when the candidate advisory request fails', async () => {

@@ -10,6 +10,7 @@ import {
   isReleaseAllowed,
   NO_RELEASE_AGE_CHECK,
   type ReleaseAgeCheck,
+  type ReleaseAgeChecks,
 } from './release-age'
 import { PHASE_INFO } from '../../shared/lib/constants'
 import {
@@ -29,7 +30,10 @@ type UpgradePreparation =
 
 export async function prepareUpgrade(
   directory: string,
-  targetRequest: string = 'security'
+  targetRequest: string = 'security',
+  // The CLI passes the checks it already read so one upgrade fetches the
+  // registry metadata and probes the package managers once.
+  checks?: ReleaseAgeChecks
 ): Promise<UpgradePreparation> {
   if (
     targetRequest !== 'security' &&
@@ -47,7 +51,7 @@ export async function prepareUpgrade(
     installedVersion,
     targetRequest,
     false,
-    getReleaseAgeChecks(directory).install
+    (checks ?? getReleaseAgeChecks(directory)).install
   )
   if (upgrade.status !== 'ready' || targetRequest !== 'experimental-future') {
     return upgrade
@@ -199,15 +203,13 @@ async function assessUpgrade(
     let references: string[]
     if (policy === 'security' && snapshot) {
       const registryURL = `${NPM_REGISTRY}next`
-      const registry = (await fetchJSON(registryURL)).value
+      const registry = await getPackument(check, 'next')
       const releases = parseReleases(registry).filter(({ version }) =>
         isReleaseAllowed({
           check,
           packageName: 'next',
           version,
-          publishedAt: (registry as { time?: Record<string, string> }).time?.[
-            version
-          ],
+          publishedAt: registry.time?.[version],
         })
       )
       references = [snapshot.reference, registryURL]

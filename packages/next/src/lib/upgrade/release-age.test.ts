@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { dirname, join } from 'path'
 import spawn from 'next/dist/compiled/cross-spawn'
 import { getNpxCommand } from '../helpers/get-npx-command'
 import { getPkgManager, type PackageManager } from '../helpers/get-pkg-manager'
@@ -33,18 +36,34 @@ function probes(outputs: Record<string, string>) {
   })
 }
 
+const directories: string[] = []
+
+// Creates an app directory, plus any files relative to it such as an
+// enclosing workspace's lockfile at `../../pnpm-workspace.yaml`.
+function app(files: Record<string, string> = {}): string {
+  const root = mkdtempSync(join(tmpdir(), 'release-age-'))
+  directories.push(root)
+  const directory = join(root, 'apps', 'web')
+  mkdirSync(directory, { recursive: true })
+  for (const [file, contents] of Object.entries(files)) {
+    writeFileSync(join(directory, file), contents)
+  }
+  return directory
+}
+
 // The gate the app's own package manager applies when it installs. The runner
 // is read separately, so leaving it unreadable keeps these probes to one side.
 function installGate(
   manager: PackageManager,
-  outputs: Record<string, string>
+  outputs: Record<string, string>,
+  directory = app()
 ): ReleaseAgeGate | null {
   jest.mocked(getPkgManager).mockReturnValue(manager)
   jest.mocked(getNpxCommand).mockImplementation(() => {
     throw new Error('not under test')
   })
   probes(outputs)
-  return getReleaseAgeChecks('/app').install.gates[0] ?? null
+  return getReleaseAgeChecks(directory).install.gates[0] ?? null
 }
 
 describe('upgrade release age', () => {
@@ -54,6 +73,52 @@ describe('upgrade release age', () => {
   })
   afterEach(() => {
     jest.useRealTimers()
+    for (const directory of directories.splice(0)) {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  describe('install manager', () => {
+    const pnpm = {
+      'pnpm --version': '12.9.1',
+      'pnpm config get minimumReleaseAge --json': '2880',
+      'pnpm config get minimumReleaseAgeExclude': '',
+    }
+
+    it('reads the app manager when another manager launched the CLI', () => {
+      // `npx next@canary upgrade` reports npm, but the agent installs with pnpm.
+      expect(installGate('npm', pnpm, app({ 'pnpm-lock.yaml': '' }))).toEqual(
+        gate
+      )
+    })
+
+    it('prefers the declared manager over a lockfile', () => {
+      expect(
+        installGate(
+          'npm',
+          pnpm,
+          app({
+            'package.json': JSON.stringify({ packageManager: 'pnpm@12.9.1' }),
+            'package-lock.json': '',
+          })
+        )
+      ).toEqual(gate)
+    })
+
+    it('probes from the workspace root', () => {
+      const directory = app({ 'package.json': '{}' })
+      const root = dirname(dirname(directory))
+      writeFileSync(join(root, 'pnpm-workspace.yaml'), '')
+      expect(installGate('npm', pnpm, directory)).toEqual(gate)
+      expect(
+        jest.mocked(spawn.sync).mock.calls.map(([, , options]) => options?.cwd)
+      ).toEqual([root, root, root])
+    })
+
+    it('has no gate for Bun', () => {
+      expect(installGate('npm', {}, app({ 'bun.lock': '' }))).toBeNull()
+      expect(spawn.sync).not.toHaveBeenCalled()
+    })
   })
 
   describe('npm', () => {
@@ -170,7 +235,7 @@ describe('upgrade release age', () => {
     jest.mocked(getNpxCommand).mockReturnValue('npx --yes')
     probes({})
     // An unreadable policy must not fail the upgrade.
-    expect(getReleaseAgeChecks('/app')).toMatchObject({
+    expect(getReleaseAgeChecks(app())).toMatchObject({
       install: { gates: [] },
       runner: { gates: [] },
     })
@@ -190,7 +255,7 @@ describe('upgrade release age', () => {
         'min-release-age-exclude=next',
       ].join('\n'),
     })
-    const checks = getReleaseAgeChecks('/app')
+    const checks = getReleaseAgeChecks(app())
     expect(checks).toMatchObject({
       install: {
         gates: [{ cutoff, exemptions: [{ name: 'next', versions: null }] }],

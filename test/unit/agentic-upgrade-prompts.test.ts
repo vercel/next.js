@@ -1600,7 +1600,13 @@ describe('agentic upgrade prompts', () => {
       null
     )
 
-    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
+    // The assessment reuses the policies, and their registry metadata, that
+    // the CLI already read.
+    expect(prepareUpgrade).toHaveBeenCalledWith(
+      '/workspace/app',
+      'security',
+      jest.mocked(getReleaseAgeChecks).mock.results[0].value
+    )
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
       '/tmp/next-upgrade-test/upgrade/different-major.md'
@@ -1678,7 +1684,11 @@ describe('agentic upgrade prompts', () => {
       '/workspace/app',
       { rawConfig: true }
     )
-    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
+    expect(prepareUpgrade).toHaveBeenCalledWith(
+      '/workspace/app',
+      'security',
+      jest.mocked(getReleaseAgeChecks).mock.results[0].value
+    )
   })
 
   it.each(['security', 'latest', 'experimental-future'] as const)(
@@ -1698,7 +1708,11 @@ describe('agentic upgrade prompts', () => {
         null
       )
 
-      expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
+      expect(prepareUpgrade).toHaveBeenCalledWith(
+        '/workspace/app',
+        policy,
+        expect.anything()
+      )
       expect(Log.bootstrap).toHaveBeenCalledWith(
         expect.stringContaining(
           `Set \`experimental.agentUpgrade\` to "${policy}"`
@@ -1727,7 +1741,11 @@ describe('agentic upgrade prompts', () => {
     )
 
     expect(loadConfig).toHaveBeenCalledTimes(1)
-    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
+    expect(prepareUpgrade).toHaveBeenCalledWith(
+      '/workspace/app',
+      'latest',
+      expect.anything()
+    )
     expect(readFile).toHaveBeenCalledTimes(0)
     expect(writeFile).toHaveBeenCalledTimes(0)
     expect(
@@ -1870,7 +1888,11 @@ describe('agentic upgrade prompts', () => {
         null
       )
 
-      expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', policy)
+      expect(prepareUpgrade).toHaveBeenCalledWith(
+        '/workspace/app',
+        policy,
+        expect.anything()
+      )
       const prompt = normalizedBootstrapCalls().flat().join('\n')
       expect(prompt).toContain(
         'from Next.js 17.2.0-canary.4 to 17.2.0-canary.9'
