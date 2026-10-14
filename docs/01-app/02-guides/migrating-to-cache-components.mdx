@@ -106,7 +106,7 @@ Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of fai
 
 `instant = false` does not clear synchronous IO build errors. Calls such as `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` still fail during prerendering.
 
-Choose the fix that preserves the existing rendering behavior. If the value should be captured and reused, read it inside [`use cache`](/docs/app/api-reference/directives/use-cache). To keep producing it during request-time rendering, wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense). The fallback becomes part of the static shell while the component renders for the request.
+Choose the fix based on when the value should be produced. If it should be captured and reused, read it inside [`use cache`](/docs/app/api-reference/directives/use-cache). If it should be produced after prerendering, wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense). The fallback becomes part of the static shell while the component renders later.
 
 ```tsx filename="app/page.tsx"
 import { Suspense } from 'react'
@@ -121,16 +121,18 @@ export default function Page() {
 }
 ```
 
-In a Server Component, call [`connection()`](/docs/app/api-reference/functions/connection) before reading the value. This waits for an actual request, preserving request-time server rendering:
+In a Server Component, call [`io()`](/docs/app/api-reference/functions/io) before a synchronous read such as `new Date()`:
 
 ```tsx filename="app/current-time.tsx"
-import { connection } from 'next/server'
+import { io } from 'next/cache'
 
 export async function CurrentTime() {
-  await connection()
+  await io()
   return <p>{new Date().toISOString()}</p>
 }
 ```
+
+`io()` excludes the read from prerendering without requiring an actual request. Use [`connection()`](/docs/app/api-reference/functions/connection) instead when the work must wait for a real request and must not run during prefetching, such as a request-bound synchronous database query. An awaited `fetch` or asynchronous database query already provides a suspension point, so it doesn't need `io()`.
 
 In a Client Component, call [`use(io())`](/docs/app/api-reference/functions/io). `connection()` is server-only. `io()` suspends during prerendering, then resolves during request-time rendering or in the browser:
 
