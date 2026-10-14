@@ -1229,8 +1229,15 @@ export async function getRedboxTotalErrorCount(
   return parseInt(text || '-1')
 }
 
-export function getRedboxSource(browser: Playwright): Promise<string | null> {
-  return browser.eval(() => {
+// Editor controls are not part of the source code captured by error snapshots.
+function normalizeRedboxSource(source: string | null): string | null {
+  return source?.replace(/\nOpen in Editor(?=\n|$)/g, '') ?? null
+}
+
+export async function getRedboxSource(
+  browser: Playwright
+): Promise<string | null> {
+  const source = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) =>
@@ -1244,6 +1251,7 @@ export function getRedboxSource(browser: Playwright): Promise<string | null> {
         ?.innerText ?? null
     )
   })
+  return normalizeRedboxSource(source)
 }
 
 export function getRedboxTitle(browser: Playwright): Promise<string | null> {
@@ -1674,7 +1682,7 @@ export interface RedboxCauseEntry {
 export async function getRedboxCause(
   browser: Playwright
 ): Promise<RedboxCauseEntry[] | null> {
-  return browser.eval(() => {
+  const entries = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -1708,12 +1716,18 @@ export async function getRedboxCause(
     }
     return causes
   })
+  return (
+    entries?.map((entry) => ({
+      ...entry,
+      source: normalizeRedboxSource(entry.source),
+    })) ?? null
+  )
 }
 
 export async function getRedboxAggregateErrors(
   browser: Playwright
 ): Promise<RedboxCauseEntry[] | null> {
-  return browser.eval(() => {
+  const entries = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -1751,6 +1765,12 @@ export async function getRedboxAggregateErrors(
     }
     return entries
   })
+  return (
+    entries?.map((entry) => ({
+      ...entry,
+      source: normalizeRedboxSource(entry.source),
+    })) ?? null
+  )
 }
 
 export async function getRedboxCallStack(
