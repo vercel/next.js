@@ -114,8 +114,9 @@ export function NextLogo({
     state.cacheIndicator
   )
   const showStatusIndicator = displayStatus !== Status.None
+  const statusReplacesIssues = showStatusIndicator && !state.disableDevIndicator
   const showIssues =
-    !showStatusIndicator && (isErrorExpanded || state.disableDevIndicator)
+    !statusReplacesIssues && (isErrorExpanded || state.disableDevIndicator)
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
@@ -439,8 +440,8 @@ export function NextLogo({
       </style>
       <div
         data-next-badge
-        data-error={hasError && !insightsOnly && !showStatusIndicator}
-        data-insights-only={insightsOnly && !showStatusIndicator}
+        data-error={hasError && !insightsOnly}
+        data-insights-only={insightsOnly && !statusReplacesIssues}
         data-error-expanded={isExpanded}
         data-status={displayStatus}
         data-cache-badge={cacheBadge ?? undefined}
@@ -547,6 +548,7 @@ export function NextLogo({
               {showStatusIndicator && !state.disableDevIndicator && (
                 <StatusIndicator
                   status={displayStatus}
+                  isError={hasError && !insightsOnly}
                   onClick={onTriggerClick}
                 />
               )}

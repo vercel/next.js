@@ -29,15 +29,43 @@ const installCheckCompilingReplacesIssue = (browser) => {
       const issuesElement = root.querySelector('[data-issues]')
       const logoButton = root.querySelector('[data-nextjs-dev-tools-button]')
       const badge = root.querySelector('[data-next-badge]')
+      const statusDot = root.querySelector('[data-status-dot]')
 
       const isVisible =
         statusElement?.textContent.includes('Compiling') &&
         issuesElement === null &&
         logoButton !== null &&
         getComputedStyle(logoButton).display === 'none' &&
-        badge?.getAttribute('data-error') === 'false'
+        badge?.getAttribute('data-error') === 'true' &&
+        getComputedStyle(badge).backgroundColor === 'rgb(202, 42, 48)' &&
+        getComputedStyle(statusDot).backgroundColor === 'rgb(255, 255, 255)'
       if (isVisible) {
         sessionStorage.setItem('showedCompilingInPlaceOfIssue', 'true')
+        clearInterval(window.checkInterval)
+      }
+    }, 5)
+  })()`)
+}
+
+const installCheckCompilingKeepsDisabledIssue = (browser) => {
+  return browser.eval(`(function() {
+    sessionStorage.setItem('keptDisabledIssueWhileCompiling', 'false')
+    window.checkInterval = setInterval(function() {
+      const root = document.querySelector('nextjs-portal').shadowRoot
+      const statusElement = root.querySelector('[data-indicator-status]')
+      const issuesElement = root.querySelector('[data-issues]')
+      const badge = root.querySelector('[data-next-badge]')
+      const status = badge?.getAttribute('data-status')
+
+      const isVisible =
+        status &&
+        status !== 'none' &&
+        statusElement === null &&
+        issuesElement?.textContent.includes('Issue') &&
+        root.querySelector('[data-disabled-icon]') !== null &&
+        badge?.getAttribute('data-error') === 'true'
+      if (isVisible) {
+        sessionStorage.setItem('keptDisabledIssueWhileCompiling', 'true')
         clearInterval(window.checkInterval)
       }
     }, 5)
@@ -105,7 +133,7 @@ describe('Build Activity Indicator', () => {
         },
       })
 
-      it('shows compiling status in place of an existing issue', async () => {
+      it('shows red compiling status in place of an existing issue', async () => {
         const browser = await next.browser('/app/issue')
 
         await retry(async () => {
@@ -124,6 +152,58 @@ describe('Build Activity Indicator', () => {
           expect(
             await browser.eval(
               `sessionStorage.getItem('showedCompilingInPlaceOfIssue')`
+            )
+          ).toBe('true')
+        })
+
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('Slow page')
+        })
+      })
+    })
+
+    describe('disabled build indicator with an issue', () => {
+      const { next } = nextTestSetup({
+        files: join(__dirname, '..'),
+        nextConfig: {
+          devIndicators: false,
+          turbopack: {
+            rules: {
+              '*.slow.js': {
+                loaders: ['./slow-loader.js'],
+                as: '*.js',
+              },
+            },
+          },
+          webpack(config) {
+            config.module.rules.push({
+              test: /\.slow\.js$/,
+              use: [require.resolve('./slow-loader.js')],
+            })
+            return config
+          },
+        },
+      })
+
+      it('keeps the disabled issue visible while compiling', async () => {
+        const browser = await next.browser('/app/issue')
+
+        await retry(async () => {
+          expect(
+            await browser.eval(`(function() {
+              const root = document.querySelector('nextjs-portal').shadowRoot
+              return root.querySelector('[data-issues]')?.textContent ?? null
+            })()`)
+          ).toContain('Issue')
+        })
+
+        await installCheckCompilingKeepsDisabledIssue(browser)
+        await browser.elementByCss('#to-slow').click()
+
+        await retry(async () => {
+          expect(
+            await browser.eval(
+              `sessionStorage.getItem('keptDisabledIssueWhileCompiling')`
             )
           ).toBe('true')
         })
