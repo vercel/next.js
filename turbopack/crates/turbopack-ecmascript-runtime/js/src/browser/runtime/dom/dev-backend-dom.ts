@@ -21,14 +21,9 @@ let DEV_BACKEND: DevRuntimeBackend
       // Strip query string so we match links regardless of cache-busting
       // params (e.g. ?ts=) that may differ between HMR updates.
       const baseChunkUrl = chunkUrl.split('?')[0]
-      // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-      const decodedBaseChunkUrl = decodeURI(baseChunkUrl)
 
       if (isCss(chunkUrl)) {
-        const links = document.querySelectorAll(
-          `link[href="${baseChunkUrl}"],link[href^="${baseChunkUrl}?"],link[href="${decodedBaseChunkUrl}"],link[href^="${decodedBaseChunkUrl}?"]`
-        )
-        for (const link of Array.from(links)) {
+        for (const link of findChunkLinks(baseChunkUrl)) {
           link.remove()
         }
       } else if (isJs(chunkUrl)) {
@@ -36,10 +31,7 @@ let DEV_BACKEND: DevRuntimeBackend
         // runtime once evaluated.
         // However, we still want to remove the script tag from the DOM to keep
         // the HTML somewhat consistent from the user's perspective.
-        const scripts = document.querySelectorAll(
-          `script[src="${baseChunkUrl}"],script[src^="${baseChunkUrl}?"],script[src="${decodedBaseChunkUrl}"],script[src^="${decodedBaseChunkUrl}?"]`
-        )
-        for (const script of Array.from(scripts)) {
+        for (const script of findChunkScripts(baseChunkUrl)) {
           script.remove()
         }
       } else {
@@ -57,10 +49,7 @@ let DEV_BACKEND: DevRuntimeBackend
         // Strip query string so we match links regardless of cache-busting
         // params (e.g. ?ts=) that may differ between HMR updates.
         const baseChunkUrl = chunkUrl.split('?')[0]
-        const decodedBaseChunkUrl = decodeURI(baseChunkUrl)
-        const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`
-        )
+        const previousLinks = findChunkStylesheets(baseChunkUrl)
 
         const link = document.createElement('link')
         link.rel = 'stylesheet'
@@ -98,8 +87,7 @@ let DEV_BACKEND: DevRuntimeBackend
           // First load the new CSS, then remove the old ones. This prevents visible
           // flickering that would happen in-between removing the previous CSS and
           // loading the new one.
-          for (const previousLink of Array.from(previousLinks))
-            previousLink.remove()
+          for (const previousLink of previousLinks) previousLink.remove()
 
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
