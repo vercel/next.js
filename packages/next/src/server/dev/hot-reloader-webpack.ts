@@ -42,7 +42,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   COMPILER_NAMES,
-  RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
 import type { __ApiPreviewProps } from '../api-utils'
 import { findPageFile } from '../lib/find-page-file'
@@ -977,9 +976,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 })
               : undefined
 
-            const isServerComponent =
-              isAppPath && staticInfo?.rsc !== RSC_MODULE_TYPES.client
-
             const pageType: PAGE_TYPES = entryData.bundlePath.startsWith(
               'pages/'
             )
@@ -1086,7 +1082,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     isDev: true,
                     page,
                     pages: this.pagesMapping,
-                    isServerComponent,
+                    isServerComponent: isAppPath,
                     appDirLoader,
                     pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
                     preferredRegion: staticInfo?.preferredRegion,
@@ -1156,7 +1152,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     isDev: true,
                     page,
                     pages: this.pagesMapping,
-                    isServerComponent,
+                    isServerComponent: isAppPath,
                     pagesType: PAGE_TYPES.PAGES,
                     preferredRegion: staticInfo?.preferredRegion,
                   })
@@ -1234,7 +1230,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
-                  isServerComponent,
+                  isServerComponent: isAppPath,
                   value,
                   hasAppDir,
                 })
