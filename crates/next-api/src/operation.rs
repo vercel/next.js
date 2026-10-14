@@ -33,14 +33,30 @@ pub struct EntrypointsOperation {
 
 /// Removes issues and effects from the top-level `entrypoints` operation so that they're not
 /// duplicated across many different individual entrypoints or routes.
+///
+/// Dropping and taking the collectibles leaves this task with a negative count for each of them,
+/// so it is wrapped by [`entrypoints_without_collectibles_operation`] to keep them isolated.
 #[turbo_tasks::function(operation, root)]
-async fn entrypoints_without_collectibles_operation(
+async fn inner_entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
     let _ = entrypoints.resolve().strongly_consistent().await?;
     entrypoints.drop_issues();
     let _ = take_effects(entrypoints).await?;
     Ok(entrypoints.connect())
+}
+
+/// The `entrypoints` operation without its issues and effects. See
+/// [`inner_entrypoints_without_collectibles_operation`].
+///
+/// Many `pick_*` root operations connect to this operation. Wrapping the inner operation isolates
+/// the dropped collectibles, so this task has no (or very few) collectibles to copy into each of
+/// them.
+#[turbo_tasks::function(operation, root)]
+async fn entrypoints_without_collectibles_operation(
+    entrypoints: OperationVc<Entrypoints>,
+) -> Result<Vc<Entrypoints>> {
+    Ok(inner_entrypoints_without_collectibles_operation(entrypoints).connect())
 }
 
 #[turbo_tasks::value_impl]
