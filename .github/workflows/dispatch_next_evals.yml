@@ -170,7 +170,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@9d30acaa131802d5c8a3d64287c4735bf4342a6b # PR #134
+    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@65006d786d6ff3791173b7fb3e4210dd9ccbb78c # PR #134
     with:
       releaseKind: ${{ needs.identify.outputs.release_kind }}
       nextVersion: ${{ needs.identify.outputs.version }}
@@ -180,3 +180,6 @@ jobs:
       vercelOrgId: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_TEAM_ID }}
       vercelProjectId: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_PROJECT_ID }}
       releaseAgentUrl: ${{ vars.VERCEL_NEXT_EVALS_AGENT_URL }}
+      releaseGitHubAppClientId: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+    secrets:
+      releaseGitHubAppPrivateKey: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
