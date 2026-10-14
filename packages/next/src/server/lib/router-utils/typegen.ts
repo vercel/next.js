@@ -165,21 +165,19 @@ function generateLayoutSlotMap(routesManifest: RouteTypesManifest): string {
 // Helper function to format routes to route types
 function formatRouteToRouteType(route: string) {
   const isDynamic = isDynamicRoute(route, false)
-  if (isDynamic) {
-    // Segments may be prefixed or suffixed (`/@[username]`, from rewrites)
-    route = route.replace(
-      /\[\[\.\.\.[^\]/]+\]\]|\[\.\.\.[^\]/]+\]|\[[^\]/]+\]/g,
-      (param) =>
-        param.startsWith('[[...')
-          ? // /[[...slug]]
-            `\${OptionalCatchAllSlug<T>}`
-          : param.startsWith('[...')
-            ? // /[...slug]
-              `\${CatchAllSlug<T>}`
-            : // /[slug]
-              `\${SafeSlug<T>}`
-    )
-  }
+  // Segments may be prefixed or suffixed (`/@[username]`, from rewrites)
+  route = route.replace(
+    /\[\[\.\.\.[^\]/]+\]\]|\[\.\.\.[^\]/]+\]|\[[^\]/]+\]/g,
+    (param) =>
+      param.startsWith('[[...')
+        ? // /[[...slug]]
+          `\${OptionalCatchAllSlug<T>}`
+        : param.startsWith('[...')
+          ? // /[...slug]
+            `\${CatchAllSlug<T>}`
+          : // /[slug]
+            `\${SafeSlug<T>}`
+  )
 
   return {
     isDynamic,
