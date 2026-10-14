@@ -196,7 +196,41 @@ async function execute(
       }
     }
 
+    const prerenderedRoutes: Record<
+      string,
+      { pathname: string; value: string }
+    > = {}
+    // Use the manifest only to discover concrete prerendered URLs; check
+    // cache reuse through their observable HTTP responses below.
+    const manifest = await next.readJSON('.next/prerender-manifest.json')
+    for (const route of [
+      'generator-layout',
+      'generator-route',
+      'generator-sitemap',
+      'generator-image',
+      'static-params',
+    ]) {
+      const routes = Object.keys(manifest.routes).filter(
+        (pathname) =>
+          pathname.startsWith(`/${route}/`) && !pathname.includes('[')
+      )
+      expect(routes).toHaveLength(1)
+      const pathname = routes[0]
+      const response = await next.fetch(pathname)
+      expect({ pathname, status: response.status }).toEqual({
+        pathname,
+        status: 200,
+      })
+      const value =
+        pathname.includes('generator-layout') ||
+        pathname.includes('static-params')
+          ? (await next.render$(pathname))('p').text()
+          : await response.text()
+      prerenderedRoutes[route] = { pathname, value }
+    }
+
     return {
+      prerenderedRoutes,
       runtimeValues,
       keyRoot,
       keyNested,
@@ -429,56 +463,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         expect(key1.runtimeValues.action).not.toBeEmpty()
         expect(key2.runtimeValues.action).toBe(key1.runtimeValues.action)
       })
-    })
-
-    describe('durable build-time generators', () => {
-      let first: Record<string, { pathname: string; value: string }>
-      let second: Record<string, { pathname: string; value: string }>
-
-      async function buildAndRead(deploymentId: string) {
-        await next.start({ env: { NEXT_DEPLOYMENT_ID: deploymentId } })
-        try {
-          const values: Record<string, { pathname: string; value: string }> = {}
-          // Use the manifest only to discover concrete prerendered URLs; check
-          // cache reuse through their observable HTTP responses below.
-          const manifest = await next.readJSON('.next/prerender-manifest.json')
-          for (const route of [
-            'generator-layout',
-            'generator-route',
-            'generator-sitemap',
-            'generator-image',
-            'static-params',
-          ]) {
-            const routes = Object.keys(manifest.routes).filter(
-              (pathname) =>
-                pathname.startsWith(`/${route}/`) && !pathname.includes('[')
-            )
-            expect(routes).toHaveLength(1)
-            const pathname = routes[0]
-            const response = await next.fetch(pathname)
-            expect({ pathname, status: response.status }).toEqual({
-              pathname,
-              status: 200,
-            })
-            const value =
-              pathname.includes('generator-layout') ||
-              pathname.includes('static-params')
-                ? (await next.render$(pathname))('p').text()
-                : await response.text()
-            values[route] = { pathname, value }
-          }
-
-          return values
-        } finally {
-          await next.stop()
-        }
-      }
-
-      beforeAll(async () => {
-        await next.stop()
-        first = await buildAndRead('generators-first')
-        second = await buildAndRead('generators-second')
-      })
 
       it.each([
         ['layout generateStaticParams', 'generator-layout'],
@@ -488,8 +472,10 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         ['generateImageMetadata', 'generator-image'],
         ['page generateStaticParams', 'static-params'],
       ])('should reuse durable entries in %s', (_name, route) => {
-        expect(first[route].value).not.toBeEmpty()
-        expect(second[route]).toEqual(first[route])
+        expect(key1.prerenderedRoutes[route].value).not.toBeEmpty()
+        expect(key2.prerenderedRoutes[route]).toEqual(
+          key1.prerenderedRoutes[route]
+        )
       })
     })
 
