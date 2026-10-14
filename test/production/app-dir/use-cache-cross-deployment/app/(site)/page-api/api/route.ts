@@ -1,7 +1,7 @@
 import { connection } from 'next/server'
-import { getGeneratorValue } from '../../../generator-value'
+import { getPageApiValue } from '../get-value'
 
 export async function GET() {
   await connection()
-  return new Response(await getGeneratorValue('page-api'))
+  return new Response(await getPageApiValue('page-api'))
 }

@@ -227,6 +227,7 @@ impl NextDynamicGraph {
                 },
                 |_, _, _| Ok(()),
                 false,
+                false,
             )?;
             Ok(Vc::cell(result))
         }
@@ -824,6 +825,7 @@ async fn validate_pages_css_imports_individual(
             Ok(GraphTraversalAction::Continue)
         },
         |_, _, _| Ok(()),
+        false,
         false,
     )?;
 

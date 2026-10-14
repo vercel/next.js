@@ -106,6 +106,8 @@ on:
         type: string
         default: 'yes'
 env:
+  # Also applies to Rust builds in jobs that skip the shared Rust setup.
+  CARGO_BUILD_WARNINGS: deny
   # Newest @napi-rs/cli that runs on Node.js 20.9.0 (NODE_LTS_VERSION below):
   # 3.5.0+ depends on @inquirer/prompts 8, whose @inquirer/core 11 requires
   # `util.styleText` (Node >= 20.12) and crashes at CLI startup. The CLI here

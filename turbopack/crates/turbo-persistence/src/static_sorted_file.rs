@@ -125,7 +125,7 @@ pub const KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH: usize = 4;
 /// 8-byte hash followed by the type/position word.
 ///
 /// The hash lives in the table rather than beside the key so that a binary search reads only this
-/// dense array — [`compare_hash_key`] compares the hash first and reaches for the key only when two
+/// dense array — `compare_hash_key` compares the hash first and reaches for the key only when two
 /// hashes are equal, so the payload is touched once on a match and never on a miss. Total bytes are
 /// unchanged: the table grows by 8 per entry and the payload shrinks by the same.
 pub const KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH: usize =
@@ -1749,7 +1749,7 @@ pub struct FixedRegions {
 
 impl FixedRegions {
     /// `val_size` is the tail's per-entry value footprint: the value bytes plus the per-entry type
-    /// byte of a mixed-type block. [`fixed_value_layout`] already folds that byte in; a caller
+    /// byte of a mixed-type block. `fixed_value_layout` already folds that byte in; a caller
     /// computing it from a block header must add it itself.
     pub fn new(
         entry_count: usize,
