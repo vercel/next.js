@@ -3,18 +3,13 @@ declare const __turbopack_external_require__: {
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
 import type { Channel as Ipc } from '../types'
-import { dirname, resolve as pathResolve, relative } from 'path'
+import { dirname, resolve as pathResolve } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
 } from '../compiled/stacktrace-parser'
 import { structuredError, type StructuredError } from '../error'
-import {
-  fromPath,
-  getReadEnvVariables,
-  toPath,
-  type TransformIpc,
-} from './transforms'
+import { getReadEnvVariables, type TransformIpc } from './transforms'
 import {
   evaluateBundle,
   type ImportModuleResult,
@@ -29,6 +24,7 @@ export type IpcInfoMessage =
       directories?: Array<[string, string]>
       filePaths?: string[]
       buildFilePaths?: string[]
+      buildDependencyRequests?: Array<[string, boolean]>
     }
   | {
       type: 'emittedError'
@@ -204,14 +200,14 @@ const transform = (
               : {}
           },
           addBuildDependency(dependency: string) {
-            buildDependencies.add(pathResolve(contextDir, dependency))
+            buildDependencies.add(dependency)
           },
           fs: {
             readFile(p: string, optionsOrCb: any, maybeCb: any) {
               ipc
                 .sendRequest({
                   type: 'trackFileRead',
-                  file: relative(contextDir, pathResolve(p)),
+                  file: pathResolve(p),
                 })
                 .then(
                   () => {
@@ -348,13 +344,13 @@ const transform = (
                 .sendRequest({
                   type: 'resolve',
                   options: rustOptions,
-                  lookupPath: toPath(lookupPath),
+                  lookupPath,
                   request,
                 })
                 .then((unknownResult) => {
                   let result = unknownResult as { path: string }
                   if (result && typeof result.path === 'string') {
-                    return fromPath(result.path)
+                    return result.path
                   } else {
                     throw Error(
                       'Expected { path: string } from resolve request'
@@ -409,7 +405,7 @@ const transform = (
 
               const result = (await ipc.sendRequest({
                 type: 'importModule',
-                lookupPath: toPath(resourceDir),
+                lookupPath: resourceDir,
                 request: actualRequest,
               })) as ImportModuleResult
 
@@ -561,12 +557,28 @@ const transform = (
           filePaths: [
             ...result.fileDependencies,
             ...result.missingDependencies,
-          ].map(toPath),
-          directories: result.contextDependencies.map((dep) => [
-            toPath(dep),
-            '**',
-          ]),
-          buildFilePaths: [...buildDependencies].map(toPath).sort(),
+          ],
+          directories: result.contextDependencies.map((dep) => [dep, '**']),
+          buildDependencyRequests: [...buildDependencies]
+            .map((dependency) => {
+              // Webpack uses a trailing slash or backslash to identify directory build dependencies:
+              // https://github.com/webpack/webpack/blob/v5.98.0/lib/FileSystemInfo.js#L1741-L1748
+              const isDirectory = /[\\/]$/.test(dependency)
+              let request = isDirectory ? dependency.slice(0, -1) : dependency
+              if (path.isAbsolute(request)) {
+                request = path.relative(contextDir, request)
+                if (
+                  !path.isAbsolute(request) &&
+                  request.split(path.sep)[0] !== '..'
+                ) {
+                  request = `./${request}`
+                }
+              }
+              request =
+                path.sep === '/' ? request : request.replaceAll(path.sep, '/')
+              return [request, isDirectory] as [string, boolean]
+            })
+            .sort(([a], [b]) => a.localeCompare(b)),
         })
         if (err) {
           // Resolve loader paths to include in the error message using

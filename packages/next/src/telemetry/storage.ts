@@ -9,7 +9,6 @@ import { getAnonymousMeta } from './anonymous-meta'
 import * as ciEnvironment from '../server/ci-info'
 import { postNextTelemetryPayload } from './post-telemetry-payload'
 import { getRawProjectId } from './project-id'
-import { AbortController } from 'next/dist/compiled/@edge-runtime/ponyfill'
 import fs from 'fs'
 
 // This is the key that stores whether or not telemetry is enabled or disabled.
@@ -231,28 +230,43 @@ export class Telemetry {
   // writes current events to disk and spawns separate
   // detached process to submit the records without blocking
   // the main process from exiting
-  flushDetached = (mode: 'dev', dir: string) => {
-    const allEvents: TelemetryEvent[] = []
+  flushDetached = ({
+    mode,
+    dir,
+    distDir,
+    events,
+  }: {
+    mode: 'dev'
+    dir: string
+    distDir: string | null
+    events: TelemetryEvent[] | null
+  }) => {
+    // Nudges detach only their own events; shutdown flushes the full queue.
+    const allEvents: TelemetryEvent[] = events ?? []
 
-    this.queue.forEach((item: any) => {
-      try {
-        item._controller?.abort()
-        allEvents.push(...item._events)
-      } catch (_) {
-        // if we fail to abort ignore this event
-      }
-    })
+    if (events === null) {
+      this.queue.forEach((item: any) => {
+        try {
+          item._controller?.abort()
+          allEvents.push(...item._events)
+        } catch (_) {
+          // if we fail to abort ignore this event
+        }
+      })
+    }
 
     if (allEvents.length === 0) {
       // No events to flush
       return
     }
 
-    fs.mkdirSync(this.distDir, { recursive: true })
-    // Use unique filename per process to avoid race conditions between parent/child
-    const eventsFile = `_events_${process.pid}.json`
+    // Builds preserve cache while cleaning distDir, so detached batches survive cleanup.
+    const eventsDirectory = path.join(this.distDir, 'cache')
+    fs.mkdirSync(eventsDirectory, { recursive: true })
+    // Each flush owns its file so a later shutdown flush cannot replace a nudge batch.
+    const eventsFile = `_events_${process.pid}_${randomBytes(8).toString('hex')}.json`
     fs.writeFileSync(
-      path.join(this.distDir, eventsFile),
+      path.join(eventsDirectory, eventsFile),
       JSON.stringify(allEvents)
     )
 
@@ -269,7 +283,13 @@ export class Telemetry {
 
     spawn(
       process.execPath,
-      [require.resolve('./detached-flush'), mode, dir, eventsFile],
+      [
+        require.resolve('./detached-flush'),
+        mode,
+        dir,
+        eventsFile,
+        ...(distDir ? [distDir] : []),
+      ],
       {
         detached: !this.NEXT_TELEMETRY_DEBUG,
         windowsHide: true,
@@ -338,7 +358,9 @@ export class Telemetry {
       },
       postController.signal
     )
+    // Bound delivery even when callers await record/flush; retries share this deadline.
+    const timeout = setTimeout(() => postController.abort(), 5000)
     res._controller = postController
-    return res
+    return res.finally(() => clearTimeout(timeout))
   }
 }

@@ -126,4 +126,20 @@ describe('cache-handlers-upstream-wiring', () => {
       })
     })
   })
+
+  describe('cacheHandlers configured, edge app route', () => {
+    const { next } = nextTestSetup({
+      files: join(__dirname, 'fixtures/edge-with-cache-handlers'),
+    })
+
+    it('registers configured cacheHandlers for edge app route', async () => {
+      const response = await next.fetch('/api/edge-route')
+      expect(response.status).toBe(200)
+      expect(await response.json()).toEqual({
+        ok: true,
+        default: 'edge-default-handler',
+        custom: 'edge-custom-handler',
+      })
+    })
+  })
 })

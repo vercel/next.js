@@ -1,7 +1,7 @@
 async function getMetadata() {
   'use cache'
   return {
-    title: `Grid Page ${Math.random()}`,
+    title: `Grid Page ${Math.random().toFixed(16)}`,
   }
 }
 

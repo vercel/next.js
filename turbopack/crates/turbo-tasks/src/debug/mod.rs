@@ -12,7 +12,7 @@ pub mod internal;
 #[cfg(debug_assertions)]
 mod vdbg;
 
-/// [`Debug`]-like trait for [`Vc`] types, automatically derived when using
+/// [`Debug`]-like trait for [`Vc`][crate::Vc] types, automatically derived when using
 /// [`macro@turbo_tasks::value`] and [`turbo_tasks::value_trait`].
 ///
 /// # Usage

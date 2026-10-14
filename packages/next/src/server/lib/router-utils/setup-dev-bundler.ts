@@ -141,6 +141,7 @@ export type SetupOpts = {
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
   serverFastRefresh?: boolean
+  hasVulnerabilityInsight: Promise<boolean>
 }
 
 export interface DevRoutesManifest {
@@ -294,6 +295,7 @@ async function startWatcher(
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
+          hasVulnerabilityInsight: opts.hasVulnerabilityInsight,
         })
       })()
 
@@ -906,8 +908,8 @@ async function startWatcher(
         clientRouterFilters = createClientRouterFilter(
           Object.keys(appPaths),
           nextConfig.experimental.clientRouterFilterRedirects
-            ? ((nextConfig as any)._originalRedirects || []).filter(
-                (r: any) => !r.internal
+            ? (opts.fsChecker.originalRedirects || []).filter(
+                (r) => !r.internal
               )
             : [],
           nextConfig.experimental.clientRouterFilterAllowedRate

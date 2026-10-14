@@ -6,7 +6,6 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(ptr_metadata)]
-#![feature(exclusive_wrapper)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
@@ -105,7 +104,7 @@ pub use crate::{
         ScheduleKey, TaskPersistence, TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi,
         Unused, UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
         mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
-        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        trait_call, try_turbo_tasks, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
@@ -284,7 +283,7 @@ pub use turbo_tasks_macros::value;
 ///
 /// - `unsafe impl NonLocalValue for X {}` (unless `contains_unresolved_vcs` is set).
 /// - `impl TaskInput for X` with a field-walking `is_transient`. By default `is_resolved` and
-///   `resolve_input` use the trait defaults (`true` and a [`CloneReady`] future — 8 bytes, no
+///   `resolve_input` use the trait defaults (`true` and a `CloneReady` future — 8 bytes, no
 ///   async-fn envelope); when `contains_unresolved_vcs` is set, both are emitted as
 ///   field-walking implementations as well.
 ///

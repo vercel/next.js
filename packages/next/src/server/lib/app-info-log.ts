@@ -7,6 +7,9 @@ import { experimentalSchema } from '../config-schema'
 import { getAgentName } from '../../telemetry/agent-name'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
+  hasCurrentAgentUpgrade,
+  removeAgentUpgradeFiles,
+  writeAgentUpgradeFiles,
   hasCurrentAgentFeedback,
   hasCurrentAgentRules,
   removeAgentFeedbackFiles,
@@ -147,6 +150,24 @@ export async function syncAgentFeedbackForDev(
   if (hasCurrentAgentFeedback(dir)) return null
 
   return writeAgentFeedbackFiles(dir)
+}
+
+/**
+ * Sync upgrade delegation using the reminder policy independently of agentRules.
+ * Disabling reminders removes the block even without a detected agent.
+ */
+export async function syncAgentUpgradeForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) {
+    return removeAgentUpgradeFiles(dir)
+  }
+  if ((await getAgentName()) === null || hasCurrentAgentUpgrade(dir)) {
+    return null
+  }
+
+  return writeAgentUpgradeFiles(dir)
 }
 
 /**

@@ -34,6 +34,9 @@ var ASSET_PREFIX = "/";
  * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
  * uses plain Module objects.
  */ let createModuleWithDirectionFlag = false;
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */ const moduleFactories = new Map();
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -49,21 +52,32 @@ const REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 const contextPrototype = Context.prototype;
+contextPrototype.M = moduleFactories;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */ function getCachedModule(moduleCache, id) {
+    const module = moduleCache.get(id);
+    if (module?.error) {
+        throw module.error;
+    }
+    return module;
+}
 function getOverwrittenModule(moduleCache, id) {
-    let module = moduleCache[id];
-    if (!module) {
+    let module = moduleCache.get(id);
+    if (module === undefined) {
         if (createModuleWithDirectionFlag) {
             // set in development modes for hmr support
             module = createModuleWithDirection(id);
         } else {
             module = createModuleObject(id);
         }
-        moduleCache[id] = module;
+        moduleCache.set(id, module);
     }
     return module;
 }
@@ -458,7 +472,7 @@ function esmImport(id) {
 }
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
-    const loader = this.r(moduleId);
+    const loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
@@ -530,11 +544,11 @@ contextPrototype.f = moduleContext;
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
 // The flat format alternates one or more module IDs with their factory function.
 // Strict factories can be prepended as a nested array.
-function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+function installCompressedModuleFactories(chunkModules, offset, newModuleId) {
     let i = offset;
     const strictFactories = chunkModules[i];
     if (Array.isArray(strictFactories)) {
-        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
+        installCompressedModuleFactories(strictFactories, 0, newModuleId);
         i++;
     }
     while(i < chunkModules.length){
@@ -628,6 +642,14 @@ contextPrototype.U = relativeURL;
     return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
 }
 /**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */ function placeholderFileUrl(modulePath, root) {
+    return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -704,12 +726,19 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
 }
 Context.prototype.P = resolveAbsolutePath;
 /**
- * Returns an absolute `file://` URL for the given module path.
+ * Returns an absolute `file://` URL for the given module path, which is
+ * relative to the project root or the named `root`.
  *
  * Uses `url.pathToFileURL` so that the resulting URL is a valid file URI on
  * all platforms (forward slashes on Windows, drive letters handled
  * correctly, path segments URL-encoded).
- */ function resolveFileUrl(modulePath) {
+ *
+ * The location of a named `root` isn't known at runtime (the output may have
+ * been moved away from the sources), so this returns a placeholder URL for it.
+ */ function resolveFileUrl(modulePath, root) {
+    if (root !== undefined) {
+        return placeholderFileUrl(modulePath, root);
+    }
     return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
 }
 Context.prototype.F = resolveFileUrl;
@@ -722,12 +751,10 @@ Context.prototype.F = resolveFileUrl;
  * Contains chunk loading, module caching, and other non-HMR functionality.
  */ process.env.TURBOPACK = '1';
 const url = require('url');
-const moduleFactories = new Map();
-const moduleCache = Object.create(null);
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
-    const exported = this.r(moduleId);
+    const exported = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     const exportedPath = exported?.default ?? exported;
     if (typeof exportedPath !== 'string') {
         return exported;
@@ -768,7 +795,7 @@ function loadRuntimeChunkPath(sourcePath, chunkPath) {
     try {
         const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
         const chunkModules = require(resolved);
-        installCompressedModuleFactories(chunkModules, 0, moduleFactories);
+        installCompressedModuleFactories(chunkModules, 0);
         loadedChunks.add(chunkPath);
     } catch (cause) {
         let errorMessage = `Failed to load chunk ${chunkPath}`;
@@ -797,7 +824,7 @@ function loadChunkAsync(chunkData) {
             // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
             // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
             const chunkModules = require(resolved);
-            installCompressedModuleFactories(chunkModules, 0, moduleFactories);
+            installCompressedModuleFactories(chunkModules, 0);
             entry = loadedChunk;
         } catch (cause) {
             const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
@@ -832,13 +859,11 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Production Node.js runtime.
  * Uses ModuleWithDirection and simple module instantiation without HMR support.
- */ // moduleCache and moduleFactories are declared in runtime-base.ts
-// this is read in runtime-utils.ts so it creates a module with direction for hmr
+ */ // this is read in runtime-utils.ts so it creates a module with direction for hmr
 createModuleWithDirectionFlag = true;
+const moduleCache = new Map();
 const nodeContextPrototype = Context.prototype;
 nodeContextPrototype.q = exportUrl;
-nodeContextPrototype.M = moduleFactories;
-// Cast moduleCache to ModuleWithDirection for production mode
 nodeContextPrototype.c = moduleCache;
 nodeContextPrototype.R = resolvePathFromModule;
 nodeContextPrototype.C = clearChunkCache;
@@ -852,7 +877,7 @@ function instantiateModule(id, sourceType, sourceData) {
     }
     const module1 = createModuleWithDirection(id);
     const exports = module1.exports;
-    moduleCache[id] = module1;
+    moduleCache.set(id, module1);
     const context = new Context(module1, exports);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
@@ -873,14 +898,7 @@ function instantiateModule(id, sourceType, sourceData) {
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */ // @ts-ignore
 function getOrInstantiateModuleFromParent(id, sourceModule) {
-    const module1 = moduleCache[id];
-    if (module1) {
-        if (module1.error) {
-            throw module1.error;
-        }
-        return module1;
-    }
-    return instantiateModule(id, SourceType.Parent, sourceModule.id);
+    return getCachedModule(moduleCache, id) ?? instantiateModule(id, SourceType.Parent, sourceModule.id);
 }
 /**
  * Instantiates a runtime module.
@@ -891,14 +909,7 @@ function getOrInstantiateModuleFromParent(id, sourceModule) {
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    const module1 = moduleCache[moduleId];
-    if (module1) {
-        if (module1.error) {
-            throw module1.error;
-        }
-        return module1;
-    }
-    return instantiateRuntimeModule(chunkPath, moduleId);
+    return getCachedModule(moduleCache, moduleId) ?? instantiateRuntimeModule(chunkPath, moduleId);
 }
 module.exports = (sourcePath)=>({
         m: (id)=>getOrInstantiateRuntimeModule(sourcePath, id),

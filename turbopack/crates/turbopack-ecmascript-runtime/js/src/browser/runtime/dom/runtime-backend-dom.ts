@@ -17,6 +17,82 @@ function getAssetSuffixFromScriptSrc() {
   return qi >= 0 ? src.slice(qi) : ''
 }
 
+/**
+ * Whether a `src` / `href` attribute value refers to `url`: either exactly, or
+ * with an additional query string (e.g. `?dpl=...`). Also matches the decoded
+ * form of `url`.
+ *
+ * TODO(PACK-2140): drop the decoded variant once all filenames are guaranteed
+ * to be escaped.
+ */
+function matchesChunkUrl(
+  value: string | null,
+  url: string,
+  decodedUrl: string
+): boolean {
+  return (
+    value != null &&
+    (value === url ||
+      value.startsWith(url + '?') ||
+      value === decodedUrl ||
+      value.startsWith(decodedUrl + '?'))
+  )
+}
+
+// These lookups iterate the tag collection and compare attribute values as
+// plain strings. A document-wide `querySelectorAll` with attribute selectors
+// costs time proportional to the size of the whole DOM on every call, and
+// would need the URL to be CSS-escaped.
+
+/**
+ * Returns all `<script>` elements in the document whose `src` refers to `url`.
+ */
+function findChunkScripts(url: string): HTMLScriptElement[] {
+  const decodedUrl = decodeURI(url)
+  const scripts = document.getElementsByTagName('script')
+  const result: HTMLScriptElement[] = []
+  for (let i = 0; i < scripts.length; i++) {
+    const script = scripts[i]
+    if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+      result.push(script)
+    }
+  }
+  return result
+}
+
+/**
+ * Returns all `<link>` elements in the document whose `href` refers to `url`.
+ * With `stylesheetsOnly`, only links whose `rel` is exactly `stylesheet`
+ * (ASCII case-insensitive) are returned.
+ */
+function findChunkLinks(
+  url: string,
+  stylesheetsOnly: boolean = false
+): HTMLLinkElement[] {
+  const decodedUrl = decodeURI(url)
+  const links = document.getElementsByTagName('link')
+  const result: HTMLLinkElement[] = []
+  for (let i = 0; i < links.length; i++) {
+    const link = links[i]
+    if (
+      (!stylesheetsOnly ||
+        link.getAttribute('rel')?.toLowerCase() === 'stylesheet') &&
+      matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)
+    ) {
+      result.push(link)
+    }
+  }
+  return result
+}
+
+/**
+ * Returns all `<link rel=stylesheet>` elements in the document whose `href`
+ * refers to `url`.
+ */
+function findChunkStylesheets(url: string): HTMLLinkElement[] {
+  return findChunkLinks(url, true)
+}
+
 type ChunkResolver = {
   resolved: boolean
   loadingStarted: boolean
@@ -215,13 +291,8 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         )
       }
     } else {
-      // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-      const decodedChunkUrl = decodeURI(chunkUrl)
-
       if (isCss(chunkUrl)) {
-        const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
-        )
+        const previousLinks = findChunkStylesheets(chunkUrl)
         if (previousLinks.length > 0) {
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
@@ -252,11 +323,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           document.head.appendChild(createLink())
         }
       } else if (isJs(chunkUrl)) {
-        const previousScripts = document.querySelectorAll(
-          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
-        )
+        const previousScripts = findChunkScripts(chunkUrl)
         if (previousScripts.length > 0) {
-          for (const script of Array.from(previousScripts)) {
+          for (const script of previousScripts) {
             script.addEventListener(
               'error',
               () => {

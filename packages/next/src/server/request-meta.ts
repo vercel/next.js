@@ -89,12 +89,6 @@ export interface RequestMeta {
   rewrittenPathname?: string
 
   /**
-   * The resolved pathname for the request. Dynamic route params are
-   * interpolated, the pathname is decoded, and the trailing slash is removed.
-   */
-  resolvedPathname?: string
-
-  /**
    * The cookies that were added by middleware and were added to the response.
    */
   middlewareCookie?: string[]
@@ -349,6 +343,12 @@ export interface RequestMeta {
    * source also uses this map as `stagedFallbackParams`.
    */
   fallbackRouteParams?: OpaqueFallbackRouteParams | null
+
+  /** DEV only: parameter matching rejected this request as not found. */
+  devParamMatchingRejected?: boolean
+
+  /** DEV only: closed parameters, including for successful allowed values. */
+  devNotFoundParams?: readonly string[]
 
   /**
    * DEV only: Request timings in process.hrtime.bigint()

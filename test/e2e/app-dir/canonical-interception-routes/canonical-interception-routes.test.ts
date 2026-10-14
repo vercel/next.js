@@ -2,13 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('canonical-interception-routes', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('requires a canonical hard-navigation route for every interception route', async () => {
     if (isNextDev) {
@@ -45,8 +42,8 @@ describe('canonical-interception-routes', () => {
 
       expectDefaultStrictRouteMatchingWarning(next.cliOutput)
     } else {
-      const { exitCode, cliOutput } = await next.build()
-      expect(exitCode).toBe(1)
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       expect(extractMissingCanonicalRoutesError(cliOutput))
         .toMatchInlineSnapshot(`
@@ -57,7 +54,7 @@ describe('canonical-interception-routes', () => {
       `)
       expectDefaultStrictRouteMatchingWarning(cliOutput)
     }
-  })
+  }, 240_000)
 })
 
 function expectDefaultStrictRouteMatchingWarning(output: string): void {

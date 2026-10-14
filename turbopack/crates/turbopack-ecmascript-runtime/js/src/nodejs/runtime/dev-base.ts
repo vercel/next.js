@@ -9,11 +9,6 @@
  * Uses HotModule and shared HMR logic for hot module replacement support.
  */
 
-// Cast the module cache to HotModule for development mode
-// (hmr-runtime.ts declares devModuleCache as `let` variable expecting assignment)
-// This is safe because HotModule extends Module
-devModuleCache = moduleCache as ModuleCache<HotModule>
-
 // this is read in runtime-utils.ts so it creates a module with direction for hmr
 createModuleWithDirectionFlag = true
 
@@ -33,58 +28,50 @@ const nodeDevContextPrototype =
   Context.prototype as TurbopackNodeDevBuildContext
 
 nodeDevContextPrototype.q = exportUrl
-nodeDevContextPrototype.M = moduleFactories
-nodeDevContextPrototype.c = devModuleCache
+nodeDevContextPrototype.c = moduleCache
 nodeDevContextPrototype.R = resolvePathFromModule
 nodeDevContextPrototype.C = clearChunkCache
 
-/**
- * Instantiates a module in development mode using shared HMR logic.
- */
-function instantiateModule(
-  id: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): HotModule {
-  // Node.js: creates base module object (hot API added by shared code)
-  const createModuleObjectFn = (moduleId: ModuleId) => {
-    return createModuleWithDirection(moduleId) as HotModule
+if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
+  const chunksBeingEnsured = new Map<ChunkPath, Promise<void>>()
+
+  function loadChunkAsyncOnDemand<TModule extends Module>(
+    this: TurbopackBaseContext<TModule>,
+    chunkData: ChunkData
+  ): Promise<void> {
+    const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path
+    const ensureChunk = globalThis.__turbopack_ensure_chunk__
+    if (ensureChunk === undefined || chunkCache.has(chunkPath)) {
+      return loadChunkAsync.call(this, chunkData)
+    }
+
+    const ensured =
+      chunksBeingEnsured.get(chunkPath) ??
+      Promise.resolve()
+        .then(() => ensureChunk(chunkPath))
+        .finally(() => chunksBeingEnsured.delete(chunkPath))
+    chunksBeingEnsured.set(chunkPath, ensured)
+
+    return ensured.then(() => loadChunkAsync.call(this, chunkData))
   }
+  nodeDevContextPrototype.l = loadChunkAsyncOnDemand
+}
 
-  // Node.js: creates Context (no refresh parameter)
-  const createContext = (
-    module: HotModule,
-    exports: Exports,
-    _refresh?: any
-  ) => {
-    return new (Context as any as ContextConstructor<HotModule>)(
-      module,
-      exports
-    )
-  }
+markDevModulesLoaded = true
 
-  // Node.js: no hooks wrapper, just execute directly
-  const runWithHooks = (module: HotModule, exec: (refresh: any) => void) => {
-    exec(undefined) // no refresh context
-  }
+function interceptDevModuleExecution(
+  _module: HotModule
+): (() => void) | undefined {
+  // There are no react refresh hooks server side so this is a no-op
+  return undefined
+}
 
-  // Use shared instantiation logic (includes hot API setup)
-  const newModule = instantiateModuleShared(
-    id,
-    sourceType,
-    sourceData,
-    moduleFactories,
-    devModuleCache,
-    runtimeModules,
-    createModuleObjectFn,
-    createContext,
-    runWithHooks
-  )
-
-  // Node.js-specific: mark module as loaded
-  ;(newModule as any).loaded = true
-
-  return newModule
+function createDevModuleContext(
+  module: HotModule,
+  exports: Exports,
+  _intercepted: boolean
+): TurbopackBaseContext<HotModule> {
+  return new (Context as any as ContextConstructor<HotModule>)(module, exports)
 }
 
 /**
@@ -105,16 +92,10 @@ function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath,
   moduleId: ModuleId
 ): HotModule {
-  const module = devModuleCache[moduleId]
-
-  if (module) {
-    if (module.error) {
-      throw module.error
-    }
-    return module
-  }
-
-  return instantiateRuntimeModule(chunkPath, moduleId)
+  return (
+    getCachedModule(moduleCache, moduleId) ??
+    instantiateRuntimeModule(chunkPath, moduleId)
+  )
 }
 
 /**
@@ -126,16 +107,11 @@ function getOrInstantiateModuleFromParent(
   id: ModuleId,
   sourceModule: HotModule
 ): HotModule {
-  // Track parent-child relationship
-  trackModuleImport(sourceModule, id, devModuleCache[id])
+  // Track parent-child relationship, even when the cached module errored
+  trackModuleImport(sourceModule, id, moduleCache.get(id))
 
-  const module = devModuleCache[id]
-
+  const module = getCachedModule(moduleCache, id)
   if (module) {
-    if (module.error) {
-      throw module.error
-    }
-
     return module
   }
 

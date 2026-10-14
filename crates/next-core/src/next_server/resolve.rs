@@ -51,12 +51,11 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
 impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     pub async fn new(
-        root: FileSystemPath,
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
     ) -> Result<Vc<Self>> {
         let condition = AfterResolvePluginCondition::new_with_glob(
-            root,
+            None,
             Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
         )
         .to_resolved()

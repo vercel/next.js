@@ -7,7 +7,7 @@ import stripAnsi from 'strip-ansi'
   'css-parse-error-recovery',
   () => {
     describe('with turbopack.ignoreIssue config', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         nextConfig: {
           turbopack: {
@@ -19,8 +19,6 @@ import stripAnsi from 'strip-ansi'
           },
         },
       })
-
-      if (skipped) return
 
       it('should render page with ignored CSS parse error', async () => {
         const res = await next.fetch('/css-error')
@@ -44,11 +42,9 @@ import stripAnsi from 'strip-ansi'
     })
 
     describe('without turbopack.ignoreIssue config', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
       })
-
-      if (skipped) return
 
       it('should show CSS parse error in cli output when not ignored', async () => {
         const outputIndex = next.cliOutput.length

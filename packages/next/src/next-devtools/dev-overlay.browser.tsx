@@ -31,6 +31,7 @@ import {
   ACTION_INSTANT_NAVS_TOGGLE,
   ACTION_REQUEST_INSIGHTS_SNAPSHOT,
   ACTION_REQUEST_INSIGHTS_UPDATE,
+  ACTION_VULNERABILITY_INSIGHT,
 } from './dev-overlay/shared'
 
 import type { FlightRouterState } from '../shared/lib/app-router-types'
@@ -67,6 +68,7 @@ export interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
   onVersionInfo(versionInfo: VersionInfo): void
+  onVulnerabilityInsight(hasVulnerabilityInsight: boolean): void
   onDebugInfo(debugInfo: DebugInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
@@ -214,6 +216,11 @@ export const dispatcher: Dispatcher = {
   onVersionInfo: createQueuable(
     (dispatch: Dispatch, versionInfo: VersionInfo) => {
       dispatch({ type: ACTION_VERSION_INFO, versionInfo })
+    }
+  ),
+  onVulnerabilityInsight: createQueuable(
+    (dispatch: Dispatch, hasVulnerabilityInsight: boolean) => {
+      dispatch({ type: ACTION_VULNERABILITY_INSIGHT, hasVulnerabilityInsight })
     }
   ),
   onCacheIndicator: createQueuable(

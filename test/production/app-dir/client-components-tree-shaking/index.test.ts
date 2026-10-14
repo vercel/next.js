@@ -1,10 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir client-components-tree-shaking', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-  if (skipped) return
 
   it('should only include imported components 3rd party package in browser bundle with direct imports', async () => {
     const $ = await next.render$('/third-party-dep')

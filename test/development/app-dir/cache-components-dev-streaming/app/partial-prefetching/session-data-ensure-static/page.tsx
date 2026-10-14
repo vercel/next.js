@@ -10,7 +10,7 @@ export const prefetch = process.env.__NEXT_PARTIAL_PREFETCHING
   ? 'auto'
   : 'partial'
 
-export const unstable_ensureStatic = 'shell'
+export const ensureStatic = 'shell'
 
 async function SessionData() {
   await cookies()

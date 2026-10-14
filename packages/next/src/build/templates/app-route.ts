@@ -35,6 +35,7 @@ import {
 import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import { isRouteCacheOwner } from '../../server/lib/route-cache-key'
 import {
   CachedRouteKind,
   type ResponseCacheEntry,
@@ -161,9 +162,18 @@ export async function handler(
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
 
+  // Only this route's prerenders can establish ISR or admit generated params.
+  const isPrerendered =
+    Boolean(prerenderManifest.routes[resolvedPathname]) &&
+    (routeModule.isDev ||
+      isRouteCacheOwner(
+        resolvedPathname,
+        routeModule.cacheOwner,
+        prerenderManifest.routes[resolvedPathname]
+      ))
+
   let isIsr = Boolean(
-    prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
-      prerenderManifest.routes[resolvedPathname]
+    prerenderManifest.dynamicRoutes[normalizedSrcPage] || isPrerendered
   )
 
   const render404 = async () => {
@@ -177,7 +187,6 @@ export async function handler(
   }
 
   if (isIsr && !isDraftMode) {
-    const isPrerendered = Boolean(prerenderManifest.routes[resolvedPathname])
     const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
 
     if (prerenderInfo) {
@@ -253,19 +262,6 @@ export async function handler(
         res.on('close', cb)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (
-        error,
-        _request,
-        errorContext,
-        silenceLog
-      ) =>
-        routeModule.onRequestError(
-          req,
-          error,
-          errorContext,
-          silenceLog,
-          routerServerContext
-        ),
     },
     sharedContext: {
       buildId,

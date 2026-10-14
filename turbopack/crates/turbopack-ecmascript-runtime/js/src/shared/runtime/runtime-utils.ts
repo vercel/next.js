@@ -52,6 +52,11 @@ declare function getOrInstantiateModuleFromParent<M>(
  */
 let createModuleWithDirectionFlag = false
 
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */
+const moduleFactories: ModuleFactories = new Map()
+
 const REEXPORTED_OBJECTS = new WeakMap<Module, ReexportedObjects>()
 
 /**
@@ -73,6 +78,7 @@ function Context(
   this.e = exports
 }
 const contextPrototype = Context.prototype as TurbopackBaseContext<Module>
+contextPrototype.M = moduleFactories
 
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>
 
@@ -114,19 +120,34 @@ function defineProp(
   if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options)
 }
 
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */
+function getCachedModule<M extends Module>(
+  moduleCache: ModuleCache<M>,
+  id: ModuleId
+): M | undefined {
+  const module = moduleCache.get(id)
+  if (module?.error) {
+    throw module.error
+  }
+  return module
+}
+
 function getOverwrittenModule(
   moduleCache: ModuleCache<Module>,
   id: ModuleId
 ): Module {
-  let module = moduleCache[id]
-  if (!module) {
+  let module = moduleCache.get(id)
+  if (module === undefined) {
     if (createModuleWithDirectionFlag) {
       // set in development modes for hmr support
       module = createModuleWithDirection(id)
     } else {
       module = createModuleObject(id)
     }
-    moduleCache[id] = module
+    moduleCache.set(id, module)
   }
   return module
 }
@@ -622,7 +643,7 @@ function asyncLoader(
   this: TurbopackBaseContext<Module>,
   moduleId: ModuleId
 ): Promise<Exports> {
-  const loader = this.r(moduleId) as (
+  const loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports as (
     importFunction: EsmImport
   ) => Promise<Exports>
   return loader(esmImport.bind(this))
@@ -722,18 +743,12 @@ function getChunkPath(chunkData: ChunkData): ChunkPath {
 function installCompressedModuleFactories(
   chunkModules: CompressedModuleFactories,
   offset: number,
-  moduleFactories: ModuleFactories,
   newModuleId?: (id: ModuleId) => void
 ) {
   let i = offset
   const strictFactories = chunkModules[i]
   if (Array.isArray(strictFactories)) {
-    installCompressedModuleFactories(
-      strictFactories,
-      0,
-      moduleFactories,
-      newModuleId
-    )
+    installCompressedModuleFactories(strictFactories, 0, newModuleId)
     i++
   }
   while (i < chunkModules.length) {
@@ -844,6 +859,19 @@ function factoryNotAvailableMessage(
       )
   }
   return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
+}
+
+/**
+ * Returns a `file://` URL under a synthetic directory named after `root`
+ * (`ROOT` for the project root), for when the real filesystem path is unknown.
+ * The root name and path segments are percent-encoded so the result is always
+ * a valid file URI.
+ */
+function placeholderFileUrl(modulePath: string, root?: string): string {
+  return `file:///${encodeURIComponent(root ?? 'ROOT')}/${modulePath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`
 }
 
 /**

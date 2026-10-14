@@ -775,7 +775,7 @@ Learn how to [configure caching](/docs/app/guides/self-hosting#caching-and-isr) 
 
 ## Version History
 
-| Version   | Changes                                                     |
-| --------- | ----------------------------------------------------------- |
-| `v16.0.0` | `"use cache"` is enabled with the Cache Components feature. |
-| `v15.0.0` | `"use cache"` is introduced as an experimental feature.     |
+| Version   | Changes                                                                    |
+| --------- | -------------------------------------------------------------------------- |
+| `v16.0.0` | `"use cache"` stabilized and is enabled with the Cache Components feature. |
+| `v15.0.0` | `"use cache"` is introduced as an experimental feature.                    |

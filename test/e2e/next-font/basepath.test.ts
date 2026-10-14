@@ -7,12 +7,9 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
+// Deploy mode exclusion: This suite passes an absolute local mocked-font-response path into the build.
+// @force-gate !deploy
 describe('next/font/google basepath', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, 'basepath/pages')),

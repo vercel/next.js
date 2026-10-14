@@ -36,7 +36,7 @@ const DELETION_PREFIX: &str = "__stale_";
 ///
 /// The current version is always retained. Alongside it, exactly one database whose version isn't
 /// the current one is kept — the most recently used, and only if it was used within
-/// [`DEFAULT_OTHER_DB_VERSION_TTL_DAYS`] — so that switching back to a branch you recently left
+/// `DEFAULT_OTHER_DB_VERSION_TTL_DAYS` — so that switching back to a branch you recently left
 /// still finds its cache intact. On CI none are retained.
 ///
 /// **Environment Variables**
@@ -46,7 +46,7 @@ const DELETION_PREFIX: &str = "__stale_";
 /// - `TURBO_ENGINE_DISABLE_VERSIONING`: Ignores versioning and always uses the same "unversioned"
 ///   database when set.
 /// - `TURBO_ENGINE_VERSION_TTL_DAYS`: How many days to retain a database whose version isn't the
-///   current one, as a whole number. Overrides [`DEFAULT_OTHER_DB_VERSION_TTL_DAYS`].
+///   current one, as a whole number. Overrides `DEFAULT_OTHER_DB_VERSION_TTL_DAYS`.
 pub fn handle_db_versioning(
     base_path: &Path,
     version_info: &GitVersionInfo,

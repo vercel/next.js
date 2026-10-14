@@ -42,6 +42,7 @@ import { RedirectStatusCode } from '../../../client/components/redirect-status-c
 import { isBot } from '../../../shared/lib/router/utils/is-bot'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
+import { isRouteCacheOwner } from '../../lib/route-cache-key'
 import type { PagesRouteModule } from './module.compiled'
 import type {
   GetServerSideProps,
@@ -205,8 +206,18 @@ export const getHandler = ({
           : resolvedPathname
       )
       const isPrerendered =
-        Boolean(prerenderManifest.routes[decodedPathname]) ||
-        prerenderManifest.notFoundRoutes.includes(decodedPathname)
+        (Boolean(prerenderManifest.routes[decodedPathname]) ||
+          prerenderManifest.notFoundRoutes.includes(decodedPathname)) &&
+        // A sibling's positive or negative prerender cannot admit parameters
+        // that this route excluded. Development computes static paths on demand
+        // instead of reading build-time prerender metadata.
+        (routeModule.isDev ||
+          isRouteCacheOwner(
+            decodedPathname,
+            routeModule.cacheOwner,
+            prerenderManifest.routes[decodedPathname],
+            nextConfig.i18n?.locales
+          ))
 
       const prerenderInfo = prerenderManifest.dynamicRoutes[srcPage]
 
@@ -306,7 +317,10 @@ export const getHandler = ({
                   nextFontManifest,
                   reactLoadableManifest,
 
-                  assetPrefix: nextConfig.assetPrefix,
+                  assetPrefix: routeModule.getAssetPrefixForRender(
+                    routerServerContext,
+                    nextConfig.assetPrefix
+                  ),
                   previewProps,
                   images: nextConfig.images as any,
                   nextConfigOutput: nextConfig.output,

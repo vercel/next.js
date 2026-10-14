@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::Result;
-use bincode::{Decode, Encode};
+use bincode::{Decode, Encode, enc::Encoder, error::EncodeError};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -143,8 +143,27 @@ impl Display for CellId {
 /// ```
 /// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Deserialize, Decode)]
 pub struct RawVc(NonZeroU64);
+
+// RawVc serializes its packed integer directly, so TaskId's guards cannot check embedded task
+// ids. Keep the original serde newtype shape and bincode format while rejecting transient values.
+impl Serialize for RawVc {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        debug_assert!(
+            !self.is_transient(),
+            "transient RawVc must not be serialized"
+        );
+        serializer.serialize_newtype_struct("RawVc", &self.0)
+    }
+}
+
+impl Encode for RawVc {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        debug_assert!(!self.is_transient(), "transient RawVc must not be encoded");
+        self.0.encode(encoder)
+    }
+}
 
 /// The unpacked form of [`RawVc`], produced by [`RawVc::unpack`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -153,7 +172,7 @@ pub enum RawVcUnpacked {
     /// representation used by [`OperationVc`][crate::OperationVc].
     TaskOutput(TaskId),
     /// A pointer to a specific [`Vc::cell`][crate::Vc::cell] or `.cell()` call within a task. This
-    /// is the representation used by [`ResolvedVc`].
+    /// is the representation used by [`ResolvedVc`][crate::ResolvedVc].
     ///
     /// [`CellId`] contains the [`ValueTypeId`], which can be useful for efficient downcasting.
     TaskCell(TaskId, CellId),
@@ -618,7 +637,7 @@ impl Future for ResolveRawVcFuture {
                             }
                             Ok(Err(listener)) => (
                                 listener,
-                                Some(ScheduleKey::LocalTask(execution_id, local_task_id)),
+                                Some(ScheduleKey::current_local_task(execution_id, local_task_id)),
                             ),
                             Err(err) => return Poll::Ready(Err(err)),
                         }

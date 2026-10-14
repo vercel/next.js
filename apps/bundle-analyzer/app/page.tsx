@@ -1,10 +1,5 @@
-import { Suspense } from 'react'
-import { SingleAnalyzer } from '@/components/analyzer'
+import { RouteSummaryPage } from '@/components/route-summary'
 
 export default function HomePage() {
-  return (
-    <Suspense>
-      <SingleAnalyzer />
-    </Suspense>
-  )
+  return <RouteSummaryPage />
 }

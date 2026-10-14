@@ -3,6 +3,9 @@ module.exports = {
   deploymentId:
     process.env.NEXT_DEPLOYMENT_ID_IMMUTABLE ??
     process.env.CUSTOM_DEPLOYMENT_ID,
+  ...(process.env.CUSTOM_BUILD_ID
+    ? { generateBuildId: async () => process.env.CUSTOM_BUILD_ID }
+    : {}),
   experimental: {
     useSkewCookie: Boolean(process.env.COOKIE_SKEW),
     runtimeServerDeploymentId: !!process.env.RUNTIME_SERVER_DEPLOYMENT_ID,

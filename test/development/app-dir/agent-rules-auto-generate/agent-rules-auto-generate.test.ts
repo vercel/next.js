@@ -6,6 +6,7 @@ import { writeAgentFiles } from 'next/dist/server/lib/generate-agent-files'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 const AGENT_FEEDBACK_MARKER = '<!-- BEGIN:nextjs-agent-feedback -->'
+const AGENT_UPGRADE_MARKER = '<!-- BEGIN:nextjs-agent-upgrade -->'
 
 /** Clears every variable `@vercel/detect-agent` inspects so no agent is detected. */
 const NO_AGENT_ENV = {
@@ -103,9 +104,14 @@ describe('agent-rules auto-generate on next dev (agentRules: false)', () => {
     },
   })
 
-  it('does not generate files when agentRules is disabled in next.config', async () => {
+  it('creates upgrade instructions independently from disabled agent rules', async () => {
     await next.fetch('/')
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(AGENT_UPGRADE_MARKER)
+    expect(content).not.toContain(AGENT_RULES_MARKER)
   })
 })
 
@@ -220,8 +226,12 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     )
     expect(content).toContain('- Unexpected CLI, codemod, Skill')
     expect(content).toContain(
-      'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
+      'Retain qualifying friction even if it is later fixed or worked around; record the final outcome during the reporting pass.'
     )
+    expect(content).toContain(
+      'npx --no-install next internal agent-feedback-instructions'
+    )
+    expect(content).not.toContain('node node_modules/next/dist/bin/next')
     expect(content).toContain('without piping or truncating its output')
     expect(content).toContain(
       'Before the final response, run one reporting pass'
@@ -365,9 +375,14 @@ describe('agent-feedback auto-generate on next dev (telemetry disabled)', () => 
     },
   })
 
-  it('does not create feedback instructions', async () => {
+  it('creates upgrade instructions without feedback instructions', async () => {
     await next.fetch('/')
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(AGENT_UPGRADE_MARKER)
+    expect(content).not.toContain(AGENT_FEEDBACK_MARKER)
   })
 })
 
@@ -383,8 +398,51 @@ describe('agent-feedback auto-generate on next dev (CI)', () => {
     },
   })
 
-  it('does not create feedback instructions', async () => {
+  it('creates upgrade instructions without feedback instructions', async () => {
     await next.fetch('/')
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(AGENT_UPGRADE_MARKER)
+    expect(content).not.toContain(AGENT_FEEDBACK_MARKER)
+  })
+})
+
+// Disabling upgrade reminders must remove only their block, including without an agent.
+describe.each([
+  ['agent detected', { ...NO_AGENT_ENV, CLAUDECODE: '1' }],
+  ['no agent', NO_AGENT_ENV],
+])('agent-upgrade disabled on next dev (%s)', (_name, agentEnv) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { ...NON_CI_ENV, ...agentEnv },
+    nextConfig: {
+      experimental: {
+        agentUpgrade: false,
+        agentFeedback: true,
+      },
+    },
+    skipStart: true,
+  })
+
+  beforeAll(async () => {
+    await next.patchFile(
+      'AGENTS.md',
+      `# Team rules\n\n${currentAgentRulesBlock()}\n\n${staleAgentFeedbackBlock()}\n\n${AGENT_UPGRADE_MARKER}\nstale upgrade instructions\n<!-- END:nextjs-agent-upgrade -->\n`
+    )
+    await next.start()
+  })
+
+  it('removes upgrade instructions and preserves user, documentation and feedback rules', async () => {
+    await next.fetch('/')
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain('# Team rules')
+    expect(content).toContain(AGENT_RULES_MARKER)
+    expect(content).toContain(AGENT_FEEDBACK_MARKER)
+    expect(content).not.toContain(AGENT_UPGRADE_MARKER)
   })
 })

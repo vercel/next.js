@@ -1,4 +1,3 @@
-import os from 'os'
 import path from 'path'
 import dns from 'dns'
 import execa from 'execa'
@@ -417,27 +416,25 @@ export class NextDeployInstance extends NextInstance {
     // the flag is enough to force plain-URL output for both link and deploy.
     vercelFlags.push('--non-interactive=false')
 
-    // If the token is available in the environment, use it as the token in the
-    // environment.
-    if (TEST_TOKEN) {
-      vercelEnv.TOKEN = TEST_TOKEN
+    if (process.env.RUNNER_DEBUG === '1') {
+      vercelFlags.push('--debug')
     }
 
-    // create auth file in CI
+    // If the token is available in the environment, use it as the token in the
+    // environment. The CLI reads `VERCEL_TOKEN` (since vercel@50.12.1) and then
+    // neither reads nor writes the shared `auth.json`, which keeps parallel
+    // test jobs from racing on a non-atomically written credentials file.
+    if (TEST_TOKEN) {
+      vercelEnv.VERCEL_TOKEN = TEST_TOKEN
+    }
+
+    // validate auth is configured in CI
     if (process.env.NEXT_TEST_JOB) {
       if (!TEST_TOKEN && !TEST_TEAM_NAME) {
         throw new Error(
           'Missing TEST_TOKEN and TEST_TEAM_NAME environment variables for CI'
         )
       }
-
-      const vcConfigDir = path.join(os.homedir(), '.vercel')
-      await fs.ensureDir(vcConfigDir)
-      await fs.writeFile(
-        path.join(vcConfigDir, 'auth.json'),
-        JSON.stringify({ token: TEST_TOKEN })
-      )
-      vercelFlags.push('--global-config', vcConfigDir)
     }
 
     require('console').log(`Linking project at ${this.testDir}`)
@@ -470,6 +467,9 @@ export class NextDeployInstance extends NextInstance {
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
 
+    // So that our `package.json#packageManager` field is respected when building on Vercel
+    additionalEnv.push(`ENABLE_EXPERIMENTAL_COREPACK=1`)
+
     // Route the build to a named hive, and to a specific build-container image.
     // The dispatcher reads the image version only for a build on a forced hive.
     // A version without a hive falls back to the default image and reports no
@@ -493,18 +493,6 @@ export class NextDeployInstance extends NextInstance {
       )
     }
 
-    // Add experimental feature flags
-
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
-      )
-    }
-    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
-      )
-    }
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }
@@ -855,9 +843,15 @@ export class NextDeployInstance extends NextInstance {
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
     const access = process.env.PREVIEW_BUILDS_ACCESS
 
-    if (!baseUrlRaw || access !== 'private') {
+    if (access !== 'private') {
       require('console').log(
-        `Skipping .npmrc write for preview-builds mirror: missing base URL or preview builds are public`
+        `Skipping .npmrc write for preview-builds mirror: preview builds are public`
+      )
+      return
+    }
+    if (!baseUrlRaw) {
+      require('console').warn(
+        `Skipping .npmrc write for preview-builds mirror: PREVIEW_BUILDS_ACCESS=private but NEXT_TEST_PREVIEW_BUILDS_BASE_URL is not set, so the remote build cannot authenticate to the mirror`
       )
       return
     }

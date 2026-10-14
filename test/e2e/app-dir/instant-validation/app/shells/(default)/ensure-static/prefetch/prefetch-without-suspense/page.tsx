@@ -2,7 +2,7 @@ import type { Instant } from 'next'
 import { default as Page } from '../../_base/prefetch-without-suspense/page.base'
 
 export const prefetch = 'partial'
-export const unstable_ensureStatic = 'prefetch'
+export const ensureStatic = 'prefetch'
 
 export const instant: Instant = {
   level: 'experimental-error',

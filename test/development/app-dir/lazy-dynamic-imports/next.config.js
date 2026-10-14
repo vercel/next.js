@@ -4,6 +4,7 @@
 const nextConfig = {
   experimental: {
     turbopackLazyDynamicImports: true,
+    turbopackLazyDynamicImportsSSR: true,
   },
 }
 

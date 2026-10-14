@@ -9,11 +9,11 @@ async function expectContainOnce(next: any, search: string) {
   })
 }
 
+// Runtime logs aren't available when deployed
+// @force-gate !deploy
 describe('dedupe-rsc-error-log', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // Runtime logs aren't available when deployed
-    skipDeployment: true,
   })
 
   it('should only log RSC error once for nodejs runtime', async () => {
