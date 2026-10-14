@@ -9,18 +9,19 @@ on:
   workflow_dispatch:
     inputs:
       releaseKind:
-        description: Whether this is a normal release or a backport
+        description: Whether this is a normal release, backport, or canary
         required: true
         type: choice
         options:
           - release
           - backport
+          - canary
       nextVersion:
-        description: Exact published Next.js version (for example, 16.2.4)
+        description: Exact published Next.js version (for example, 16.2.4 or 16.3.0-canary.12)
         required: true
         type: string
       nextRef:
-        description: Matching stable release tag (for example, v16.2.4)
+        description: Matching release tag (for example, v16.2.4 or v16.3.0-canary.12)
         required: true
         type: string
       nextSha:
@@ -68,12 +69,20 @@ jobs:
               const ref = process.env.MANUAL_NEXT_REF
               const sha = process.env.MANUAL_NEXT_SHA
 
-              if (!['release', 'backport'].includes(kind)) {
-                core.setFailed('releaseKind must be release or backport')
+              if (!['release', 'backport', 'canary'].includes(kind)) {
+                core.setFailed('releaseKind must be release, backport, or canary')
                 return
               }
-              if (!/^\d+\.\d+\.\d+$/.test(version) || ref !== `v${version}`) {
-                core.setFailed('nextVersion and nextRef must identify the same stable release')
+              const stableVersionPattern = /^\d+\.\d+\.\d+$/
+              const canaryVersionPattern = /^\d+\.\d+\.\d+-canary\.\d+$/
+              const isExpectedVersion =
+                kind === 'canary'
+                  ? canaryVersionPattern.test(version)
+                  : stableVersionPattern.test(version)
+              if (!isExpectedVersion || ref !== `v${version}`) {
+                core.setFailed(
+                  'nextVersion and nextRef must identify an exact release matching releaseKind'
+                )
                 return
               }
               if (!/^[0-9a-f]{40}$/.test(sha)) {
@@ -159,7 +168,7 @@ jobs:
   evaluate:
     needs: identify
     if: needs.identify.outputs.should_run == 'true'
-    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@32ae88d7a98df7e4cb93df95f0842fb30bdf9ffb # PR #134
+    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@d4d98ba4ed5347e1840a173ad224464f20164f69 # PR #134
     with:
       releaseKind: ${{ needs.identify.outputs.release_kind }}
       nextVersion: ${{ needs.identify.outputs.version }}
@@ -169,6 +178,6 @@ jobs:
       vercelTeamId: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_TEAM_ID }}
       vercelProjectId: ${{ vars.VERCEL_NEXT_UPGRADE_EVALS_PROJECT_ID }}
       releaseAgentUrl: ${{ vars.VERCEL_NEXT_EVALS_AGENT_URL }}
-      automationRef: 32ae88d7a98df7e4cb93df95f0842fb30bdf9ffb
+      automationRef: d4d98ba4ed5347e1840a173ad224464f20164f69
     secrets:
       VERCEL_TOKEN: ${{ secrets.VERCEL_NEXT_UPGRADE_EVALS_TOKEN }}
