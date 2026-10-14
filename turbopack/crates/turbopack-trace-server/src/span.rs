@@ -23,7 +23,10 @@ pub struct Span {
     // These values won't change after creation:
     pub parent: Option<SpanIndex>,
     pub depth: u32,
+    /// Expanded subtree start used by flame views.
     pub start: Timestamp,
+    /// Original lifecycle start; children must not move it earlier.
+    pub recorded_start: Timestamp,
     pub category: RcStr,
     pub name: RcStr,
     pub args: SpanArgs,
@@ -73,6 +76,8 @@ pub struct SpanTimeData {
 
     // This might change during writing:
     pub self_end: Timestamp,
+    /// Explicit lifecycle end, independent of the last CPU exit or child extent.
+    pub recorded_end: Option<Timestamp>,
 
     // These values are computed automatically:
     pub self_time: Timestamp,

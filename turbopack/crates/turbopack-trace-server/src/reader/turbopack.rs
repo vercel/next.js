@@ -30,7 +30,9 @@ enum InternalRowType {
         target: RcStr,
         values: SpanArgs,
     },
-    End,
+    End {
+        ts: Timestamp,
+    },
     SelfTime {
         start: Timestamp,
         end: Timestamp,
@@ -141,12 +143,14 @@ impl TurbopackFormat {
                     },
                 );
             }
-            TraceRow::End { ts: _, id } => {
+            TraceRow::End { ts, id } => {
                 self.process_internal_row(
                     store,
                     InternalRow {
                         id: Some(id),
-                        ty: InternalRowType::End,
+                        ty: InternalRowType::End {
+                            ts: Timestamp::from_micros(ts),
+                        },
                     },
                 );
             }
@@ -306,7 +310,7 @@ impl TurbopackFormat {
         let id = if let Some(id) = row.id {
             if matches!(
                 row.ty,
-                InternalRowType::End
+                InternalRowType::End { .. }
                     | InternalRowType::Event { .. }
                     | InternalRowType::Record { .. }
                     | InternalRowType::SelfTime { .. }
@@ -360,7 +364,8 @@ impl TurbopackFormat {
             InternalRowType::Record { values } => {
                 store.add_args(id.unwrap(), values, &mut self.outdated_spans);
             }
-            InternalRowType::End => {
+            InternalRowType::End { ts } => {
+                store.set_span_end(id.unwrap(), ts);
                 store.complete_span(id.unwrap());
             }
             InternalRowType::SelfTime { start, end } => {
@@ -382,6 +387,7 @@ impl TurbopackFormat {
                     &mut self.outdated_spans,
                 );
                 store.add_self_time(id, start, ts, &mut self.outdated_spans);
+                store.set_span_end(id, ts);
                 store.complete_span(id);
             }
             InternalRowType::Allocation {
@@ -557,6 +563,40 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn lifecycle_end_preserves_idle_tail_after_cpu_exit() {
+        let rows = [
+            start(1, None, "async"),
+            TraceRow::Enter {
+                ts: 1,
+                id: 1,
+                thread_id: 1,
+                allocations: None,
+            },
+            TraceRow::Exit {
+                ts: 2,
+                id: 1,
+                thread_id: 1,
+                allocations: None,
+            },
+            TraceRow::End { ts: 5, id: 1 },
+        ];
+        let data: Vec<_> = rows
+            .iter()
+            .flat_map(|row| postcard::to_stdvec(row).unwrap())
+            .collect();
+        let store = Arc::new(StoreContainer::new());
+        let mut format = TurbopackFormat::new(store.clone());
+        let mut reuse = TurbopackFormat::create_reused();
+        TraceFormat::read(&mut format, &data, &mut reuse).unwrap();
+        let store = store.read();
+        let span = store.root_spans().next().unwrap();
+        assert_eq!(*span.actual_start(), 0);
+        assert_eq!(*span.actual_end(), 500);
+        assert_eq!(*span.end(), 200); // existing flame extent is unchanged
+        assert_eq!(*span.total_time(), 100); // CPU time still excludes idle waiting
     }
 
     #[test]

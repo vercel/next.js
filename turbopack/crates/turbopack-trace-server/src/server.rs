@@ -24,9 +24,13 @@ pub enum ServerToClientMessage {
         #[serde(flatten)]
         update: ViewLineUpdate,
     },
+    #[serde(rename_all = "camelCase")]
     ViewLinesCount {
         count: usize,
         max: u64,
+        // Optional to older clients: advertise support without a new message type.
+        view_modes: [&'static str; 1],
+        view_mode: String,
     },
     #[serde(rename_all = "camelCase")]
     QueryResult {
@@ -170,18 +174,26 @@ fn handle_connection(
         if !force_send && state.last_update_generation == store.generation() {
             return Ok(());
         }
+        if state.last_update_generation != store.generation() {
+            state.viewer.invalidate_timeline();
+        }
         state.last_update_generation = store.generation();
         let Update {
             lines: updates,
             max,
+            count,
         } = state.viewer.compute_update(&store, &state.view_rect);
-        let count = updates.len();
         for update in updates {
             let message = ServerToClientMessage::ViewLine { update };
             let message = serde_json::to_string(&message).unwrap();
             websocket.send(Message::Text(message))?;
         }
-        let message = ServerToClientMessage::ViewLinesCount { count, max };
+        let message = ServerToClientMessage::ViewLinesCount {
+            count,
+            max,
+            view_modes: ["timeline"],
+            view_mode: state.view_rect.view_mode.clone(),
+        };
         let message = serde_json::to_string(&message).unwrap();
         websocket.send(Message::Text(message))?;
         *ready_for_update = false;
@@ -276,8 +288,14 @@ fn handle_connection(
                             let store = state.store.read();
                             if let Some((span, is_graph)) = store.span(id) {
                                 let root_start = store.root_span().start();
-                                let span_start = span.start() - root_start;
-                                let span_end = span.end() - root_start;
+                                let (query_start, query_end) =
+                                    if state.view_rect.view_mode == "timeline" && !is_graph {
+                                        (span.actual_start(), span.actual_end())
+                                    } else {
+                                        (span.start(), span.end())
+                                    };
+                                let span_start = query_start.saturating_sub(root_start);
+                                let span_end = query_end.saturating_sub(root_start);
                                 let duration = span.corrected_total_time();
                                 let cpu = span.total_time();
                                 let allocations = span.total_allocations();
@@ -296,16 +314,16 @@ fn handle_connection(
                                 }
                                 path.reverse();
                                 let memory_samples =
-                                    store.memory_samples_for_range(span.start(), span.end());
-                                let memory_pressure_samples = store
-                                    .memory_pressure_samples_for_range(span.start(), span.end());
+                                    store.memory_samples_for_range(query_start, query_end);
+                                let memory_pressure_samples =
+                                    store.memory_pressure_samples_for_range(query_start, query_end);
                                 let active_worker_threads_samples = store
                                     .active_worker_threads_samples_for_range(
-                                        span.start(),
-                                        span.end(),
+                                        query_start,
+                                        query_end,
                                     );
                                 let concurrency_samples =
-                                    store.concurrency_samples_for_range(span.start(), span.end());
+                                    store.concurrency_samples_for_range(query_start, query_end);
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,
