@@ -1,3 +1,5 @@
+import type { FlightClientModules, FlightRenderOptions } from './stream-ops.web'
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 export {
   createTemporaryReferenceSet,
@@ -22,9 +24,32 @@ type FlightPrerenderToNodeStream = (...args: any[]) => Promise<{
   prelude: import('node:stream').Readable
 }>
 
+// Keep the exported declarations independent of React's internal Node module.
+export type FlightResult = Readonly<{ abort(reason?: unknown): void }>
+
+type FlightNodeRenderOptions = Omit<
+  FlightRenderOptions,
+  'signal' | 'debugChannel'
+> & { debugChannel?: import('node:stream').Writable }
+
+type FlightRenderToResult = (
+  model: any,
+  options?: FlightNodeRenderOptions & { signal?: AbortSignal }
+) => FlightResult
+
+type FlightRenderResultToPipeableStream = (
+  result: FlightResult,
+  clientModules: FlightClientModules,
+  options?: FlightNodeRenderOptions
+) => ReturnType<FlightRenderToPipeableStream>
+
 /* eslint-disable import/no-extraneous-dependencies */
 export let renderToPipeableStream: FlightRenderToPipeableStream | undefined
 export let prerenderToNodeStream: FlightPrerenderToNodeStream | undefined
+export let renderToResult: FlightRenderToResult | undefined
+export let renderResultToPipeableStream:
+  | FlightRenderResultToPipeableStream
+  | undefined
 if (process.env.__NEXT_USE_NODE_STREAMS) {
   renderToPipeableStream = (
     require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
@@ -32,9 +57,15 @@ if (process.env.__NEXT_USE_NODE_STREAMS) {
   prerenderToNodeStream = (
     require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static')
   ).prerenderToNodeStream
+  const resultServer =
+    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+  renderToResult = resultServer.renderToResult
+  renderResultToPipeableStream = resultServer.renderResultToPipeableStream
 } else {
   renderToPipeableStream = undefined
   prerenderToNodeStream = undefined
+  renderToResult = undefined
+  renderResultToPipeableStream = undefined
 }
 /* eslint-enable import/no-extraneous-dependencies */
 
