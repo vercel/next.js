@@ -23,7 +23,6 @@ use turbopack_core::{
         UrlReferenceSubType,
     },
     resolve::options::{ImportMap, ImportMapping},
-    source_map::SourceMapType,
 };
 use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
@@ -242,7 +241,7 @@ impl ModuleOptions {
                     enable_typeof_window_inlining,
                     enable_exports_info_inlining,
                     enable_import_as_bytes,
-                    source_maps: ecmascript_source_maps,
+                    source_map_generation_options: ecmascript_source_map_generation_options,
                     inline_helpers,
                     infer_module_side_effects,
                     cjs_tree_shaking,
@@ -259,7 +258,7 @@ impl ModuleOptions {
             css:
                 CssOptionsContext {
                     enable_raw_css,
-                    source_maps: css_source_maps,
+                    source_map_generation_options: css_source_map_generation_options,
                     ref module_css_condition,
                     lightningcss_features,
                     module_css_debuggable_idents,
@@ -337,7 +336,7 @@ impl ModuleOptions {
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
-            extract_source_map: matches!(ecmascript_source_maps, Some(SourceMapType::Full)),
+            extract_source_map: ecmascript_source_map_generation_options.full,
             keep_last_successful_parse,
             analyze_mode,
             enable_typeof_window_inlining,
@@ -507,7 +506,7 @@ impl ModuleOptions {
                                     webpack_loaders_options.mode.clone(),
                                     rule.rename_as.clone(),
                                     resolve_options_context,
-                                    matches!(ecmascript_source_maps, Some(SourceMapType::Full)),
+                                    ecmascript_source_map_generation_options.full,
                                     config_tracing_module_context(*execution_context),
                                 )
                                 .to_resolved()
@@ -925,7 +924,7 @@ impl ModuleOptions {
                                 config_tracing_module_context(*execution_context),
                                 *execution_context,
                                 options.config_location,
-                                matches!(css_source_maps, Some(SourceMapType::Full)),
+                                css_source_map_generation_options.full,
                             )
                             .to_resolved()
                             .await?,

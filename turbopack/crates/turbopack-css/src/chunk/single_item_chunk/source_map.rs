@@ -53,7 +53,11 @@ impl OutputAsset for SingleItemCssChunkSourceMapAsset {
 impl Asset for SingleItemCssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let content = self.chunk.generate_source_map();
+        let chunking_context = self.chunk.await?.chunking_context;
+        let content = match *chunking_context.emitted_source_map_type().await? {
+            Some(ty) => self.chunk.generate_source_map(ty.cell()),
+            None => FileContent::NotFound.cell(),
+        };
         if content.await?.is_content() {
             Ok(AssetContent::file(content))
         } else {

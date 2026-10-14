@@ -12,7 +12,7 @@ use crate::{
     ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssetsReference},
-    source_map::{GenerateSourceMap, SourceMap},
+    source_map::{GenerateSourceMap, OptionSourceMapType, SourceMap},
 };
 
 #[derive(PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
@@ -30,34 +30,41 @@ enum PathType {
 #[turbo_tasks::value]
 pub struct SourceMapAsset {
     path_ty: PathType,
+    source_map_ty: ResolvedVc<OptionSourceMapType>,
     generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
 }
 
 #[turbo_tasks::value_impl]
 impl SourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         ident_for_path: ResolvedVc<AssetIdent>,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
-    ) -> Vc<Self> {
-        SourceMapAsset {
+    ) -> Result<Vc<Self>> {
+        Ok(SourceMapAsset {
             path_ty: PathType::FromIdent {
                 chunking_context,
                 ident_for_path,
             },
+            source_map_ty: chunking_context
+                .emitted_source_map_type()
+                .to_resolved()
+                .await?,
             generate_source_map,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
     pub fn new_fixed(
         path: FileSystemPath,
+        source_map_ty: ResolvedVc<OptionSourceMapType>,
         generate_source_map: ResolvedVc<Box<dyn GenerateSourceMap>>,
     ) -> Vc<Self> {
         SourceMapAsset {
             path_ty: PathType::Fixed { path },
+            source_map_ty,
             generate_source_map,
         }
         .cell()
@@ -97,7 +104,12 @@ impl OutputAsset for SourceMapAsset {
 impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let content = self.generate_source_map.generate_source_map();
+        let content = match *self.source_map_ty.await? {
+            Some(source_map_type) => self
+                .generate_source_map
+                .generate_source_map(source_map_type.cell()),
+            None => FileContent::NotFound.cell(),
+        };
         if content.await?.is_content() {
             Ok(AssetContent::file(content))
         } else {

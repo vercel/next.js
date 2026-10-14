@@ -461,7 +461,7 @@ async fn build_assets(
                 .await?,
                 runtime_type,
             )
-            .source_maps(source_maps_type)
+            .emitted_source_map_type(source_maps_type)
             .module_id_strategy(module_id_strategy)
             .export_usage(Some(binding_usage.connect().to_resolved().await?))
             .unused_references(unused_references)
@@ -512,7 +512,7 @@ async fn build_assets(
                 .await?,
                 runtime_type,
             )
-            .source_maps(source_maps_type)
+            .emitted_source_map_type(source_maps_type)
             .module_id_strategy(module_id_strategy)
             .export_usage(Some(binding_usage.connect().to_resolved().await?))
             .unused_references(unused_references)

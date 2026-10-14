@@ -16,7 +16,11 @@ use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, Vc};
 use turbo_tasks_fs::rope::Rope;
-use turbopack_core::{chunk::ModuleId, code_builder::Code, source_map::GenerateSourceMap};
+use turbopack_core::{
+    chunk::ModuleId,
+    code_builder::Code,
+    source_map::{GenerateSourceMap, SourceMapType},
+};
 
 /// A merged update covering one or more ecmascript chunks that share a merger.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, NonLocalValue)]
@@ -91,7 +95,12 @@ pub struct EcmascriptModuleEntry {
 
 impl EcmascriptModuleEntry {
     pub async fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
-        let map = &*code.generate_source_map().await?;
+        let ty = if code.await?.has_source_map_for(SourceMapType::Full) {
+            SourceMapType::Full
+        } else {
+            SourceMapType::Partial
+        };
+        let map = &*code.generate_source_map(ty.cell()).await?;
         let map = map.as_content().map(|f| f.content().clone());
 
         /// serde_qs can't serialize a lone enum when it's [serde::untagged].

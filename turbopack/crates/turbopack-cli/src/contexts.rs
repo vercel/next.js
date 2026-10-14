@@ -21,7 +21,7 @@ use turbopack_core::{
     free_var_references,
     ident::Layer,
     resolve::options::ImportMap,
-    source_map::SourceMapType,
+    source_map::{SourceMapGenerationOptions, SourceMapType},
 };
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
@@ -127,7 +127,9 @@ async fn get_client_module_options_context(
             enable_typescript_transform: Some(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
-            source_maps: source_maps_type,
+            source_map_generation_options: SourceMapGenerationOptions::from_emitted(
+                source_maps_type,
+            ),
             ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),

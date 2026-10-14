@@ -16,7 +16,7 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::{OptionSource, Source},
-    source_map::structured::StructuredSourceMap,
+    source_map::{SourceMaps, structured::StructuredSourceMap},
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -330,20 +330,20 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             )?;
         }
         code += "});\n";
-        let source_map = *chunking_context
-            .reference_module_source_maps(Vc::upcast(self))
-            .await?;
+        let generation = *chunking_context.source_map_generation_options().await?;
+        let map = if generation.any() {
+            Some(generate_minimal_source_map(
+                turbofmt!("{}", self.ident()).await?.to_string(),
+                code.clone(),
+            )?)
+        } else {
+            None
+        };
         Ok(EcmascriptChunkItemContent {
-            inner_code: code.clone().into(),
-            // We generate a minimal map for runtime code so that the filename is
-            // displayed in dev tools.
-            source_map: if source_map {
-                Some(generate_minimal_source_map(
-                    turbofmt!("{}", self.ident()).await?.to_string(),
-                    code,
-                )?)
-            } else {
-                None
+            inner_code: code.into(),
+            source_maps: SourceMaps {
+                full: if generation.full { map.clone() } else { None },
+                partial: if generation.partial { map } else { None },
             },
             options: EcmascriptChunkItemOptions {
                 supports_arrow_functions: *chunking_context
@@ -386,6 +386,6 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Struc
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
+    let map = generate_js_source_map(&*sm, &mappings, None, true, true, &Default::default())?;
     Ok(map)
 }

@@ -6,6 +6,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     reference_type::ReferenceType,
+    source_map::SourceMapGenerationOptions,
 };
 
 use crate::EcmascriptAnalyzable;
@@ -17,7 +18,7 @@ use crate::EcmascriptAnalyzable;
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
     asset: ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
-    generate_source_map: bool,
+    source_map_generation_options: SourceMapGenerationOptions,
 }
 
 #[turbo_tasks::value_impl]
@@ -27,7 +28,7 @@ impl StaticEcmascriptCode {
     pub async fn new(
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         asset_path: FileSystemPath,
-        generate_source_map: bool,
+        source_map_generation_options: SourceMapGenerationOptions,
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
@@ -42,7 +43,7 @@ impl StaticEcmascriptCode {
         };
         Ok(Self::cell(StaticEcmascriptCode {
             asset,
-            generate_source_map,
+            source_map_generation_options,
         }))
     }
 
@@ -52,12 +53,12 @@ impl StaticEcmascriptCode {
     pub async fn code(&self) -> Result<Vc<Code>> {
         let runtime_base_content = self
             .asset
-            .module_content_without_analysis(self.generate_source_map)
+            .module_content_without_analysis(self.source_map_generation_options)
             .await?;
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(self.source_map_generation_options, false);
         code.push_source(
             &runtime_base_content.inner_code,
-            runtime_base_content.source_map.clone(),
+            runtime_base_content.source_maps.clone(),
         );
         Ok(Code::cell(code.build()))
     }

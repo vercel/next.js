@@ -1,1 +1,2 @@
 export const message = 'loaded on demand'
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIm9yaWdpbmFsLWxhenkudHMiXSwic291cmNlc0NvbnRlbnQiOlsiZXhwb3J0IGNvbnN0IG1lc3NhZ2U6IHN0cmluZyA9ICdsb2FkZWQgb24gZGVtYW5kJyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSJ9

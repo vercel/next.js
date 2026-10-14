@@ -8,7 +8,7 @@ use crate::{
     file_source::FileSource,
     raw_module::RawModule,
     resolve::ModuleResolveResult,
-    source_map::{GenerateSourceMap, utils::resolve_source_map_sources},
+    source_map::{GenerateSourceMap, SourceMapType, utils::resolve_source_map_sources},
 };
 
 #[turbo_tasks::value]
@@ -63,7 +63,7 @@ impl ModuleReference for SourceMapReference {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMapReference {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+    async fn generate_source_map(&self, _ty: Vc<SourceMapType>) -> Result<Vc<FileContent>> {
         let Some(file) = self.get_file().await else {
             return Ok(FileContent::NotFound.cell());
         };
