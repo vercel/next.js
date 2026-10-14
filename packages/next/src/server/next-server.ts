@@ -1228,6 +1228,10 @@ export default class NextNodeServer extends BaseServer<
         }
         const entry = this.getAppPathsManifest()?.[match.definition.page]
         if (entry?.endsWith('.native.json')) {
+          if (this.nextConfig.experimental.goServer) {
+            await this.render404(req, res)
+            return true
+          }
           this.nativeRoutes ??= new NativeRouteManager(this.distDir, this.dev)
           await this.nativeRoutes.invoke(
             match.definition.page,

@@ -1227,6 +1227,7 @@ pub struct ExperimentalConfig {
     /// route.
     strict_route_matching: Option<bool>,
     go_routes: Option<bool>,
+    go_server: Option<bool>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1784,6 +1785,16 @@ impl NextConfig {
                 .explicit_parallel_route_children
                 .unwrap_or(true),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn go_server(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.go_server.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn trailing_slash(&self) -> Vc<bool> {
+        Vc::cell(self.trailing_slash.unwrap_or_default())
     }
 
     #[turbo_tasks::function]

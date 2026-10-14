@@ -59,6 +59,10 @@ pub(crate) struct FileInput {
 }
 
 impl FileInput {
+    pub(crate) fn matches_digest(&self, digest: &[u8]) -> bool {
+        self.digest.as_deref() == Some(digest)
+    }
+
     pub(crate) fn exists(&self) -> bool {
         self.stamp.is_some()
     }

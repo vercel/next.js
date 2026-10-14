@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto'
 // Start CPU profile if it wasn't already started.
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
@@ -141,6 +142,18 @@ export interface StartServerOptions {
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
   serverFastRefresh?: boolean
+  preloadedConfig?: {
+    config:
+      | import('../config-shared').NextConfigComplete
+      | import('../config-shared').NextConfigRuntime
+    experimentalFeatures: import('../config').ConfiguredExperimentalFeature[]
+  }
+  goFrontend?: {
+    token: string
+    publicPort: number
+    publicHostname?: string
+    close?: () => Promise<void>
+  }
 }
 
 export async function getRequestHandlers({
@@ -155,6 +168,7 @@ export async function getRequestHandlers({
   experimentalHttpsServer,
   serverFastRefresh,
   quiet,
+  preloadedConfig,
 }: {
   dir: string
   port: number
@@ -167,6 +181,7 @@ export async function getRequestHandlers({
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
   quiet?: boolean
+  preloadedConfig?: StartServerOptions['preloadedConfig']
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -181,11 +196,13 @@ export async function getRequestHandlers({
     serverFastRefresh,
     startServerSpan,
     quiet,
+    preloadedConfig,
   })
 }
 
 export type StartServerResult = {
   distDir: string
+  port: number
 }
 
 export async function startServer(
@@ -245,7 +262,31 @@ export async function startServer(
     )
   }
 
+  function authenticated(req: IncomingMessage): boolean {
+    const frontend = serverOptions.goFrontend
+    if (!frontend) return true
+    const value = req.headers['x-next-go-upstream-token']
+    delete req.headers['x-next-go-upstream-token']
+    for (let index = 0; index < req.rawHeaders.length; index += 2) {
+      if (req.rawHeaders[index].toLowerCase() === 'x-next-go-upstream-token') {
+        req.rawHeaders.splice(index, 2)
+        index -= 2
+      }
+    }
+    if (typeof value !== 'string') return false
+    const received = Buffer.from(value)
+    const expected = Buffer.from(frontend.token)
+    return (
+      received.length === expected.length && timingSafeEqual(received, expected)
+    )
+  }
+
   async function requestListener(req: IncomingMessage, res: ServerResponse) {
+    if (!authenticated(req)) {
+      res.statusCode = 403
+      res.end('Forbidden')
+      return
+    }
     try {
       if (handlersPromise) {
         await handlersPromise
@@ -291,6 +332,10 @@ export async function startServer(
     server.keepAliveTimeout = keepAliveTimeout
   }
   server.on('upgrade', async (req, socket, head) => {
+    if (!authenticated(req)) {
+      socket.destroy()
+      return
+    }
     try {
       await upgradeHandler(req, socket, head)
     } catch (err) {
@@ -362,12 +407,14 @@ export async function startServer(
         ? `${protocol}://${formatHostname(networkHostname)}:${port}`
         : null
 
-      const appUrl = `${protocol}://${formattedHostname}:${port}`
+      const appUrl = serverOptions.goFrontend
+        ? `${protocol}://${formatHostname(serverOptions.goFrontend.publicHostname || 'localhost')}:${serverOptions.goFrontend.publicPort}`
+        : `${protocol}://${formattedHostname}:${port}`
 
       // Store the selected port to:
       // - expose it to render workers
       // - re-use it for automatic dev server restarts with a randomly selected port
-      process.env.PORT = port + ''
+      process.env.PORT = String(serverOptions.goFrontend?.publicPort ?? port)
 
       process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
@@ -380,12 +427,9 @@ export async function startServer(
       const envInfo = isDev ? getEnvInfo(dir) : undefined
 
       // Log basic startup info immediately (before loading config)
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        logBundler: isDev,
-      })
+      if (!serverOptions.goFrontend) {
+        logStartInfo({ networkUrl, appUrl, envInfo, logBundler: isDev })
+      }
 
       // Calculate and log "Ready in X" before loading config
       // so it reflects actual framework startup time.
@@ -398,7 +442,8 @@ export async function startServer(
         startServerProcessDurationMs / 1000
       )
 
-      Log.event(`Ready in ${formattedStartDuration}`)
+      if (!serverOptions.goFrontend)
+        Log.event(`Ready in ${formattedStartDuration}`)
 
       try {
         let cleanupStarted = false
@@ -414,6 +459,8 @@ export async function startServer(
           cleanupStarted = true
           ;(async () => {
             debug('start-server process cleanup')
+
+            await serverOptions.goFrontend?.close?.()
 
             // first, stop accepting new connections and finish pending requests,
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
@@ -494,17 +541,18 @@ export async function startServer(
         // Now load config via getRequestHandlers (single loadConfig call)
         const initResult = await getRequestHandlers({
           dir,
-          port,
+          port: serverOptions.goFrontend?.publicPort ?? port,
           isDev,
           onDevServerCleanup: cleanupListeners
             ? cleanupListeners.add.bind(cleanupListeners)
             : undefined,
           server,
-          hostname,
+          hostname: serverOptions.goFrontend?.publicHostname ?? hostname,
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
           serverFastRefresh,
+          preloadedConfig: serverOptions.preloadedConfig,
         })
         devMemoryThresholdRestart = initResult.devMemoryThresholdRestart
         requestHandler = initResult.requestHandler
@@ -628,7 +676,7 @@ export async function startServer(
     })
   }
 
-  return { distDir }
+  return { distDir, port }
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {

@@ -468,6 +468,8 @@ function assignDefaultsAndValidate(
     result.experimental.strictRouteMatching = false
   }
 
+  if (result.experimental.goServer) result.experimental.goRoutes = true
+
   if (result.experimental.goRoutes) {
     // Native compiler sessions are process-local; Go's own build cache persists.
     result.experimental.turbopackFileSystemCacheForDev = false
