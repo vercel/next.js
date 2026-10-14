@@ -20,6 +20,7 @@ use turbopack_core::{
     resolve::{ExportUsage, ModuleResolveResult},
 };
 
+use super::entry_module::WorkerEntryModule;
 use crate::{
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
@@ -206,14 +207,13 @@ impl WorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self
-            .inner
-            .ident()
-            .owned()
-            .await?
-            .with_modifier(self.worker_type.modifier_str())
-            .into_vc())
+    fn ident(&self) -> Vc<AssetIdent> {
+        // Must be the *same* memoized call the `WorkerEntryModule` marker uses, so both
+        // resolve to the same `Vc<AssetIdent>` and therefore the same module id. The marker
+        // is what appears in the module graph (and gets registered in the module id map),
+        // while this loader is what becomes the chunk item `new Worker(...)` requires.
+        // `availability_info` is intentionally not part of the ident.
+        WorkerEntryModule::asset_ident_for(*self.inner, self.worker_type)
     }
 
     #[turbo_tasks::function]
