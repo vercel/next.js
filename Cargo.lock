@@ -4253,6 +4253,7 @@ dependencies = [
  "indoc",
  "itertools 0.10.5",
  "lightningcss",
+ "mdxjs",
  "mime_guess",
  "modularize_imports",
  "next-custom-transforms",

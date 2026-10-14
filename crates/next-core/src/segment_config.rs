@@ -18,12 +18,14 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{JoinIterExt, NonLocalValue, ResolvedVc, ValueDefault, Vc, util::WrapFuture};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
+    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
+    virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
@@ -37,7 +39,7 @@ use crate::{
     app_structure::AppPageLoaderTree,
     next_config::RouteHas,
     next_manifests::ProxyMatcher,
-    util::{MiddlewareMatcherKind, NextRuntime},
+    util::{MiddlewareMatcherKind, NextRuntime, file_content_rope},
 };
 
 #[derive(
@@ -406,7 +408,8 @@ pub enum ParseSegmentMode {
     Proxy,
 }
 
-/// Parse the raw source code of a file to get the segment config local to that file.
+/// Parse a file's source code to get the segment config local to that file.
+/// MDX is compiled to JavaScript first; other loader transforms are not applied.
 ///
 /// See [the Next.js documentation for Route Segment
 /// Configs](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config).
@@ -475,16 +478,45 @@ pub async fn parse_segment_config_from_source(
     let ident = source.ident().await?;
     let path = &ident.path;
 
-    // Don't try parsing if it's not a javascript file, otherwise it will emit an
+    // Don't try parsing unsupported source types, otherwise it will emit an
     // issue causing the build to "fail".
     if path.path.ends_with(".d.ts")
         || !(path.path.ends_with(".js")
+            || path.path.ends_with(".mjs")
             || path.path.ends_with(".jsx")
+            || path.path.ends_with(".mjsx")
             || path.path.ends_with(".ts")
-            || path.path.ends_with(".tsx"))
+            || path.path.ends_with(".mts")
+            || path.path.ends_with(".tsx")
+            || path.path.ends_with(".mtsx")
+            || path.path.ends_with(".mdx"))
     {
         return Ok(Default::default());
     }
+
+    // Runtime selection happens before loaders run. Compile MDX here so its
+    // actual exports are visible, without treating fenced code as config.
+    let source = if path.path.ends_with(".mdx") {
+        let content = file_content_rope(source.content().file_content()).await?;
+        let compiled = mdxjs::compile(
+            &content.to_str()?,
+            &mdxjs::Options {
+                filepath: Some(path.to_string()),
+                ..Default::default()
+            },
+        )
+        .map_err(|err| anyhow::anyhow!("Failed to parse MDX segment config in {path}: {err}"))?;
+        ResolvedVc::upcast(
+            VirtualSource::new_with_ident(
+                source.ident(),
+                AssetContent::file(FileContent::Content(File::from(compiled)).cell()),
+            )
+            .to_resolved()
+            .await?,
+        )
+    } else {
+        source
+    };
 
     let result = &*parse(
         *source,
