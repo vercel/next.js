@@ -148,4 +148,74 @@ describe('next/font/google loader', () => {
       }
     )
   })
+
+  it('shares in-flight CSS and font file requests', async () => {
+    const googleFontsUrl =
+      'https://fonts.googleapis.com/css2?family=Inter:ital,wght@1,600&display=optional'
+    const fontFileUrl =
+      'https://fonts.gstatic.com/s/inter/v1/concurrent-test.woff2'
+    const fontFaceDeclarations = `/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: italic;
+  font-weight: 600;
+  src: url(${fontFileUrl}) format('woff2');
+}`
+
+    let releaseFetch!: () => void
+    const fetchGate = new Promise<void>((resolve) => {
+      releaseFetch = resolve
+    })
+    mockFetchResource.mockImplementation(async (url: string) => {
+      await fetchGate
+      return Buffer.from(
+        url === fontFileUrl ? 'font-file' : fontFaceDeclarations
+      )
+    })
+
+    const emitFontFile = jest.fn().mockReturnValue('/font.woff2')
+    const loaderArgs = {
+      functionName: 'Inter',
+      data: [
+        {
+          weight: '600',
+          style: 'italic',
+          display: 'optional',
+          adjustFontFallback: false,
+          subsets: [],
+        },
+      ],
+      emitFontFile,
+      resolve: jest.fn(),
+      loaderContext: {} as any,
+      isDev: false,
+      variableName: 'myFont',
+    }
+
+    const serverLoad = nextFontGoogleFontLoader({
+      ...loaderArgs,
+      isServer: true,
+    })
+    const clientLoad = nextFontGoogleFontLoader({
+      ...loaderArgs,
+      isServer: false,
+    })
+
+    // Both compilers overlap while the CSS request is pending.
+    expect(mockFetchResource).toHaveBeenCalledTimes(1)
+    releaseFetch()
+
+    const [serverResult, clientResult] = await Promise.all([
+      serverLoad,
+      clientLoad,
+    ])
+
+    expect(mockFetchResource.mock.calls.map(([url]) => url)).toEqual([
+      googleFontsUrl,
+      fontFileUrl,
+    ])
+    expect(emitFontFile).toHaveBeenCalledTimes(2)
+    expect(serverResult.css).toBe(clientResult.css)
+    expect(serverResult.css).toContain('url(/font.woff2)')
+  })
 })
