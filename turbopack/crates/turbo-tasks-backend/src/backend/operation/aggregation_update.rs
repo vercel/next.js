@@ -866,7 +866,6 @@ pub struct AggregationUpdateQueueStats {
 }
 
 /// A queue for aggregation update jobs.
-#[derive(Default)]
 pub struct AggregationUpdateQueue {
     jobs: JobQueue<AggregationUpdateJobItem>,
     aggregation_number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
