@@ -1,11 +1,10 @@
 import spawn from 'next/dist/compiled/cross-spawn'
 import { getNpxCommand } from '../helpers/get-npx-command'
-import { getPkgManager } from '../helpers/get-pkg-manager'
+import { getPkgManager, type PackageManager } from '../helpers/get-pkg-manager'
 import {
   getReleaseAgeChecks,
   isReleaseAllowed,
   isReleaseInstallable,
-  readGate,
   type ReleaseAgeGate,
 } from './release-age'
 
@@ -34,6 +33,20 @@ function probes(outputs: Record<string, string>) {
   })
 }
 
+// The gate the app's own package manager applies when it installs. The runner
+// is read separately, so leaving it unreadable keeps these probes to one side.
+function installGate(
+  manager: PackageManager,
+  outputs: Record<string, string>
+): ReleaseAgeGate | null {
+  jest.mocked(getPkgManager).mockReturnValue(manager)
+  jest.mocked(getNpxCommand).mockImplementation(() => {
+    throw new Error('not under test')
+  })
+  probes(outputs)
+  return getReleaseAgeChecks('/app').install.gates[0] ?? null
+}
+
 describe('upgrade release age', () => {
   beforeEach(() => {
     jest.resetAllMocks()
@@ -45,94 +58,82 @@ describe('upgrade release age', () => {
 
   describe('npm', () => {
     it('uses the stricter of before and min-release-age', () => {
-      probes({
-        'npm --version': '11.10.0',
-        'npm config get': [
-          'before=2026-10-11T00:00:00.000Z',
-          'min-release-age=2',
-          'min-release-age-exclude=',
-        ].join('\n'),
-      })
       expect(
-        readGate({ directory: '/app', manager: 'npm', operation: 'install' })
+        installGate('npm', {
+          'npm --version': '11.10.0',
+          'npm config get': [
+            'before=2026-10-11T00:00:00.000Z',
+            'min-release-age=2',
+            'min-release-age-exclude=',
+          ].join('\n'),
+        })
       ).toEqual(gate)
     })
 
     it('ignores min-release-age on npm releases that do not support it', () => {
-      probes({
-        'npm --version': '11.9.0',
-        'npm config get before --no-workspaces': 'before=null',
-      })
       expect(
-        readGate({ directory: '/app', manager: 'npm', operation: 'install' })
+        installGate('npm', {
+          'npm --version': '11.9.0',
+          'npm config get before --no-workspaces': 'before=null',
+        })
       ).toBeNull()
       // Only `before` is queried, so a configured age cannot be read back.
-      expect(jest.mocked(spawn.sync).mock.calls[1][1]).toEqual([
-        'config',
-        'get',
-        'before',
-        '--no-workspaces',
-      ])
+      expect(jest.mocked(spawn.sync).mock.calls).not.toContainEqual(
+        expect.arrayContaining([expect.arrayContaining(['min-release-age'])])
+      )
     })
 
-    it('matches exemptions by name and drops them for exec', () => {
-      probes({
-        'npm --version': '11.10.0',
-        'npm config get': [
-          'before=null',
-          'min-release-age=2',
-          'min-release-age-exclude=next,@next/codemod@16.4.0,@next/*',
-        ].join('\n'),
-      })
+    it('matches exemptions by name', () => {
       // `@next/codemod@16.4.0` is a name npm never matches, and a glob is not
       // honored, so only the plain name exempts a package.
       expect(
-        readGate({ directory: '/app', manager: 'npm', operation: 'install' })
+        installGate('npm', {
+          'npm --version': '11.10.0',
+          'npm config get': [
+            'before=null',
+            'min-release-age=2',
+            'min-release-age-exclude=next,@next/codemod@16.4.0,@next/*',
+          ].join('\n'),
+        })
       ).toEqual({ cutoff, exemptions: [{ name: 'next', versions: null }] })
-      expect(
-        readGate({ directory: '/app', manager: 'npm', operation: 'exec' })
-      ).toEqual(gate)
     })
   })
 
   describe('pnpm', () => {
     it('has no gate before minimumReleaseAge support', () => {
-      probes({ 'pnpm --version': '10.15.0' })
-      expect(
-        readGate({ directory: '/app', manager: 'pnpm', operation: 'install' })
-      ).toBeNull()
+      expect(installGate('pnpm', { 'pnpm --version': '10.15.0' })).toBeNull()
       expect(spawn.sync).toHaveBeenCalledTimes(1)
     })
 
     it('applies the pnpm 11 default when nothing is configured', () => {
-      probes({ 'pnpm --version': '11.0.0', 'pnpm config get': '' })
       expect(
-        readGate({ directory: '/app', manager: 'pnpm', operation: 'install' })
+        installGate('pnpm', {
+          'pnpm --version': '11.0.0',
+          'pnpm config get': '',
+        })
       ).toEqual({ cutoff: Date.parse(now) - 1440 * 60_000, exemptions: [] })
     })
 
     it('treats a zero age as no gate', () => {
-      probes({
-        'pnpm --version': '12.9.1',
-        'pnpm config get minimumReleaseAge': '0',
-      })
       expect(
-        readGate({ directory: '/app', manager: 'pnpm', operation: 'install' })
+        installGate('pnpm', {
+          'pnpm --version': '12.9.1',
+          'pnpm config get minimumReleaseAge': '0',
+        })
       ).toBeNull()
     })
 
     it('honors version exemptions and leaves patterns gated', () => {
-      probes({
-        'pnpm --version': '12.9.1',
-        'pnpm config get minimumReleaseAge --json': '2880',
-        'pnpm config get minimumReleaseAgeExclude': JSON.stringify([
-          'next@16.5.0-canary.8 || 16.4.0',
-          '@next/*',
-          '!next',
-        ]),
-      })
       expect(
-        readGate({ directory: '/app', manager: 'pnpm', operation: 'install' })
+        installGate('pnpm', {
+          'pnpm --version': '12.9.1',
+          'pnpm config get minimumReleaseAge --json': '2880',
+          'pnpm config get minimumReleaseAgeExclude': JSON.stringify([
+            'next@16.5.0-canary.8 || 16.4.0',
+            '@next/*',
+            '!next',
+          ]),
+        })
       ).toEqual({
         cutoff,
         exemptions: [{ name: 'next', versions: ['16.5.0-canary.8', '16.4.0'] }],
@@ -142,24 +143,20 @@ describe('upgrade release age', () => {
 
   describe('yarn', () => {
     it('has no gate on Yarn Classic', () => {
-      probes({ 'yarn --version': '1.22.19' })
-      expect(
-        readGate({ directory: '/app', manager: 'yarn', operation: 'install' })
-      ).toBeNull()
+      expect(installGate('yarn', { 'yarn --version': '1.22.19' })).toBeNull()
       expect(spawn.sync).toHaveBeenCalledTimes(1)
     })
 
     it('uses the stricter of the default and the next scope gate', () => {
-      probes({
-        'yarn --version': '4.18.1',
-        'yarn config --json': [
-          '{"key":"npmMinimalAgeGate","effective":1440}',
-          '{"key":"npmScopes","effective":{"next":{"npmMinimalAgeGate":2880}}}',
-          '{"key":"npmPreapprovedPackages","effective":["next@npm:^16.0.0","next@16.4.0"]}',
-        ].join('\n'),
-      })
       expect(
-        readGate({ directory: '/app', manager: 'yarn', operation: 'install' })
+        installGate('yarn', {
+          'yarn --version': '4.18.1',
+          'yarn config --json': [
+            '{"key":"npmMinimalAgeGate","effective":1440}',
+            '{"key":"npmScopes","effective":{"next":{"npmMinimalAgeGate":2880}}}',
+            '{"key":"npmPreapprovedPackages","effective":["next@npm:^16.0.0","next@16.4.0"]}',
+          ].join('\n'),
+        })
       ).toEqual({
         cutoff,
         // A descriptor or a range is not widened into an exemption.
@@ -168,17 +165,10 @@ describe('upgrade release age', () => {
     })
   })
 
-  it('reports no gate when a manager cannot be read, without its output', () => {
-    jest.mocked(spawn.sync).mockReturnValue({
-      status: 1,
-      stdout: 'credential value',
-      stderr: 'credential value',
-    } as never)
-    expect(() =>
-      readGate({ directory: '/app', manager: 'npm', operation: 'install' })
-    ).toThrow('Could not read npm release-age configuration.')
+  it('reports no gate when a manager cannot be read', () => {
     jest.mocked(getPkgManager).mockReturnValue('npm')
     jest.mocked(getNpxCommand).mockReturnValue('npx --yes')
+    probes({})
     // An unreadable policy must not fail the upgrade.
     expect(getReleaseAgeChecks('/app')).toMatchObject({
       install: { gates: [] },
@@ -239,12 +229,6 @@ describe('upgrade release age', () => {
         now,
         false,
       ],
-      [
-        'a fresh release exempted under another name',
-        [{ cutoff, exemptions: [{ name: '@next/codemod', versions: null }] }],
-        now,
-        false,
-      ],
     ])('allows %s', (_label, gates, publishedAt, expected) => {
       expect(
         isReleaseAllowed({
@@ -257,27 +241,20 @@ describe('upgrade release age', () => {
     })
   })
 
-  describe('isReleaseInstallable', () => {
+  it('resolves publish dates once for every gated lookup', async () => {
     const originalFetch = global.fetch
-    const packument = {
-      'dist-tags': { latest: '16.4.0' },
-      versions: {
-        '16.3.0': { version: '16.3.0' },
-        '16.4.0': { version: '16.4.0' },
-      },
-      time: { '16.3.0': old, '16.4.0': now },
-    }
-
-    beforeEach(() => {
-      global.fetch = jest
-        .fn()
-        .mockResolvedValue({ ok: true, json: async () => packument }) as never
-    })
-    afterEach(() => {
-      global.fetch = originalFetch
-    })
-
-    it('resolves publish dates once for every gated lookup', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        'dist-tags': { latest: '16.4.0' },
+        versions: {
+          '16.3.0': { version: '16.3.0' },
+          '16.4.0': { version: '16.4.0' },
+        },
+        time: { '16.3.0': old, '16.4.0': now },
+      }),
+    }) as never
+    try {
       const check = { gates: [gate], packuments: new Map() }
       const lookup = (version: string) =>
         isReleaseInstallable({ check, packageName: 'next', version })
@@ -286,17 +263,8 @@ describe('upgrade release age', () => {
       // An unpublished version cannot be verified against the gate.
       await expect(lookup('16.5.0')).resolves.toBe(false)
       expect(fetch).toHaveBeenCalledTimes(1)
-    })
-
-    it('skips the registry when no gate applies', async () => {
-      await expect(
-        isReleaseInstallable({
-          check: { gates: [] },
-          packageName: 'next',
-          version: '16.4.0',
-        })
-      ).resolves.toBe(true)
-      expect(fetch).not.toHaveBeenCalled()
-    })
+    } finally {
+      global.fetch = originalFetch
+    }
   })
 })

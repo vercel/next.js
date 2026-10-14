@@ -149,7 +149,7 @@ async function fetchPackument(name: string): Promise<Packument> {
   return value
 }
 
-export function readGate({
+function readGate({
   directory,
   manager,
   operation,
@@ -173,7 +173,7 @@ function npmGate(
 ): ReleaseAgeGate | null {
   // `min-release-age` arrived in npm 11.10.0. Older npm reports a configured
   // value through `config get` but ignores it while installing.
-  const keys = atLeast(managerVersion(directory, 'npm'), '11.10.0')
+  const keys = semver.gte(managerVersion(directory, 'npm'), '11.10.0')
     ? ['before', 'min-release-age', 'min-release-age-exclude']
     : ['before']
   const config = new Map<string, string>()
@@ -215,7 +215,7 @@ function npmGate(
 
 function pnpmGate(directory: string): ReleaseAgeGate | null {
   const version = managerVersion(directory, 'pnpm')
-  if (!atLeast(version, '10.16.0')) {
+  if (!semver.gte(version, '10.16.0')) {
     return null
   }
   const configured = json(
@@ -228,7 +228,7 @@ function pnpmGate(directory: string): ReleaseAgeGate | null {
   )
   // pnpm does not print defaults, and pnpm 11 defaults to a one day delay.
   const cutoff = ageCutoff(
-    configured ?? (atLeast(version, '11.0.0') ? 1440 : 0)
+    configured ?? (semver.gte(version, '11.0.0') ? 1440 : 0)
   )
   if (!Number.isFinite(cutoff)) {
     return null
@@ -250,7 +250,7 @@ function pnpmGate(directory: string): ReleaseAgeGate | null {
 }
 
 function yarnGate(directory: string): ReleaseAgeGate | null {
-  if (!atLeast(managerVersion(directory, 'yarn'), '2.0.0')) {
+  if (!semver.gte(managerVersion(directory, 'yarn'), '2.0.0')) {
     // Yarn Classic has no age gate.
     return null
   }
@@ -296,10 +296,6 @@ function managerVersion(directory: string, manager: PackageManager): string {
     throw new Error(`Could not determine the ${manager} version.`)
   }
   return version
-}
-
-function atLeast(version: string, minimum: string): boolean {
-  return semver.gte(version, minimum)
 }
 
 // Query the installed manager rather than reimplementing rc/workspace
