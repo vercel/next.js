@@ -908,9 +908,14 @@ export default abstract class Server<
               // When middleware lets the request continue, the router server
               // calls `handleRequest` twice: once to run middleware (this pass)
               // and once to render. Publish this span's W3C trace context on
-              // the request so the middleware span and the render pass, which
-              // extract it from the request headers, stay in this trace
-              // instead of each starting a new one.
+              // the request, so the middleware span (including the Edge
+              // sandbox, which extracts it from the request headers) is a
+              // child of this span instead of starting a new trace. The
+              // middleware forwards its own span's context to the render pass
+              // via request-header overrides, which replace this value; it
+              // only stays when there is no middleware span to forward (e.g.
+              // OpenTelemetry isn't registered in the Edge runtime), keeping
+              // the render in this trace.
               const traceContext = tracer.getTraceContextHeaders()
               if (traceContext) {
                 req.headers.traceparent = traceContext.traceparent

@@ -267,9 +267,9 @@ export async function adapter(
   })
   let response
   let cookiesFromResponse
-  // The trace context to forward to the downstream request (see
-  // `forwardTraceContextToRequest`), and the request headers as the middleware
-  // received them.
+  // The middleware span's trace context to forward to the downstream request
+  // (see `forwardTraceContextToRequest`), and the request headers as the
+  // middleware received them.
   let forwardedTraceContext: TraceContextHeaders | undefined
   let forwardedRequestHeaders: Headers | undefined
 
@@ -282,11 +282,6 @@ export async function adapter(
       params.page === '/src/proxy'
 
     if (isMiddleware) {
-      // The context the middleware span is parented to (an incoming
-      // `traceparent`, a host span, or next-server's `handleRequest` span).
-      // The render should join it as a sibling of the middleware span.
-      forwardedTraceContext = getTracer().getTraceContextHeaders()
-
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
@@ -304,9 +299,11 @@ export async function adapter(
           },
         },
         async () => {
-          // Without a parent, the middleware span is the trace root, so the
-          // render becomes its child.
-          forwardedTraceContext ??= getTracer().getTraceContextHeaders()
+          // Forward the middleware span's own context, so the render is always
+          // nested inside the middleware span, whatever the middleware span is
+          // parented to (an incoming `traceparent`, a host span, next-server's
+          // `handleRequest` span, or nothing).
+          forwardedTraceContext = getTracer().getTraceContextHeaders()
           if (forwardedTraceContext) {
             // Snapshot before the handler can mutate `request.headers`.
             forwardedRequestHeaders = new Headers(request.headers)
@@ -540,8 +537,10 @@ export async function adapter(
   const finalResponse = response ? response : NextResponse.next()
 
   if (forwardedRequestHeaders) {
-    // Keep the downstream request (render) in the middleware's trace when the
-    // host invokes it separately from the middleware.
+    // Nest the downstream request (render) inside the middleware span. Every
+    // host applies these request-header overrides to the render, including
+    // next-server's router server, so this works whether or not the host
+    // invokes the middleware separately from the render.
     forwardTraceContextToRequest(
       finalResponse.headers,
       forwardedRequestHeaders,

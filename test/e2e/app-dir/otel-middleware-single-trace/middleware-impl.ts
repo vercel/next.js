@@ -6,7 +6,9 @@ export const USER_SPAN_ID = 'b7ad6b7169203331'
 
 // Shared by `proxy.ts` (Node.js runtime) and `middleware.ts` (Edge runtime).
 export function handler(request: NextRequest) {
-  const traceId = trace.getActiveSpan()?.spanContext().traceId ?? 'none'
+  const spanContext = trace.getActiveSpan()?.spanContext()
+  const traceId = spanContext?.traceId ?? 'none'
+  const spanId = spanContext?.spanId ?? 'none'
   const { pathname } = request.nextUrl
 
   let response: NextResponse
@@ -34,5 +36,6 @@ export function handler(request: NextRequest) {
   }
 
   response.headers.set('x-mw-trace-id', traceId)
+  response.headers.set('x-mw-span-id', spanId)
   return response
 }

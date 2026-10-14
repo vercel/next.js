@@ -2389,8 +2389,10 @@ async function expectSingleTrace(
     middlewareRuntime: string | undefined
     render: boolean
     traceparent: boolean
+    // Where the middleware span sits. In every shape, the render is a direct
+    // child of the middleware span.
     // handle-request-root: next-server's middleware-invoke `handleRequest` is
-    //   the root (self-hosted router server).
+    //   the root and the middleware span's parent (self-hosted router server).
     // middleware-root: the middleware span is the root (separately invoked
     //   middleware without a host span, e.g. direct entrypoints).
     // host-root: a span started by the host wraps everything.
@@ -2433,6 +2435,8 @@ async function expectSingleTrace(
     )
     if (render) {
       expect(renderSpan).toBeDefined()
+      // The render is always nested inside the middleware span.
+      expect(renderSpan!.parentId).toBe(middlewareSpan.id)
     } else {
       expect(renderSpan).toBeUndefined()
     }
@@ -2486,25 +2490,18 @@ async function expectSingleTrace(
       expect(root.name).toBe('GET')
       expect(root.attributes?.['next.bubble']).toBe(true)
       expect(root.parentId).toBe(traceparent ? EXTERNAL.spanId : undefined)
-      expect(isAncestor(root, middlewareSpan)).toBe(true)
-      if (renderSpan) {
-        expect(isAncestor(root, renderSpan)).toBe(true)
-      }
+      expect(middlewareSpan.parentId).toBe(root.id)
     } else if (shape === 'middleware-root') {
       if (traceparent) {
-        // Middleware and render both parent to the external span.
         expect(middlewareSpan.parentId).toBe(EXTERNAL.spanId)
-        expect(renderSpan?.parentId).toBe(EXTERNAL.spanId)
       } else {
         expect(roots).toEqual([middlewareSpan])
-        expect(isAncestor(middlewareSpan, renderSpan!)).toBe(true)
       }
     } else {
       expect(roots).toHaveLength(1)
       const [root] = roots
       expect(root.attributes?.['next.span_type']).toBeUndefined()
       expect(isAncestor(root, middlewareSpan)).toBe(true)
-      expect(isAncestor(root, renderSpan!)).toBe(true)
     }
   })
 }

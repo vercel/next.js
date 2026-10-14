@@ -97,6 +97,34 @@ describe('forwardTraceContextToRequest', () => {
     })
   })
 
+  it('replaces trace context headers copied unchanged into user overrides', () => {
+    const receivedTraceparent =
+      '00-11111111111111111111111111111111-2222222222222222-01'
+    const received = requestHeaders()
+    received.set('traceparent', receivedTraceparent)
+    received.set('tracestate', 'received=1')
+    // The common `new Headers(request.headers)` pattern copies the received
+    // trace context into the overrides without choosing it.
+    const userHeaders = new Headers(received)
+    userHeaders.set('x-user', 'user')
+    const response = NextResponse.next({ request: { headers: userHeaders } })
+    forwardTraceContextToRequest(response.headers, received, {
+      traceparent: TRACEPARENT,
+      tracestate: TRACESTATE,
+    })
+
+    const overrides = requestOverrides(response.headers)!
+    expect(overrides.traceparent).toBe(TRACEPARENT)
+    expect(overrides.tracestate).toBe(TRACESTATE)
+    expect(overrides['x-user']).toBe('user')
+    expect(
+      response.headers
+        .get('x-middleware-override-headers')!
+        .split(',')
+        .filter((key) => key === 'traceparent' || key === 'tracestate')
+    ).toEqual(['traceparent', 'tracestate'])
+  })
+
   it('treats an empty user override list like no overrides', () => {
     const response = NextResponse.next({ request: { headers: new Headers() } })
     expect(response.headers.get('x-middleware-override-headers')).toBe('')
