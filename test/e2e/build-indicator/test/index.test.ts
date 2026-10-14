@@ -20,6 +20,25 @@ const installCheckVisible = (browser) => {
   })()`)
 }
 
+const installCheckCompilingWithIssueVisible = (browser) => {
+  return browser.eval(`(function() {
+    sessionStorage.setItem('showedCompilingWithIssue', 'false')
+    window.checkInterval = setInterval(function() {
+      const root = document.querySelector('nextjs-portal').shadowRoot
+      const statusElement = root.querySelector('[data-indicator-status]')
+      const issuesElement = root.querySelector('[data-issues]')
+
+      const isVisible =
+        statusElement?.textContent.includes('Compiling') &&
+        issuesElement !== null
+      if (isVisible) {
+        sessionStorage.setItem('showedCompilingWithIssue', 'true')
+        clearInterval(window.checkInterval)
+      }
+    }, 5)
+  })()`)
+}
+
 describe('Build Activity Indicator', () => {
   // Use describe.skip so that this suite does not fail with "no tests" during deploy tests.
   // Deploy mode exclusion: This nested suite intentionally fails a local build and asserts its CLI diagnostics.
@@ -59,6 +78,57 @@ describe('Build Activity Indicator', () => {
   })
 
   if (isNextDev) {
+    describe('build indicator with an issue', () => {
+      const { next } = nextTestSetup({
+        files: join(__dirname, '..'),
+        nextConfig: {
+          turbopack: {
+            rules: {
+              '*.slow.js': {
+                loaders: ['./slow-loader.js'],
+                as: '*.js',
+              },
+            },
+          },
+          webpack(config) {
+            config.module.rules.push({
+              test: /\.slow\.js$/,
+              use: [require.resolve('./slow-loader.js')],
+            })
+            return config
+          },
+        },
+      })
+
+      it('shows compiling status while an issue is present', async () => {
+        const browser = await next.browser('/app/issue')
+
+        await retry(async () => {
+          expect(
+            await browser.eval(`(function() {
+              const root = document.querySelector('nextjs-portal').shadowRoot
+              return root.querySelector('[data-issues]')?.textContent ?? null
+            })()`)
+          ).toContain('Issue')
+        })
+
+        await installCheckCompilingWithIssueVisible(browser)
+        await browser.elementByCss('#to-slow').click()
+
+        await retry(async () => {
+          expect(
+            await browser.eval(
+              `sessionStorage.getItem('showedCompilingWithIssue')`
+            )
+          ).toBe('true')
+        })
+
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('Slow page')
+        })
+      })
+    })
+
     // A 400 ms delay was introduced to avoid flashing the indicator for fast
     // builds. A simple test app like this usually compiles much faster, so we
     // skip this test for now, until we find a better way to test the indicator.

@@ -440,7 +440,7 @@ export function NextLogo({
         data-error={hasError && !insightsOnly}
         data-insights-only={insightsOnly}
         data-error-expanded={isExpanded}
-        data-status={hasError ? Status.None : displayStatus}
+        data-status={displayStatus}
         data-cache-badge={cacheBadge ?? undefined}
         data-animate={newErrorDetected}
         style={{ width }}
@@ -542,14 +542,12 @@ export function NextLogo({
                 />
               )}
               {/* Status indicator shown while rendering or compiling */}
-              {showStatusIndicator &&
-                !hasError &&
-                !state.disableDevIndicator && (
-                  <StatusIndicator
-                    status={displayStatus}
-                    onClick={onTriggerClick}
-                  />
-                )}
+              {showStatusIndicator && !state.disableDevIndicator && (
+                <StatusIndicator
+                  status={displayStatus}
+                  onClick={onTriggerClick}
+                />
+              )}
             </>
           )}
         </div>
