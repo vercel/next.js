@@ -78,7 +78,11 @@ Get linting working quickly with the ESLint CLI (flat config):
    bunx eslint .
    ```
 
-> **Good to know**: `eslint-config-next` supports ESLint 9 and ESLint 10. ESLint 10 requires Node.js `^20.19.0`, `^22.13.0`, or `>=24`. Some of the plugins included in `eslint-config-next` don't list ESLint 10 in their peer dependencies yet, so your package manager may show peer dependency warnings, or fail when strict peer dependencies are enabled.
+> **Good to know**:
+>
+> - `eslint-config-next` supports ESLint 9 and ESLint 10. ESLint 10 requires Node.js `^20.19.0`, `^22.13.0`, or `>=24`.
+> - Starting with `eslint-config-next@16.4.0`, the default React version detection works with ESLint 10. You can remove a `settings.react.version` override added as a workaround for a `context.getFilename` error.
+> - Some of the plugins included in `eslint-config-next` don't list ESLint 10 in their peer dependencies yet, so your package manager may show peer dependency warnings, or fail when strict peer dependencies are enabled.
 
 ## Reference
 
