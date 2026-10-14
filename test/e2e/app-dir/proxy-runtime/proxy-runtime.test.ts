@@ -63,7 +63,7 @@ function getBuildError(cliOutput: string): string {
 
     // Package-manager and Vercel command failures are not compiler output.
     if (
-      /^(?:ELIFECYCLE\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
+      /^(?:\[ELIFECYCLE\]\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
         line
       )
     ) {
