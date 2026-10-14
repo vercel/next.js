@@ -484,11 +484,9 @@ pub async fn parse_segment_config_from_source(
         || !(path.path.ends_with(".js")
             || path.path.ends_with(".mjs")
             || path.path.ends_with(".jsx")
-            || path.path.ends_with(".mjsx")
             || path.path.ends_with(".ts")
             || path.path.ends_with(".mts")
             || path.path.ends_with(".tsx")
-            || path.path.ends_with(".mtsx")
             || path.path.ends_with(".mdx"))
     {
         return Ok(Default::default());
@@ -520,7 +518,7 @@ pub async fn parse_segment_config_from_source(
 
     let result = &*parse(
         *source,
-        if path.path.ends_with(".ts") {
+        if path.path.ends_with(".ts") || path.path.ends_with(".mts") {
             EcmascriptModuleAssetType::Typescript {
                 tsx: false,
                 analyze_types: false,
