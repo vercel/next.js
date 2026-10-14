@@ -621,6 +621,13 @@ export class Playwright<TCurrent = undefined> {
     fn: string | ((...args: any[]) => any),
     ...args: any[]
   ): Playwright<any> & Promise<any> {
+    return this.startChain(async () => page.evaluate(fn, ...args))
+  }
+
+  HORRIBLE_BAD_evalThatCatchesErrorsAndWaitsForLoadEvent(
+    fn: string | ((...args: any[]) => any),
+    ...args: any[]
+  ): Playwright<any> & Promise<any> {
     return this.startChain(async () =>
       page
         .evaluate(fn, ...args)
