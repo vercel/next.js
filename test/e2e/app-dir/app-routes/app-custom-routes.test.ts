@@ -643,6 +643,26 @@ describe('app-custom-routes', () => {
       })
     })
 
+    it('does not statically generate a GET handler alongside QUERY', async () => {
+      if (isNextStart) {
+        expect(
+          await next
+            .readFile('.next/server/app/methods/query/with-get.body')
+            .catch(() => '')
+        ).toBeFalsy()
+        expect(
+          await next
+            .readFile('.next/server/app/methods/query/with-get.meta')
+            .catch(() => '')
+        ).toBeFalsy()
+      }
+
+      const res = await next.fetch(basePath + '/methods/query/with-get')
+
+      expect(res.status).toEqual(200)
+      expect(await res.json()).toEqual({ now: expect.any(Number) })
+    })
+
     it.each(['/methods/query', '/methods/query/edge'])(
       'includes QUERY in the Allow header for %s',
       async (path) => {
