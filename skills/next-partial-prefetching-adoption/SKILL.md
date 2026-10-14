@@ -34,7 +34,7 @@ Talk to the user in terms of what they'll see — PRs, features, and how the app
 
 ### notes
 
-- **Offline docs.** Guide links have version-matched offline copies under `node_modules/next/dist/docs/`, with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/adopting-partial-prefetching.md`). Error links map directly from `/docs/messages/<slug>` to `node_modules/next/dist/docs/messages/<slug>.md`. Prefer these bundled pages so the guidance matches the installed framework. If a page is absent in an older package, use the online link instead. If you can't predict a guide's numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it.
+- **Offline docs.** Guide links have offline copies under `node_modules/next/dist/docs/` (bundled since Next.js 16.2), with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/adopting-partial-prefetching.md`). If you can't predict the numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it.
 
 - **Older versions without bundled docs.** Suggest `npx @next/codemod@latest agents-md` to the user before starting: it downloads a version-matched copy to `.next-docs/` and writes an index into `AGENTS.md`. It touches files in their repo, so ask first and run it only if they want it.
 
@@ -51,7 +51,7 @@ The catch that decides most of the sweep: a default link warms only the shared A
 - **The dev overlay Insights tab.** Insights are the amber, non-blocking tab. It appears only once an insight has fired, so a route that surfaces nothing shows no tab at all — that's the clean state, not a missing feature. Don't hunt for the tab on a quiet route; confirm clean from the dev log above, which is the reliable signal. The precondition is no blocking-prerender errors — those replace the insight on their route (see requires). An unrelated Issue (a hydration error, a console error) doesn't block the sweep; don't stall on it. When the tab is present, the overlay pill shows the count and each insight has fix cards linking its docs page. The overlay renders inside a shadow root (`nextjs-portal`), so accessibility-tree snapshots don't see it — evaluate into `shadowRoot` when you need to read or click it programmatically.
 - **`next-dev-loop`** to drive navigations and read the overlay. Prefer it over hand-rolled browser automation for the same reasons as in the Cache Components skill (webpack apps: see requires). When browsing its `/_next/mcp` tools, the prefetch insights surface through `get_errors` and the overlay, not the similarly-named `get_request_insights`. That one is the span and performance recorder (gated behind `experimental.requestInsights`) and reports nothing about prefetching.
 
-Every insight has a docs page — open it. Read the matching versioned page at `node_modules/next/dist/docs/messages/<slug>.md` when present, otherwise fetch the linked page. Do this for every distinct insight you encounter; the inline message is a summary, and the page is the recipe.
+Read the documentation for every distinct insight and apply its recommended fix. The inline message is only a summary.
 
 ## step 1: audit `<Link prefetch={true}>` navigations (before enabling)
 

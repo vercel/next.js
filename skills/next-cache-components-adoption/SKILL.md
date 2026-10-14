@@ -35,7 +35,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
 
 - **Existing caches can stay.** Follow the migration guide's [`fetch` and `unstable_cache` sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components#fetch-cache-options). Do not rewrite them solely to enable Cache Components.
 
-- **Offline docs.** Guide links have version-matched offline copies under `node_modules/next/dist/docs/`, with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`). Error links map directly from `/docs/messages/<slug>` to `node_modules/next/dist/docs/messages/<slug>.md`. Prefer these bundled pages so the guidance matches the installed framework. If a page is absent in an older package, use the online link instead. If you can't predict a guide's numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it.
+- **Offline docs.** Guide links have offline copies under `node_modules/next/dist/docs/` (bundled since Next.js 16.2), with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`). If you can't predict the numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it.
 
 - **Older versions without bundled docs.** Suggest `npx @next/codemod@latest agents-md` to the user before starting: it downloads a version-matched copy to `.next-docs/` and writes an index into `AGENTS.md`. It touches files in their repo, so ask first and run it only if they want it.
 
@@ -73,7 +73,7 @@ Prefer `next dev` over `next build` while you work.
 - **`next dev`** — the working surface. Visit a route; its blocking errors surface in the dev overlay with full stack traces and fix cards linking the per-error docs. Work one route at a time — errors don't accumulate in one place. The route itself still returns HTTP 200, so read the overlay (or `.next-dev.log`), not status codes. A cleared overlay is one half of calling a route clean — the other half is browser verification (see [step 2](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time)) and a passing build for that route.
 - **`next build`** — detection only. The build is `next dev`'s authoritative check, not its replacement. Use it as the last gate on each feature in the loop (a passing build is part of the per-route success bar) and as the final verification across the whole app. In Incremental, the build also confirms the pre-step (codemod opted every route out, no shared layout still has a sync-IO blocker) before you ship that PR. Don't reach for the build instead of the dev loop while you're working a route — a passing compile doesn't tell you what ended up in the static shell and what streamed. By default the build stops at the first blocking route, so it's also poor for sizing the work. Two flags help when iterating: `--debug-build-paths` builds only the routes you name (comma-separated glob patterns of file paths relative to the project root, e.g. `--debug-build-paths="app/admin/**/page.tsx"` — not URL paths; `--debug-build-paths="app/(marketing)/about/page.tsx"` — not `/about`; `--debug-build-paths="app/admin"` matches nothing and silently builds zero routes), and `--debug-prerender` disables the early exit so the build continues past the first prerender failure, reports every blocking route, and prints a fuller stack trace that names the originating file and line.
 
-Every blocking error has a docs page — open it. Both the dev overlay and the build terminal print a `https://nextjs.org/docs/messages/<slug>` link with each error. That page is the canonical recipe for the fix; the inline message is a summary. Read the matching versioned page at `node_modules/next/dist/docs/messages/<slug>.md` when present, otherwise fetch the link. Do this for every distinct error you encounter, even if you think you know the pattern — the recipes evolve, and the same error class can have different correct fixes depending on what the route reads. Don't improvise from the inline message alone.
+Read the documentation for every distinct blocking error and apply its recommended fix. The inline message is only a summary, and the correct fix can vary depending on what the route reads.
 
 ### verifying each fix at runtime
 
@@ -187,7 +187,6 @@ Per route:
 
 - Remove the opt-out (Incremental) or target the failing route (Direct).
 - Reload in dev. Overlay clean? Skip to verify. Overlay still red? Fix.
-- Fix — read the bundled `node_modules/next/dist/docs/messages/<slug>.md` page when present, otherwise fetch the docs page linked from the error. Apply the recipe from there; the inline overlay text is a summary, and the docs page is the source of truth.
 - Verify in the browser. Confirm the visible content on first paint is what you intended in the shell — not stuck on a fallback, not silently streaming everything out of an empty shell.
 - Re-check siblings if the fix touched shared code (a layout, a sidebar component). A shared-shell change can fix the route you're on and break a sibling.
 
@@ -199,7 +198,6 @@ Per route:
 
 - Remove the opt-out (Incremental) or target the failing route (Direct).
 - Rebuild with `--debug-build-paths app/<route>/**` (only that route) or `--debug-prerender` (full build, but past the first failure). Route passing? Move on. Still blocking? Fix.
-- Fix — read the bundled `node_modules/next/dist/docs/messages/<slug>.md` page when present, otherwise fetch the docs page linked from the error, and apply the recipe from there.
 - Re-check siblings if the fix touched shared code.
 - Flag the route as build-only-verified when you hand the feature off. Each `◐` route still needs a browser pass before the feature is done.
 
