@@ -89,7 +89,9 @@ export function isRouteCacheOwner(
       ? owner.sourceRoute
       : // The earlier kind equality check proves this is an App module;
         // TypeScript does not retain that correlation through `kind`.
-        appPathnameNormalizer.normalize(owner.sourceRoute as Page))
+        appPathnameNormalizer.normalize(
+          owner.sourceRoute as /* TODO: Retain the source Page role through the cache-owner discriminator. */ Page
+        ))
   )
 }
 
@@ -118,6 +120,6 @@ export function getRouteCacheKey(
     const { createHash } = require('crypto') as typeof import('crypto')
     source = createHash('sha256').update(sourceRoute).digest('hex')
   }
-  // @ts-ignore Human review: response URL Route is passed to the Page-only file codec; preserve existing cache-key encoding rather than converting representations.
+  // @ts-ignore TODO: Human review: response URL Route is passed to the Page-only file codec; preserve existing cache-key encoding rather than converting representations.
   return `/${ROUTE_CACHE_DIRECTORY}/${owner.kind}/${source}/$${normalizePagePath(pathname)}`
 }

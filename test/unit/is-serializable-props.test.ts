@@ -1,16 +1,16 @@
 /* eslint-env jest */
-import type { Route } from 'next/dist/shared/lib/route-types'
+import { createRoute } from 'next/dist/shared/lib/route-types'
 import { isSerializableProps } from 'next/dist/lib/is-serializable-props'
 
 describe('isSerializableProps', () => {
   it('handles null and undefined props', () => {
-    expect(() => isSerializableProps('/' as Route, 'test', null))
+    expect(() => isSerializableProps(createRoute('/'), 'test', null))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing props returned from \`test\` in "/".
       Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Null]\`)."
     `)
 
-    expect(() => isSerializableProps('/' as Route, 'test', undefined))
+    expect(() => isSerializableProps(createRoute('/'), 'test', undefined))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing props returned from \`test\` in "/".
       Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Undefined]\`)."
@@ -18,20 +18,20 @@ describe('isSerializableProps', () => {
   })
 
   it('handles non-plain object props', () => {
-    expect(() => isSerializableProps('/' as Route, 'test', []))
+    expect(() => isSerializableProps(createRoute('/'), 'test', []))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing props returned from \`test\` in "/".
       Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Array]\`)."
     `)
 
-    expect(() => isSerializableProps('/' as Route, 'test', class Foobar {}))
+    expect(() => isSerializableProps(createRoute('/'), 'test', class Foobar {}))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing props returned from \`test\` in "/".
       Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
     `)
 
     expect(() =>
-      isSerializableProps('/' as Route, 'test', function Foobar() {})
+      isSerializableProps(createRoute('/'), 'test', function Foobar() {})
     ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing props returned from \`test\` in "/".
       Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
@@ -39,12 +39,12 @@ describe('isSerializableProps', () => {
   })
 
   it('allows empty props', () => {
-    expect(isSerializableProps('/' as Route, 'test', {})).toBe(true)
+    expect(isSerializableProps(createRoute('/'), 'test', {})).toBe(true)
   })
 
   it('allows all different types of props', () => {
     expect(
-      isSerializableProps('/' as Route, 'test', {
+      isSerializableProps(createRoute('/'), 'test', {
         str: 'foobar',
         bool: true,
         bool2: false,
@@ -109,35 +109,39 @@ describe('isSerializableProps', () => {
 
   it('disallows top-level non-serializable types', () => {
     expect(() =>
-      isSerializableProps('/' as Route, 'test', { toplevel: new Date() })
+      isSerializableProps(createRoute('/'), 'test', { toplevel: new Date() })
     ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.toplevel\` returned from \`test\` in "/".
       Reason: \`object\` ("[object Date]") cannot be serialized as JSON. Please only return JSON serializable data types."
     `)
 
     expect(() =>
-      isSerializableProps('/' as Route, 'test', { toplevel: class A {} })
+      isSerializableProps(createRoute('/'), 'test', { toplevel: class A {} })
     ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.toplevel\` returned from \`test\` in "/".
       Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
     `)
 
     expect(() =>
-      isSerializableProps('/' as Route, 'test', { toplevel: undefined })
+      isSerializableProps(createRoute('/'), 'test', { toplevel: undefined })
     ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.toplevel\` returned from \`test\` in "/".
       Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value."
     `)
 
     expect(() =>
-      isSerializableProps('/' as Route, 'test', { toplevel: Symbol('FOOBAR') })
+      isSerializableProps(createRoute('/'), 'test', {
+        toplevel: Symbol('FOOBAR'),
+      })
     ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.toplevel\` returned from \`test\` in "/".
       Reason: \`symbol\` cannot be serialized as JSON. Please only return JSON serializable data types."
     `)
 
     expect(() =>
-      isSerializableProps('/' as Route, 'test', { toplevel: function () {} })
+      isSerializableProps(createRoute('/'), 'test', {
+        toplevel: function () {},
+      })
     ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.toplevel\` returned from \`test\` in "/".
       Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
@@ -146,7 +150,7 @@ describe('isSerializableProps', () => {
 
   it('diallows nested non-serializable types', () => {
     expect(() =>
-      isSerializableProps('/' as Route, 'test', {
+      isSerializableProps(createRoute('/'), 'test', {
         k: { a: [1, { n: new Date() }] },
       })
     ).toThrowErrorMatchingInlineSnapshot(`
@@ -155,7 +159,7 @@ describe('isSerializableProps', () => {
     `)
 
     expect(() =>
-      isSerializableProps('/' as Route, 'test', {
+      isSerializableProps(createRoute('/'), 'test', {
         k: { a: [1, { n: class A {} }] },
       })
     ).toThrowErrorMatchingInlineSnapshot(`
@@ -164,21 +168,27 @@ describe('isSerializableProps', () => {
     `)
 
     expect(() =>
-      isSerializableProps('/' as Route, 'test', { k: { a: [1, undefined] } })
+      isSerializableProps(createRoute('/'), 'test', {
+        k: { a: [1, undefined] },
+      })
     ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.k.a[1]\` returned from \`test\` in "/".
       Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value."
     `)
 
     expect(() =>
-      isSerializableProps('/' as Route, 'test', { k: { n: Symbol('FOOBAR') } })
+      isSerializableProps(createRoute('/'), 'test', {
+        k: { n: Symbol('FOOBAR') },
+      })
     ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.k.n\` returned from \`test\` in "/".
       Reason: \`symbol\` cannot be serialized as JSON. Please only return JSON serializable data types."
     `)
 
     expect(() =>
-      isSerializableProps('/' as Route, 'test', { k: { a: [function () {}] } })
+      isSerializableProps(createRoute('/'), 'test', {
+        k: { a: [function () {}] },
+      })
     ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.k.a[0]\` returned from \`test\` in "/".
       Reason: \`function\` cannot be serialized as JSON. Please only return JSON serializable data types."
@@ -189,13 +199,13 @@ describe('isSerializableProps', () => {
     const obj: any = { foo: 'bar', test: true }
     obj.child = obj
 
-    expect(() => isSerializableProps('/' as Route, 'test', obj))
+    expect(() => isSerializableProps(createRoute('/'), 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.child\` returned from \`test\` in "/".
       Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
     `)
 
-    expect(() => isSerializableProps('/' as Route, 'test', { k: [obj] }))
+    expect(() => isSerializableProps(createRoute('/'), 'test', { k: [obj] }))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.k[0].child\` returned from \`test\` in "/".
       Reason: Circular references cannot be expressed in JSON (references: \`.k[0]\`)."
@@ -206,14 +216,15 @@ describe('isSerializableProps', () => {
     const arr: any = [{ foo: 'bar' }, true]
     arr.push(arr)
 
-    expect(() => isSerializableProps('/' as Route, 'test', { arr }))
+    expect(() => isSerializableProps(createRoute('/'), 'test', { arr }))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.arr[2]\` returned from \`test\` in "/".
       Reason: Circular references cannot be expressed in JSON (references: \`.arr\`)."
     `)
 
-    expect(() => isSerializableProps('/' as Route, 'test', { k: [{ arr }] }))
-      .toThrowErrorMatchingInlineSnapshot(`
+    expect(() =>
+      isSerializableProps(createRoute('/'), 'test', { k: [{ arr }] })
+    ).toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.k[0].arr[2]\` returned from \`test\` in "/".
       Reason: Circular references cannot be expressed in JSON (references: \`.k[0].arr\`)."
     `)
@@ -223,7 +234,7 @@ describe('isSerializableProps', () => {
     const obj: any = { foo: 'bar', test: true, leve1: { level2: {} } }
     obj.leve1.level2.child = obj
 
-    expect(() => isSerializableProps('/' as Route, 'test', obj))
+    expect(() => isSerializableProps(createRoute('/'), 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.leve1.level2.child\` returned from \`test\` in "/".
       Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
@@ -234,7 +245,7 @@ describe('isSerializableProps', () => {
     const obj: any = { foo: 'bar', test: true, leve1: { level2: {} } }
     obj.leve1.level2.child = [{ another: [obj] }]
 
-    expect(() => isSerializableProps('/' as Route, 'test', obj))
+    expect(() => isSerializableProps(createRoute('/'), 'test', obj))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.leve1.level2.child[0].another[0]\` returned from \`test\` in "/".
       Reason: Circular references cannot be expressed in JSON (references: \`(self)\`)."
@@ -245,7 +256,7 @@ describe('isSerializableProps', () => {
     const arr = [1, 2, []]
     arr[3] = [false, [null, 0, arr]]
 
-    expect(() => isSerializableProps('/' as Route, 'test', { k: arr }))
+    expect(() => isSerializableProps(createRoute('/'), 'test', { k: arr }))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.k[3][1][2]\` returned from \`test\` in "/".
       Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
@@ -256,7 +267,7 @@ describe('isSerializableProps', () => {
     const arr = [1, 2, []]
     arr[3] = [false, { nested: [null, 0, arr] }]
 
-    expect(() => isSerializableProps('/' as Route, 'test', { k: arr }))
+    expect(() => isSerializableProps(createRoute('/'), 'test', { k: arr }))
       .toThrowErrorMatchingInlineSnapshot(`
       "Error serializing \`.k[3][1].nested[2]\` returned from \`test\` in "/".
       Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
@@ -266,7 +277,7 @@ describe('isSerializableProps', () => {
   it('allows multi object refs', () => {
     const obj = { foo: 'bar', test: true }
     expect(
-      isSerializableProps('/' as Route, 'test', {
+      isSerializableProps(createRoute('/'), 'test', {
         obj1: obj,
         obj2: obj,
       })
@@ -276,7 +287,7 @@ describe('isSerializableProps', () => {
   it('allows multi object refs nested', () => {
     const obj = { foo: 'bar', test: true }
     expect(
-      isSerializableProps('/' as Route, 'test', {
+      isSerializableProps(createRoute('/'), 'test', {
         obj1: obj,
         obj2: obj,
         anArray: [obj],
@@ -288,7 +299,7 @@ describe('isSerializableProps', () => {
   it('allows multi array refs', () => {
     const arr = [{ foo: 'bar' }, true]
     expect(
-      isSerializableProps('/' as Route, 'test', {
+      isSerializableProps(createRoute('/'), 'test', {
         arr1: arr,
         arr2: arr,
       })
@@ -298,7 +309,7 @@ describe('isSerializableProps', () => {
   it('allows multi array refs nested', () => {
     const arr = [{ foo: 'bar' }, true]
     expect(
-      isSerializableProps('/' as Route, 'test', {
+      isSerializableProps(createRoute('/'), 'test', {
         arr1: arr,
         arr2: arr,
         arr3: [arr],
@@ -312,8 +323,10 @@ describe('isSerializableProps', () => {
     const arr = [obj, obj]
     const objWithArr = { deep: { arr } }
 
-    expect(isSerializableProps('/' as Route, 'test', { arr })).toBe(true)
-    expect(isSerializableProps('/' as Route, 'test', { objWithArr })).toBe(true)
+    expect(isSerializableProps(createRoute('/'), 'test', { arr })).toBe(true)
+    expect(isSerializableProps(createRoute('/'), 'test', { objWithArr })).toBe(
+      true
+    )
   })
 
   it('allows identical object instances in an array deeply', () => {
@@ -321,7 +334,9 @@ describe('isSerializableProps', () => {
     const arr = [obj, [obj]]
     const objWithArr = { deep: { arr } }
 
-    expect(isSerializableProps('/' as Route, 'test', { arr })).toBe(true)
-    expect(isSerializableProps('/' as Route, 'test', { objWithArr })).toBe(true)
+    expect(isSerializableProps(createRoute('/'), 'test', { arr })).toBe(true)
+    expect(isSerializableProps(createRoute('/'), 'test', { objWithArr })).toBe(
+      true
+    )
   })
 })

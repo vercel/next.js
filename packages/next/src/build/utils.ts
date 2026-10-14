@@ -1,4 +1,9 @@
-import type { Page, Route } from '../shared/lib/route-types'
+import {
+  createPage,
+  createRoute,
+  type Page,
+  type Route,
+} from '../shared/lib/route-types'
 import type {
   NextConfigComplete,
   NextConfigRuntime,
@@ -104,7 +109,7 @@ import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
  */
 function getTreeViewDisplayPath(pagePath: Route): string {
   const prerenderPathname = getStaticMetadataPrerenderPathname(
-    (pagePath.startsWith('/') ? pagePath : `/${pagePath}`) as Route
+    pagePath.startsWith('/') ? pagePath : createRoute(`/${pagePath}`)
   )
   return prerenderPathname ?? pagePath
 }
@@ -113,10 +118,10 @@ function buildStaticMetadataStaticPaths(page: Route): {
   fallbackMode: FallbackMode | undefined
   prerenderedRoutes: PrerenderedRoute[]
 } {
-  // @ts-ignore -- Human review: this is already a Route from static collection; raw Page normalization may strip a real URL leaf. Preserve the existing second normalization.
+  // @ts-ignore -- TODO: Human review: this is already a Route from static collection; raw Page normalization may strip a real URL leaf. Preserve the existing second normalization.
   let pathname = normalizeAppPath(page)
   if (pathname.endsWith('/route')) {
-    pathname = pathname.slice(0, -'/route'.length) as Route
+    pathname = createRoute(pathname.slice(0, -'/route'.length))
   }
 
   const prerenderPathname = getStaticMetadataPrerenderPathname(pathname)
@@ -337,7 +342,7 @@ export async function printTreeView(
   // Check if we have a custom app.
   const hasCustomApp = !!(
     pagesDir &&
-    (await findPageFile(pagesDir, '/_app' as Page, pageExtensions, false))
+    (await findPageFile(pagesDir, createPage('/_app'), pageExtensions, false))
   )
 
   // Collect all the symbols we use so we can print the icons out.
@@ -539,10 +544,10 @@ export async function printTreeView(
               : 0
           const routeSymbol =
             (isSummary ? summarySymbol : undefined) ??
-            // @ts-ignore -- Human review: a summary display label intentionally probes the Route-keyed map, relying on a miss and parent pageInfo fallback. Do not brand this non-URL text.
+            // @ts-ignore -- TODO: Human review: a summary display label intentionally probes the Route-keyed map, relying on a miss and parent pageInfo fallback. Do not brand this non-URL text.
             getTreeViewSymbol(route, pageInfos.get(route) ?? pageInfo)
           const innerSymbol = index === displayedRoutes - 1 ? '└' : '├'
-          // @ts-ignore -- Human review: summary display text is not a Route; this lookup deliberately yields no per-route cache metadata. Preserve the display behavior.
+          // @ts-ignore -- TODO: Human review: summary display text is not a Route; this lookup deliberately yields no per-route cache metadata. Preserve the display behavior.
           const initialCacheControl = pageInfos.get(route)?.initialCacheControl
 
           usedSymbols.add(routeSymbol)
@@ -576,17 +581,18 @@ export async function printTreeView(
     messages.push(['', '', '', ''])
   }
 
-  pageInfos.set('/404' as Route, {
-    ...(pageInfos.get('/404' as Route) || pageInfos.get('/_error' as Route))!,
+  pageInfos.set(createRoute('/404'), {
+    ...(pageInfos.get(createRoute('/404')) ||
+      pageInfos.get(createRoute('/_error')))!,
     isStatic: useStaticPages404,
   })
 
   // If there's no app /_notFound page present, then the 404 is still using the pages/404
   if (
-    !lists.pages.includes('/404' as Route) &&
-    !lists.app?.includes(UNDERSCORE_NOT_FOUND_ROUTE as Route)
+    !lists.pages.includes(createRoute('/404')) &&
+    !lists.app?.includes(createRoute(UNDERSCORE_NOT_FOUND_ROUTE))
   ) {
-    lists.pages = [...lists.pages, '/404' as Route]
+    lists.pages = [...lists.pages, createRoute('/404')]
   }
 
   // Print the tree view for the pages directory.
@@ -596,7 +602,7 @@ export async function printTreeView(
   })
 
   if (
-    middlewareManifest.middleware?.['/' as Route]?.files.length > 0 ||
+    middlewareManifest.middleware?.[createRoute('/')]?.files.length > 0 ||
     // 'nodejs' runtime middleware or proxy is set to
     // functions-config-manifest instead of middleware-manifest.
     functionsConfigManifest.functions?.['/_middleware']
@@ -680,7 +686,9 @@ export function printPrerenderMatchers(
 
   for (const sourceRoute of [...sourceRoutes].sort()) {
     const matchers = (
-      Object.entries(prerenderManifest.dynamicRoutes) as [
+      Object.entries(
+        prerenderManifest.dynamicRoutes
+      ) as /* TODO: Preserve Route entry keys through native iteration. */ [
         Route,
         DynamicPrerenderManifestRoute,
       ][]
@@ -705,7 +713,9 @@ export function printPrerenderMatchers(
       )
 
     const prerenders = (
-      Object.entries(prerenderManifest.routes) as [
+      Object.entries(
+        prerenderManifest.routes
+      ) as /* TODO: Preserve Route entry keys through native iteration. */ [
         Route,
         PrerenderManifestRoute,
       ][]
@@ -965,7 +975,7 @@ export async function isPageStatic({
           Document: mod.Document,
           App: mod.App,
           routeModule: mod.routeModule,
-          // @ts-ignore -- Human review: the edge component record stores the normalized Route in a Page loader-result field, unlike the non-edge raw module lookup. Preserve existing metadata.
+          // @ts-ignore -- TODO: Human review: the edge component record stores the normalized Route in a Page loader-result field, unlike the non-edge raw module lookup. Preserve existing metadata.
           page,
           ComponentMod: mod,
           pageConfig: mod.config || {},
@@ -978,7 +988,7 @@ export async function isPageStatic({
       } else {
         componentsResult = await loadComponents({
           distDir,
-          // @ts-ignore -- Human review: an absent raw App Page falls back to a normalized Route in the module loader. Pages namespaces can coincide, but App routes lose groups/leaf suffixes. Preserve the existing lookup.
+          // @ts-ignore -- TODO: Human review: an absent raw App Page falls back to a normalized Route in the module loader. Pages namespaces can coincide, but App routes lose groups/leaf suffixes. Preserve the existing lookup.
           page: originalAppPath || page,
           isAppPath: pageType === 'app',
           isDev: false,
@@ -1049,10 +1059,10 @@ export async function isPageStatic({
         // build the static paths. The edge runtime doesn't support static
         // paths.
         if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
-          // @ts-ignore -- Human review: page is already a Route from appPathRoutes; raw Page normalization is applied again. Preserve the existing static metadata lookup assumption.
+          // @ts-ignore -- TODO: Human review: page is already a Route from appPathRoutes; raw Page normalization is applied again. Preserve the existing static metadata lookup assumption.
           let pathname = normalizeAppPath(page)
           if (pathname.endsWith('/route')) {
-            pathname = pathname.slice(0, -'/route'.length) as Route
+            pathname = createRoute(pathname.slice(0, -'/route'.length))
           }
 
           if (
@@ -1598,7 +1608,7 @@ export async function copyTracedFiles(
     }
     const route = normalizePagePath(page)
 
-    // @ts-ignore -- Human review: file-encoded Page is tested against URL-keyed staticPages; /index encoding may differ. Preserve standalone trace selection.
+    // @ts-ignore -- TODO: Human review: file-encoded Page is tested against URL-keyed staticPages; /index encoding may differ. Preserve standalone trace selection.
     if (staticPages.has(route)) {
       continue
     }

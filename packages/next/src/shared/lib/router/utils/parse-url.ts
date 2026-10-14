@@ -1,4 +1,4 @@
-import type { Route } from '../../route-types'
+import { type Route, createRoute } from '../../route-types'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { searchParamsToUrlQuery } from './querystring'
@@ -31,7 +31,8 @@ export function parseUrl(url: string): ParsedUrl {
       ? `${username}:${password}`
       : username
     : null
-  const pathname = parsedURL.pathname as Route
+  // The native URL parser has already processed the input and its setters.
+  const pathname = createRoute(parsedURL.pathname)
   const search = parsedURL.search
   return {
     auth,

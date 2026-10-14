@@ -67,7 +67,10 @@ export function generateClientManifest(
     )
 
     sortedPageKeys.forEach((page) => {
-      const dependencies = assetMap.pages[page as string as Page]
+      const dependencies =
+        assetMap.pages[
+          page as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page
+        ]
 
       if (page === '/_app') return
       // Filter out dependencies in the _app entry, because those will have already

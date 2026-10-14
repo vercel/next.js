@@ -43,12 +43,12 @@ export function getMaybePagePath(
         APP_PATHS_MANIFEST
       ),
       !isDev
-    ) as PagesManifest
+    ) as /* TODO: Audit native manifest schema/readonly ownership before exposing a mutable Page-keyed view. */ PagesManifest
   }
   const pagesManifest = loadManifest(
     path.join(/* turbopackIgnore: true */ serverBuildPath, PAGES_MANIFEST),
     !isDev
-  ) as PagesManifest
+  ) as /* TODO: Audit native manifest schema/readonly ownership before exposing a mutable Page-keyed view. */ PagesManifest
 
   try {
     page = denormalizePagePath(normalizePagePath(page))
@@ -60,11 +60,13 @@ export function getMaybePagePath(
   const checkManifest = (manifest: PagesManifest) => {
     let curPath = manifest[page]
 
-    // @ts-ignore -- Human review: curPath is a bundle filename, not a Page manifest key. Preserve the existing locale-fallback condition.
+    // @ts-ignore -- TODO: Human review: curPath is a bundle filename, not a Page manifest key. Preserve the existing locale-fallback condition.
     if (!manifest[curPath] && locales) {
       const manifestNoLocales: typeof pagesManifest = {}
 
-      for (const key of Object.keys(manifest) as Page[]) {
+      for (const key of Object.keys(
+        manifest
+      ) as /* TODO: Preserve Page keys across native record iteration. */ Page[]) {
         manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
           pagesManifest[key]
       }

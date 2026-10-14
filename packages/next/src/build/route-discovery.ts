@@ -1,4 +1,9 @@
-import type { Page, Route } from '../shared/lib/route-types'
+import {
+  createPage,
+  pagesPageToRoute,
+  type Page,
+  type Route,
+} from '../shared/lib/route-types'
 import { join } from 'path'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -67,12 +72,12 @@ function normalizeAppRoute(pageName: Page): Route {
 
 /** Normalize a layout route (strip /layout suffix) */
 function normalizeLayoutRoute(pageName: Page): Route {
+  // The suffix removal may yield empty text for the root layout. Establish the
+  // Route only after the existing leading-slash step completes this normalizer.
+  // TODO: Guard this normalizer's completed Route boundary without changing its string helpers.
   return ensureLeadingSlash(
-    removeSuffix(
-      normalizeAppPath(normalizePathSep(pageName)),
-      '/layout'
-    ) as Route
-  )
+    removeSuffix(normalizeAppPath(normalizePathSep(pageName)), '/layout')
+  ) as Route
 }
 
 /**
@@ -96,7 +101,7 @@ export function getPageFromPath(
 
   page = removeSuffix(page, '/index')
 
-  return (page === '' ? '/' : page) as Page
+  return createPage(page === '' ? '/' : page)
 }
 
 /**
@@ -195,14 +200,14 @@ export function processPageRoutes(
 
     if (route.startsWith('/api/')) {
       pageApiRoutes.push({
-        route: normalizePathSep(route) as string as Route,
+        route: pagesPageToRoute(normalizePathSep(route)),
         filePath: relativeFilePath,
       })
     } else {
       if (isReservedPage(route)) continue
 
       pageRoutes.push({
-        route: normalizePathSep(route) as string as Route,
+        route: pagesPageToRoute(normalizePathSep(route)),
         filePath: relativeFilePath,
       })
     }
@@ -226,6 +231,7 @@ export function processAppRoutes(
   const appRoutes: RouteInfo[] = []
   const appRouteHandlers: RouteInfo[] = []
 
+  // Object.entries erases the module-key role already established by mapping.
   for (const [page, filePath] of Object.entries(mappedAppPages) as [
     Page,
     string,
@@ -263,6 +269,7 @@ export function processLayoutRoutes(
   baseDir: string,
   isSrcDir: boolean
 ): RouteInfo[] {
+  // Preserve the mapped module-key role through Object.entries, not new branding.
   return (Object.entries(mappedAppLayouts) as [Page, string][]).map(
     ([route, filePath]) => ({
       route: normalizeLayoutRoute(route),
@@ -302,7 +309,7 @@ export async function createPagesMapping({
       let pageKey = getPageFromPath(pagePath, pageExtensions)
       if (isAppRoute) {
         // Turbopack encodes '_' as '%5F' in app paths; normalize to underscores.
-        pageKey = pageKey.replace(/%5F/g, '_') as Page
+        pageKey = createPage(pageKey.replace(/%5F/g, '_'))
         if (pageKey === UNDERSCORE_NOT_FOUND_ROUTE) {
           pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
         }
@@ -375,9 +382,9 @@ export async function createPagesMapping({
     }
     case PAGE_TYPES.PAGES: {
       if (isDev) {
-        delete pages['/_app' as Page]
-        delete pages['/_error' as Page]
-        delete pages['/_document' as Page]
+        delete pages[createPage('/_app')]
+        delete pages[createPage('/_error')]
+        delete pages[createPage('/_document')]
       }
 
       const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'

@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import type { WorkStore } from '../app-render/work-async-storage.external'
-import type { Page, Route } from '../../shared/lib/route-types'
+import { createPage, createRoute } from '../../shared/lib/route-types'
 import type { IncrementalCache } from './incremental-cache'
 import { CachedRouteKind } from '../response-cache'
 import { createPatchedFetcher } from './patch-fetch'
@@ -71,8 +71,8 @@ describe('createPatchedFetcher', () => {
 
     // We only need to provide a few of the WorkStore properties.
     const workStore: Partial<WorkStore> = {
-      page: '/' as Page,
-      route: '/' as Route,
+      page: createPage('/'),
+      route: createRoute('/'),
       incrementalCache,
     }
 
@@ -134,8 +134,8 @@ describe('createPatchedFetcher', () => {
     })
 
     const workStore: Partial<WorkStore> = {
-      page: '/' as Page,
-      route: '/' as Route,
+      page: createPage('/'),
+      route: createRoute('/'),
       shouldTrackFetchMetrics: true,
     }
 
@@ -193,8 +193,8 @@ describe('createPatchedFetcher', () => {
         workUnitAsyncStorage: new AsyncLocalStorage<WorkUnitStore>(),
       })
       const workStore: Partial<WorkStore> = {
-        page: '/',
-        route: '/',
+        page: createPage('/'),
+        route: createRoute('/'),
         shouldTrackFetchMetrics,
       }
 
@@ -260,8 +260,8 @@ describe('createPatchedFetcher', () => {
         workUnitAsyncStorage: new AsyncLocalStorage<WorkUnitStore>(),
       })
       const workStore: Partial<WorkStore> = {
-        page: '/',
-        route: '/',
+        page: createPage('/'),
+        route: createRoute('/'),
         incrementalCache,
       }
 

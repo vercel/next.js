@@ -1,4 +1,4 @@
-import type { Route } from '../../../../shared/lib/route-types'
+import { createRoute } from '../../../../shared/lib/route-types'
 import type {
   ActionFlightResponse,
   ActionResult,
@@ -502,7 +502,7 @@ export function serverActionReducer(
         // Learn the route pattern so we can predict it for future navigations.
         discoverKnownRoute(
           now,
-          redirectUrl.pathname as Route,
+          createRoute(redirectUrl.pathname),
           redirectUrl.search as NormalizedSearch,
           nextUrl,
           null, // No pending entry

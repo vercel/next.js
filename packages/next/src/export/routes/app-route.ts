@@ -103,9 +103,10 @@ export async function exportAppRoute(
     // userland module must be resolved before its exports can be inspected.
     await module.ensureUserland()
     const userland = module.userland
-    // we don't bail from the static optimization for
-    // metadata routes, since it's app-route we can always append /route suffix.
-    const routePath = (normalizeAppPath(page) + '/route') as Page
+    // Metadata routes do not bail out of static optimization. This synthetic
+    // matching label appends /route to the normalized URL, not the original entry.
+    const routePath = normalizeAppPath(page) + '/route'
+    // @ts-ignore TODO: Human review: this URL-derived metadata label omits original App groups/slots and is not the discovered module Page. Preserve the existing predicate and text without claiming module identity.
     const isPageMetadataRoute = isMetadataRoute(routePath)
 
     if (

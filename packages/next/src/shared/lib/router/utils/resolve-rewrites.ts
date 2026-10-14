@@ -90,7 +90,7 @@ export default function resolveRewrites(
       asPath = destRes.newUrl
       Object.assign(query, destRes.parsedDestination.query)
 
-      // @ts-ignore -- Human review: newUrl may include a hash, but is used as a URL pathname instead of parsedDestination.pathname. Preserve existing behavior.
+      // @ts-ignore -- TODO: Human review: newUrl may include a hash, but is used as a URL pathname instead of parsedDestination.pathname. Preserve existing behavior.
       fsPathname = removeTrailingSlash(
         normalizeLocalePath(removeBasePath(asPath), locales).pathname
       )

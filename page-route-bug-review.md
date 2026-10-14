@@ -88,3 +88,22 @@ References identify source files and functions rather than unstable line numbers
 48. **Webpack Pages typed-route generation decodes file identifiers as URL patterns** — `build/webpack/plugins/next-types-plugin/index.ts#collectPage` conditionally returns a normalized App Route or a decoded Pages Page. The route-to-TypeScript formatter now explicitly accepts Route and returns generated text, with its implementation parameter remaining string for the template rewrite. The Pages branch still treats the Page-file decoder result as a URL pattern; one narrow ignore at the formatter call retains this behavior without a Page→Route assertion. Generated public typedRoutes.Route output remains unchanged.
 
 Out-of-scope follow-up separately recorded: turbopack/entry-key.ts EntryKey serialized side template uses EntryKeyType instead of EntryKeySide. Not fixed.
+
+## Rebase note
+
+After rebasing onto canary `9ec56531`, upstream static-path generation now supplies the raw module Page to WorkStore and the separate normalized Route to implicit URL tags. The historical static-path findings above (including item47) describe the earlier baseline; their obsolete local suppressions were removed while retaining the upstream fixes. Other unresolved findings remain TODO/deferred. The rebase also preserves upstream root-layout separator normalization, removal of the unused export matcher cache, and base-path prefix stripping.
+
+## Guarded-constructor follow-up: partial delivery
+
+The follow-up introduces guarded scalar, sequence, record and native-boundary identity APIs for the internal shared Page/Route brands. Completed call sites use those APIs without parsing, validation, normalization, cloning or mutation. The identity helpers return their exact input; existing parser/normalizer calls and their evaluation order remain in place. Public string-compatible interfaces and the separate public typed-routes brand remain unchanged.
+
+**This is a partial migration, not closure of the assumptions above.** Remaining unclear boundaries carry local TODO comments and retain their existing behavior:
+
+- **Known record keys:** `Object.keys`, `Object.entries`, `Object.fromEntries`, sorting and `for…in` erase existing branded key roles. Retained recovery assertions need a preservation solution, not raw-string reconstruction.
+- **Branch correlations and Pages relationships:** metadata, entry/output discriminators and Pages-only URL/module relationships still require guarded preservation or identity bridges. Existing brand erasure/casts are marked TODO, not endorsed as a general bypass.
+- **Native/schema views:** manifest readers require writer/schema/readonly-ownership audits. Contextually inferred generic types do not independently prove branded keys; cached frozen manifests must not silently become mutable contracts.
+- **Temporary template ingestion and Pages bridges:** narrow suppression comments preserve generated-template behavior, the client manifest's Pages-only sequence, and two nullable Webpack HMR values. Guarded treatment remains deferred.
+- **NextURL:** four unchanged middleware/App Route assertions expose a native-parsed pathname through a public string-compatible getter/object. Their guarded internal view is deferred; no NextURL helper was retained.
+- **Unresolved representation assumptions:** raw App module names versus URL paths, slot/group metadata, fallback/artifact filenames, cache owners, parser fallbacks and the fake middleware Page remain review work. The original Human-review notes are now TODO-labelled. No behavior fix is claimed.
+
+Verification for the delivered snapshot checks constructor rejection/type contracts, public compatibility, exact identity/reference behavior and symbol-resolved emitted-code preservation. Previously passing normal bundler fixtures cover the unchanged executable migration. One earlier native-boundary fixture run completed its assertions but remained open because of test handles; it is not reported as a clean completed run, and no new skip or forced exit was added.

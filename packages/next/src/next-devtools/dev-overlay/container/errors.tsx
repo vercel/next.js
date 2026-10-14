@@ -42,7 +42,7 @@ import {
   CACHE_STAGE_VIEWPORT_EXPLANATION,
 } from '../components/instant/instant-guidance-data'
 import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute, type Route } from '../../../shared/lib/route-types'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
@@ -566,7 +566,7 @@ export function getUnrenderedSegmentErrorDetails(
   }
   const routeMatch = /^Route "([^"]+)":/.exec(message)
   if (!routeMatch) return null
-  const route = routeMatch[1] as Route // Recognized framework error serializes WorkStore.route.
+  const route = createRoute(routeMatch[1]) // Recognized framework error serializes WorkStore.route.
 
   // The body lists `Dropped segment:` or `Dropped segments:` followed
   // by indented file paths on subsequent lines until the next blank line.
@@ -600,7 +600,7 @@ export function getLinkPrefetchPartialErrorDetails(
   if (!match) return null
   return {
     type: 'link-prefetch-partial',
-    pathname: match[1] as Route, // Recognized framework warning serializes a native URL pathname.
+    pathname: createRoute(match[1]), // Recognized framework warning serializes a native URL pathname.
   }
 }
 

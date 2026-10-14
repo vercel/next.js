@@ -1,4 +1,9 @@
-import type { Page, Route } from '../../../shared/lib/route-types'
+import {
+  type Page,
+  type Route,
+  createPage,
+  createRoute,
+} from '../../../shared/lib/route-types'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
 import {
@@ -46,7 +51,7 @@ type ParallelRouteTopology = {
 
 const defaultNormalizer: AppPathNormalizer = {
   normalize(pathname: Page): Route {
-    return normalizeAppPath(pathname).replace(/%5F/g, '_') as Route
+    return createRoute(normalizeAppPath(pathname).replace(/%5F/g, '_'))
   },
 }
 
@@ -83,9 +88,13 @@ export function normalizeCatchAllRoutes(
   // interception routes should only be matched by a single entrypoint
   // we don't want to push a catch-all route to an interception route
   // because it would mean the interception would be handled by the wrong page component
-  const filteredAppPaths = (Object.keys(appPaths) as Route[]).filter(
-    (route) => !isInterceptionRouteAppPath(route)
-  )
+  // Object.keys erases the existing matcher key type; preserve it rather than
+  // re-constructing a routing identity from an already Route-keyed manifest.
+  const filteredAppPaths = (
+    Object.keys(
+      appPaths
+    ) as /* TODO: Preserve the existing Route key across Object.keys. */ (keyof typeof appPaths)[]
+  ).filter((route) => !isInterceptionRouteAppPath(route))
 
   for (const appPath of filteredAppPaths) {
     for (const catchAllRoute of catchAllRoutes) {
@@ -161,7 +170,9 @@ function findIncompatibleParallelRouteSlotsWithTopology(
 ): IncompatibleParallelRouteSlots[] {
   const incompatibleRoutes: IncompatibleParallelRouteSlots[] = []
 
-  for (const [route, matchedAppPaths] of Object.entries(appPaths) as [
+  for (const [route, matchedAppPaths] of Object.entries(
+    appPaths
+  ) as /* TODO: Preserve Route entry keys through native iteration. */ [
     Route,
     Page[],
   ][]) {
@@ -204,7 +215,8 @@ function findIncompatibleParallelRouteSlotsWithTopology(
 
       if (missingSlots.length > 0) {
         incompatibleRoutes.push({
-          layoutPath: `/${parentSegments.join('/')}` as Page,
+          // @ts-ignore TODO: Human review: this diagnostic parent prefix has no /layout leaf and is not a discovered module Page. Preserve its text and existing field contract without branding the prefix.
+          layoutPath: `/${parentSegments.join('/')}`,
           route,
           missingSlots: missingSlots.sort(),
         })
@@ -240,7 +252,9 @@ function pruneUnrenderableCatchAllRoutes(
   appPaths: Record<Route, Page[]>,
   { allAppPaths, levelsByParent }: ParallelRouteTopology
 ) {
-  for (const [route, matchedAppPaths] of Object.entries(appPaths) as [
+  for (const [route, matchedAppPaths] of Object.entries(
+    appPaths
+  ) as /* TODO: Preserve Route entry keys through native iteration. */ [
     Route,
     Page[],
   ][]) {
@@ -321,7 +335,9 @@ function pruneUnrenderableRoutes(
   appPaths: Record<Route, Page[]>,
   { allAppPaths, levelsByParent }: ParallelRouteTopology
 ) {
-  for (const [route, matchedAppPaths] of Object.entries(appPaths) as [
+  for (const [route, matchedAppPaths] of Object.entries(
+    appPaths
+  ) as /* TODO: Preserve Route entry keys through native iteration. */ [
     Route,
     Page[],
   ][]) {
@@ -489,7 +505,7 @@ function isPathInSlot(appPath: Page, parent: string[], slot: string): boolean {
 function getDefaultAppPath(parent: string[], slot: string): Page {
   const segments =
     slot === 'children' ? [...parent, 'default'] : [...parent, slot, 'default']
-  return `/${segments.join('/')}` as Page
+  return createPage(`/${segments.join('/')}`)
 }
 
 function hasMatchedSlots(path1: Page, path2: Page): boolean {

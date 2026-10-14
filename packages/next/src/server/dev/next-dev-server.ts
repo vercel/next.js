@@ -4,7 +4,12 @@ import type { Options as ServerOptions } from '../next-server'
 import type { Params } from '../request/params'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
-import type { Page, Route } from '../../shared/lib/route-types'
+import {
+  type Page,
+  type Route,
+  createPage,
+  createRoute,
+} from '../../shared/lib/route-types'
 import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
@@ -334,7 +339,7 @@ export default class DevServer extends Server {
     if (this.appDir) {
       appFile = await findPageFile(
         this.appDir,
-        (normalizedPath + '/page') as Page,
+        createPage(normalizedPath + '/page'),
         this.nextConfig.pageExtensions,
         true
       )
@@ -552,13 +557,13 @@ export default class DevServer extends Server {
     // TODO: see if we can remove this in the future
     if (
       basePath &&
-      pathHasPrefix(parsedUrl.pathname || ('/' as Route), basePath)
+      pathHasPrefix(parsedUrl.pathname || createRoute('/'), basePath)
     ) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
       originalPathname = parsedUrl.pathname
       parsedUrl.pathname = removePathPrefix(
-        parsedUrl.pathname || ('/' as Route),
+        parsedUrl.pathname || createRoute('/'),
         basePath
       )
     }
@@ -999,7 +1004,7 @@ export default class DevServer extends Server {
   async getCompilationError(page: string): Promise<any> {
     // Preserve the external diagnostic API's string input. Its argument is a
     // raw module identifier (findPageComponents supplies Page internally).
-    return await this.bundlerService.getCompilationError(page as Page)
+    return await this.bundlerService.getCompilationError(createPage(page))
   }
 
   protected async instrumentationOnRequestError(

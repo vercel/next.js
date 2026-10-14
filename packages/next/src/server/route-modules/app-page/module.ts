@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute, type Route } from '../../../shared/lib/route-types'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
 import type { PrerenderResult } from '../../render-result'
@@ -139,11 +139,11 @@ export class AppPageRouteModule extends RouteModule<
   ) {
     if (
       this.normalizers.segmentPrefetchRSC.match(
-        parsedUrl.pathname || ('/' as Route)
+        parsedUrl.pathname || createRoute('/')
       )
     ) {
       const result = this.normalizers.segmentPrefetchRSC.extract(
-        parsedUrl.pathname || ('/' as Route)
+        parsedUrl.pathname || createRoute('/')
       )
       if (!result) return false
 
@@ -159,10 +159,10 @@ export class AppPageRouteModule extends RouteModule<
       addRequestMeta(req, 'isPrefetchRSCRequest', true)
       addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
     } else if (
-      this.normalizers.rsc.match(parsedUrl.pathname || ('/' as Route))
+      this.normalizers.rsc.match(parsedUrl.pathname || createRoute('/'))
     ) {
       parsedUrl.pathname = this.normalizers.rsc.normalize(
-        parsedUrl.pathname || ('/' as Route),
+        parsedUrl.pathname || createRoute('/'),
         true
       )
 
@@ -175,7 +175,7 @@ export class AppPageRouteModule extends RouteModule<
     // Minimal adapters can bypass base-server request normalization and invoke
     // route modules directly, so derive RSC/prefetch metadata from headers.
     applyAppPageRscRequestMetaFromHeaders(req)
-    normalizeAppPageRequestUrl(req, parsedUrl.pathname || ('/' as Route))
+    normalizeAppPageRequestUrl(req, parsedUrl.pathname || createRoute('/'))
   }
 
   public render(

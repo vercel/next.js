@@ -1,4 +1,4 @@
-import type { Route } from '../../shared/lib/route-types'
+import { createRoute, type Route } from '../../shared/lib/route-types'
 import type { RootRouteTree } from './segment-cache/cache'
 import type {
   FlightRouterState,
@@ -285,7 +285,7 @@ export function navigateToKnownRoute(
           PrefetchHint.SubtreeHasInstantFalse)) ===
         0
     ) {
-      const error = createLinkPrefetchPartialError(url.pathname as Route)
+      const error = createLinkPrefetchPartialError(createRoute(url.pathname))
       const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
       if (ownerStack === undefined) {
         console.error(
@@ -543,7 +543,7 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   discoverKnownRoute(
     now,
-    url.pathname as Route,
+    createRoute(url.pathname),
     url.search as NormalizedSearch,
     nextUrl,
     null, // No pending entry

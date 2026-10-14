@@ -79,7 +79,7 @@ export function getLocaleRedirect({
   if (
     nextConfig.i18n &&
     nextConfig.i18n.localeDetection !== false &&
-    // @ts-ignore Human review: locale root detection applies a Page-only file decoder to a URL Route; preserve existing /index handling.
+    // @ts-ignore TODO: Human review: locale root detection applies a Page-only file decoder to a URL Route; preserve existing /index handling.
     denormalizePagePath(urlParsed.pathname) === '/'
   ) {
     const preferredLocale = getAcceptPreferredLocale(nextConfig.i18n, headers)

@@ -9,6 +9,9 @@ import type { Normalizer } from './normalizer'
  */
 // Pages-router filename discovery can produce either the page identifier or
 // the identical URL route representation; app filename discovery produces Page.
+// The implementation assertion preserves this configured discovery contract:
+// DevPagesPathnameNormalizer selects Route with PAGE_TYPES.PAGES; the Pages-page
+// and App-page normalizers keep Page. Route output must never be selected for App.
 export class AbsoluteFilenameNormalizer<Output extends Page | Route = Page>
   implements Normalizer<string, Output>
 {
@@ -30,6 +33,6 @@ export class AbsoluteFilenameNormalizer<Output extends Page | Route = Page>
       keepIndex: false,
       dir: this.dir,
       pagesType: this.pagesType,
-    }) as string as Output
+    }) as Output
   }
 }

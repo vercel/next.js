@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute } from '../../../shared/lib/route-types'
 import {
   resolveUrl,
   resolveAbsoluteUrlWithPathname,
@@ -51,7 +51,7 @@ describe('metadata: resolveUrl', () => {
 describe('resolveAbsoluteUrlWithPathname', () => {
   describe('trailingSlash is false', () => {
     const metadataBase = new URL('https://example.com/')
-    const pathname = '/' as Route
+    const pathname = createRoute('/')
     const opts = {
       trailingSlash: false,
       isStaticMetadataRouteFile: false,
@@ -73,7 +73,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
 
   describe('trailingSlash is true', () => {
     const metadataBase = new URL('https://example.com/')
-    const pathname = '/' as Route
+    const pathname = createRoute('/')
     const opts = {
       trailingSlash: true,
       isStaticMetadataRouteFile: false,

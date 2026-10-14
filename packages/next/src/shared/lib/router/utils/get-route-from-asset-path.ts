@@ -1,4 +1,4 @@
-import type { Page } from '../../route-types'
+import { type Page, createPage } from '../../route-types'
 
 // Translate a pages asset path (relative from a common prefix) back into its logical route
 
@@ -17,5 +17,5 @@ export default function getRouteFromAssetPath(
   } else if (assetPath === '/index') {
     assetPath = '/'
   }
-  return assetPath as Page
+  return createPage(assetPath)
 }

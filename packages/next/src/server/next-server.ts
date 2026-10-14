@@ -2,7 +2,13 @@ import './node-environment'
 import './require-hook'
 import './node-polyfill-crypto'
 
-import type { Page, Route } from '../shared/lib/route-types'
+import {
+  type Page,
+  type Route,
+  createPage,
+  createRoute,
+  pagesRouteToPage,
+} from '../shared/lib/route-types'
 import type { CacheFs } from '../shared/lib/utils'
 import {
   DecodeError,
@@ -342,7 +348,9 @@ export default class NextNodeServer extends BaseServer<
 
     await this.loadCustomCacheHandlers()
 
-    for (const page of Object.keys(pagesManifest || {}) as Page[]) {
+    for (const page of Object.keys(
+      pagesManifest || {}
+    ) as /* TODO: Preserve Page keys across native record iteration. */ Page[]) {
       try {
         await loadComponents({
           distDir: this.distDir,
@@ -357,7 +365,9 @@ export default class NextNodeServer extends BaseServer<
       }
     }
 
-    for (const page of Object.keys(appPathsManifest || {}) as Page[]) {
+    for (const page of Object.keys(
+      appPathsManifest || {}
+    ) as /* TODO: Preserve Page keys across native record iteration. */ Page[]) {
       try {
         const { ComponentMod } = await loadComponents<
           AppPageModule | AppRouteModule
@@ -510,7 +520,7 @@ export default class NextNodeServer extends BaseServer<
   protected getPagesManifest(): PagesManifest | undefined {
     return loadManifest(
       join(/* turbopackIgnore: true */ this.serverDistDir, PAGES_MANIFEST)
-    ) as PagesManifest
+    ) as /* TODO: Audit native manifest schema/readonly ownership before exposing a mutable Page-keyed view. */ PagesManifest
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
@@ -518,7 +528,7 @@ export default class NextNodeServer extends BaseServer<
 
     return loadManifest(
       join(/* turbopackIgnore: true */ this.serverDistDir, APP_PATHS_MANIFEST)
-    ) as PagesManifest
+    ) as /* TODO: Audit native manifest schema/readonly ownership before exposing a mutable Page-keyed view. */ PagesManifest
   }
 
   protected getinterceptionRoutePatterns(): RegExp[] {
@@ -599,14 +609,14 @@ export default class NextNodeServer extends BaseServer<
     const edgeFunctionsPages = this.getEdgeFunctionsPages()
 
     for (const edgeFunctionsPage of edgeFunctionsPages) {
-      // @ts-ignore -- Human review: edge entries are raw Page module keys but are compared with the normalized API Route. Preserve this Pages-router namespace assumption.
+      // @ts-ignore -- TODO: Human review: edge entries are raw Page module keys but are compared with the normalized API Route. Preserve this Pages-router namespace assumption.
       if (edgeFunctionsPage === match.definition.pathname) {
         const handledAsEdgeFunction = await this.runEdgeFunction({
           req,
           res,
           query,
           params: match.params,
-          // @ts-ignore -- Human review: edge-module lookup receives normalized API Route rather than raw definition.page. Preserve the existing Pages-router namespace assumption.
+          // @ts-ignore -- TODO: Human review: edge-module lookup receives normalized API Route rather than raw definition.page. Preserve the existing Pages-router namespace assumption.
           page: match.definition.pathname,
           appPaths: null,
         })
@@ -858,9 +868,9 @@ export default class NextNodeServer extends BaseServer<
       const appPaths = this.getOriginalAppPaths(ctx.pathname)
       const isAppPath = Array.isArray(appPaths)
 
-      // Pages-router edge modules use their pathname as the page lookup key.
-      // App routes below select the original Page from appPaths instead.
-      let page = ctx.pathname as string as Page
+      // This default is consumed only by the Pages edge lookup. App paths
+      // overwrite it with the original module entry before comparison.
+      let page = pagesRouteToPage(ctx.pathname)
       if (isAppPath) {
         // When it's an array, we need to pass all parallel routes to the loader.
         page = selectAppPageEntry(ctx.pathname, appPaths)
@@ -943,8 +953,8 @@ export default class NextNodeServer extends BaseServer<
 
     if (locale) {
       pagePaths.unshift(
-        ...pagePaths.map(
-          (path) => `/${locale}${path === '/' ? '' : path}` as Page
+        ...pagePaths.map((path) =>
+          createPage(`/${locale}${path === '/' ? '' : path}`)
         )
       )
     }
@@ -1459,7 +1469,7 @@ export default class NextNodeServer extends BaseServer<
 
     if (this.dev) {
       await this.ensurePage({
-        // @ts-ignore -- Human review: a custom-server URL pathname is passed directly to raw Page discovery, without selecting an app entry. Preserve this legacy ensure behavior.
+        // @ts-ignore -- TODO: Human review: a custom-server URL pathname is passed directly to raw Page discovery, without selecting an app entry. Preserve this legacy ensure behavior.
         page: pathname,
         clientOnly: false,
         url: normalizedReq.url,
@@ -1599,7 +1609,7 @@ export default class NextNodeServer extends BaseServer<
   /** Returns the middleware routing item if there is one. */
   protected async getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     const manifest = this.getMiddlewareManifest()
-    const middleware = manifest?.middleware?.['/' as Route]
+    const middleware = manifest?.middleware?.[createRoute('/')]
     if (!middleware) {
       const middlewareModule = await this.loadNodeMiddleware()
 
@@ -1610,7 +1620,7 @@ export default class NextNodeServer extends BaseServer<
               { regexp: '.*', originalSource: '/:path*' },
             ]
           ),
-          page: '/' as Route,
+          page: createRoute('/'),
         }
       }
 
@@ -1619,7 +1629,7 @@ export default class NextNodeServer extends BaseServer<
 
     return {
       match: getMiddlewareMatcher(middleware),
-      page: '/' as Route,
+      page: createRoute('/'),
     }
   }
 
@@ -1629,7 +1639,9 @@ export default class NextNodeServer extends BaseServer<
       return []
     }
 
-    return Object.keys(manifest.functions) as Page[]
+    return Object.keys(
+      manifest.functions
+    ) as /* TODO: Preserve Page keys across native record iteration. */ Page[]
   }
 
   /**
@@ -1661,7 +1673,7 @@ export default class NextNodeServer extends BaseServer<
     let foundPage: Page
 
     try {
-      // @ts-ignore -- Human review: the middleware branch passes a URL scope (Route) through a Page file codec. Preserve the existing round-trip and error handling rather than normalizing it differently.
+      // @ts-ignore -- TODO: Human review: the middleware branch passes a URL scope (Route) through a Page file codec. Preserve the existing round-trip and error handling rather than normalizing it differently.
       foundPage = denormalizePagePath(normalizePagePath(params.page))
     } catch (err) {
       return null
@@ -1671,7 +1683,7 @@ export default class NextNodeServer extends BaseServer<
       | EdgeFunctionDefinition<Route>
       | EdgeFunctionDefinition<Page>
       | undefined = params.middleware
-      ? // @ts-ignore -- Human review: the Page codec result is used as a URL-scope key for middleware. Its representation is not proven to be Route; retain this lookup for review.
+      ? // @ts-ignore -- TODO: Human review: the Page codec result is used as a URL-scope key for middleware. Its representation is not proven to be Route; retain this lookup for review.
         manifest.middleware[foundPage]
       : manifest.functions[foundPage]
 
@@ -2132,7 +2144,7 @@ export default class NextNodeServer extends BaseServer<
       () =>
         loadManifest(
           join(/* turbopackIgnore: true */ this.distDir, ROUTES_MANIFEST)
-        ) as RoutesManifest
+        ) as /* TODO: Guard the native Route manifest view without changing reader/cache behavior. */ RoutesManifest
     )
   }
 

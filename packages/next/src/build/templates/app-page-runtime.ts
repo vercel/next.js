@@ -198,10 +198,12 @@ export function createAppPageEntrypoint({
   // so we need to to process dynamic routes properly
   // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
-    srcPage = (srcPage.replace(/\/index$/, '') || '/') as Page
+    // @ts-ignore -- TODO: Temporary template boundary: completed App module-key normalization; guarded construction deferred.
+    srcPage = srcPage.replace(/\/index$/, '') || '/'
   } else if (srcPage === '/index') {
     // we always normalize /index specifically
-    srcPage = '/' as Page
+    // @ts-ignore -- TODO: Temporary template boundary: existing root module-key normalization; guarded construction deferred.
+    srcPage = '/'
   }
 
   const normalizedSrcPage = normalizeAppPath(srcPage)

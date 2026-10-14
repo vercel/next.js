@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute, type Route } from '../../../shared/lib/route-types'
 
 // TypeScript trick to simulate opaque types, like in Flow.
 type Opaque<K, T> = T & { __brand: K }
@@ -26,7 +26,9 @@ export function createCacheKey(
 ): RouteCacheKey {
   const originalUrl = new URL(originalHref)
   const cacheKey = {
-    pathname: originalUrl.pathname as NormalizedPathname,
+    // Native parsing establishes the Route; this assertion adds only the
+    // existing cache-specific opacity, not a second routing identity.
+    pathname: createRoute(originalUrl.pathname) as NormalizedPathname,
     search: originalUrl.search as NormalizedSearch,
     nextUrl: nextUrl as NormalizedNextUrl | null,
   } as RouteCacheKey

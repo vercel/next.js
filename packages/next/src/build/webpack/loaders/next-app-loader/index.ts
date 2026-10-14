@@ -1,4 +1,8 @@
-import type { Page, Route } from '../../../../shared/lib/route-types'
+import {
+  createPage,
+  type Page,
+  type Route,
+} from '../../../../shared/lib/route-types'
 import type webpack from 'next/dist/compiled/webpack/webpack'
 import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
@@ -1057,7 +1061,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const getStaticSiblingSegments = (segmentPath: string): string[] => {
     // Normalize the current path to URL space
     // Add a trailing /page so normalizeAppPath strips it properly
-    const currentUrlPath = normalizeAppPath((segmentPath + '/page') as Page)
+    const currentUrlPath = normalizeAppPath(createPage(segmentPath + '/page'))
     const currentUrlSegments = currentUrlPath.split('/').filter(Boolean)
 
     // If the path is empty (root level), there are no siblings
@@ -1084,7 +1088,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     for (const appPath of allNormalizedAppPaths) {
       // Normalize each path to URL space (strip route groups, parallel routes, and /page suffix)
-      // @ts-ignore -- Human review: these keys are already Routes from appPathsPerRoute; normalizing again as raw Pages may strip a real URL /page or /route segment. Preserve sibling computation.
+      // @ts-ignore -- TODO: Human review: these keys are already Routes from appPathsPerRoute; normalizing again as raw Pages may strip a real URL /page or /route segment. Preserve sibling computation.
       const urlPath = normalizeAppPath(appPath)
       const urlSegments = urlPath.split('/').filter(Boolean)
 

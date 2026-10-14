@@ -44,7 +44,9 @@ export class PrerenderManifestMatcher {
     prerenderManifest: DeepReadonly<PrerenderManifest>
   ) {
     this.matchers = (
-      Object.entries(prerenderManifest.dynamicRoutes) as [
+      Object.entries(
+        prerenderManifest.dynamicRoutes
+      ) as /* TODO: Preserve Route entry keys through native iteration. */ [
         Route,
         DeepReadonly<DynamicPrerenderManifestRoute>,
       ][]

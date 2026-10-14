@@ -1,4 +1,4 @@
-import type { Page } from '../shared/lib/route-types'
+import { type Page, createPage } from '../shared/lib/route-types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
   AppType,
@@ -154,7 +154,7 @@ export async function loadClientReferenceManifestForPage(
   page: Page,
   attempts?: number
 ): Promise<DeepReadonly<ClientReferenceManifest> | undefined> {
-  const entryName = page.replace(/%5F/g, '_') as Page
+  const entryName = createPage(page.replace(/%5F/g, '_'))
 
   const manifestPath = join(
     /* turbopackIgnore: true */ distDir,
@@ -205,8 +205,8 @@ async function loadComponentsImpl<
   let AppMod = {}
   if (!isAppPath) {
     ;[DocumentMod, AppMod] = await Promise.all([
-      requirePage('/_document' as Page, distDir, false),
-      requirePage('/_app' as Page, distDir, false),
+      requirePage(createPage('/_document'), distDir, false),
+      requirePage(createPage('/_app'), distDir, false),
     ])
   }
 

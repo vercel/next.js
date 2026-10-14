@@ -1,7 +1,6 @@
 import { pageToRoute } from '../utils'
 import { collectFallbackShellRuns } from './fallback-shell-runs'
-import type { RoutesManifest } from '..'
-import type { Route } from '../../shared/lib/route-types'
+import { createRoute } from '../../shared/lib/route-types'
 
 // The suites in `test/production/app-dir/adapter-dynamic-routes` cover the
 // shapes that a build produces, and they pin the entries that come out of them.
@@ -17,23 +16,22 @@ import type { Route } from '../../shared/lib/route-types'
  * A fallback shell, which the build derives from a normalized source URL pattern.
  */
 function shell(page: string, sourcePage: string) {
-  return pageToRoute(page as Route, sourcePage as Route)
+  return pageToRoute(createRoute(page), createRoute(sourcePage))
 }
 
 /**
  * Any other dynamic route, which carries no source page.
  */
 function plain(page: string) {
-  return pageToRoute(page as Route, undefined)
+  return pageToRoute(createRoute(page), undefined)
 }
 
 function collect(
   routes: ReturnType<typeof plain>[],
   fallbackFalsePages: string[] = []
 ) {
-  const result = collectFallbackShellRuns(
-    routes as RoutesManifest['dynamicRoutes'],
-    (page) => fallbackFalsePages.includes(page)
+  const result = collectFallbackShellRuns(routes, (page) =>
+    fallbackFalsePages.includes(page)
   )
 
   return {

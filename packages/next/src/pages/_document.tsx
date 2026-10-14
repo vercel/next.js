@@ -1,6 +1,12 @@
 /// <reference types="webpack/module.d.ts" />
 
-import type { Page, Route } from '../shared/lib/route-types'
+import {
+  createPage,
+  pagesRouteToPage,
+  type Page,
+  type Route,
+} from '../shared/lib/route-types'
+import { ingestNextData } from '../client/next-data'
 import React, { type JSX } from 'react'
 import { NEXT_BUILTIN_DOCUMENT } from '../shared/lib/constants'
 import type {
@@ -61,7 +67,7 @@ function getDocumentFiles(
 ): DocumentFiles {
   const sharedFiles: readonly string[] = getPageFiles(
     buildManifest,
-    '/_app' as Page
+    createPage('/_app')
   )
   const pageFiles: readonly string[] = getPageFiles(buildManifest, pathname)
 
@@ -149,9 +155,9 @@ function getInlineBootstrapScript(context: HtmlProps, props: OriginProps) {
   const bootstrap = getTurbopackChunkGroupBootstrap(
     buildManifest.pagesChunkGroupBootstrapParams,
     buildManifest.chunkLoadingGlobal,
-    // This Pages-only public context serializes a URL pattern that also
-    // identifies its Pages manifest entry; keep the public NEXT_DATA strings.
-    ['/_app' as Page, __NEXT_DATA__.page as Page]
+    // The Pages renderer emits the URL pattern; this Pages-keyed manifest
+    // uses the same identifier. Keep the public NEXT_DATA string schema.
+    [createPage('/_app'), pagesRouteToPage(ingestNextData(__NEXT_DATA__).page)]
   )
   if (!bootstrap) return null
 
@@ -694,8 +700,8 @@ export class Head extends React.Component<HeadProps> {
 
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
-      // Pages-only public HTML context: the URL pattern identifies its module.
-      this.context.__NEXT_DATA__.page as Page
+      // The Pages renderer's URL pattern identifies this Pages manifest entry.
+      pagesRouteToPage(ingestNextData(this.context.__NEXT_DATA__).page)
     )
 
     const nextFontLinkTags = getNextFontLinkTags(
@@ -867,7 +873,7 @@ export class NextScript extends React.Component<OriginProps> {
     try {
       const data = JSON.stringify(__NEXT_DATA__)
 
-      if (largePageDataWarnings.has(__NEXT_DATA__.page as Route)) {
+      if (largePageDataWarnings.has(ingestNextData(__NEXT_DATA__).page)) {
         return htmlEscapeJsonString(data)
       }
 
@@ -881,7 +887,7 @@ export class NextScript extends React.Component<OriginProps> {
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
         if (process.env.NODE_ENV === 'production') {
-          largePageDataWarnings.add(__NEXT_DATA__.page as Route)
+          largePageDataWarnings.add(ingestNextData(__NEXT_DATA__).page)
         }
 
         console.warn(
@@ -931,8 +937,8 @@ export class NextScript extends React.Component<OriginProps> {
 
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
-      // Pages-only public HTML context: the URL pattern identifies its module.
-      this.context.__NEXT_DATA__.page as Page
+      // The Pages renderer's URL pattern identifies this Pages manifest entry.
+      pagesRouteToPage(ingestNextData(this.context.__NEXT_DATA__).page)
     )
 
     return (

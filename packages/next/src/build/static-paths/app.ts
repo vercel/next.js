@@ -1,4 +1,4 @@
-import type { Page, Route } from '../../shared/lib/route-types'
+import { createRoute, type Route } from '../../shared/lib/route-types'
 import type { Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type {
@@ -1373,19 +1373,23 @@ export async function buildAppStaticPaths({
 
         const replacements = createReplacements({ paramType }, paramValue)
 
-        pathname = pathname.replace(
-          name,
-          // We're replacing the segment name with the replacement pathname
-          // which will include the interception marker prefix if it exists.
-          replacements.pathname
-        ) as Route
+        pathname = createRoute(
+          pathname.replace(
+            name,
+            // We're replacing the segment name with the replacement pathname
+            // which will include the interception marker prefix if it exists.
+            replacements.pathname
+          )
+        )
 
-        encodedPathname = encodedPathname.replace(
-          name,
-          // We're replacing the segment name with the replacement encoded
-          // pathname which will include the encoded param value.
-          replacements.encodedPathname
-        ) as Route
+        encodedPathname = createRoute(
+          encodedPathname.replace(
+            name,
+            // We're replacing the segment name with the replacement encoded
+            // pathname which will include the encoded param value.
+            replacements.encodedPathname
+          )
+        )
       }
 
       // Resolve all route params from the loader tree if this is from an

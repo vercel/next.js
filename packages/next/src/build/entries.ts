@@ -1,4 +1,9 @@
-import type { Page, Route } from '../shared/lib/route-types'
+import {
+  createPage,
+  pagesPageToRoute,
+  type Page,
+  type Route,
+} from '../shared/lib/route-types'
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
@@ -241,10 +246,10 @@ export function getEdgeServerEntry(opts: {
   }
 
   const loaderParams: EdgeSSRLoaderQuery = {
-    absolute500Path: opts.pages['/500' as Page] || '',
-    absoluteAppPath: opts.pages['/_app' as Page],
-    absoluteDocumentPath: opts.pages['/_document' as Page],
-    absoluteErrorPath: opts.pages['/_error' as Page],
+    absolute500Path: opts.pages[createPage('/500')] || '',
+    absoluteAppPath: opts.pages[createPage('/_app')],
+    absoluteDocumentPath: opts.pages[createPage('/_document')],
+    absoluteErrorPath: opts.pages[createPage('/_error')],
     absolutePagePath: opts.absolutePagePath,
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
@@ -308,7 +313,8 @@ export function getClientEntry(opts: { absolutePagePath: string; page: Page }) {
     absolutePagePath: opts.absolutePagePath,
     // Pages-router discovery keys share the client URL namespace; raw module
     // definition.page instead uses normalizePagePath's file encoding.
-    page: opts.page as unknown as Route,
+    // Both callers dispatch only Pages client entries, whose module keys equal URLs.
+    page: pagesPageToRoute(opts.page),
   }
 
   const pageLoader = `next-client-pages-loader?${stringify(loaderOptions)}!`
@@ -421,16 +427,21 @@ export async function createEntrypoints(
   if (appDir && appPaths) {
     const appPageFiles = new Map<Page, string>()
     for (const pathname in appPaths) {
-      const normalizedPath = normalizeAppPath(pathname as Page)
-      const actualPath = appPaths[pathname as Page]
+      // for-in erases the existing module-key type; preserve it, do not construct it.
+      const normalizedPath = normalizeAppPath(
+        pathname as /* TODO: Preserve Page keys across Object.keys rather than reconstructing them. */ keyof typeof appPaths
+      )
+      const actualPath =
+        appPaths[
+          pathname as /* TODO: Preserve Page keys across Object.keys rather than reconstructing them. */ keyof typeof appPaths
+        ]
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
       // TODO-APP: refactor to pass the page path from createPagesMapping instead.
-      const appPath = getPageFromPath(actualPath, pageExtensions).replace(
-        APP_DIR_ALIAS,
-        ''
-      ) as Page
+      const appPath = createPage(
+        getPageFromPath(actualPath, pageExtensions).replace(APP_DIR_ALIAS, '')
+      )
       appPathsPerRoute[normalizedPath].push(appPath)
       appPageFiles.set(appPath, actualPath)
     }
@@ -439,17 +450,22 @@ export async function createEntrypoints(
     const { unmatchedAppPages, incompatibleParallelRouteSlots } =
       normalizeCatchAllRoutes(appPathsPerRoute, {
         strictRouteMatching: config.experimental.strictRouteMatching,
-        defaultAppPaths: Object.keys(appDefaultPaths ?? {}) as Page[],
+        // TODO: Retain the discovered default-module Page keys across Object.keys.
+        defaultAppPaths: Object.keys(
+          appDefaultPaths ?? {}
+        ) as (keyof NonNullable<typeof appDefaultPaths>)[],
       })
     // Only App Router pages can make an intercepted URL directly renderable.
     // Route handlers and metadata routes may share the pathname, but they
     // cannot provide the canonical page shown by an initial request.
+    // Filtering retains the source's normalized URL keys and module-key arrays.
+    // TODO: Preserve the reconstructed URL-keyed record shape without this schema assertion.
     const appPagePathsPerRoute = Object.fromEntries(
       Object.entries(appPathsPerRoute).flatMap(([route, routeAppPaths]) => {
         const pageAppPaths = routeAppPaths.filter(isAppPageRoute)
         return pageAppPaths.length > 0 ? [[route, pageAppPaths]] : []
       })
-    ) as Record<Route, Page[]>
+    ) as typeof appPathsPerRoute
     const missingCanonicalInterceptionRoutes = config.experimental
       .strictRouteMatching
       ? findMissingCanonicalInterceptionRoutes(appPagePathsPerRoute)
@@ -467,10 +483,9 @@ export async function createEntrypoints(
         new IncompatibleParallelRouteSlotsError(
           await Promise.all(
             incompatibleParallelRouteSlots.map(async (incompatibleRoute) => {
-              const layoutPagePath = posix.join(
-                incompatibleRoute.layoutPath,
-                'layout'
-              ) as Page
+              const layoutPagePath = createPage(
+                posix.join(incompatibleRoute.layoutPath, 'layout')
+              )
               const layoutFile = await findPageFile(
                 appDir,
                 layoutPagePath,
@@ -528,12 +543,14 @@ export async function createEntrypoints(
     }
 
     // Make sure to sort parallel routes to make the result deterministic.
+    // TODO: Preserve the existing URL-key schema across native entries/fromEntries sorting.
+    // Object.fromEntries erases the existing URL-key schema; sorting preserves it.
     appPathsPerRoute = Object.fromEntries(
       Object.entries(appPathsPerRoute).map(([k, v]) => [
         k,
         v.sort(compareAppPaths),
       ])
-    ) as Record<Route, Page[]>
+    ) as typeof appPathsPerRoute
   }
 
   const getEntryHandler =
@@ -647,7 +664,10 @@ export async function createEntrypoints(
               pagePath: absolutePagePath,
               appDir,
               appPaths: matchedAppPaths,
-              allNormalizedAppPaths: Object.keys(appPathsPerRoute) as Route[],
+              // TODO: Preserve the normalized URL keys erased by Object.keys.
+              allNormalizedAppPaths: Object.keys(
+                appPathsPerRoute
+              ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof appPathsPerRoute)[],
               pageExtensions,
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
@@ -733,7 +753,10 @@ export async function createEntrypoints(
                 pagePath: absolutePagePath,
                 appDir: appDir!,
                 appPaths: matchedAppPaths,
-                allNormalizedAppPaths: Object.keys(appPathsPerRoute) as Route[],
+                // TODO: Preserve the normalized URL keys erased by Object.keys.
+                allNormalizedAppPaths: Object.keys(
+                  appPathsPerRoute
+                ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof appPathsPerRoute)[],
                 pageExtensions,
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,
@@ -778,26 +801,37 @@ export async function createEntrypoints(
 
   const promises: Promise<void[]>[] = []
 
+  // Object.keys preserves these discovery maps' module keys at runtime.
   if (appPaths) {
     const entryHandler = getEntryHandler(appPaths, PAGE_TYPES.APP)
     promises.push(
-      Promise.all((Object.keys(appPaths) as Page[]).map(entryHandler))
+      Promise.all(
+        (
+          Object.keys(
+            appPaths
+          ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof appPaths)[]
+        ).map(entryHandler)
+      )
     )
   }
   if (rootPaths) {
     promises.push(
       Promise.all(
-        (Object.keys(rootPaths) as Page[]).map(
-          getEntryHandler(rootPaths, PAGE_TYPES.ROOT)
-        )
+        (
+          Object.keys(
+            rootPaths
+          ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof rootPaths)[]
+        ).map(getEntryHandler(rootPaths, PAGE_TYPES.ROOT))
       )
     )
   }
   promises.push(
     Promise.all(
-      (Object.keys(pages) as Page[]).map(
-        getEntryHandler(pages, PAGE_TYPES.PAGES)
-      )
+      (
+        Object.keys(
+          pages
+        ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof pages)[]
+      ).map(getEntryHandler(pages, PAGE_TYPES.PAGES))
     )
   )
 

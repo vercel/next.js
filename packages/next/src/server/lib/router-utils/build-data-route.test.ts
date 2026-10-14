@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute } from '../../../shared/lib/route-types'
 import {
   addLocalePrefixToDataRouteRegex,
   buildDataRoute,
@@ -6,7 +6,7 @@ import {
 
 describe('buildDataRoute', () => {
   it('should build a dynamic data route', () => {
-    const dataRoute = buildDataRoute('/[...slug]' as Route, '123')
+    const dataRoute = buildDataRoute(createRoute('/[...slug]'), '123')
     expect(dataRoute).toMatchInlineSnapshot(`
      {
        "dataRouteRegex": "^/_next/data/123/(.+?)\\.json$",
@@ -20,7 +20,7 @@ describe('buildDataRoute', () => {
   })
 
   it('should build a static data route', () => {
-    const dataRoute = buildDataRoute('/about' as Route, '123')
+    const dataRoute = buildDataRoute(createRoute('/about'), '123')
     expect(dataRoute).toMatchInlineSnapshot(`
      {
        "dataRouteRegex": "^/_next/data/123/about\\.json$",
@@ -63,7 +63,7 @@ describe('addLocalePrefixToDataRouteRegex', () => {
   })
 
   it('should locate regex-escaped build ids', () => {
-    const route = buildDataRoute('/[...slug]' as Route, 'build.id')
+    const route = buildDataRoute(createRoute('/[...slug]'), 'build.id')
 
     expect(
       addLocalePrefixToDataRouteRegex(route.dataRouteRegex, 'build.id')

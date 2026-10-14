@@ -1,4 +1,8 @@
-import type { Page, Route } from '../../shared/lib/route-types'
+import {
+  createRoute,
+  type Page,
+  type Route,
+} from '../../shared/lib/route-types'
 import type { OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
@@ -74,15 +78,15 @@ export async function exportAppPage(
 
   let isDefaultNotFound = false
   let isDefaultGlobalError = false
-  // If the page is `/_not-found`, then we should update the page to be `/404`.
+  // Render the built-in App not-found entry at the `/404` pathname.
   if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
     isDefaultNotFound = true
-    pathname = '/404' as Route
+    pathname = createRoute('/404')
   }
-  // If the page is `/_global-error`, then we should update the page to be `/500`.
+  // Render the built-in App global-error entry at the `/500` pathname.
   if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY) {
     isDefaultGlobalError = true
-    pathname = '/500' as Route
+    pathname = createRoute('/500')
   }
 
   try {

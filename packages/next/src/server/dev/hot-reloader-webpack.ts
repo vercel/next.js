@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { AnyStream } from '../app-render/stream-ops'
-import type { Page, Route } from '../../shared/lib/route-types'
+import { createPage, type Page } from '../../shared/lib/route-types'
 
 import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -381,9 +381,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       let decodedPagePath: Page
 
       try {
-        decodedPagePath = `/${params.path
-          .map((param: string) => decodeURIComponent(param))
-          .join('/')}` as Page
+        decodedPagePath = createPage(
+          `/${params.path
+            .map((param: string) => decodeURIComponent(param))
+            .join('/')}`
+        )
       } catch (_) {
         throw new DecodeError('failed to decode param')
       }
@@ -715,13 +717,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               Promise.all([
                 findPageFile(
                   this.pagesDir!,
-                  '/_app' as Page,
+                  createPage('/_app'),
                   pageExtensions,
                   false
                 ),
                 findPageFile(
                   this.pagesDir!,
-                  '/_document' as Page,
+                  createPage('/_document'),
                   pageExtensions,
                   false
                 ),
@@ -982,7 +984,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   appDir: this.appDir,
                   config: this.config,
                   isDev: true,
-                  page: page as Page,
+                  page: createPage(page),
                 })
               : undefined
 
@@ -1017,7 +1019,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             let pageRuntime = staticInfo?.runtime
 
             runDependingOnPageType({
-              // @ts-ignore -- Human review: ordinary entries provide raw Pages, but child-entry keys carry client bundle paths. Preserve the shared classification of both cache entry kinds.
+              // @ts-ignore -- TODO: Human review: ordinary entries provide raw Pages, but child-entry keys carry client bundle paths. Preserve the shared classification of both cache entry kinds.
               page,
               pageRuntime,
               pageType,
@@ -1044,7 +1046,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 const appDirLoader = isAppPath
                   ? getAppEntry({
                       name: bundlePath,
-                      page: page as Page,
+                      page: createPage(page),
                       appPaths: entryData.appPaths,
                       allNormalizedAppPaths: null, // Not available in dev mode
                       pagePath: posix.join(
@@ -1094,7 +1096,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     bundlePath,
                     config: this.config,
                     isDev: true,
-                    page: page as Page,
+                    page: createPage(page),
                     pages: this.pagesMapping,
                     isServerComponent,
                     appDirLoader,
@@ -1121,7 +1123,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     compilerType: COMPILER_NAMES.client,
                     value: getClientEntry({
                       absolutePagePath: entryData.absolutePagePath,
-                      page: page as Page,
+                      page: createPage(page),
                     }),
                     hasAppDir,
                   })
@@ -1164,7 +1166,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     bundlePath,
                     config: this.config,
                     isDev: true,
-                    page: page as Page,
+                    page: createPage(page),
                     pages: this.pagesMapping,
                     isServerComponent,
                     pagesType: PAGE_TYPES.PAGES,
@@ -1185,7 +1187,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       )
                   value = getAppEntry({
                     name: bundlePath,
-                    page: page as Page,
+                    page: createPage(page),
                     appPaths: entryData.appPaths,
                     allNormalizedAppPaths: null, // Not available in dev mode
                     pagePath,
@@ -1218,7 +1220,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 } else if (isAPIRoute(page)) {
                   value = getRouteLoaderEntry({
                     kind: RouteKind.PAGES_API,
-                    page: page as Page,
+                    page: createPage(page),
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo?.preferredRegion,
                     middlewareConfig: staticInfo?.middleware || {},
@@ -1231,7 +1233,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 ) {
                   value = getRouteLoaderEntry({
                     kind: RouteKind.PAGES,
-                    page: page as Page,
+                    page: createPage(page),
                     pages: this.pagesMapping,
                     absolutePagePath: relativeRequest,
                     preferredRegion: staticInfo?.preferredRegion,
@@ -1576,9 +1578,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       if (pageChanges.length > 0) {
         this.send({
           type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
-          // @ts-ignore Human review: the unfiltered bundle mapping cannot establish URL Route results for this Pages browser payload; preserve the existing event list.
+          // @ts-ignore TODO: Human review: the unfiltered bundle mapping cannot establish URL Route results for this Pages browser payload; preserve the existing event list.
           pages: serverOnlyChanges.map((pg) =>
-            // @ts-ignore -- Human review: pageChanges is Pages-filtered, but this maps unfiltered bundle names. Non-Pages entries can reach the Page-file decoder; retain existing HMR behavior.
+            // @ts-ignore -- TODO: Human review: pageChanges is Pages-filtered, but this maps unfiltered bundle names. Non-Pages entries can reach the Page-file decoder; retain existing HMR behavior.
             denormalizePagePath(pg.slice('pages'.length))
           ),
         })
@@ -1631,9 +1633,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               const page = getRouteFromEntrypoint(addedPage)
               this.send({
                 type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
-                // The default entrypoint decoder is Pages-only here: its raw
-                // identifier shares the URL namespace (and can be null).
-                data: [page as string | null as Route | null],
+                // @ts-ignore -- TODO: Guard the nullable Pages-only identity bridge; the default decoder returns a module key or null.
+                data: [page],
               })
             }
           }
@@ -1643,9 +1644,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               const page = getRouteFromEntrypoint(removedPage)
               this.send({
                 type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
-                // The default entrypoint decoder is Pages-only here: its raw
-                // identifier shares the URL namespace (and can be null).
-                data: [page as string | null as Route | null],
+                // @ts-ignore -- TODO: Guard the nullable Pages-only identity bridge; the default decoder returns a module key or null.
+                data: [page],
               })
             }
           }

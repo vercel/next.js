@@ -1,4 +1,8 @@
-import type { Page, Route } from '../../shared/lib/route-types'
+import {
+  pagesPageToRoute,
+  type Page,
+  type Route,
+} from '../../shared/lib/route-types'
 import type { ExportRouteResult } from '../types'
 import type { RouteCacheMetadata } from './types'
 import type {
@@ -100,7 +104,7 @@ export async function exportPagesPage(
         req,
         res,
         // Pages-only export entries use the module name as their URL pattern.
-        page as string as Route,
+        pagesPageToRoute(page),
         searchAndDynamicParams,
         renderOpts,
         sharedContext,

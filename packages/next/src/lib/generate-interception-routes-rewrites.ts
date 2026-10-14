@@ -1,4 +1,4 @@
-import type { Route } from '../shared/lib/route-types'
+import { createRoute, type Route } from '../shared/lib/route-types'
 import { NEXT_URL } from '../client/components/app-router-headers'
 import {
   extractInterceptionRouteInformation,
@@ -20,17 +20,20 @@ export function generateInterceptionRoutesRewrites(
 
       // These are normalized matcher keys (not raw module identifiers); adding
       // the configured base path preserves the URL pathname representation.
-      const destination = getNamedRouteRegex((basePath + appPath) as Route, {
+      const destination = getNamedRouteRegex(createRoute(basePath + appPath), {
         prefixRouteKeys: true,
       })
 
-      const header = getNamedRouteRegex(interceptingRoute as Route, {
-        prefixRouteKeys: true,
-        reference: destination.reference,
-      })
+      const header = getNamedRouteRegex(
+        interceptingRoute as /* TODO: Preserve the Route produced by interception parsing. */ Route,
+        {
+          prefixRouteKeys: true,
+          reference: destination.reference,
+        }
+      )
 
       const source = getNamedRouteRegex(
-        (basePath + interceptedRoute) as Route,
+        createRoute(basePath + interceptedRoute),
         {
           prefixRouteKeys: true,
           reference: header.reference,

@@ -1,4 +1,4 @@
-import type { Route } from '../../shared/lib/route-types'
+import { createRoute, type Route } from '../../shared/lib/route-types'
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { ScrollRef } from '../../shared/lib/app-router-types'
@@ -1664,7 +1664,7 @@ function dispatchRetryDueToTreeMismatch(
     const now = Date.now()
     discoverKnownRoute(
       now,
-      retryUrl.pathname as Route,
+      createRoute(retryUrl.pathname),
       retryUrl.search as NormalizedSearch,
       retryNextUrl,
       null,

@@ -1,4 +1,9 @@
-import type { Route } from '../shared/lib/route-types'
+import {
+  type Route,
+  createRoute,
+  createRoutes,
+  createRouteSet,
+} from '../shared/lib/route-types'
 import type { ComponentType } from 'react'
 import type { RouteLoader } from './route-loader'
 import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
@@ -55,10 +60,10 @@ export default class PageLoader {
     this.promisedSsgManifest = new Promise((resolve) => {
       if (window.__SSG_MANIFEST) {
         // Framework manifest data enters the private Route-keyed cache here.
-        resolve(window.__SSG_MANIFEST as Set<Route>)
+        resolve(createRouteSet(window.__SSG_MANIFEST))
       } else {
         window.__SSG_MANIFEST_CB = () => {
-          resolve(window.__SSG_MANIFEST! as Set<Route>)
+          resolve(createRouteSet(window.__SSG_MANIFEST!))
         }
       }
     })
@@ -78,9 +83,11 @@ export default class PageLoader {
           { credentials: 'same-origin' }
         )
           .then((res) => res.json())
-          .then((manifest: { pages: Route[] }) => {
+          // The dev manifest endpoint emits this raw JSON shape. This is a
+          // producer trust boundary, not validation of its array or members.
+          .then((manifest: { pages: string[] }) => {
             window.__DEV_PAGES_MANIFEST = manifest
-            return manifest.pages
+            return createRoutes(manifest.pages)
           })
           .catch((err) => {
             console.log(`Failed to fetch devPagesManifest:`, err)
@@ -195,7 +202,7 @@ export default class PageLoader {
     route: string
   ): Promise<boolean> {
     return this.promisedSsgManifest.then((manifest) =>
-      manifest.has(route as Route)
+      manifest.has(createRoute(route))
     )
   }
 

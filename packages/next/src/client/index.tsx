@@ -26,6 +26,7 @@ import type { NextWebVitalsMetric, NEXT_DATA } from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
+import { ingestNextData } from './next-data'
 import type { StyleSheetTuple } from './page-loader'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
@@ -203,8 +204,8 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
     devClient = opts.devClient
   }
 
-  initialData = JSON.parse(
-    document.getElementById('__NEXT_DATA__')!.textContent!
+  initialData = ingestNextData<NEXT_DATA>(
+    JSON.parse(document.getElementById('__NEXT_DATA__')!.textContent!)
   )
   window.__NEXT_DATA__ = initialData
 
@@ -275,7 +276,7 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
 
   const register: RegisterFn = ([r, f]) =>
     // The generated public registration queue carries serialized Pages URLs.
-    pageLoader.routeLoader.onEntrypoint(r as Route, f)
+    pageLoader.routeLoader.onEntrypoint(r, f)
   if (window.__NEXT_P) {
     // Defer page registration for another tick. This will increase the overall
     // latency in hydrating the page, but reduce the total blocking time.
@@ -381,7 +382,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   )
 
   return pageLoader
-    .loadPage('/_error' as Route)
+    .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
       return lastAppProps?.Component === ErrorComponent
         ? import('../pages/_error')
@@ -837,9 +838,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   let initialErr = initialData.err
 
   try {
-    const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint(
-      '/_app' as Route
-    )
+    const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
     if ('error' in appEntrypoint) {
       throw appEntrypoint.error
     }

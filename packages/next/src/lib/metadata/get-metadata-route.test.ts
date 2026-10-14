@@ -1,4 +1,4 @@
-import type { Page, Route } from '../../shared/lib/route-types'
+import { createPage, createRoute } from '../../shared/lib/route-types'
 import {
   fillMetadataSegment,
   fillStaticMetadataSegment,
@@ -26,7 +26,7 @@ describe('fillStaticMetadataSegment', () => {
       'twitter-image.png'
     )
     const normalizedRoute = normalizeMetadataRoute(
-      '/(post)/@feed/blog/twitter-image' as Page
+      createPage('/(post)/@feed/blog/twitter-image')
     )
     const suffix = normalizedRoute.match(/twitter-image(-[0-9a-z]{6})\/route$/)
 
@@ -38,49 +38,55 @@ describe('fillStaticMetadataSegment', () => {
 describe('getStaticMetadataPrerenderPathname', () => {
   it('should return null for non-metadata routes', () => {
     expect(
-      getStaticMetadataPrerenderPathname('/dynamic/[id]/page' as Route)
+      getStaticMetadataPrerenderPathname(createRoute('/dynamic/[id]/page'))
     ).toBeNull()
   })
 
   it('should normalize static metadata under dynamic segments', () => {
     expect(
       getStaticMetadataPrerenderPathname(
-        '/dynamic/[id]/apple-icon.png' as Route
+        createRoute('/dynamic/[id]/apple-icon.png')
       )
     ).toBe('/dynamic/-/apple-icon.png')
     expect(
-      getStaticMetadataPrerenderPathname('/dynamic/[id]/sitemap.xml' as Route)
+      getStaticMetadataPrerenderPathname(
+        createRoute('/dynamic/[id]/sitemap.xml')
+      )
     ).toBe('/dynamic/-/sitemap.xml')
   })
 
   it('should preserve static metadata routes without dynamic segments', () => {
     expect(
-      getStaticMetadataPrerenderPathname('/static/apple-icon.png' as Route)
+      getStaticMetadataPrerenderPathname(createRoute('/static/apple-icon.png'))
     ).toBe('/static/apple-icon.png')
   })
 
   it('should collapse catchall segments to a single placeholder', () => {
     expect(
-      getStaticMetadataPrerenderPathname('/[...slug]/apple-icon.png' as Route)
+      getStaticMetadataPrerenderPathname(
+        createRoute('/[...slug]/apple-icon.png')
+      )
     ).toBe('/-/apple-icon.png')
   })
 
   it('should collapse optional catchall segments to a single placeholder', () => {
     expect(
-      getStaticMetadataPrerenderPathname('/[[...slug]]/apple-icon.png' as Route)
+      getStaticMetadataPrerenderPathname(
+        createRoute('/[[...slug]]/apple-icon.png')
+      )
     ).toBe('/-/apple-icon.png')
   })
 
   it('should replace each dynamic segment independently', () => {
     expect(
-      getStaticMetadataPrerenderPathname('/[a]/[b]/apple-icon.png' as Route)
+      getStaticMetadataPrerenderPathname(createRoute('/[a]/[b]/apple-icon.png'))
     ).toBe('/-/-/apple-icon.png')
   })
 
   it('should preserve literal segments between dynamic ones', () => {
     expect(
       getStaticMetadataPrerenderPathname(
-        '/[lang]/posts/[slug]/apple-icon.png' as Route
+        createRoute('/[lang]/posts/[slug]/apple-icon.png')
       )
     ).toBe('/-/posts/-/apple-icon.png')
   })
@@ -88,7 +94,7 @@ describe('getStaticMetadataPrerenderPathname', () => {
   it('should normalize mixed dynamic and catchall segments', () => {
     expect(
       getStaticMetadataPrerenderPathname(
-        '/[lang]/[...rest]/apple-icon.png' as Route
+        createRoute('/[lang]/[...rest]/apple-icon.png')
       )
     ).toBe('/-/-/apple-icon.png')
   })

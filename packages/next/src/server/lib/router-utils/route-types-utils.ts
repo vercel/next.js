@@ -1,4 +1,8 @@
-import type { Route } from '../../../shared/lib/route-types'
+import {
+  type Route,
+  createRoute,
+  createRoutes,
+} from '../../../shared/lib/route-types'
 import path from 'path'
 import {
   getRouteRegex,
@@ -67,7 +71,7 @@ export function convertCustomRouteSource(source: string): Route[] {
 
   if (parseResult.error || !parseResult.tokens) {
     // Fallback to original source if parsing fails
-    // @ts-ignore Human review: a parse failure retains the original custom-route pattern rather than constructing bracket-syntax URL matchers. Preserve this fallback without disguising the source as a normalized Route.
+    // @ts-ignore TODO: Human review: a parse failure retains the original custom-route pattern rather than constructing bracket-syntax URL matchers. Preserve this fallback without disguising the source as a normalized Route.
     return source.startsWith('/') ? [source] : ['/' + source]
   }
 
@@ -125,8 +129,10 @@ export function convertCustomRouteSource(source: string): Route[] {
   }
 
   // Ensure leading slash
-  return possibleNormalizedRoutes.map(
-    (route) => (route.startsWith('/') ? route : '/' + route) as Route
+  return createRoutes(
+    possibleNormalizedRoutes.map((route) =>
+      route.startsWith('/') ? route : '/' + route
+    )
   )
 }
 
@@ -149,7 +155,7 @@ function resolveInterceptingRoute(route: Route): Route {
     const { interceptedRoute } = extractInterceptionRouteInformation(route)
     // The input is already a normalized matcher pathname; marker rebasing
     // constructs its canonical URL, not a raw App module identifier.
-    return interceptedRoute as Route
+    return createRoute(interceptedRoute)
   } catch {
     // If parsing fails, fall back to the original route
     return route
@@ -167,7 +173,9 @@ function resolveInterceptingRoute(route: Route): Route {
 function collectRootParamsFromLayouts(
   layoutRoutes: RouteTypesManifest['layoutRoutes']
 ): Map<string, RootParamInfo> {
-  const routes = Object.keys(layoutRoutes) as Route[]
+  // Preserve the manifest's existing keys across Object.keys' string[] typing.
+  // This is a key projection, not raw Route construction.
+  const routes = Object.keys(layoutRoutes) as (keyof typeof layoutRoutes)[]
 
   // Find root layouts: layouts with no ancestor layout above them.
   const rootLayoutRoutes = routes.filter(
@@ -276,35 +284,26 @@ export async function createRouteTypesManifest({
       layoutRoutes.map(({ filePath }) => getRelativePath(filePath))
     ),
     filePathToRoute: new Map([
-      ...appRoutes.map(
-        ({ route, filePath }) =>
-          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
-            string,
-            Route,
-          ]
-      ),
-      ...layoutRoutes.map(
-        ({ route, filePath }) =>
-          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
-            string,
-            Route,
-          ]
-      ),
-      ...appRouteHandlers.map(
-        ({ route, filePath }) =>
-          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
-            string,
-            Route,
-          ]
-      ),
-      ...pageRoutes.map(
-        ({ route, filePath }) =>
-          [getRelativePath(filePath), route] as [string, Route]
-      ),
-      ...pageApiRoutes.map(
-        ({ route, filePath }) =>
-          [getRelativePath(filePath), route] as [string, Route]
-      ),
+      ...appRoutes.map<[string, Route]>(({ route, filePath }) => [
+        getRelativePath(filePath),
+        resolveInterceptingRoute(route),
+      ]),
+      ...layoutRoutes.map<[string, Route]>(({ route, filePath }) => [
+        getRelativePath(filePath),
+        resolveInterceptingRoute(route),
+      ]),
+      ...appRouteHandlers.map<[string, Route]>(({ route, filePath }) => [
+        getRelativePath(filePath),
+        resolveInterceptingRoute(route),
+      ]),
+      ...pageRoutes.map<[string, Route]>(({ route, filePath }) => [
+        getRelativePath(filePath),
+        route,
+      ]),
+      ...pageApiRoutes.map<[string, Route]>(({ route, filePath }) => [
+        getRelativePath(filePath),
+        route,
+      ]),
     ]),
   }
 

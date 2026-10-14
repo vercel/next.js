@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute } from '../../../shared/lib/route-types'
 import {
   createRuntimeBodyErrorInStaticRoute,
   createDynamicBodyErrorInStaticRoute,
@@ -55,7 +55,7 @@ import {
   isSyncIOError,
 } from './errors'
 
-const ROUTE = '/example' as Route
+const ROUTE = createRoute('/example')
 
 describe('getErrorTypeLabel', () => {
   function getLabel(instance: Error) {

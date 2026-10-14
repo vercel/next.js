@@ -1,4 +1,8 @@
-import type { Page, Route } from '../../shared/lib/route-types'
+import {
+  createRoute,
+  type Page,
+  type Route,
+} from '../../shared/lib/route-types'
 import '../../build/adapter/setup-node-env.external'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
@@ -774,14 +778,14 @@ export abstract class RouteModule<
     }
     let isNextDataRequest = false
 
-    if (pathHasPrefix(parsedUrl.pathname || ('/' as Route), '/_next/data')) {
+    if (pathHasPrefix(parsedUrl.pathname || createRoute('/'), '/_next/data')) {
       isNextDataRequest = true
       parsedUrl.pathname = normalizeDataPath(
-        parsedUrl.pathname || ('/' as Route)
+        parsedUrl.pathname || createRoute('/')
       )
     }
     this.normalizeUrl(req, parsedUrl)
-    let originalPathname = parsedUrl.pathname || ('/' as Route)
+    let originalPathname = parsedUrl.pathname || createRoute('/')
     const originalQuery = { ...parsedUrl.query }
     const pageIsDynamic = isDynamicRoute(srcPage)
 
@@ -790,7 +794,7 @@ export abstract class RouteModule<
 
     if (i18n) {
       localeResult = normalizeLocalePath(
-        parsedUrl.pathname || ('/' as Route),
+        parsedUrl.pathname || createRoute('/'),
         i18n.locales
       )
 
@@ -837,8 +841,9 @@ export abstract class RouteModule<
     // Ensure parsedUrl.pathname includes locale before processing
     // rewrites or they won't match correctly.
     if (defaultLocale && !detectedLocale) {
-      parsedUrl.pathname =
-        `/${defaultLocale}${parsedUrl.pathname === '/' ? '' : parsedUrl.pathname}` as Route
+      parsedUrl.pathname = createRoute(
+        `/${defaultLocale}${parsedUrl.pathname === '/' ? '' : parsedUrl.pathname}`
+      )
     }
     const locale =
       getRequestMeta(req, 'locale') || detectedLocale || defaultLocale
@@ -856,12 +861,12 @@ export abstract class RouteModule<
     // from parsedUrl pathname
     if (i18n) {
       parsedUrl.pathname = normalizeLocalePath(
-        parsedUrl.pathname || ('/' as Route),
+        parsedUrl.pathname || createRoute('/'),
         i18n.locales
       ).pathname
 
       rewrittenParsedUrl.pathname = normalizeLocalePath(
-        rewrittenParsedUrl.pathname || ('/' as Route),
+        rewrittenParsedUrl.pathname || createRoute('/'),
         i18n.locales
       ).pathname
     }
@@ -873,7 +878,7 @@ export abstract class RouteModule<
     if (!params && serverUtils.dynamicRouteMatcher) {
       const paramsMatch = serverUtils.dynamicRouteMatcher(
         normalizeDataPath(
-          rewrittenParsedUrl?.pathname || parsedUrl.pathname || ('/' as Route)
+          rewrittenParsedUrl?.pathname || parsedUrl.pathname || createRoute('/')
         )
       )
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
@@ -982,7 +987,7 @@ export abstract class RouteModule<
         paramsToInterpolate
       )
       parsedUrl.pathname = serverUtils.interpolateDynamicPath(
-        parsedUrl.pathname || ('/' as Route),
+        parsedUrl.pathname || createRoute('/'),
         paramsToInterpolate
       )
       originalPathname = serverUtils.interpolateDynamicPath(
@@ -1004,7 +1009,7 @@ export abstract class RouteModule<
           // use final params from URL matching
           const paramsMatch = serverUtils.dynamicRouteMatcher?.(
             normalizeDataPath(
-              localeResult?.pathname || parsedUrl.pathname || ('/' as Route)
+              localeResult?.pathname || parsedUrl.pathname || createRoute('/')
             )
           )
           // we don't normalize these as they are allowed to be
@@ -1099,7 +1104,7 @@ export abstract class RouteModule<
     }
 
     if (resolvedPathname === '/index') {
-      resolvedPathname = '/' as Route
+      resolvedPathname = createRoute('/')
     }
 
     if (

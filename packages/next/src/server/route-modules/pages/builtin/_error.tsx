@@ -1,4 +1,4 @@
-import type { Page, Route } from '../../../../shared/lib/route-types'
+import { createPage, createRoute } from '../../../../shared/lib/route-types'
 import App from '../../../../pages/_app'
 import Document from '../../../../pages/_document'
 import { RouteKind } from '../../../route-kind'
@@ -12,8 +12,8 @@ export const routeModule = new PagesRouteModule({
   // TODO: add descriptor for internal error page
   definition: {
     kind: RouteKind.PAGES,
-    page: '/_error' as Page,
-    pathname: '/_error' as Route,
+    page: createPage('/_error'),
+    pathname: createRoute('/_error'),
     filename: '',
     bundlePath: '',
   },
@@ -27,7 +27,7 @@ export const routeModule = new PagesRouteModule({
 })
 
 export const handler = getHandler({
-  srcPage: '/_error' as Page,
+  srcPage: createPage('/_error'),
   routeModule,
   userland: moduleError,
   config: {},

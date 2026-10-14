@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute } from '../../../shared/lib/route-types'
 import { resolveImages, resolveOpenGraph } from './resolve-opengraph'
 
 describe('resolveImages', () => {
@@ -41,7 +41,7 @@ describe('resolveImages', () => {
 describe('resolveOpenGraph', () => {
   it('should return null if the value is an empty string', async () => {
     // Unused pathname fixture: these cases only exercise authors normalization.
-    const pathname = Promise.resolve('' as Route)
+    const pathname = Promise.resolve(createRoute(''))
     expect(
       await resolveOpenGraph(
         // pass authors as empty string
@@ -67,7 +67,7 @@ describe('resolveOpenGraph', () => {
 
   it('should return null if the value is null', async () => {
     // Unused pathname fixture: these cases only exercise authors normalization.
-    const pathname = Promise.resolve('' as Route)
+    const pathname = Promise.resolve(createRoute(''))
     expect(
       await resolveOpenGraph(
         { type: 'article', authors: null },

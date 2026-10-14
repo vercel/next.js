@@ -1,5 +1,9 @@
 /* eslint-disable @next/internal/no-ambiguous-jsx -- Pages router doesn't use react-server */
-import type { Page, Route } from '../shared/lib/route-types'
+import {
+  createRoute,
+  pagesRouteToPage,
+  type Route,
+} from '../shared/lib/route-types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ReactDOMServerReadableStream } from 'react-dom/server'
@@ -171,7 +175,7 @@ class ServerRouter implements NextRouter {
     isPreview?: boolean,
     isLocaleDomain?: boolean
   ) {
-    this.route = (pathname.replace(/\/$/, '') || '/') as Route
+    this.route = createRoute(pathname.replace(/\/$/, '') || '/')
     this.pathname = pathname
     this.query = query
     this.asPath = as
@@ -1245,7 +1249,7 @@ export async function renderToHTMLImpl(
     // This renderer is Pages-only; its URL pattern also identifies the Pages
     // manifest entry before the existing file-codec round trip.
     const page = denormalizePagePath(
-      normalizePagePath(pathname as string as Page)
+      normalizePagePath(pagesRouteToPage(pathname))
     )
     // This code would be much cleaner using `immer` and directly pushing into
     // the result from `getPageFiles`, we could maybe consider that in the

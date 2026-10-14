@@ -1,4 +1,9 @@
-import type { Route } from '../route-types'
+import {
+  type Route,
+  createRoute,
+  createRoutes,
+  createRoutesResult,
+} from '../route-types'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
@@ -203,9 +208,9 @@ function getAppRouterMarkerKey(
 }
 
 function resolveDynamicRoute(pathname: Route, pages: Route[]): Route {
-  // @ts-ignore -- Human review: a URL Route is passed through a page-file denormalizer. Preserve the existing index handling.
+  // @ts-ignore -- TODO: Human review: a URL Route is passed through a page-file denormalizer. Preserve the existing index handling.
   const cleanPathname: Route = removeTrailingSlash(
-    // @ts-ignore Human review: the file decoder consumes a URL Route, not Page. Preserve this argument as well as the existing Route result assumption above.
+    // @ts-ignore TODO: Human review: the file decoder consumes a URL Route, not Page. Preserve this argument as well as the existing Route result assumption above.
     denormalizePagePath(pathname)
   )
   if (cleanPathname === '/404' || cleanPathname === '/_error') {
@@ -267,7 +272,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
       let fsPathname = removeTrailingSlash(pathnameInfo.pathname)
       return Promise.all([
         // Manifest URL patterns cross the exported PageLoader string boundary.
-        options.router.pageLoader.getPageList() as Route[] | Promise<Route[]>,
+        createRoutesResult(options.router.pageLoader.getPageList()),
         getClientBuildManifest(),
       ]).then(([pages, { __rewrites: rewrites }]) => {
         let as = addLocale(pathnameInfo.pathname, pathnameInfo.locale)
@@ -347,7 +352,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
     // `source` is the relative Pages data URL produced by PageLoader.
     const src = parsePath(source)
     const pathname = formatNextPathnameInfo({
-      ...getNextPathnameInfo(src.pathname as Route, {
+      ...getNextPathnameInfo(createRoute(src.pathname), {
         nextConfig,
         parseData: true,
       }),
@@ -369,7 +374,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
       // parsePath removes its query and hash before internal route handling.
       const src = parsePath(redirectTarget)
       const pathname = formatNextPathnameInfo({
-        ...getNextPathnameInfo(src.pathname as Route, {
+        ...getNextPathnameInfo(createRoute(src.pathname), {
           nextConfig,
           parseData: true,
         }),
@@ -844,7 +849,7 @@ export default class Router implements BaseRouter {
     }
   ) {
     // The public constructor still accepts strings; brand its internal route key.
-    const route = removeTrailingSlash(pathname as Route)
+    const route = removeTrailingSlash(createRoute(pathname))
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -862,7 +867,7 @@ export default class Router implements BaseRouter {
       }
     }
 
-    this.components['/_app' as Route] = {
+    this.components['/_app'] = {
       Component: App as ComponentType,
       styleSheets: [
         /* /_app does not need its stylesheets managed */
@@ -909,7 +914,7 @@ export default class Router implements BaseRouter {
 
     this.state = {
       route,
-      pathname: pathname as Route,
+      pathname: createRoute(pathname),
       query,
       asPath: autoExportDynamic ? pathname : as,
       isPreview: !!isPreview,
@@ -1479,7 +1484,7 @@ export default class Router implements BaseRouter {
       ;[pages, { __rewrites: rewrites }] = await Promise.all([
         // The public loader exposes mutable string arrays; these manifest
         // entries are normalized URL patterns for internal matching.
-        this.pageLoader.getPageList() as Route[] | Promise<Route[]>,
+        createRoutesResult(this.pageLoader.getPageList()),
         getClientBuildManifest(),
         this.pageLoader.getMiddleware(),
       ])
@@ -1742,7 +1747,7 @@ export default class Router implements BaseRouter {
       if ('route' in routeInfo && isMiddlewareMatch) {
         // Component info is publicly writable, so brand its URL at the
         // internal routing-state boundary rather than requiring it of callers.
-        pathname = (routeInfo.route || route) as Route
+        pathname = createRoute(routeInfo.route || route)
         route = pathname
 
         if (!routeProps.shallow) {
@@ -1856,10 +1861,10 @@ export default class Router implements BaseRouter {
           let notFoundRoute: Route
 
           try {
-            await this.fetchComponent('/404' as Route)
-            notFoundRoute = '/404' as Route
+            await this.fetchComponent(createRoute('/404'))
+            notFoundRoute = createRoute('/404')
           } catch (_) {
-            notFoundRoute = '/_error' as Route
+            notFoundRoute = createRoute('/_error')
           }
 
           routeInfo = await this.getRouteInfo({
@@ -1919,8 +1924,8 @@ export default class Router implements BaseRouter {
         routeInfo = await this.getRouteInfo({
           // Public getters stay strings; both expose this router's private
           // branded pathname state at this internal boundary.
-          route: this.pathname as Route,
-          pathname: this.pathname as Route,
+          route: createRoute(this.pathname),
+          pathname: createRoute(this.pathname),
           query,
           as,
           resolvedAs,
@@ -2090,7 +2095,7 @@ export default class Router implements BaseRouter {
     try {
       let props: Record<string, any> | undefined
       const { page: Component, styleSheets } = await this.fetchComponent(
-        '/_error' as Route
+        createRoute('/_error')
       )
 
       const routeInfo: CompletePrivateRouteInfo = {
@@ -2164,7 +2169,7 @@ export default class Router implements BaseRouter {
      */
     // This exported Router method accepts plain URL-pattern strings; only its
     // internal routing state and helper inputs require the Route representation.
-    let route = requestedRoute as Route
+    let route = createRoute(requestedRoute)
 
     try {
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
@@ -2262,7 +2267,7 @@ export default class Router implements BaseRouter {
       if (data?.effect?.type === 'rewrite') {
         const resolvedRoute = removeTrailingSlash(data.effect.resolvedHref)
         // The exported loader returns plain strings for public compatibility.
-        const pages = (await this.pageLoader.getPageList()) as Route[]
+        const pages = createRoutes(await this.pageLoader.getPageList())
 
         // during query updating the page must match although during
         // client-transition a redirect that doesn't match a page
@@ -2430,7 +2435,7 @@ export default class Router implements BaseRouter {
 
     return this.sub(
       data,
-      this.components['/_app' as Route].Component as AppComponent,
+      this.components['/_app'].Component as AppComponent,
       resetScroll
     )
   }
@@ -2547,7 +2552,7 @@ export default class Router implements BaseRouter {
     }
 
     // The exported loader returns plain strings for public compatibility.
-    const pages = (await this.pageLoader.getPageList()) as Route[]
+    const pages = createRoutes(await this.pageLoader.getPageList())
     let resolvedAs = asPath
 
     const locale =
@@ -2717,7 +2722,7 @@ export default class Router implements BaseRouter {
   async fetchComponent(route: string) {
     // The exported Router method retains its string input at the public boundary.
     const handleCancelled = getCancelledHandler({
-      route: route as Route,
+      route: createRoute(route),
       router: this,
     })
 
@@ -2757,7 +2762,7 @@ export default class Router implements BaseRouter {
     Component: ComponentType,
     ctx: NextPageContext
   ): Promise<Record<string, any>> {
-    const { Component: App } = this.components['/_app' as Route]
+    const { Component: App } = this.components['/_app']
     const AppTree = this._wrapApp(App as AppComponent)
     ctx.AppTree = AppTree
     return loadGetInitialProps<AppContextType<Router>>(App, {

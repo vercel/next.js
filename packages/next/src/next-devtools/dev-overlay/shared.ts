@@ -1,4 +1,4 @@
-import type { Route } from '../../shared/lib/route-types'
+import { createRoute, type Route } from '../../shared/lib/route-types'
 import type { RuntimeErrorMetadata } from '../../server/dev/hot-reloader-types'
 import { useReducer } from 'react'
 
@@ -350,7 +350,7 @@ export function getInstantErrorRoute(error: unknown): Route | null {
   const prefixMatch = /^Route "([^"]+)":/.exec(message)
   // The recognized framework error serializes workStore.route. The existing
   // message parser is the external-data boundary; no validation is added.
-  return prefixMatch ? (prefixMatch[1] as Route) : null
+  return prefixMatch ? createRoute(prefixMatch[1]) : null
 }
 
 // The route stored on an instant error is the route *template* from

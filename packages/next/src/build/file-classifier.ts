@@ -18,7 +18,10 @@ export function extractSlotFromPath(pagePath: Page): SlotInfo | undefined {
     if (isParallelRouteSegment(segment)) {
       return {
         name: segment.slice(1),
-        parent: normalizeAppPath(segments.slice(0, i).join('/') as Page),
+        parent: normalizeAppPath(
+          // @ts-ignore -- TODO: Human review: this slot-parent directory prefix is not a complete Page module; a real trailing page/route directory may be stripped as a leaf. Preserve existing slot discovery.
+          segments.slice(0, i).join('/')
+        ),
       }
     }
   }

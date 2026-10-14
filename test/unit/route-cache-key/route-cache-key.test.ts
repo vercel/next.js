@@ -5,12 +5,18 @@ import {
   isRouteCacheOwner,
 } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
-import type { Page, Route } from 'next/dist/shared/lib/route-types'
+import {
+  createPage,
+  createRoute,
+  createRoutes,
+  pagesRouteToPage,
+  type Route,
+} from 'next/dist/shared/lib/route-types'
 import type { ResponseCacheOwner } from 'next/dist/server/lib/route-cache-key'
 
-const pages = (sourceRoute: string): ResponseCacheOwner => ({
+const pages = (sourceRoute: Route): ResponseCacheOwner => ({
   kind: RouteKind.PAGES,
-  sourceRoute: sourceRoute as Route,
+  sourceRoute: sourceRoute,
 })
 
 describe('response cache identity', () => {
@@ -23,28 +29,36 @@ describe('response cache identity', () => {
 
   it('separates source routes that accept the same normalized pathname', () => {
     expect(
-      getRouteCacheKey('/blog/post' as Route, pages('/blog/[slug]'))
-    ).not.toBe(getRouteCacheKey('/blog/post' as Route, pages('/[...slug]')))
+      getRouteCacheKey(
+        createRoute('/blog/post'),
+        pages(createRoute('/blog/[slug]'))
+      )
+    ).not.toBe(
+      getRouteCacheKey(
+        createRoute('/blog/post'),
+        pages(createRoute('/[...slug]'))
+      )
+    )
   })
 
-  it.each(['/', '/nested', '/blog/[slug]', '/index'] as Route[])(
+  it.each(createRoutes(['/', '/nested', '/blog/[slug]', '/index']))(
     'uses the Pages pathname regardless of the bundler module name: %s',
     (pathname) => {
       const webpack = getResponseCacheOwner({
         kind: RouteKind.PAGES,
         // These Pages-only fixtures deliberately use the same URL and module spelling.
-        page: pathname as string as Page,
+        page: pagesRouteToPage(pathname),
         pathname,
       })
       const turbopack = getResponseCacheOwner({
         kind: RouteKind.PAGES,
-        page: (pathname === '/' ? '/index' : `${pathname}/index`) as Page,
+        page: createPage(pathname === '/' ? '/index' : `${pathname}/index`),
         pathname,
       })
       expect(webpack).toEqual(pages(pathname))
       expect(turbopack).toEqual(webpack)
-      expect(getRouteCacheKey('/post' as Route, turbopack)).toBe(
-        getRouteCacheKey('/post' as Route, webpack)
+      expect(getRouteCacheKey(createRoute('/post'), turbopack)).toBe(
+        getRouteCacheKey(createRoute('/post'), webpack)
       )
     }
   )
@@ -62,9 +76,9 @@ describe('response cache identity', () => {
       'uses SHA-256 of the full source module: %s',
       (page) => {
         const hash = createHash('sha256').update(page).digest('hex')
-        expect(getRouteCacheKey('/blog/post' as Route, pages(page))).toBe(
-          `/route-cache/PAGES/${hash}/$/blog/post`
-        )
+        expect(
+          getRouteCacheKey(createRoute('/blog/post'), pages(createRoute(page)))
+        ).toBe(`/route-cache/PAGES/${hash}/$/blog/post`)
       }
     )
 
@@ -73,9 +87,9 @@ describe('response cache identity', () => {
       `/${Array.from({ length: 80 }, (_, i) => `(group${i})`).join('/')}/page`,
     ])('bounds source directory length and depth: %s', (page) => {
       expect(
-        getRouteCacheKey('/short' as Route, {
+        getRouteCacheKey(createRoute('/short'), {
           kind: RouteKind.APP_PAGE,
-          sourceRoute: page as Page,
+          sourceRoute: createPage(page),
         })
       ).toMatch(/^\/route-cache\/APP_PAGE\/[a-f0-9]{64}\/\$\/short$/)
     })
@@ -83,35 +97,40 @@ describe('response cache identity', () => {
 
   it('separates response kinds and internal app module identities', () => {
     const keys = [
-      { kind: RouteKind.PAGES, page: '/blog/[slug]' as Page },
-      { kind: RouteKind.APP_PAGE, page: '/blog/[slug]' as Page },
-      { kind: RouteKind.APP_ROUTE, page: '/blog/[slug]' as Page },
-      { kind: RouteKind.APP_PAGE, page: '/(group)/blog/[slug]/page' as Page },
-      { kind: RouteKind.APP_PAGE, page: '/@slot/blog/[slug]/page' as Page },
+      { kind: RouteKind.PAGES, page: createPage('/blog/[slug]') },
+      { kind: RouteKind.APP_PAGE, page: createPage('/blog/[slug]') },
+      { kind: RouteKind.APP_ROUTE, page: createPage('/blog/[slug]') },
+      {
+        kind: RouteKind.APP_PAGE,
+        page: createPage('/(group)/blog/[slug]/page'),
+      },
+      { kind: RouteKind.APP_PAGE, page: createPage('/@slot/blog/[slug]/page') },
     ].map((definition) => {
       const owner = getResponseCacheOwner({
         ...definition,
-        pathname: '/blog/[slug]' as Route,
+        pathname: createRoute('/blog/[slug]'),
       })
       expect(owner.sourceRoute).toBe(definition.page)
-      return getRouteCacheKey('/blog/post' as Route, owner)
+      return getRouteCacheKey(createRoute('/blog/post'), owner)
     })
     expect(new Set(keys).size).toBe(keys.length)
   })
 
   it('cannot confuse a source-route delimiter with the pathname', () => {
-    expect(getRouteCacheKey('/b/$/c' as Route, pages('/a'))).not.toBe(
-      getRouteCacheKey('/c' as Route, pages('/a/$/b'))
+    expect(
+      getRouteCacheKey(createRoute('/b/$/c'), pages(createRoute('/a')))
+    ).not.toBe(
+      getRouteCacheKey(createRoute('/c'), pages(createRoute('/a/$/b')))
     )
-    expect(getRouteCacheKey('/post' as Route, pages('/%24'))).not.toBe(
-      getRouteCacheKey('/post' as Route, pages('/$'))
-    )
+    expect(
+      getRouteCacheKey(createRoute('/post'), pages(createRoute('/%24')))
+    ).not.toBe(getRouteCacheKey(createRoute('/post'), pages(createRoute('/$'))))
   })
 
   it('normalizes the pathname exactly once', () => {
-    const route = pages('/[[...slug]]')
+    const route = pages(createRoute('/[[...slug]]'))
     const keys = ['/', '/index', '/index/index'].map((pathname) =>
-      getRouteCacheKey(pathname as Route, route)
+      getRouteCacheKey(createRoute(pathname), route)
     )
     expect(new Set(keys).size).toBe(3)
     expect(keys.map((key) => key.split('/$/')[1])).toEqual([
@@ -122,9 +141,9 @@ describe('response cache identity', () => {
   })
 
   it('retains locale and escaped pathname distinctions', () => {
-    const route = pages('/[...slug]')
+    const route = pages(createRoute('/[...slug]'))
     const keys = ['/en/post', '/fr/post', '/a/b', '/a%2Fb', '/a%252Fb'].map(
-      (pathname) => getRouteCacheKey(pathname as Route, route)
+      (pathname) => getRouteCacheKey(createRoute(pathname), route)
     )
     expect(new Set(keys).size).toBe(keys.length)
   })
@@ -133,7 +152,10 @@ describe('response cache identity', () => {
     'rejects pathname traversal or normalization across the namespace: %s',
     (pathname) => {
       expect(() =>
-        getRouteCacheKey(pathname as Route, pages('/[...slug]'))
+        getRouteCacheKey(
+          createRoute(pathname),
+          pages(createRoute('/[...slug]'))
+        )
       ).toThrow()
     }
   )
@@ -142,16 +164,16 @@ describe('response cache identity', () => {
 describe('prerender ownership without a cache-key manifest', () => {
   it('recognizes a Pages index module without admitting a sibling', () => {
     const prerender = {
-      srcRoute: '/[first]' as Route,
-      dataRoute: '/_next/data/build/en/first.json' as Route,
+      srcRoute: createRoute('/[first]'),
+      dataRoute: createRoute('/_next/data/build/en/first.json'),
     }
     expect(
       isRouteCacheOwner(
-        '/en/first' as Route,
+        createRoute('/en/first'),
         getResponseCacheOwner({
           kind: RouteKind.PAGES,
-          page: '/[first]/index' as Page,
-          pathname: '/[first]' as Route,
+          page: createPage('/[first]/index'),
+          pathname: createRoute('/[first]'),
         }),
         prerender,
         ['en', 'es']
@@ -159,11 +181,11 @@ describe('prerender ownership without a cache-key manifest', () => {
     ).toBe(true)
     expect(
       isRouteCacheOwner(
-        '/en/first' as Route,
+        createRoute('/en/first'),
         getResponseCacheOwner({
           kind: RouteKind.PAGES,
-          page: '/[...slug]/index' as Page,
-          pathname: '/[...slug]' as Route,
+          page: createPage('/[...slug]/index'),
+          pathname: createRoute('/[...slug]'),
         }),
         prerender,
         ['en', 'es']
@@ -173,62 +195,87 @@ describe('prerender ownership without a cache-key manifest', () => {
 
   it('requires the source route of a concrete prerender', () => {
     const prerender = {
-      srcRoute: '/blog/[slug]' as Route,
-      dataRoute: '/_next/data/build/blog/post.json' as Route,
+      srcRoute: createRoute('/blog/[slug]'),
+      dataRoute: createRoute('/_next/data/build/blog/post.json'),
     }
     expect(
-      isRouteCacheOwner('/blog/post' as Route, pages('/blog/[slug]'), prerender)
+      isRouteCacheOwner(
+        createRoute('/blog/post'),
+        pages(createRoute('/blog/[slug]')),
+        prerender
+      )
     ).toBe(true)
     expect(
-      isRouteCacheOwner('/blog/post' as Route, pages('/[...slug]'), prerender)
+      isRouteCacheOwner(
+        createRoute('/blog/post'),
+        pages(createRoute('/[...slug]')),
+        prerender
+      )
     ).toBe(false)
     expect(
-      isRouteCacheOwner('/blog/post' as Route, pages('/blog/[slug]'), undefined)
+      isRouteCacheOwner(
+        createRoute('/blog/post'),
+        pages(createRoute('/blog/[slug]')),
+        undefined
+      )
     ).toBe(false)
   })
 
   it('recognizes static Pages owners with and without locales', () => {
     const prerender = {
       srcRoute: null,
-      dataRoute: '/_next/data/build/about.json' as Route,
-    }
-    expect(
-      isRouteCacheOwner('/about' as Route, pages('/about'), prerender)
-    ).toBe(true)
-    expect(
-      isRouteCacheOwner('/fr/about' as Route, pages('/about'), prerender, [
-        'en',
-        'fr',
-      ])
-    ).toBe(true)
-    expect(
-      isRouteCacheOwner('/fr' as Route, pages('/'), prerender, ['en', 'fr'])
-    ).toBe(true)
-    expect(
-      isRouteCacheOwner('/other/about' as Route, pages('/about'), prerender, [
-        'en',
-        'fr',
-      ])
-    ).toBe(false)
-  })
-
-  it('recognizes locale-prefixed Pages fallback shells', () => {
-    const prerender = {
-      dataRoute: '/_next/data/build/blog/[slug].json' as Route,
-      fallbackSourceRoute: undefined,
+      dataRoute: createRoute('/_next/data/build/about.json'),
     }
     expect(
       isRouteCacheOwner(
-        '/fr/blog/[slug]' as Route,
-        pages('/blog/[slug]'),
+        createRoute('/about'),
+        pages(createRoute('/about')),
+        prerender
+      )
+    ).toBe(true)
+    expect(
+      isRouteCacheOwner(
+        createRoute('/fr/about'),
+        pages(createRoute('/about')),
         prerender,
         ['en', 'fr']
       )
     ).toBe(true)
     expect(
       isRouteCacheOwner(
-        '/fr/blog/[slug]' as Route,
-        pages('/[...slug]'),
+        createRoute('/fr'),
+        pages(createRoute('/')),
+        prerender,
+        ['en', 'fr']
+      )
+    ).toBe(true)
+    expect(
+      isRouteCacheOwner(
+        createRoute('/other/about'),
+        pages(createRoute('/about')),
+        prerender,
+        ['en', 'fr']
+      )
+    ).toBe(false)
+  })
+
+  it('recognizes locale-prefixed Pages fallback shells', () => {
+    const prerender = {
+      dataRoute: createRoute('/_next/data/build/blog/[slug].json'),
+      fallbackSourceRoute: undefined,
+    }
+    expect(
+      isRouteCacheOwner(
+        createRoute('/fr/blog/[slug]'),
+        pages(createRoute('/blog/[slug]')),
+        prerender,
+        ['en', 'fr']
+      )
+    ).toBe(true)
+    expect(
+      isRouteCacheOwner(
+        createRoute('/fr/blog/[slug]'),
+        pages(createRoute('/[...slug]')),
         prerender,
         ['en', 'fr']
       )
@@ -237,25 +284,25 @@ describe('prerender ownership without a cache-key manifest', () => {
 
   it('uses the original source for partially specialized PPR shells', () => {
     const prerender = {
-      fallbackSourceRoute: '/catalog/[category]/[item]' as Route,
-      dataRoute: '/catalog/a/[item].rsc' as Route,
+      fallbackSourceRoute: createRoute('/catalog/[category]/[item]'),
+      dataRoute: createRoute('/catalog/a/[item].rsc'),
     }
     expect(
       isRouteCacheOwner(
-        '/catalog/a/[item]' as Route,
+        createRoute('/catalog/a/[item]'),
         {
           kind: RouteKind.APP_PAGE,
-          sourceRoute: '/(shop)/catalog/[category]/[item]/page' as Page,
+          sourceRoute: createPage('/(shop)/catalog/[category]/[item]/page'),
         },
         prerender
       )
     ).toBe(true)
     expect(
       isRouteCacheOwner(
-        '/catalog/a/[item]' as Route,
+        createRoute('/catalog/a/[item]'),
         {
           kind: RouteKind.APP_PAGE,
-          sourceRoute: '/catalog/a/[item]/page' as Page,
+          sourceRoute: createPage('/catalog/a/[item]/page'),
         },
         prerender
       )
@@ -265,48 +312,51 @@ describe('prerender ownership without a cache-key manifest', () => {
   it('uses App route normalization for groups, slots, and escaped underscores', () => {
     expect(
       isRouteCacheOwner(
-        '/_blog/post' as Route,
+        createRoute('/_blog/post'),
         {
           kind: RouteKind.APP_PAGE,
-          sourceRoute: '/(group)/@slot/%5Fblog/[slug]/page' as Page,
+          sourceRoute: createPage('/(group)/@slot/%5Fblog/[slug]/page'),
         },
         {
-          srcRoute: '/_blog/[slug]' as Route,
-          dataRoute: '/_blog/post.rsc' as Route,
+          srcRoute: createRoute('/_blog/[slug]'),
+          dataRoute: createRoute('/_blog/post.rsc'),
         }
       )
     ).toBe(true)
     expect(
       isRouteCacheOwner(
-        '/photos/post' as Route,
+        createRoute('/photos/post'),
         {
           kind: RouteKind.APP_PAGE,
-          sourceRoute: '/@modal/(.)photos/[slug]/page' as Page,
+          sourceRoute: createPage('/@modal/(.)photos/[slug]/page'),
         },
         {
-          srcRoute: '/photos/[slug]' as Route,
-          dataRoute: '/photos/post.rsc' as Route,
+          srcRoute: createRoute('/photos/[slug]'),
+          dataRoute: createRoute('/photos/post.rsc'),
         }
       )
     ).toBe(false)
   })
 
   it('keeps response kinds distinct when source pathnames agree', () => {
-    const pathname = '/blog/[slug]' as Route
+    const pathname = createRoute('/blog/[slug]')
     const sources: ResponseCacheOwner[] = [
       pages(pathname),
-      { kind: RouteKind.APP_PAGE, sourceRoute: `${pathname}/page` as Page },
-      { kind: RouteKind.APP_ROUTE, sourceRoute: `${pathname}/route` as Page },
+      { kind: RouteKind.APP_PAGE, sourceRoute: createPage(`${pathname}/page`) },
+      {
+        kind: RouteKind.APP_ROUTE,
+        sourceRoute: createPage(`${pathname}/route`),
+      },
     ]
     const dataRoutes = [
-      '/_next/data/build/blog/post.json',
-      '/blog/post.rsc',
+      createRoute('/_next/data/build/blog/post.json'),
+      createRoute('/blog/post.rsc'),
       null,
-    ] as Array<Route | null>
+    ]
     for (const [index, route] of sources.entries()) {
       for (const [other, dataRoute] of dataRoutes.entries()) {
         expect(
-          isRouteCacheOwner('/blog/post' as Route, route, {
+          isRouteCacheOwner(createRoute('/blog/post'), route, {
             srcRoute: pathname,
             dataRoute,
           })
@@ -319,14 +369,14 @@ describe('prerender ownership without a cache-key manifest', () => {
     for (const pathname of ['/fr/about', '/café', '/index']) {
       expect(
         isRouteCacheOwner(
-          pathname as Route,
+          createRoute(pathname),
           {
             kind: RouteKind.APP_PAGE,
-            sourceRoute: `${pathname}/page` as Page,
+            sourceRoute: createPage(`${pathname}/page`),
           },
           {
-            srcRoute: pathname as Route,
-            dataRoute: `${pathname}.rsc` as Route,
+            srcRoute: createRoute(pathname),
+            dataRoute: createRoute(`${pathname}.rsc`),
           },
           ['en', 'fr']
         )
@@ -334,12 +384,12 @@ describe('prerender ownership without a cache-key manifest', () => {
     }
     expect(
       isRouteCacheOwner(
-        '/fr/about' as Route,
+        createRoute('/fr/about'),
         {
           kind: RouteKind.APP_PAGE,
-          sourceRoute: '/about/page' as Page,
+          sourceRoute: createPage('/about/page'),
         },
-        { srcRoute: null, dataRoute: '/fr/about.rsc' as Route },
+        { srcRoute: null, dataRoute: createRoute('/fr/about.rsc') },
         ['en', 'fr']
       )
     ).toBe(false)

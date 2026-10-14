@@ -43,7 +43,11 @@ import type {
   WrittenEndpoint,
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
-import type { Page, Route as RoutePathname } from '../../shared/lib/route-types'
+import {
+  createPage,
+  createRoute,
+  type Route as RoutePathname,
+} from '../../shared/lib/route-types'
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -1239,7 +1243,7 @@ function bindingToApi(
           route = {
             type: 'app-page',
             pages: nativeRoute.pages.map((page) => ({
-              originalName: page.originalName as Page,
+              originalName: createPage(page.originalName),
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
               rscHmrEndpoint: new EndpointImpl(page.rscHmrEndpoint),
             })),
@@ -1248,7 +1252,7 @@ function bindingToApi(
         case 'app-route':
           route = {
             type: 'app-route',
-            originalName: nativeRoute.originalName as Page,
+            originalName: createPage(nativeRoute.originalName),
             hasActionManifest: nativeRoute.hasActionManifest,
             endpoint: new EndpointImpl(nativeRoute.endpoint),
           }
@@ -1266,7 +1270,7 @@ function bindingToApi(
           )
         }
       }
-      routes.set(pathname as RoutePathname, route)
+      routes.set(createRoute(pathname), route)
     }
     const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
       endpoint: new EndpointImpl(middleware.endpoint),

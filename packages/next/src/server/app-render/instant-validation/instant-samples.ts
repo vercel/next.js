@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute, type Route } from '../../../shared/lib/route-types'
 import type { InstantSample } from '../../../build/segment-config/app/app-segment-config'
 import type { ReadonlyRequestCookies } from '../../web/spec-extension/adapters/request-cookies'
 import type { ReadonlyHeaders } from '../../web/spec-extension/adapters/headers'
@@ -479,7 +479,7 @@ function createPathnameFromRouteAndSampleParams(
   }
   // Parameter encoding and slash-preserving substitution construct a pathname
   // from the normalized matcher without introducing module modifiers.
-  return interpolatedSegments.join('/') as Route
+  return createRoute(interpolatedSegments.join('/'))
 }
 
 export function assertRootParamInSamples(

@@ -1,4 +1,8 @@
-import type { Page, Route } from '../shared/lib/route-types'
+import {
+  pagesRouteToPage,
+  type Page,
+  type Route,
+} from '../shared/lib/route-types'
 import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import path from 'path'
 import { promises as fs, statSync } from 'fs'
@@ -94,7 +98,7 @@ function readEntryJSFiles(
     g.__RSC_MANIFEST = prev
 
     // The key in __RSC_MANIFEST is the app path (e.g. /blog/[slug]/page)
-    // @ts-ignore -- Human review: the fallback probe uses a normalized App URL in a raw App-module-keyed RSC manifest. This may be an intentional legacy miss; preserve it without claiming the URL is a raw Page.
+    // @ts-ignore -- TODO: Human review: the fallback probe uses a normalized App URL in a raw App-module-keyed RSC manifest. This may be an intentional legacy miss; preserve it without claiming the URL is a raw Page.
     const manifestEntry = rscManifest?.[pagePath] ?? rscManifest?.[appRoute]
     return manifestEntry?.entryJSFiles
   } catch {
@@ -117,7 +121,7 @@ function collectPagesRouterStats(
       continue
 
     // This list contains only Pages-router URL keys, sharing the module namespace.
-    const allFiles = (buildManifest.pages[page as string as Page] ?? []).filter(
+    const allFiles = (buildManifest.pages[pagesRouteToPage(page)] ?? []).filter(
       (f) => f.endsWith('.js')
     )
     const sharedJs = sharedFiles.filter((f) => f.endsWith('.js'))

@@ -1,4 +1,8 @@
-import type { Page, Route } from '../../shared/lib/route-types'
+import {
+  createRoute,
+  type Page,
+  type Route,
+} from '../../shared/lib/route-types'
 import { isMetadataPage } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
@@ -76,20 +80,22 @@ function normalizeStaticMetadataRouteSegment(segment: string) {
 }
 
 function getStaticMetadataRoute(segment: string): Route {
-  // @ts-ignore -- Human review: this raw directory prefix is not a complete Page. normalizeAppPath can strip a real /page or /route parent; preserve existing metadata URL construction.
+  // @ts-ignore -- TODO: Human review: this raw directory prefix is not a complete Page. normalizeAppPath can strip a real /page or /route parent; preserve existing metadata URL construction.
   const pathname = normalizeAppPath(segment)
 
-  return normalizePathSep(
-    path.join(
-      '/',
-      ...pathname
-        .split('/')
-        .filter(Boolean)
-        .map((pathnameSegment) =>
-          normalizeStaticMetadataRouteSegment(pathnameSegment)
-        )
+  return createRoute(
+    normalizePathSep(
+      path.join(
+        '/',
+        ...pathname
+          .split('/')
+          .filter(Boolean)
+          .map((pathnameSegment) =>
+            normalizeStaticMetadataRouteSegment(pathnameSegment)
+          )
+      )
     )
-  ) as Route
+  )
 }
 
 export function fillStaticMetadataSegment(
@@ -97,12 +103,14 @@ export function fillStaticMetadataSegment(
   segment: string,
   lastSegment: string
 ): Route {
-  return normalizePathSep(
-    path.join(
-      getStaticMetadataRoute(segment),
-      getMetadataRouteFilename(segment, lastSegment)
+  return createRoute(
+    normalizePathSep(
+      path.join(
+        getStaticMetadataRoute(segment),
+        getMetadataRouteFilename(segment, lastSegment)
+      )
     )
-  ) as Route
+  )
 }
 
 /**
@@ -112,9 +120,9 @@ export function fillStaticMetadataSegment(
 export function getStaticMetadataPrerenderPathname(
   pathname: Route
 ): Route | null {
-  const normalized = (
-    pathname.startsWith('/') ? pathname : `/${pathname}`
-  ) as Route
+  const normalized = pathname.startsWith('/')
+    ? pathname
+    : createRoute(`/${pathname}`)
   if (!isMetadataRouteFile(normalized, [], true)) {
     return null
   }
@@ -156,16 +164,18 @@ export function fillMetadataSegment(
     return fillStaticMetadataSegment(segment, lastSegment)
   }
 
-  // @ts-ignore -- Human review: this raw directory prefix is not a complete Page. normalizeAppPath can strip a real /page or /route parent; preserve existing metadata URL construction.
+  // @ts-ignore -- TODO: Human review: this raw directory prefix is not a complete Page. normalizeAppPath can strip a real /page or /route parent; preserve existing metadata URL construction.
   const pathname = normalizeAppPath(segment)
   const routeRegex = getNamedRouteRegex(pathname, {
     prefixRouteKeys: false,
   })
   const route = interpolateDynamicPath(pathname, params, routeRegex)
 
-  return normalizePathSep(
-    path.join(route, getMetadataRouteFilename(segment, lastSegment))
-  ) as Route
+  return createRoute(
+    normalizePathSep(
+      path.join(route, getMetadataRouteFilename(segment, lastSegment))
+    )
+  )
 }
 
 /**
@@ -201,7 +211,10 @@ export function normalizeMetadataRoute(page: Page): Page {
     )
   }
 
-  return route as Page
+  // This metadata codec preserves the input module-ID role, including its
+  // unchanged /route case. Its mutable string accumulator is not a new raw
+  // discovery boundary; do not reconstruct an already-branded Page.
+  return route as /* TODO: Guard the metadata normalizer's completed Page boundary. */ Page
 }
 
 // Normalize metadata route page to either a single route or a dynamic route.

@@ -1,4 +1,11 @@
-import type { Page, Route } from '../shared/lib/route-types'
+import {
+  createPage,
+  createRoute,
+  createRoutes,
+  pagesRouteToPage,
+  type Page,
+  type Route,
+} from '../shared/lib/route-types'
 import {
   getRouteCacheKey,
   ROUTE_CACHE_DIRECTORY,
@@ -736,16 +743,23 @@ async function writeClientSsgManifest(
 ) {
   const ssgPages = new Set<Route>(
     [
+      // Preserve the keys and readonly values of this existing Route-keyed manifest.
       ...(
-        Object.entries(prerenderManifest.routes) as [
-          Route,
-          DeepReadonly<PrerenderManifestRoute>,
+        Object.entries(
+          prerenderManifest.routes
+        ) as /* TODO: Preserve Route entry keys through native iteration. */ [
+          keyof typeof prerenderManifest.routes,
+          (typeof prerenderManifest.routes)[keyof typeof prerenderManifest.routes],
         ][]
       )
         // Filter out dynamic routes
         .filter(([, { srcRoute }]) => srcRoute == null)
         .map(([route]) => normalizeLocalePath(route, locales).pathname),
-      ...(Object.keys(prerenderManifest.dynamicRoutes) as Route[]),
+      // TODO: Preserve the existing manifest Route key across Object.keys.
+      // Object.keys erases the existing manifest key role; no new Route is constructed.
+      ...(Object.keys(prerenderManifest.dynamicRoutes) as Array<
+        keyof typeof prerenderManifest.dynamicRoutes
+      >),
     ].sort()
   )
 
@@ -1603,7 +1617,9 @@ export default async function build(
       } = discovery
 
       // Pages discovery keys are also the normalized URL patterns for Pages.
-      const pagesPageKeys = Object.keys(NextBuildContext.mappedPages) as Route[]
+      const pagesPageKeys = Object.keys(
+        NextBuildContext.mappedPages
+      ) as /* TODO: Preserve known Route keys across Object.keys. */ Route[]
 
       const conflictingAppPagePaths: [pagePath: string, appPath: string][] = []
       const appPageKeys = new Set<Route>()
@@ -1613,12 +1629,15 @@ export default async function build(
       let discoveredAppPageKeys: Page[] | undefined
       let emittedAppPageKeys: Page[] | undefined
       if (discovery.mappedAppPages) {
-        discoveredAppPageKeys = Object.keys(discovery.mappedAppPages) as Page[]
+        // Preserve the existing Page keys of discovery's App module map.
+        discoveredAppPageKeys = Object.keys(discovery.mappedAppPages) as Array<
+          keyof typeof discovery.mappedAppPages
+        >
         for (const appKey of discoveredAppPageKeys) {
           const normalizedAppPageKey = normalizeAppPath(appKey)
           // Probe the Pages namespace with the same discovered URL to detect conflicts.
           const pagePath =
-            NextBuildContext.mappedPages[normalizedAppPageKey as string as Page]
+            NextBuildContext.mappedPages[pagesRouteToPage(normalizedAppPageKey)]
           if (pagePath) {
             const appPath = discovery.mappedAppPages[appKey]
             conflictingAppPagePaths.push([
@@ -1714,12 +1733,12 @@ export default async function build(
 
       const conflictingPublicFiles: string[] = []
       const hasPages404 =
-        mappedPages['/404' as Page]?.startsWith(PAGES_DIR_ALIAS)
+        mappedPages[createPage('/404')]?.startsWith(PAGES_DIR_ALIAS)
       const hasApp404 = !!mappedAppPages?.[UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
       const hasAppGlobalError =
         !!mappedAppPages?.[UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY]
       const hasCustomErrorPage =
-        mappedPages['/_error' as Page]?.startsWith(PAGES_DIR_ALIAS)
+        mappedPages[createPage('/_error')]?.startsWith(PAGES_DIR_ALIAS)
 
       // Check if there are any user pages (non-reserved pages) in the pages router
       const hasUserPagesRoutes = Object.keys(mappedPages).some(
@@ -2302,7 +2321,12 @@ export default async function build(
         // Post-build consumers use this filtered list so they do not look for
         // output files belonging to candidates that were not emitted.
         const emittedAppPageKeySet = new Set(
-          Object.keys(appPathsManifest) as Page[]
+          // Preserve the Page keys of the emitted App module manifest.
+          Object.keys(
+            appPathsManifest
+          ) as /* TODO: Preserve Page keys across native iteration. */ Array<
+            keyof typeof appPathsManifest
+          >
         )
         emittedAppPageKeys = discoveredAppPageKeys?.filter((appPageKey) =>
           emittedAppPageKeySet.has(appPageKey)
@@ -2310,12 +2334,19 @@ export default async function build(
 
         const appPathsByPathname = new Map<Route, Page[]>()
         for (const key in appPathsManifest) {
-          const pathname = normalizeAppPath(key as Page)
+          // for-in erases this manifest's existing Page key role.
+          const pathname = normalizeAppPath(
+            key as /* TODO: Preserve Page keys across native appPathsManifest iteration. */ keyof typeof appPathsManifest
+          )
           const routeAppPaths = appPathsByPathname.get(pathname)
           if (routeAppPaths) {
-            routeAppPaths.push(key as Page)
+            routeAppPaths.push(
+              key as /* TODO: Preserve Page keys across native appPathsManifest iteration. */ keyof typeof appPathsManifest
+            )
           } else {
-            appPathsByPathname.set(pathname, [key as Page])
+            appPathsByPathname.set(pathname, [
+              key as /* TODO: Preserve Page keys across native appPathsManifest iteration. */ keyof typeof appPathsManifest,
+            ])
           }
         }
 
@@ -2389,7 +2420,7 @@ export default async function build(
             async () =>
               hasCustomErrorPage &&
               (await staticWorker.hasCustomGetInitialProps({
-                page: '/_error' as Page,
+                page: createPage('/_error'),
                 distDir,
                 checkingApp: false,
                 sriEnabled,
@@ -2401,7 +2432,7 @@ export default async function build(
             hasCustomErrorPage &&
             staticWorker.isPageStatic({
               dir,
-              page: '/_error' as Route,
+              page: createRoute('/_error'),
               distDir,
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
@@ -2427,7 +2458,7 @@ export default async function build(
             })
         )
 
-        const appPageToCheck = '/_app' as Page
+        const appPageToCheck = createPage('/_app')
 
         const customAppGetInitialPropsPromise = hasUserPagesRoutes
           ? staticWorker.hasCustomGetInitialProps({
@@ -2505,7 +2536,7 @@ export default async function build(
                 page,
               })
               return checkPageSpan.traceAsyncFn(async () => {
-                // @ts-ignore -- Human review: this flattened URL loop runs the Page file codec even for normalized app Routes. Only the Pages branch consumes actualPage for filesystem discovery; retain the existing computation.
+                // @ts-ignore -- TODO: Human review: this flattened URL loop runs the Page file codec even for normalized app Routes. Only the Pages branch consumes actualPage for filesystem discovery; retain the existing computation.
                 const actualPage = normalizePagePath(page)
 
                 let isRoutePPREnabled = false
@@ -2530,9 +2561,13 @@ export default async function build(
 
                 if (pageType === 'app' && mappedAppPages) {
                   const originalAppPaths: Page[] = []
+                  // Preserve the existing raw-Page-to-URL schema populated from emitted modules.
                   for (const [originalPath, normalizedPath] of Object.entries(
                     appPathRoutes
-                  ) as [Page, Route][]) {
+                  ) as [
+                    keyof typeof appPathRoutes,
+                    (typeof appPathRoutes)[keyof typeof appPathRoutes],
+                  ][]) {
                     if (
                       normalizedPath === page &&
                       mappedAppPages[originalPath]
@@ -2573,7 +2608,7 @@ export default async function build(
                       // routes must use originalAppPath with its modifiers/leaf.
                       page: isInsideAppDir
                         ? originalAppPath!
-                        : (page as string as Page),
+                        : pagesRouteToPage(page),
                     })
                   : undefined
 
@@ -2600,7 +2635,7 @@ export default async function build(
                   }
                 }
 
-                // @ts-ignore -- Human review: when originalAppPath is absent this raw Page-keyed function lookup falls back to a URL Route; the Pages namespace coincides, but an app URL lacks its raw modifiers/leaf. Preserve the fallback for review.
+                // @ts-ignore -- TODO: Human review: when originalAppPath is absent this raw Page-keyed function lookup falls back to a URL Route; the Pages namespace coincides, but an app URL lacks its raw modifiers/leaf. Preserve the fallback for review.
                 const pageRuntime = middlewareManifest.functions[
                   originalAppPath || page
                 ]
@@ -2625,10 +2660,10 @@ export default async function build(
 
                         const manifestKey =
                           pageType === 'pages'
-                            ? (page as string as Page)
+                            ? pagesRouteToPage(page)
                             : originalAppPath || ''
 
-                        // @ts-ignore -- Human review: an app without originalAppPath probes the Page-keyed function map with an empty sentinel, relying on a miss. Do not brand empty text as a Page or change this fallback.
+                        // @ts-ignore -- TODO: Human review: an app without originalAppPath probes the Page-keyed function map with an empty sentinel, relying on a miss. Do not brand empty text as a Page or change this fallback.
                         edgeInfo = middlewareManifest.functions[manifestKey]
                       }
 
@@ -2979,7 +3014,7 @@ export default async function build(
         // Is format of `(/src)/(proxy|middleware).<ext>`, so split by
         // "." and get the first part, regard rest of the extensions
         // to match the `page` value format.
-        const page = middlewareFile.split('.')[0] as Page
+        const page = createPage(middlewareFile.split('.')[0])
 
         const staticInfo = await getStaticInfoIncludingLayouts({
           isInsideAppDir: false,
@@ -3187,11 +3222,11 @@ export default async function build(
 
       const { i18n } = config
 
-      const usedStaticStatusPages = (STATIC_STATUS_PAGES as Route[]).filter(
+      const usedStaticStatusPages = createRoutes(STATIC_STATUS_PAGES).filter(
         (page) =>
           // These URL literals name Pages modules in the Pages namespace.
-          mappedPages[page as string as Page] &&
-          mappedPages[page as string as Page].startsWith('private-next-pages')
+          mappedPages[pagesRouteToPage(page)] &&
+          mappedPages[pagesRouteToPage(page)].startsWith('private-next-pages')
       )
       usedStaticStatusPages.forEach((page) => {
         if (!ssgPages.has(page) && !customAppGetInitialProps) {
@@ -3200,7 +3235,7 @@ export default async function build(
       })
 
       const hasPages500 =
-        !appDirOnly && usedStaticStatusPages.includes('/500' as Route)
+        !appDirOnly && usedStaticStatusPages.includes(createRoute('/500'))
       const useDefaultStatic500 =
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
@@ -3385,8 +3420,8 @@ export default async function build(
                 for (const page of [
                   ...staticPages,
                   ...ssgPages,
-                  ...(useStaticPages404 ? ['/404' as Route] : []),
-                  ...(useDefaultStatic500 ? ['/500' as Route] : []),
+                  ...(useStaticPages404 ? [createRoute('/404')] : []),
+                  ...(useDefaultStatic500 ? [createRoute('/500')] : []),
                 ]) {
                   const isSsg = ssgPages.has(page)
                   const isDynamic = isDynamicRoute(page)
@@ -3516,7 +3551,7 @@ export default async function build(
             }
             // These staticPages are Pages Router URLs, also their module identifiers.
             const serverBundle = getPagePath(
-              page as string as Page,
+              page as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page,
               distDir,
               undefined,
               false
@@ -3727,16 +3762,16 @@ export default async function build(
               }
 
               if (cacheControl.revalidate !== 0) {
-                // @ts-ignore -- Human review: an app prerender URL (Route), not its raw app Page identifier, is encoded with the Page file codec to form the RSC endpoint. Keep this transport naming assumption unchanged.
+                // @ts-ignore -- TODO: Human review: an app prerender URL (Route), not its raw app Page identifier, is encoded with the Page file codec to form the RSC endpoint. Keep this transport naming assumption unchanged.
                 const normalizedRoute = normalizePagePath(route.pathname)
 
                 let dataRoute: Route | null
                 if (isAppRouteHandler) {
                   dataRoute = null
                 } else {
-                  dataRoute = path.posix.join(
-                    `${normalizedRoute}${RSC_SUFFIX}`
-                  ) as Route
+                  dataRoute = createRoute(
+                    path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+                  )
                 }
                 const prefetchDataRoute =
                   isRoutePPREnabled && dataRoute && hasStaticRsc
@@ -3912,7 +3947,7 @@ export default async function build(
                   prerenderCandidate?.pathname ?? route.pathname
 
                 const normalizedRoute = normalizePagePath(
-                  // @ts-ignore -- Human review: an app artifact URL (Route) is encoded as a Page file counterpart for RSC transport. Preserve this naming assumption, not a false raw-Page assertion.
+                  // @ts-ignore -- TODO: Human review: an app artifact URL (Route) is encoded as a Page file counterpart for RSC transport. Preserve this naming assumption, not a false raw-Page assertion.
                   prerenderOutputPathname
                 )
                 const parentPageInfo = pageInfos.get(page) as PageInfo
@@ -3926,9 +3961,9 @@ export default async function build(
 
                 let dataRoute: Route | null = null
                 if (!isAppRouteHandler) {
-                  dataRoute = path.posix.join(
-                    `${normalizedRoute}${RSC_SUFFIX}`
-                  ) as Route
+                  dataRoute = createRoute(
+                    path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
+                  )
                 }
 
                 let prefetchDataRoute: Route | null = null
@@ -4183,21 +4218,31 @@ export default async function build(
 
             if (i18n) {
               // Replace non-locale entry with per-locale entries
-              delete pagesManifest[page as string as Page]
+              delete pagesManifest[
+                page as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page
+              ]
               for (const locale of i18n.locales) {
-                const curPath = `/${locale}${page === '/' ? '' : page}` as Route
+                const curPath = createRoute(
+                  `/${locale}${page === '/' ? '' : page}`
+                )
                 if (prerenderManifest.notFoundRoutes.includes(curPath)) continue
                 const relativeDest =
                   page === '/'
                     ? `pages/${locale}.html`
                     : // This Pages URL names its Pages file counterpart.
-                      `pages${normalizePagePath(curPath as string as Page)}.html`
-                pagesManifest[curPath as string as Page] = relativeDest
+                      `pages${normalizePagePath(curPath as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page)}.html`
+                pagesManifest[
+                  curPath as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page
+                ] = relativeDest
               }
             } else if (!isUnusedStaticStatusPage) {
               // Only Pages Router URLs enter this Pages file encoding boundary.
-              const file = normalizePagePath(page as string as Page)
-              pagesManifest[page as string as Page] = `pages${file}.html`
+              const file = normalizePagePath(
+                page as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page
+              )
+              pagesManifest[
+                page as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page
+              ] = `pages${file}.html`
             }
           }
 
@@ -4212,7 +4257,7 @@ export default async function build(
                     kind: RouteKind.PAGES,
                     sourceRoute: page,
                   })
-                : `pages${normalizePagePath(pathname as string as Page)}`
+                : `pages${normalizePagePath(pathname as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page)}`
             return Promise.all(
               ['.html', '.json', '.meta'].map((extension) =>
                 fs.rm(
@@ -4235,10 +4280,13 @@ export default async function build(
                   distDir,
                   'server',
                   config.adapterPath && config.output !== 'export'
-                    ? `${getRouteCacheKey(UNDERSCORE_NOT_FOUND_ROUTE as Route, {
-                        kind: RouteKind.APP_PAGE,
-                        sourceRoute: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
-                      })}.html`
+                    ? `${getRouteCacheKey(
+                        createRoute(UNDERSCORE_NOT_FOUND_ROUTE),
+                        {
+                          kind: RouteKind.APP_PAGE,
+                          sourceRoute: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+                        }
+                      )}.html`
                     : 'app/_not-found.html'
                 )
                 const updatedRelativeDest = path
@@ -4262,13 +4310,14 @@ export default async function build(
                   // we have to ensure the app router entries are available for all locales
                   if (i18n) {
                     for (const locale of i18n.locales) {
-                      const curPath = `/${locale}/404` as Route
-                      pagesManifest[curPath as string as Page] =
-                        updatedRelativeDest
+                      const curPath = createRoute(`/${locale}/404`)
+                      pagesManifest[
+                        curPath as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page
+                      ] = updatedRelativeDest
                     }
                   }
 
-                  pagesManifest['/404' as Page] = updatedRelativeDest
+                  pagesManifest[createPage('/404')] = updatedRelativeDest
                 }
               })
           }
@@ -4290,7 +4339,7 @@ export default async function build(
                   'server',
                   config.adapterPath && config.output !== 'export'
                     ? `${getRouteCacheKey(
-                        UNDERSCORE_GLOBAL_ERROR_ROUTE as Route,
+                        createRoute(UNDERSCORE_GLOBAL_ERROR_ROUTE),
                         {
                           kind: RouteKind.APP_PAGE,
                           sourceRoute: UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
@@ -4312,7 +4361,7 @@ export default async function build(
                   })
                   await fs.copyFile(orig, error500Html)
 
-                  pagesManifest['/500' as Page] = path
+                  pagesManifest[createPage('/500')] = path
                     .join('pages', '500.html')
                     .replace(/\\/g, '/')
                 }
@@ -4325,7 +4374,8 @@ export default async function build(
           const hasStaticApp404 =
             hasApp404 &&
             staticPaths.has(UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) &&
-            !pageInfos.get(UNDERSCORE_NOT_FOUND_ROUTE as Route)?.hasPostponed
+            !pageInfos.get(createRoute(UNDERSCORE_NOT_FOUND_ROUTE))
+              ?.hasPostponed
 
           if (hasStaticApp404) {
             await moveExportedAppNotFoundTo404()
@@ -4337,12 +4387,12 @@ export default async function build(
               useStaticPages404 &&
               !appDirOnly
             ) {
-              updatePagesManifestForExportedPage('/404' as Route, false)
+              updatePagesManifestForExportedPage(createRoute('/404'), false)
             }
           }
 
           if (useDefaultStatic500 && !appDirOnly) {
-            updatePagesManifestForExportedPage('/500' as Route, false)
+            updatePagesManifestForExportedPage(createRoute('/500'), false)
           }
 
           // If there's app router and no pages router, use app router built-in 500.html
@@ -4359,10 +4409,14 @@ export default async function build(
             const isStaticSsgFallback = ssgStaticFallbackPages.has(page)
             const isDynamic = isDynamicRoute(page)
             // combinedPages contains only Pages Router URLs; here they identify Pages files.
-            const file = normalizePagePath(page as string as Page)
+            const file = normalizePagePath(
+              page as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page
+            )
 
             const pageInfo = pageInfos.get(page)
-            const durationInfo = exportResult.byPage.get(page as string as Page)
+            const durationInfo = exportResult.byPage.get(
+              page as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page
+            )
             if (pageInfo && durationInfo) {
               // Set Build Duration
               if (pageInfo.ssgPageRoutes) {
@@ -4394,8 +4448,9 @@ export default async function build(
                 if (i18n) {
                   // TODO: do we want to show all locale variants in build output
                   for (const locale of i18n.locales) {
-                    const localePage =
-                      `/${locale}${page === '/' ? '' : page}` as Route
+                    const localePage = createRoute(
+                      `/${locale}${page === '/' ? '' : page}`
+                    )
                     const isNotFoundTrue =
                       prerenderManifest.notFoundRoutes.includes(localePage)
 
@@ -4416,11 +4471,13 @@ export default async function build(
                       experimentalPPR: undefined,
                       renderingMode: undefined,
                       srcRoute: null,
-                      dataRoute: path.posix.join(
-                        '/_next/data',
-                        buildId,
-                        `${localePage}.json`
-                      ) as Route,
+                      dataRoute: createRoute(
+                        path.posix.join(
+                          '/_next/data',
+                          buildId,
+                          `${localePage}.json`
+                        )
+                      ),
                       prefetchDataRoute: undefined,
                       allowHeader: ALLOWED_HEADERS,
                     }
@@ -4445,11 +4502,9 @@ export default async function build(
                     experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: null,
-                    dataRoute: path.posix.join(
-                      '/_next/data',
-                      buildId,
-                      `${file}.json`
-                    ) as Route,
+                    dataRoute: createRoute(
+                      path.posix.join('/_next/data', buildId, `${file}.json`)
+                    ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
                     allowHeader: ALLOWED_HEADERS,
@@ -4482,11 +4537,13 @@ export default async function build(
                     experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: page,
-                    dataRoute: path.posix.join(
-                      '/_next/data',
-                      buildId,
-                      `${normalizePagePath(route.pathname as string as Page)}.json`
-                    ) as Route,
+                    dataRoute: createRoute(
+                      path.posix.join(
+                        '/_next/data',
+                        buildId,
+                        `${normalizePagePath(route.pathname as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page)}.json`
+                      )
+                    ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
                     allowHeader: ALLOWED_HEADERS,
@@ -4595,12 +4652,12 @@ export default async function build(
       if (ssgPages.size > 0 || appDir) {
         tbdPrerenderRoutes.forEach((tbdRoute) => {
           // tbdPrerenderRoutes is populated only from Pages SSG fallback URLs.
-          const normalizedRoute = normalizePagePath(tbdRoute as string as Page)
-          const dataRoute = path.posix.join(
-            '/_next/data',
-            buildId,
-            `${normalizedRoute}.json`
-          ) as Route
+          const normalizedRoute = normalizePagePath(
+            tbdRoute as string as /* TODO: Model the Pages-only URL/module relationship without erasing Route. */ Page
+          )
+          const dataRoute = createRoute(
+            path.posix.join('/_next/data', buildId, `${normalizedRoute}.json`)
+          )
           let fallback: Fallback = false
           if (ssgBlockingFallbackPages.has(tbdRoute)) {
             fallback = null
@@ -4652,9 +4709,10 @@ export default async function build(
         // adapter would later look for a parent app output that doesn't
         // exist and throw an invariant error. Strip those entries before the
         // manifest is written.
+        // TODO: Preserve the existing Route keys across Object.keys without reconstruction.
         for (const route of Object.keys(
           prerenderManifest.dynamicRoutes
-        ) as Route[]) {
+        ) as Array<keyof typeof prerenderManifest.dynamicRoutes>) {
           if (isStaticMetadataFile(route)) {
             delete prerenderManifest.dynamicRoutes[route]
           }

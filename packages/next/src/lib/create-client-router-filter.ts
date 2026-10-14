@@ -1,4 +1,4 @@
-import type { Route } from '../shared/lib/route-types'
+import { createRoute, type Route } from '../shared/lib/route-types'
 import type { Token } from 'next/dist/compiled/path-to-regexp'
 import { BloomFilter } from '../shared/lib/bloom-filter'
 import { isDynamicRoute } from '../shared/lib/router/utils'
@@ -27,8 +27,9 @@ export function createClientRouterFilter(
       if (isInterceptionRouteAppPath(path)) {
         // This caller supplies normalized matcher paths, so rebasing the marker
         // constructs another URL pathname rather than a raw App module name.
-        path = extractInterceptionRouteInformation(path)
-          .interceptedRoute as Route
+        path = createRoute(
+          extractInterceptionRouteInformation(path).interceptedRoute
+        )
       }
 
       let subPath = ''
@@ -71,7 +72,7 @@ export function createClientRouterFilter(
 
     if (tokens.every((token) => typeof token === 'string')) {
       // only include static redirects initially
-      // @ts-ignore Human review: a static path-to-regexp source can retain escaping; it is not necessarily the normalized URL pathname stored by the other static entries. Preserve redirect filtering.
+      // @ts-ignore TODO: Human review: a static path-to-regexp source can retain escaping; it is not necessarily the normalized URL pathname stored by the other static entries. Preserve redirect filtering.
       staticPaths.add(path)
     }
   }

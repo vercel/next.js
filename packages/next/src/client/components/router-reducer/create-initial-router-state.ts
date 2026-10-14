@@ -1,4 +1,7 @@
-import type { Route } from '../../../shared/lib/route-types'
+import {
+  createRoute,
+  ingestBrowserLocation,
+} from '../../../shared/lib/route-types'
 import type { InitialRSCPayload } from '../../../shared/lib/app-router-types'
 
 import { createHrefFromUrl } from './create-href-from-url'
@@ -112,7 +115,7 @@ export function createInitialRouterState({
     // Learn the route pattern so we can predict it for future navigations.
     discoverKnownRoute(
       Date.now(),
-      location.pathname as Route,
+      createRoute(location.pathname),
       location.search as NormalizedSearch,
       null, // nextUrl — initial render is never an interception
       null, // No pending entry
@@ -260,9 +263,10 @@ export function createInitialRouterState({
     // the || operator is intentional, the pathname can be an empty string
     // Tree extraction drops its empty fragment sentinel here; the remaining
     // alternative is the native browser Location pathname.
-    nextUrl: ((extractPathFromFlightRouterState(initialTree) ||
-      location?.pathname) ??
-      null) as Route | null,
+    nextUrl:
+      (extractPathFromFlightRouterState(initialTree) ||
+        ingestBrowserLocation(location)?.pathname) ??
+      null,
     previousNextUrl: null,
     debugInfo: null,
   }

@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute, createRoutes } from '../../../shared/lib/route-types'
 import { NextDataPathnameNormalizer } from './next-data'
 
 describe('NextDataPathnameNormalizer', () => {
@@ -13,7 +13,7 @@ describe('NextDataPathnameNormalizer', () => {
   describe('match', () => {
     it('should return false if the pathname does not start with the prefix', () => {
       const normalizer = new NextDataPathnameNormalizer('build-id')
-      const pathnames = ['/foo', '/foo/bar', '/fooo/bar'] as Route[]
+      const pathnames = createRoutes(['/foo', '/foo/bar', '/fooo/bar'])
       for (const pathname of pathnames) {
         expect(normalizer.match(pathname)).toBe(false)
       }
@@ -21,11 +21,11 @@ describe('NextDataPathnameNormalizer', () => {
 
     it('should return false if the pathname only ends with `.json`', () => {
       const normalizer = new NextDataPathnameNormalizer('build-id')
-      const pathnames = [
+      const pathnames = createRoutes([
         '/foo.json',
         '/foo/bar.json',
         '/fooo/bar.json',
-      ] as Route[]
+      ])
       for (const pathname of pathnames) {
         expect(normalizer.match(pathname)).toBe(false)
       }
@@ -33,12 +33,12 @@ describe('NextDataPathnameNormalizer', () => {
 
     it('should return true if it matches', () => {
       const normalizer = new NextDataPathnameNormalizer('build-id')
-      const pathnames = [
+      const pathnames = createRoutes([
         '/_next/data/build-id/index.json',
         '/_next/data/build-id/foo.json',
         '/_next/data/build-id/foo/bar.json',
         '/_next/data/build-id/fooo/bar.json',
-      ] as Route[]
+      ])
       for (const pathname of pathnames) {
         expect(normalizer.match(pathname)).toBe(true)
       }
@@ -48,7 +48,7 @@ describe('NextDataPathnameNormalizer', () => {
   describe('normalize', () => {
     it('should return the same pathname if we are not matched and the pathname does not start with the prefix', () => {
       const normalizer = new NextDataPathnameNormalizer('build-id')
-      const pathnames = ['/foo', '/foo/bar', '/fooo/bar'] as Route[]
+      const pathnames = createRoutes(['/foo', '/foo/bar', '/fooo/bar'])
       for (const pathname of pathnames) {
         expect(normalizer.normalize(pathname)).toBe(pathname)
       }
@@ -56,11 +56,11 @@ describe('NextDataPathnameNormalizer', () => {
 
     it('should strip the prefix and the `.json` extension from the pathname when it matches', () => {
       const normalizer = new NextDataPathnameNormalizer('build-id')
-      const pathnames = [
+      const pathnames = createRoutes([
         '/_next/data/build-id/foo.json',
         '/_next/data/build-id/foo/bar.json',
         '/_next/data/build-id/fooo/bar.json',
-      ] as Route[]
+      ])
       for (const pathname of pathnames) {
         expect(normalizer.normalize(pathname)).toBe(
           pathname.substring(
@@ -74,7 +74,7 @@ describe('NextDataPathnameNormalizer', () => {
     it('should normalize `/index` to `/`', () => {
       const normalizer = new NextDataPathnameNormalizer('build-id')
       expect(
-        normalizer.normalize('/_next/data/build-id/index.json' as Route)
+        normalizer.normalize(createRoute('/_next/data/build-id/index.json'))
       ).toBe('/')
     })
   })

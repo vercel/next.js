@@ -1,4 +1,4 @@
-import type { Route } from '../route-types'
+import { createRoute, type Route } from '../route-types'
 import { pathHasPrefix } from '../router/utils/path-has-prefix'
 
 /**
@@ -8,12 +8,12 @@ export function normalizeDataPath(pathname: Route): Route {
   if (!pathHasPrefix(pathname || '/', '/_next/data')) {
     return pathname
   }
-  pathname = pathname
-    .replace(/\/_next\/data\/[^/]{1,}/, '')
-    .replace(/\.json$/, '') as Route
+  pathname = createRoute(
+    pathname.replace(/\/_next\/data\/[^/]{1,}/, '').replace(/\.json$/, '')
+  )
 
   if (pathname === '/index') {
-    return '/' as Route
+    return createRoute('/')
   }
   return pathname
 }

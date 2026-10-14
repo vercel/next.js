@@ -97,13 +97,14 @@ async function requestHandler(
   req: NextRequestHint,
   _event: NextFetchEvent
 ): Promise<Response> {
-  let srcPage = 'VAR_DEFINITION_PATHNAME' as Route
+  // @ts-ignore -- TODO: Temporary template boundary: injected normalized Pages URL pattern; guarded ingestion deferred.
+  let srcPage: Route = 'VAR_DEFINITION_PATHNAME'
 
   const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
   const baseReq = new WebNextRequest(req)
   const pageRouteModule = pageMod.routeModule as RouteModule
   const prepareResult = await pageRouteModule.prepare(baseReq, null, {
-    // @ts-ignore -- Human review: edge Pages preparation receives the normalized pathname, not the raw definition.page used by the Node template. Preserve the existing normalization assumption.
+    // @ts-ignore -- TODO: Human review: edge Pages preparation receives the normalized pathname, not the raw definition.page used by the Node template. Preserve the existing normalization assumption.
     srcPage,
     multiZoneDraftMode: false,
   })
@@ -151,7 +152,7 @@ async function requestHandler(
 
     renderOpts: {
       params,
-      // @ts-ignore -- Human review: renderOpts.page expects the raw Page, but edge Pages rendering forwards its normalized pathname. Preserve existing behavior.
+      // @ts-ignore -- TODO: Human review: renderOpts.page expects the raw Page, but edge Pages rendering forwards its normalized pathname. Preserve existing behavior.
       page: srcPage,
       supportsDynamicResponse: true,
       Component: pageMod.Component,

@@ -1,5 +1,12 @@
-import type { RouteUrl } from '../lib/url'
-import type { Page, Route } from '../shared/lib/route-types'
+import {
+  type Page,
+  type Route,
+  ingestNativeUrl,
+  createPage,
+  createRoute,
+  pagesPageToRoute,
+  pagesRouteToPage,
+} from '../shared/lib/route-types'
 import type { __ApiPreviewProps } from './api-utils'
 import type {
   GenericComponentMod,
@@ -774,9 +781,9 @@ export default abstract class Server<
       }
 
       // re-create page's pathname
-      let pathname = `/${params.path.join('/')}` as Route
+      let pathname = createRoute(`/${params.path.join('/')}`)
       // The Pages-router data asset identifies the same pathname after decoding.
-      pathname = getRouteFromAssetPath(pathname, '.json') as string as Route
+      pathname = pagesPageToRoute(getRouteFromAssetPath(pathname, '.json'))
 
       // ensure trailing slash is normalized per config
       if (middleware) {
@@ -792,7 +799,7 @@ export default abstract class Server<
           pathname.length > 1 &&
           pathname.endsWith('/')
         ) {
-          pathname = pathname.substring(0, pathname.length - 1) as Route
+          pathname = createRoute(pathname.substring(0, pathname.length - 1))
         }
       }
 
@@ -1106,21 +1113,22 @@ export default abstract class Server<
             }
             parsedUrl.pathname =
               parsedUrl.pathname === '/index'
-                ? ('/' as Route)
+                ? createRoute('/')
                 : parsedUrl.pathname
           }
 
           // x-matched-path is the source of truth, it tells what page
           // should be rendered because we don't process rewrites in minimalMode
-          let { pathname: matchedPath } = new URL(
-            fixMojibake(req.headers[MATCHED_PATH_HEADER] as string),
-            'http://localhost'
-          ) as RouteUrl
+          let { pathname: matchedPath } = ingestNativeUrl(
+            new URL(
+              fixMojibake(req.headers[MATCHED_PATH_HEADER] as string),
+              'http://localhost'
+            )
+          )
 
-          let { pathname: urlPathname } = new URL(
-            req.url,
-            'http://localhost'
-          ) as RouteUrl
+          let { pathname: urlPathname } = ingestNativeUrl(
+            new URL(req.url, 'http://localhost')
+          )
 
           // For ISR the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
@@ -1182,7 +1190,7 @@ export default abstract class Server<
           matchedPath = this.normalize(matchedPath)
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
-          // @ts-ignore -- Human review: matchedPath is a parsed URL Route, but this Page-file transform assumes deployment-specific filename encoding. Preserve existing behavior.
+          // @ts-ignore -- TODO: Human review: matchedPath is a parsed URL Route, but this Page-file transform assumes deployment-specific filename encoding. Preserve existing behavior.
           matchedPath = denormalizePagePath(matchedPath)
 
           // Perform locale detection and normalization.
@@ -1266,8 +1274,9 @@ export default abstract class Server<
           // Ensure parsedUrl.pathname includes locale before processing
           // rewrites or they won't match correctly.
           if (defaultLocale && !pathnameInfo.locale) {
-            parsedUrl.pathname =
-              `/${defaultLocale}${parsedUrl.pathname}` as Route
+            parsedUrl.pathname = createRoute(
+              `/${defaultLocale}${parsedUrl.pathname}`
+            )
           }
 
           // Store a copy of `parsedUrl.query` before calling handleRewrites.
@@ -1631,10 +1640,9 @@ export default abstract class Server<
           return this.renderError(err, req, res, '/_error', parsedUrl.query)
         }
 
-        const parsedMatchedPath = new URL(
-          invokePath || '/',
-          'http://n'
-        ) as RouteUrl
+        const parsedMatchedPath = ingestNativeUrl(
+          new URL(invokePath || '/', 'http://n')
+        )
         const invokePathnameInfo = getNextPathnameInfo(
           parsedMatchedPath.pathname,
           {
@@ -1843,8 +1851,8 @@ export default abstract class Server<
     if (this.enabledDirectories.pages) {
       for (const page of Object.keys(this.pagesManifest || {}) as Page[]) {
         // Pages manifest identifiers already use the URL pathname namespace.
-        const localeResult = this.i18nProvider?.analyze(page as string as Route)
-        const pathname = localeResult?.pathname ?? (page as string as Route)
+        const localeResult = this.i18nProvider?.analyze(pagesPageToRoute(page))
+        const pathname = localeResult?.pathname ?? pagesPageToRoute(page)
 
         if (isBlockedPage(pathname)) continue
 
@@ -2251,7 +2259,7 @@ export default abstract class Server<
       this.renderImpl(
         req,
         res,
-        pathname as Route,
+        createRoute(pathname),
         query,
         parsedUrl as InternalNextUrlWithParsedQuery | undefined,
         internalRender
@@ -2307,11 +2315,11 @@ export default abstract class Server<
     if (
       this.serverOptions.customServer &&
       pathname === '/index' &&
-      !(await this.hasPage('/index' as Page))
+      !(await this.hasPage(createPage('/index')))
     ) {
       // maintain backwards compatibility for custom server
       // (see custom-server integration tests)
-      pathname = '/' as Route
+      pathname = createRoute('/')
     }
 
     const ua = req.headers['user-agent'] || ''
@@ -2426,7 +2434,7 @@ export default abstract class Server<
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
-      pathname = '/404' as Route
+      pathname = createRoute('/404')
     }
     const isErrorPathname = pathname === '/_error'
     const is404Page =
@@ -2527,7 +2535,7 @@ export default abstract class Server<
     // Compute the iSSG cache key. We use the rewritten pathname since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
-    let urlPathname = parseUrl(req.url || '').pathname || ('/' as Route)
+    let urlPathname = parseUrl(req.url || '').pathname || createRoute('/')
 
     let resolvedUrlPathname =
       getRequestMeta(req, 'rewrittenPathname') || urlPathname
@@ -2586,7 +2594,7 @@ export default abstract class Server<
       req.headers[MATCHED_PATH_HEADER] &&
       req.url.startsWith('/_next/data')
     ) {
-      // @ts-ignore -- Human review: req.url may include query text, but this decoder expects a Route pathname and uses Page filename rules. Preserve the existing request-URL handling.
+      // @ts-ignore -- TODO: Human review: req.url may include query text, but this decoder expects a Route pathname and uses Page filename rules. Preserve the existing request-URL handling.
       req.url = this.stripNextDataPath(req.url)
     }
 
@@ -2905,7 +2913,7 @@ export default abstract class Server<
     const response = isNodeNextResponse(res) ? res.originalResponse : res
 
     const parsedInitUrl = parseUrl(getRequestMeta(req, 'initURL') || req.url)
-    let initPathname = parsedInitUrl.pathname || ('/' as Route)
+    let initPathname = parsedInitUrl.pathname || createRoute('/')
 
     for (const normalizer of [
       this.normalizers.segmentPrefetchRSC,
@@ -2979,9 +2987,9 @@ export default abstract class Server<
       )
 
       // Decode the Pages-router data filename back to its URL pathname.
-      filePath = denormalizePagePath(
-        splitPath.replace(/\.json$/, '') as Page
-      ) as string as Route
+      filePath = pagesPageToRoute(
+        denormalizePagePath(createPage(splitPath.replace(/\.json$/, '')))
+      )
     }
 
     if (this.localeNormalizer && stripLocale) {
@@ -3018,9 +3026,9 @@ export default abstract class Server<
         : null)
     const isAppPath = Array.isArray(appPaths)
 
-    // Pages-router lookup uses the pathname as its page identifier; app
-    // entries below instead retain their original modifiers and leaf suffix.
-    let page = pathname as string as Page
+    // The default is consumed only by the Pages lookup. Both App branches
+    // overwrite it with their actual module entry before any lookup occurs.
+    let page = pagesRouteToPage(pathname)
     if (isAppPath) {
       // Load the same direct entry selected by the build and deployment
       // adapter. Expanded catch-all contributors are part of the route tree,
@@ -3189,7 +3197,7 @@ export default abstract class Server<
 
       // if pages/500 is present we still need to trigger
       // /_error `getInitialProps` to allow reporting error
-      if (await this.hasPage('/500' as Page)) {
+      if (await this.hasPage(createPage('/500'))) {
         addRequestMeta(ctx.req, 'customErrorRender', true)
         await this.renderErrorToResponse(ctx, err)
         removeRequestMeta(ctx.req, 'customErrorRender')
@@ -3241,7 +3249,7 @@ export default abstract class Server<
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
     return getTracer().trace(BaseServerSpan.renderToHTML, async () => {
-      return this.renderToHTMLImpl(req, res, pathname as Route, query)
+      return this.renderToHTMLImpl(req, res, createRoute(pathname), query)
     })
   }
 
@@ -3272,7 +3280,7 @@ export default abstract class Server<
         err,
         req,
         res,
-        pathname as Route,
+        createRoute(pathname),
         query,
         setHeaders
       )
@@ -3356,10 +3364,10 @@ export default abstract class Server<
           using404Page = result !== null
         }
 
-        if (!result && (await this.hasPage('/404' as Page))) {
+        if (!result && (await this.hasPage(createPage('/404')))) {
           result = await this.findPageComponents({
             locale: getRequestMeta(ctx.req, 'locale'),
-            page: '/404' as Page,
+            page: createPage('/404'),
             query,
             params: {},
             isAppPath: false,
@@ -3370,7 +3378,7 @@ export default abstract class Server<
           using404Page = result !== null
         }
       }
-      let statusPage = `/${res.statusCode}` as Page
+      let statusPage = createPage(`/${res.statusCode}`)
 
       if (
         !getRequestMeta(ctx.req, 'customErrorRender') &&
@@ -3412,7 +3420,7 @@ export default abstract class Server<
       if (!result) {
         result = await this.findPageComponents({
           locale: getRequestMeta(ctx.req, 'locale'),
-          page: '/_error' as Page,
+          page: createPage('/_error'),
           query,
           params: {},
           isAppPath: false,
@@ -3421,14 +3429,14 @@ export default abstract class Server<
           shouldEnsure: true,
           url: ctx.req.url,
         })
-        statusPage = '/_error' as Page
+        statusPage = createPage('/_error')
       }
 
       if (
         process.env.NODE_ENV !== 'production' &&
         !using404Page &&
-        (await this.hasPage('/_error' as Page)) &&
-        !(await this.hasPage('/404' as Page))
+        (await this.hasPage(createPage('/_error'))) &&
+        !(await this.hasPage(createPage('/404')))
       ) {
         this.customErrorNo404Warn()
       }
@@ -3479,8 +3487,9 @@ export default abstract class Server<
         return await this.renderToResponseWithComponents(
           {
             ...ctx,
-            // Built-in Pages-router error modules use the same URL pathname.
-            pathname: statusPage as string as Route,
+            // This synthetic Pages error label names the requested status URL,
+            // even when the loaded result is the separate App not-found entry.
+            pathname: pagesPageToRoute(statusPage),
             renderOpts: {
               ...ctx.renderOpts,
               err,
@@ -3516,7 +3525,7 @@ export default abstract class Server<
         return this.renderToResponseWithComponents(
           {
             ...ctx,
-            pathname: '/_error' as Route,
+            pathname: createRoute('/_error'),
             renderOpts: {
               ...ctx.renderOpts,
               // We render `renderToHtmlError` here because `err` is
@@ -3548,7 +3557,7 @@ export default abstract class Server<
     return this.getStaticHTML((ctx) => this.renderErrorToResponse(ctx, err), {
       req,
       res,
-      pathname: pathname as Route,
+      pathname: createRoute(pathname),
       query,
     })
   }

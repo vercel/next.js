@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { type Route, createRoute } from '../../../shared/lib/route-types'
 import type { Normalizer } from '../normalizer'
 
 export class PrefixPathnameNormalizer implements Normalizer<Route, Route> {
@@ -24,9 +24,9 @@ export class PrefixPathnameNormalizer implements Normalizer<Route, Route> {
     if (!matched && !this.match(pathname)) return pathname
 
     if (pathname.length === this.prefix.length) {
-      return '/' as Route
+      return createRoute('/')
     }
 
-    return pathname.substring(this.prefix.length) as Route
+    return createRoute(pathname.substring(this.prefix.length))
   }
 }

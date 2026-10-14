@@ -1,4 +1,4 @@
-import type { Route } from '../shared/lib/route-types'
+import { type Route, ingestNativeUrl } from '../shared/lib/route-types'
 import type { UrlWithParsedQuery } from 'url'
 
 export type RouteUrl = URL & { pathname: Route }
@@ -16,7 +16,7 @@ export function isFullStringUrl(url: string) {
 export function parseUrl(url: string): RouteUrl | undefined {
   let parsed: RouteUrl | undefined = undefined
   try {
-    parsed = new URL(url, DUMMY_ORIGIN) as RouteUrl
+    parsed = ingestNativeUrl(new URL(url, DUMMY_ORIGIN))
   } catch {}
   return parsed
 }

@@ -7,7 +7,7 @@ import {
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
 import type { LoaderTree } from '../lib/app-dir-module'
-import type { Route } from '../../shared/lib/route-types'
+import { createRoute } from '../../shared/lib/route-types'
 
 // Helper to create LoaderTree structures for testing
 type TestLoaderTree = [
@@ -129,7 +129,7 @@ describe('getFallbackRouteParams', () => {
       // Tree: /[slug]
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[slug]'))
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/[slug]' as Route, routeModule)
+      const result = getFallbackRouteParams(createRoute('/[slug]'), routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.has('slug')).toBe(true)
@@ -145,7 +145,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/[category]/[slug]' as Route,
+        createRoute('/[category]/[slug]'),
         routeModule
       )
 
@@ -161,7 +161,10 @@ describe('getFallbackRouteParams', () => {
       // Tree: /[...slug]
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[...slug]'))
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/[...slug]' as Route, routeModule)
+      const result = getFallbackRouteParams(
+        createRoute('/[...slug]'),
+        routeModule
+      )
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
@@ -178,7 +181,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/[[...slug]]' as Route,
+        createRoute('/[[...slug]]'),
         routeModule
       )
 
@@ -205,7 +208,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/blog/[category]/posts/[slug]' as Route,
+        createRoute('/blog/[category]/posts/[slug]'),
         routeModule
       )
 
@@ -223,7 +226,10 @@ describe('getFallbackRouteParams', () => {
         createLoaderTree('blog', {}, createLoaderTree('posts'))
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/blog/posts' as Route, routeModule)
+      const result = getFallbackRouteParams(
+        createRoute('/blog/posts'),
+        routeModule
+      )
 
       // Should return null for no fallback params
       expect(result).toBeNull()
@@ -238,7 +244,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/vercel/[projectSlug]' as Route,
+        createRoute('/vercel/[projectSlug]'),
         routeModule
       )
 
@@ -257,7 +263,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/vercel/%5BprojectSlug%5D' as Route,
+        createRoute('/vercel/%5BprojectSlug%5D'),
         routeModule
       )
 
@@ -281,7 +287,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/blog/[slug]' as Route,
+        createRoute('/blog/[slug]'),
         routeModule
       )
 
@@ -307,7 +313,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/dashboard/[userId]' as Route,
+        createRoute('/dashboard/[userId]'),
         routeModule
       )
 
@@ -324,7 +330,7 @@ describe('getFallbackRouteParams', () => {
         modal: createLoaderTree('[id]'),
       })
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/[id]' as Route, routeModule)
+      const result = getFallbackRouteParams(createRoute('/[id]'), routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
@@ -342,7 +348,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/[lang]/[photoId]' as Route,
+        createRoute('/[lang]/[photoId]'),
         routeModule
       )
 
@@ -362,7 +368,7 @@ describe('getFallbackRouteParams', () => {
         })
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/[id]' as Route, routeModule)
+      const result = getFallbackRouteParams(createRoute('/[id]'), routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(2)
@@ -382,7 +388,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/(.)photo/[photoId]' as Route,
+        createRoute('/(.)photo/[photoId]'),
         routeModule
       )
 
@@ -404,7 +410,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/gallery/(..)photo/[photoId]' as Route,
+        createRoute('/gallery/(..)photo/[photoId]'),
         routeModule
       )
 
@@ -421,7 +427,10 @@ describe('getFallbackRouteParams', () => {
         createLoaderTree('(.)[photoId]')
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/[photoId]' as Route, routeModule)
+      const result = getFallbackRouteParams(
+        createRoute('/[photoId]'),
+        routeModule
+      )
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
@@ -438,7 +447,7 @@ describe('getFallbackRouteParams', () => {
       })
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/(.)photo/[photoId]' as Route,
+        createRoute('/(.)photo/[photoId]'),
         routeModule
       )
 
@@ -462,7 +471,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/[id]/(.)photo/[photoId]' as Route,
+        createRoute('/[id]/(.)photo/[photoId]'),
         routeModule
       )
 
@@ -491,7 +500,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/photos/[id]/(.)photo/[photoId]' as Route,
+        createRoute('/photos/[id]/(.)photo/[photoId]'),
         routeModule
       )
 
@@ -522,7 +531,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/[lang]/(.)photo/[photoId]' as Route,
+        createRoute('/[lang]/(.)photo/[photoId]'),
         routeModule
       )
 
@@ -555,7 +564,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/[locale]/products/[category]/(.)product/[productId]' as Route,
+        createRoute('/[locale]/products/[category]/(.)product/[productId]'),
         routeModule
       )
 
@@ -579,7 +588,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/en/products/[category]' as Route,
+        createRoute('/en/products/[category]'),
         routeModule
       )
 
@@ -605,7 +614,7 @@ describe('getFallbackRouteParams', () => {
       )
       const routeModule = createMockRouteModule(loaderTree)
       const result = getFallbackRouteParams(
-        '/en/(.)photo/[photoId]' as Route,
+        createRoute('/en/(.)photo/[photoId]'),
         routeModule
       )
 
@@ -625,7 +634,10 @@ describe('getFallbackRouteParams', () => {
         createLoaderTree('blog', {}, createLoaderTree('posts'))
       )
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/blog/posts' as Route, routeModule)
+      const result = getFallbackRouteParams(
+        createRoute('/blog/posts'),
+        routeModule
+      )
 
       expect(result).toBeNull()
     })
@@ -634,7 +646,7 @@ describe('getFallbackRouteParams', () => {
       // Tree: '' -> [id]
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[id]'))
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/[id]' as Route, routeModule)
+      const result = getFallbackRouteParams(createRoute('/[id]'), routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
@@ -645,7 +657,7 @@ describe('getFallbackRouteParams', () => {
       // Tree: /[slug]
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[slug]'))
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/[slug]' as Route, routeModule)
+      const result = getFallbackRouteParams(createRoute('/[slug]'), routeModule)
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
@@ -656,7 +668,10 @@ describe('getFallbackRouteParams', () => {
       // Tree: /[...slug]
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[...slug]'))
       const routeModule = createMockRouteModule(loaderTree)
-      const result = getFallbackRouteParams('/[...slug]' as Route, routeModule)
+      const result = getFallbackRouteParams(
+        createRoute('/[...slug]'),
+        routeModule
+      )
 
       expect(result).not.toBeNull()
       expect(result!.size).toBe(1)
@@ -672,7 +687,7 @@ describe('getFallbackRouteParams', () => {
       const routeModule = createMockRouteModule(loaderTree)
 
       let result = getFallbackRouteParams(
-        '/[[...optional]]' as Route,
+        createRoute('/[[...optional]]'),
         routeModule
       )
       expect(result).not.toBeNull()
@@ -680,7 +695,10 @@ describe('getFallbackRouteParams', () => {
       expect(result!.has('optional')).toBe(true)
       expect(result!.get('optional')).toMatch(/^%%drp:optional:[a-f0-9]+%%$/)
 
-      result = getFallbackRouteParams('/sidebar/is/real' as Route, routeModule)
+      result = getFallbackRouteParams(
+        createRoute('/sidebar/is/real'),
+        routeModule
+      )
       expect(result).toBeNull()
     })
   })

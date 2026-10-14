@@ -1,4 +1,4 @@
-import type { Page, Route } from '../../shared/lib/route-types'
+import type { Page } from '../../shared/lib/route-types'
 import type { NextApiResponse } from '../../types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
@@ -34,8 +34,10 @@ export const config = hoist(userland, 'config')
 const routeModule = new PagesAPIRouteModule({
   definition: {
     kind: RouteKind.PAGES_API,
-    page: 'VAR_DEFINITION_PAGE' as Page,
-    pathname: 'VAR_DEFINITION_PATHNAME' as Route,
+    // @ts-ignore -- TODO: Temporary template boundary: injected normalized Pages API module key; guarded ingestion deferred.
+    page: 'VAR_DEFINITION_PAGE',
+    // @ts-ignore -- TODO: Temporary template boundary: injected canonical Pages API URL pattern; guarded ingestion deferred.
+    pathname: 'VAR_DEFINITION_PATHNAME',
     // The following aren't used in production.
     bundlePath: '',
     filename: '',
@@ -59,13 +61,15 @@ export async function handler(
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
-  let srcPage = 'VAR_DEFINITION_PAGE' as Page
+  // @ts-ignore -- TODO: Temporary template boundary: injected Pages API module key; guarded ingestion deferred.
+  let srcPage: Page = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
   // so we need to to process dynamic routes properly
   // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
-    srcPage = (srcPage.replace(/\/index$/, '') || '/') as Page
+    // @ts-ignore -- TODO: Temporary template boundary: completed Pages API module-key normalization; guarded construction deferred.
+    srcPage = srcPage.replace(/\/index$/, '') || '/'
   }
 
   const prepareResult = await routeModule.prepare(req, res, { srcPage })
@@ -109,7 +113,8 @@ export async function handler(
           previewProps,
           propagateError: false,
           dev: routeModule.isDev,
-          page: 'VAR_DEFINITION_PAGE' as Page,
+          // @ts-ignore -- TODO: Temporary template boundary: injected Pages API module key; guarded ingestion deferred.
+          page: 'VAR_DEFINITION_PAGE',
 
           internalRevalidate: routerServerContext?.revalidate,
 

@@ -15,11 +15,11 @@ import {
 } from './shared'
 import type { RequestInsight } from '../shared/request-insights'
 import type { RuntimeErrorEvent } from './container/runtime-error/render-error'
-import type { Route } from '../../shared/lib/route-types'
+import { createRoute } from '../../shared/lib/route-types'
 
-const STATIC_ROUTE = '/example' as Route
-const DYNAMIC_ROUTE_TEMPLATE = '/posts/[slug]' as Route
-const CATCH_ALL_ROUTE_TEMPLATE = '/docs/[...slug]' as Route
+const STATIC_ROUTE = createRoute('/example')
+const DYNAMIC_ROUTE_TEMPLATE = createRoute('/posts/[slug]')
+const CATCH_ALL_ROUTE_TEMPLATE = createRoute('/docs/[...slug]')
 
 function createRequestInsight(
   kind: RequestInsight['kind'],
@@ -207,7 +207,7 @@ describe('routeTemplateMatchesPath', () => {
   })
 
   it('does not match different static routes', () => {
-    expect(routeTemplateMatchesPath('/foo' as Route, '/bar')).toBe(false)
+    expect(routeTemplateMatchesPath(createRoute('/foo'), '/bar')).toBe(false)
   })
 
   it('matches a dynamic template against a resolved URL', () => {

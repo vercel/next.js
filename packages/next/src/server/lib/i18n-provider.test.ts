@@ -1,7 +1,7 @@
 import type { DomainLocale } from '../config'
 import { I18NProvider } from './i18n-provider'
 import type { LocaleAnalysisResult } from './i18n-provider'
-import type { Route } from '../../shared/lib/route-types'
+import { createRoute } from '../../shared/lib/route-types'
 
 describe('I18NProvider', () => {
   const config = {
@@ -77,10 +77,10 @@ describe('I18NProvider', () => {
     }>([
       // Verify un-prefixed index routes.
       {
-        pathname: '/' as Route,
+        pathname: createRoute('/'),
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/' as Route,
+          pathname: createRoute('/'),
           detectedLocale: config.defaultLocale,
           inferredFromDefault: true,
         },
@@ -88,10 +88,10 @@ describe('I18NProvider', () => {
 
       // Verify un-prefixed other routes.
       {
-        pathname: '/another/page' as Route,
+        pathname: createRoute('/another/page'),
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/another/page' as Route,
+          pathname: createRoute('/another/page'),
           detectedLocale: config.defaultLocale,
           inferredFromDefault: true,
         },
@@ -102,7 +102,7 @@ describe('I18NProvider', () => {
         pathname: `/${locale}`,
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/' as Route,
+          pathname: createRoute('/'),
           detectedLocale: locale,
           inferredFromDefault: false,
         },
@@ -113,7 +113,7 @@ describe('I18NProvider', () => {
         pathname: `/${locale}/another/page`,
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/another/page' as Route,
+          pathname: createRoute('/another/page'),
           detectedLocale: locale,
           inferredFromDefault: false,
         },
@@ -121,9 +121,9 @@ describe('I18NProvider', () => {
     ])(
       'for pathname $pathname and defaultLocale $defaultLocale',
       ({ pathname, defaultLocale, expected }) => {
-        expect(provider.analyze(pathname as Route, { defaultLocale })).toEqual(
-          expected
-        )
+        expect(
+          provider.analyze(createRoute(pathname), { defaultLocale })
+        ).toEqual(expected)
       }
     )
   })

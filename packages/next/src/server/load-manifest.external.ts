@@ -18,6 +18,8 @@ const sharedCache = new Map<string, unknown>()
  * @param cache the cache to use for storing the manifest
  * @returns the manifest object
  */
+// TODO: Audit Page/Route manifest writers and reader schemas at their call sites;
+// the generic T alone does not establish branded keys or mutable ownership.
 export function loadManifest<T extends object>(
   path: string,
   shouldCache: false

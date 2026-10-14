@@ -11,7 +11,11 @@ import {
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
 import type { CacheFs } from 'next/dist/shared/lib/utils'
-import type { Page, Route } from 'next/dist/shared/lib/route-types'
+import {
+  createPage,
+  createRoute,
+  createRoutes,
+} from 'next/dist/shared/lib/route-types'
 import type { ResponseCacheOwner } from 'next/dist/server/lib/route-cache-key'
 
 const cacheDir = fileURLToPath(new URL('./cache', import.meta.url))
@@ -148,9 +152,9 @@ describe('FileSystemCache route-scoped build seeds', () => {
 
   const owner: Extract<ResponseCacheOwner, { kind: RouteKind.PAGES }> = {
     kind: RouteKind.PAGES,
-    sourceRoute: '/posts/[slug]' as Route,
+    sourceRoute: createRoute('/posts/[slug]'),
   }
-  const pathname = '/posts/first' as Route
+  const pathname = createRoute('/posts/first')
 
   async function writeSeed(options?: {
     owner?: typeof owner
@@ -264,17 +268,14 @@ describe('FileSystemCache route-scoped build seeds', () => {
     ).not.toHaveProperty('routeCacheLastModified')
   })
 
-  it.each([
-    ['/', '/'],
-    ['/index', '/index'],
-  ])(
+  it.each([createRoutes(['/', '/']), createRoutes(['/index', '/index'])])(
     'verifies normalized %s without normalizing its suffix twice',
     async (requestPath, sourceRoute) => {
-      const indexOwner = {
+      const indexOwner: ResponseCacheOwner = {
         kind: RouteKind.PAGES,
         sourceRoute,
-      } as ResponseCacheOwner
-      const key = getRouteCacheKey(requestPath as Route, indexOwner)
+      }
+      const key = getRouteCacheKey(requestPath, indexOwner)
       const suffix = key.slice(key.indexOf('/$/') + 2)
       const base = join(serverDistDir, 'pages', suffix)
       await fs.mkdir(join(base, '..'), { recursive: true })
@@ -299,7 +300,7 @@ describe('FileSystemCache route-scoped build seeds', () => {
 
   it('rejects missing, wrong-owner, fallback-mismatched, and partial entries', async () => {
     const { base, key } = await writeSeed({
-      owner: { ...owner, sourceRoute: '/other/[slug]' as Route },
+      owner: { ...owner, sourceRoute: createRoute('/other/[slug]') },
     })
     expect(await createCache().get(key, getContext)).toBeNull()
 
@@ -320,9 +321,9 @@ describe('FileSystemCache route-scoped build seeds', () => {
     async (isFallback) => {
       const appOwner: ResponseCacheOwner = {
         kind: RouteKind.APP_PAGE,
-        sourceRoute: '/posts/[slug]/page' as Page,
+        sourceRoute: createPage('/posts/[slug]/page'),
       }
-      const key = getRouteCacheKey('/posts/[slug]' as Route, appOwner)
+      const key = getRouteCacheKey(createRoute('/posts/[slug]'), appOwner)
       const base = join(serverDistDir, 'app', 'posts', '[slug]')
       await fs.mkdir(join(base, '..'), { recursive: true })
       await fs.writeFile(`${base}.html`, 'build shell')
@@ -339,9 +340,9 @@ describe('FileSystemCache route-scoped build seeds', () => {
         isFallback,
       } as const
 
-      const otherKey = getRouteCacheKey('/posts/[slug]' as Route, {
+      const otherKey = getRouteCacheKey(createRoute('/posts/[slug]'), {
         ...appOwner,
-        sourceRoute: '/[...slug]/page' as Page,
+        sourceRoute: createPage('/[...slug]/page'),
       })
       expect(await createCache().get(otherKey, context)).toBeNull()
       expect((await createCache().get(key, context))?.value).toMatchObject({

@@ -55,7 +55,8 @@ const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
 
 if (rscManifest && rscServerManifest) {
   setManifestsSingleton({
-    page: 'VAR_PAGE' as Page,
+    // @ts-ignore -- TODO: Temporary template boundary: injected full App module identifier for manifests; guarded ingestion deferred.
+    page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
   })
@@ -67,7 +68,8 @@ async function requestHandler(
   req: NextRequestHint,
   event: NextFetchEvent
 ): Promise<Response> {
-  let srcPage = 'VAR_PAGE' as Page
+  // @ts-ignore -- TODO: Temporary template boundary: injected full App module identifier; guarded ingestion deferred.
+  let srcPage: Page = 'VAR_PAGE'
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
   const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
@@ -441,7 +443,7 @@ const internalHandler: EdgeHandler = (opts) => {
     IncrementalCache,
     handler: requestHandler,
     incrementalCacheHandler,
-    page: 'VAR_PAGE' as Page,
+    page: 'VAR_PAGE',
   })
 }
 
@@ -472,7 +474,7 @@ export async function handler(
         },
       },
       page: {
-        name: 'VAR_PAGE' as Page,
+        name: 'VAR_PAGE',
       },
       body:
         request.method !== 'GET' && request.method !== 'HEAD'

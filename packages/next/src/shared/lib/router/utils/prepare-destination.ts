@@ -1,4 +1,4 @@
-import type { Route } from '../../route-types'
+import { createRoute } from '../../route-types'
 import type { IncomingMessage } from 'http'
 import type { Key } from 'next/dist/compiled/path-to-regexp'
 import type { NextParsedUrlQuery } from '../../../../server/request-meta'
@@ -176,7 +176,7 @@ export function parseDestination(args: {
 
   let pathname = parsed.pathname
   if (pathname) {
-    pathname = unescapeSegments(pathname) as Route
+    pathname = createRoute(unescapeSegments(pathname))
   }
 
   let href = parsed.href
@@ -329,7 +329,7 @@ export function prepareDestination(args: {
     if (destHostnameCompiler) {
       parsedDestination.hostname = destHostnameCompiler(args.params)
     }
-    parsedDestination.pathname = pathname as Route
+    parsedDestination.pathname = createRoute(pathname)
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
     parsedDestination.search = destSearch
       ? compileNonPath(destSearch, args.params)

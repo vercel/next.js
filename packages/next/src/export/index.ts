@@ -263,7 +263,9 @@ async function exportAppImpl(
 
   const pagesManifest =
     !options.pages &&
-    (require(join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)) as PagesManifest)
+    (require(
+      join(distDir, SERVER_DIRECTORY, PAGES_MANIFEST)
+    ) as /* TODO: Guard the native Pages manifest schema before exposing its key roles. */ PagesManifest)
 
   let previewProps: DeepReadonly<PreviewPropsManifest> | undefined
   try {
@@ -294,7 +296,11 @@ async function exportAppImpl(
 
   const excludedPrerenderRoutes = new Set<Route>()
   // In the Pages namespace module manifest keys also name discovery URLs.
-  const pages = options.pages || (Object.keys(pagesManifest) as Route[])
+  const pages =
+    options.pages ||
+    (Object.keys(
+      pagesManifest
+    ) as /* TODO: Preserve known Route keys across Object.keys. */ Route[])
   const defaultPathMap: ExportPathMap = {}
 
   let hasApiRoutes = false
@@ -328,7 +334,10 @@ async function exportAppImpl(
   if (!options.buildExport && appRoutePathManifest) {
     for (const [pageName, routePath] of Object.entries(
       appRoutePathManifest
-    ) as [Page, Route][]) {
+    ) as /* TODO: Preserve the App module/URL entry correlation across Object.entries. */ [
+      Page,
+      Route,
+    ][]) {
       mapAppRouteToPage.set(routePath, pageName)
       if (
         isAppPageRoute(pageName) &&
@@ -594,9 +603,9 @@ async function exportAppImpl(
   for (const [path, entry] of Object.entries(exportPathMap)) {
     // make sure to prevent duplicates
     const normalizedPath = denormalizePagePath(
-      // @ts-ignore -- Human review: public export URL keys (including app URLs) pass through a Page file codec. Keep this deduplication/normalization assumption rather than asserting every URL is a raw module Page.
+      // @ts-ignore -- TODO: Human review: public export URL keys (including app URLs) pass through a Page file codec. Keep this deduplication/normalization assumption rather than asserting every URL is a raw module Page.
       normalizePagePath(path)
-    ) as string as Route
+    ) as string as /* TODO: Model the Page codec's preserved Pages URL relationship without erasing its result. */ Route
 
     if (seenExportPaths.has(normalizedPath)) {
       continue
@@ -614,11 +623,13 @@ async function exportAppImpl(
     allExportPaths.push({ ...entry, path: normalizedPath } as ExportPathEntry)
 
     if (prerenderManifest && !options.buildExport) {
-      // @ts-ignore -- Human review: exportPathMap.page names a module (raw Page for app entries), but this fallback probe is URL Route-keyed and is not restricted to Pages entries. Preserve the existing probe.
+      // @ts-ignore -- TODO: Human review: exportPathMap.page names a module (raw Page for app entries), but this fallback probe is URL Route-keyed and is not restricted to Pages entries. Preserve the existing probe.
       const prerenderInfo = prerenderManifest.dynamicRoutes[entry.page]
 
       if (prerenderInfo && prerenderInfo.fallback !== false) {
-        fallbackEnabledPages.add(entry.page as Page)
+        fallbackEnabledPages.add(
+          entry.page as /* TODO: Recover the App Page role from the export-entry discriminator. */ Page
+        )
       }
     }
   }
@@ -920,168 +931,160 @@ async function exportAppImpl(
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
-      (Object.keys(prerenderManifest.routes) as Route[]).map(
-        async (unnormalizedRoute) => {
-          // Special handling: map app /_not-found to 404.html (and 404/index.html when trailingSlash)
-          if (unnormalizedRoute === '/_not-found') {
-            const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
-            // @ts-ignore -- Human review: absent srcRoute probes this URL-keyed app map with an empty sentinel, intentionally relying on a miss. Empty text is not a Route.
-            const appPageName = mapAppRouteToPage.get(srcRoute || '')
-            // If no app module is mapped, the fallback URL names the Pages
-            // module in the Pages namespace (it is not a raw app identifier).
-            const pageName =
-              appPageName ||
-              (srcRoute as string as Page) ||
-              (unnormalizedRoute as string as Page)
-            const isAppPath = Boolean(appPageName)
-            // @ts-ignore -- Human review: this app not-found URL is fed to the Page file codec to locate its artifact. Retain the existing transport/file naming assumption.
-            const route = normalizePagePath(unnormalizedRoute)
-
-            const pagePath = getPagePath(
-              pageName,
-              distDir,
-              undefined,
-              isAppPath
-            )
-            const distPagesDir = join(
-              pagePath,
-              pageName
-                .slice(1)
-                .split('/')
-                .map(() => '..')
-                .join('/')
-            )
-
-            const orig = join(distPagesDir, route)
-            const htmlSrc = `${orig}.html`
-
-            // write 404.html at root
-            const htmlDest404 = join(outDir, '404.html')
-            await fs.mkdir(dirname(htmlDest404), { recursive: true })
-            await fs.copyFile(htmlSrc, htmlDest404)
-
-            // When trailingSlash, also write 404/index.html
-            if (subFolders) {
-              const htmlDest404Index = join(outDir, '404', 'index.html')
-              await fs.mkdir(dirname(htmlDest404Index), { recursive: true })
-              await fs.copyFile(htmlSrc, htmlDest404Index)
-            }
-          }
-          // Skip 500.html in static export
-          if (unnormalizedRoute === '/_global-error') {
-            return
-          }
+      (
+        Object.keys(
+          prerenderManifest.routes
+        ) as /* TODO: Preserve known Route keys across Object.keys. */ Route[]
+      ).map(async (unnormalizedRoute) => {
+        // Special handling: map app /_not-found to 404.html (and 404/index.html when trailingSlash)
+        if (unnormalizedRoute === '/_not-found') {
           const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
-          // @ts-ignore -- Human review: absent srcRoute uses an empty URL-map sentinel for a miss; do not brand the empty string as Route or change the probe.
+          // @ts-ignore -- TODO: Human review: absent srcRoute probes this URL-keyed app map with an empty sentinel, intentionally relying on a miss. Empty text is not a Route.
           const appPageName = mapAppRouteToPage.get(srcRoute || '')
-          // No mapped app module means this fallback uses Pages identity.
+          // If no app module is mapped, the fallback URL names the Pages
+          // module in the Pages namespace (it is not a raw app identifier).
           const pageName =
             appPageName ||
-            (srcRoute as string as Page) ||
-            (unnormalizedRoute as string as Page)
+            (srcRoute as string as /* TODO: Preserve the Pages-only URL/module relationship without erasing its brand. */ Page) ||
+            (unnormalizedRoute as string as /* TODO: Preserve the Pages-only URL/module relationship without erasing its brand. */ Page)
           const isAppPath = Boolean(appPageName)
-          const isAppRouteHandler = appPageName && isAppRouteRoute(appPageName)
-
-          // returning notFound: true from getStaticProps will not
-          // output html/json files during the build
-          if (prerenderManifest!.notFoundRoutes.includes(unnormalizedRoute)) {
-            return
-          }
-          // TODO: This rewrites /index/foo to /index/index/foo. Investigate and
-          // fix. I presume this was because normalizePagePath was designed for
-          // some other use case and then reused here for static exports without
-          // realizing the implications.
-          // @ts-ignore -- Human review: prerender URL keys (including app URLs) enter the Page file codec; the existing /index escaping TODO above is unresolved. Preserve behavior for review.
+          // @ts-ignore -- TODO: Human review: this app not-found URL is fed to the Page file codec to locate its artifact. Retain the existing transport/file naming assumption.
           const route = normalizePagePath(unnormalizedRoute)
 
-          let orig: string
-          if (isAppPath) {
-            const pagePath = getPagePath(
-              pageName,
-              distDir,
-              undefined,
-              isAppPath
-            )
-            const distPagesDir = join(
-              pagePath,
-              // strip leading / and then recurse number of nested dirs
-              // to place from base folder
-              pageName
-                .slice(1)
-                .split('/')
-                .map(() => '..')
-                .join('/')
-            )
-            orig = join(distPagesDir, route)
-          } else {
-            // Pages router files are written directly to server/pages/
-            // by the export worker during build, so read from there.
-            orig = join(distDir, 'server', 'pages', route)
-          }
-          const handlerSrc = `${orig}.body`
-          const handlerDest = join(outDir, route)
-
-          if (isAppRouteHandler && existsSync(handlerSrc)) {
-            await fs.mkdir(dirname(handlerDest), { recursive: true })
-            await fs.copyFile(handlerSrc, handlerDest)
-            return
-          }
-
-          const htmlDest = join(
-            outDir,
-            `${route}${
-              subFolders && route !== '/index' ? `${sep}index` : ''
-            }.html`
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
+          const distPagesDir = join(
+            pagePath,
+            pageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
           )
-          const jsonDest = isAppPath
-            ? join(
-                outDir,
-                `${route}${
-                  subFolders && route !== '/index' ? `${sep}index` : ''
-                }.txt`
-              )
-            : join(pagesDataDir, `${route}.json`)
 
-          await fs.mkdir(dirname(htmlDest), { recursive: true })
-          await fs.mkdir(dirname(jsonDest), { recursive: true })
-
+          const orig = join(distPagesDir, route)
           const htmlSrc = `${orig}.html`
-          const jsonSrc = `${orig}${isAppPath ? RSC_SUFFIX : '.json'}`
 
-          await fs.copyFile(htmlSrc, htmlDest)
-          await fs.copyFile(jsonSrc, jsonDest)
+          // write 404.html at root
+          const htmlDest404 = join(outDir, '404.html')
+          await fs.mkdir(dirname(htmlDest404), { recursive: true })
+          await fs.copyFile(htmlSrc, htmlDest404)
 
-          const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
-
-          if (isAppPath && existsSync(segmentsDir)) {
-            // Output a data file for each of this page's segments
-            //
-            // These files are requested by the client router's internal
-            // prefetcher, not the user directly. So we don't need to account for
-            // things like trailing slash handling.
-            //
-            // To keep the protocol simple, we can use the non-normalized route
-            // path instead of the normalized one (which, among other things,
-            // rewrites `/` to `/index`).
-            const segmentsDirDest = join(outDir, unnormalizedRoute)
-            const segmentPaths = await collectSegmentPaths(segmentsDir)
-            await Promise.all(
-              segmentPaths.map(async (segmentFileSrc) => {
-                const segmentPath =
-                  '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
-                const segmentFilename =
-                  convertSegmentPathToStaticExportFilename(segmentPath)
-                const segmentFileDest = join(segmentsDirDest, segmentFilename)
-                await fs.mkdir(dirname(segmentFileDest), { recursive: true })
-                await fs.copyFile(
-                  join(segmentsDir, segmentFileSrc),
-                  segmentFileDest
-                )
-              })
-            )
+          // When trailingSlash, also write 404/index.html
+          if (subFolders) {
+            const htmlDest404Index = join(outDir, '404', 'index.html')
+            await fs.mkdir(dirname(htmlDest404Index), { recursive: true })
+            await fs.copyFile(htmlSrc, htmlDest404Index)
           }
         }
-      )
+        // Skip 500.html in static export
+        if (unnormalizedRoute === '/_global-error') {
+          return
+        }
+        const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
+        // @ts-ignore -- TODO: Human review: absent srcRoute uses an empty URL-map sentinel for a miss; do not brand the empty string as Route or change the probe.
+        const appPageName = mapAppRouteToPage.get(srcRoute || '')
+        // No mapped app module means this fallback uses Pages identity.
+        const pageName =
+          appPageName ||
+          (srcRoute as string as /* TODO: Preserve the Pages-only URL/module relationship without erasing its brand. */ Page) ||
+          (unnormalizedRoute as string as /* TODO: Preserve the Pages-only URL/module relationship without erasing its brand. */ Page)
+        const isAppPath = Boolean(appPageName)
+        const isAppRouteHandler = appPageName && isAppRouteRoute(appPageName)
+
+        // returning notFound: true from getStaticProps will not
+        // output html/json files during the build
+        if (prerenderManifest!.notFoundRoutes.includes(unnormalizedRoute)) {
+          return
+        }
+        // TODO: This rewrites /index/foo to /index/index/foo. Investigate and
+        // fix. I presume this was because normalizePagePath was designed for
+        // some other use case and then reused here for static exports without
+        // realizing the implications.
+        // @ts-ignore -- TODO: Human review: prerender URL keys (including app URLs) enter the Page file codec; the existing /index escaping TODO above is unresolved. Preserve behavior for review.
+        const route = normalizePagePath(unnormalizedRoute)
+
+        let orig: string
+        if (isAppPath) {
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
+          const distPagesDir = join(
+            pagePath,
+            // strip leading / and then recurse number of nested dirs
+            // to place from base folder
+            pageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
+          )
+          orig = join(distPagesDir, route)
+        } else {
+          // Pages router files are written directly to server/pages/
+          // by the export worker during build, so read from there.
+          orig = join(distDir, 'server', 'pages', route)
+        }
+        const handlerSrc = `${orig}.body`
+        const handlerDest = join(outDir, route)
+
+        if (isAppRouteHandler && existsSync(handlerSrc)) {
+          await fs.mkdir(dirname(handlerDest), { recursive: true })
+          await fs.copyFile(handlerSrc, handlerDest)
+          return
+        }
+
+        const htmlDest = join(
+          outDir,
+          `${route}${
+            subFolders && route !== '/index' ? `${sep}index` : ''
+          }.html`
+        )
+        const jsonDest = isAppPath
+          ? join(
+              outDir,
+              `${route}${
+                subFolders && route !== '/index' ? `${sep}index` : ''
+              }.txt`
+            )
+          : join(pagesDataDir, `${route}.json`)
+
+        await fs.mkdir(dirname(htmlDest), { recursive: true })
+        await fs.mkdir(dirname(jsonDest), { recursive: true })
+
+        const htmlSrc = `${orig}.html`
+        const jsonSrc = `${orig}${isAppPath ? RSC_SUFFIX : '.json'}`
+
+        await fs.copyFile(htmlSrc, htmlDest)
+        await fs.copyFile(jsonSrc, jsonDest)
+
+        const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
+
+        if (isAppPath && existsSync(segmentsDir)) {
+          // Output a data file for each of this page's segments
+          //
+          // These files are requested by the client router's internal
+          // prefetcher, not the user directly. So we don't need to account for
+          // things like trailing slash handling.
+          //
+          // To keep the protocol simple, we can use the non-normalized route
+          // path instead of the normalized one (which, among other things,
+          // rewrites `/` to `/index`).
+          const segmentsDirDest = join(outDir, unnormalizedRoute)
+          const segmentPaths = await collectSegmentPaths(segmentsDir)
+          await Promise.all(
+            segmentPaths.map(async (segmentFileSrc) => {
+              const segmentPath =
+                '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+              const segmentFilename =
+                convertSegmentPathToStaticExportFilename(segmentPath)
+              const segmentFileDest = join(segmentsDirDest, segmentFilename)
+              await fs.mkdir(dirname(segmentFileDest), { recursive: true })
+              await fs.copyFile(
+                join(segmentsDir, segmentFileSrc),
+                segmentFileDest
+              )
+            })
+          )
+        }
+      })
     )
   }
 

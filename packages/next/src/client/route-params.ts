@@ -1,3 +1,4 @@
+import { createRoute } from '../shared/lib/route-types'
 import type { DynamicParamTypesShort } from '../shared/lib/app-router-types'
 import { DEFAULT_SEGMENT_KEY, PAGE_SEGMENT_KEY } from '../shared/lib/segment'
 import { ROOT_SEGMENT_REQUEST_KEY } from '../shared/lib/segment-cache/segment-value-encoding'
@@ -53,11 +54,14 @@ export function getRenderedPathname(
   // the response will include a header that gives the rewritten pathname.
   const rewrittenPath = response.headers.get(NEXT_REWRITTEN_PATH_HEADER)
   if (rewrittenPath !== null) {
-    return rewrittenPath as NormalizedPathname
+    // Trust the existing rewritten-path transport from the parsed destination.
+    // The constructor declares Route; the assertion adds only cache opacity.
+    return createRoute(rewrittenPath) as NormalizedPathname
   }
 
   const pathname = urlToUrlWithoutFlightMarker(new URL(response.url)).pathname
-  return (
+  // Preserve the cache-specific tag after declaring the native/decoded Route.
+  return createRoute(
     hasBasePath(pathname) ? removeBasePath(pathname) : pathname
   ) as NormalizedPathname
 }
@@ -70,7 +74,8 @@ export function getRenderedPathname(
  */
 export function getPathnameFromRequestURL(url: URL): NormalizedPathname {
   const pathname = url.pathname
-  return (
+  // Preserve the cache-specific tag after declaring the native/decoded Route.
+  return createRoute(
     hasBasePath(pathname) ? removeBasePath(pathname) : pathname
   ) as NormalizedPathname
 }

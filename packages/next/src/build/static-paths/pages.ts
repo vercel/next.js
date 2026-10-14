@@ -1,4 +1,4 @@
-import type { Route } from '../../shared/lib/route-types'
+import { createRoute, type Route } from '../../shared/lib/route-types'
 import type { GetStaticPaths } from '../../types'
 import type { PrerenderedRoute, StaticPathsResult } from './types'
 
@@ -99,7 +99,7 @@ export async function buildPagesStaticPaths({
         entry = `/${defaultLocale}${entry}`
       }
 
-      const params = _routeMatcher(cleanedEntry as Route)
+      const params = _routeMatcher(createRoute(cleanedEntry))
       if (!params) {
         throw new Error(
           `The provided path \`${cleanedEntry}\` does not match the page: \`${page}\`.`
@@ -109,18 +109,20 @@ export async function buildPagesStaticPaths({
       // If leveraging the string paths variant the entry should already be
       // encoded so we decode the segments ensuring we only escape path
       // delimiters
-      const pathname = entry
-        .split('/')
-        .map((segment) =>
-          escapePathDelimiters(decodeURIComponent(segment), true)
-        )
-        .join('/') as Route
+      const pathname = createRoute(
+        entry
+          .split('/')
+          .map((segment) =>
+            escapePathDelimiters(decodeURIComponent(segment), true)
+          )
+          .join('/')
+      )
 
       if (!prerenderedRoutesByPathname.has(pathname)) {
         prerenderedRoutesByPathname.set(pathname, {
           params,
           pathname,
-          encodedPathname: entry as Route,
+          encodedPathname: createRoute(entry),
           fallbackRouteParams: undefined,
           fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
           fallbackRootParams: undefined,
@@ -180,15 +182,21 @@ export async function buildPagesStaticPaths({
           replaced = `[${replaced}]`
         }
 
-        builtPage = builtPage.replace(
-          replaced,
-          encodeParam(paramValue, (value) => escapePathDelimiters(value, true))
-        ) as Route
+        builtPage = createRoute(
+          builtPage.replace(
+            replaced,
+            encodeParam(paramValue, (value) =>
+              escapePathDelimiters(value, true)
+            )
+          )
+        )
 
-        encodedBuiltPage = encodedBuiltPage.replace(
-          replaced,
-          encodeParam(paramValue, encodeURIComponent)
-        ) as Route
+        encodedBuiltPage = createRoute(
+          encodedBuiltPage.replace(
+            replaced,
+            encodeParam(paramValue, encodeURIComponent)
+          )
+        )
       })
 
       if (!builtPage && !encodedBuiltPage) {
@@ -203,7 +211,9 @@ export async function buildPagesStaticPaths({
       const curLocale = entry.locale || defaultLocale || ''
 
       const pathname = normalizePathname(
-        `${curLocale ? `/${curLocale}` : ''}${curLocale && builtPage === '/' ? '' : builtPage}` as Route
+        createRoute(
+          `${curLocale ? `/${curLocale}` : ''}${curLocale && builtPage === '/' ? '' : builtPage}`
+        )
       )
 
       if (!prerenderedRoutesByPathname.has(pathname)) {
@@ -211,9 +221,11 @@ export async function buildPagesStaticPaths({
           params,
           pathname,
           encodedPathname: normalizePathname(
-            `${curLocale ? `/${curLocale}` : ''}${
-              curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
-            }` as Route
+            createRoute(
+              `${curLocale ? `/${curLocale}` : ''}${
+                curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
+              }`
+            )
           ),
           fallbackRouteParams: undefined,
           fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),

@@ -1,4 +1,4 @@
-import type { Route } from '../../../../shared/lib/route-types'
+import { createRoute, type Route } from '../../../../shared/lib/route-types'
 
 /**
  * Resolves a URL path (e.g. "/blog/hello-world") to its matching Next.js route
@@ -35,19 +35,19 @@ export function resolvePathToRoute(
   // The public path may include query/hash text. The existing operations above
   // construct a URL pathname; neither this value nor the table keys are Pages.
   if (
-    matchers.appFiles.has(pathname as Route) ||
-    matchers.pageFiles.has(pathname as Route)
+    matchers.appFiles.has(createRoute(pathname)) ||
+    matchers.pageFiles.has(createRoute(pathname))
   ) {
-    return { routeSpecifier: pathname as Route }
+    return { routeSpecifier: createRoute(pathname) }
   }
 
   for (const route of matchers.dynamicRoutes) {
     // Skip SSG/SSP data-route variants prepended by setup-dev-bundler.
     if (route.page.startsWith('/_next/data/')) continue
-    if (route.match(pathname as Route)) {
+    if (route.match(createRoute(pathname))) {
       return { routeSpecifier: route.page }
     }
   }
 
-  return { notFound: true, pathname: pathname as Route }
+  return { notFound: true, pathname: createRoute(pathname) }
 }

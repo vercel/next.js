@@ -1,4 +1,4 @@
-import type { Page } from '../shared/lib/route-types'
+import { type Page, createPage } from '../shared/lib/route-types'
 import matchBundle from './match-bundle'
 
 // matches app/:path*.js
@@ -9,7 +9,7 @@ export default function getAppRouteFromEntrypoint(
 ): Page | null {
   const pagePath = matchBundle(APP_ROUTE_NAME_REGEX, entryFile)
   if (typeof pagePath === 'string' && !pagePath) {
-    return '/' as Page
+    return createPage('/')
   }
 
   if (!pagePath) {

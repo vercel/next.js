@@ -1,4 +1,3 @@
-import type { Page, Route } from '../../shared/lib/route-types'
 import { PagesRouteModule } from '../../server/route-modules/pages/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 
@@ -48,8 +47,10 @@ export const unstable_getServerSideProps = hoist(
 export const routeModule = new PagesRouteModule({
   definition: {
     kind: RouteKind.PAGES,
-    page: 'VAR_DEFINITION_PAGE' as Page,
-    pathname: 'VAR_DEFINITION_PATHNAME' as Route,
+    // @ts-ignore -- TODO: Temporary template boundary: injected normalized Pages module key; guarded ingestion deferred.
+    page: 'VAR_DEFINITION_PAGE',
+    // @ts-ignore -- TODO: Temporary template boundary: injected canonical Pages URL pattern; guarded ingestion deferred.
+    pathname: 'VAR_DEFINITION_PATHNAME',
     // The following aren't used in production.
     bundlePath: '',
     filename: '',
@@ -65,7 +66,8 @@ export const routeModule = new PagesRouteModule({
 })
 
 export const handler = getHandler({
-  srcPage: 'VAR_DEFINITION_PAGE' as Page,
+  // @ts-ignore -- TODO: Temporary template boundary: injected normalized Pages module key; guarded ingestion deferred.
+  srcPage: 'VAR_DEFINITION_PAGE',
   config,
   userland,
   routeModule,

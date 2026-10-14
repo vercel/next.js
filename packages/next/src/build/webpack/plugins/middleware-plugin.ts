@@ -230,6 +230,7 @@ function getCreateAssets(params: {
         continue
       }
 
+      // TODO: Preserve the metadata discriminator's Page/Route correlation in these views.
       // Entry metadata is exclusive: the app SSR tag proves a raw app Page,
       // while proxy entries carry a Route scope prefix.
       const matcherSource = metadata.edgeSSR?.isAppDir
@@ -272,6 +273,7 @@ function getCreateAssets(params: {
         ...(metadata.regions && { regions: metadata.regions }),
       }
 
+      // TODO: Preserve the key/payload correlation without asserting each manifest branch.
       // The metadata tag determines the namespace of both key and payload.
       if (isEdgeFunction) {
         middlewareManifest.functions[page as Page] =
@@ -283,8 +285,10 @@ function getCreateAssets(params: {
     }
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
-      Object.keys(middlewareManifest.middleware) as Route[]
-    ) as Route[]
+      Object.keys(
+        middlewareManifest.middleware
+      ) as /* TODO: Preserve Route keys across iteration and sorting. */ Route[]
+    ) as /* TODO: Preserve Route keys across iteration and sorting. */ Route[]
 
     compilation.emitAsset(
       MIDDLEWARE_MANIFEST,

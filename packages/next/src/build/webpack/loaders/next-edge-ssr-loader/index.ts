@@ -1,4 +1,8 @@
-import type { Page, Route } from '../../../../shared/lib/route-types'
+import {
+  createPage,
+  pagesPageToRoute,
+  type Page,
+} from '../../../../shared/lib/route-types'
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../types'
 import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
@@ -55,7 +59,7 @@ function getRouteModuleOptions(page: Page) {
       page: normalizePagePath(page),
       // Pages-router discovery keys also identify URL patterns. The raw module
       // page above has its separate file encoding from normalizePagePath.
-      pathname: page as unknown as Route,
+      pathname: pagesPageToRoute(page),
       // The following aren't used in production.
       bundlePath: '',
       filename: '',
@@ -215,10 +219,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
           errorRouteModuleOptions: JSON.stringify(
-            getRouteModuleOptions('/_error' as Page)
+            getRouteModuleOptions(createPage('/_error'))
           ),
           user500RouteModuleOptions: JSON.stringify(
-            getRouteModuleOptions('/500' as Page)
+            getRouteModuleOptions(createPage('/500'))
           ),
           ...(cacheHandlersSetup ?? {}),
         },

@@ -1,4 +1,4 @@
-import type { Page, Route } from '../../route-types'
+import { type Page, type Route, createRoute } from '../../route-types'
 import { normalizeAppPath } from './app-paths'
 
 // order matters here, the first match will be used
@@ -164,7 +164,7 @@ export function extractInterceptionRouteInformation(
     )
   }
 
-  // @ts-ignore Human review: the split interception prefix is a path fragment, not a complete Page; preserve its existing raw App-prefix normalization.
+  // @ts-ignore TODO: Human review: the split interception prefix is a path fragment, not a complete Page; preserve its existing raw App-prefix normalization.
   interceptingRoute = normalizeAppPath(interceptingRoute) // normalize the path, e.g. /(blog)/feed -> /feed
 
   switch (marker) {
@@ -224,19 +224,22 @@ export function extractInterceptionRouteInformation(
 export function findMissingCanonicalInterceptionRoutes(
   appPaths: Record<Route, readonly Page[]>
 ): MissingCanonicalInterceptionRoute[] {
-  const canonicalRoutes = (Object.keys(appPaths) as Route[]).filter(
-    (route) => !isInterceptionRouteAppPath(route)
-  )
+  // Object.keys erases the manifest's existing matcher key type. Preserve it
+  // in these projections instead of reconstructing already-branded keys.
+  const canonicalRoutes = (
+    Object.keys(appPaths) as (keyof typeof appPaths)[]
+  ).filter((route) => !isInterceptionRouteAppPath(route))
   const canonicalRoutePatterns = canonicalRoutes.map(parseRoutePattern)
 
-  return (Object.keys(appPaths) as Route[])
+  return (Object.keys(appPaths) as (keyof typeof appPaths)[])
     .filter(isInterceptionRouteAppPath)
     .map((interceptionRoute) => ({
       interceptionRoute,
       // Unlike the general fragment inspector, this manifest supplies full
       // normalized matcher keys, so rebasing the marker constructs a URL.
-      canonicalRoute: extractInterceptionRouteInformation(interceptionRoute)
-        .interceptedRoute as Route,
+      canonicalRoute: createRoute(
+        extractInterceptionRouteInformation(interceptionRoute).interceptedRoute
+      ),
     }))
     .filter(
       ({ canonicalRoute }) =>

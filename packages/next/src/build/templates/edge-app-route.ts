@@ -1,4 +1,3 @@
-import type { Page } from '../../shared/lib/route-types'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
 import type { RequestMeta } from '../../server/request-meta'
 import type { EdgeHandler } from '../../server/web/adapter'
@@ -20,7 +19,8 @@ const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
 
 if (rscManifest && rscServerManifest) {
   setManifestsSingleton({
-    page: 'VAR_PAGE' as Page,
+    // @ts-ignore -- TODO: Temporary template boundary: injected full App module identifier for manifests; guarded ingestion deferred.
+    page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
   })
@@ -34,7 +34,7 @@ const edgeCacheHandlers: any = {}
 const internalHandler: EdgeHandler = EdgeRouteModuleWrapper.wrap(
   module.routeModule,
   {
-    page: 'VAR_PAGE' as Page,
+    page: 'VAR_PAGE',
     cacheHandlers: edgeCacheHandlers,
     incrementalCacheHandler,
   }
@@ -67,7 +67,7 @@ export async function handler(
         },
       },
       page: {
-        name: 'VAR_PAGE' as Page,
+        name: 'VAR_PAGE',
       },
       body:
         request.method !== 'GET' && request.method !== 'HEAD'

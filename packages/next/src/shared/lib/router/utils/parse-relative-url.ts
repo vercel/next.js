@@ -1,4 +1,4 @@
-import type { Route } from '../../route-types'
+import { type Route, createRoute } from '../../route-types'
 import type { ParsedUrlQuery } from 'querystring'
 import { getLocationOrigin } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
@@ -67,7 +67,8 @@ export function parseRelativeUrl(
     auth: null,
     host: null,
     hostname: null,
-    pathname: pathname as Route,
+    // Brand only the native URL parser's pathname result, never its unparsed input.
+    pathname: createRoute(pathname),
     port: null,
     protocol: null,
     query: parseQuery ? searchParamsToUrlQuery(searchParams) : undefined,

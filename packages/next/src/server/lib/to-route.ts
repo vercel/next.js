@@ -1,4 +1,4 @@
-import type { Route } from '../../shared/lib/route-types'
+import { createRoute, type Route } from '../../shared/lib/route-types'
 
 /**
  * This transforms a URL pathname into a route. It removes any trailing slashes
@@ -24,5 +24,5 @@ import type { Route } from '../../shared/lib/route-types'
  * toRoute('/');
  */
 export function toRoute(pathname: Route): Route {
-  return (pathname.replace(/(?:\/index)?\/?$/, '') || '/') as Route
+  return createRoute(pathname.replace(/(?:\/index)?\/?$/, '') || '/')
 }

@@ -1,48 +1,52 @@
 /* eslint-env jest */
 import { getSortedRoutes } from 'next/dist/shared/lib/router/utils/sorted-routes'
-import type { Route } from 'next/dist/shared/lib/route-types'
+import { createRoutes } from 'next/dist/shared/lib/route-types'
 
 describe('getSortedRoutes', () => {
   it('does not add extra routes', () => {
-    expect(getSortedRoutes(['/posts'] as Route[])).toEqual(['/posts'])
+    expect(getSortedRoutes(createRoutes(['/posts']))).toEqual(['/posts'])
 
-    expect(getSortedRoutes(['/posts/[id]'] as Route[])).toEqual(['/posts/[id]'])
-    expect(getSortedRoutes(['/posts/[id]/foo'] as Route[])).toEqual([
+    expect(getSortedRoutes(createRoutes(['/posts/[id]']))).toEqual([
+      '/posts/[id]',
+    ])
+    expect(getSortedRoutes(createRoutes(['/posts/[id]/foo']))).toEqual([
       '/posts/[id]/foo',
     ])
 
-    expect(getSortedRoutes(['/posts/[id]/[foo]/bar'] as Route[])).toEqual([
+    expect(getSortedRoutes(createRoutes(['/posts/[id]/[foo]/bar']))).toEqual([
       '/posts/[id]/[foo]/bar',
     ])
-    expect(getSortedRoutes(['/posts/[id]/baz/[foo]/bar'] as Route[])).toEqual([
-      '/posts/[id]/baz/[foo]/bar',
-    ])
+    expect(
+      getSortedRoutes(createRoutes(['/posts/[id]/baz/[foo]/bar']))
+    ).toEqual(['/posts/[id]/baz/[foo]/bar'])
   })
 
   it('correctly sorts required slugs', () => {
     expect(
-      getSortedRoutes([
-        '/posts',
-        '/[root-slug]',
-        '/',
-        '/posts/[id]',
-        '/blog/[id]/comments/[cid]',
-        '/blog/abc/[id]',
-        '/[...rest]',
-        '/blog/abc/post',
-        '/blog/abc',
-        '/p1/[[...incl]]',
-        '/p/[...rest]',
-        '/p2/[...rest]',
-        '/p2/[id]',
-        '/p2/[id]/abc',
-        '/p3/[[...rest]]',
-        '/p3/[id]',
-        '/p3/[id]/abc',
-        '/blog/[id]',
-        '/foo/[d]/bar/baz/[f]',
-        '/apples/[ab]/[cd]/ef',
-      ] as Route[])
+      getSortedRoutes(
+        createRoutes([
+          '/posts',
+          '/[root-slug]',
+          '/',
+          '/posts/[id]',
+          '/blog/[id]/comments/[cid]',
+          '/blog/abc/[id]',
+          '/[...rest]',
+          '/blog/abc/post',
+          '/blog/abc',
+          '/p1/[[...incl]]',
+          '/p/[...rest]',
+          '/p2/[...rest]',
+          '/p2/[id]',
+          '/p2/[id]/abc',
+          '/p3/[[...rest]]',
+          '/p3/[id]',
+          '/p3/[id]/abc',
+          '/blog/[id]',
+          '/foo/[d]/bar/baz/[f]',
+          '/apples/[ab]/[cd]/ef',
+        ])
+      )
     ).toMatchInlineSnapshot(`
       [
         "/",
@@ -71,36 +75,35 @@ describe('getSortedRoutes', () => {
 
   it('catches mismatched param names', () => {
     expect(() =>
-      getSortedRoutes([
-        '/',
-        '/blog',
-        '/blog/[id]',
-        '/blog/[id]/comments/[cid]',
-        '/blog/[cid]',
-      ] as Route[])
+      getSortedRoutes(
+        createRoutes([
+          '/',
+          '/blog',
+          '/blog/[id]',
+          '/blog/[id]/comments/[cid]',
+          '/blog/[cid]',
+        ])
+      )
     ).toThrow(/different slug names/)
   })
 
   it('catches reused param names', () => {
     expect(() =>
-      getSortedRoutes([
-        '/',
-        '/blog',
-        '/blog/[id]/comments/[id]',
-        '/blog/[id]',
-      ] as Route[])
+      getSortedRoutes(
+        createRoutes(['/', '/blog', '/blog/[id]/comments/[id]', '/blog/[id]'])
+      )
     ).toThrow(/the same slug name/)
   })
 
   it('catches reused param names with catch-all', () => {
     expect(() =>
-      getSortedRoutes(['/blog/[id]', '/blog/[id]/[...id]'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[id]', '/blog/[id]/[...id]']))
     ).toThrow(/the same slug name/)
   })
 
   it('catches middle catch-all with another catch-all', () => {
     expect(() =>
-      getSortedRoutes(['/blog/[...id]/[...id2]'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[...id]/[...id2]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Catch-all must be the last part of the URL."`
     )
@@ -108,7 +111,7 @@ describe('getSortedRoutes', () => {
 
   it('catches middle catch-all with fixed route', () => {
     expect(() =>
-      getSortedRoutes(['/blog/[...id]/abc'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[...id]/abc']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Catch-all must be the last part of the URL."`
     )
@@ -116,7 +119,7 @@ describe('getSortedRoutes', () => {
 
   it('catches extra dots in catch-all', () => {
     expect(() =>
-      getSortedRoutes(['/blog/[....id]/abc'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[....id]/abc']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Segment names may not start with erroneous periods ('.id')."`
     )
@@ -124,7 +127,7 @@ describe('getSortedRoutes', () => {
 
   it('catches missing dots in catch-all', () => {
     expect(() =>
-      getSortedRoutes(['/blog/[..id]/abc'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[..id]/abc']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Segment names may not start with erroneous periods ('..id')."`
     )
@@ -132,27 +135,27 @@ describe('getSortedRoutes', () => {
 
   it('catches extra brackets for optional', () => {
     expect(() =>
-      getSortedRoutes(['/blog/[[...id]'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[[...id]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Segment names may not start or end with extra brackets ('[...id')."`
     )
     expect(() =>
-      getSortedRoutes(['/blog/[[[...id]]'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[[[...id]]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Segment names may not start or end with extra brackets ('[...id')."`
     )
     expect(() =>
-      getSortedRoutes(['/blog/[...id]]'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[...id]]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Segment names may not start or end with extra brackets ('id]')."`
     )
     expect(() =>
-      getSortedRoutes(['/blog/[[...id]]]'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[[...id]]]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Segment names may not start or end with extra brackets ('id]')."`
     )
     expect(() =>
-      getSortedRoutes(['/blog/[[[...id]]]'] as Route[])
+      getSortedRoutes(createRoutes(['/blog/[[[...id]]]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Segment names may not start or end with extra brackets ('[...id]')."`
     )
@@ -160,17 +163,17 @@ describe('getSortedRoutes', () => {
 
   it('disallows optional params', () => {
     expect(() =>
-      getSortedRoutes(['/[[blog]]'] as Route[])
+      getSortedRoutes(createRoutes(['/[[blog]]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Optional route parameters are not yet supported ("[[blog]]")."`
     )
     expect(() =>
-      getSortedRoutes(['/abc/[[blog]]'] as Route[])
+      getSortedRoutes(createRoutes(['/abc/[[blog]]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Optional route parameters are not yet supported ("[[blog]]")."`
     )
     expect(() =>
-      getSortedRoutes(['/abc/[[blog]]/def'] as Route[])
+      getSortedRoutes(createRoutes(['/abc/[[blog]]/def']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"Optional route parameters are not yet supported ("[[blog]]")."`
     )
@@ -178,12 +181,12 @@ describe('getSortedRoutes', () => {
 
   it('disallows mixing required catch all and optional catch all', () => {
     expect(() =>
-      getSortedRoutes(['/[...one]', '/[[...one]]'] as Route[])
+      getSortedRoutes(createRoutes(['/[...one]', '/[[...one]]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"You cannot use both an required and optional catch-all route at the same level ("[...one]" and "[[...one]]" )."`
     )
     expect(() =>
-      getSortedRoutes(['/[[...one]]', '/[...one]'] as Route[])
+      getSortedRoutes(createRoutes(['/[[...one]]', '/[...one]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"You cannot use both an optional and required catch-all route at the same level ("[[...one]]" and "[...one]")."`
     )
@@ -191,23 +194,23 @@ describe('getSortedRoutes', () => {
 
   it('disallows apex and optional catch all', () => {
     expect(() =>
-      getSortedRoutes(['/', '/[[...all]]'] as Route[])
+      getSortedRoutes(createRoutes(['/', '/[[...all]]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"You cannot define a route with the same specificity as a optional catch-all route ("/" and "/[[...all]]")."`
     )
     expect(() =>
-      getSortedRoutes(['/[[...all]]', '/'] as Route[])
+      getSortedRoutes(createRoutes(['/[[...all]]', '/']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"You cannot define a route with the same specificity as a optional catch-all route ("/" and "/[[...all]]")."`
     )
 
     expect(() =>
-      getSortedRoutes(['/sub', '/sub/[[...all]]'] as Route[])
+      getSortedRoutes(createRoutes(['/sub', '/sub/[[...all]]']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"You cannot define a route with the same specificity as a optional catch-all route ("/sub" and "/sub[[...all]]")."`
     )
     expect(() =>
-      getSortedRoutes(['/sub/[[...all]]', '/sub'] as Route[])
+      getSortedRoutes(createRoutes(['/sub/[[...all]]', '/sub']))
     ).toThrowErrorMatchingInlineSnapshot(
       `"You cannot define a route with the same specificity as a optional catch-all route ("/sub" and "/sub[[...all]]")."`
     )
@@ -215,15 +218,14 @@ describe('getSortedRoutes', () => {
 
   it('catches param names differing only by non-word characters', () => {
     expect(() =>
-      getSortedRoutes([
-        '/blog/[helloworld]',
-        '/blog/[helloworld]/[hello-world]',
-      ] as Route[])
+      getSortedRoutes(
+        createRoutes(['/blog/[helloworld]', '/blog/[helloworld]/[hello-world]'])
+      )
     ).toThrow(/differ only by non-word/)
   })
 
   it('catches param names start with three-dot character not actual three dots', () => {
-    expect(() => getSortedRoutes(['[…three-dots]'] as Route[])).toThrow(
+    expect(() => getSortedRoutes(createRoutes(['[…three-dots]']))).toThrow(
       /Detected a three-dot character/
     )
   })

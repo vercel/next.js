@@ -3,16 +3,32 @@ import type { RouteTypesManifest } from './route-types-utils'
 import { isDynamicRoute } from '../../../shared/lib/router/utils/is-dynamic'
 
 function generateRouteTypes(routesManifest: RouteTypesManifest): string {
-  const appRoutes = (Object.keys(routesManifest.appRoutes) as Route[]).sort()
-  const pageRoutes = (Object.keys(routesManifest.pageRoutes) as Route[]).sort()
+  // Object.keys erases the manifest's existing key types. These projections
+  // preserve those keys; they do not construct new routing identities.
+  const appRoutes = (
+    Object.keys(
+      routesManifest.appRoutes
+    ) as (keyof typeof routesManifest.appRoutes)[]
+  ).sort()
+  const pageRoutes = (
+    Object.keys(
+      routesManifest.pageRoutes
+    ) as (keyof typeof routesManifest.pageRoutes)[]
+  ).sort()
   const layoutRoutes = (
-    Object.keys(routesManifest.layoutRoutes) as Route[]
+    Object.keys(
+      routesManifest.layoutRoutes
+    ) as (keyof typeof routesManifest.layoutRoutes)[]
   ).sort()
   const redirectRoutes = (
-    Object.keys(routesManifest.redirectRoutes) as Route[]
+    Object.keys(
+      routesManifest.redirectRoutes
+    ) as (keyof typeof routesManifest.redirectRoutes)[]
   ).sort()
   const rewriteRoutes = (
-    Object.keys(routesManifest.rewriteRoutes) as Route[]
+    Object.keys(
+      routesManifest.rewriteRoutes
+    ) as (keyof typeof routesManifest.rewriteRoutes)[]
   ).sort()
 
   let result = ''
@@ -26,7 +42,9 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
 
   // Generate AppRouteHandlerRoutes union type for route handlers
   const appRouteHandlerRoutes = (
-    Object.keys(routesManifest.appRouteHandlerRoutes) as Route[]
+    Object.keys(
+      routesManifest.appRouteHandlerRoutes
+    ) as (keyof typeof routesManifest.appRouteHandlerRoutes)[]
   ).sort()
 
   const hasAppRouteHandlers = appRouteHandlerRoutes.length > 0
@@ -240,9 +258,15 @@ export function generateLinkTypesFile(
       }
       visited.add(route)
 
-      // A for-in key from these Route-keyed manifests retains the URL identity.
-      const { isDynamic, routeType } = formatRouteToRouteType(route as Route)
-      const cause = routeMap[route as Route].path
+      // for-in erases the existing manifest key type, just like Object.keys.
+      // Preserve that key role rather than treating it as a new raw string.
+      const { isDynamic, routeType } = formatRouteToRouteType(
+        route as /* TODO: Preserve Route keys across Object.entries rather than reconstructing them. */ keyof typeof routeMap
+      )
+      const cause =
+        routeMap[
+          route as /* TODO: Preserve Route keys across Object.entries rather than reconstructing them. */ keyof typeof routeMap
+        ].path
       if (isDynamic) {
         dynamicRouteTypes.push([routeType, cause])
       } else {
@@ -258,7 +282,7 @@ export function generateLinkTypesFile(
     }
     visited.add(filePath)
 
-    // @ts-ignore Human review: pageApiRoutes contains validation filenames, not URL Route patterns; preserve existing generated Link types rather than inventing a URL conversion.
+    // @ts-ignore TODO: Human review: pageApiRoutes contains validation filenames, not URL Route patterns; preserve existing generated Link types rather than inventing a URL conversion.
     const { isDynamic, routeType } = formatRouteToRouteType(filePath)
     if (isDynamic) {
       dynamicRouteTypes.push([routeType, filePath])

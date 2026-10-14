@@ -1,4 +1,4 @@
-import type { Page } from '../../../../shared/lib/route-types'
+import { createPage, type Page } from '../../../../shared/lib/route-types'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 
@@ -114,8 +114,8 @@ export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
         absolutePagePath: options.absolutePagePath,
         // These are the path references to the internal components that may be
         // overridden by userland components.
-        absoluteAppPath: options.pages['/_app' as Page],
-        absoluteDocumentPath: options.pages['/_document' as Page],
+        absoluteAppPath: options.pages[createPage('/_app')],
+        absoluteDocumentPath: options.pages[createPage('/_document')],
         middlewareConfigBase64: encodeToBase64(options.middlewareConfig),
       }
 

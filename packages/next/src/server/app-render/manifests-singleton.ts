@@ -429,6 +429,7 @@ export function normalizeWorkerPageName(pageName: Page) {
  * name.
  */
 function denormalizeWorkerPageName(bundlePath: string): Route {
+  // TODO: Guard the action bundle-path decoder's Page boundary without changing prefix handling.
   return normalizeAppPath(removePathPrefix(bundlePath, 'app') as Page)
 }
 

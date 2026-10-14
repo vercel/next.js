@@ -4,7 +4,7 @@ import {
 } from 'next/dist/server/lib/incremental-cache'
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
-import type { Page, Route } from 'next/dist/shared/lib/route-types'
+import { createPage, createRoute } from 'next/dist/shared/lib/route-types'
 import type { ResponseCacheOwner } from 'next/dist/server/lib/route-cache-key'
 import {
   CachedRouteKind,
@@ -44,19 +44,19 @@ function createCache() {
 
 describe('IncrementalCache handler context', () => {
   describe.each([
-    [RouteKind.PAGES, IncrementalCacheKind.PAGES, '/handler/[id]' as Route],
+    [RouteKind.PAGES, IncrementalCacheKind.PAGES, createRoute('/handler/[id]')],
     [
       RouteKind.APP_PAGE,
       IncrementalCacheKind.APP_PAGE,
-      '/(group)/handler/[id]/page' as Page,
+      createPage('/(group)/handler/[id]/page'),
     ],
     [
       RouteKind.APP_ROUTE,
       IncrementalCacheKind.APP_ROUTE,
-      '/handler/[id]/route' as Page,
+      createPage('/handler/[id]/route'),
     ],
   ] as const)('%s', (routeKind, kind, sourceRoute) => {
-    const pathname = '/handler/post' as Route
+    const pathname = createRoute('/handler/post')
     // The fixture matrix correlates each kind with its URL (Pages) or module (App) identity.
     const route = Object.freeze({
       kind: routeKind,

@@ -15,7 +15,14 @@
  * only the top N routes (totals always reflect all routes).
  */
 
-import type { Page, Route } from '../../shared/lib/route-types'
+import {
+  createPage,
+  createPages,
+  createRoutes,
+  pagesRouteToPage,
+  type Page,
+  type Route,
+} from '../../shared/lib/route-types'
 import fs from 'fs'
 import path from 'path'
 import loadConfig from '../../server/config'
@@ -191,16 +198,12 @@ type RouteEntry =
  * `_app` / `_document` / `_error` aren't really routes, and `404` / `500`
  * are HTML-only error pages.
  */
-const SKIP_PAGES_ENTRIES = new Set<Route>([
-  '/_app',
-  '/_document',
-  '/_error',
-  '/404',
-  '/500',
-] as Route[])
+const SKIP_PAGES_ENTRIES = new Set<Route>(
+  createRoutes(['/_app', '/_document', '/_error', '/404', '/500'])
+)
 
 /** App Router infrastructure entries we never report as routes. */
-const SKIP_APP_ENTRIES = new Set<Page>(['/_global-error/page'] as Page[])
+const SKIP_APP_ENTRIES = new Set<Page>(createPages(['/_global-error/page']))
 
 function readJsonFile<T>(filePath: string): T | null {
   try {
@@ -251,27 +254,29 @@ function discoverPagesRoutes(
   if (!manifest) return []
 
   const routes: RouteEntry[] = []
-  for (const [route, entry] of Object.entries(manifest)) {
-    if (SKIP_PAGES_ENTRIES.has(route as Route)) continue
+  // Object.entries erases the key role declared by the native Pages manifest.
+  // Restore that existing role; this is not raw pathname construction.
+  for (const [route, entry] of Object.entries(manifest) as [Route, string][]) {
+    if (SKIP_PAGES_ENTRIES.has(route)) continue
     const isApi = route.startsWith('/api/')
     const edge = edgeFunctions[route]
     if (edge) {
       // Edge runtime — bundle files come from middleware-manifest, not nft.
       routes.push({
         type: isApi ? 'pages-api' : 'pages',
-        route: route as Route,
+        route: route,
         runtime: { kind: 'edge', files: edge.files },
       })
     } else if (entry.endsWith('.js')) {
       routes.push({
         type: isApi ? 'pages-api' : 'pages',
-        route: route as Route,
+        route: route,
         runtime: { kind: 'node', serverEntry: entry },
       })
     } else if (entry.endsWith('.html')) {
       // Statically pre-rendered page — no server JS bundle, but still ships
       // client JS via build-manifest.json.
-      routes.push({ type: 'pages-static', route: route as Route })
+      routes.push({ type: 'pages-static', route: route })
     }
   }
   return routes
@@ -293,10 +298,14 @@ function discoverAppRoutes(
   )
 
   const routes: RouteEntry[] = []
-  for (const [internalKey, entry] of Object.entries(appPathsManifest)) {
-    if (SKIP_APP_ENTRIES.has(internalKey as Page)) continue
+  // Restore the native App manifest's existing key role after Object.entries.
+  for (const [internalKey, entry] of Object.entries(appPathsManifest) as [
+    Page,
+    string,
+  ][]) {
+    if (SKIP_APP_ENTRIES.has(internalKey)) continue
     const type = internalKey.endsWith('/route') ? 'app-route' : 'app-page'
-    const route = appPathRoutesManifest?.[internalKey as Page] ?? internalKey
+    const route = appPathRoutesManifest?.[internalKey] ?? internalKey
     const edge = edgeFunctions[internalKey]
     if (edge) {
       // Edge runtime — turbopack writes a placeholder entry value (e.g.
@@ -635,9 +644,9 @@ function collectPagesClientFiles(
   }>(path.join(distDir, 'build-manifest.json'))
   if (!bm) return
   const chunks = [
-    ...(bm.pages?.['/_app' as Page] ?? []),
+    ...(bm.pages?.[createPage('/_app')] ?? []),
     // Pages-only URL and module keys share this namespace.
-    ...(bm.pages?.[route as string as Page] ?? []),
+    ...(bm.pages?.[pagesRouteToPage(route)] ?? []),
     ...(bm.polyfillFiles ?? []),
   ]
   for (const chunk of chunks) {

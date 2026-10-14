@@ -443,7 +443,7 @@ export class NextTypesPlugin {
       )
     )
 
-    // @ts-ignore -- Human review: App normalization yields a Route, but the Pages branch decodes a Page-file identifier and treats it as a URL pattern. Preserve existing typed-route generation.
+    // @ts-ignore -- TODO: Human review: App normalization yields a Route, but the Pages branch decodes a Page-file identifier and treats it as a URL pattern. Preserve existing typed-route generation.
     const { isDynamic, routeType } = formatRouteToRouteType(route)
 
     pluginState.routeTypes[this.isEdgeServer ? 'edge' : 'node'][

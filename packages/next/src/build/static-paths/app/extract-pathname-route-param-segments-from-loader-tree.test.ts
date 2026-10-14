@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute } from '../../../shared/lib/route-types'
 import { parseNormalizedAppRoute } from '../../../shared/lib/router/routes/app'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from './extract-pathname-route-param-segments-from-loader-tree'
 
@@ -24,7 +24,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
     it('should extract single dynamic segment from children route', () => {
       // Tree: /[slug]
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[slug]'))
-      const route = parseNormalizedAppRoute('/[slug]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[slug]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -40,7 +40,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('[category]', {}, createLoaderTree('[slug]'))
       )
-      const route = parseNormalizedAppRoute('/[category]/[slug]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[category]/[slug]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -53,7 +53,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
     it('should extract catchall segment', () => {
       // Tree: /[...slug]
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[...slug]'))
-      const route = parseNormalizedAppRoute('/[...slug]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[...slug]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -69,7 +69,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('[[...slug]]')
       )
-      const route = parseNormalizedAppRoute('/[[...slug]]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[[...slug]]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -98,7 +98,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/blog/[category]/posts/[slug]' as Route
+        createRoute('/blog/[category]/posts/[slug]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -116,7 +116,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('blog', {}, createLoaderTree('posts'))
       )
-      const route = parseNormalizedAppRoute('/blog/posts' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/blog/posts'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -130,7 +130,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('blog', {}, createLoaderTree('[category]'))
       )
-      const route = parseNormalizedAppRoute('/[category]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[category]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -151,7 +151,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           createLoaderTree('blog', {}, createLoaderTree('[slug]'))
         )
       )
-      const route = parseNormalizedAppRoute('/blog/[slug]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/blog/[slug]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -171,7 +171,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           createLoaderTree('(group2)', {}, createLoaderTree('[id]'))
         )
       )
-      const route = parseNormalizedAppRoute('/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[id]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -195,7 +195,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           )
         )
       )
-      const route = parseNormalizedAppRoute('/dashboard/[userId]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/dashboard/[userId]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -211,7 +211,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree('', {
         modal: createLoaderTree('[id]'),
       })
-      const route = parseNormalizedAppRoute('/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[id]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -226,7 +226,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         modal: createLoaderTree('[id]'),
         sidebar: createLoaderTree('[category]'),
       })
-      const route = parseNormalizedAppRoute('/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[id]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -245,7 +245,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           modal: createLoaderTree('[photoId]'),
         })
       )
-      const route = parseNormalizedAppRoute('/[lang]/[photoId]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[lang]/[photoId]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -260,7 +260,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree('', {
         sidebar: createLoaderTree('[...path]'),
       })
-      const route = parseNormalizedAppRoute('/[...path]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[...path]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -279,7 +279,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           sidebar: createLoaderTree('[category]'),
         })
       )
-      const route = parseNormalizedAppRoute('/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[id]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -298,7 +298,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]'))
       )
-      const route = parseNormalizedAppRoute('/(.)photo/[photoId]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/(.)photo/[photoId]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -323,7 +323,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/gallery/(..)photo/[photoId]' as Route
+        createRoute('/gallery/(..)photo/[photoId]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -353,7 +353,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/app/gallery/(...)photo/[photoId]' as Route
+        createRoute('/app/gallery/(...)photo/[photoId]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -383,7 +383,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/a/b/(..)(..)photo/[photoId]' as Route
+        createRoute('/a/b/(..)(..)photo/[photoId]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -410,9 +410,9 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]'))
       )
 
-      const routeGroupRoute = parseNormalizedAppRoute('/[slug]' as Route)
+      const routeGroupRoute = parseNormalizedAppRoute(createRoute('/[slug]'))
       const interceptionRoute = parseNormalizedAppRoute(
-        '/(.)photo/[photoId]' as Route
+        createRoute('/(.)photo/[photoId]')
       )
 
       const { pathnameRouteParamSegments: routeGroupResult } =
@@ -448,7 +448,9 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('(.)photo', {}, createLoaderTree('[...segments]'))
       )
-      const route = parseNormalizedAppRoute('/(.)photo/[...segments]' as Route)
+      const route = parseNormalizedAppRoute(
+        createRoute('/(.)photo/[...segments]')
+      )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -469,7 +471,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('(.)[photoId]')
       )
-      const route = parseNormalizedAppRoute('/[photoId]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[photoId]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -489,7 +491,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree('', {
         modal: createLoaderTree('(.)photo', {}, createLoaderTree('[photoId]')),
       })
-      const route = parseNormalizedAppRoute('/(.)photo/[photoId]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/(.)photo/[photoId]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -515,7 +517,9 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           ),
         })
       )
-      const route = parseNormalizedAppRoute('/[id]/(.)photo/[photoId]' as Route)
+      const route = parseNormalizedAppRoute(
+        createRoute('/[id]/(.)photo/[photoId]')
+      )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -548,7 +552,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         })
       )
       const route = parseNormalizedAppRoute(
-        '/[category]/(.)photo/[photoId]' as Route
+        createRoute('/[category]/(.)photo/[photoId]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -581,7 +585,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/gallery/[id]/(..)photo/[photoId]' as Route
+        createRoute('/gallery/[id]/(..)photo/[photoId]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -618,7 +622,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/app/gallery/[id]/(...)photo/[photoId]' as Route
+        createRoute('/app/gallery/[id]/(...)photo/[photoId]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -647,7 +651,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         })
       )
       const route = parseNormalizedAppRoute(
-        '/[id]/(.)details/[...segments]' as Route
+        createRoute('/[id]/(.)details/[...segments]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -682,7 +686,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/[lang]/(.)photo/[photoId]' as Route
+        createRoute('/[lang]/(.)photo/[photoId]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -719,7 +723,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/[lang]/blog/[category]/(.)post/[slug]' as Route
+        createRoute('/[lang]/blog/[category]/(.)post/[slug]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -745,7 +749,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           modal2: createLoaderTree('(..)b', {}, createLoaderTree('[b]')),
         })
       )
-      const route = parseNormalizedAppRoute('/[id]/(.)a/[a]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[id]/(.)a/[a]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -777,7 +781,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/photos/[id]/(.)photo/[photoId]' as Route
+        createRoute('/photos/[id]/(.)photo/[photoId]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -814,7 +818,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/[locale]/products/[category]/(.)product/[productId]' as Route
+        createRoute('/[locale]/products/[category]/(.)product/[productId]')
       )
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -838,7 +842,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('blog', {}, createLoaderTree('posts'))
       )
-      const route = parseNormalizedAppRoute('/blog/posts' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/blog/posts'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -852,7 +856,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('api', {}, createLoaderTree('[version]'))
       )
-      const route = parseNormalizedAppRoute('/different/path' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/different/path'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -862,7 +866,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
     it('should handle empty segment in tree', () => {
       // Tree: '' -> [id]
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[id]'))
-      const route = parseNormalizedAppRoute('/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[id]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -882,7 +886,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           createLoaderTree('blog', {}, createLoaderTree('[slug]'))
         )
       )
-      const route = parseNormalizedAppRoute('/[lang]/[slug]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[lang]/[slug]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -897,7 +901,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree('', {
         sidebar: createLoaderTree('[[...optional]]'),
       })
-      const route = parseNormalizedAppRoute('/[[...optional]]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[[...optional]]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -925,7 +929,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           )
         )
       )
-      const route = parseNormalizedAppRoute('/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[id]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -943,7 +947,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('blog', {}, createLoaderTree('[slug]'))
       )
-      const route = parseNormalizedAppRoute('/news/[slug]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/news/[slug]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -961,7 +965,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           createLoaderTree('v1', {}, createLoaderTree('[endpoint]'))
         )
       )
-      const route = parseNormalizedAppRoute('/api/v1/[endpoint]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/api/v1/[endpoint]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -979,7 +983,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         },
         createLoaderTree('blog', {}, createLoaderTree('[slug]'))
       )
-      const route = parseNormalizedAppRoute('/blog/my-slug' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/blog/my-slug'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1006,7 +1010,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           modal: createLoaderTree('[id]'),
         })
       )
-      const route = parseNormalizedAppRoute('/[category]/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[category]/[id]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1034,7 +1038,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           modal: createLoaderTree('[id]'),
         })
       )
-      const route = parseNormalizedAppRoute('/photo/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/photo/[id]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1059,7 +1063,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           modal: createLoaderTree('(.)photo', {}, createLoaderTree('[id]')),
         })
       )
-      const route = parseNormalizedAppRoute('/blog/(.)photo/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/blog/(.)photo/[id]'))
       const { pathnameRouteParamSegments: result } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1079,7 +1083,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       // Tree: /[id]
       // Route: /123 (static value)
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[id]'))
-      const route = parseNormalizedAppRoute('/123' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/123'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1095,7 +1099,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('[category]', {}, createLoaderTree('[id]'))
       )
-      const route = parseNormalizedAppRoute('/electronics/123' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/electronics/123'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1116,7 +1120,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           modal: createLoaderTree('(.)photo', {}, createLoaderTree('[id]')),
         })
       )
-      const route = parseNormalizedAppRoute('/blog/(.)photo/123' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/blog/(.)photo/123'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1133,7 +1137,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         createLoaderTree('docs', {}, createLoaderTree('[...slug]'))
       )
       const route = parseNormalizedAppRoute(
-        '/docs/getting-started/installation' as Route
+        createRoute('/docs/getting-started/installation')
       )
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
@@ -1152,7 +1156,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('docs', {}, createLoaderTree('[[...slug]]'))
       )
-      const route = parseNormalizedAppRoute('/docs/api/reference' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/docs/api/reference'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1170,7 +1174,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('docs', {}, createLoaderTree('[[...slug]]'))
       )
-      const route = parseNormalizedAppRoute('/docs' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/docs'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1190,7 +1194,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           createLoaderTree('[lang]', {}, createLoaderTree('[slug]'))
         )
       )
-      const route = parseNormalizedAppRoute('/blog/en/[slug]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/blog/en/[slug]'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1211,7 +1215,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         {},
         createLoaderTree('[category]', {}, createLoaderTree('[id]'))
       )
-      const route = parseNormalizedAppRoute('/[category]/[id]' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/[category]/[id]'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1234,7 +1238,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           createLoaderTree('[category]', {}, createLoaderTree('[id]'))
         )
       )
-      const route = parseNormalizedAppRoute('/electronics/123' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/electronics/123'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1255,7 +1259,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           modal: createLoaderTree('[id]'),
         })
       )
-      const route = parseNormalizedAppRoute('/blog/123' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/blog/123'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1267,7 +1271,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       // Tree: /(.)[id]
       // Route: /(.)123
       const loaderTree = createLoaderTree('', {}, createLoaderTree('(.)[id]'))
-      const route = parseNormalizedAppRoute('/(.)123' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/(.)123'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1280,7 +1284,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       // Tree: /[...slug]
       // Route: /api/[version]/users (version is dynamic, api and users are static)
       const loaderTree = createLoaderTree('', {}, createLoaderTree('[...slug]'))
-      const route = parseNormalizedAppRoute('/api/[version]/users' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/api/[version]/users'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1295,7 +1299,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
       const loaderTree = createLoaderTree('', {
         modal: createLoaderTree('(.)photo', {}, createLoaderTree('[id]')),
       })
-      const route = parseNormalizedAppRoute('/(.)photo/abc123' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/(.)photo/abc123'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1313,7 +1317,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           modal: createLoaderTree('(..)[id]'),
         })
       )
-      const route = parseNormalizedAppRoute('/blog/(..)456' as Route)
+      const route = parseNormalizedAppRoute(createRoute('/blog/(..)456'))
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1331,7 +1335,9 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
           modal: createLoaderTree('(..)[...catchAll]'),
         })
       )
-      const route = parseNormalizedAppRoute('/blog/(..)some/path/here' as Route)
+      const route = parseNormalizedAppRoute(
+        createRoute('/blog/(..)some/path/here')
+      )
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)
 
@@ -1360,7 +1366,7 @@ describe('extractPathnameRouteParamSegmentsFromLoaderTree', () => {
         )
       )
       const route = parseNormalizedAppRoute(
-        '/en/us/shop/electronics/laptop-123' as Route
+        createRoute('/en/us/shop/electronics/laptop-123')
       )
       const { pathnameRouteParamSegments, params } =
         extractPathnameRouteParamSegmentsFromLoaderTree(loaderTree, route)

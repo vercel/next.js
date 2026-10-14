@@ -1,4 +1,4 @@
-import type { Page } from '../../../shared/lib/route-types'
+import { createPage, type Page } from '../../../shared/lib/route-types'
 import type webpack from 'webpack'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
@@ -32,13 +32,13 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
     buildInfo.route = {
-      page: page || ('/' as Page),
+      page: page || createPage('/'),
       absolutePagePath,
       preferredRegion,
       middlewareConfig,
     }
     buildInfo.nextEdgeApiFunction = {
-      page: page || ('/' as Page),
+      page: page || createPage('/'),
     }
     buildInfo.rootDir = rootDir
 

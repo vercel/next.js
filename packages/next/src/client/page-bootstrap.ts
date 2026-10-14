@@ -1,4 +1,4 @@
-import type { Route } from '../shared/lib/route-types'
+import { createRoute } from '../shared/lib/route-types'
 import '../lib/require-instrumentation-client'
 import { hydrate, router } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
@@ -91,7 +91,7 @@ export function pageBootstrap(assetPrefix: string) {
 
           // The public router getter stays string-compatible; private router
           // state already carries the normalized pathname.
-          if (!router.clc && pages.includes(router.pathname as Route)) {
+          if (!router.clc && pages.includes(createRoute(router.pathname))) {
             console.log('Refreshing page data due to server-side change')
             dispatcher.buildingIndicatorShow()
             const clearIndicator = dispatcher.buildingIndicatorHide

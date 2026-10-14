@@ -1,4 +1,4 @@
-import type { Page, Route } from '../../route-types'
+import { type Page, type Route, createRoute } from '../../route-types'
 import { ensureLeadingSlash } from '../../page-path/ensure-leading-slash'
 import { isGroupSegment } from '../../segment'
 
@@ -22,7 +22,7 @@ import { isGroupSegment } from '../../segment'
  * @returns the normalized pathname (interception markers are currently retained)
  */
 export function normalizeAppPath(route: Page): Route {
-  // @ts-ignore -- Human review: interception markers survive this normalization, so its result is not always a URL Route. Preserve existing behavior.
+  // @ts-ignore -- TODO: Human review: interception markers survive this normalization, so its result is not always a URL Route. Preserve existing behavior.
   return ensureLeadingSlash(
     route.split('/').reduce((pathname, segment, index, segments) => {
       // Empty segments are ignored.
@@ -73,7 +73,7 @@ export function compareAppPaths(a: Page, b: Page): number {
 function normalizeAppPageEntryPathname(appPath: Page): Route {
   // Webpack app entries preserve escaped underscore segments as `%5F`, while
   // normalized request pathnames expose the decoded `_` segment.
-  return normalizeAppPath(appPath).replace(/%5F/g, '_') as Route
+  return createRoute(normalizeAppPath(appPath).replace(/%5F/g, '_'))
 }
 
 /**

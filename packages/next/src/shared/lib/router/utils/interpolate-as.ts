@@ -1,4 +1,4 @@
-import type { Route } from '../../route-types'
+import { type Route, createRouteOrEmpty } from '../../route-types'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { getRouteMatcher } from './route-matcher'
@@ -66,6 +66,6 @@ export function interpolateAs(
     params,
     // Encoded substitutions preserve the URL namespace. Failure remains the
     // existing empty sentinel, not a normalized pathname.
-    result: interpolatedRoute as Route | '',
+    result: createRouteOrEmpty(interpolatedRoute),
   }
 }

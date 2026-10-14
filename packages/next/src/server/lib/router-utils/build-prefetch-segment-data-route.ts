@@ -1,5 +1,5 @@
 import path from '../../../shared/lib/isomorphic/path'
-import type { Route } from '../../../shared/lib/route-types'
+import { type Route, createRoute } from '../../../shared/lib/route-types'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import {
@@ -21,15 +21,17 @@ export function buildPrefetchSegmentDataRoute(
   page: Route,
   segmentPath: string
 ): PrefetchSegmentDataRoute {
-  // @ts-ignore -- Human review: build/index passes an App URL Route to the raw Page file encoder to name its RSC segment artifacts. Preserve this transport-filename normalization assumption.
+  // @ts-ignore -- TODO: Human review: build/index passes an App URL Route to the raw Page file encoder to name its RSC segment artifacts. Preserve this transport-filename normalization assumption.
   const pagePath = normalizePagePath(page)
 
   // At this point this is the initial HTTP transport pathname pattern. The
   // returned destination is later changed into a $segment rewrite template.
-  const destination = path.posix.join(
-    `${pagePath}${RSC_SEGMENTS_DIR_SUFFIX}`,
-    `${segmentPath}${RSC_SEGMENT_SUFFIX}`
-  ) as Route
+  const destination = createRoute(
+    path.posix.join(
+      `${pagePath}${RSC_SEGMENTS_DIR_SUFFIX}`,
+      `${segmentPath}${RSC_SEGMENT_SUFFIX}`
+    )
+  )
 
   const { namedRegex, routeKeys } = getNamedRouteRegex(destination, {
     prefixRouteKeys: true,

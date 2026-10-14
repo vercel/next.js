@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute } from '../../../shared/lib/route-types'
 import { getRouteCacheKey, isRouteCacheOwner } from '../route-cache-key'
 import type { CacheFs } from '../../../shared/lib/utils'
 import type { PrerenderManifest } from '../../../build'
@@ -581,7 +581,7 @@ export class IncrementalCache implements IncrementalCacheType {
       const { route, ...responseContext } = ctx
       // This API also accepts opaque fetch hashes. Response contexts select
       // the URL-pathname side of that boundary before namespacing storage keys.
-      storageKey = getRouteCacheKey(cacheKey as Route, route)
+      storageKey = getRouteCacheKey(createRoute(cacheKey), route)
       handlerContext = responseContext
     }
     const cacheData = await this.cacheHandler?.get(storageKey, handlerContext)
@@ -662,7 +662,7 @@ export class IncrementalCache implements IncrementalCacheType {
 
     let entry: IncrementalResponseCacheEntry | null = null
     const { isFallback } = ctx
-    let cacheControl = this.cacheControls.get(cacheKey as Route, ctx.route)
+    let cacheControl = this.cacheControls.get(createRoute(cacheKey), ctx.route)
 
     // The stored lifetime belongs to this entry, which another instance may
     // have replaced with a different lifetime. Prefer it over this process's
@@ -740,11 +740,11 @@ export class IncrementalCache implements IncrementalCacheType {
 
     if (
       !cacheData &&
-      this.prerenderManifest.notFoundRoutes.includes(cacheKey as Route) &&
+      this.prerenderManifest.notFoundRoutes.includes(createRoute(cacheKey)) &&
       isRouteCacheOwner(
-        cacheKey as Route,
+        createRoute(cacheKey),
         ctx.route,
-        this.prerenderManifest.routes[cacheKey as Route],
+        this.prerenderManifest.routes[createRoute(cacheKey)],
         this.locales
       )
     ) {
@@ -816,7 +816,7 @@ export class IncrementalCache implements IncrementalCacheType {
       }
       // Fetch keys remain opaque strings; this non-fetch context receives
       // the response URL pathname, not the resulting namespaced storage key.
-      storageKey = getRouteCacheKey(pathname as Route, route)
+      storageKey = getRouteCacheKey(createRoute(pathname), route)
       handlerContext = responseContext
     }
 

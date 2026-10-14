@@ -299,20 +299,21 @@ export async function adapter(
               cookiesFromResponse = cookies
             }
             const previewProps = getEdgePreviewProps()
+            // TODO: Replace the fake middleware Page with an explicit tag/work owner contract.
             const page = '/' as Page // Fake Work
             const fallbackRouteParams = null
 
             const implicitTags = await getImplicitTags(
               page,
-              // The public NextURL getter exposes a native-parsed pathname.
+              // TODO: Expose the parsed Route internally without changing NextURL's public string getter.
               request.nextUrl.pathname as Route,
               fallbackRouteParams
             )
 
             const requestStore = createRequestStoreForAPI(
               request,
-              // NextURL's public getter stays string-compatible; its native URL
-              // parser establishes the internal request pathname here.
+              // TODO: Guard this native-parsed Route view while retaining the same NextURL
+              // object and its public string-compatible getter/setter.
               request.nextUrl as NextURL & { pathname: Route },
               implicitTags,
               onUpdateCookies,

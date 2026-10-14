@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute } from '../../../shared/lib/route-types'
 import {
   getSerializedRuntimeErrorState,
   subscribeToRuntimeErrorState,
@@ -22,7 +22,7 @@ export function createRuntimeErrorStateReporter(
 
   const report = (errorState: SerializedRuntimeErrorState, force = false) => {
     // Native location parsing supplies the reporter's URL pathname.
-    const pathname = window.location.pathname as Route
+    const pathname = createRoute(window.location.pathname)
     const serializedState = JSON.stringify({ pathname, errorState })
     if (!force && serializedState === lastSerializedState) {
       return

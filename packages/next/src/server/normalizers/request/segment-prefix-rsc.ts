@@ -1,4 +1,4 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { type Route, createRoute } from '../../../shared/lib/route-types'
 import type { PathnameNormalizer } from './pathname-normalizer'
 
 import {
@@ -20,7 +20,7 @@ export class SegmentPrefixRSCPathnameNormalizer implements PathnameNormalizer {
     const match = pathname.match(PATTERN)
     if (!match) return null
 
-    return { originalPathname: match[1] as Route, segmentPath: match[2] }
+    return { originalPathname: createRoute(match[1]), segmentPath: match[2] }
   }
 
   public normalize(pathname: Route): Route {

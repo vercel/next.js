@@ -105,7 +105,7 @@ export async function loadStaticPaths({
 
   const components = await loadComponents<AppPageModule | AppRouteModule>({
     distDir,
-    // @ts-ignore -- Human review: a falsy raw Page falls back to the URL Route in the module loader. The Pages namespace can coincide, but this is not an App module identifier. Preserve the existing fallback.
+    // @ts-ignore -- TODO: Human review: a falsy raw Page falls back to the URL Route in the module loader. The Pages namespace can coincide, but this is not an App module identifier. Preserve the existing fallback.
     page: page || pathname,
     isAppPath,
     isDev: true,

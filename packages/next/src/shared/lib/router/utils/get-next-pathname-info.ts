@@ -1,4 +1,4 @@
-import type { Route } from '../../route-types'
+import { type Route, createRoute } from '../../route-types'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removePathPrefix } from './remove-path-prefix'
 import { pathHasPrefix } from './path-has-prefix'
@@ -78,9 +78,9 @@ export function getNextPathnameInfo(
 
     const buildId = paths[0]
     info.buildId = buildId
-    pathnameNoDataPrefix = (
+    pathnameNoDataPrefix = createRoute(
       paths[1] !== 'index' ? `/${paths.slice(1).join('/')}` : '/'
-    ) as Route
+    )
 
     // update pathname with normalized if enabled although
     // we use normalized to populate locale info still

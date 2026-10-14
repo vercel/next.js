@@ -887,8 +887,8 @@ export class AppRouteRouteModule extends RouteModule<
 
     const implicitTags = await getImplicitTags(
       this.definition.page,
-      // NextURL is public/string-compatible; the native URL parser supplies
-      // this request pathname rather than a raw module identifier.
+      // TODO: Guard the parsed Route view without changing NextURL's public
+      // string-compatible pathname or evaluating its getter differently.
       req.nextUrl.pathname as Route,
       // App Routes don't support unknown route params.
       null
@@ -896,8 +896,8 @@ export class AppRouteRouteModule extends RouteModule<
 
     const requestStore = createRequestStoreForAPI(
       req,
-      // The public NextURL getter remains a string; its native URL construction
-      // establishes the internal pathname passed to request storage.
+      // TODO: Guard the internal Route view while retaining this NextURL object
+      // and its public string-compatible pathname getter/setter.
       req.nextUrl as NextURL & { pathname: Route },
       implicitTags,
       undefined,

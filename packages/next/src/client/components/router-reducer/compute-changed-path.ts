@@ -1,4 +1,9 @@
-import type { Page, Route } from '../../../shared/lib/route-types'
+import {
+  createRoute,
+  createRouteOrNull,
+  type Page,
+  type Route,
+} from '../../../shared/lib/route-types'
 import type {
   FlightRouterState,
   Segment,
@@ -66,14 +71,16 @@ export const segmentToSourcePagePathname = (segment: Segment): string => {
 }
 
 function normalizeSegments(segments: string[]): Route {
-  return (segments.reduce((acc, segment) => {
-    segment = removeLeadingSlash(segment)
-    if (segment === '' || isGroupSegment(segment)) {
-      return acc
-    }
+  return createRoute(
+    segments.reduce((acc, segment) => {
+      segment = removeLeadingSlash(segment)
+      if (segment === '' || isGroupSegment(segment)) {
+        return acc
+      }
 
-    return `${acc}/${segment}`
-  }, '') || '/') as Route
+      return `${acc}/${segment}`
+    }, '') || '/'
+  )
 }
 
 export function extractPathFromFlightRouterState(
@@ -161,7 +168,7 @@ export function extractSourcePageFromFlightRouterState(
   const sourcePageSegments =
     extractSourcePageSegmentsFromFlightRouterState(flightRouterState)
 
-  // @ts-ignore Human review: source-module reconstruction omits parallel slot keys, so it may not retain the full raw Page identity. Preserve the existing diagnostic value.
+  // @ts-ignore TODO: Human review: source-module reconstruction omits parallel slot keys, so it may not retain the full raw Page identity. Preserve the existing diagnostic value.
   return sourcePageSegments ? `/${sourcePageSegments.join('/')}` : undefined
 }
 
@@ -226,7 +233,7 @@ export function computeChangedPath(
   const changedPath = computeChangedPathImpl(treeA, treeB)
 
   if (changedPath == null || changedPath === '/') {
-    return changedPath as Route | null
+    return createRouteOrNull(changedPath)
   }
 
   // lightweight normalization to remove route groups

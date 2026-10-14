@@ -37,7 +37,13 @@ import {
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
-import type { Page, Route } from '../../shared/lib/route-types'
+import {
+  createPage,
+  createRoute,
+  pagesPageToRoute,
+  pagesRouteToPage,
+  type Page,
+} from '../../shared/lib/route-types'
 
 const onceErrorSet = new Set()
 /**
@@ -191,7 +197,7 @@ export async function handleRouteType({
         // of the document or app component export from the pages template is stale.
         let documentOrAppChanged = false
         if (entrypoints.global.app) {
-          const key = getEntryKey('pages', 'server', '_app' as Page)
+          const key = getEntryKey('pages', 'server', createPage('_app'))
 
           const writtenEndpoint = await entrypoints.global.app.writeToDisk()
           documentOrAppChanged ||=
@@ -204,11 +210,11 @@ export async function handleRouteType({
             logErrors
           )
         }
-        await manifestLoader.loadBuildManifest('_app' as Page)
-        await manifestLoader.loadPagesManifest('_app' as Page)
+        await manifestLoader.loadBuildManifest(createPage('_app'))
+        await manifestLoader.loadPagesManifest(createPage('_app'))
 
         if (entrypoints.global.document) {
-          const key = getEntryKey('pages', 'server', '_document' as Page)
+          const key = getEntryKey('pages', 'server', createPage('_document'))
 
           const writtenEndpoint =
             await entrypoints.global.document.writeToDisk()
@@ -222,7 +228,7 @@ export async function handleRouteType({
             logErrors
           )
         }
-        await manifestLoader.loadPagesManifest('_document' as Page)
+        await manifestLoader.loadPagesManifest(createPage('_document'))
 
         const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
         hooks?.handleWrittenEndpoint(
@@ -242,7 +248,7 @@ export async function handleRouteType({
         } else {
           manifestLoader.deleteMiddlewareManifest(serverKey)
         }
-        await manifestLoader.loadFontManifest('/_app' as Page, 'pages')
+        await manifestLoader.loadFontManifest(createPage('/_app'), 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
 
         manifestLoader.writeManifests({
@@ -273,7 +279,7 @@ export async function handleRouteType({
                 type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                 // This branch is Pages-only: the raw identifier shares its
                 // URL namespace, unlike App entry module names.
-                pages: [page as string as Route],
+                pages: [pagesPageToRoute(page)],
               }
             },
             (e) => {
@@ -301,7 +307,7 @@ export async function handleRouteType({
           )
           if (entrypoints.global.document) {
             hooks?.subscribeToChanges(
-              getEntryKey('pages', 'server', '_document' as Page),
+              getEntryKey('pages', 'server', createPage('_document')),
               /** includeIssues=*/ false,
               entrypoints.global.document,
               () => {
@@ -640,7 +646,7 @@ export async function handleEntrypoints({
       case 'page':
       case 'page-api':
         // Native Pages URL keys also identify modules in the Pages namespace.
-        currentEntrypoints.page.set(pathname as string as Page, route)
+        currentEntrypoints.page.set(pagesRouteToPage(pathname), route)
         break
       case 'app-page': {
         route.pages.forEach((page) => {
@@ -728,7 +734,8 @@ export async function handleEntrypoints({
       entrypoints: currentEntrypoints,
     })
 
-    dev.serverFields.actualInstrumentationHookFile = '/instrumentation' as Page
+    dev.serverFields.actualInstrumentationHookFile =
+      createPage('/instrumentation')
     await dev.hooks.propagateServerField(
       'actualInstrumentationHookFile',
       dev.serverFields.actualInstrumentationHookFile
@@ -760,12 +767,12 @@ export async function handleEntrypoints({
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
-        manifestLoader.getMiddlewareManifest(key)?.middleware['/' as Route]
+        manifestLoader.getMiddlewareManifest(key)?.middleware[createRoute('/')]
 
       if (dev && middlewareConfig) {
         dev.serverFields.middleware = {
           match: null as any,
-          page: '/' as Route,
+          page: createRoute('/'),
           matchers: middlewareConfig.matchers,
         }
       }
@@ -910,7 +917,7 @@ export async function handlePagesErrorRoute({
   hooks: HandleRouteTypeHooks
 }) {
   if (entrypoints.global.app) {
-    const key = getEntryKey('pages', 'server', '_app' as Page)
+    const key = getEntryKey('pages', 'server', createPage('_app'))
 
     const writtenEndpoint = await entrypoints.global.app.writeToDisk()
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
@@ -934,12 +941,12 @@ export async function handlePagesErrorRoute({
     )
     processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
-  await manifestLoader.loadBuildManifest('_app' as Page)
-  await manifestLoader.loadPagesManifest('_app' as Page)
-  await manifestLoader.loadFontManifest('_app' as Page)
+  await manifestLoader.loadBuildManifest(createPage('_app'))
+  await manifestLoader.loadPagesManifest(createPage('_app'))
+  await manifestLoader.loadFontManifest(createPage('_app'))
 
   if (entrypoints.global.document) {
-    const key = getEntryKey('pages', 'server', '_document' as Page)
+    const key = getEntryKey('pages', 'server', createPage('_document'))
 
     const writtenEndpoint = await entrypoints.global.document.writeToDisk()
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
@@ -962,10 +969,10 @@ export async function handlePagesErrorRoute({
     )
     processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
-  await manifestLoader.loadPagesManifest('_document' as Page)
+  await manifestLoader.loadPagesManifest(createPage('_document'))
 
   if (entrypoints.global.error) {
-    const key = getEntryKey('pages', 'server', '_error' as Page)
+    const key = getEntryKey('pages', 'server', createPage('_error'))
 
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
@@ -989,10 +996,10 @@ export async function handlePagesErrorRoute({
     )
     processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
-  await manifestLoader.loadClientBuildManifest('_error' as Page)
-  await manifestLoader.loadBuildManifest('_error' as Page)
-  await manifestLoader.loadPagesManifest('_error' as Page)
-  await manifestLoader.loadFontManifest('_error' as Page)
+  await manifestLoader.loadClientBuildManifest(createPage('_error'))
+  await manifestLoader.loadBuildManifest(createPage('_error'))
+  await manifestLoader.loadPagesManifest(createPage('_error'))
+  await manifestLoader.loadFontManifest(createPage('_error'))
 
   manifestLoader.writeManifests({
     devRewrites,
@@ -1007,7 +1014,7 @@ export function removeRouteSuffix(route: string): string {
 
 // Constructs a complete raw metadata module identifier from its directory/leaf prefix.
 export function addRouteSuffix(route: string): Page {
-  return (route + '/route') as Page
+  return createPage(route + '/route')
 }
 
 export function addMetadataIdToRoute(route: string): string {
@@ -1024,8 +1031,14 @@ export function normalizedPageToTurbopackStructureRoute(
   route: Page,
   ext: string | false
 ): Page {
+  // This mutable file-name codec preserves the input module role; its legacy
+  // string accumulator is not a new raw ingestion boundary.
   let entrypointKey: string = route
-  if (isMetadataRoute(entrypointKey as Page)) {
+  if (
+    isMetadataRoute(
+      entrypointKey as /* TODO: Preserve the Page key erased by native entry iteration. */ Page
+    )
+  ) {
     entrypointKey = entrypointKey.endsWith('/route')
       ? entrypointKey.slice(0, -'/route'.length)
       : entrypointKey
@@ -1042,5 +1055,5 @@ export function normalizedPageToTurbopackStructureRoute(
     }
     entrypointKey = entrypointKey + '/route'
   }
-  return entrypointKey as Page
+  return entrypointKey as /* TODO: Preserve the Page key erased by native entry iteration. */ Page
 }

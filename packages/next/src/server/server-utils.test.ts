@@ -1,10 +1,10 @@
-import type { Route } from '../shared/lib/route-types'
+import { createRoute } from '../shared/lib/route-types'
 import { getServerUtils } from './server-utils'
 
 describe('getParamsFromRouteMatches', () => {
   it('should return nothing for a non-dynamic route', () => {
     const { getParamsFromRouteMatches } = getServerUtils({
-      page: '/' as Route,
+      page: createRoute('/'),
       basePath: '',
       rewrites: {},
       i18n: undefined,
@@ -18,7 +18,7 @@ describe('getParamsFromRouteMatches', () => {
 
   it('should return the params from the route matches', () => {
     const { getParamsFromRouteMatches } = getServerUtils({
-      page: '/[slug]' as Route,
+      page: createRoute('/[slug]'),
       basePath: '',
       rewrites: {},
       i18n: undefined,
@@ -32,7 +32,7 @@ describe('getParamsFromRouteMatches', () => {
 
   it('should handle optional params', () => {
     const { getParamsFromRouteMatches } = getServerUtils({
-      page: '/[slug]/[[...optional]]' as Route,
+      page: createRoute('/[slug]/[[...optional]]'),
       basePath: '',
       rewrites: {},
       i18n: undefined,
@@ -53,7 +53,7 @@ describe('getParamsFromRouteMatches', () => {
 
   it('should handle rest params', () => {
     const { getParamsFromRouteMatches } = getServerUtils({
-      page: '/[slug]/[...rest]' as Route,
+      page: createRoute('/[slug]/[...rest]'),
       basePath: '',
       rewrites: {},
       i18n: undefined,
@@ -76,7 +76,7 @@ describe('getParamsFromRouteMatches', () => {
 describe('normalizeDynamicRouteParams', () => {
   it('should reject encoded default placeholders for dynamic params', () => {
     const { normalizeDynamicRouteParams } = getServerUtils({
-      page: '/[teamSlug]/[project]' as Route,
+      page: createRoute('/[teamSlug]/[project]'),
       basePath: '',
       rewrites: {},
       i18n: undefined,
@@ -100,7 +100,7 @@ describe('normalizeDynamicRouteParams', () => {
 
   it('should reject doubly encoded default placeholders for dynamic params', () => {
     const { normalizeDynamicRouteParams } = getServerUtils({
-      page: '/[teamSlug]/[project]' as Route,
+      page: createRoute('/[teamSlug]/[project]'),
       basePath: '',
       rewrites: {},
       i18n: undefined,
@@ -124,7 +124,7 @@ describe('normalizeDynamicRouteParams', () => {
 
   it('should continue accepting regular dynamic values', () => {
     const { normalizeDynamicRouteParams } = getServerUtils({
-      page: '/[teamSlug]/[project]' as Route,
+      page: createRoute('/[teamSlug]/[project]'),
       basePath: '',
       rewrites: {},
       i18n: undefined,
@@ -151,7 +151,7 @@ describe('normalizeDynamicRouteParams', () => {
 
   it('should not decode matched params beyond the route matcher decode', () => {
     const { normalizeDynamicRouteParams } = getServerUtils({
-      page: '/[teamSlug]/[project]' as Route,
+      page: createRoute('/[teamSlug]/[project]'),
       basePath: '',
       rewrites: {},
       i18n: undefined,
@@ -178,7 +178,7 @@ describe('normalizeDynamicRouteParams', () => {
 
   it('should not reject non-placeholder values that only contain decoded placeholder text', () => {
     const { normalizeDynamicRouteParams } = getServerUtils({
-      page: '/[teamSlug]/[project]' as Route,
+      page: createRoute('/[teamSlug]/[project]'),
       basePath: '',
       rewrites: {},
       i18n: undefined,

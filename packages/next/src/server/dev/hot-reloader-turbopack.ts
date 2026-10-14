@@ -149,7 +149,12 @@ import {
   isRequestInsightsEnabled,
 } from '../lib/trace/request-insights'
 import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
-import type { Page, Route } from '../../shared/lib/route-types'
+import {
+  createPage,
+  createRoute,
+  type Page,
+  type Route,
+} from '../../shared/lib/route-types'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
@@ -1319,7 +1324,7 @@ export async function createHotReloaderTurbopack(
               if (routeSpecifier != null) {
                 // MCP route specifiers are URL patterns from get_routes, not
                 // raw module identifiers. Keep the external string API.
-                page = routeSpecifier as Route
+                page = createRoute(routeSpecifier)
               } else if (path != null) {
                 const resolved = resolvePathToRoute(path, {
                   appFiles: opts.fsChecker.appFiles,
@@ -1393,7 +1398,7 @@ export async function createHotReloaderTurbopack(
               // as structured output rather than propagating the throw.
               let moduleBuildError: ModuleBuildError | undefined
               try {
-                // @ts-ignore -- Human review: this MCP URL Route is passed as a raw Page; only known App entries get a synthetic module definition. Preserve the fallback assumption without converting the URL to a module identifier.
+                // @ts-ignore -- TODO: Human review: this MCP URL Route is passed as a raw Page; only known App entries get a synthetic module definition. Preserve the fallback assumption without converting the URL to a module identifier.
                 await hotReloader.ensurePage(ensureOpts)
               } catch (err) {
                 if (err instanceof ModuleBuildError) {
@@ -1478,9 +1483,11 @@ export async function createHotReloaderTurbopack(
         const params = matchNextPageBundleRequest(req.url)
 
         if (params) {
-          const decodedPagePath = `/${params.path
-            .map((param: string) => decodeURIComponent(param))
-            .join('/')}` as Page
+          const decodedPagePath = createPage(
+            `/${params.path
+              .map((param: string) => decodeURIComponent(param))
+              .join('/')}`
+          )
 
           const denormalizedPagePath = denormalizePagePath(decodedPagePath)
 
@@ -1513,7 +1520,8 @@ export async function createHotReloaderTurbopack(
               await hotReloader.ensurePage({
                 // This mapper registers only App/Pages module endpoints in
                 // handleRouteType/handlePagesErrorRoute, not root/asset IDs.
-                page: splitEntryKey(key).page as Page,
+                page: splitEntryKey(key)
+                  .page as /* TODO: Recover the Page role from the entry-key discriminator. */ Page,
                 clientOnly: false,
                 definition: undefined,
                 url: req.url,
@@ -2354,7 +2362,7 @@ export async function createHotReloaderTurbopack(
         await hotReloader.ensurePage({
           // serverAssetMapper is populated only by the App/Pages handlers.
           // Decode its serialized module identifier, not a root/asset name.
-          page: page as Page,
+          page: page as /* TODO: Recover the Page role from the entry-type discriminator. */ Page,
           clientOnly: false,
           definition: undefined,
         })

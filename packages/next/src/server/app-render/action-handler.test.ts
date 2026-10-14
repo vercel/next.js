@@ -1,5 +1,5 @@
 import { parseHostHeader } from './action-handler'
-import type { Page } from '../../shared/lib/route-types'
+import { createPage } from '../../shared/lib/route-types'
 import {
   getServerModuleMap,
   setManifestsSingleton,
@@ -12,7 +12,8 @@ describe('server module map', () => {
 
   beforeAll(() => {
     setManifestsSingleton({
-      page: '/test' as Page,
+      // Synthetic registration key; this suite does not discover a live App entry.
+      page: createPage('/test'),
       clientReferenceManifest: {} as ClientReferenceManifest,
       serverActionsManifest: {
         encryptionKey: '',

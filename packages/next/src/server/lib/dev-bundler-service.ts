@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'http'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { WorkerRequestHandler } from './types'
-import type { Page } from '../../shared/lib/route-types'
+import { type Page, createPage } from '../../shared/lib/route-types'
 
 import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
@@ -83,7 +83,7 @@ export class DevBundlerService {
     // Build the error page to ensure the fallback is built too.
     // TODO: See if this can be moved into hotReloader or removed.
     await this.bundler.hotReloader.ensurePage({
-      page: '/_error' as Page,
+      page: createPage('/_error'),
       clientOnly: false,
       definition: undefined,
       url,

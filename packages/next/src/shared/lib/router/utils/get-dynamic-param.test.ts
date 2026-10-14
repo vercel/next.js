@@ -1,4 +1,4 @@
-import type { Route } from '../../route-types'
+import { createRoute } from '../../route-types'
 import {
   getDynamicParam,
   parseParameter,
@@ -425,7 +425,7 @@ describe('interpolateParallelRouteParams', () => {
       interpolateParallelRouteParams(
         loaderTree,
         { path: ['foo', 'bar'] },
-        '/optional-catch-all/[[...path]]' as Route,
+        createRoute('/optional-catch-all/[[...path]]'),
         null
       )
     ).toEqual({ path: ['foo', 'bar'], catchAll: ['foo', 'bar'] })

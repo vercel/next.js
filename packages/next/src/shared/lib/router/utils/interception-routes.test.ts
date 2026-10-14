@@ -1,4 +1,4 @@
-import type { Page } from '../../route-types'
+import { createAppPaths } from '../../route-types'
 import {
   extractInterceptionRouteInformation,
   findMissingCanonicalInterceptionRoutes,
@@ -86,11 +86,12 @@ describe('Interception Route helper', () => {
     ): boolean {
       return (
         findMissingCanonicalInterceptionRoutes(
-          Object.fromEntries(
-            [interceptionRoute, ...ordinaryRoutes].map((route) => [
-              route,
-              [`${route}/page` as Page],
-            ])
+          createAppPaths(
+            Object.fromEntries(
+              [interceptionRoute, ...ordinaryRoutes].map<[string, string[]]>(
+                (route) => [route, [`${route}/page`]]
+              )
+            )
           )
         ).length === 0
       )

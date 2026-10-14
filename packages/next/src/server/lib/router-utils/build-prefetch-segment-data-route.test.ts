@@ -1,10 +1,10 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoute } from '../../../shared/lib/route-types'
 import { buildPrefetchSegmentDataRoute } from './build-prefetch-segment-data-route'
 
 describe('buildPrefetchSegmentDataRoute', () => {
   it('should build a prefetch segment data route', () => {
     const route = buildPrefetchSegmentDataRoute(
-      '/blog/[...slug]' as Route,
+      createRoute('/blog/[...slug]'),
       '/$c$slug$[slug]/__PAGE__'
     )
 

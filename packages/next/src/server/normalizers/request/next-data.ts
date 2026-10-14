@@ -1,4 +1,8 @@
-import type { Page, Route } from '../../../shared/lib/route-types'
+import {
+  type Route,
+  pagesRouteToPage,
+  pagesPageToRoute,
+} from '../../../shared/lib/route-types'
 import type { PathnameNormalizer } from './pathname-normalizer'
 
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
@@ -29,6 +33,6 @@ export class NextDataPathnameNormalizer implements PathnameNormalizer {
 
     // The data URL encodes a Pages-router page filename. Decode that filename
     // at this boundary; Pages-router identifiers map directly to URL paths.
-    return denormalizePagePath(pathname as string as Page) as string as Route
+    return pagesPageToRoute(denormalizePagePath(pagesRouteToPage(pathname)))
   }
 }

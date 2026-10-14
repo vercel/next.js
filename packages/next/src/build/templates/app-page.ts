@@ -1,4 +1,3 @@
-import type { Page, Route } from '../../shared/lib/route-types'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import { createAppPageEntrypoint } from './app-page-runtime'
 import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
@@ -22,8 +21,10 @@ declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
 
 const entrypoint = createAppPageEntrypoint({
   tree,
-  page: 'VAR_DEFINITION_PAGE' as Page,
-  pathname: 'VAR_DEFINITION_PATHNAME' as Route,
+  // @ts-ignore -- TODO: Temporary template boundary: injected full App module identifier; guarded ingestion deferred.
+  page: 'VAR_DEFINITION_PAGE',
+  // @ts-ignore -- TODO: Temporary template boundary: injected normalized App URL pattern; guarded ingestion deferred.
+  pathname: 'VAR_DEFINITION_PATHNAME',
   require: __next_app_require__,
   loadChunk: __next_app_load_chunk__,
   interopDefault,

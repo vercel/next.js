@@ -8,7 +8,7 @@ import { RouteKind } from '../route-kind'
 import RenderResult, { type PrerenderFailure } from '../render-result'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 import { fromResponseCacheEntry } from './utils'
-import type { Page } from '../../shared/lib/route-types'
+import { createPage } from '../../shared/lib/route-types'
 import type { ResponseCacheOwner } from '../lib/route-cache-key'
 
 function mockIncrementalCache() {
@@ -36,7 +36,7 @@ function makeCacheEntry(html: string): ResponseCacheEntry {
 describe('ResponseCache', () => {
   const route: ResponseCacheOwner = {
     kind: RouteKind.APP_PAGE,
-    sourceRoute: '/test/page' as Page,
+    sourceRoute: createPage('/test/page'),
   }
 
   it('rejects missing ownership even in minimal mode', () => {

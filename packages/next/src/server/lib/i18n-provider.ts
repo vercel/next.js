@@ -1,4 +1,4 @@
-import type { Route } from '../../shared/lib/route-types'
+import { type Route, createRoute } from '../../shared/lib/route-types'
 import type { DomainLocale, I18NConfig } from '../config-shared'
 import { getRequestMeta, type NextIncomingMessage } from '../request-meta'
 
@@ -182,7 +182,7 @@ export class I18NProvider {
     inferredFromDefault = false
 
     // Remove the `/${locale}` part of the pathname.
-    pathname = (pathname.slice(detectedLocale.length + 1) || '/') as Route
+    pathname = createRoute(pathname.slice(detectedLocale.length + 1) || '/')
 
     return {
       detectedLocale,

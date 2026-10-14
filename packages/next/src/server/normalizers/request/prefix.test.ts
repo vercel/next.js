@@ -1,11 +1,11 @@
-import type { Route } from '../../../shared/lib/route-types'
+import { createRoutes } from '../../../shared/lib/route-types'
 import { PrefixPathnameNormalizer } from './prefix'
 
 describe('PrefixPathnameNormalizer', () => {
   describe('match', () => {
     it('should return false if the pathname does not start with the prefix', () => {
       const normalizer = new PrefixPathnameNormalizer('/foo')
-      const pathnames = ['/bar', '/bar/foo', '/fooo/bar'] as Route[]
+      const pathnames = createRoutes(['/bar', '/bar/foo', '/fooo/bar'])
       for (const pathname of pathnames) {
         expect(normalizer.match(pathname)).toBe(false)
       }
@@ -13,7 +13,7 @@ describe('PrefixPathnameNormalizer', () => {
 
     it('should return true if the pathname starts with the prefix', () => {
       const normalizer = new PrefixPathnameNormalizer('/foo')
-      const pathnames = ['/foo', '/foo/bar', '/foo/bar/baz'] as Route[]
+      const pathnames = createRoutes(['/foo', '/foo/bar', '/foo/bar/baz'])
       for (const pathname of pathnames) {
         expect(normalizer.match(pathname)).toBe(true)
       }
@@ -28,7 +28,7 @@ describe('PrefixPathnameNormalizer', () => {
   describe('normalize', () => {
     it('should return the same pathname if we are not matched and the pathname does not start with the prefix', () => {
       const normalizer = new PrefixPathnameNormalizer('/foo')
-      let pathnames = ['/bar', '/bar/foo', '/fooo/bar'] as Route[]
+      let pathnames = createRoutes(['/bar', '/bar/foo', '/fooo/bar'])
       for (const pathname of pathnames) {
         expect(normalizer.normalize(pathname)).toBe(pathname)
       }
@@ -36,7 +36,7 @@ describe('PrefixPathnameNormalizer', () => {
 
     it('should strip the prefix from the pathname when it matches', () => {
       const normalizer = new PrefixPathnameNormalizer('/foo')
-      const pathnames = ['/foo', '/foo/bar', '/foo/bar/baz'] as Route[]
+      const pathnames = createRoutes(['/foo', '/foo/bar', '/foo/bar/baz'])
       for (const pathname of pathnames) {
         expect(normalizer.normalize(pathname)).toBe(
           pathname.substring(4) || '/'

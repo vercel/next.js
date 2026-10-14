@@ -8,7 +8,7 @@ import type {
 } from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type { Page } from '../../shared/lib/route-types'
+import { createPage, type Page } from '../../shared/lib/route-types'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
@@ -427,18 +427,20 @@ export async function findPagePathData(
     }
 
     // Filesystem discovery constructs a root-relative module identifier.
-    const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), {
-        extensions,
-      })
-    ) as Page
+    const pageUrl = createPage(
+      ensureLeadingSlash(
+        removePagePathTail(normalizePathSep(pagePath), {
+          extensions,
+        })
+      )
+    )
 
     let bundlePath: string = normalizedPagePath
-    let pageKey = posix.normalize(pageUrl) as Page
+    let pageKey = createPage(posix.normalize(pageUrl))
 
     if (isInstrumentation || isMiddlewareFile(normalizedPagePath)) {
       bundlePath = bundlePath.replace('/src', '')
-      pageKey = page.replace('/src', '') as Page
+      pageKey = createPage(page.replace('/src', ''))
     }
 
     return {
@@ -456,7 +458,7 @@ export async function findPagePathData(
       if (isGlobalNotFoundEnabled) {
         const globalNotFoundPath = await findPageFile(
           appDir,
-          'global-not-found' as Page,
+          createPage('global-not-found'),
           extensions,
           true
         )
@@ -464,14 +466,14 @@ export async function findPagePathData(
           return {
             filename: join(appDir, globalNotFoundPath),
             bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY as Page,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           }
         }
       } else {
         // Then if global-not-found.js doesn't exist then load not-found.js
         const notFoundPath = await findPageFile(
           appDir,
-          'not-found' as Page,
+          createPage('not-found'),
           extensions,
           true
         )
@@ -479,7 +481,7 @@ export async function findPagePathData(
           return {
             filename: join(appDir, notFoundPath),
             bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY as Page,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           }
         }
       }
@@ -490,22 +492,24 @@ export async function findPagePathData(
           'next/dist/client/components/builtin/global-not-found'
         ),
         bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY as Page,
+        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
       }
     }
     pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
-      const pageUrl = ensureLeadingSlash(
-        removePagePathTail(normalizePathSep(pagePath), {
-          keepIndex: true,
-          extensions,
-        })
-      ) as Page
+      const pageUrl = createPage(
+        ensureLeadingSlash(
+          removePagePathTail(normalizePathSep(pagePath), {
+            keepIndex: true,
+            extensions,
+          })
+        )
+      )
 
       return {
         filename: join(appDir, pagePath),
         bundlePath: posix.join('app', pageUrl),
-        page: posix.normalize(pageUrl) as Page,
+        page: createPage(posix.normalize(pageUrl)),
       }
     }
   }
@@ -521,16 +525,18 @@ export async function findPagePathData(
 
   if (pagePath !== null && pagesDir) {
     // Filesystem discovery constructs a root-relative module identifier.
-    const pageUrl = ensureLeadingSlash(
-      removePagePathTail(normalizePathSep(pagePath), {
-        extensions,
-      })
-    ) as Page
+    const pageUrl = createPage(
+      ensureLeadingSlash(
+        removePagePathTail(normalizePathSep(pagePath), {
+          extensions,
+        })
+      )
+    )
 
     return {
       filename: join(pagesDir, pagePath),
       bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
-      page: posix.normalize(pageUrl) as Page,
+      page: createPage(posix.normalize(pageUrl)),
     }
   }
 

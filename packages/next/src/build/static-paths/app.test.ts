@@ -1,6 +1,6 @@
 import { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
-import type { Page, Route } from '../../shared/lib/route-types'
+import { createPage, createRoute } from '../../shared/lib/route-types'
 import {
   assignStaticShellMetadata,
   generateAllParamCombinations,
@@ -24,8 +24,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: { lang: 'en', top: 't1' },
-        pathname: '/en/t1/[bottom]' as Route,
-        encodedPathname: '/en/t1/[bottom]' as Route,
+        pathname: createRoute('/en/t1/[bottom]'),
+        encodedPathname: createRoute('/en/t1/[bottom]'),
         fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
         fallbackMode: FallbackMode.PRERENDER,
         fallbackRootParams: [],
@@ -33,8 +33,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { lang: 'en', top: 't1', bottom: 'b1' },
-        pathname: '/en/t1/b1' as Route,
-        encodedPathname: '/en/t1/b1' as Route,
+        pathname: createRoute('/en/t1/b1'),
+        encodedPathname: createRoute('/en/t1/b1'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.PRERENDER,
         fallbackRootParams: [],
@@ -55,8 +55,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: { lang: 'en', top: 't1' },
-        pathname: '/en/t1/[bottom]' as Route,
-        encodedPathname: '/en/t1/[bottom]' as Route,
+        pathname: createRoute('/en/t1/[bottom]'),
+        encodedPathname: createRoute('/en/t1/[bottom]'),
         fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
         fallbackMode: FallbackMode.PRERENDER,
         fallbackRootParams: [],
@@ -64,8 +64,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { lang: 'en', top: 't1', bottom: 'b1' },
-        pathname: '/en/t1/b1' as Route,
-        encodedPathname: '/en/t1/b1' as Route,
+        pathname: createRoute('/en/t1/b1'),
+        encodedPathname: createRoute('/en/t1/b1'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.PRERENDER,
         fallbackRootParams: [],
@@ -87,8 +87,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: {},
-        pathname: '/[top]/items/[bottom]' as Route,
-        encodedPathname: '/[top]/items/[bottom]' as Route,
+        pathname: createRoute('/[top]/items/[bottom]'),
+        encodedPathname: createRoute('/[top]/items/[bottom]'),
         fallbackRouteParams: [
           { paramName: 'top', paramType: 'dynamic' },
           { paramName: 'bottom', paramType: 'dynamic' },
@@ -112,8 +112,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: {},
-        pathname: '/[top]/items/[bottom]' as Route,
-        encodedPathname: '/[top]/items/[bottom]' as Route,
+        pathname: createRoute('/[top]/items/[bottom]'),
+        encodedPathname: createRoute('/[top]/items/[bottom]'),
         fallbackRouteParams: [
           { paramName: 'top', paramType: 'dynamic' },
           { paramName: 'bottom', paramType: 'dynamic' },
@@ -124,8 +124,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { top: 't1' },
-        pathname: '/t1/items/[bottom]' as Route,
-        encodedPathname: '/t1/items/[bottom]' as Route,
+        pathname: createRoute('/t1/items/[bottom]'),
+        encodedPathname: createRoute('/t1/items/[bottom]'),
         fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
         fallbackMode: FallbackMode.PRERENDER,
         fallbackRootParams: [],
@@ -133,8 +133,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { top: 't1', bottom: 'b1' },
-        pathname: '/t1/items/b1' as Route,
-        encodedPathname: '/t1/items/b1' as Route,
+        pathname: createRoute('/t1/items/b1'),
+        encodedPathname: createRoute('/t1/items/b1'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.PRERENDER,
         fallbackRootParams: [],
@@ -157,8 +157,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: {},
-        pathname: '/' as Route,
-        encodedPathname: '/' as Route,
+        pathname: createRoute('/'),
+        encodedPathname: createRoute('/'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -175,8 +175,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: {},
-        pathname: '/[id]' as Route,
-        encodedPathname: '/[id]' as Route,
+        pathname: createRoute('/[id]'),
+        encodedPathname: createRoute('/[id]'),
         fallbackRouteParams: [
           {
             paramName: 'id',
@@ -189,8 +189,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { id: '1' },
-        pathname: '/1' as Route,
-        encodedPathname: '/1' as Route,
+        pathname: createRoute('/1'),
+        encodedPathname: createRoute('/1'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -208,8 +208,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: {},
-        pathname: '/[id]/[name]' as Route,
-        encodedPathname: '/[id]/[name]' as Route,
+        pathname: createRoute('/[id]/[name]'),
+        encodedPathname: createRoute('/[id]/[name]'),
         fallbackRouteParams: [
           {
             paramName: 'id',
@@ -226,8 +226,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { id: '1' },
-        pathname: '/1/[name]' as Route,
-        encodedPathname: '/1/[name]' as Route,
+        pathname: createRoute('/1/[name]'),
+        encodedPathname: createRoute('/1/[name]'),
         fallbackRouteParams: [
           {
             paramName: 'name',
@@ -240,8 +240,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { id: '1', name: 'test' },
-        pathname: '/1/test' as Route,
-        encodedPathname: '/1/test' as Route,
+        pathname: createRoute('/1/test'),
+        encodedPathname: createRoute('/1/test'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -249,8 +249,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { id: '2', name: 'test' },
-        pathname: '/2/test' as Route,
-        encodedPathname: '/2/test' as Route,
+        pathname: createRoute('/2/test'),
+        encodedPathname: createRoute('/2/test'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -258,8 +258,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { id: '2' },
-        pathname: '/2/[name]' as Route,
-        encodedPathname: '/2/[name]' as Route,
+        pathname: createRoute('/2/[name]'),
+        encodedPathname: createRoute('/2/[name]'),
         fallbackRouteParams: [
           {
             paramName: 'name',
@@ -285,8 +285,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: { id: '1' },
-        pathname: '/1/[name]' as Route,
-        encodedPathname: '/1/[name]' as Route,
+        pathname: createRoute('/1/[name]'),
+        encodedPathname: createRoute('/1/[name]'),
         fallbackRouteParams: [
           {
             paramName: 'name',
@@ -299,8 +299,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { id: '1' },
-        pathname: '/1/[name]/[extra]' as Route,
-        encodedPathname: '/1/[name]/[extra]' as Route,
+        pathname: createRoute('/1/[name]/[extra]'),
+        encodedPathname: createRoute('/1/[name]/[extra]'),
         fallbackRouteParams: [
           {
             paramName: 'name',
@@ -317,8 +317,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { id: '1', name: 'test' },
-        pathname: '/1/test' as Route,
-        encodedPathname: '/1/test' as Route,
+        pathname: createRoute('/1/test'),
+        encodedPathname: createRoute('/1/test'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -346,8 +346,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: {},
-        pathname: '/blog/[slug]' as Route,
-        encodedPathname: '/blog/[slug]' as Route,
+        pathname: createRoute('/blog/[slug]'),
+        encodedPathname: createRoute('/blog/[slug]'),
         fallbackRouteParams: [
           {
             paramName: 'slug',
@@ -360,8 +360,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { slug: 'first-post' },
-        pathname: '/blog/first-post' as Route,
-        encodedPathname: '/blog/first-post' as Route,
+        pathname: createRoute('/blog/first-post'),
+        encodedPathname: createRoute('/blog/first-post'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -369,8 +369,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { slug: 'second-post' },
-        pathname: '/blog/second-post' as Route,
-        encodedPathname: '/blog/second-post' as Route,
+        pathname: createRoute('/blog/second-post'),
+        encodedPathname: createRoute('/blog/second-post'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -389,8 +389,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: {},
-        pathname: '/[id]/[...slug]' as Route,
-        encodedPathname: '/[id]/[...slug]' as Route,
+        pathname: createRoute('/[id]/[...slug]'),
+        encodedPathname: createRoute('/[id]/[...slug]'),
         fallbackRouteParams: [
           {
             paramName: 'id',
@@ -407,8 +407,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { id: '1234' },
-        pathname: '/1234/[...slug]' as Route,
-        encodedPathname: '/1234/[...slug]' as Route,
+        pathname: createRoute('/1234/[...slug]'),
+        encodedPathname: createRoute('/1234/[...slug]'),
         fallbackRouteParams: [
           {
             paramName: 'slug',
@@ -421,8 +421,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { id: '1234', slug: ['about', 'us'] },
-        pathname: '/1234/about/us' as Route,
-        encodedPathname: '/1234/about/us' as Route,
+        pathname: createRoute('/1234/about/us'),
+        encodedPathname: createRoute('/1234/about/us'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -441,8 +441,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: {},
-        pathname: '/[category]/[subcategory]/[item]' as Route,
-        encodedPathname: '/[category]/[subcategory]/[item]' as Route,
+        pathname: createRoute('/[category]/[subcategory]/[item]'),
+        encodedPathname: createRoute('/[category]/[subcategory]/[item]'),
         fallbackRouteParams: [
           {
             paramName: 'category',
@@ -463,8 +463,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { category: 'electronics' },
-        pathname: '/electronics/[subcategory]/[item]' as Route,
-        encodedPathname: '/electronics/[subcategory]/[item]' as Route,
+        pathname: createRoute('/electronics/[subcategory]/[item]'),
+        encodedPathname: createRoute('/electronics/[subcategory]/[item]'),
         fallbackRouteParams: [
           {
             paramName: 'subcategory',
@@ -481,8 +481,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { category: 'electronics', subcategory: 'phones' },
-        pathname: '/electronics/phones/[item]' as Route,
-        encodedPathname: '/electronics/phones/[item]' as Route,
+        pathname: createRoute('/electronics/phones/[item]'),
+        encodedPathname: createRoute('/electronics/phones/[item]'),
         fallbackRouteParams: [
           {
             paramName: 'item',
@@ -499,8 +499,8 @@ describe('assignStaticShellMetadata', () => {
           subcategory: 'phones',
           item: 'iphone',
         },
-        pathname: '/electronics/phones/iphone' as Route,
-        encodedPathname: '/electronics/phones/iphone' as Route,
+        pathname: createRoute('/electronics/phones/iphone'),
+        encodedPathname: createRoute('/electronics/phones/iphone'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -524,8 +524,8 @@ describe('assignStaticShellMetadata', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
         params: { locale: 'en' },
-        pathname: '/en/[...segments]' as Route,
-        encodedPathname: '/en/[...segments]' as Route,
+        pathname: createRoute('/en/[...segments]'),
+        encodedPathname: createRoute('/en/[...segments]'),
         fallbackRouteParams: [
           {
             paramName: 'segments',
@@ -538,8 +538,8 @@ describe('assignStaticShellMetadata', () => {
       },
       {
         params: { locale: 'en' },
-        pathname: '/en' as Route,
-        encodedPathname: '/en' as Route,
+        pathname: createRoute('/en'),
+        encodedPathname: createRoute('/en'),
         fallbackRouteParams: [],
         fallbackMode: FallbackMode.NOT_FOUND,
         fallbackRootParams: [],
@@ -570,7 +570,7 @@ describe('resolveParamMatching', () => {
     })
 
     const resolvedParamMatching = resolveParamMatching(
-      '/[lang]/[top]' as Route,
+      createRoute('/[lang]/[top]'),
       [
         [
           {
@@ -1003,8 +1003,8 @@ const createEmptyParamsError = () =>
 // Mock WorkStore for testing
 const createMockWorkStore = (fetchCache?: WorkStore['fetchCache']) => ({
   fetchCache,
-  page: '/test-page' as Page,
-  route: '/test-page' as Route,
+  page: createPage('/test-page'),
+  route: createRoute('/test-page'),
 })
 
 // Helper to create mock segments

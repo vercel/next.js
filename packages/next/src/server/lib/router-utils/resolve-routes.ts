@@ -7,7 +7,10 @@ import type { Redirect } from '../../../types'
 import type { Header } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { InternalNextUrlWithParsedQuery } from '../../request-meta'
-import type { Route as RoutePathname } from '../../../shared/lib/route-types'
+import {
+  createRoute,
+  type Route as RoutePathname,
+} from '../../../shared/lib/route-types'
 
 import path from 'node:path'
 import setupDebug from 'next/dist/compiled/debug'
@@ -208,7 +211,7 @@ export function getResolveRoutes(
         !config.skipProxyUrlNormalize &&
         !pathname.endsWith('/')
       ) {
-        return `${pathname}/` as RoutePathname
+        return createRoute(`${pathname}/`)
       }
       return pathname
     }
@@ -228,7 +231,7 @@ export function getResolveRoutes(
         parsedUrl.pathname || '',
         config.basePath
       )
-      let normalizedPath = parsedUrl.pathname || ('/' as RoutePathname)
+      let normalizedPath = parsedUrl.pathname || createRoute('/')
 
       if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
         normalizedPath = removePathPrefix(normalizedPath, config.basePath)
@@ -261,9 +264,10 @@ export function getResolveRoutes(
       ) {
         parsedUrl.pathname = addPathPrefix(
           initialLocaleResult.pathname === '/'
-            ? (`/${defaultLocale}` as RoutePathname)
+            ? createRoute(`/${defaultLocale}`)
             : addPathPrefix(
-                (initialLocaleResult.pathname || '') as RoutePathname,
+                (initialLocaleResult.pathname ||
+                  '') as /* TODO: Preserve the analyzed Route and audit the empty fallback sentinel. */ RoutePathname,
                 `/${defaultLocale}`
               ),
           hadBasePath ? config.basePath : ''
@@ -287,7 +291,7 @@ export function getResolveRoutes(
     }
 
     async function checkTrue() {
-      const pathname = parsedUrl.pathname || ('/' as RoutePathname)
+      const pathname = parsedUrl.pathname || createRoute('/')
 
       if (checkLocaleApi(pathname)) {
         return
@@ -312,13 +316,15 @@ export function getResolveRoutes(
         if (!pathHasPrefix(curPathname || '', config.basePath)) {
           return
         }
-        curPathname = (curPathname?.substring(config.basePath.length) ||
-          '/') as RoutePathname
+        curPathname = createRoute(
+          curPathname?.substring(config.basePath.length) || '/'
+        )
       }
       // parseUrl supplies a pathname and prefix stripping above restores '/'
       // on an empty remainder; this fallback cannot introduce a non-URL key.
       const localeResult = fsChecker.handleLocale(
-        (curPathname || '') as RoutePathname
+        (curPathname ||
+          '') as /* TODO: Preserve the analyzed Route and audit the empty fallback sentinel. */ RoutePathname
       )
 
       for (const route of dynamicRoutes) {
@@ -375,7 +381,7 @@ export function getResolveRoutes(
     async function handleRoute(
       route: Route
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
-      let curPathname = parsedUrl.pathname || ('/' as RoutePathname)
+      let curPathname = parsedUrl.pathname || createRoute('/')
 
       if (config.i18n && route.internal) {
         const hadTrailingSlash = curPathname.endsWith('/')
@@ -394,7 +400,7 @@ export function getResolveRoutes(
         if (isDefaultLocale) {
           curPathname =
             localeResult.pathname === '/' && hadBasePath
-              ? (config.basePath as RoutePathname)
+              ? createRoute(config.basePath)
               : addPathPrefix(
                   localeResult.pathname,
                   hadBasePath ? config.basePath : ''
@@ -402,7 +408,7 @@ export function getResolveRoutes(
         } else if (hadBasePath) {
           curPathname =
             curPathname === '/'
-              ? (config.basePath as RoutePathname)
+              ? createRoute(config.basePath)
               : addPathPrefix(curPathname, config.basePath)
         }
 
@@ -481,9 +487,10 @@ export function getResolveRoutes(
                 // requests when the default locale was inferred.
                 normalized = addPathPrefix(
                   curLocaleResult.pathname === '/'
-                    ? (`/${defaultLocale}` as RoutePathname)
+                    ? createRoute(`/${defaultLocale}`)
                     : addPathPrefix(
-                        (curLocaleResult.pathname || '') as RoutePathname,
+                        (curLocaleResult.pathname ||
+                          '') as /* TODO: Preserve the analyzed Route and audit the empty fallback sentinel. */ RoutePathname,
                         `/${defaultLocale}`
                       )
                 )
@@ -496,11 +503,8 @@ export function getResolveRoutes(
               if (hadBasePath) {
                 normalized =
                   normalized === '/'
-                    ? (config.basePath as RoutePathname)
-                    : (path.posix.join(
-                        config.basePath,
-                        normalized
-                      ) as RoutePathname)
+                    ? createRoute(config.basePath)
+                    : createRoute(path.posix.join(config.basePath, normalized))
               }
 
               // Re-add the trailing slash (if required).
@@ -512,7 +516,7 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
-          const pathname = parsedUrl.pathname || ('/' as RoutePathname)
+          const pathname = parsedUrl.pathname || createRoute('/')
 
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
@@ -580,13 +584,12 @@ export function getResolveRoutes(
 
         if (!opts.minimalMode && route.name === 'middleware') {
           const match = fsChecker.getMiddlewareMatchers()
-          let maybeDecodedPathname =
-            parsedUrl.pathname || ('/' as RoutePathname)
+          let maybeDecodedPathname = parsedUrl.pathname || createRoute('/')
 
           try {
-            maybeDecodedPathname = decodeURIComponent(
-              maybeDecodedPathname
-            ) as RoutePathname
+            maybeDecodedPathname = createRoute(
+              decodeURIComponent(maybeDecodedPathname)
+            )
           } catch {
             /* non-fatal we can't decode so can't match it */
           }

@@ -143,7 +143,7 @@ async function exportPageImpl(
   const isDynamic = isDynamicRoute(page)
   const outDir = isAppDir ? join(distDir, 'server/app') : commonOutDir
 
-  // @ts-ignore -- Human review: the export URL (Route), including app URL output, is passed to a Page file codec to choose its artifact filename. Keep this naming assumption unchanged instead of branding the URL as a raw module Page.
+  // @ts-ignore -- TODO: Human review: the export URL (Route), including app URL output, is passed to a Page file codec to choose its artifact filename. Keep this naming assumption unchanged instead of branding the URL as a raw module Page.
   const filePath = normalizePagePath(path)
 
   let updatedPath = exportPath._ssgPath || path
@@ -177,7 +177,7 @@ async function exportPageImpl(
     // its URL pattern; app identifiers require normalization first.
     const normalizedPage = isAppDir
       ? normalizeAppPath(page)
-      : (page as string as import('../shared/lib/route-types').Route)
+      : (page as string as /* TODO: Guard the Pages-only identity bridge without erasing Page. */ import('../shared/lib/route-types').Route)
 
     params = getParams(normalizedPage, updatedPath)
   }
