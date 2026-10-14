@@ -53,6 +53,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::{AssetIdent, Layer},
+    json::RcJsonRawValue,
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
@@ -1384,7 +1385,7 @@ impl PageEndpoint {
         client_chunks: ResolvedVc<OutputAssets>,
         // Inline bootstrap params, present when the bootstrap is inlined rather
         // than emitted as a per-route chunk.
-        chunk_group_bootstrap_params: Option<RcStr>,
+        chunk_group_bootstrap_params: Option<RcJsonRawValue>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let node_root = self.pages_project.project().node_root().owned().await?;
         let client_relative_path = self

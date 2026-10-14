@@ -12,6 +12,7 @@ use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIt
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    json::RcJsonRawValue,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
 
@@ -42,7 +43,7 @@ pub struct BuildManifest {
     /// Per-page inline chunk group bootstrap params, as JSON. Empty when the
     /// bootstrap is emitted as a per-route chunk instead (e.g. dev).
     #[bincode(with = "turbo_bincode::indexmap")]
-    pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, RcStr>,
+    pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, RcJsonRawValue>,
     /// The `globalThis[...]` chunk-loading global the runtime drains.
     pub chunk_loading_global: RcStr,
 }
@@ -97,7 +98,7 @@ impl Asset for BuildManifest {
 
         #[derive(Serialize, Default, Debug)]
         #[serde(rename_all = "camelCase")]
-        pub struct SerializedBuildManifest {
+        pub struct SerializedBuildManifest<'a> {
             pub dev_files: Vec<RcStr>,
             pub amp_dev_files: Vec<RcStr>,
             pub polyfill_files: Vec<RcStr>,
@@ -107,7 +108,7 @@ impl Asset for BuildManifest {
             pub amp_first_pages: Vec<RcStr>,
             pub root_main_files_tree: FxIndexMap<RcStr, Vec<RcStr>>,
             // The values are already JSON; store them as `RawValue` so they are emitted verbatim.
-            pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, Box<RawValue>>,
+            pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, &'a RawValue>,
             pub chunk_loading_global: RcStr,
         }
 
@@ -206,13 +207,7 @@ impl Asset for BuildManifest {
             pages_chunk_group_bootstrap_params: self
                 .pages_chunk_group_bootstrap_params
                 .iter()
-                .map(|(k, v)| {
-                    // SAFETY: These values are produced by `serde_json::to_string` in
-                    // `EvaluateChunk::chunk_group_bootstrap_params`.
-                    (k.clone(), unsafe {
-                        RawValue::from_string_unchecked(v.to_string())
-                    })
-                })
+                .map(|(k, v)| (k.clone(), &**v))
                 .collect(),
             chunk_loading_global: self.chunk_loading_global.clone(),
             ..Default::default()
