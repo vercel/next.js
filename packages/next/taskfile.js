@@ -34,6 +34,7 @@ export async function copy_docs(task, opts) {
   // Copy documentation from repo root into the package.
   // Rename .mdx → .md so AI agents find them when globbing for *.md.
   const docsSource = join(__dirname, '../../docs')
+  const errorsSource = join(__dirname, '../../errors')
   await task
     .source(join(docsSource, '**/*'))
     // eslint-disable-next-line require-yield
@@ -43,6 +44,16 @@ export async function copy_docs(task, opts) {
       }
     })
     .target('dist/docs')
+
+  await task
+    .source(join(errorsSource, '*.mdx'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base.endsWith('.mdx')) {
+        file.base = file.base.replace(/\.mdx$/, '.md')
+      }
+    })
+    .target('dist/docs/messages')
 
   // The agent-feedback protocol is intentionally kept out of dist/docs so
   // agents globbing the bundled docs don't read its instructions out of
