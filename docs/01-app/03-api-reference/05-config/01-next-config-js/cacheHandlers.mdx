@@ -284,7 +284,7 @@ Whether `durations` is present tells you which kind of invalidation this is:
 
 Returns `Promise<void>`.
 
-Record when each tag was invalidated, rather than deleting entries. [`get()`](#get) compares those times against an entry's `timestamp`, and [`getExpiration()`](#getexpiration) does the same for soft tags, which never appear in an entry's own `tags`.
+Your handler should record when each tag was invalidated. [`get()`](#get) compares those times against an entry's `timestamp`, and [`getExpiration()`](#getexpiration) does the same for [soft tags](#soft-tags). Soft tags are not stored in an entry's `tags`, so deleting the entries that carry a tag does not cover [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath).
 
 ```js
 const cacheHandler = {
@@ -384,7 +384,7 @@ Cache operations should be implemented defensively:
 
 ## Examples
 
-The examples below show how a handler meets the API contract. They leave out the eviction, error handling, and multi-instance coordination that a production handler needs. The [`cache-handler-redis` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) is a fuller Redis implementation of both cache APIs, and its README lists community handlers that cover more cases.
+The examples below show how a handler meets the API contract. They leave out the eviction, error handling, and multi-instance coordination that a production handler must add. The [`cache-handler-redis` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) is a fuller Redis implementation of both cache APIs, and its README lists community handlers that cover more cases.
 
 ### In-memory handler for learning and debugging
 
@@ -421,6 +421,7 @@ module.exports = {
 
     // No age check: Next.js compares `timestamp` against `expire` itself.
     // Soft tags are checked by Next.js through `getExpiration()`.
+    // This `Map` also has no eviction, which a real handler needs.
     let revalidate = entry.revalidate
     for (const tag of entry.tags) {
       const { stale = 0, expired = 0 } = tagTimestamps.get(tag) ?? {}
@@ -494,7 +495,7 @@ module.exports = {
 
 ### External storage pattern
 
-A handler backed by Redis or a database stores the entry's bytes, so it drains the stream in `set()` and rebuilds one in `get()`:
+A handler backed by Redis or a database must serialize each entry. Drain the stream in `set()`, and rebuild one from the stored bytes in `get()`:
 
 ```js filename="cache-handlers/redis-handler.js"
 const { createClient } = require('redis')

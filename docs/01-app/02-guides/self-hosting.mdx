@@ -117,13 +117,14 @@ module.exports = {
 }
 ```
 
-The handler file exports a class that implements `get`, `set`, `revalidateTag`, and `resetRequestCache`. Pods share a cache only when the handler reads and writes a store they can all reach, like [Redis](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) or AWS S3. See [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) for each method's signature, and the [Redis `cacheHandler` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) for a working implementation.
+The handler file exports a class that implements `get`, `set`, `revalidateTag`, and `resetRequestCache`. See [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) for each method's signature, and the [Redis `cacheHandler` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) for a working implementation.
 
-A handler backed by a shared store also needs to:
+For production deployments, the handler must:
 
-- **Bound the store's size.** Use a TTL or size-based eviction, so entries for paths and `fetch` keys that are no longer requested do not accumulate.
-- **Serialize entries.** An entry can contain `Buffer` (for example `rscData`) and `Map` (for example `segmentData`) values that `JSON.stringify`/`JSON.parse` can't serialize and restore on their own. Not handling this serialization results in errors like `segmentData.get is not a function` or `failed to pipe response` on client-side navigation or prefetch (RSC) requests.
-- **Index entries by tag.** `APP_PAGE`, `APP_ROUTE`, and `PAGES` entries carry their tags in the `x-next-cache-tags` response header (`data.headers`), while `ctx.tags` carries tags for `fetch` entries. Keep the index in the shared store, so a `revalidateTag` call on one instance invalidates the entry for all of them.
+- **Store entries where every instance can reach them**, like [Redis](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) or AWS S3. A store inside the process, such as a `Map`, gives each pod its own copy of the cache again.
+- **Bound the store's size.** Use a TTL or size-based eviction to remove entries for paths and `fetch` keys that are no longer requested.
+- **Serialize entries.** Any store outside the process needs this. An entry can contain `Buffer` (for example `rscData`) and `Map` (for example `segmentData`) values that `JSON.stringify`/`JSON.parse` can't serialize and restore on their own. Not handling this serialization results in errors like `segmentData.get is not a function` or `failed to pipe response` on client-side navigation or prefetch (RSC) requests.
+- **Index entries by tag.** `APP_PAGE`, `APP_ROUTE`, and `PAGES` entries carry their tags in the `x-next-cache-tags` response header (`data.headers`), while `ctx.tags` carries tags for `fetch` entries. Keep the index in the shared store, so a `revalidateTag` call on one instance invalidates the entry on every instance.
 - **Handle storage errors**, such as timeouts and dropped connections.
 
 > **Good to know:**
