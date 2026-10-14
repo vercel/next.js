@@ -49,7 +49,7 @@ describe('force stale', () => {
         'no-requests'
       )
 
-      // The data succesfully streams in.
+      // The data successfully streams in.
       const content = await browser.elementById('dynamic-page-content')
       expect(await content.text()).toBe('Dynamic page content')
     }
