@@ -25,7 +25,7 @@ When navigating to `/settings`, the `@team` slot will render the `settings` page
 
 On refresh, Next.js will render a `default.js` for `@analytics`. If `default.js` doesn't exist, an error is returned for named slots (`@team`, `@analytics`, etc) and requires you to define a `default.js` in order to continue. If you want to preserve the old behavior of returning a 404 in these situations, you can create a `default.js` that contains:
 
-```tsx filename="app/@team/default.js"
+```jsx filename="app/@team/default.js"
 import { notFound } from 'next/navigation'
 
 export default function Default() {
