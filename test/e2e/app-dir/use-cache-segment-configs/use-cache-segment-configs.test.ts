@@ -189,7 +189,7 @@ function getBuildOutput(cliOutput: string, isNextDeploy: boolean): string {
     // Package-manager command failures and inspect metadata are not compiler output.
     if (
       isNextDeploy &&
-      /^(?:ELIFECYCLE\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
+      /^(?:\[ELIFECYCLE\]\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
         stripAnsi(line).trim()
       )
     ) {
