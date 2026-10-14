@@ -1034,11 +1034,11 @@ impl AggregationUpdateQueue {
     /// update handlers that already hold a task guard. The flag itself is cleared later,
     /// when `optimize_task` actually runs for this task.
     ///
-    /// Intentionally not called from `find_and_schedule_dirty_internal`: that function
-    /// schedules dirty tasks but doesn't perform aggregation work that materially benefits
-    /// from up-to-date optimization, so we leave its tasks for one of the other recovery
-    /// hooks to pick up. There is currently no dedicated unit test for the drop/recovery
-    /// paths; coverage relies on integration tests that exercise the aggregation graph.
+    /// Intentionally not called from `find_and_schedule_dirty_internal` or increase_active_count:
+    /// these functions do not modify the aggregation graph or use it in a way that  benefits from
+    /// up-to-date optimization, so we leave its tasks for one of the other recovery hooks to
+    /// pick up.  These functions are also in the crticial path of execution, it is better to defer
+    /// optimization work to where it is required.
     fn check_optimization_pending(&mut self, task: &TaskGuard<'_>) {
         if !task.optimization_pending() {
             // Common case: nothing pending, no work to do.
@@ -3162,7 +3162,6 @@ impl AggregationUpdateQueue {
         );
         // Revive the task if GC soft-deleted it.
         let mut task = resurrect_deleted(task, task_id, self, ctx);
-        self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
