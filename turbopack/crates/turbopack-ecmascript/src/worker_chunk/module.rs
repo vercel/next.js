@@ -12,8 +12,9 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
+    issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::{Module, ModuleSideEffects},
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{GraphTraversalAction, ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -280,6 +281,63 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 ..Default::default()
             }
             .cell());
+        }
+
+        if matches!(
+            this.worker_type,
+            WorkerType::WebWorker | WorkerType::SharedWebWorker
+        ) {
+            let graph = module_graph.await?;
+            let worker_module: ResolvedVc<Box<dyn Module>> =
+                ResolvedVc::upcast(self.to_resolved().await?);
+            let mut has_recursive_worker_cycle = false;
+
+            graph.traverse_edges_dfs(
+                [worker_module],
+                &mut has_recursive_worker_cycle,
+                |source, target, has_recursive_worker_cycle| {
+                    if target == worker_module && source.is_some() {
+                        *has_recursive_worker_cycle = true;
+                        return Ok(GraphTraversalAction::Exclude);
+                    }
+
+                    if source.is_some_and(|(source, reference)| {
+                        source == worker_module
+                            && !matches!(reference.chunking_type, ChunkingType::Isolated { .. })
+                    }) {
+                        return Ok(GraphTraversalAction::Exclude);
+                    }
+
+                    Ok(GraphTraversalAction::Continue)
+                },
+                |_, _, _| Ok(()),
+                false,
+                false,
+            )?;
+
+            if has_recursive_worker_cycle {
+                CodeGenerationIssue {
+                    severity: IssueSeverity::Error,
+                    path: this.inner.ident().await?.path.clone(),
+                    title: StyledString::Text(rcstr!("recursive worker entry point"))
+                        .resolved_cell(),
+                    message: StyledString::Text(rcstr!(
+                        "The worker module graph contains a cycle back to its worker entry point. \
+                         Turbopack cannot emit recursive worker chunks."
+                    ))
+                    .resolved_cell(),
+                    source: None,
+                }
+                .resolved_cell()
+                .emit();
+
+                return Ok(EcmascriptChunkItemContent {
+                    inner_code: "".into(),
+                    options,
+                    ..Default::default()
+                }
+                .cell());
+            }
         }
 
         let create_worker_module = self.create_worker_module();
