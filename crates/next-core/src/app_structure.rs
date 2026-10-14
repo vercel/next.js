@@ -2378,6 +2378,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     segment: rcstr!("/_not-found"),
                     parallel_routes: fxindexmap! {
                         rcstr!("children") => AppPageLoaderTree {
+                            // Keep the root identity so the synthetic leaf does not contribute
+                            // runtime or deployment config, matching webpack's layout inheritance.
                             page: app_page.clone(),
                             segment: rcstr!("__PAGE__"),
                             parallel_routes: FxIndexMap::default(),
