@@ -17,7 +17,6 @@ import { ReplaySsrOnlyErrors } from '../../../../next-devtools/userspace/app/err
 import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/app/app-dev-overlay-error-boundary'
 import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import { useWebSocketPing } from './web-socket'
-import { onAppRouterMounted, requestHmrRefresh } from './deferred-hmr-refresh'
 import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
@@ -445,7 +444,7 @@ export function processMessage(
       }
 
       startTransition(() => {
-        requestHmrRefresh(publicAppRouterInstance.hmrRefresh)
+        publicAppRouterInstance.hmrRefresh()
         dispatcher.onRefresh()
       })
 
@@ -473,7 +472,7 @@ export function processMessage(
       }
 
       startTransition(() => {
-        requestHmrRefresh(publicAppRouterInstance.hmrRefresh)
+        publicAppRouterInstance.hmrRefresh()
         dispatcher.onRefresh()
       })
 
@@ -495,7 +494,7 @@ export function processMessage(
     case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE: {
       turbopackHmr?.onPageAddRemove()
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
-      return requestHmrRefresh(publicAppRouterInstance.hmrRefresh)
+      return publicAppRouterInstance.hmrRefresh()
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = message
@@ -617,10 +616,6 @@ export default function HotReload({
   staticIndicatorState: StaticIndicatorState | undefined
 }) {
   useWebSocketPing(webSocket)
-
-  // The router is initialized by the time this (child) component mounts. Run
-  // any HMR refresh that arrived over the WebSocket before that.
-  useEffect(onAppRouterMounted, [])
 
   // We don't want access of the pathname for the dev tools to trigger a dynamic
   // access (as the dev overlay will never be present in production).
