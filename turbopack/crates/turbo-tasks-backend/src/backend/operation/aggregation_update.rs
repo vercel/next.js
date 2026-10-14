@@ -342,41 +342,24 @@ struct DirtyContainerUpdate {
     current_session_clean_count: i32,
 }
 
-/// Builds the collectibles part of an [`AggregatedDataUpdate`] for an aggregating task that gains a
-/// new upper: the task's own collectible counts plus `+1` for every aggregated collectible with a
-/// positive count, omitting pairs that cancel out exactly.
+/// Combines the entries of a collectibles update into one summed count per collectible and drops
+/// the collectibles whose counts sum to zero. Used by [`AggregatedDataUpdate::optimize`]; generic
+/// so it can be tested without real collectibles.
 ///
-/// A collectible with an own count of `-1` and a positive aggregated count would contribute `-1`
-/// and `+1` to the upper, so both entries are omitted. This is common for tasks that drop or take
-/// the collectibles of their children: they hold an own count of `-1` for each collectible of their
-/// subgraph. Without this, every new upper of such a task would receive (and insert and remove
-/// again) twice the number of collectibles. All other entries are kept unchanged and in order.
-///
-/// Applying this update yields the same counts in the upper as applying all own and aggregated
-/// entries. Only intermediate presence flips of the omitted collectibles are skipped; the set of
-/// collectibles whose presence changes between before and after is the same.
-///
-/// `own` and `aggregated_positive` must not contain duplicate keys. `capacity` must be an upper
-/// bound of the number of entries, so the update is allocated once.
-fn net_collectibles_update<K: Copy>(
-    own: impl Iterator<Item = (K, i32)>,
-    is_aggregated_positive: impl Fn(&K) -> bool,
-    aggregated_positive: impl Iterator<Item = K>,
-    is_own_minus_one: impl Fn(&K) -> bool,
-    capacity: usize,
-) -> Vec<(K, i32)> {
-    let mut update = Vec::with_capacity(capacity);
-    for (key, count) in own {
-        if count == -1 && is_aggregated_positive(&key) {
-            continue;
-        }
-        update.push((key, count));
+/// The order of the result is unspecified. Counts are added without overflow checks; their sum is
+/// not expected to overflow.
+fn sum_collectibles_update<K: Hash + Eq + Copy>(mut update: Vec<(K, i32)>) -> Vec<(K, i32)> {
+    if update.len() < 2 {
+        update.retain(|&(_, count)| count != 0);
+        return update;
     }
-    for key in aggregated_positive {
-        if !is_own_minus_one(&key) {
-            update.push((key, 1));
-        }
+    let mut sums: FxHashMap<K, i32> =
+        FxHashMap::with_capacity_and_hasher(update.len(), FxBuildHasher);
+    for (key, count) in update.drain(..) {
+        *sums.entry(key).or_insert(0) += count;
     }
+    // Reuses the allocation of `update`, which is at least as large as the result.
+    update.extend(sums.into_iter().filter(|&(_, count)| count != 0));
     update
 }
 
@@ -405,17 +388,17 @@ impl AggregatedDataUpdate {
                 .get_aggregated_current_session_clean_container_count()
                 .copied()
                 .unwrap_or_default();
-            net_collectibles_update(
-                task.iter_collectibles().map(|(&k, &v)| (k, v)),
-                |k| task.get_aggregated_collectibles(k).is_some_and(|&c| c > 0),
-                task.iter_aggregated_collectibles()
-                    .filter(|(_, count)| **count > 0)
-                    .map(|(&k, _)| k),
-                |k| task.get_collectibles(k) == Some(&-1),
-                // An upper bound of the number of entries, so the update isn't reallocated while
-                // the task is locked.
-                task.collectibles_len() + task.aggregated_collectibles_len(),
-            )
+            // Allocate an upper bound of the number of entries up front, so the update isn't
+            // reallocated while the task is locked.
+            let mut collectibles_update =
+                Vec::with_capacity(task.collectibles_len() + task.aggregated_collectibles_len());
+            collectibles_update.extend(task.iter_collectibles().map(|(&k, &v)| (k, v)));
+            for (collectible, count) in task.iter_aggregated_collectibles() {
+                if *count > 0 {
+                    collectibles_update.push((*collectible, 1));
+                }
+            }
+            collectibles_update
         } else {
             task.iter_collectibles().map(|(&k, &v)| (k, v)).collect()
         };
@@ -440,6 +423,26 @@ impl AggregatedDataUpdate {
             );
         }
         result
+    }
+
+    /// Combines the collectibles entries of the update into one net count per collectible and
+    /// drops the collectibles whose contributions cancel out.
+    ///
+    /// For an aggregating task, [`AggregatedDataUpdate::from_task`] emits both the task's own
+    /// collectible counts and `+1` for each positive aggregated collectible. A task that drops or
+    /// takes the collectibles of its children holds an own count of `-1` for each collectible of
+    /// its subgraph, so most of those entries cancel out. Optimizing avoids inserting and removing
+    /// them again in every upper.
+    ///
+    /// Applying the optimized update (or its inversion) to an upper yields the same counts and the
+    /// same set of collectibles whose presence changes, as applying the original one. Only
+    /// intermediate presence flips within the update are skipped.
+    ///
+    /// This is O(number of entries), so call it after releasing the task lock, where different
+    /// workers can optimize their updates concurrently.
+    fn optimize(mut self) -> Self {
+        self.collectibles_update = sum_collectibles_update(take(&mut self.collectibles_update));
+        self
     }
 
     /// Inverts the update. This is used when the task is removed from an upper task.
@@ -1926,13 +1929,15 @@ impl AggregationUpdateQueue {
             // STEP 4
             if is_upper {
                 if removed_upper {
-                    let data = AggregatedDataUpdate::from_task(&mut follower).invert();
+                    let data = AggregatedDataUpdate::from_task(&mut follower);
                     let followers = get_followers(&follower);
                     // if uppers became empty, it might be collectible, check now.
                     if follower.is_upper_empty() {
                         ctx.note_maybe_collectible(&follower);
                     }
                     drop(follower);
+                    // Outside of the lock
+                    let data = data.optimize().invert();
 
                     // STEP 5
                     if !data.is_empty() {
@@ -2107,12 +2112,14 @@ impl AggregationUpdateQueue {
 
             // STEP 4
             if !removed_uppers.is_empty() {
-                let data = AggregatedDataUpdate::from_task(&mut follower).invert();
+                let data = AggregatedDataUpdate::from_task(&mut follower);
                 let followers = get_followers(&follower);
                 if follower.is_upper_empty() {
                     ctx.note_maybe_collectible(&follower);
                 }
                 drop(follower);
+                // Outside of the lock
+                let data = data.optimize().invert();
 
                 // STEP 5
                 if !data.is_empty() {
@@ -2301,12 +2308,14 @@ impl AggregationUpdateQueue {
 
                 // STEP 4
                 if remove_upper {
-                    let data = AggregatedDataUpdate::from_task(&mut follower).invert();
+                    let data = AggregatedDataUpdate::from_task(&mut follower);
                     let followers = get_followers(&follower);
                     if follower.is_upper_empty() {
                         ctx.note_maybe_collectible(&follower);
                     }
                     drop(follower);
+                    // Outside of the lock
+                    let data = data.optimize().invert();
 
                     // STEP 5
                     if !data.is_empty() {
@@ -2613,6 +2622,8 @@ impl AggregationUpdateQueue {
                 let data = AggregatedDataUpdate::from_task(&mut new_follower);
                 let followers = get_followers(&new_follower);
                 drop(new_follower);
+                // Outside of the lock
+                let data = data.optimize();
 
                 // STEP 6d and 6f
                 let has_data = !data.is_empty();
@@ -2875,6 +2886,8 @@ impl AggregationUpdateQueue {
                         let data = AggregatedDataUpdate::from_task(&mut new_follower);
                         let children = get_followers(&new_follower);
                         drop(new_follower);
+                        // Outside of the lock
+                        let data = data.optimize();
 
                         // STEP 6d
                         if !data.is_empty() {
@@ -3090,6 +3103,8 @@ impl AggregationUpdateQueue {
                     let data = AggregatedDataUpdate::from_task(&mut new_follower);
                     let followers = get_followers(&new_follower);
                     drop(new_follower);
+                    // Outside of the lock
+                    let data = data.optimize();
 
                     // STEP 6d
                     if !data.is_empty() {
@@ -3573,8 +3588,10 @@ fn retry_loop(mut retry: u16, mut f: impl FnMut() -> ControlFlow<()>) -> Result<
 #[cfg(test)]
 mod tests {
     use rustc_hash::{FxHashMap, FxHashSet};
+    use turbo_tasks::{CellId, TaskId, TraitTypeId, ValueTypeId};
 
-    use super::net_collectibles_update;
+    use super::{AggregatedDataUpdate, sum_collectibles_update};
+    use crate::data::{CellRef, CollectibleRef};
 
     /// Models the collectibles part of `AggregatedDataUpdate::apply`: applies `update` to the
     /// counts of an upper and returns the keys whose presence (count > 0) flipped, in order.
@@ -3611,82 +3628,57 @@ mod tests {
         keys
     }
 
-    /// The update as built before netting: own entries, then `+1` per positive aggregated entry.
-    fn unnetted(own: &[(u32, i32)], aggregated_positive: &[u32]) -> Vec<(u32, i32)> {
+    /// The update `from_task` builds: own entries, then `+1` per positive aggregated entry.
+    fn from_task_update(own: &[(u32, i32)], aggregated_positive: &[u32]) -> Vec<(u32, i32)> {
         own.iter()
             .copied()
             .chain(aggregated_positive.iter().map(|&k| (k, 1)))
             .collect()
     }
 
-    fn netted(own: &[(u32, i32)], aggregated_positive: &[u32]) -> Vec<(u32, i32)> {
-        let own_minus_one: FxHashSet<u32> = own
-            .iter()
-            .filter(|&&(_, c)| c == -1)
-            .map(|&(k, _)| k)
-            .collect();
-        let aggregated: FxHashSet<u32> = aggregated_positive.iter().copied().collect();
-        let capacity = own.len() + aggregated_positive.len();
-        let update = net_collectibles_update(
-            own.iter().copied(),
-            |k| aggregated.contains(k),
-            aggregated_positive.iter().copied(),
-            |k| own_minus_one.contains(k),
-            capacity,
-        );
-        // The capacity is an upper bound, so the update was never reallocated.
-        assert!(update.len() <= capacity);
-        assert!(update.capacity() < capacity.max(1) * 2);
-        update
-    }
-
     fn invert(update: &[(u32, i32)]) -> Vec<(u32, i32)> {
         update.iter().map(|&(k, c)| (k, -c)).collect()
     }
 
-    /// The unnetted update without the exactly cancelling pairs: an own `-1` and an aggregated
-    /// `+1` for the same collectible. Everything else is kept, in the same order.
-    fn expected_netted(own: &[(u32, i32)], aggregated_positive: &[u32]) -> Vec<(u32, i32)> {
-        let aggregated: FxHashSet<u32> = aggregated_positive.iter().copied().collect();
-        let cancelled: FxHashSet<u32> = own
-            .iter()
-            .filter(|&&(k, c)| c == -1 && aggregated.contains(&k))
-            .map(|&(k, _)| k)
-            .collect();
-        own.iter()
-            .copied()
-            .filter(|(k, _)| !cancelled.contains(k))
-            .chain(
-                aggregated_positive
-                    .iter()
-                    .filter(|k| !cancelled.contains(k))
-                    .map(|&k| (k, 1)),
-            )
-            .collect()
+    /// The summed update as a map, so results can be compared independently of their order.
+    fn as_map(update: &[(u32, i32)]) -> FxHashMap<u32, i32> {
+        let mut map = FxHashMap::default();
+        for &(key, count) in update {
+            assert!(
+                map.insert(key, count).is_none(),
+                "duplicate key {key} in the summed update"
+            );
+        }
+        map
     }
 
-    /// Checks that the netted update is the unnetted one without the cancelling pairs, and that it
-    /// and its inversion have the same effect on `start` as the unnetted ones: equal final counts,
-    /// equal sets of keys whose presence changed, and every such key still flips.
-    fn assert_equivalent(start: &FxHashMap<u32, i32>, own: &[(u32, i32)], aggregated: &[u32]) {
-        let old_update = unnetted(own, aggregated);
-        let new_update = netted(own, aggregated);
-        assert_eq!(new_update, expected_netted(own, aggregated));
+    /// Checks that `sum_collectibles_update` sums per key and drops zeros, and that the summed
+    /// update and its inversion (`optimize()` then `invert()`) have the same effect on `start` as
+    /// the unsummed ones: equal final counts, equal sets of keys whose presence changed, and every
+    /// such key still flips.
+    fn assert_equivalent(start: &FxHashMap<u32, i32>, update: &[(u32, i32)]) {
+        let summed = sum_collectibles_update(update.to_vec());
+        let mut expected = FxHashMap::default();
+        for &(key, count) in update {
+            *expected.entry(key).or_insert(0) += count;
+        }
+        expected.retain(|_, count| *count != 0);
+        assert_eq!(as_map(&summed), expected);
 
         let mut old_upper = start.clone();
-        apply(&mut old_upper, &old_update);
+        apply(&mut old_upper, update);
         let mut new_upper = start.clone();
-        let new_flips = apply(&mut new_upper, &new_update);
+        let new_flips = apply(&mut new_upper, &summed);
         assert_eq!(old_upper, new_upper, "final counts differ");
         let changes = presence_changes(start, &new_upper);
         assert_eq!(presence_changes(start, &old_upper), changes);
-        // Every key whose presence changed is still invalidated by the netted update.
+        // Every key whose presence changed is still invalidated by the summed update.
         assert!(changes.iter().all(|k| new_flips.contains(k)));
 
         // Removing the task from the upper again (`invert()`) restores the start state.
         let after_add = new_upper.clone();
-        apply(&mut old_upper, &invert(&old_update));
-        let new_flips_inv = apply(&mut new_upper, &invert(&new_update));
+        apply(&mut old_upper, &invert(update));
+        let new_flips_inv = apply(&mut new_upper, &invert(&summed));
         assert_eq!(old_upper, *start);
         assert_eq!(new_upper, *start);
         let changes_inv = presence_changes(&after_add, start);
@@ -3694,66 +3686,120 @@ mod tests {
     }
 
     #[test]
-    fn netting_matches_unnetted_update() {
+    fn optimize_sums_per_key_and_drops_zeros() {
+        let update = [(1, -1), (2, 1), (1, 1), (3, 2), (2, -1), (3, 1)];
+        let summed = sum_collectibles_update(update.to_vec());
+        assert_eq!(summed, vec![(3, 3)]);
+    }
+
+    #[test]
+    fn optimize_mixed_signs_and_counts() {
+        let update = [(1, -2), (1, 1), (1, 1), (2, 5), (2, -3), (4, -1)];
+        let summed = sum_collectibles_update(update.to_vec());
+        assert_eq!(as_map(&summed), [(2, 2), (4, -1)].into_iter().collect());
+    }
+
+    #[test]
+    fn optimize_empty_and_single_entry() {
+        assert_eq!(sum_collectibles_update(Vec::<(u32, i32)>::new()), vec![]);
+        assert_eq!(sum_collectibles_update(vec![(7, 3)]), vec![(7, 3)]);
+        assert_eq!(sum_collectibles_update(vec![(7, 0)]), vec![]);
+    }
+
+    #[test]
+    fn optimize_keeps_disjoint_keys() {
+        let update: Vec<(u32, i32)> = (0..200).map(|k| (k, (k as i32 % 3) + 1)).collect();
+        let summed = sum_collectibles_update(update.clone());
+        assert_eq!(as_map(&summed), as_map(&update));
+    }
+
+    #[test]
+    fn optimize_drops_cancelled_collectibles() {
+        // A task that dropped the collectibles of its subgraph: one negative own count for each
+        // positive aggregated collectible, plus a few collectibles it didn't drop.
+        let own: Vec<(u32, i32)> = (0..1000).map(|k| (k, -1)).collect();
+        let aggregated: Vec<u32> = (0..1004).collect();
+        let update = from_task_update(&own, &aggregated);
+        assert_eq!(update.len(), 2004);
+
+        let summed = sum_collectibles_update(update.clone());
+        assert_eq!(
+            as_map(&summed),
+            (1000..1004).map(|k| (k, 1)).collect::<FxHashMap<_, _>>()
+        );
+        assert_equivalent(&FxHashMap::default(), &update);
+    }
+
+    #[test]
+    fn optimize_matches_unoptimized_update() {
         // Mixed-sign own counts; some keys only own, some only aggregated, some both.
         let own = [(1, -1), (2, -1), (3, -2), (4, 1), (5, 3), (9, -1)];
         let aggregated = [1, 2, 3, 6, 7];
+        let update = from_task_update(&own, &aggregated);
 
         let empty = FxHashMap::default();
-        assert_equivalent(&empty, &own, &aggregated);
+        assert_equivalent(&empty, &update);
 
         // A nonempty upper, including positive, larger and negative counts.
         let nonempty: FxHashMap<u32, i32> = [(1, 1), (3, 2), (4, -1), (6, -1), (8, 1), (9, 1)]
             .into_iter()
             .collect();
-        assert_equivalent(&nonempty, &own, &aggregated);
+        assert_equivalent(&nonempty, &update);
 
         // Only own or only aggregated collectibles.
-        assert_equivalent(&nonempty, &own, &[]);
-        assert_equivalent(&nonempty, &[], &aggregated);
+        assert_equivalent(&nonempty, &from_task_update(&own, &[]));
+        assert_equivalent(&nonempty, &from_task_update(&[], &aggregated));
+    }
+
+    fn collectible(index: u32) -> CollectibleRef {
+        CollectibleRef {
+            collectible_type: TraitTypeId::new(1).unwrap(),
+            cell: CellRef {
+                task: TaskId::new(1).unwrap(),
+                cell: CellId::new(ValueTypeId::new(1).unwrap(), index),
+            },
+        }
+    }
+
+    fn real_collectibles(update: &AggregatedDataUpdate) -> FxHashMap<CollectibleRef, i32> {
+        update.collectibles_update.iter().copied().collect()
     }
 
     #[test]
-    fn netting_drops_cancelled_collectibles() {
-        // A task that dropped the collectibles of its subgraph: one negative own count for each
-        // positive aggregated collectible, plus a few collectibles it didn't drop.
-        let own: Vec<(u32, i32)> = (0..1000).map(|k| (k, -1)).collect();
-        let aggregated: Vec<u32> = (0..1004).collect();
-
-        let update = netted(&own, &aggregated);
-        let mut keys: Vec<u32> = update.iter().map(|&(k, _)| k).collect();
-        keys.sort_unstable();
-        assert_eq!(keys, vec![1000, 1001, 1002, 1003]);
-        assert!(update.iter().all(|&(_, c)| c == 1));
-        assert_eq!(unnetted(&own, &aggregated).len(), 2004);
-
-        assert_equivalent(&FxHashMap::default(), &own, &aggregated);
-    }
-
-    #[test]
-    fn netting_disjoint_collectibles() {
-        // Nothing cancels: the result has every entry and still fits the reserved capacity.
-        let own: Vec<(u32, i32)> = (0..100).map(|k| (k, 1)).collect();
-        let aggregated: Vec<u32> = (100..200).collect();
-        assert_eq!(netted(&own, &aggregated).len(), 200);
-        assert_equivalent(&FxHashMap::default(), &own, &aggregated);
-    }
-
-    #[test]
-    fn netting_keeps_other_own_counts_separate() {
-        // Only an own count of exactly -1 cancels the aggregated +1. Other own counts of
-        // collectibles that are also aggregated are sent unchanged, followed by the
-        // aggregated +1.
-        let own = [(1, -2), (2, i32::MAX), (3, 1), (4, -1)];
-        let aggregated = [1, 2, 3, 4];
-        let update = netted(&own, &aggregated);
+    fn optimize_and_invert_real_update() {
+        let task_id = TaskId::new(5).unwrap();
+        let a = collectible(1);
+        let b = collectible(2);
+        let c = collectible(3);
+        let update = AggregatedDataUpdate::new()
+            .collectibles_update(vec![(a, -1), (b, 2), (a, 1), (c, -1), (b, -1)])
+            .dirty_container_update(task_id, 1, 0)
+            .optimize();
         assert_eq!(
-            update,
-            vec![(1, -2), (2, i32::MAX), (3, 1), (1, 1), (2, 1), (3, 1)]
+            real_collectibles(&update),
+            [(b, 1), (c, -1)].into_iter().collect()
         );
+        let dirty = update.dirty_container_update.unwrap();
+        assert_eq!(dirty.task_id, task_id);
+        assert_eq!(dirty.dirty_count, 1);
+        assert_eq!(dirty.current_session_clean_count, 0);
 
-        // Start at -1 for `2`, so `i32::MAX` followed by +1 doesn't overflow.
-        let start: FxHashMap<u32, i32> = [(1, 1), (2, -1), (3, -1)].into_iter().collect();
-        assert_equivalent(&start, &own, &aggregated);
+        let inverted = update.invert();
+        assert_eq!(
+            real_collectibles(&inverted),
+            [(b, -1), (c, 1)].into_iter().collect()
+        );
+        let dirty = inverted.dirty_container_update.unwrap();
+        assert_eq!(dirty.task_id, task_id);
+        assert_eq!(dirty.dirty_count, -1);
+        assert_eq!(dirty.current_session_clean_count, 0);
+
+        assert!(
+            AggregatedDataUpdate::new()
+                .collectibles_update(vec![(a, -1), (a, 1)])
+                .optimize()
+                .is_empty()
+        );
+        assert!(AggregatedDataUpdate::new().optimize().is_empty());
     }
 }
