@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { RootRouteTree } from './segment-cache/cache'
 import type {
   FlightRouterState,
@@ -65,7 +66,7 @@ export function navigate(
   currentRenderedSearch: string,
   currentRoot: RootRouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace'
@@ -127,7 +128,7 @@ function navigateImpl(
   currentRenderedSearch: string,
   currentRoot: RootRouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
@@ -234,7 +235,7 @@ export function navigateToKnownRoute(
   currentRenderedSearch: string,
   currentRoot: RootRouteTree<CacheNode>,
   freshnessPolicy: FreshnessPolicy,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock | null,
@@ -284,7 +285,7 @@ export function navigateToKnownRoute(
           PrefetchHint.SubtreeHasInstantFalse)) ===
         0
     ) {
-      const error = createLinkPrefetchPartialError(url.pathname)
+      const error = createLinkPrefetchPartialError(url.pathname as Route)
       const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
       if (ownerStack === undefined) {
         console.error(
@@ -392,7 +393,7 @@ function navigateUsingPrefetchedRouteTree(
   url: URL,
   currentUrl: URL,
   currentRenderedSearch: string,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   currentRoot: RootRouteTree<CacheNode>,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
@@ -450,7 +451,7 @@ async function navigateToUnknownRoute(
   url: URL,
   currentUrl: URL,
   currentRenderedSearch: string,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   currentRoot: RootRouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
   freshnessPolicy: FreshnessPolicy,
@@ -542,7 +543,7 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   discoverKnownRoute(
     now,
-    url.pathname,
+    url.pathname as Route,
     url.search as NormalizedSearch,
     nextUrl,
     null, // No pending entry
@@ -660,7 +661,7 @@ export function completeHardNavigation(
 export function completeSoftNavigation(
   oldState: AppRouterState,
   url: URL,
-  referringNextUrl: string | null,
+  referringNextUrl: Route | null,
   navigation: RootNavigationTask,
   renderedSearch: string,
   canonicalUrl: string,
@@ -800,7 +801,7 @@ export function completeTraverseNavigation(
   url: URL,
   renderedSearch: string,
   navigation: RootNavigationTask,
-  nextUrl: string | null
+  nextUrl: Route | null
 ) {
   return {
     // Set canonical url
@@ -840,7 +841,7 @@ async function ensurePrefetchThenNavigate(
   currentRenderedSearch: string,
   currentRoot: RootRouteTree<CacheNode>,
   currentFlightRouterState: FlightRouterState,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',

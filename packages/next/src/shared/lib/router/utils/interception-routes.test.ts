@@ -1,3 +1,4 @@
+import type { Page } from '../../route-types'
 import {
   extractInterceptionRouteInformation,
   findMissingCanonicalInterceptionRoutes,
@@ -88,7 +89,7 @@ describe('Interception Route helper', () => {
           Object.fromEntries(
             [interceptionRoute, ...ordinaryRoutes].map((route) => [
               route,
-              [`${route}/page`],
+              [`${route}/page` as Page],
             ])
           )
         ).length === 0

@@ -1,3 +1,4 @@
+import type { Page } from '../shared/lib/route-types'
 import type { BuildManifest } from './get-page-files'
 
 import { BUILD_MANIFEST } from '../shared/lib/constants'
@@ -43,7 +44,7 @@ async function loadDefaultErrorComponentsImpl(
     )) as BuildManifest,
     reactLoadableManifest: {},
     ComponentMod,
-    page: '/_error',
+    page: '/_error' as Page,
     routeModule: ComponentMod.routeModule,
   }
 }

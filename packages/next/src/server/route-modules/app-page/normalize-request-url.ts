@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { IncomingMessage } from 'http'
 
 import {
@@ -52,7 +53,7 @@ export function applyAppPageRscRequestMetaFromHeaders(
 
 export function normalizeAppPageRequestUrl(
   req: Pick<IncomingMessage | BaseNextRequest, 'url'>,
-  pathname: string
+  pathname: Route
 ) {
   if (!req.url) {
     return

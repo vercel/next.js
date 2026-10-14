@@ -1,6 +1,8 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type { DomainLocale, I18NConfig } from '../config-shared'
 import type { I18NProvider } from '../lib/i18n-provider'
+import type { RouteUrl } from '../../lib/url'
+import type { Route } from '../../shared/lib/route-types'
 
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { formatNextPathnameInfo } from '../../shared/lib/router/utils/format-next-pathname-info'
@@ -23,7 +25,7 @@ const REGEX_LOCALHOST_HOSTNAME =
   /^(?:127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|\[::1\]|localhost)$/
 
 function parseURL(url: string | URL, base?: string | URL) {
-  const parsed = new URL(String(url), base && String(base))
+  const parsed = new URL(String(url), base && String(base)) as RouteUrl
   if (REGEX_LOCALHOST_HOSTNAME.test(parsed.hostname)) {
     parsed.hostname = 'localhost'
   }
@@ -42,7 +44,7 @@ export class NextURL {
     locale?: string
     options: Options
     trailingSlash?: boolean
-    url: URL
+    url: RouteUrl
   }
 
   constructor(input: string | URL, base?: string | URL, opts?: Options)
@@ -205,12 +207,14 @@ export class NextURL {
     return this[Internal].url.origin
   }
 
-  get pathname() {
+  get pathname(): string {
     return this[Internal].url.pathname
   }
 
   set pathname(value: string) {
-    this[Internal].url.pathname = value
+    // Public NextURL callers supply plain strings; the native URL setter
+    // parses them as pathname text before internal analysis/formatting.
+    this[Internal].url.pathname = value as Route
   }
 
   get hash() {

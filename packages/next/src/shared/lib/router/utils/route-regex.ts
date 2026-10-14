@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../route-types'
 import {
   NEXT_INTERCEPTION_MARKER_PREFIX,
   NEXT_QUERY_PARAM_PREFIX,
@@ -90,8 +91,8 @@ type GetRouteRegexOptions = {
   excludeOptionalTrailingSlash?: boolean
 }
 
-function getParametrizedRoute(
-  route: string,
+function getParametrizedRoute<T extends Page | Route>(
+  route: T,
   includeSuffix: boolean,
   includePrefix: boolean
 ) {
@@ -142,12 +143,13 @@ function getParametrizedRoute(
 }
 
 /**
- * From a normalized route this function generates a regular expression and
- * a corresponding groups object intended to be used to store matching groups
- * from the regular expression.
+ * Generates a regular expression for a URL pattern or a raw module identifier,
+ * with groups intended to store its matching parameters. Both namespaces have
+ * dynamic-segment syntax; regex generation does not normalize between them.
+ * `normalizedRoute` is the historical name, not proof of a URL-only contract.
  */
-export function getRouteRegex(
-  normalizedRoute: string,
+export function getRouteRegex<T extends Page | Route>(
+  normalizedRoute: T,
   {
     includeSuffix = false,
     includePrefix = false,
@@ -265,8 +267,8 @@ function getSafeKeyFromSegment({
   }
 }
 
-function getNamedParametrizedRoute(
-  route: string,
+function getNamedParametrizedRoute<T extends Page | Route>(
+  route: T,
   prefixRouteKeys: boolean,
   includeSuffix: boolean,
   includePrefix: boolean,
@@ -375,8 +377,8 @@ function getNamedParametrizedRoute(
  * be "true" currently this is only the case when creating the routes-manifest
  * during the build
  */
-export function getNamedRouteRegex(
-  normalizedRoute: string,
+export function getNamedRouteRegex<T extends Page | Route>(
+  normalizedRoute: T,
   options: GetNamedRouteRegexOptions
 ) {
   const result = getNamedParametrizedRoute(
@@ -406,8 +408,8 @@ export function getNamedRouteRegex(
  * Generates a named regexp.
  * This is intended to be using for build time only.
  */
-export function getNamedMiddlewareRegex(
-  normalizedRoute: string,
+export function getNamedMiddlewareRegex<T extends Page | Route>(
+  normalizedRoute: T,
   options: {
     catchAll?: boolean
   }

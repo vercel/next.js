@@ -1,8 +1,12 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { CustomRoutes, Rewrite } from '../../../lib/load-custom-routes'
 import type { BuildManifest } from '../../../server/get-page-files'
 
-export type ClientBuildManifest = {
-  [key: string]: string[]
+export type ClientBuildManifest = Record<Route, string[]> & {
+  sortedPages?: Route[]
+  __rewrites: CustomRoutes['rewrites']
+  __routerFilterStatic?: unknown
+  __routerFilterDynamic?: unknown
 }
 
 // Add the runtime ssg manifest file as a lazy-loaded file dependency.

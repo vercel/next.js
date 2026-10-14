@@ -1,5 +1,6 @@
 import { z } from 'next/dist/compiled/zod'
 import { formatZodError } from '../../../shared/lib/zod'
+import type { Route } from '../../../shared/lib/route-types'
 
 const CookieSchema = z
   .object({
@@ -175,12 +176,12 @@ const AppSegmentConfigSchema = z.object({
 /**
  * Parse the app segment config.
  * @param data - The data to parse.
- * @param route - The route of the app.
+ * @param route - The normalized URL route used in configuration diagnostics.
  * @returns The parsed app segment config.
  */
 export function parseAppSegmentConfig(
   data: unknown,
-  route: string
+  route: Route
 ): AppSegmentConfig {
   const parsed = AppSegmentConfigSchema.safeParse(data, {
     errorMap: (issue, ctx) => {

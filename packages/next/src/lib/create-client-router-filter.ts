@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import type { Token } from 'next/dist/compiled/path-to-regexp'
 import { BloomFilter } from '../shared/lib/bloom-filter'
 import { isDynamicRoute } from '../shared/lib/router/utils'
@@ -11,20 +12,23 @@ import {
 import { DYNAMIC_FILTER_PLACEHOLDER } from '../shared/lib/router/utils/dynamic-filter-pattern'
 
 export function createClientRouterFilter(
-  paths: string[],
+  paths: Route[],
   redirects: Redirect[],
   allowedErrorRate?: number
 ): {
   staticFilter: ReturnType<BloomFilter['export']>
   dynamicFilter: ReturnType<BloomFilter['export']>
 } {
-  const staticPaths = new Set<string>()
+  const staticPaths = new Set<Route>()
   const dynamicPaths = new Set<string>()
 
   for (let path of paths) {
     if (isDynamicRoute(path)) {
       if (isInterceptionRouteAppPath(path)) {
-        path = extractInterceptionRouteInformation(path).interceptedRoute
+        // This caller supplies normalized matcher paths, so rebasing the marker
+        // constructs another URL pathname rather than a raw App module name.
+        path = extractInterceptionRouteInformation(path)
+          .interceptedRoute as Route
       }
 
       let subPath = ''
@@ -67,6 +71,7 @@ export function createClientRouterFilter(
 
     if (tokens.every((token) => typeof token === 'string')) {
       // only include static redirects initially
+      // @ts-ignore Human review: a static path-to-regexp source can retain escaping; it is not necessarily the normalized URL pathname stored by the other static entries. Preserve redirect filtering.
       staticPaths.add(path)
     }
   }
@@ -87,7 +92,7 @@ export function createClientRouterFilter(
  * of the dynamic filter; the pages router decodes it with
  * `hasDynamicFilterCandidate`, and both rely on `DYNAMIC_FILTER_PLACEHOLDER`.
  */
-function normalizeRouteToFilterPattern(route: string): string {
+function normalizeRouteToFilterPattern(route: Route): string {
   return route
     .split('/')
     .map((segment) =>

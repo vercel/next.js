@@ -1,6 +1,8 @@
+import type { Route } from '../route-types'
+
 export type IncompatibleParallelRouteSlots = {
   layoutFile: string
-  route: string
+  route: Route
   missingSlots: readonly string[]
 }
 

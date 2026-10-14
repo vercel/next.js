@@ -1,3 +1,4 @@
+import type { Page } from '../../../../shared/lib/route-types'
 import path from 'path'
 import { stringify } from 'querystring'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
@@ -23,7 +24,7 @@ export async function createAppRouteCode({
 }: {
   appDir: string
   name: string
-  page: string
+  page: Page
   pagePath: string
   resolveAppRoute: (
     pathname: string

@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 import type { ResponseCookies } from '../web/spec-extension/cookies'
@@ -44,7 +45,7 @@ export interface RequestStore extends CommonWorkUnitStore {
     /**
      * The pathname of the requested URL.
      */
-    readonly pathname: string
+    readonly pathname: Route
 
     /**
      * The search part of the requested URL. If the request did not provide a

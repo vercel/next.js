@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { Params } from '../../server/request/params'
 import {
@@ -83,7 +84,7 @@ const rootNavigationPromisesCache = new WeakMap<
  */
 export function createRootNavigationPromises(
   tree: FlightRouterState,
-  pathname: string,
+  pathname: Route,
   searchParams: URLSearchParams,
   pathParams: Params
 ): NavigationPromises | null {

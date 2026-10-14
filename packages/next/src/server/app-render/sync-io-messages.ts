@@ -1,3 +1,5 @@
+import type { Route } from '../../shared/lib/route-types'
+
 export type SyncIOApiType = 'time' | 'random' | 'crypto'
 
 const SYNC_IO_DOCS: Record<SyncIOApiType, string> = {
@@ -25,7 +27,7 @@ function elapsedTimeBullet(type: SyncIOApiType): string {
 }
 
 function createSyncIOErrorImpl(
-  route: string,
+  route: Route,
   expression: string,
   type: SyncIOApiType,
   docsUrl: string
@@ -43,7 +45,7 @@ function createSyncIOErrorImpl(
 }
 
 export function createSyncIOError(
-  route: string,
+  route: Route,
   expression: string,
   type: SyncIOApiType
 ): Error {
@@ -51,7 +53,7 @@ export function createSyncIOError(
 }
 
 export function createSyncIORuntimeError(
-  route: string,
+  route: Route,
   expression: string,
   type: SyncIOApiType
 ): Error {
@@ -64,7 +66,7 @@ export function createSyncIORuntimeError(
 }
 
 export function createSyncIOClientError(
-  route: string,
+  route: Route,
   expression: string,
   type: SyncIOApiType
 ): Error {

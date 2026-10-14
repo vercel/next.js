@@ -2,13 +2,17 @@ import './node-environment'
 import './require-hook'
 import './node-polyfill-crypto'
 
+import type { Page, Route } from '../shared/lib/route-types'
 import type { CacheFs } from '../shared/lib/utils'
 import {
   DecodeError,
   PageNotFoundError,
   MiddlewareNotFoundError,
 } from '../shared/lib/utils'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type {
@@ -20,6 +24,7 @@ import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plug
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
+  InternalNextUrlWithParsedQuery,
   RequestMeta,
 } from './request-meta'
 import type { Params } from './request/params'
@@ -172,12 +177,12 @@ export type NodeRequestHandler = BaseRequestHandler<
 type NodeRouteHandler = RouteHandler<NodeNextRequest, NodeNextResponse>
 
 const MiddlewareMatcherCache = new WeakMap<
-  MiddlewareManifest['middleware'][string],
+  MiddlewareManifest['middleware'][Route],
   MiddlewareRouteMatch
 >()
 
 function getMiddlewareMatcher(
-  info: MiddlewareManifest['middleware'][string]
+  info: MiddlewareManifest['middleware'][Route]
 ): MiddlewareRouteMatch {
   const stored = MiddlewareMatcherCache.get(info)
   if (stored) {
@@ -207,7 +212,7 @@ export default class NextNodeServer extends BaseServer<
   protected renderWorkersPromises?: Promise<void>
   protected dynamicRoutes?: {
     match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
-    page: string
+    page: Route
     re: RegExp
   }[]
   private routerServerHandler?: (
@@ -337,7 +342,7 @@ export default class NextNodeServer extends BaseServer<
 
     await this.loadCustomCacheHandlers()
 
-    for (const page of Object.keys(pagesManifest || {})) {
+    for (const page of Object.keys(pagesManifest || {}) as Page[]) {
       try {
         await loadComponents({
           distDir: this.distDir,
@@ -352,7 +357,7 @@ export default class NextNodeServer extends BaseServer<
       }
     }
 
-    for (const page of Object.keys(appPathsManifest || {})) {
+    for (const page of Object.keys(appPathsManifest || {}) as Page[]) {
       try {
         const { ComponentMod } = await loadComponents<
           AppPageModule | AppRouteModule
@@ -527,7 +532,7 @@ export default class NextNodeServer extends BaseServer<
     )
   }
 
-  protected async hasPage(pathname: string): Promise<boolean> {
+  protected async hasPage(pathname: Page): Promise<boolean> {
     return !!getMaybePagePath(
       pathname,
       this.distDir,
@@ -594,12 +599,14 @@ export default class NextNodeServer extends BaseServer<
     const edgeFunctionsPages = this.getEdgeFunctionsPages()
 
     for (const edgeFunctionsPage of edgeFunctionsPages) {
+      // @ts-ignore -- Human review: edge entries are raw Page module keys but are compared with the normalized API Route. Preserve this Pages-router namespace assumption.
       if (edgeFunctionsPage === match.definition.pathname) {
         const handledAsEdgeFunction = await this.runEdgeFunction({
           req,
           res,
           query,
           params: match.params,
+          // @ts-ignore -- Human review: edge-module lookup receives normalized API Route rather than raw definition.page. Preserve the existing Pages-router namespace assumption.
           page: match.definition.pathname,
           appPaths: null,
         })
@@ -650,7 +657,7 @@ export default class NextNodeServer extends BaseServer<
   protected async renderHTML(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    pathname: string,
+    pathname: Route,
     query: NextParsedUrlQuery,
     renderOpts: LoadedRenderOpts,
     routeMatch: AppRenderRouteMatch
@@ -663,7 +670,7 @@ export default class NextNodeServer extends BaseServer<
   private async renderHTMLImpl(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    pathname: string,
+    pathname: Route,
     query: NextParsedUrlQuery,
     renderOpts: LoadedRenderOpts,
     routeMatch: AppRenderRouteMatch
@@ -833,7 +840,7 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
-  protected getPagePath(pathname: string, locales?: string[]): string {
+  protected getPagePath(pathname: Page, locales?: string[]): string {
     return getPagePath(
       pathname,
       this.distDir,
@@ -851,7 +858,9 @@ export default class NextNodeServer extends BaseServer<
       const appPaths = this.getOriginalAppPaths(ctx.pathname)
       const isAppPath = Array.isArray(appPaths)
 
-      let page = ctx.pathname
+      // Pages-router edge modules use their pathname as the page lookup key.
+      // App routes below select the original Page from appPaths instead.
+      let page = ctx.pathname as string as Page
       if (isAppPath) {
         // When it's an array, we need to pass all parallel routes to the loader.
         page = selectAppPageEntry(ctx.pathname, appPaths)
@@ -884,14 +893,14 @@ export default class NextNodeServer extends BaseServer<
     url,
   }: {
     locale: string | undefined
-    page: string
+    page: Page
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
     // The following parameters are used in the development server's
     // implementation.
     sriEnabled?: boolean
-    appPaths?: ReadonlyArray<string> | null
+    appPaths?: ReadonlyArray<Page> | null
     shouldEnsure: boolean
     url?: string
   }): Promise<FindComponentsResult | null> {
@@ -924,17 +933,19 @@ export default class NextNodeServer extends BaseServer<
     url: _url,
   }: {
     locale: string | undefined
-    page: string
+    page: Page
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
     url?: string
   }): Promise<FindComponentsResult | null> {
-    const pagePaths: string[] = [page]
+    const pagePaths: Page[] = [page]
 
     if (locale) {
       pagePaths.unshift(
-        ...pagePaths.map((path) => `/${locale}${path === '/' ? '' : path}`)
+        ...pagePaths.map(
+          (path) => `/${locale}${path === '/' ? '' : path}` as Page
+        )
       )
     }
 
@@ -1306,9 +1317,9 @@ export default class NextNodeServer extends BaseServer<
 
   // Used in development only, overloaded in next-dev-server
   protected async ensurePage(_opts: {
-    page: string
+    page: Page
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
+    appPaths?: ReadonlyArray<Page> | null
     match?: RouteMatch
     url?: string
   }): Promise<void> {
@@ -1448,6 +1459,7 @@ export default class NextNodeServer extends BaseServer<
 
     if (this.dev) {
       await this.ensurePage({
+        // @ts-ignore -- Human review: a custom-server URL pathname is passed directly to raw Page discovery, without selecting an app entry. Preserve this legacy ensure behavior.
         page: pathname,
         clientOnly: false,
         url: normalizedReq.url,
@@ -1587,7 +1599,7 @@ export default class NextNodeServer extends BaseServer<
   /** Returns the middleware routing item if there is one. */
   protected async getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     const manifest = this.getMiddlewareManifest()
-    const middleware = manifest?.middleware?.['/']
+    const middleware = manifest?.middleware?.['/' as Route]
     if (!middleware) {
       const middlewareModule = await this.loadNodeMiddleware()
 
@@ -1598,7 +1610,7 @@ export default class NextNodeServer extends BaseServer<
               { regexp: '.*', originalSource: '/:path*' },
             ]
           ),
-          page: '/',
+          page: '/' as Route,
         }
       }
 
@@ -1607,29 +1619,34 @@ export default class NextNodeServer extends BaseServer<
 
     return {
       match: getMiddlewareMatcher(middleware),
-      page: '/',
+      page: '/' as Route,
     }
   }
 
-  protected getEdgeFunctionsPages(): string[] {
+  protected getEdgeFunctionsPages(): Page[] {
     const manifest = this.getMiddlewareManifest()
     if (!manifest) {
       return []
     }
 
-    return Object.keys(manifest.functions)
+    return Object.keys(manifest.functions) as Page[]
   }
 
   /**
-   * Get information for the edge function located in the provided page
-   * folder. If the edge function info can't be found it will throw
-   * an error.
+   * Get information for an edge page module or middleware URL scope prefix.
+   * If the edge function info can't be found it will throw an error.
    */
-  protected getEdgeFunctionInfo(params: {
-    page: string
-    /** Whether we should look for a middleware or not */
-    middleware: boolean
-  }): {
+  protected getEdgeFunctionInfo(
+    params:
+      | {
+          page: Page
+          middleware: false
+        }
+      | {
+          page: Route
+          middleware: true
+        }
+  ): {
     name: string
     paths: string[]
     wasm: { filePath: string; name: string }[]
@@ -1641,16 +1658,21 @@ export default class NextNodeServer extends BaseServer<
       return null
     }
 
-    let foundPage: string
+    let foundPage: Page
 
     try {
+      // @ts-ignore -- Human review: the middleware branch passes a URL scope (Route) through a Page file codec. Preserve the existing round-trip and error handling rather than normalizing it differently.
       foundPage = denormalizePagePath(normalizePagePath(params.page))
     } catch (err) {
       return null
     }
 
-    let pageInfo = params.middleware
-      ? manifest.middleware[foundPage]
+    let pageInfo:
+      | EdgeFunctionDefinition<Route>
+      | EdgeFunctionDefinition<Page>
+      | undefined = params.middleware
+      ? // @ts-ignore -- Human review: the Page codec result is used as a URL-scope key for middleware. Its representation is not proven to be Route; retain this lookup for review.
+        manifest.middleware[foundPage]
       : manifest.functions[foundPage]
 
     if (!pageInfo) {
@@ -1727,7 +1749,7 @@ export default class NextNodeServer extends BaseServer<
    * server where we need to check the filesystem. Here we just check the
    * middleware manifest.
    */
-  protected async hasMiddleware(pathname: string): Promise<boolean> {
+  protected async hasMiddleware(pathname: Route): Promise<boolean> {
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
     const nodeMiddleware = await this.loadNodeMiddleware()
 
@@ -1744,8 +1766,8 @@ export default class NextNodeServer extends BaseServer<
    */
   protected async ensureMiddleware(_url?: string) {}
   protected async ensureEdgeFunction(_params: {
-    page: string
-    appPaths: string[] | null
+    page: Page
+    appPaths: Page[] | null
     url?: string
   }) {}
 
@@ -1759,7 +1781,7 @@ export default class NextNodeServer extends BaseServer<
     request: NodeNextRequest
     response: NodeNextResponse
     parsedUrl: ParsedUrl
-    parsed: NextUrlWithParsedQuery
+    parsed: InternalNextUrlWithParsedQuery
     onWarning?: (warning: Error) => void
   }) {
     if (process.env.NEXT_MINIMAL) {
@@ -2116,7 +2138,7 @@ export default class NextNodeServer extends BaseServer<
 
   protected attachRequestMeta(
     req: NodeNextRequest,
-    parsedUrl: NextUrlWithParsedQuery,
+    parsedUrl: InternalNextUrlWithParsedQuery,
     isUpgradeReq?: boolean
   ) {
     // Injected in base-server.ts
@@ -2152,8 +2174,8 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse
     query: ParsedUrlQuery
     params: Params | undefined
-    page: string
-    appPaths: string[] | null
+    page: Page
+    appPaths: Page[] | null
     match?: RouteMatch
     onError?: (err: unknown) => void
     onWarning?: (warning: Error) => void

@@ -20,6 +20,7 @@
  * read that data outside the cache and pass it in as an argument to the cached function.
  */
 
+import type { Route } from '../../shared/lib/route-types'
 import type { WorkStore } from './work-async-storage.external'
 import type {
   RequestStore,
@@ -300,7 +301,7 @@ function markRequestStoreAsDynamic(requestStore: RequestStore): void {
 }
 
 function abortOnSynchronousDynamicDataAccess(
-  route: string,
+  route: Route,
   expression: string,
   prerenderStore: PrerenderStoreModern
 ): void {
@@ -324,7 +325,7 @@ function abortOnSynchronousDynamicDataAccess(
 }
 
 export function abortOnSynchronousPlatformIOAccess(
-  route: string,
+  route: Route,
   expression: string,
   errorWithStack: Error,
   prerenderStore: PrerenderStoreModern
@@ -355,7 +356,7 @@ export function abortOnSynchronousPlatformIOAccess(
  * @internal
  */
 export function abortAndThrowOnSynchronousRequestDataAccess(
-  route: string,
+  route: Route,
   expression: string,
   errorWithStack: Error,
   prerenderStore: PrerenderStoreModern
@@ -995,7 +996,7 @@ export function trackDynamicHoleInNavigation(
   return
 }
 
-function createBodyError(kind: StaticValidationHoleKind, route: string): Error {
+function createBodyError(kind: StaticValidationHoleKind, route: Route): Error {
   switch (kind) {
     case DynamicHoleKind.Runtime:
       return createRuntimeBodyError(route)
@@ -1008,7 +1009,7 @@ function createBodyError(kind: StaticValidationHoleKind, route: string): Error {
 
 function createBodyErrorInNavigation(
   kind: InstantValidationHoleKind,
-  route: string
+  route: Route
 ): Error {
   switch (kind) {
     case DynamicHoleKind.Runtime:
@@ -1024,7 +1025,7 @@ function createBodyErrorInNavigation(
   }
 }
 
-function createMetadataError(kind: DynamicHoleKind, route: string): Error {
+function createMetadataError(kind: DynamicHoleKind, route: Route): Error {
   switch (kind) {
     case DynamicHoleKind.Runtime:
       return createRuntimeMetadataError(route)
@@ -1041,7 +1042,7 @@ function createMetadataError(kind: DynamicHoleKind, route: string): Error {
   }
 }
 
-function createViewportError(kind: DynamicHoleKind, route: string): Error {
+function createViewportError(kind: DynamicHoleKind, route: Route): Error {
   switch (kind) {
     case DynamicHoleKind.Runtime:
       return createRuntimeViewportError(route)
@@ -1060,7 +1061,7 @@ function createViewportError(kind: DynamicHoleKind, route: string): Error {
 
 function createBodyErrorInStaticRoute(
   kind: StaticValidationHoleKind,
-  route: string
+  route: Route
 ): Error {
   switch (kind) {
     case DynamicHoleKind.Runtime:
@@ -1074,7 +1075,7 @@ function createBodyErrorInStaticRoute(
 
 function createMetadataErrorInStaticRoute(
   kind: StaticValidationHoleKind,
-  route: string
+  route: Route
 ) {
   switch (kind) {
     case DynamicHoleKind.Runtime:
@@ -1088,7 +1089,7 @@ function createMetadataErrorInStaticRoute(
 
 function createViewportErrorInStaticRoute(
   kind: StaticValidationHoleKind,
-  route: string
+  route: Route
 ) {
   switch (kind) {
     case DynamicHoleKind.Runtime:

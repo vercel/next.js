@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { PrerenderManifest } from '../../../build'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { CacheControl } from '../cache-control'
@@ -16,8 +17,8 @@ import { RouteKind } from '../../route-kind'
  */
 export class SharedCacheControls {
   /**
-   * The in-memory cache of cache lives for routes. This cache is populated when
-   * the cache is updated with new cache lives.
+   * The in-memory cache of cache lives, keyed by opaque namespaced storage keys,
+   * not URL pathnames. Populated when cache entries receive new cache lives.
    */
   private static readonly cacheControls = new Map<string, CacheControl>()
 
@@ -43,7 +44,7 @@ export class SharedCacheControls {
    *          are not present in the in-memory cache or the prerender manifest
    */
   public get(
-    route: string,
+    route: Route,
     owner: ResponseCacheOwner
   ): CacheControl | undefined {
     // This is a copy on write cache that is updated when the cache is updated.
@@ -96,7 +97,7 @@ export class SharedCacheControls {
   /**
    * Set the cache control for a route.
    *
-   * @param route the route to set the cache control for
+   * @param route the opaque namespaced response cache key to update
    * @param cacheControl the cache control for the route
    */
   public set(route: string, cacheControl: CacheControl) {

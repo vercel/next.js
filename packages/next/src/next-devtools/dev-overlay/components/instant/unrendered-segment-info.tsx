@@ -2,9 +2,10 @@ import { useCallback } from 'react'
 import { FileIcon } from '../../icons/file'
 import { CodeFrameShell } from '../code-frame/code-frame-shell'
 import { css } from '../../utils/css'
+import type { Route } from '../../../../shared/lib/route-types'
 
 type UnrenderedSegmentInfoProps = {
-  route: string
+  route: Route
   files: string[]
 }
 
@@ -104,7 +105,7 @@ function TreeRow({ node }: { node: TreeNode }) {
   )
 }
 
-function buildTree(route: string, files: string[]): TreeNode[] {
+function buildTree(route: Route, files: string[]): TreeNode[] {
   type Raw = {
     key: string
     parts: string[]

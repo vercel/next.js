@@ -19,6 +19,7 @@ import type {
 } from '../../next-devtools/shared/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
 import type { AnyStream } from '../app-render/stream-ops'
+import type { Page, Route } from '../../shared/lib/route-types'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   // JSON messages:
@@ -107,12 +108,12 @@ export interface BuiltMessage {
 
 export interface AddedPageMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE
-  data: [page: string | null]
+  data: [page: Route | null]
 }
 
 export interface RemovedPageMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE
-  data: [page: string | null]
+  data: [page: Route | null]
 }
 
 export interface ReloadPageMessage {
@@ -143,7 +144,7 @@ export interface ClientChangesMessage {
 
 export interface ServerOnlyChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
-  pages: ReadonlyArray<string>
+  pages: ReadonlyArray<Route>
 }
 
 export interface DevPagesManifestUpdateMessage {
@@ -162,6 +163,7 @@ export interface TurbopackConnectedMessage {
 
 export interface AppIsrManifestMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST
+  // Legacy Pages producers key this by asPath (possibly including search), not only Route.
   data: Record<string, boolean>
 }
 
@@ -235,7 +237,7 @@ export interface RuntimeErrorStateError {
 
 export interface RuntimeErrorStateUpdate {
   event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS
-  pathname: string
+  pathname: Route
   errorState: {
     errors: readonly RuntimeErrorStateError[]
     routerType: 'app' | 'pages'
@@ -247,7 +249,7 @@ export interface RuntimeErrorStateMessage {
   clientId: string
   /** The producer document's existing HMR request ID, when available. */
   htmlRequestId?: string | null
-  pathname: string
+  pathname: Route
   errors: FormattedRuntimeError[]
 }
 
@@ -355,7 +357,7 @@ export interface NextJsHotReloaderInterface {
     requestId: string
   ): void
   sendErrorsToBrowser(errorsRscStream: AnyStream, htmlRequestId: string): void
-  getCompilationErrors(page: string): Promise<any[]>
+  getCompilationErrors(page: Page): Promise<any[]>
   onHMR(
     req: IncomingMessage,
     _socket: Duplex,
@@ -387,9 +389,9 @@ export interface NextJsHotReloaderInterface {
     url,
     subscribeToChanges,
   }: {
-    page: string
+    page: Page
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
+    appPaths?: ReadonlyArray<Page> | null
     isApp?: boolean
     definition?: RouteDefinition
     url?: string

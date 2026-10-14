@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../../shared/lib/route-types'
 import type webpack from 'next/dist/compiled/webpack/webpack'
 import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
@@ -47,13 +48,13 @@ import { installBindings } from '../../../swc/install-bindings'
 
 export type AppLoaderOptions = {
   name: string
-  page: string
+  page: Page
   pagePath: string
   appDir: string
-  appPaths: readonly string[] | null
-  // All normalized app paths across the entire app, used for computing
-  // static siblings for dynamic segments
-  allNormalizedAppPaths: readonly string[] | null
+  appPaths: readonly Page[] | Page | null
+  // Normalized URL paths across the entire app, used for computing
+  // static siblings for dynamic segments.
+  allNormalizedAppPaths: readonly Route[] | null
   preferredRegion: string | string[] | undefined
   pageExtensions: PageExtensions
   assetPrefix: string
@@ -172,7 +173,7 @@ async function createTreeCodeFromPath(
     isFinalRouteMatcher,
     isDev,
   }: {
-    page: string
+    page: Page
     resolveDir: DirResolver
     resolver: PathResolver
     metadataResolver: MetadataResolver
@@ -1056,7 +1057,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const getStaticSiblingSegments = (segmentPath: string): string[] => {
     // Normalize the current path to URL space
     // Add a trailing /page so normalizeAppPath strips it properly
-    const currentUrlPath = normalizeAppPath(segmentPath + '/page')
+    const currentUrlPath = normalizeAppPath((segmentPath + '/page') as Page)
     const currentUrlSegments = currentUrlPath.split('/').filter(Boolean)
 
     // If the path is empty (root level), there are no siblings
@@ -1083,6 +1084,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     for (const appPath of allNormalizedAppPaths) {
       // Normalize each path to URL space (strip route groups, parallel routes, and /page suffix)
+      // @ts-ignore -- Human review: these keys are already Routes from appPathsPerRoute; normalizing again as raw Pages may strip a real URL /page or /route segment. Preserve sibling computation.
       const urlPath = normalizeAppPath(appPath)
       const urlSegments = urlPath.split('/').filter(Boolean)
 

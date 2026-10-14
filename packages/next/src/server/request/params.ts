@@ -2,6 +2,7 @@ import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
+import type { Route } from '../../shared/lib/route-types'
 import type { VaryParamsAccumulator } from '../app-render/vary-params'
 import {
   createVaryingParams,
@@ -835,10 +836,7 @@ const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createParamsAccessError
 )
 
-function createParamsAccessError(
-  route: string | undefined,
-  expression: string
-) {
+function createParamsAccessError(route: Route | undefined, expression: string) {
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +

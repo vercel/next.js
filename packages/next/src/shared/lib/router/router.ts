@@ -1,3 +1,4 @@
+import type { Route } from '../route-types'
 import type { ComponentType } from 'react'
 import type { DomainLocale } from '../../../server/config'
 import type { MittEmitter } from '../mitt'
@@ -182,7 +183,7 @@ function getAppRouterMarkerKey(
   router: Router,
   as: string,
   locale: string | false | undefined
-): string | null {
+): Route | null {
   if (!isLocalURL(as)) {
     return null
   }
@@ -201,8 +202,12 @@ function getAppRouterMarkerKey(
   )
 }
 
-function resolveDynamicRoute(pathname: string, pages: string[]) {
-  const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname))
+function resolveDynamicRoute(pathname: Route, pages: Route[]): Route {
+  // @ts-ignore -- Human review: a URL Route is passed through a page-file denormalizer. Preserve the existing index handling.
+  const cleanPathname: Route = removeTrailingSlash(
+    // @ts-ignore Human review: the file decoder consumes a URL Route, not Page. Preserve this argument as well as the existing Route result assumption above.
+    denormalizePagePath(pathname)
+  )
   if (cleanPathname === '/404' || cleanPathname === '/_error') {
     return pathname
   }
@@ -261,9 +266,10 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
       let fsPathname = removeTrailingSlash(pathnameInfo.pathname)
       return Promise.all([
-        options.router.pageLoader.getPageList(),
+        // Manifest URL patterns cross the exported PageLoader string boundary.
+        options.router.pageLoader.getPageList() as Route[] | Promise<Route[]>,
         getClientBuildManifest(),
-      ]).then(([pages, { __rewrites: rewrites }]: any) => {
+      ]).then(([pages, { __rewrites: rewrites }]) => {
         let as = addLocale(pathnameInfo.pathname, pathnameInfo.locale)
 
         if (
@@ -299,7 +305,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
             pages,
             rewrites,
             parsedRewriteTarget.query,
-            (path: string) => resolveDynamicRoute(path, pages),
+            (path: Route) => resolveDynamicRoute(path, pages),
             options.router.locales
           )
 
@@ -338,9 +344,13 @@ function getMiddlewareData<T extends FetchDataOutput>(
         }
       })
     }
+    // `source` is the relative Pages data URL produced by PageLoader.
     const src = parsePath(source)
     const pathname = formatNextPathnameInfo({
-      ...getNextPathnameInfo(src.pathname, { nextConfig, parseData: true }),
+      ...getNextPathnameInfo(src.pathname as Route, {
+        nextConfig,
+        parseData: true,
+      }),
       defaultLocale: options.router.defaultLocale,
       buildId: '',
     })
@@ -355,9 +365,14 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
   if (redirectTarget) {
     if (redirectTarget.startsWith('/')) {
+      // The response's leading-slash check establishes a relative URL;
+      // parsePath removes its query and hash before internal route handling.
       const src = parsePath(redirectTarget)
       const pathname = formatNextPathnameInfo({
-        ...getNextPathnameInfo(src.pathname, { nextConfig, parseData: true }),
+        ...getNextPathnameInfo(src.pathname as Route, {
+          nextConfig,
+          parseData: true,
+        }),
         defaultLocale: options.router.defaultLocale,
         buildId: '',
       })
@@ -453,6 +468,7 @@ export type CompletePrivateRouteInfo = {
   props?: Record<string, any>
   err?: Error
   error?: any
+  // Exposed through the public Router component map and method results.
   route?: string
   resolvedAs?: string
   query?: ParsedUrlQuery
@@ -721,7 +737,7 @@ const getCancelledHandler = ({
   route,
   router,
 }: {
-  route: string
+  route: Route
   router: Router
 }) => {
   let cancelled = false
@@ -751,6 +767,7 @@ export default class Router implements BaseRouter {
   /**
    * Map of all components loaded in `Router`
    */
+  // The concrete Router is exported from next/router, including this mutable map.
   components: { [pathname: string]: PrivateRouteInfo }
   // Server Data Cache (full data requests)
   sdc: NextDataCache = {}
@@ -779,8 +796,8 @@ export default class Router implements BaseRouter {
   _bfl_d?: import('../../lib/bloom-filter').BloomFilter
 
   private state: Readonly<{
-    route: string
-    pathname: string
+    route: Route
+    pathname: Route
     query: ParsedUrlQuery
     asPath: string
     locale: string | undefined
@@ -826,8 +843,8 @@ export default class Router implements BaseRouter {
       isPreview?: boolean
     }
   ) {
-    // represents the current component key
-    const route = removeTrailingSlash(pathname)
+    // The public constructor still accepts strings; brand its internal route key.
+    const route = removeTrailingSlash(pathname as Route)
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -845,7 +862,7 @@ export default class Router implements BaseRouter {
       }
     }
 
-    this.components['/_app'] = {
+    this.components['/_app' as Route] = {
       Component: App as ComponentType,
       styleSheets: [
         /* /_app does not need its stylesheets managed */
@@ -892,7 +909,7 @@ export default class Router implements BaseRouter {
 
     this.state = {
       route,
-      pathname,
+      pathname: pathname as Route,
       query,
       asPath: autoExportDynamic ? pathname : as,
       isPreview: !!isPreview,
@@ -1457,10 +1474,12 @@ export default class Router implements BaseRouter {
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
-    let pages: string[], rewrites: any
+    let pages: Route[], rewrites: any
     try {
       ;[pages, { __rewrites: rewrites }] = await Promise.all([
-        this.pageLoader.getPageList(),
+        // The public loader exposes mutable string arrays; these manifest
+        // entries are normalized URL patterns for internal matching.
+        this.pageLoader.getPageList() as Route[] | Promise<Route[]>,
         getClientBuildManifest(),
         this.pageLoader.getMiddleware(),
       ])
@@ -1543,7 +1562,7 @@ export default class Router implements BaseRouter {
           pages,
           rewrites,
           query,
-          (p: string) => resolveDynamicRoute(p, pages),
+          (p: Route) => resolveDynamicRoute(p, pages),
           this.locales
         )
 
@@ -1721,7 +1740,9 @@ export default class Router implements BaseRouter {
       }
 
       if ('route' in routeInfo && isMiddlewareMatch) {
-        pathname = routeInfo.route || route
+        // Component info is publicly writable, so brand its URL at the
+        // internal routing-state boundary rather than requiring it of callers.
+        pathname = (routeInfo.route || route) as Route
         route = pathname
 
         if (!routeProps.shallow) {
@@ -1832,13 +1853,13 @@ export default class Router implements BaseRouter {
 
         // handle SSG data 404
         if (routeInfo.props.notFound === SSG_DATA_NOT_FOUND) {
-          let notFoundRoute
+          let notFoundRoute: Route
 
           try {
-            await this.fetchComponent('/404')
-            notFoundRoute = '/404'
+            await this.fetchComponent('/404' as Route)
+            notFoundRoute = '/404' as Route
           } catch (_) {
-            notFoundRoute = '/_error'
+            notFoundRoute = '/_error' as Route
           }
 
           routeInfo = await this.getRouteInfo({
@@ -1896,8 +1917,10 @@ export default class Router implements BaseRouter {
       // the URL).
       if (isQueryUpdating && isErrorRoute) {
         routeInfo = await this.getRouteInfo({
-          route: this.pathname,
-          pathname: this.pathname,
+          // Public getters stay strings; both expose this router's private
+          // branded pathname state at this internal boundary.
+          route: this.pathname as Route,
+          pathname: this.pathname as Route,
           query,
           as,
           resolvedAs,
@@ -2066,8 +2089,9 @@ export default class Router implements BaseRouter {
 
     try {
       let props: Record<string, any> | undefined
-      const { page: Component, styleSheets } =
-        await this.fetchComponent('/_error')
+      const { page: Component, styleSheets } = await this.fetchComponent(
+        '/_error' as Route
+      )
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,
@@ -2138,7 +2162,9 @@ export default class Router implements BaseRouter {
      * so we can store the cache for it and avoid re-requesting every time
      * for shallow routing purposes.
      */
-    let route = requestedRoute
+    // This exported Router method accepts plain URL-pattern strings; only its
+    // internal routing state and helper inputs require the Route representation.
+    let route = requestedRoute as Route
 
     try {
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
@@ -2235,7 +2261,8 @@ export default class Router implements BaseRouter {
 
       if (data?.effect?.type === 'rewrite') {
         const resolvedRoute = removeTrailingSlash(data.effect.resolvedHref)
-        const pages = await this.pageLoader.getPageList()
+        // The exported loader returns plain strings for public compatibility.
+        const pages = (await this.pageLoader.getPageList()) as Route[]
 
         // during query updating the page must match although during
         // client-transition a redirect that doesn't match a page
@@ -2403,7 +2430,7 @@ export default class Router implements BaseRouter {
 
     return this.sub(
       data,
-      this.components['/_app'].Component as AppComponent,
+      this.components['/_app' as Route].Component as AppComponent,
       resetScroll
     )
   }
@@ -2519,7 +2546,8 @@ export default class Router implements BaseRouter {
       }
     }
 
-    const pages = await this.pageLoader.getPageList()
+    // The exported loader returns plain strings for public compatibility.
+    const pages = (await this.pageLoader.getPageList()) as Route[]
     let resolvedAs = asPath
 
     const locale =
@@ -2542,7 +2570,7 @@ export default class Router implements BaseRouter {
         pages,
         rewrites,
         parsed.query,
-        (p: string) => resolveDynamicRoute(p, pages),
+        (p: Route) => resolveDynamicRoute(p, pages),
         this.locales
       )
 
@@ -2687,7 +2715,11 @@ export default class Router implements BaseRouter {
   }
 
   async fetchComponent(route: string) {
-    const handleCancelled = getCancelledHandler({ route, router: this })
+    // The exported Router method retains its string input at the public boundary.
+    const handleCancelled = getCancelledHandler({
+      route: route as Route,
+      router: this,
+    })
 
     try {
       const componentResult = await this.pageLoader.loadPage(route)
@@ -2725,7 +2757,7 @@ export default class Router implements BaseRouter {
     Component: ComponentType,
     ctx: NextPageContext
   ): Promise<Record<string, any>> {
-    const { Component: App } = this.components['/_app']
+    const { Component: App } = this.components['/_app' as Route]
     const AppTree = this._wrapApp(App as AppComponent)
     ctx.AppTree = AppTree
     return loadGetInitialProps<AppContextType<Router>>(App, {

@@ -8,6 +8,7 @@ import { cyan } from '../../lib/picocolors'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import type { PageExtensions } from '../../build/page-extensions-type'
+import type { Page } from '../../shared/lib/route-types'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
@@ -26,12 +27,12 @@ async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
  * path to the page file or null if it is not found.
  *
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
- * @param normalizedPagePath The page normalized (it will be denormalized).
+ * @param normalizedPagePath The Page file counterpart (it will be denormalized).
  * @param pageExtensions Array of page extensions.
  */
 export async function findPageFile(
   pagesDir: string,
-  normalizedPagePath: string,
+  normalizedPagePath: Page,
   pageExtensions: PageExtensions,
   isAppDir: boolean
 ): Promise<string | null> {

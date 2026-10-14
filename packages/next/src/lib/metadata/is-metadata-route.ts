@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import type { PageExtensions } from '../../build/page-extensions-type'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -203,7 +204,7 @@ export function isMetadataRouteFile(
 // e.g. /favicon.ico/route, /icon.png/route, etc.
 // But skip the text routes like robots.txt since they might also be dynamic.
 // Checking route path is not enough to determine if text routes is dynamic.
-export function isStaticMetadataRoute(route: string) {
+export function isStaticMetadataRoute(route: Page) {
   // extract ext with regex
   const pathname = route.replace(/\/route$/, '')
 
@@ -220,9 +221,9 @@ export function isStaticMetadataRoute(route: string) {
 }
 
 /**
- * Determine if a page or pathname is a metadata page.
+ * Determine if a raw page identifier is a metadata page.
  *
- * The input is a page or pathname, which can be with or without page suffix /foo/page or /foo.
+ * The raw identifier can omit a page leaf suffix, e.g. /foo/page or /foo.
  * But it will not contain the /route suffix.
  *
  * .e.g
@@ -230,7 +231,7 @@ export function isStaticMetadataRoute(route: string) {
  * /sitemap -> true
  * /foo -> false
  */
-export function isMetadataPage(page: string) {
+export function isMetadataPage(page: Page) {
   const matched = !isAppRouteRoute(page) && isMetadataRouteFile(page, [], false)
 
   return matched
@@ -247,7 +248,7 @@ export function isMetadataPage(page: string) {
  * /app/sitemap/page -> false
  * /icon-a102f4/route -> true
  */
-export function isMetadataRoute(route: string): boolean {
+export function isMetadataRoute(route: Page): boolean {
   let page = normalizeAppPath(route)
     .replace(/^\/?app\//, '')
     // Remove the dynamic route id

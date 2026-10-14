@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
 import type React from 'react'
 import {
@@ -480,7 +481,7 @@ export function getCurrentSegmentCacheVersion(): number {
  * invalidation listeners.
  */
 export function invalidateEntirePrefetchCache(
-  nextUrl: string | null,
+  nextUrl: Route | null,
   root: RootRouteTree<CacheNode>
 ): void {
   currentRouteCacheVersion++
@@ -498,7 +499,7 @@ export function invalidateEntirePrefetchCache(
  * invalidation listeners.
  */
 export function invalidateRouteCacheEntries(
-  nextUrl: string | null,
+  nextUrl: Route | null,
   root: RootRouteTree<CacheNode>
 ): void {
   currentRouteCacheVersion++
@@ -515,7 +516,7 @@ export function invalidateRouteCacheEntries(
  * invalidation listeners.
  */
 export function invalidateSegmentCacheEntries(
-  nextUrl: string | null,
+  nextUrl: Route | null,
   root: RootRouteTree<CacheNode>
 ): void {
   currentSegmentCacheVersion++
@@ -560,7 +561,7 @@ function notifyInvalidationListener(task: PrefetchTask): void {
 }
 
 export function pingInvalidationListeners(
-  nextUrl: string | null,
+  nextUrl: Route | null,
   root: RootRouteTree<CacheNode>
 ): void {
   // The rough equivalent of pingVisibleLinks, but for onInvalidate callbacks.
@@ -757,7 +758,7 @@ export function readOrCreateRouteCacheEntry(
 export function deprecated_requestOptimisticRouteCacheEntry(
   now: number,
   requestedUrl: URL,
-  nextUrl: string | null
+  nextUrl: Route | null
 ): FulfilledRouteCacheEntry | null {
   // This function is called during a navigation when there was no matching
   // route tree in the prefetch cache. Before de-opting to a blocking,
@@ -1580,7 +1581,7 @@ export function writeRouteIntoCache(
   now: number,
   pathname: NormalizedPathname,
   search: NormalizedSearch,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   root: RootRouteTree<RSCSegmentData | null>,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -2778,7 +2779,7 @@ function writeResponsePayloadsIntoCache(
   // writeServerResponseIntoCache for their meaning.
   baseTree: FlightRouterState | null,
   predictedFrom: KnownRoutePart | null,
-  renderedPathname: string | null,
+  renderedPathname: Route | null,
   renderedSearch: string,
   buildId: string | undefined,
   // Response-level staleness of the full payload. The shell payload's own
@@ -3097,7 +3098,7 @@ function writeServerResponseIntoCache(
   // The pathname the response was rendered for, used to resolve dynamic
   // segments the server sent without a param value (`k: null`). Null for
   // responses that always carry concrete values (navigation responses).
-  renderedPathname: string | null,
+  renderedPathname: Route | null,
   renderedSearch: string,
   buildId: string | undefined,
   // Response-level staleness; a segment (or the head) with its own

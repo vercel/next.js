@@ -43,6 +43,7 @@ import type {
   WrittenEndpoint,
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
+import type { Page, Route as RoutePathname } from '../../shared/lib/route-types'
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -1214,7 +1215,9 @@ function bindingToApi(
   function napiEntrypointsToRawEntrypoints(
     entrypoints: TurbopackResult<NapiEntrypoints>
   ): TurbopackResult<RawEntrypoints> {
-    const routes = new Map()
+    // NAPI publishes normalized pathname keys and raw app originalName module
+    // identifiers. Establish the internal namespaces at this native boundary.
+    const routes = new Map<RoutePathname, Route>()
     for (const { pathname, ...nativeRoute } of entrypoints.value.routes) {
       let route: Route
       const routeType = nativeRoute.type
@@ -1236,7 +1239,7 @@ function bindingToApi(
           route = {
             type: 'app-page',
             pages: nativeRoute.pages.map((page) => ({
-              originalName: page.originalName,
+              originalName: page.originalName as Page,
               htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
               rscHmrEndpoint: new EndpointImpl(page.rscHmrEndpoint),
             })),
@@ -1245,7 +1248,7 @@ function bindingToApi(
         case 'app-route':
           route = {
             type: 'app-route',
-            originalName: nativeRoute.originalName,
+            originalName: nativeRoute.originalName as Page,
             hasActionManifest: nativeRoute.hasActionManifest,
             endpoint: new EndpointImpl(nativeRoute.endpoint),
           }
@@ -1263,7 +1266,7 @@ function bindingToApi(
           )
         }
       }
-      routes.set(pathname, route)
+      routes.set(pathname as RoutePathname, route)
     }
     const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
       endpoint: new EndpointImpl(middleware.endpoint),

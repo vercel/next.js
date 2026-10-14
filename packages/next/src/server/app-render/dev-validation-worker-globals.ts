@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { Params } from '../request/params'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import type { NextParsedUrlQuery } from '../request-meta'
@@ -48,7 +49,7 @@ export interface SerializedValidationInputs {
  */
 export interface DevValidationRequestSnapshot {
   headers: [string, string][]
-  urlPathname: string
+  urlPathname: Route
   urlSearch: string
   rootParams: Params
   isDraftMode: boolean
@@ -63,8 +64,8 @@ export interface DevValidationRequestSnapshot {
  * pool augments it with install-time fields (`distDir`, `buildId`, …).
  */
 export interface DevValidationSnapshot {
-  page: string
-  route: string
+  page: Page
+  route: Route
   requestId: string
   responseFinished: boolean
   prefetchMode: PrefetchingMode
@@ -98,7 +99,7 @@ export interface DevValidationSnapshot {
    * these so the same references resolve in its thread. Empty for all but the
    * rare renders that React's I/O tracking carries a reference into.
    */
-  additionalClientReferenceManifestPages: string[]
+  additionalClientReferenceManifestPages: Page[]
   reactBrowserBailout: boolean
   isDebugChannelEnabled: boolean
   renderOpts: NonPartial<

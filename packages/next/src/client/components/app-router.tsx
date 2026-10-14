@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { RouteTree } from './segment-cache/cache'
 import React, {
   useEffect,
@@ -453,7 +454,9 @@ function Router({
 
     instrumentedNavigationPromises = createRootNavigationPromises(
       tree,
-      pathname,
+      // Internal devtools consume the native URL pathname; public hook/context
+      // and NavigationPromises string types remain unchanged.
+      pathname as Route,
       searchParams,
       pathParams
     )

@@ -12,6 +12,8 @@ import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/midd
 import type { __ApiPreviewProps } from '../../api-utils'
 import type { Params } from '../../request/params'
 import type { RouteDefinition } from '../../route-definitions/route-definition'
+import type { Page, Route } from '../../../shared/lib/route-types'
+import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 
 import path from 'path'
 import fs from 'fs/promises'
@@ -74,6 +76,8 @@ export type FsOutput = {
     | 'legacyStaticFolder'
     | 'devVirtualFsItem'
 
+  // URL lookup path for routes/assets; some asset results instead carry a
+  // filesystem path (for example the development static-metadata output).
   itemPath: string
   fsPath?: string
   itemsRoot?: string
@@ -99,7 +103,7 @@ export type FilesystemDynamicRoute = ManifestRoute & {
   match: PatchMatcher
 }
 
-const buildFilesystemDynamicRoute = (page: string): FilesystemDynamicRoute => {
+const buildFilesystemDynamicRoute = (page: Route): FilesystemDynamicRoute => {
   const routeRegex = getNamedRouteRegex(page, {
     prefixRouteKeys: true,
     includePrefix: true,
@@ -118,8 +122,8 @@ const buildFilesystemDynamicRoute = (page: string): FilesystemDynamicRoute => {
 const sortDynamicRoutes = (
   routes: FilesystemDynamicRoute[]
 ): FilesystemDynamicRoute[] => {
-  const references = new Map<string, FilesystemDynamicRoute[]>()
-  const pages: string[] = []
+  const references = new Map<Route, FilesystemDynamicRoute[]>()
+  const pages: Route[] = []
 
   for (const route of routes) {
     const existing = references.get(route.page)
@@ -215,13 +219,13 @@ export async function setupFsCheck(opts: {
     : undefined
 
   // routes that have _next/data endpoints (SSG/SSP)
-  const nextDataRoutes = new Set<string>()
-  const publicFolderItems = new Set<string>()
-  const nextStaticFolderItems = new Set<string>()
-  const legacyStaticFolderItems = new Set<string>()
+  const nextDataRoutes = new Set<Route>()
+  const publicFolderItems = new Set<Route>()
+  const nextStaticFolderItems = new Set<Route>()
+  const legacyStaticFolderItems = new Set<Route>()
 
-  const appFiles = new Set<string>()
-  const pageFiles = new Set<string>()
+  const appFiles = new Set<Route>()
+  const pageFiles = new Set<Route>()
   // Map normalized path to the file path. This is essential
   // for parallel and group routes as their original path
   // cannot be restored from the request path.
@@ -230,13 +234,13 @@ export async function setupFsCheck(opts: {
   // /icon-<hash>.png -> .../app/@parallel/icon.png
   // /icon-<hash>.png -> .../app/(group)/icon.png
   // /icon.png -> .../app/icon.png
-  const staticMetadataFiles = new Map<string, string>()
+  const staticMetadataFiles = new Map<Route, string>()
   let dynamicRoutes: FilesystemDynamicRoute[] = []
   // Page and app outputs need route metadata for compilation and rendering.
   // Static assets remain plain filesystem matches.
   const routeDefinitions = {
-    appFile: new Map<string, FilesystemRouteDefinition[]>(),
-    pageFile: new Map<string, FilesystemRouteDefinition[]>(),
+    appFile: new Map<Route, FilesystemRouteDefinition[]>(),
+    pageFile: new Map<Route, FilesystemRouteDefinition[]>(),
   }
 
   let middlewareMatcher:
@@ -262,7 +266,7 @@ export async function setupFsCheck(opts: {
 
   const setRouteDefinition = (
     type: 'appFile' | 'pageFile',
-    pathname: string,
+    pathname: Route,
     definition: FilesystemRouteDefinition
   ) => {
     const definitions = routeDefinitions[type].get(pathname)
@@ -275,7 +279,7 @@ export async function setupFsCheck(opts: {
 
   const getRouteDefinition = (
     type: 'appFile' | 'pageFile',
-    itemPath: string,
+    itemPath: Route,
     locale: string | undefined
   ) => {
     const definitions = routeDefinitions[type].get(itemPath)
@@ -309,7 +313,7 @@ export async function setupFsCheck(opts: {
     try {
       for (const file of await recursiveReadDir(publicFolderPath)) {
         // Ensure filename is encoded and normalized.
-        publicFolderItems.add(encodeURIPath(normalizePathSep(file)))
+        publicFolderItems.add(encodeURIPath(normalizePathSep(file)) as Route)
       }
     } catch (err: any) {
       if (err.code !== 'ENOENT') {
@@ -320,7 +324,9 @@ export async function setupFsCheck(opts: {
     try {
       for (const file of await recursiveReadDir(legacyStaticFolderPath)) {
         // Ensure filename is encoded and normalized.
-        legacyStaticFolderItems.add(encodeURIPath(normalizePathSep(file)))
+        legacyStaticFolderItems.add(
+          encodeURIPath(normalizePathSep(file)) as Route
+        )
       }
       Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
@@ -338,7 +344,7 @@ export async function setupFsCheck(opts: {
           path.posix.join(
             '/_next/static',
             encodeURIPath(normalizePathSep(file))
-          )
+          ) as Route
         )
       }
     } catch (err) {
@@ -387,16 +393,16 @@ export async function setupFsCheck(opts: {
 
     const pagesManifest = JSON.parse(
       await fs.readFile(pagesManifestPath, 'utf8')
-    )
+    ) as PagesManifest
     const appPathsManifest = JSON.parse(
       await fs.readFile(appPathsManifestPath, 'utf8').catch(() => '{}')
-    )
+    ) as PagesManifest
     const appRoutesManifest = JSON.parse(
       await fs.readFile(appRoutesManifestPath, 'utf8').catch(() => '{}')
-    )
+    ) as Record<Page, Route>
     const appDynamicRoutes: FilesystemDynamicRoute[] = []
-    const appDynamicRoutePathnames = new Set<string>()
-    const addAppDynamicRoute = (pathname: string) => {
+    const appDynamicRoutePathnames = new Set<Route>()
+    const addAppDynamicRoute = (pathname: Route) => {
       if (!isDynamicRoute(pathname) || appDynamicRoutePathnames.has(pathname)) {
         return
       }
@@ -405,16 +411,17 @@ export async function setupFsCheck(opts: {
       appDynamicRoutes.push(buildFilesystemDynamicRoute(pathname))
     }
 
-    for (const key of Object.keys(pagesManifest)) {
+    for (const key of Object.keys(pagesManifest) as Page[]) {
+      // Pages manifest module identifiers also use the Pages URL namespace.
       const localeResult = opts.config.i18n
-        ? normalizeLocalePath(key, opts.config.i18n.locales)
-        : { pathname: key, detectedLocale: undefined }
+        ? normalizeLocalePath(key as string as Route, opts.config.i18n.locales)
+        : { pathname: key as string as Route, detectedLocale: undefined }
 
       // ensure the non-locale version is in the set
       if (opts.config.i18n) {
         pageFiles.add(localeResult.pathname)
       } else {
-        pageFiles.add(key)
+        pageFiles.add(key as string as Route)
       }
 
       if (!isAPIRoute(key) && BLOCKED_PAGES.includes(localeResult.pathname)) {
@@ -436,21 +443,24 @@ export async function setupFsCheck(opts: {
           : undefined),
       } as FilesystemRouteDefinition)
     }
-    for (const key of Object.keys(appRoutesManifest)) {
+    for (const key of Object.keys(appRoutesManifest) as Page[]) {
       appFiles.add(appRoutesManifest[key])
     }
 
-    const appPages = Object.keys(appPathsManifest).filter((page) =>
+    const appPages = (Object.keys(appPathsManifest) as Page[]).filter((page) =>
       isAppPageRoute(page)
     )
-    const allAppPaths: Record<string, string[]> = {}
+    const allAppPaths: Record<Route, Page[]> = {}
     for (const page of appPages) {
       const pathname = appNormalizers.pathname.normalize(page)
       if (pathname in allAppPaths) allAppPaths[pathname].push(page)
       else allAppPaths[pathname] = [page]
     }
     normalizeCatchAllRoutes(allAppPaths, appNormalizers.pathname)
-    for (const [pathname, appPaths] of Object.entries(allAppPaths)) {
+    for (const [pathname, appPaths] of Object.entries(allAppPaths) as [
+      Route,
+      Page[],
+    ][]) {
       // Keep manifest order aligned with the module packaged for this route.
       const page = selectAppPageEntry(pathname, appPaths, (appPath) =>
         appNormalizers.pathname.normalize(appPath)
@@ -466,8 +476,8 @@ export async function setupFsCheck(opts: {
       addAppDynamicRoute(pathname)
     }
 
-    const appRouteHandlers = Object.keys(appPathsManifest).filter((page) =>
-      isAppRouteRoute(page)
+    const appRouteHandlers = (Object.keys(appPathsManifest) as Page[]).filter(
+      (page) => isAppRouteRoute(page)
     )
     for (const page of appRouteHandlers) {
       const pathname = appNormalizers.pathname.normalize(page)
@@ -525,9 +535,9 @@ export async function setupFsCheck(opts: {
 
     dynamicRoutes.push(...sortDynamicRoutes(filesystemDynamicRoutes))
 
-    if (middlewareManifest.middleware?.['/']?.matchers) {
+    if (middlewareManifest.middleware?.['/' as Route]?.matchers) {
       middlewareMatcher = getMiddlewareRouteMatcher(
-        middlewareManifest.middleware?.['/']?.matchers
+        middlewareManifest.middleware?.['/' as Route]?.matchers
       )
     } else if (functionsConfigManifest?.functions['/_middleware']) {
       middlewareMatcher = getMiddlewareRouteMatcher(
@@ -620,7 +630,7 @@ export async function setupFsCheck(opts: {
 
   const { i18n } = opts.config
 
-  const handleLocale = (pathname: string, locales?: string[]) => {
+  const handleLocale = (pathname: Route, locales?: string[]) => {
     let locale: string | undefined
 
     if (i18n) {
@@ -682,7 +692,7 @@ export async function setupFsCheck(opts: {
       | undefined
       | ReturnType<typeof buildCustomRoute<Rewrite>>[],
 
-    devVirtualFsItems: new Set<string>(),
+    devVirtualFsItems: new Set<Route>(),
 
     previewProps,
     middlewareMatcher: middlewareMatcher as MiddlewareRouteMatch | undefined,
@@ -692,7 +702,7 @@ export async function setupFsCheck(opts: {
     },
 
     async getItem(
-      itemPath: string,
+      itemPath: Route,
       requestPath?: string
     ): Promise<FsOutput | null> {
       const originalItemPath = itemPath
@@ -714,7 +724,7 @@ export async function setupFsCheck(opts: {
 
       // Remove basePath if it exists.
       if (basePath && hasBasePath) {
-        itemPath = removePathPrefix(itemPath, basePath) || '/'
+        itemPath = removePathPrefix(itemPath, basePath) || ('/' as Route)
       }
 
       // Simulate minimal mode requests by normalizing RSC and postponed
@@ -726,13 +736,13 @@ export async function setupFsCheck(opts: {
       }
 
       if (itemPath !== '/' && itemPath.endsWith('/')) {
-        itemPath = itemPath.substring(0, itemPath.length - 1)
+        itemPath = itemPath.substring(0, itemPath.length - 1) as Route
       }
 
       let decodedItemPath = itemPath
 
       try {
-        decodedItemPath = decodeURIComponent(itemPath)
+        decodedItemPath = decodeURIComponent(itemPath) as Route
       } catch {}
 
       if (itemPath === '/_next/image') {
@@ -755,7 +765,7 @@ export async function setupFsCheck(opts: {
         }
       }
 
-      const itemsToCheck: Array<[Set<string>, FsOutput['type']]> = [
+      const itemsToCheck: Array<[Set<Route>, FsOutput['type']]> = [
         [this.devVirtualFsItems, 'devVirtualFsItem'],
         [nextStaticFolderItems, 'nextStaticFolder'],
         [legacyStaticFolderItems, 'legacyStaticFolder'],
@@ -790,7 +800,7 @@ export async function setupFsCheck(opts: {
             locale = localeResult.locale
 
             try {
-              curDecodedItemPath = decodeURIComponent(curItemPath)
+              curDecodedItemPath = decodeURIComponent(curItemPath) as Route
             } catch {}
           }
         }
@@ -799,10 +809,10 @@ export async function setupFsCheck(opts: {
           if (!pathHasPrefix(curItemPath, '/static')) {
             continue
           }
-          curItemPath = curItemPath.substring('/static'.length)
+          curItemPath = curItemPath.substring('/static'.length) as Route
 
           try {
-            curDecodedItemPath = decodeURIComponent(curItemPath)
+            curDecodedItemPath = decodeURIComponent(curItemPath) as Route
           } catch {}
         }
 
@@ -822,23 +832,25 @@ export async function setupFsCheck(opts: {
         ) {
           items = nextDataRoutes
           // remove _next/data/<build-id> prefix
-          curItemPath = curItemPath.substring(nextDataPrefix.length - 1)
+          curItemPath = curItemPath.substring(
+            nextDataPrefix.length - 1
+          ) as Route
 
           // remove .json postfix
           curItemPath = curItemPath.substring(
             0,
             curItemPath.length - '.json'.length
-          )
+          ) as Route
           const curLocaleResult = handleLocale(curItemPath)
           curItemPath =
             curLocaleResult.pathname === '/index'
-              ? '/'
+              ? ('/' as Route)
               : curLocaleResult.pathname
 
           locale = curLocaleResult.locale
 
           try {
-            curDecodedItemPath = decodeURIComponent(curItemPath)
+            curDecodedItemPath = decodeURIComponent(curItemPath) as Route
           } catch {}
         }
 
@@ -875,7 +887,9 @@ export async function setupFsCheck(opts: {
           switch (type) {
             case 'nextStaticFolder': {
               itemsRoot = nextStaticFolderPath
-              curItemPath = curItemPath.substring('/_next/static'.length)
+              curItemPath = curItemPath.substring(
+                '/_next/static'.length
+              ) as Route
               break
             }
             case 'legacyStaticFolder': {
@@ -946,7 +960,8 @@ export async function setupFsCheck(opts: {
             // Attempt to ensure the page/app file is compiled and ready.
             if (ensureFn) {
               const ensureItemPath = isAppFile
-                ? normalizeMetadataRoute(curItemPath)
+                ? // @ts-ignore -- Human review: this is an app URL lookup path, not a raw metadata Page. Preserve the existing metadata ensure normalization assumption.
+                  normalizeMetadataRoute(curItemPath)
                 : curItemPath
 
               try {

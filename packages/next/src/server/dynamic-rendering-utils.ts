@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
 import { EnsureStaticLevel } from './app-render/segment-config/ensure-static'
@@ -30,7 +31,7 @@ class HangingPromiseRejectionError extends Error {
   public readonly digest = HANGING_PROMISE_REJECTION
 
   constructor(
-    public readonly route: string,
+    public readonly route: Route,
     public readonly expression: string
   ) {
     super(
@@ -44,7 +45,7 @@ const CLIENT_HOOK_DYNAMIC = 'CLIENT_HOOK_DYNAMIC'
 export class ClientHookDynamicError extends Error {
   public readonly digest = CLIENT_HOOK_DYNAMIC
 
-  constructor(route: string, expression: string) {
+  constructor(route: Route, expression: string) {
     super(
       `Route "${route}": Next.js encountered URL data \`${expression}\` in a Client Component outside of \`<Suspense>\`.\n\n` +
         `This blocks prerendering because the value is only available at runtime.\n\n` +
@@ -85,7 +86,7 @@ const abortListenersBySignal = new WeakMap<AbortSignal, AbortListeners>()
  */
 export function makeDynamicHangingPromise<T>(
   signal: AbortSignal,
-  route: string,
+  route: Route,
   expression: string
 ): Promise<T> {
   return makeHangingPromiseWithError(
@@ -96,7 +97,7 @@ export function makeDynamicHangingPromise<T>(
 
 export function makeUntrackedHangingPromise<T>(
   signal: AbortSignal,
-  route: string,
+  route: Route,
   expression: string
 ): Promise<T> {
   return makeHangingPromiseWithError(
@@ -125,7 +126,7 @@ export function makeUntrackedHangingPromise<T>(
  */
 export function makeSessionDataHangingPromise<T>(
   signal: AbortSignal,
-  route: string,
+  route: Route,
   expression: string,
   workUnitStore: WorkUnitStore
 ): Promise<T> {
@@ -164,7 +165,7 @@ export function makeSessionDataHangingPromise<T>(
  */
 export function makeURLDataHangingPromise<T>(
   signal: AbortSignal,
-  route: string,
+  route: Route,
   expression: string,
   workUnitStore: WorkUnitStore | null
 ): Promise<T> {
@@ -187,7 +188,7 @@ export function makeURLDataHangingPromise<T>(
  */
 export function makeUnknownRuntimeDataHangingPromise<T>(
   signal: AbortSignal,
-  route: string,
+  route: Route,
   expression: string,
   workUnitStore: WorkUnitStore
 ): Promise<T> {
@@ -206,7 +207,7 @@ export function makeUnknownRuntimeDataHangingPromise<T>(
  */
 export function makePrefetchHangingPromise<T>(
   signal: AbortSignal,
-  route: string,
+  route: Route,
   expression: string
 ): Promise<T> {
   return makeUntrackedHangingPromise(signal, route, expression)
@@ -227,7 +228,7 @@ export function makePrefetchHangingPromise<T>(
  */
 export function makeFallbackParamsHangingPromise<T>(
   signal: AbortSignal,
-  route: string,
+  route: Route,
   expression: string,
   workUnitStore: WorkUnitStore | null
 ): Promise<T> {

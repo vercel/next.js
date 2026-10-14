@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOpts } from '../app-render/types'
@@ -20,7 +21,7 @@ export type WorkStoreContext = {
   /**
    * The page that is being rendered. This relates to the path to the page file.
    */
-  page: string
+  page: Page
 
   isPrefetchRequest?: boolean
   nonce?: string

@@ -19,6 +19,7 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Route } from 'next/dist/shared/lib/route-types'
 
 describe('Prerender', () => {
   const { next } = nextTestSetup({
@@ -63,7 +64,7 @@ describe('Prerender', () => {
           router: 'pages',
           route: {
             kind: RouteKind.PAGES,
-            sourceRoute: '/blocking-fallback/[slug]',
+            sourceRoute: '/blocking-fallback/[slug]' as Route,
           },
         })
       )

@@ -1,3 +1,4 @@
+import type { Page } from '../route-types'
 import { denormalizePagePath } from './denormalize-page-path'
 import path from '../isomorphic/path'
 
@@ -14,7 +15,7 @@ import path from '../isomorphic/path'
  * @param extensions Allowed extensions.
  */
 export function getPagePaths(
-  normalizedPagePath: string,
+  normalizedPagePath: Page,
   extensions: string[],
   isAppDir: boolean
 ) {

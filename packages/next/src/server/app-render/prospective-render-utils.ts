@@ -9,6 +9,7 @@ export enum Phase {
 
 export function printDebugThrownValueForProspectiveRender(
   thrownValue: unknown,
+  // Diagnostic label: callers without a WorkStore also pass 'unknown route'.
   route: string,
   phase: Phase
 ) {

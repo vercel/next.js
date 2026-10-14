@@ -1,3 +1,4 @@
+import type { Page } from '../shared/lib/route-types'
 import type { TurbopackManifestLoader } from '../shared/lib/turbopack/manifest-loader'
 import type {
   Entrypoints,
@@ -11,14 +12,16 @@ import * as Log from './output/log'
 export async function rawEntrypointsToEntrypoints(
   entrypointsOp: RawEntrypoints
 ): Promise<Entrypoints> {
-  const page = new Map()
-  const app = new Map()
+  const page: Entrypoints['page'] = new Map()
+  const app: Entrypoints['app'] = new Map()
 
   for (const [pathname, route] of entrypointsOp.routes) {
     switch (route.type) {
       case 'page':
       case 'page-api':
-        page.set(pathname, route)
+        // At the native pages-router boundary, a URL pathname also identifies
+        // the page; there are no app modifiers or leaf suffixes to preserve.
+        page.set(pathname as string as Page, route)
         break
       case 'app-page': {
         for (const p of route.pages) {
@@ -59,7 +62,7 @@ export async function handleRouteType({
   route,
   manifestLoader,
 }: {
-  page: string
+  page: Page
   route: PageRoute | AppRoute
   manifestLoader: TurbopackManifestLoader
 }) {
@@ -77,7 +80,7 @@ export async function handleRouteType({
         manifestLoader.deleteMiddlewareManifest(serverKey)
       }
 
-      await manifestLoader.loadFontManifest('/_app', 'pages')
+      await manifestLoader.loadFontManifest('/_app' as Page, 'pages')
       await manifestLoader.loadFontManifest(page, 'pages')
 
       await manifestLoader.loadSriManifest(page, 'pages')

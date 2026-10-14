@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import { resolveRouteParamsFromTree } from '../../build/static-paths/utils'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
@@ -117,16 +118,16 @@ export function getPlaceholderFallbackRouteParams(
 }
 
 /**
- * Gets the fallback route params for a given page. This is an expensive
+ * Gets the fallback route params for a normalized App URL pattern. This is an expensive
  * operation because it requires parsing the loader tree to extract the fallback
  * route params.
  *
- * @param page the page
+ * @param page the normalized App URL pattern
  * @param routeModule the route module
  * @returns the opaque fallback route params
  */
 export function getFallbackRouteParams(
-  page: string,
+  page: Route,
   routeModule: AppPageRouteModule
 ) {
   const route = parseNormalizedAppRoute(page)

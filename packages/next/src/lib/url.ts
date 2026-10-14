@@ -1,4 +1,10 @@
+import type { Route } from '../shared/lib/route-types'
 import type { UrlWithParsedQuery } from 'url'
+
+export type RouteUrl = URL & { pathname: Route }
+export type ParsedRequestUrl = Omit<UrlWithParsedQuery, 'pathname'> & {
+  pathname: Route
+}
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 
 const DUMMY_ORIGIN = 'http://n'
@@ -7,16 +13,16 @@ export function isFullStringUrl(url: string) {
   return /https?:\/\//.test(url)
 }
 
-export function parseUrl(url: string): URL | undefined {
-  let parsed: URL | undefined = undefined
+export function parseUrl(url: string): RouteUrl | undefined {
+  let parsed: RouteUrl | undefined = undefined
   try {
-    parsed = new URL(url, DUMMY_ORIGIN)
+    parsed = new URL(url, DUMMY_ORIGIN) as RouteUrl
   } catch {}
   return parsed
 }
 
-export function parseReqUrl(url: string): UrlWithParsedQuery | undefined {
-  const parsedUrl: URL | undefined = parseUrl(url)
+export function parseReqUrl(url: string): ParsedRequestUrl | undefined {
+  const parsedUrl: RouteUrl | undefined = parseUrl(url)
 
   if (!parsedUrl) {
     return
@@ -29,7 +35,7 @@ export function parseReqUrl(url: string): UrlWithParsedQuery | undefined {
     query[key] = values.length > 1 ? values : values[0]
   }
 
-  const legacyUrl: UrlWithParsedQuery = {
+  const legacyUrl: ParsedRequestUrl = {
     query,
     hash: parsedUrl.hash,
     search: parsedUrl.search,

@@ -1,3 +1,4 @@
+import type { Page } from '../../../shared/lib/route-types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
 import type { PageConfig, ResponseLimit } from '../../../types'
@@ -336,7 +337,7 @@ export async function apiResolver(
   apiContext: ApiContext,
   propagateError: boolean,
   dev?: boolean,
-  page?: string,
+  page?: Page,
   onError?: InstrumentationOnRequestError
 ): Promise<void> {
   const apiReq = req as NextApiRequest

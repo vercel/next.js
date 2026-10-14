@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import type { ExportRouteResult } from '../types'
 import type { RouteCacheMetadata } from './types'
 import type AppRouteRouteModule from '../../server/route-modules/app-route/module'
@@ -38,7 +39,7 @@ export async function exportAppRoute(
   req: MockedRequest,
   res: MockedResponse,
   params: Params | undefined,
-  page: string,
+  page: Page,
   module: AppRouteRouteModule,
   incrementalCache: IncrementalCache | undefined,
   cacheLifeProfiles: import('../../server/config-shared').ResolvedCacheLifeProfiles,
@@ -104,7 +105,7 @@ export async function exportAppRoute(
     const userland = module.userland
     // we don't bail from the static optimization for
     // metadata routes, since it's app-route we can always append /route suffix.
-    const routePath = normalizeAppPath(page) + '/route'
+    const routePath = (normalizeAppPath(page) + '/route') as Page
     const isPageMetadataRoute = isMetadataRoute(routePath)
 
     if (

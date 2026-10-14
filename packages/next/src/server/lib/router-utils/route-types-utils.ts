@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import path from 'path'
 import {
   getRouteRegex,
@@ -29,21 +30,23 @@ import type {
   RootParamValueType,
 } from './root-params-type-utils'
 
-// Internal route info with extracted params for the manifest
+// Internal route info with extracted params for the manifest. `path` is a
+// validation filename for discovered entries, but a source pathname for custom
+// routes; unlike the manifest keys it is not uniformly a routing identity.
 interface ManifestRouteInfo {
   path: string
   groups: { [groupName: string]: Group }
 }
 
 export interface RouteTypesManifest {
-  appRoutes: Record<string, ManifestRouteInfo>
-  pageRoutes: Record<string, ManifestRouteInfo>
-  layoutRoutes: Record<string, ManifestRouteInfo & { slots: string[] }>
-  appRouteHandlerRoutes: Record<string, ManifestRouteInfo>
+  appRoutes: Record<Route, ManifestRouteInfo>
+  pageRoutes: Record<Route, ManifestRouteInfo>
+  layoutRoutes: Record<Route, ManifestRouteInfo & { slots: string[] }>
+  appRouteHandlerRoutes: Record<Route, ManifestRouteInfo>
   /** Map of redirect source => ManifestRouteInfo */
-  redirectRoutes: Record<string, ManifestRouteInfo>
+  redirectRoutes: Record<Route, ManifestRouteInfo>
   /** Map of rewrite source => ManifestRouteInfo */
-  rewriteRoutes: Record<string, ManifestRouteInfo>
+  rewriteRoutes: Record<Route, ManifestRouteInfo>
   /** File paths for validation */
   appPagePaths: Set<string>
   pagesRouterPagePaths: Set<string>
@@ -51,7 +54,7 @@ export interface RouteTypesManifest {
   appRouteHandlers: Set<string>
   pageApiRoutes: Set<string>
   /** Direct mapping from file paths to routes for validation */
-  filePathToRoute: Map<string, string>
+  filePathToRoute: Map<string, Route>
   /** Root params collected from root layouts, with their possible runtime value types */
   rootParams: Map<string, RootParamInfo>
 }
@@ -59,11 +62,12 @@ export interface RouteTypesManifest {
 // Convert a custom-route source string (`/blog/:slug`, `/docs/:path*`, ...)
 // into the bracket-syntax used by other Next.js route helpers so that we can
 // reuse `getRouteRegex()` to extract groups.
-export function convertCustomRouteSource(source: string): string[] {
+export function convertCustomRouteSource(source: string): Route[] {
   const parseResult = tryToParsePath(source)
 
   if (parseResult.error || !parseResult.tokens) {
     // Fallback to original source if parsing fails
+    // @ts-ignore Human review: a parse failure retains the original custom-route pattern rather than constructing bracket-syntax URL matchers. Preserve this fallback without disguising the source as a normalized Route.
     return source.startsWith('/') ? [source] : ['/' + source]
   }
 
@@ -121,15 +125,15 @@ export function convertCustomRouteSource(source: string): string[] {
   }
 
   // Ensure leading slash
-  return possibleNormalizedRoutes.map((route) =>
-    route.startsWith('/') ? route : '/' + route
+  return possibleNormalizedRoutes.map(
+    (route) => (route.startsWith('/') ? route : '/' + route) as Route
   )
 }
 
 /**
  * Extracts route parameters from a route pattern
  */
-export function extractRouteParams(route: string) {
+export function extractRouteParams(route: Route) {
   const regex = getRouteRegex(route)
   return regex.groups
 }
@@ -138,12 +142,14 @@ export function extractRouteParams(route: string) {
  * Resolves an intercepting route to its canonical equivalent
  * Example: /gallery/test/(..)photo/[id] -> /gallery/photo/[id]
  */
-function resolveInterceptingRoute(route: string): string {
+function resolveInterceptingRoute(route: Route): Route {
   // Reuse centralized interception route normalization logic
   try {
     if (!isInterceptionRouteAppPath(route)) return route
     const { interceptedRoute } = extractInterceptionRouteInformation(route)
-    return interceptedRoute
+    // The input is already a normalized matcher pathname; marker rebasing
+    // constructs its canonical URL, not a raw App module identifier.
+    return interceptedRoute as Route
   } catch {
     // If parsing fails, fall back to the original route
     return route
@@ -161,7 +167,7 @@ function resolveInterceptingRoute(route: string): string {
 function collectRootParamsFromLayouts(
   layoutRoutes: RouteTypesManifest['layoutRoutes']
 ): Map<string, RootParamInfo> {
-  const routes = Object.keys(layoutRoutes)
+  const routes = Object.keys(layoutRoutes) as Route[]
 
   // Find root layouts: layouts with no ancestor layout above them.
   const rootLayoutRoutes = routes.filter(
@@ -274,30 +280,30 @@ export async function createRouteTypesManifest({
         ({ route, filePath }) =>
           [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
             string,
-            string,
+            Route,
           ]
       ),
       ...layoutRoutes.map(
         ({ route, filePath }) =>
           [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
             string,
-            string,
+            Route,
           ]
       ),
       ...appRouteHandlers.map(
         ({ route, filePath }) =>
           [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
             string,
-            string,
+            Route,
           ]
       ),
       ...pageRoutes.map(
         ({ route, filePath }) =>
-          [getRelativePath(filePath), route] as [string, string]
+          [getRelativePath(filePath), route] as [string, Route]
       ),
       ...pageApiRoutes.map(
         ({ route, filePath }) =>
-          [getRelativePath(filePath), route] as [string, string]
+          [getRelativePath(filePath), route] as [string, Route]
       ),
     ]),
   }

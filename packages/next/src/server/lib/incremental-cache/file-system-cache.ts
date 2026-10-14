@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import { getRouteCacheKey, ROUTE_CACHE_DIRECTORY } from '../route-cache-key'
 import type { RouteMetadata } from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from '.'
@@ -184,7 +185,7 @@ export default class FileSystemCache implements CacheHandler {
             ) as RouteMetadata
             const namespaceEnd = key.indexOf('/$/')
             const ownerKey = meta.routeCache
-              ? getRouteCacheKey('/', meta.routeCache.owner)
+              ? getRouteCacheKey('/' as Route, meta.routeCache.owner)
               : undefined
             if (
               meta.routeCache?.key === key &&

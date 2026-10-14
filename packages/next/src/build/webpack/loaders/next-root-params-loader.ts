@@ -1,3 +1,4 @@
+import type { Page } from '../../../shared/lib/route-types'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
@@ -153,9 +154,10 @@ function getParamsFromLayoutFilePath({
   layoutFilePath: string
 }): string[] {
   const rootLayoutPath = normalizeAppPath(
+    // Construct the app identifier prefix from the discovered layout directory.
     ensureLeadingSlash(
       normalizePathSep(path.dirname(path.relative(appDir, layoutFilePath)))
-    )
+    ) as Page
   )
   const segments = rootLayoutPath.split('/')
   const paramNames: string[] = []

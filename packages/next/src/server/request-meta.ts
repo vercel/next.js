@@ -1,3 +1,4 @@
+import type { Page, Route } from '../shared/lib/route-types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
@@ -86,7 +87,7 @@ export interface RequestMeta {
    * If the request had its URL rewritten, this is the pathname it was rewritten
    * to (not a full URL, just the pathname).
    */
-  rewrittenPathname?: string
+  rewrittenPathname?: Route
 
   /**
    * The cookies that were added by middleware and were added to the response.
@@ -188,17 +189,19 @@ export interface RequestMeta {
   /**
    * In development, the original source page that returned a 404.
    */
-  developmentNotFoundSourcePage?: string
+  developmentNotFoundSourcePage?: Page
 
   /**
-   * The path we routed to and should be invoked
+   * The URL path we routed to and should invoke. Middleware sets the empty
+   * string to clear a previous invocation; that control sentinel is not a URL.
    */
-  invokePath?: string
+  invokePath?: Route | ''
 
   /**
-   * The specific page output we should be matching
+   * The specific URL output we should match, or the empty-string clearing
+   * sentinel used before invoking middleware.
    */
-  invokeOutput?: string
+  invokeOutput?: Route | ''
 
   /**
    * The status we are invoking the request with from routing
@@ -476,4 +479,13 @@ interface LegacyUrlWithParsedQuery extends LegacyUrl {
 // TODO: Remove in favor of WHATWG URLs
 export interface NextUrlWithParsedQuery extends LegacyUrlWithParsedQuery {
   query: NextParsedUrlQuery
+}
+
+/**
+ * Parsed request URL after entering internal routing. Keep the legacy parsed
+ * URL shape above string-based for custom-server handler and render inputs.
+ * Native parsing and those public entry points establish this pathname brand.
+ */
+export interface InternalNextUrlWithParsedQuery extends NextUrlWithParsedQuery {
+  pathname: Route | null
 }

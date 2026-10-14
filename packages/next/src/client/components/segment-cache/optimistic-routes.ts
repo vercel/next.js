@@ -1,3 +1,5 @@
+import type { Route } from '../../../shared/lib/route-types'
+
 /**
  * Optimistic Routing (Known Routes)
  *
@@ -237,9 +239,9 @@ let knownRouteTreeRoot: KnownRoutePart = createEmptyPart()
  */
 export function discoverKnownRoute(
   now: number,
-  pathname: string,
+  pathname: Route,
   search: NormalizedSearch,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   pendingEntry: PendingRouteCacheEntry | null,
   root: RootRouteTree<RSCSegmentData | null>,
   couldBeIntercepted: boolean,
@@ -316,9 +318,9 @@ export function discoverKnownRoute(
 function handleMismatchDueToRewrite(
   existingEntry: FulfilledRouteCacheEntry | null,
   now: number,
-  pathname: string,
+  pathname: Route,
   search: NormalizedSearch,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   root: RootRouteTree<RSCSegmentData | null>,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -388,9 +390,9 @@ function discoverKnownRoutePart(
   existingEntry: FulfilledRouteCacheEntry | null,
   // These are passed through unchanged for entry creation at the leaf
   now: number,
-  pathname: string,
+  pathname: Route,
   search: NormalizedSearch,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   root: RootRouteTree<RSCSegmentData | null>,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
@@ -737,7 +739,7 @@ function discoverKnownRoutePart(
  */
 export function matchKnownRoute(
   now: number,
-  pathname: string,
+  pathname: Route,
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
   const pathnameParts = splitPathnameIntoParts(pathname)

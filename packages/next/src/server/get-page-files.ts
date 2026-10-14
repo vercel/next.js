@@ -1,3 +1,4 @@
+import type { Page } from '../shared/lib/route-types'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
@@ -9,13 +10,12 @@ export type BuildManifest = {
   // this is a separate field for flying shuttle to allow
   // different root main files per entries/build (ideally temporary)
   // until we can stitch the runtime chunks together safely
-  rootMainFilesTree: { [appRoute: string]: readonly string[] }
+  rootMainFilesTree: Record<Page, readonly string[]>
   pages: {
     '/_app': readonly string[]
-    [page: string]: readonly string[]
-  }
+  } & Record<Page, readonly string[]>
   // Per-page Turbopack chunk-group bootstrap params, stored as raw JSON.
-  pagesChunkGroupBootstrapParams?: { [page: string]: object }
+  pagesChunkGroupBootstrapParams?: Record<Page, object>
   // The chunk-loading global the runtime drains (default "TURBOPACK").
   chunkLoadingGlobal?: string
 }
@@ -28,9 +28,9 @@ export type BuildManifest = {
  * of the given pages have inlined params.
  */
 export function getTurbopackChunkGroupBootstrap(
-  paramsByPage: { [page: string]: object },
+  paramsByPage: Record<Page, object>,
   chunkLoadingGlobal: string,
-  pages: readonly string[]
+  pages: readonly Page[]
 ): string | undefined {
   const g = JSON.stringify(chunkLoadingGlobal)
   const statements = pages
@@ -48,7 +48,7 @@ export function getTurbopackChunkGroupBootstrap(
 
 export function getPageFiles(
   buildManifest: BuildManifest,
-  page: string
+  page: Page
 ): readonly string[] {
   const normalizedPage = denormalizePagePath(normalizePagePath(page))
   let files = buildManifest.pages[normalizedPage]

@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import '../lib/require-instrumentation-client'
 import { hydrate, router } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
@@ -78,12 +79,19 @@ export function pageBootstrap(assetPrefix: string) {
 
           // Make sure to reload when the dev-overlay is showing for an
           // API route
-          // TODO: Fix `__NEXT_PAGE` type
-          if (pages.includes(router.query.__NEXT_PAGE as string)) {
+          // __NEXT_PAGE can be an error's diagnostic label or an empty sentinel.
+          // Read-only string membership probes do not establish Route identity.
+          if (
+            (pages as readonly string[]).includes(
+              router.query.__NEXT_PAGE as string
+            )
+          ) {
             return window.location.reload()
           }
 
-          if (!router.clc && pages.includes(router.pathname)) {
+          // The public router getter stays string-compatible; private router
+          // state already carries the normalized pathname.
+          if (!router.clc && pages.includes(router.pathname as Route)) {
             console.log('Refreshing page data due to server-side change')
             dispatcher.buildingIndicatorShow()
             const clearIndicator = dispatcher.buildingIndicatorHide

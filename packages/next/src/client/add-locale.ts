@@ -1,7 +1,7 @@
 import type { addLocale as Fn } from '../shared/lib/router/utils/add-locale'
 import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
-export const addLocale: typeof Fn = (path, ...args) => {
+export const addLocale: typeof Fn = ((path, ...args) => {
   if (process.env.__NEXT_I18N_SUPPORT) {
     return normalizePathTrailingSlash(
       (
@@ -10,4 +10,4 @@ export const addLocale: typeof Fn = (path, ...args) => {
     )
   }
   return path
-}
+}) as typeof Fn

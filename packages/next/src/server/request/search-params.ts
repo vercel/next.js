@@ -2,6 +2,7 @@ import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
+import type { Route } from '../../shared/lib/route-types'
 import type { VaryParamsAccumulator } from '../app-render/vary-params'
 import {
   createVaryingSearchParams,
@@ -752,10 +753,7 @@ const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createSearchAccessError
 )
 
-function createSearchAccessError(
-  route: string | undefined,
-  expression: string
-) {
+function createSearchAccessError(route: Route | undefined, expression: string) {
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +

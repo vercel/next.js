@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Page, Route } from 'next/dist/shared/lib/route-types'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { load } from 'cheerio'
@@ -70,7 +71,8 @@ describe.each(['default', 'disk', 'custom'])(
         if (!isNextDeploy) {
           // The ASCII suffix avoids an unrelated Turbopack UTF-8 chunk-name
           // truncation bug while the encoded source still exceeds NAME_MAX.
-          const source = `/(${'é'.repeat(40)}${'a'.repeat(80)})/source-hash/[id]/page`
+          const source =
+            `/(${'é'.repeat(40)}${'a'.repeat(80)})/source-hash/[id]/page` as Page
           const artifact = next.getPrerenderFilePath(pathname, '.html', {
             route: { kind: RouteKind.APP_PAGE, sourceRoute: source },
           })
@@ -194,7 +196,7 @@ describe.each(['default', 'disk', 'custom'])(
               next.getPrerenderFilePath('/en/pages-victim/known', '.html', {
                 route: {
                   kind: RouteKind.PAGES,
-                  sourceRoute: '/pages-victim/[id]',
+                  sourceRoute: '/pages-victim/[id]' as Route,
                 },
               })
             )

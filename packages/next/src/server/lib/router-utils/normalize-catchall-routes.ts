@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../shared/lib/route-types'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { isAppPageRoute } from '../../../lib/is-app-page-route'
 import {
@@ -12,22 +13,23 @@ import {
 } from '../../../shared/lib/entry-constants'
 
 type AppPathNormalizer = {
-  normalize(pathname: string): string
+  normalize(pathname: Page): Route
 }
 
 export type NormalizeCatchAllRoutesOptions = {
   strictRouteMatching?: boolean
-  defaultAppPaths?: Iterable<string>
+  defaultAppPaths?: Iterable<Page>
 }
 
 export type IncompatibleParallelRouteSlots = {
-  layoutPath: string
-  route: string
+  // Raw app parent prefix retaining groups and parallel slots, without /layout.
+  layoutPath: Page
+  route: Route
   missingSlots: string[]
 }
 
 export type NormalizeCatchAllRoutesResult = {
-  unmatchedAppPages: string[]
+  unmatchedAppPages: Page[]
   incompatibleParallelRouteSlots: IncompatibleParallelRouteSlots[]
 }
 
@@ -38,13 +40,13 @@ type ParallelRouteLevel = {
 }
 
 type ParallelRouteTopology = {
-  allAppPaths: Set<string>
+  allAppPaths: Set<Page>
   levelsByParent: Map<string, ParallelRouteLevel>
 }
 
 const defaultNormalizer: AppPathNormalizer = {
-  normalize(pathname: string): string {
-    return normalizeAppPath(pathname).replace(/%5F/g, '_')
+  normalize(pathname: Page): Route {
+    return normalizeAppPath(pathname).replace(/%5F/g, '_') as Route
   },
 }
 
@@ -58,7 +60,7 @@ const defaultNormalizer: AppPathNormalizer = {
  * incompatible static matchers found before they were pruned.
  */
 export function normalizeCatchAllRoutes(
-  appPaths: Record<string, string[]>,
+  appPaths: Record<Route, Page[]>,
   normalizer: AppPathNormalizer = defaultNormalizer,
   {
     strictRouteMatching = false,
@@ -81,7 +83,7 @@ export function normalizeCatchAllRoutes(
   // interception routes should only be matched by a single entrypoint
   // we don't want to push a catch-all route to an interception route
   // because it would mean the interception would be handled by the wrong page component
-  const filteredAppPaths = Object.keys(appPaths).filter(
+  const filteredAppPaths = (Object.keys(appPaths) as Route[]).filter(
     (route) => !isInterceptionRouteAppPath(route)
   )
 
@@ -144,8 +146,8 @@ export function normalizeCatchAllRoutes(
  * different matching semantics.
  */
 export function findIncompatibleParallelRouteSlots(
-  appPaths: Record<string, string[]>,
-  defaultAppPaths: Iterable<string> = []
+  appPaths: Record<Route, Page[]>,
+  defaultAppPaths: Iterable<Page> = []
 ): IncompatibleParallelRouteSlots[] {
   return findIncompatibleParallelRouteSlotsWithTopology(
     appPaths,
@@ -154,12 +156,15 @@ export function findIncompatibleParallelRouteSlots(
 }
 
 function findIncompatibleParallelRouteSlotsWithTopology(
-  appPaths: Record<string, string[]>,
+  appPaths: Record<Route, Page[]>,
   { allAppPaths, levelsByParent }: ParallelRouteTopology
 ): IncompatibleParallelRouteSlots[] {
   const incompatibleRoutes: IncompatibleParallelRouteSlots[] = []
 
-  for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
+  for (const [route, matchedAppPaths] of Object.entries(appPaths) as [
+    Route,
+    Page[],
+  ][]) {
     if (isBuiltin(route) || isInterceptionRouteAppPath(route)) continue
 
     // Interception branches can be carried alongside an ordinary matcher, but
@@ -199,7 +204,7 @@ function findIncompatibleParallelRouteSlotsWithTopology(
 
       if (missingSlots.length > 0) {
         incompatibleRoutes.push({
-          layoutPath: `/${parentSegments.join('/')}`,
+          layoutPath: `/${parentSegments.join('/')}` as Page,
           route,
           missingSlots: missingSlots.sort(),
         })
@@ -232,10 +237,13 @@ function isBuiltin(appPath: string): boolean {
  * construct a complete loader tree.
  */
 function pruneUnrenderableCatchAllRoutes(
-  appPaths: Record<string, string[]>,
+  appPaths: Record<Route, Page[]>,
   { allAppPaths, levelsByParent }: ParallelRouteTopology
 ) {
-  for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
+  for (const [route, matchedAppPaths] of Object.entries(appPaths) as [
+    Route,
+    Page[],
+  ][]) {
     const catchAllAppPaths = matchedAppPaths.filter(
       (appPath) => isUserAppPageRoute(appPath) && isCatchAll(appPath)
     )
@@ -310,10 +318,13 @@ function pruneUnrenderableCatchAllRoutes(
  * caller can report only incompatible static matchers between the two passes.
  */
 function pruneUnrenderableRoutes(
-  appPaths: Record<string, string[]>,
+  appPaths: Record<Route, Page[]>,
   { allAppPaths, levelsByParent }: ParallelRouteTopology
 ) {
-  for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
+  for (const [route, matchedAppPaths] of Object.entries(appPaths) as [
+    Route,
+    Page[],
+  ][]) {
     const matchedPageAppPaths = matchedAppPaths.filter(isUserAppPageRoute)
     if (matchedPageAppPaths.length === 0) continue
 
@@ -337,8 +348,8 @@ function pruneUnrenderableRoutes(
 }
 
 function createParallelRouteTopology(
-  appPaths: Record<string, string[]>,
-  defaultAppPaths: Iterable<string>
+  appPaths: Record<Route, Page[]>,
+  defaultAppPaths: Iterable<Page>
 ): ParallelRouteTopology {
   const allAppPaths = new Set([
     ...Object.entries(appPaths)
@@ -357,7 +368,7 @@ function createParallelRouteTopology(
 }
 
 function collectParallelRouteLevels(
-  allAppPaths: Iterable<string>
+  allAppPaths: Iterable<Page>
 ): Map<string, ParallelRouteLevel> {
   const levelsByParent = new Map<string, ParallelRouteLevel>()
 
@@ -394,11 +405,11 @@ function collectParallelRouteLevels(
   return levelsByParent
 }
 
-function isUserAppPageRoute(appPath: string): boolean {
+function isUserAppPageRoute(appPath: Page): boolean {
   return isAppPageRoute(appPath) && !isBuiltinAppPageEntry(appPath)
 }
 
-function isBuiltinAppPageEntry(appPath: string): boolean {
+function isBuiltinAppPageEntry(appPath: Page): boolean {
   return (
     appPath === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
     appPath === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
@@ -406,9 +417,9 @@ function isBuiltinAppPageEntry(appPath: string): boolean {
 }
 
 function hasIncompleteParallelRoute(
-  matchedAppPaths: string[],
+  matchedAppPaths: Page[],
   levels: Iterable<ParallelRouteLevel>,
-  allAppPaths: Set<string>
+  allAppPaths: Set<Page>
 ): boolean {
   const matchedSegments = matchedAppPaths.map((appPath) =>
     splitAppPath(appPath).slice(0, -1)
@@ -452,7 +463,7 @@ function hasIncompleteParallelRoute(
   return false
 }
 
-function splitAppPath(appPath: string): string[] {
+function splitAppPath(appPath: Page): string[] {
   return appPath.split('/').filter(Boolean)
 }
 
@@ -467,11 +478,7 @@ function getSlotAtParent(path: string[], parent: string[]): string {
     : 'children'
 }
 
-function isPathInSlot(
-  appPath: string,
-  parent: string[],
-  slot: string
-): boolean {
+function isPathInSlot(appPath: Page, parent: string[], slot: string): boolean {
   const segments = splitAppPath(appPath)
   return (
     hasPathPrefix(segments, parent) &&
@@ -479,13 +486,13 @@ function isPathInSlot(
   )
 }
 
-function getDefaultAppPath(parent: string[], slot: string): string {
+function getDefaultAppPath(parent: string[], slot: string): Page {
   const segments =
     slot === 'children' ? [...parent, 'default'] : [...parent, slot, 'default']
-  return `/${segments.join('/')}`
+  return `/${segments.join('/')}` as Page
 }
 
-function hasMatchedSlots(path1: string, path2: string): boolean {
+function hasMatchedSlots(path1: Page, path2: Page): boolean {
   const slots1 = path1.split('/').filter(isMatchableSlot)
   const slots2 = path2.split('/').filter(isMatchableSlot)
 
@@ -511,15 +518,15 @@ function isMatchableSlot(segment: string): boolean {
 
 const catchAllRouteRegex = /\[?\[\.\.\./
 
-function isCatchAllRoute(pathname: string): boolean {
+function isCatchAllRoute(pathname: Page): boolean {
   // Optional catch-all slots are not currently supported, and as such they are not considered when checking for match compatability.
   return !isOptionalCatchAll(pathname) && isCatchAll(pathname)
 }
 
-function isOptionalCatchAll(pathname: string): boolean {
+function isOptionalCatchAll(pathname: Page): boolean {
   return pathname.includes('[[...')
 }
 
-function isCatchAll(pathname: string): boolean {
+function isCatchAll(pathname: Page): boolean {
   return pathname.includes('[...')
 }

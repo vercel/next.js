@@ -1,3 +1,4 @@
+import type { Page } from '../../../shared/lib/route-types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
 import type { PageConfig } from '../../../types'
@@ -80,9 +81,9 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
   propagateError: boolean
 
   /**
-   * The page that's being rendered.
+   * The raw Pages API module identifier being rendered.
    */
-  page: string
+  page: Page
 
   /**
    * The error handler for the request.

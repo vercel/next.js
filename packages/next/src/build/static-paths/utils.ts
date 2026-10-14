@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { Params } from '../../server/request/params'
 import type { AppPageRouteModule } from '../../server/route-modules/app-page/module.compiled'
@@ -41,8 +42,8 @@ export function encodeParam(
  * @param pathname - The pathname to normalize.
  * @returns The normalized pathname.
  */
-export function normalizePathname(pathname: string) {
-  return pathname.replace(/\\/g, '/').replace(/(?!^)\/$/, '')
+export function normalizePathname(pathname: Route): Route {
+  return pathname.replace(/\\/g, '/').replace(/(?!^)\/$/, '') as Route
 }
 
 /**

@@ -4,6 +4,8 @@ import {
 } from 'next/dist/server/lib/incremental-cache'
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Page, Route } from 'next/dist/shared/lib/route-types'
+import type { ResponseCacheOwner } from 'next/dist/server/lib/route-cache-key'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -42,20 +44,24 @@ function createCache() {
 
 describe('IncrementalCache handler context', () => {
   describe.each([
-    [RouteKind.PAGES, IncrementalCacheKind.PAGES, '/handler/[id]'],
+    [RouteKind.PAGES, IncrementalCacheKind.PAGES, '/handler/[id]' as Route],
     [
       RouteKind.APP_PAGE,
       IncrementalCacheKind.APP_PAGE,
-      '/(group)/handler/[id]/page',
+      '/(group)/handler/[id]/page' as Page,
     ],
     [
       RouteKind.APP_ROUTE,
       IncrementalCacheKind.APP_ROUTE,
-      '/handler/[id]/route',
+      '/handler/[id]/route' as Page,
     ],
   ] as const)('%s', (routeKind, kind, sourceRoute) => {
-    const pathname = '/handler/post'
-    const route = Object.freeze({ kind: routeKind, sourceRoute })
+    const pathname = '/handler/post' as Route
+    // The fixture matrix correlates each kind with its URL (Pages) or module (App) identity.
+    const route = Object.freeze({
+      kind: routeKind,
+      sourceRoute,
+    }) as ResponseCacheOwner
     const cacheKey = getRouteCacheKey(pathname, route)
     it('keeps ownership internal while preserving get options', async () => {
       const { cache, get } = createCache()
@@ -91,7 +97,7 @@ describe('IncrementalCache handler context', () => {
       const sibling = {
         kind: routeKind,
         sourceRoute: sourceRoute.replace('[id]', '[...slug]'),
-      }
+      } as ResponseCacheOwner
       const cached = { value: null, lastModified: Date.now() - 5000 }
       const longLifetime = { revalidate: 3600, expire: 7200 }
       const shortLifetime = { revalidate: 2, expire: 60 }

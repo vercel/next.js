@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import { NEXT_URL } from '../client/components/app-router-headers'
 import {
   extractInterceptionRouteInformation,
@@ -7,7 +8,7 @@ import type { Rewrite } from './load-custom-routes'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 export function generateInterceptionRoutesRewrites(
-  appPaths: string[],
+  appPaths: Route[],
   basePath = ''
 ): Rewrite[] {
   const rewrites: Rewrite[] = []
@@ -17,19 +18,24 @@ export function generateInterceptionRoutesRewrites(
       const { interceptingRoute, interceptedRoute } =
         extractInterceptionRouteInformation(appPath)
 
-      const destination = getNamedRouteRegex(basePath + appPath, {
+      // These are normalized matcher keys (not raw module identifiers); adding
+      // the configured base path preserves the URL pathname representation.
+      const destination = getNamedRouteRegex((basePath + appPath) as Route, {
         prefixRouteKeys: true,
       })
 
-      const header = getNamedRouteRegex(interceptingRoute, {
+      const header = getNamedRouteRegex(interceptingRoute as Route, {
         prefixRouteKeys: true,
         reference: destination.reference,
       })
 
-      const source = getNamedRouteRegex(basePath + interceptedRoute, {
-        prefixRouteKeys: true,
-        reference: header.reference,
-      })
+      const source = getNamedRouteRegex(
+        (basePath + interceptedRoute) as Route,
+        {
+          prefixRouteKeys: true,
+          reference: header.reference,
+        }
+      )
 
       const headerRegex = header.namedRegex
         // Strip ^ and $ anchors since matchHas() will add them automatically

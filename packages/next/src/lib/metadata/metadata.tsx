@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import React, { Suspense, cache } from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { Params } from '../../server/request/params'
@@ -40,7 +41,7 @@ export function createMetadataComponents({
   serveStreamingMetadata,
 }: {
   tree: LoaderTree
-  pathname: string
+  pathname: Route
   parsedQuery: SearchParams
   metadataContext: MetadataContext
   interpolatedParams: Params
@@ -174,7 +175,7 @@ export function createMetadataComponents({
 const getResolvedMetadata = cache(getResolvedMetadataImpl)
 async function getResolvedMetadataImpl(
   tree: LoaderTree,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
   metadataContext: MetadataContext,
@@ -194,7 +195,7 @@ async function getResolvedMetadataImpl(
 const getNotFoundMetadata = cache(getNotFoundMetadataImpl)
 async function getNotFoundMetadataImpl(
   tree: LoaderTree,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
   metadataContext: MetadataContext
@@ -238,7 +239,7 @@ async function getNotFoundViewportImpl(
 
 async function renderMetadata(
   tree: LoaderTree,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
   metadataContext: MetadataContext,

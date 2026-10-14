@@ -55,6 +55,7 @@ export type RequestInsight = {
   requestId: string
   kind?: RequestInsightKind
   htmlRequestId: string
+  /** Telemetry label from framework state or external OTEL route attributes, not a routing lookup key. */
   route?: string
   url?: string
   startTime: number

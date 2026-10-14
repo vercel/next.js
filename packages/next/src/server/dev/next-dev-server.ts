@@ -4,7 +4,7 @@ import type { Options as ServerOptions } from '../next-server'
 import type { Params } from '../request/params'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
-import type { UrlWithParsedQuery } from 'url'
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { MiddlewareRoutingItem } from '../base-server'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
@@ -13,6 +13,7 @@ import {
   getRequestMeta,
   type NextParsedUrlQuery,
   type NextUrlWithParsedQuery,
+  type InternalNextUrlWithParsedQuery,
 } from '../request-meta'
 import type { DevBundlerService } from '../lib/dev-bundler-service'
 import type { IncrementalCache } from '../lib/incremental-cache'
@@ -136,8 +137,8 @@ export default class DevServer extends Server {
   protected sortedRoutes?: string[]
   private pagesDir?: string
   private appDir?: string
-  private actualMiddlewareFile?: string
-  private actualInstrumentationHookFile?: string
+  private actualMiddlewareFile?: Page
+  private actualInstrumentationHookFile?: Page
   private middleware?: MiddlewareRoutingItem
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
@@ -306,8 +307,8 @@ export default class DevServer extends Server {
     })
   }
 
-  protected async hasPage(pathname: string): Promise<boolean> {
-    let normalizedPath: string
+  protected async hasPage(pathname: Page): Promise<boolean> {
+    let normalizedPath: Page
     try {
       normalizedPath = normalizePagePath(pathname)
     } catch (err) {
@@ -333,7 +334,7 @@ export default class DevServer extends Server {
     if (this.appDir) {
       appFile = await findPageFile(
         this.appDir,
-        normalizedPath + '/page',
+        (normalizedPath + '/page') as Page,
         this.nextConfig.pageExtensions,
         true
       )
@@ -358,7 +359,7 @@ export default class DevServer extends Server {
     request: NodeNextRequest
     response: NodeNextResponse
     parsedUrl: ParsedUrl
-    parsed: UrlWithParsedQuery
+    parsed: InternalNextUrlWithParsedQuery
     middlewareList: MiddlewareRoutingItem[]
   }) {
     try {
@@ -420,8 +421,8 @@ export default class DevServer extends Server {
     res: NodeNextResponse
     query: ParsedUrlQuery
     params: Params | undefined
-    page: string
-    appPaths: string[] | null
+    page: Page
+    appPaths: Page[] | null
     isAppPath: boolean
   }) {
     try {
@@ -541,19 +542,25 @@ export default class DevServer extends Server {
   async run(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: InternalNextUrlWithParsedQuery
   ): Promise<void> {
     await this.ready?.promise
 
     const { basePath } = this.nextConfig
-    let originalPathname: string | null = null
+    let originalPathname: Route | null = null
 
     // TODO: see if we can remove this in the future
-    if (basePath && pathHasPrefix(parsedUrl.pathname || '/', basePath)) {
+    if (
+      basePath &&
+      pathHasPrefix(parsedUrl.pathname || ('/' as Route), basePath)
+    ) {
       // strip basePath before handling dev bundles
       // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
       originalPathname = parsedUrl.pathname
-      parsedUrl.pathname = removePathPrefix(parsedUrl.pathname || '/', basePath)
+      parsedUrl.pathname = removePathPrefix(
+        parsedUrl.pathname || ('/' as Route),
+        basePath
+      )
     }
 
     const { pathname } = parsedUrl
@@ -613,7 +620,7 @@ export default class DevServer extends Server {
 
   protected getinterceptionRoutePatterns(): RegExp[] {
     const rewrites = generateInterceptionRoutesRewrites(
-      Object.keys(this.appPathRoutes ?? {}),
+      Object.keys(this.appPathRoutes ?? {}) as Route[],
       this.nextConfig.basePath
     ).map((route) => new RegExp(buildCustomRoute('rewrite', route).regex))
 
@@ -690,8 +697,8 @@ export default class DevServer extends Server {
     appPaths,
     url,
   }: {
-    page: string
-    appPaths: string[] | null
+    page: Page
+    appPaths: Page[] | null
     url: string
   }) {
     return this.ensurePage({
@@ -727,10 +734,10 @@ export default class DevServer extends Server {
     page,
     isAppPath,
   }: {
-    pathname: string
-    urlPathname: string
+    pathname: Route
+    urlPathname: Route
     requestHeaders: IncrementalCache['requestHeaders']
-    page: string
+    page: Page
     isAppPath: boolean
   }): ReturnType<Server['getStaticPaths']> {
     // we lazy load the staticPaths to prevent the user
@@ -923,9 +930,9 @@ export default class DevServer extends Server {
   }
 
   protected async ensurePage(opts: {
-    page: string
+    page: Page
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
+    appPaths?: ReadonlyArray<Page> | null
     definition: RouteDefinition | undefined
     url?: string
   }): Promise<void> {
@@ -943,12 +950,12 @@ export default class DevServer extends Server {
     url,
   }: {
     locale: string | undefined
-    page: string
+    page: Page
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
     sriEnabled?: boolean
-    appPaths?: ReadonlyArray<string> | null
+    appPaths?: ReadonlyArray<Page> | null
     shouldEnsure: boolean
     url?: string
   }): Promise<FindComponentsResult | null> {
@@ -990,7 +997,9 @@ export default class DevServer extends Server {
   }
 
   async getCompilationError(page: string): Promise<any> {
-    return await this.bundlerService.getCompilationError(page)
+    // Preserve the external diagnostic API's string input. Its argument is a
+    // raw module identifier (findPageComponents supplies Page internally).
+    return await this.bundlerService.getCompilationError(page as Page)
   }
 
   protected async instrumentationOnRequestError(

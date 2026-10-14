@@ -1,4 +1,6 @@
-export function createRuntimeBodyError(route: string): Error {
+import type { Route } from '../../shared/lib/route-types'
+
+export function createRuntimeBodyError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data during prerendering.\n\n` +
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\n\n` +
@@ -9,7 +11,7 @@ export function createRuntimeBodyError(route: string): Error {
   )
 }
 
-export function createDynamicBodyError(route: string): Error {
+export function createDynamicBodyError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached data during prerendering.\n\n` +
       `\`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\n\n` +
@@ -21,7 +23,7 @@ export function createDynamicBodyError(route: string): Error {
   )
 }
 
-export function createRuntimeBodyErrorInNavigation(route: string): Error {
+export function createRuntimeBodyErrorInNavigation(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data during prerendering or a navigation.\n\n` +
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\n` +
@@ -32,7 +34,7 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
   )
 }
 
-export function createLinkBodyErrorInNavigation(route: string): Error {
+export function createLinkBodyErrorInNavigation(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered URL data during prerendering or a navigation.\n\n` +
       `\`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
@@ -43,7 +45,7 @@ export function createLinkBodyErrorInNavigation(route: string): Error {
   )
 }
 
-export function createNavigationBodyErrorInNavigation(route: string): Error {
+export function createNavigationBodyErrorInNavigation(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`navigation()\` during prerendering or a navigation.\n\n` +
       `\`navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
@@ -54,7 +56,7 @@ export function createNavigationBodyErrorInNavigation(route: string): Error {
   )
 }
 
-export function createPrefetchBodyErrorInNavigation(route: string): Error {
+export function createPrefetchBodyErrorInNavigation(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`prefetch()\` during prerendering or a navigation.\n\n` +
       `\`prefetch()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.\n\n` +
@@ -65,7 +67,7 @@ export function createPrefetchBodyErrorInNavigation(route: string): Error {
   )
 }
 
-export function createDynamicBodyErrorInNavigation(route: string): Error {
+export function createDynamicBodyErrorInNavigation(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached data during prerendering or a navigation.\n\n` +
       `\`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\n` +
@@ -82,7 +84,7 @@ export function createDynamicBodyErrorInNavigation(route: string): Error {
  * Only use this in situations like build-time static validation, where
  * we can't pinpoint a more specific reason.
  */
-export function createDynamicOrRuntimeBodyError(route: string): Error {
+export function createDynamicOrRuntimeBodyError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached or runtime data during prerendering.\n\n` +
       `\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\n\n` +
@@ -94,7 +96,7 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
   )
 }
 
-export function createLinkMetadataError(route: string): Error {
+export function createLinkMetadataError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered URL data in \`generateMetadata()\`.\n\n` +
       `This route's metadata is blocked, but the rest of its content can be prefetched. \`params\` or \`searchParams\` accessed in \`generateMetadata()\` prevent it from being prefetched.\n\n` +
@@ -105,7 +107,7 @@ export function createLinkMetadataError(route: string): Error {
   )
 }
 
-export function createRuntimeMetadataError(route: string): Error {
+export function createRuntimeMetadataError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data in \`generateMetadata()\`.\n\n` +
       `This route's metadata is blocked, but the rest of its content can be prerendered. \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed in \`generateMetadata()\` cause it to run dynamically.\n\n` +
@@ -116,7 +118,7 @@ export function createRuntimeMetadataError(route: string): Error {
   )
 }
 
-export function createNavigationMetadataError(route: string): Error {
+export function createNavigationMetadataError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`navigation()\` in \`generateMetadata()\`.\n\n` +
       `Metadata can already stream without blocking the route's UI, so delaying it until navigation may be unintentional.\n\n` +
@@ -127,7 +129,7 @@ export function createNavigationMetadataError(route: string): Error {
   )
 }
 
-export function createPrefetchMetadataError(route: string): Error {
+export function createPrefetchMetadataError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`prefetch()\` in \`generateMetadata()\`.\n\n` +
       `Metadata can already stream without blocking the route's UI, so delaying it until a per-link prefetch or navigation may be unintentional.\n\n` +
@@ -138,7 +140,7 @@ export function createPrefetchMetadataError(route: string): Error {
   )
 }
 
-export function createDynamicMetadataError(route: string): Error {
+export function createDynamicMetadataError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached data in \`generateMetadata()\`.\n\n` +
       `This route's metadata is blocked, but the rest of its content can be prerendered. \`fetch(...)\` or \`connection()\` accessed in \`generateMetadata()\` cause it to run dynamically.\n\n` +
@@ -149,7 +151,7 @@ export function createDynamicMetadataError(route: string): Error {
   )
 }
 
-export function createLinkViewportError(route: string): Error {
+export function createLinkViewportError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered URL data in \`generateViewport()\`.\n\n` +
       `\`params\` or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
@@ -160,7 +162,7 @@ export function createLinkViewportError(route: string): Error {
   )
 }
 
-export function createRuntimeViewportError(route: string): Error {
+export function createRuntimeViewportError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data in \`generateViewport()\`.\n\n` +
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
@@ -171,7 +173,7 @@ export function createRuntimeViewportError(route: string): Error {
   )
 }
 
-export function createNavigationViewportError(route: string): Error {
+export function createNavigationViewportError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`navigation()\` in \`generateViewport()\`.\n\n` +
       `This prevents Next.js from creating the App Shell, leading to a slower user experience.\n\n` +
@@ -182,7 +184,7 @@ export function createNavigationViewportError(route: string): Error {
   )
 }
 
-export function createPrefetchViewportError(route: string): Error {
+export function createPrefetchViewportError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`prefetch()\` in \`generateViewport()\`.\n\n` +
       `This prevents Next.js from creating the App Shell, leading to a slower user experience.\n\n` +
@@ -193,7 +195,7 @@ export function createPrefetchViewportError(route: string): Error {
   )
 }
 
-export function createDynamicViewportError(route: string): Error {
+export function createDynamicViewportError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached data in \`generateViewport()\`.\n\n` +
       `\`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
@@ -209,7 +211,7 @@ export function createDynamicViewportError(route: string): Error {
  * Only use this in situations like build-time static validation, where
  * we can't pinpoint a more specific reason.
  */
-export function createDynamicOrRuntimeViewportError(route: string): Error {
+export function createDynamicOrRuntimeViewportError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached or runtime data in \`generateViewport()\`.\n\n` +
       `This prevents the page from being prerendered, leading to a slower user experience. Unlike metadata, viewport cannot be streamed behind \`<Suspense>\` because it affects the initial page load.\n\n` +
@@ -226,7 +228,7 @@ export function createDynamicOrRuntimeViewportError(route: string): Error {
  * Only use this in situations like build-time static validation, where
  * we can't pinpoint a more specific reason.
  */
-export function createDynamicOrRuntimeMetadataError(route: string): Error {
+export function createDynamicOrRuntimeMetadataError(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached or runtime data in \`generateMetadata()\`.\n\n` +
       `This route's metadata is blocked, but the rest of its content can be prerendered.\n\n` +
@@ -242,7 +244,7 @@ export function createDynamicOrRuntimeMetadataError(route: string): Error {
 // Static routes (with `ensureStatic = "navigation"`)
 //====================================================
 
-export function createRuntimeBodyErrorInStaticRoute(route: string): Error {
+export function createRuntimeBodyErrorInStaticRoute(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data on a route that must be fully static.\n\n` +
       `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache requires rendering at request time.\n\n` +
@@ -253,7 +255,7 @@ export function createRuntimeBodyErrorInStaticRoute(route: string): Error {
   )
 }
 
-export function createDynamicBodyErrorInStaticRoute(route: string): Error {
+export function createDynamicBodyErrorInStaticRoute(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached data on a route that must be fully static.\n\n` +
       `This route is configured to be fully static, but an uncached \`fetch(...)\`, database call, or \`connection()\` requires rendering at request time.\n\n` +
@@ -266,7 +268,7 @@ export function createDynamicBodyErrorInStaticRoute(route: string): Error {
 }
 
 export function createNonPrerenderableBodyErrorInStaticRoute(
-  route: string
+  route: Route
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached or runtime data on a route that must be fully static.\n\n` +
@@ -279,7 +281,7 @@ export function createNonPrerenderableBodyErrorInStaticRoute(
   )
 }
 
-export function createRuntimeMetadataErrorInStaticRoute(route: string): Error {
+export function createRuntimeMetadataErrorInStaticRoute(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data in \`generateMetadata()\` on a route that must be fully static.\n\n` +
       `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache requires rendering at request time.\n\n` +
@@ -289,7 +291,7 @@ export function createRuntimeMetadataErrorInStaticRoute(route: string): Error {
   )
 }
 
-export function createDynamicMetadataErrorInStaticRoute(route: string): Error {
+export function createDynamicMetadataErrorInStaticRoute(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached data in \`generateMetadata()\` on a route that must be fully static.\n\n` +
       `This route is configured to be fully static, but an uncached \`fetch(...)\`, database call, or \`connection()\` requires rendering at request time.\n\n` +
@@ -301,7 +303,7 @@ export function createDynamicMetadataErrorInStaticRoute(route: string): Error {
 }
 
 export function createNonPrerenderableMetadataErrorInStaticRoute(
-  route: string
+  route: Route
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached or runtime data in \`generateMetadata()\` on a route that must be fully static.\n\n` +
@@ -313,7 +315,7 @@ export function createNonPrerenderableMetadataErrorInStaticRoute(
   )
 }
 
-export function createRuntimeViewportErrorInStaticRoute(route: string): Error {
+export function createRuntimeViewportErrorInStaticRoute(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered runtime data in \`generateViewport()\` on a route that must be fully static.\n\n` +
       `This route is configured to be fully static, but runtime data from \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or a short-lived cache requires rendering at request time.\n\n` +
@@ -323,7 +325,7 @@ export function createRuntimeViewportErrorInStaticRoute(route: string): Error {
   )
 }
 
-export function createDynamicViewportErrorInStaticRoute(route: string): Error {
+export function createDynamicViewportErrorInStaticRoute(route: Route): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached data in \`generateViewport()\` on a route that must be fully static.\n\n` +
       `This route is configured to be fully static, but an uncached \`fetch(...)\`, database call, or \`connection()\` requires rendering at request time.\n\n` +
@@ -335,7 +337,7 @@ export function createDynamicViewportErrorInStaticRoute(route: string): Error {
 }
 
 export function createNonPrerenderableViewportErrorInStaticRoute(
-  route: string
+  route: Route
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered uncached or runtime data in \`generateViewport()\` on a route that must be fully static.\n\n` +
@@ -347,7 +349,7 @@ export function createNonPrerenderableViewportErrorInStaticRoute(
   )
 }
 
-export function logBuildDebugHint(route: string): void {
+export function logBuildDebugHint(route: Route): void {
   if (process.env.NODE_ENV !== 'development') {
     console.error(
       `To get a more detailed stack trace and pinpoint the issue, try one of the following:\n` +

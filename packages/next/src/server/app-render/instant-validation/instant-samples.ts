@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { InstantSample } from '../../../build/segment-config/app/app-segment-config'
 import type { ReadonlyRequestCookies } from '../../web/spec-extension/adapters/request-cookies'
 import type { ReadonlyHeaders } from '../../web/spec-extension/adapters/headers'
@@ -79,7 +80,7 @@ export function trackMissingSampleErrorAndThrow(
  */
 export function createCookiesFromSample(
   sampleCookies: InstantSample['cookies'],
-  route: string
+  route: Route
 ): ReadonlyRequestCookies {
   const declaredNames = new Set<string>()
 
@@ -145,7 +146,7 @@ export function createCookiesFromSample(
 }
 
 function createMissingCookieSampleError(
-  route: string,
+  route: Route,
   name: string
 ): InstantValidationError {
   return new InstantValidationError(
@@ -163,7 +164,7 @@ function createMissingCookieSampleError(
 export function createHeadersFromSample(
   rawSampleHeaders: InstantSample['headers'],
   sampleCookies: InstantSample['cookies'],
-  route: string
+  route: Route
 ): ReadonlyHeaders {
   // If we have cookie samples, add a `cookie` header to match.
   // Accessing it will be implicitly allowed by the proxy --
@@ -254,7 +255,7 @@ export function createDraftModeForValidation(): DraftModeProvider {
 export function createExhaustiveParamsProxy<TParams extends Params>(
   underlyingParams: TParams,
   declaredParamNames: Set<string>,
-  route: string
+  route: Route
 ): TParams {
   return new Proxy(underlyingParams, {
     get(target, prop, receiver) {
@@ -289,7 +290,7 @@ export function createExhaustiveParamsProxy<TParams extends Params>(
 export function createExhaustiveSearchParamsProxy(
   searchParams: SearchParams,
   declaredSearchParamNames: Set<string>,
-  route: string
+  route: Route
 ): SearchParams {
   return new Proxy(searchParams, {
     get(target, prop, receiver) {
@@ -327,7 +328,7 @@ export function createExhaustiveSearchParamsProxy(
 export function createExhaustiveURLSearchParamsProxy<T extends URLSearchParams>(
   searchParams: T,
   declaredSearchParamNames: Set<string>,
-  route: string
+  route: Route
 ): T {
   return new Proxy(searchParams, {
     get(target, prop, receiver) {
@@ -354,7 +355,7 @@ export function createExhaustiveURLSearchParamsProxy<T extends URLSearchParams>(
 }
 
 function createMissingSearchParamSampleError(
-  route: string,
+  route: Route,
   name: string
 ): InstantValidationError {
   return new InstantValidationError(
@@ -365,7 +366,7 @@ function createMissingSearchParamSampleError(
 }
 
 export function createRelativeURLFromSamples(
-  route: string,
+  route: Route,
   sampleParams: InstantSample['params'],
   sampleSearchParams: InstantSample['searchParams']
 ) {
@@ -410,7 +411,10 @@ function createURLSearchParamsFromSample(
  * TODO(instant-validation-build): this logic is somewhat hacky and likely incomplete,
  * but it should be good enough for some initial testing.
  */
-function createPathnameFromRouteAndSampleParams(route: string, params: Params) {
+function createPathnameFromRouteAndSampleParams(
+  route: Route,
+  params: Params
+): Route {
   let interpolatedSegments: string[] = []
   const rawSegments = route.split('/')
   for (const rawSegment of rawSegments) {
@@ -473,7 +477,9 @@ function createPathnameFromRouteAndSampleParams(route: string, params: Params) {
       interpolatedSegments.push(rawSegment)
     }
   }
-  return interpolatedSegments.join('/')
+  // Parameter encoding and slash-preserving substitution construct a pathname
+  // from the normalized matcher without introducing module modifiers.
+  return interpolatedSegments.join('/') as Route
 }
 
 export function assertRootParamInSamples(

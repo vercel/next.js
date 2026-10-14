@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import type { NextRouter, Url } from '../shared/lib/router/router'
 
 import { searchParamsToUrlQuery } from '../shared/lib/router/utils/querystring'
@@ -70,7 +71,9 @@ export function resolveHref(
       if (isDynamicRoute(router.pathname)) {
         baseBase = router.pathname
 
-        const routeRegex = getRouteRegex(router.pathname)
+        // Public router types stay string-compatible; this getter exposes its
+        // internal normalized URL pattern, not asPath with search/hash.
+        const routeRegex = getRouteRegex(router.pathname as Route)
         const match = getRouteMatcher(routeRegex)(router.asPath)
 
         // For dynamic routes, if asPath doesn't match the pathname regex, it is a rewritten path.
@@ -108,9 +111,11 @@ export function resolveHref(
     ) {
       const query = searchParamsToUrlQuery(finalUrl.searchParams)
 
+      // This is the native URL parsing boundary; public href/router inputs
+      // remain ordinary strings and may include search/hash/full URLs.
       const { result, params } = interpolateAs(
-        finalUrl.pathname,
-        finalUrl.pathname,
+        finalUrl.pathname as Route,
+        finalUrl.pathname as Route,
         query
       )
 

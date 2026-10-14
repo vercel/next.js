@@ -1,3 +1,4 @@
+import type { Route } from '../../route-types'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removePathPrefix } from './remove-path-prefix'
 import { pathHasPrefix } from './path-has-prefix'
@@ -21,7 +22,7 @@ export interface NextPathnameInfo {
    * The processed pathname without a base path, locale, or data URL elements
    * when parsing it is enabled.
    */
-  pathname: string
+  pathname: Route
   /**
    * A boolean telling if the pathname had a trailingSlash. This can be only
    * true if trailingSlash is enabled.
@@ -51,7 +52,7 @@ interface Options {
 }
 
 export function getNextPathnameInfo(
-  pathname: string,
+  pathname: Route,
   options: Options
 ): NextPathnameInfo {
   const { basePath, i18n, trailingSlash } = options.nextConfig ?? {}
@@ -77,8 +78,9 @@ export function getNextPathnameInfo(
 
     const buildId = paths[0]
     info.buildId = buildId
-    pathnameNoDataPrefix =
+    pathnameNoDataPrefix = (
       paths[1] !== 'index' ? `/${paths.slice(1).join('/')}` : '/'
+    ) as Route
 
     // update pathname with normalized if enabled although
     // we use normalized to populate locale info still

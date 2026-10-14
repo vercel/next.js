@@ -95,6 +95,7 @@ function isFetchPatched() {
 
 export function validateRevalidate(
   revalidateVal: unknown,
+  // Diagnostic label: also receives unstable_cache callback descriptions, not only WorkStore URL routes.
   route: string
 ): undefined | number {
   try {

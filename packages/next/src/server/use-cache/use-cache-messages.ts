@@ -4,6 +4,7 @@
  * immediate fix, then link to the relevant docs.
  */
 
+import type { Route } from '../../shared/lib/route-types'
 import type { BuildTimeGeneratorName } from '../app-render/work-unit-async-storage.external'
 
 const NEXT_REQUEST_IN_USE_CACHE =
@@ -32,56 +33,56 @@ const NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE =
 
 // Request data accessed in caches
 
-export function createCookiesInUseCacheError(route: string): Error {
+export function createCookiesInUseCacheError(route: Route): Error {
   return new Error(
     `Route "${route}": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
-export function createCookiesInUnstableCacheError(route: string): Error {
+export function createCookiesInUnstableCacheError(route: Route): Error {
   return new Error(
     `Route "${route}": \`cookies()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
   )
 }
 
-export function createHeadersInUseCacheError(route: string): Error {
+export function createHeadersInUseCacheError(route: Route): Error {
   return new Error(
     `Route "${route}": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
-export function createHeadersInUnstableCacheError(route: string): Error {
+export function createHeadersInUnstableCacheError(route: Route): Error {
   return new Error(
     `Route "${route}": \`headers()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
   )
 }
 
-export function createSearchParamsInUseCacheError(route: string): Error {
+export function createSearchParamsInUseCacheError(route: Route): Error {
   return new Error(
     `Route "${route}": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
-export function createConnectionInPublicUseCacheError(route: string): Error {
+export function createConnectionInPublicUseCacheError(route: Route): Error {
   return new Error(
     `Route "${route}": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.\nLearn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
-export function createConnectionInPrivateUseCacheError(route: string): Error {
+export function createConnectionInPrivateUseCacheError(route: Route): Error {
   return new Error(
     `Route "${route}": \`connection()\` can't be called inside \`"use cache: private"\` because private cached functions may run during prefetching, without a navigation request. Call it outside the cached function.\nLearn more: ${USE_CACHE_PRIVATE_API_DOCS}`
   )
 }
 
-export function createConnectionInUnstableCacheError(route: string): Error {
+export function createConnectionInUnstableCacheError(route: Route): Error {
   return new Error(
     `Route "${route}": \`connection()\` can't be called inside \`unstable_cache()\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.\nLearn more: ${UNSTABLE_CACHE_API_DOCS}`
   )
 }
 
 export function createRouteHandlerRequestInUseCacheError(
-  route: string,
+  route: Route,
   expression: string
 ): Error {
   return new Error(
@@ -90,7 +91,7 @@ export function createRouteHandlerRequestInUseCacheError(
 }
 
 export function createRouteHandlerRequestInUnstableCacheError(
-  route: string,
+  route: Route,
   expression: string
 ): Error {
   return new Error(
@@ -106,7 +107,7 @@ export function createRouteHandlerRequestInUnstableCacheError(
  * inside a cached function, but toggling it is not.
  */
 export function createDraftModeMutationInUseCacheError(
-  route: string,
+  route: Route,
   expression: string
 ): Error {
   return new Error(
@@ -115,7 +116,7 @@ export function createDraftModeMutationInUseCacheError(
 }
 
 export function createDraftModeMutationInUnstableCacheError(
-  route: string,
+  route: Route,
   expression: string
 ): Error {
   return new Error(
@@ -124,7 +125,7 @@ export function createDraftModeMutationInUnstableCacheError(
 }
 
 export function createRevalidateDuringRenderError(
-  route: string,
+  route: Route,
   expression: string
 ): Error {
   return new Error(
@@ -133,7 +134,7 @@ export function createRevalidateDuringRenderError(
 }
 
 export function createRevalidateInCachedFunctionError(
-  route: string,
+  route: Route,
   expression: string
 ): Error {
   return new Error(
@@ -142,7 +143,7 @@ export function createRevalidateInCachedFunctionError(
 }
 
 export function createRevalidateInBuildTimeGeneratorError(
-  route: string,
+  route: Route,
   expression: string,
   generatorName: BuildTimeGeneratorName
 ): Error {
@@ -153,12 +154,12 @@ export function createRevalidateInBuildTimeGeneratorError(
 
 // Cache configuration and nesting
 
-function routePrefix(route: string | undefined): string {
+function routePrefix(route: Route | undefined): string {
   return route === undefined ? '' : `Route "${route}": `
 }
 
 export function createCacheTagOutsideUseCacheError(
-  route: string | undefined
+  route: Route | undefined
 ): Error {
   return new Error(
     `${routePrefix(route)}\`cacheTag()\` can only be called inside a \`"use cache"\` or \`"use cache: private"\` function.\nLearn more: ${CACHE_TAG_OUTSIDE_USE_CACHE}`
@@ -166,7 +167,7 @@ export function createCacheTagOutsideUseCacheError(
 }
 
 export function createCacheLifeOutsideUseCacheError(
-  route: string | undefined
+  route: Route | undefined
 ): Error {
   return new Error(
     `${routePrefix(route)}\`cacheLife()\` can only be called inside a \`"use cache"\` or \`"use cache: private"\` function.\nLearn more: ${CACHE_LIFE_OUTSIDE_USE_CACHE}`
@@ -174,7 +175,7 @@ export function createCacheLifeOutsideUseCacheError(
 }
 
 export function createNestedCacheZeroRevalidateError(
-  route: string,
+  route: Route,
   cause: Error | undefined
 ): Error {
   return new Error(
@@ -184,7 +185,7 @@ export function createNestedCacheZeroRevalidateError(
 }
 
 export function createNestedCacheShortExpireError(
-  route: string,
+  route: Route,
   cause: Error | undefined
 ): Error {
   return new Error(
@@ -196,7 +197,7 @@ export function createNestedCacheShortExpireError(
 // Private cache composition and request context
 
 export function createUseCachePrivateInsidePublicUseCacheError(
-  route: string
+  route: Route
 ): Error {
   return new Error(
     `Route "${route}": \`"use cache: private"\` can't be nested inside \`"use cache"\` because a shared cached function can't depend on private request data. Nest it only inside another \`"use cache: private"\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
@@ -204,7 +205,7 @@ export function createUseCachePrivateInsidePublicUseCacheError(
 }
 
 export function createUseCachePrivateInsideUnstableCacheError(
-  route: string
+  route: Route
 ): Error {
   return new Error(
     `Route "${route}": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.\nLearn more: ${USE_CACHE_PRIVATE_COMPOSITION}`
@@ -212,7 +213,7 @@ export function createUseCachePrivateInsideUnstableCacheError(
 }
 
 export function createUseCachePrivateOutsideRequestContextError(
-  route: string,
+  route: Route,
   functionName: string
 ): Error {
   return new Error(

@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type {
   Metadata,
   ResolvedMetadata,
@@ -338,9 +339,9 @@ async function accumulateMetadataLayer(
   parent: Promise<MetadataAccumulator>,
   prerendered: PrerenderedResult<Metadata, ResolvedMetadata>,
   staticMetadata: Promise<StaticMetadata>,
-  route: string,
+  route: Route,
   layerIndex: number,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   metadataContext: MetadataContext
 ): Promise<MetadataAccumulator> {
   const accumulator = await parent
@@ -474,12 +475,12 @@ function completeMetadataAccumulator(
 }
 
 type MetadataTreeContext = {
-  pathname: Promise<string>
+  pathname: Promise<Route>
   searchParams: Promise<ParsedUrlQuery>
   errorConvention: MetadataErrorType | undefined
   interpolatedParams: Params
   metadataContext: MetadataContext
-  route: string
+  route: Route
   selectedKeyPath: string[] | null
   resolutionTarget: ResolutionTarget
   outlets: Map<LoaderTree, Promise<null>>
@@ -873,7 +874,7 @@ async function walkMetadataTree(
 
 async function resolveMetadataTree(
   tree: LoaderTree,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   interpolatedParams: Params,
@@ -933,7 +934,7 @@ async function resolveMetadataTree(
 
 export function resolveMetadataResolution(
   tree: LoaderTree,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   interpolatedParams: Params,
@@ -953,7 +954,7 @@ export function resolveMetadataResolution(
 
 export async function resolveMetadataForBranch(
   tree: LoaderTree,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType,
   interpolatedParams: Params,
@@ -975,7 +976,7 @@ export async function resolveMetadataForBranch(
 
 export async function resolveViewportForBranch(
   tree: LoaderTree,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType,
   interpolatedParams: Params,

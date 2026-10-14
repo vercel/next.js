@@ -1,3 +1,4 @@
+import type { Page, Route as RoutePathname } from '../../shared/lib/route-types'
 import path from 'path'
 import crypto from 'crypto'
 import fs from 'fs/promises'
@@ -67,7 +68,10 @@ import {
   createAdapterSyntheticSymlinkDirectory,
   type SyntheticSymlinkManager,
 } from './synthetic-symlinks'
-import { getRouteCacheKey } from '../../server/lib/route-cache-key'
+import {
+  getRouteCacheKey,
+  type ResponseCacheOwner,
+} from '../../server/lib/route-cache-key'
 import { RouteKind } from '../../server/route-kind'
 
 interface SharedRouteFields {
@@ -209,8 +213,8 @@ type PrerenderClassification =
 
 // App paths sharing a pathname collapse into one Adapter output. Put the
 // canonical entry first because later paths only merge assets into that output.
-function orderAppPageKeysByEntry(appPageKeys: readonly string[]): string[] {
-  const appPathsByPathname = new Map<string, string[]>()
+function orderAppPageKeysByEntry(appPageKeys: readonly Page[]): Page[] {
+  const appPathsByPathname = new Map<RoutePathname, Page[]>()
 
   for (const page of appPageKeys) {
     const pathname = normalizeAppPath(page)
@@ -223,7 +227,7 @@ function orderAppPageKeysByEntry(appPageKeys: readonly string[]): string[] {
     }
   }
 
-  const orderedAppPageKeys: string[] = []
+  const orderedAppPageKeys: Page[] = []
   for (const [pathname, appPaths] of appPathsByPathname) {
     const entryPage = selectAppPageEntry(pathname, appPaths)
     orderedAppPageKeys.push(entryPage)
@@ -438,8 +442,32 @@ export interface AdapterOutputs {
   staticFiles: Array<AdapterOutput['STATIC_FILE']>
 }
 
+// Adapter-facing schemas remain string-compatible. Internally, output URLs and
+// prerender source matchers have Route semantics. IDs remain opaque identifiers;
+// sourcePage also includes relative Pages filenames and the middleware label.
+type InternalAdapterOutput = {
+  [Type in keyof AdapterOutput]: AdapterOutput[Type] & {
+    pathname: RoutePathname
+  }
+} & {
+  PRERENDER: AdapterOutput['PRERENDER'] & {
+    pathname: RoutePathname
+    route: RoutePathname
+  }
+}
+
+interface InternalAdapterOutputs {
+  pages: Array<InternalAdapterOutput['PAGES']>
+  middleware?: InternalAdapterOutput['MIDDLEWARE']
+  appPages: Array<InternalAdapterOutput['APP_PAGE']>
+  pagesApi: Array<InternalAdapterOutput['PAGES_API']>
+  appRoutes: Array<InternalAdapterOutput['APP_ROUTE']>
+  prerenders: Array<InternalAdapterOutput['PRERENDER']>
+  staticFiles: Array<InternalAdapterOutput['STATIC_FILE']>
+}
+
 function getPrerenderClassification(
-  route: string,
+  route: RoutePathname,
   routeType: PrerenderManifestRoute['routeType'],
   response: PrerenderManifestRoute['response'],
   compute: PrerenderManifestRoute['compute'],
@@ -579,7 +607,7 @@ export interface NextAdapter {
 
 function normalizePathnames(
   config: NextConfigComplete,
-  outputs: AdapterOutputs
+  outputs: InternalAdapterOutputs
 ) {
   // normalize pathname field with basePath
   if (config.basePath) {
@@ -591,9 +619,10 @@ function normalizePathnames(
       ...outputs.prerenders,
       ...outputs.staticFiles,
     ]) {
-      output.pathname =
-        addPathPrefix(output.pathname, config.basePath).replace(/\/$/, '') ||
-        '/'
+      output.pathname = (addPathPrefix(
+        output.pathname,
+        config.basePath
+      ).replace(/\/$/, '') || '/') as RoutePathname
     }
   }
 }
@@ -642,17 +671,17 @@ export async function handleBuildComplete({
   hasStatic500: boolean
   previewProps: __ApiPreviewProps
   bundler: Bundler
-  staticPages: Set<string>
+  staticPages: Set<RoutePathname>
   hasNodeMiddleware: boolean
   config: NextConfigComplete
-  pageKeys: readonly string[]
-  serverPropsPages: Set<string>
+  pageKeys: readonly RoutePathname[]
+  serverPropsPages: Set<RoutePathname>
   requiredServerFiles: string[]
   routesManifest: RoutesManifest
   hasInstrumentationHook: boolean
   prerenderManifest: PrerenderManifest
   middlewareManifest: MiddlewareManifest
-  appPageKeys?: readonly string[] | undefined
+  appPageKeys?: readonly Page[] | undefined
   functionsConfigManifest: FunctionsConfigManifest
 }) {
   const adapterMod = interopDefault(
@@ -661,7 +690,7 @@ export async function handleBuildComplete({
 
   if (typeof adapterMod.onBuildComplete === 'function') {
     const syntheticSymlinks = createAdapterSyntheticSymlinkDirectory(distDir)
-    const outputs: AdapterOutputs = {
+    const outputs: InternalAdapterOutputs = {
       pages: [],
       pagesApi: [],
       appPages: [],
@@ -694,17 +723,17 @@ export async function handleBuildComplete({
         const immutableId = normalizePathSep(file).replace(/^\/?_next\//, '')
         outputs.staticFiles.push({
           id: file,
-          pathname,
+          pathname: pathname as RoutePathname,
           filePath: path.join(configOutDir, file),
           type: AdapterOutputType.STATIC_FILE,
           immutableHash: clientHashes?.[immutableId],
-        } satisfies AdapterOutput['STATIC_FILE'])
+        } satisfies InternalAdapterOutput['STATIC_FILE'])
       }
     } else {
       const staticFiles = await recursiveReadDir(path.join(distDir, 'static'))
 
       for (const file of staticFiles) {
-        const pathname = path.posix.join('/_next/static', file)
+        const pathname = path.posix.join('/_next/static', file) as RoutePathname
         const filePath = path.join(distDir, 'static', file)
         const id = path.join('static', file)
         outputs.staticFiles.push({
@@ -768,7 +797,9 @@ export async function handleBuildComplete({
       }
 
       async function handleEdgeFunction(
-        page: EdgeFunctionDefinition,
+        page:
+          | EdgeFunctionDefinition<Page>
+          | EdgeFunctionDefinition<RoutePathname>,
         isMiddleware: boolean = false
       ) {
         let type: AdapterOutputType = AdapterOutputType.PAGES
@@ -776,10 +807,10 @@ export async function handleBuildComplete({
         const isAppPage = isAppPrefix && page.name.endsWith('/page')
         const isAppRoute = isAppPrefix && page.name.endsWith('/route')
         let currentOutputs: Array<
-          | AdapterOutput['PAGES']
-          | AdapterOutput['PAGES_API']
-          | AdapterOutput['APP_PAGE']
-          | AdapterOutput['APP_ROUTE']
+          | InternalAdapterOutput['PAGES']
+          | InternalAdapterOutput['PAGES_API']
+          | InternalAdapterOutput['APP_PAGE']
+          | InternalAdapterOutput['APP_ROUTE']
         > = outputs.pages
 
         if (isMiddleware) {
@@ -796,11 +827,13 @@ export async function handleBuildComplete({
         }
 
         const route = page.page.replace(/^(app|pages)\//, '')
+        // An app/ bundle name identifies a raw App module. Other branches
+        // construct Pages URL patterns or the middleware scope, not App Pages.
         const pathname = isAppPrefix
-          ? normalizeAppPath(route)
-          : route === '/index'
-            ? '/'
-            : route.replace(/\/index$/, '')
+          ? normalizeAppPath(route as Page)
+          : ((route === '/index'
+              ? '/'
+              : route.replace(/\/index$/, '')) as RoutePathname)
         const functionConfig = functionsConfigManifest.functions[pathname] || {}
         const edgeEntrypointRelativePath = page.entrypoint
         const edgeEntrypointPath = path.join(
@@ -808,7 +841,7 @@ export async function handleBuildComplete({
           edgeEntrypointRelativePath
         )
 
-        const output: Omit<AdapterOutput[typeof type], 'type'> & {
+        const output: Omit<InternalAdapterOutput[typeof type], 'type'> & {
           type: any
         } = {
           type,
@@ -869,7 +902,7 @@ export async function handleBuildComplete({
                 ],
               }
             })
-          output.pathname = '/_middleware'
+          output.pathname = '/_middleware' as RoutePathname
           output.id = page.name
           outputs.middleware = output
         } else {
@@ -878,7 +911,9 @@ export async function handleBuildComplete({
 
         // need to add matching .rsc output
         if (isAppPage) {
-          const rscPathname = normalizePagePath(output.pathname) + '.rsc'
+          // @ts-ignore -- Human review: an App URL is encoded as a Page filename for the RSC endpoint, without its raw module identity. Preserve the adapter transport naming assumption.
+          const rscPathname = (normalizePagePath(output.pathname) +
+            '.rsc') as RoutePathname
           outputs.appPages.push({
             ...output,
             pathname: rscPathname,
@@ -891,8 +926,8 @@ export async function handleBuildComplete({
           const nextDataPath = path.posix.join(
             '/_next/data/',
             buildId,
-            normalizePagePath(pathname) + '.json'
-          )
+            normalizePagePath(pathname as string as Page) + '.json'
+          ) as RoutePathname
           outputs.pages.push({
             ...output,
             pathname: nextDataPath,
@@ -913,13 +948,13 @@ export async function handleBuildComplete({
       }
       const pagesDistDir = path.join(distDir, 'server', 'pages')
       const pageOutputMap: Record<
-        string,
-        AdapterOutput['PAGES'] | AdapterOutput['PAGES_API']
+        RoutePathname,
+        InternalAdapterOutput['PAGES'] | InternalAdapterOutput['PAGES_API']
       > = {}
 
       const rscFallbackPath = path.join(distDir, 'server', 'rsc-fallback.json')
 
-      const emittedStaticFilePathnames = new Set<string>()
+      const emittedStaticFilePathnames = new Set<RoutePathname>()
 
       if (appPageKeys && appPageKeys.length > 0 && pageKeys.length > 0) {
         await fs.writeFile(rscFallbackPath, '{}')
@@ -934,7 +969,8 @@ export async function handleBuildComplete({
           continue
         }
 
-        const route = normalizePagePath(page)
+        // These keys belong exclusively to the Pages namespace.
+        const route = normalizePagePath(page as string as Page)
         const pageFile = path.join(pagesDistDir, `${route}.js`)
 
         // if it's an auto static optimized page it's just
@@ -943,7 +979,9 @@ export async function handleBuildComplete({
           if (config.i18n) {
             for (const locale of config.i18n.locales || []) {
               const localePage =
-                page === '/' ? `/${locale}` : addPathPrefix(page, `/${locale}`)
+                page === '/'
+                  ? (`/${locale}` as RoutePathname)
+                  : addPathPrefix(page, `/${locale}`)
 
               const localeOutput = {
                 id: localePage,
@@ -951,10 +989,10 @@ export async function handleBuildComplete({
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: path.join(
                   pagesDistDir,
-                  `${normalizePagePath(localePage)}.html`
+                  `${normalizePagePath(localePage as string as Page)}.html`
                 ),
                 immutableHash: undefined,
-              } satisfies AdapterOutput['STATIC_FILE']
+              } satisfies InternalAdapterOutput['STATIC_FILE']
 
               outputs.staticFiles.push(localeOutput)
               emittedStaticFilePathnames.add(localeOutput.pathname)
@@ -962,7 +1000,7 @@ export async function handleBuildComplete({
               if (appPageKeys && appPageKeys.length > 0) {
                 outputs.staticFiles.push({
                   id: `${localePage}.rsc`,
-                  pathname: `${localePage}.rsc`,
+                  pathname: `${localePage}.rsc` as RoutePathname,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
                   immutableHash: undefined,
@@ -970,13 +1008,14 @@ export async function handleBuildComplete({
               }
             }
           } else {
-            const staticOutput = {
+            const staticOutput: InternalAdapterOutput['STATIC_FILE'] = {
               id: page,
+              // @ts-ignore -- Human review: the Pages file counterpart is exposed as a URL pathname; root and /index encoding can differ. Preserve this adapter output assumption.
               pathname: route,
               type: AdapterOutputType.STATIC_FILE,
               filePath: pageFile.replace(/\.js$/, '.html'),
               immutableHash: undefined,
-            } satisfies AdapterOutput['STATIC_FILE']
+            }
 
             outputs.staticFiles.push(staticOutput)
             emittedStaticFilePathnames.add(staticOutput.pathname)
@@ -984,7 +1023,7 @@ export async function handleBuildComplete({
             if (appPageKeys && appPageKeys.length > 0) {
               outputs.staticFiles.push({
                 id: `${page}.rsc`,
-                pathname: `${route}.rsc`,
+                pathname: `${route}.rsc` as RoutePathname,
                 type: AdapterOutputType.STATIC_FILE,
                 filePath: rscFallbackPath,
                 immutableHash: undefined,
@@ -1013,12 +1052,15 @@ export async function handleBuildComplete({
 
         sourcePage = sourcePage === 'api' ? 'api/index' : sourcePage
 
-        const output: AdapterOutput['PAGES'] | AdapterOutput['PAGES_API'] = {
+        const output:
+          | InternalAdapterOutput['PAGES']
+          | InternalAdapterOutput['PAGES_API'] = {
           id: route,
           type: page.startsWith('/api')
             ? AdapterOutputType.PAGES_API
             : AdapterOutputType.PAGES,
           filePath: pageFile,
+          // @ts-ignore -- Human review: this Pages output uses the file-encoded Page as its URL, rather than the original pageKeys pathname. Preserve the /index naming assumption.
           pathname: route,
           sourcePage,
           assets,
@@ -1040,8 +1082,8 @@ export async function handleBuildComplete({
             const dataPathname = path.posix.join(
               '/_next/data',
               buildId,
-              normalizePagePath(page) + '.json'
-            )
+              normalizePagePath(page as string as Page) + '.json'
+            ) as RoutePathname
             outputs.pages.push({
               ...output,
               pathname: dataPathname,
@@ -1049,7 +1091,8 @@ export async function handleBuildComplete({
             })
 
             if (appPageKeys && appPageKeys.length > 0) {
-              const rscPage = `${page === '/' ? '/index' : page}.rsc`
+              const rscPage =
+                `${page === '/' ? '/index' : page}.rsc` as RoutePathname
               outputs.staticFiles.push({
                 id: rscPage,
                 pathname: rscPage,
@@ -1062,7 +1105,9 @@ export async function handleBuildComplete({
 
           for (const locale of config.i18n?.locales || []) {
             const localePage =
-              page === '/' ? `/${locale}` : addPathPrefix(page, `/${locale}`)
+              page === '/'
+                ? (`/${locale}` as RoutePathname)
+                : addPathPrefix(page, `/${locale}`)
 
             outputs.pages.push({
               ...output,
@@ -1075,7 +1120,7 @@ export async function handleBuildComplete({
                 '/_next/data',
                 buildId,
                 localePage + '.json'
-              )
+              ) as RoutePathname
               outputs.pages.push({
                 ...output,
                 pathname: dataPathname,
@@ -1084,7 +1129,7 @@ export async function handleBuildComplete({
               if (appPageKeys && appPageKeys.length > 0) {
                 outputs.staticFiles.push({
                   id: `${localePage}.rsc`,
-                  pathname: `${localePage}.rsc`,
+                  pathname: `${localePage}.rsc` as RoutePathname,
                   type: AdapterOutputType.STATIC_FILE,
                   filePath: rscFallbackPath,
                   immutableHash: undefined,
@@ -1107,7 +1152,7 @@ export async function handleBuildComplete({
           functionsConfigManifest.functions['/_middleware'] || {}
 
         outputs.middleware = {
-          pathname: '/_middleware',
+          pathname: '/_middleware' as RoutePathname,
           id: '/_middleware',
           sourcePage: 'middleware',
           assets,
@@ -1134,11 +1179,11 @@ export async function handleBuildComplete({
                 }
               }) || [],
           },
-        } satisfies AdapterOutput['MIDDLEWARE']
+        } satisfies InternalAdapterOutput['MIDDLEWARE']
       }
       const appOutputMap: Record<
-        string,
-        AdapterOutput['APP_PAGE'] | AdapterOutput['APP_ROUTE']
+        RoutePathname,
+        InternalAdapterOutput['APP_PAGE'] | InternalAdapterOutput['APP_ROUTE']
       > = {}
       const appDistDir = path.join(distDir, 'server', 'app')
 
@@ -1162,7 +1207,7 @@ export async function handleBuildComplete({
                 '/',
                 locale,
                 staticMetadataPrerenderPathname.slice(1)
-              )
+              ) as RoutePathname
               return prerenderManifest.routes[localePathname]
             })
 
@@ -1198,29 +1243,33 @@ export async function handleBuildComplete({
           const functionConfig =
             functionsConfigManifest.functions[normalizedPage] || {}
 
-          const output: AdapterOutput['APP_PAGE'] | AdapterOutput['APP_ROUTE'] =
-            {
-              pathname: normalizedPage,
-              id: normalizedPage,
-              sourcePage: page,
-              assets,
-              assetsHashes,
-              type: page.endsWith('/route')
-                ? AdapterOutputType.APP_ROUTE
-                : AdapterOutputType.APP_PAGE,
-              runtime: 'nodejs',
-              filePath: pageFile,
-              config: {
-                maxDuration: functionConfig.maxDuration,
-                preferredRegion: functionConfig.regions,
-              },
-            }
+          const output:
+            | InternalAdapterOutput['APP_PAGE']
+            | InternalAdapterOutput['APP_ROUTE'] = {
+            pathname: normalizedPage,
+            id: normalizedPage,
+            sourcePage: page,
+            assets,
+            assetsHashes,
+            type: page.endsWith('/route')
+              ? AdapterOutputType.APP_ROUTE
+              : AdapterOutputType.APP_PAGE,
+            runtime: 'nodejs',
+            filePath: pageFile,
+            config: {
+              maxDuration: functionConfig.maxDuration,
+              preferredRegion: functionConfig.regions,
+            },
+          }
           appOutputMap[normalizedPage] = output
 
           if (output.type === AdapterOutputType.APP_PAGE) {
             outputs.appPages.push({
               ...output,
-              pathname: normalizePagePath(output.pathname) + '.rsc',
+              // @ts-ignore -- Human review: an App URL is sent to the Page-only file codec to name its RSC URL. Preserve the transport encoding rather than claiming this is the raw App module.
+              pathname: (normalizePagePath(output.pathname) +
+                '.rsc') as RoutePathname,
+              // @ts-ignore -- Human review: the same App URL/file-codec assumption constructs the output ID. Preserve the existing ID.
               id: normalizePagePath(output.pathname) + '.rsc',
             })
             outputs.appPages.push(output)
@@ -1228,7 +1277,10 @@ export async function handleBuildComplete({
             outputs.appRoutes.push(output)
             outputs.appRoutes.push({
               ...output,
-              pathname: normalizePagePath(output.pathname) + '.rsc',
+              // @ts-ignore -- Human review: an App URL is sent to the Page-only file codec to name its RSC URL. Preserve the transport encoding rather than claiming this is the raw App module.
+              pathname: (normalizePagePath(output.pathname) +
+                '.rsc') as RoutePathname,
+              // @ts-ignore -- Human review: the same App URL/file-codec assumption constructs the output ID. Preserve the existing ID.
               id: normalizePagePath(output.pathname) + '.rsc',
             })
           }
@@ -1236,8 +1288,8 @@ export async function handleBuildComplete({
       }
 
       const getParentOutput = (
-        srcRoute: string,
-        childRoute: string,
+        srcRoute: RoutePathname,
+        childRoute: RoutePathname,
         allowMissing?: boolean
       ) => {
         const normalizedSrcRoute = normalizeLocalePath(
@@ -1259,12 +1311,14 @@ export async function handleBuildComplete({
         return parentOutput
       }
 
-      const sourcesWithOpenFallbacks = new Set<string>()
+      const sourcesWithOpenFallbacks = new Set<RoutePathname>()
       for (const [pathname, route] of Object.entries(
         prerenderManifest.dynamicRoutes
       )) {
         if (route.fallback !== false) {
-          sourcesWithOpenFallbacks.add(route.fallbackSourceRoute ?? pathname)
+          sourcesWithOpenFallbacks.add(
+            route.fallbackSourceRoute ?? (pathname as RoutePathname)
+          )
         }
       }
 
@@ -1276,18 +1330,18 @@ export async function handleBuildComplete({
         contentTypeHeader: rscContentTypeHeader,
       } = routesManifest.rsc
 
-      const appSourcePages = new Map<string, string>()
+      const appSourcePages = new Map<RoutePathname, Page>()
       const getPrerenderFilePath = (
-        route: string,
+        route: RoutePathname,
         isAppPage: boolean,
         extension: string
       ) => {
         if (config.output !== 'export') {
-          route = path.posix.join('/', route)
+          route = path.posix.join('/', route) as RoutePathname
           const pathname = isAppPage
             ? route
             : normalizeLocalePath(route, config.i18n?.locales).pathname
-          const prerender = prerenderManifest.routes[route]
+          const prerender = prerenderManifest.routes[route as RoutePathname]
           const dynamicPrerender = prerenderManifest.dynamicRoutes[pathname]
 
           // Auto-static Pages and generated error documents are not response
@@ -1295,7 +1349,7 @@ export async function handleBuildComplete({
           if (!isAppPage && !prerender && !dynamicPrerender) {
             return path.join(
               pagesDistDir,
-              `${normalizePagePath(route)}${extension}`
+              `${normalizePagePath(route as string as Page)}${extension}`
             )
           }
 
@@ -1303,13 +1357,14 @@ export async function handleBuildComplete({
             prerender?.srcRoute ??
             dynamicPrerender?.fallbackSourceRoute ??
             pathname
-          let page = source
+          // The cache owner is a Pages URL pattern or a selected raw App module.
+          let page: RoutePathname | Page = source
           let kind = RouteKind.PAGES
           if (isAppPage) {
             page =
               appSourcePages.get(source) ??
               selectAppPageEntry(source, appPageKeys ?? [])
-            appSourcePages.set(source, page)
+            appSourcePages.set(source, page as Page)
             kind = page.endsWith('/route')
               ? RouteKind.APP_ROUTE
               : RouteKind.APP_PAGE
@@ -1317,19 +1372,22 @@ export async function handleBuildComplete({
           return path.join(
             distDir,
             'server',
-            `${getRouteCacheKey(route, { kind, sourceRoute: page })}${extension}`
+            // The existing App branch selects a raw Page and changes kind;
+            // otherwise the owner remains the Pages URL pattern.
+            `${getRouteCacheKey(route, { kind, sourceRoute: page } as ResponseCacheOwner)}${extension}`
           )
         }
 
         return path.join(
           isAppPage ? appDistDir : pagesDistDir,
+          // @ts-ignore -- Human review: export artifact lookup also encodes App URLs with the Page file codec. Preserve this naming assumption; the App URL is not its raw module Page.
           `${normalizePagePath(route)}${extension}`
         )
       }
 
       const handleAppMeta = async (
-        route: string,
-        initialOutput: AdapterOutput['PRERENDER'],
+        route: RoutePathname,
+        initialOutput: InternalAdapterOutput['PRERENDER'],
         meta: AppRouteMeta,
         ctx: {
           htmlAllowQuery?: string[]
@@ -1341,6 +1399,7 @@ export async function handleBuildComplete({
         }
 
         if (meta?.segmentPaths) {
+          // @ts-ignore -- Human review: the App prerender URL uses Page-file encoding for segment artifact names. Preserve the naming behavior without treating it as the raw App module.
           const normalizedRoute = normalizePagePath(route)
           const segmentsDir = getPrerenderFilePath(
             route,
@@ -1384,6 +1443,7 @@ export async function handleBuildComplete({
 
             outputs.prerenders.push({
               id: outputSegmentPath,
+              // @ts-ignore -- Human review: native path.join builds this segment URL like a filesystem path and can retain Windows separators. Preserve the adapter artifact naming rather than claiming a normalized URL.
               pathname: outputSegmentPath,
               type: AdapterOutputType.PRERENDER,
               parentOutputId: initialOutput.parentOutputId,
@@ -1411,7 +1471,7 @@ export async function handleBuildComplete({
                   [didPostponeHeader]: '2',
                 },
               },
-            } satisfies AdapterOutput['PRERENDER'])
+            })
           }
         }
       }
@@ -1426,7 +1486,7 @@ export async function handleBuildComplete({
       }
 
       const getAppRouteMeta = async (
-        route: string,
+        route: RoutePathname,
         isAppPage: boolean
       ): Promise<AppRouteMeta> => {
         const meta: AppRouteMeta = isAppPage
@@ -1488,15 +1548,19 @@ export async function handleBuildComplete({
           htmlSize,
           allowHeader,
           experimentalBypassFor,
-        } = prerenderManifest.routes[route]
+        } = prerenderManifest.routes[route as RoutePathname]
 
-        const srcRoute = prerenderManifest.routes[route].srcRoute || route
+        const srcRoute =
+          prerenderManifest.routes[route as RoutePathname].srcRoute ||
+          (route as RoutePathname)
         const srcRouteInfo = prerenderManifest.dynamicRoutes[srcRoute]
 
         const isAppPage =
           Boolean(appOutputMap[srcRoute]) || srcRoute === '/_not-found'
 
-        const isNotFoundTrue = prerenderManifest.notFoundRoutes.includes(route)
+        const isNotFoundTrue = prerenderManifest.notFoundRoutes.includes(
+          route as RoutePathname
+        )
 
         let allowQuery: string[] | undefined
         const routeKeys = routesManifest.dynamicRoutes.find(
@@ -1517,7 +1581,7 @@ export async function handleBuildComplete({
         }
 
         let filePath = getPrerenderFilePath(
-          route,
+          route as RoutePathname,
           isAppPage,
           isAppPage && !dataRoute ? '.body' : '.html'
         )
@@ -1527,14 +1591,14 @@ export async function handleBuildComplete({
         if (isStaticMetadataFile(route)) {
           // For static metadata from app router, check if the .body file exists
           const staticMetadataFilePath = getPrerenderFilePath(
-            route,
+            route as RoutePathname,
             true,
             '.body'
           )
           if (await cachedFilePathCheck(staticMetadataFilePath)) {
             outputs.staticFiles.push({
               id: route,
-              pathname: route,
+              pathname: route as RoutePathname,
               type: AdapterOutputType.STATIC_FILE,
               filePath: staticMetadataFilePath,
               immutableHash: undefined,
@@ -1552,11 +1616,11 @@ export async function handleBuildComplete({
 
           for (const currentFilePath of [
             getPrerenderFilePath(
-              path.posix.join('/', locale || '', '404'),
+              path.posix.join('/', locale || '', '404') as RoutePathname,
               false,
               '.html'
             ),
-            getPrerenderFilePath('/404', false, '.html'),
+            getPrerenderFilePath('/404' as RoutePathname, false, '.html'),
           ]) {
             if (await cachedFilePathCheck(currentFilePath)) {
               filePath = currentFilePath
@@ -1565,7 +1629,7 @@ export async function handleBuildComplete({
           }
         }
 
-        const meta = await getAppRouteMeta(route, isAppPage)
+        const meta = await getAppRouteMeta(route as RoutePathname, isAppPage)
 
         // If we already have a complete 404.html, favor that instead of the
         // _not-found prerender. A route with postponed state only produced a
@@ -1611,21 +1675,21 @@ export async function handleBuildComplete({
         }
 
         const classification = getPrerenderClassification(
-          route,
+          route as RoutePathname,
           routeType,
           response,
           compute,
           htmlSize
         )
 
-        const initialOutput: AdapterOutput['PRERENDER'] = {
+        const initialOutput: InternalAdapterOutput['PRERENDER'] = {
           id: route,
           type: AdapterOutputType.PRERENDER,
-          pathname: route,
+          pathname: route as RoutePathname,
           parentOutputId:
             srcRoute === '/_not-found'
               ? srcRoute
-              : getParentOutput(srcRoute, route).id,
+              : getParentOutput(srcRoute, route as RoutePathname).id,
           groupId: prerenderGroupId,
 
           route: srcRoute,
@@ -1688,7 +1752,8 @@ export async function handleBuildComplete({
         outputs.prerenders.push({ ...initialOutput, ...classification })
 
         if (!isAppPage && appPageKeys && appPageKeys.length > 0) {
-          const rscPage = `${route === '/' ? '/index' : route}.rsc`
+          const rscPage =
+            `${route === '/' ? '/index' : route}.rsc` as RoutePathname
           outputs.staticFiles.push({
             id: rscPage,
             pathname: rscPage,
@@ -1700,7 +1765,7 @@ export async function handleBuildComplete({
 
         if (dataRoute) {
           const dataFilePath = getPrerenderFilePath(
-            route,
+            route as RoutePathname,
             isAppPage,
             isAppPage ? '.rsc' : '.json'
           )
@@ -1753,7 +1818,7 @@ export async function handleBuildComplete({
         }
 
         if (isAppPage) {
-          await handleAppMeta(route, initialOutput, meta, {
+          await handleAppMeta(route as RoutePathname, initialOutput, meta, {
             htmlAllowQuery,
             dataAllowQuery,
           })
@@ -1783,13 +1848,19 @@ export async function handleBuildComplete({
           compute,
           htmlSize,
           experimentalBypassFor,
-        } = prerenderManifest.dynamicRoutes[dynamicRoute]
+        } = prerenderManifest.dynamicRoutes[dynamicRoute as RoutePathname]
 
-        const srcRoute = fallbackSourceRoute || dynamicRoute
-        const parentOutput = getParentOutput(srcRoute, dynamicRoute)
+        const srcRoute = fallbackSourceRoute || (dynamicRoute as RoutePathname)
+        const parentOutput = getParentOutput(
+          srcRoute,
+          dynamicRoute as RoutePathname
+        )
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
-        const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
+        const meta = await getAppRouteMeta(
+          dynamicRoute as RoutePathname,
+          isAppPage
+        )
         const routeKeys =
           routesManifest.dynamicRoutes.find(
             (item) => item.page === dynamicRoute
@@ -1885,6 +1956,7 @@ export async function handleBuildComplete({
         const fallbackHtmlPath =
           fallbackHtmlFile !== undefined
             ? getPrerenderFilePath(
+                // @ts-ignore -- Human review: Pages fallback values encode HTML filenames (including /index escaping), unlike App fallback URLs. Preserve their use as URL cache/artifact lookup input without claiming the file counterpart is a Route.
                 fallbackHtmlFile.replace(/\.html$/, ''),
                 isAppPage,
                 '.html'
@@ -1892,17 +1964,17 @@ export async function handleBuildComplete({
             : undefined
 
         const classification = getPrerenderClassification(
-          dynamicRoute,
+          dynamicRoute as RoutePathname,
           routeType,
           response,
           compute,
           htmlSize
         )
 
-        const initialOutput: AdapterOutput['PRERENDER'] = {
+        const initialOutput: InternalAdapterOutput['PRERENDER'] = {
           id: dynamicRoute,
           type: AdapterOutputType.PRERENDER,
-          pathname: dynamicRoute,
+          pathname: dynamicRoute as RoutePathname,
           parentOutputId: parentOutput.id,
           groupId: prerenderGroupId,
 
@@ -1956,7 +2028,8 @@ export async function handleBuildComplete({
             appPageKeys &&
             appPageKeys.length > 0
           ) {
-            const rscPage = `${srcRoute === '/' ? '/index' : srcRoute}.rsc`
+            const rscPage =
+              `${srcRoute === '/' ? '/index' : srcRoute}.rsc` as RoutePathname
             outputs.staticFiles.push({
               id: rscPage,
               pathname: rscPage,
@@ -1998,17 +2071,22 @@ export async function handleBuildComplete({
           }
 
           if (isAppPage) {
-            await handleAppMeta(dynamicRoute, initialOutput, meta, {
-              htmlAllowQuery,
-              dataAllowQuery,
-            })
+            await handleAppMeta(
+              dynamicRoute as RoutePathname,
+              initialOutput,
+              meta,
+              {
+                htmlAllowQuery,
+                dataAllowQuery,
+              }
+            )
           }
 
           if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
             outputs.prerenders.push({
               ...initialOutput,
               id: `${dynamicRoute}.rsc`,
-              pathname: `${dynamicRoute}.rsc`,
+              pathname: `${dynamicRoute}.rsc` as RoutePathname,
               fallback: {
                 ...initialOutput.fallback,
                 filePath: undefined,
@@ -2044,9 +2122,12 @@ export async function handleBuildComplete({
           prerenderGroupId += 1
         } else {
           for (const locale of config.i18n.locales) {
-            const currentOutput: AdapterOutput['PRERENDER'] = {
+            const currentOutput: InternalAdapterOutput['PRERENDER'] = {
               ...initialOutput,
-              pathname: path.posix.join(`/${locale}`, initialOutput.pathname),
+              pathname: path.posix.join(
+                `/${locale}`,
+                initialOutput.pathname
+              ) as RoutePathname,
               id: path.posix.join(`/${locale}`, initialOutput.id),
               fallback:
                 fallbackHtmlFile !== undefined
@@ -2055,6 +2136,7 @@ export async function handleBuildComplete({
                       initialStatus: undefined,
                       postponedState: undefined,
                       filePath: getPrerenderFilePath(
+                        // @ts-ignore -- Human review: this localized fallback filename is also used as the URL cache/artifact lookup key. Preserve the file/URL identity assumption and its existing encoding.
                         path.posix.join(
                           '/',
                           locale,
@@ -2075,7 +2157,8 @@ export async function handleBuildComplete({
               appPageKeys &&
               appPageKeys.length > 0
             ) {
-              const rscPage = `${path.posix.join(`/${locale}`, initialOutput.pathname)}.rsc`
+              const rscPage =
+                `${path.posix.join(`/${locale}`, initialOutput.pathname)}.rsc` as RoutePathname
               outputs.staticFiles.push({
                 id: rscPage,
                 pathname: rscPage,
@@ -2091,7 +2174,7 @@ export async function handleBuildComplete({
                 buildId,
                 locale,
                 dynamicRoute + '.json'
-              )
+              ) as RoutePathname
               outputs.prerenders.push({
                 ...initialOutput,
                 id: dataPathname,
@@ -2121,14 +2204,17 @@ export async function handleBuildComplete({
           '/',
           config.i18n?.defaultLocale || '',
           errorDoc
-        )
+        ) as RoutePathname
 
         if (!prerenderManifest.routes[errorDocPath]) {
           for (const currentDocPath of [
             errorDocPath,
             ...(config.i18n?.locales
               ?.filter((locale) => locale !== config.i18n?.defaultLocale)
-              .map((locale) => path.posix.join('/', locale, errorDoc)) || []),
+              .map(
+                (locale) =>
+                  path.posix.join('/', locale, errorDoc) as RoutePathname
+              ) || []),
           ]) {
             // skip if this static file was already emitted for an
             // auto-static-optimized page above to avoid duplicate entries
@@ -2384,10 +2470,14 @@ export async function handleBuildComplete({
         const isFallbackFalse =
           prerenderManifest.dynamicRoutes[page]?.fallback === false
 
-        const routeRegex = getNamedRouteRegex(page + '.json', {
-          prefixRouteKeys: true,
-          includeSuffix: true,
-        })
+        // Adding the data suffix preserves this URL pattern's namespace.
+        const routeRegex = getNamedRouteRegex(
+          (page + '.json') as RoutePathname,
+          {
+            prefixRouteKeys: true,
+            includeSuffix: true,
+          }
+        )
         const isDataRoute = dataRoutePages.has(page)
 
         const destination = path.posix.join(
@@ -2526,8 +2616,9 @@ export async function handleBuildComplete({
           rsc: generateRoutesManifest({
             appType,
             pageKeys: {
-              pages: pageKeys as string[],
-              app: appPageKeys as string[],
+              pages: pageKeys as RoutePathname[],
+              // @ts-ignore -- Human review: this helper expects App URL patterns, but the adapter passes emitted raw App module keys while extracting only RSC metadata. Preserve the existing call and its unused route-table construction.
+              app: appPageKeys as Page[],
             },
             config,
             redirects: [],

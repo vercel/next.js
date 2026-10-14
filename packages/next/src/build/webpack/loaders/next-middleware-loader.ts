@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../shared/lib/route-types'
 import type {
   ProxyConfig,
   ProxyMatcher,
@@ -11,7 +12,7 @@ import { loadEntrypoint } from '../../load-entrypoint'
 
 export type MiddlewareLoaderOptions = {
   absolutePagePath: string
-  page: string
+  page: Page
   rootDir: string
   matchers?: string
   preferredRegion: string | string[] | undefined
@@ -53,13 +54,10 @@ export default async function middlewareLoader(this: any) {
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.nextEdgeMiddleware = {
     matchers,
-    page:
-      page.replace(
-        new RegExp(
-          `/(${MIDDLEWARE_LOCATION_REGEXP}|${PROXY_LOCATION_REGEXP})$`
-        ),
-        ''
-      ) || '/',
+    page: (page.replace(
+      new RegExp(`/(${MIDDLEWARE_LOCATION_REGEXP}|${PROXY_LOCATION_REGEXP})$`),
+      ''
+    ) || '/') as Route,
   }
   buildInfo.rootDir = rootDir
   buildInfo.route = {

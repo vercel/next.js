@@ -1,3 +1,4 @@
+import type { Page, Route } from '../shared/lib/route-types'
 import type {
   NextConfigComplete,
   NextConfigRuntime,
@@ -85,6 +86,8 @@ import type {
 import type {
   FunctionsConfigManifest,
   ManifestRoute,
+  DynamicPrerenderManifestRoute,
+  PrerenderManifestRoute,
   PrerenderManifest,
 } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -99,20 +102,21 @@ import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
  * dynamic routes, this normalizes the path to use "-" placeholder.
  * e.g., /dynamic/[id]/icon.png -> /dynamic/-/icon.png
  */
-function getTreeViewDisplayPath(pagePath: string): string {
+function getTreeViewDisplayPath(pagePath: Route): string {
   const prerenderPathname = getStaticMetadataPrerenderPathname(
-    pagePath.startsWith('/') ? pagePath : `/${pagePath}`
+    (pagePath.startsWith('/') ? pagePath : `/${pagePath}`) as Route
   )
   return prerenderPathname ?? pagePath
 }
 
-function buildStaticMetadataStaticPaths(page: string): {
+function buildStaticMetadataStaticPaths(page: Route): {
   fallbackMode: FallbackMode | undefined
   prerenderedRoutes: PrerenderedRoute[]
 } {
+  // @ts-ignore -- Human review: this is already a Route from static collection; raw Page normalization may strip a real URL leaf. Preserve the existing second normalization.
   let pathname = normalizeAppPath(page)
   if (pathname.endsWith('/route')) {
-    pathname = pathname.slice(0, -'/route'.length)
+    pathname = pathname.slice(0, -'/route'.length) as Route
   }
 
   const prerenderPathname = getStaticMetadataPrerenderPathname(pathname)
@@ -146,7 +150,7 @@ export type DynamicManifestRoute = ManifestRoute & {
    * source page for the route and is only relevant for app pages where PPR is
    * enabled and the page differs from the source page.
    */
-  sourcePage: string | undefined
+  sourcePage: Route | undefined
 }
 
 // Use `print()` for expected console output
@@ -183,12 +187,12 @@ export function isInstrumentationHookFilename(file?: string | null) {
   )
 }
 
-export const filterAndSortList = (
-  list: ReadonlyArray<string>,
+export const filterAndSortList = <Path extends string>(
+  list: ReadonlyArray<Path>,
   routeType: ROUTER_TYPE,
   hasCustomApp: boolean
 ) => {
-  let pages: string[]
+  let pages: Path[]
   if (routeType === 'app') {
     // filter out static app route of /favicon.ico and /_global-error
     pages = list.filter((e) => {
@@ -214,7 +218,7 @@ export const filterAndSortList = (
 }
 
 export interface PageInfo {
-  originalAppPath: string | undefined
+  originalAppPath: Page | undefined
   isStatic: boolean
   isSSG: boolean
   /**
@@ -222,7 +226,7 @@ export interface PageInfo {
    */
   isRoutePPREnabled: boolean
   isEnsureStaticPage: boolean
-  ssgPageRoutes: string[] | null
+  ssgPageRoutes: Route[] | null
   initialCacheControl: CacheControl | undefined
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
@@ -232,8 +236,9 @@ export interface PageInfo {
   isDynamicAppRoute?: boolean
 }
 
-export type PageInfos = Map<string, PageInfo>
+export type PageInfos = Map<Route, PageInfo>
 
+// Build-output rows can also contain textual summary labels, not just Routes.
 function getTreeViewSymbol(
   item: string,
   pageInfo: PageInfo | undefined
@@ -276,9 +281,7 @@ function getTreeViewSymbol(
   return 'ƒ'
 }
 
-export interface RoutesUsingEdgeRuntime {
-  [route: string]: 0
-}
+export type RoutesUsingEdgeRuntime = Record<Route, 0>
 
 export function collectRoutesUsingEdgeRuntime(
   input: PageInfos
@@ -295,10 +298,10 @@ export function collectRoutesUsingEdgeRuntime(
 
 export async function printTreeView(
   lists: {
-    pages: ReadonlyArray<string>
-    app: ReadonlyArray<string> | undefined
+    pages: ReadonlyArray<Route>
+    app: ReadonlyArray<Route> | undefined
   },
-  pageInfos: Map<string, PageInfo>,
+  pageInfos: PageInfos,
   {
     pagesDir,
     pageExtensions,
@@ -333,7 +336,8 @@ export async function printTreeView(
 
   // Check if we have a custom app.
   const hasCustomApp = !!(
-    pagesDir && (await findPageFile(pagesDir, '/_app', pageExtensions, false))
+    pagesDir &&
+    (await findPageFile(pagesDir, '/_app' as Page, pageExtensions, false))
   )
 
   // Collect all the symbols we use so we can print the icons out.
@@ -345,7 +349,7 @@ export async function printTreeView(
     list,
     routerType,
   }: {
-    list: ReadonlyArray<string>
+    list: ReadonlyArray<Route>
     routerType: ROUTER_TYPE
   }) => {
     const filteredPages = filterAndSortList(list, routerType, hasCustomApp)
@@ -535,8 +539,10 @@ export async function printTreeView(
               : 0
           const routeSymbol =
             (isSummary ? summarySymbol : undefined) ??
+            // @ts-ignore -- Human review: a summary display label intentionally probes the Route-keyed map, relying on a miss and parent pageInfo fallback. Do not brand this non-URL text.
             getTreeViewSymbol(route, pageInfos.get(route) ?? pageInfo)
           const innerSymbol = index === displayedRoutes - 1 ? '└' : '├'
+          // @ts-ignore -- Human review: summary display text is not a Route; this lookup deliberately yields no per-route cache metadata. Preserve the display behavior.
           const initialCacheControl = pageInfos.get(route)?.initialCacheControl
 
           usedSymbols.add(routeSymbol)
@@ -570,17 +576,17 @@ export async function printTreeView(
     messages.push(['', '', '', ''])
   }
 
-  pageInfos.set('/404', {
-    ...(pageInfos.get('/404') || pageInfos.get('/_error'))!,
+  pageInfos.set('/404' as Route, {
+    ...(pageInfos.get('/404' as Route) || pageInfos.get('/_error' as Route))!,
     isStatic: useStaticPages404,
   })
 
   // If there's no app /_notFound page present, then the 404 is still using the pages/404
   if (
-    !lists.pages.includes('/404') &&
-    !lists.app?.includes(UNDERSCORE_NOT_FOUND_ROUTE)
+    !lists.pages.includes('/404' as Route) &&
+    !lists.app?.includes(UNDERSCORE_NOT_FOUND_ROUTE as Route)
   ) {
-    lists.pages = [...lists.pages, '/404']
+    lists.pages = [...lists.pages, '/404' as Route]
   }
 
   // Print the tree view for the pages directory.
@@ -590,7 +596,7 @@ export async function printTreeView(
   })
 
   if (
-    middlewareManifest.middleware?.['/']?.files.length > 0 ||
+    middlewareManifest.middleware?.['/' as Route]?.files.length > 0 ||
     // 'nodejs' runtime middleware or proxy is set to
     // functions-config-manifest instead of middleware-manifest.
     functionsConfigManifest.functions?.['/_middleware']
@@ -642,10 +648,10 @@ export async function printTreeView(
 
 type PrerenderMatcherDigestEntry = {
   behavior: 'not-found' | 'blocking' | 'fallback' | 'prerender'
-  pathname: string
+  pathname: Route
 }
 
-function countDynamicSegments(pathname: string): number {
+function countDynamicSegments(pathname: Route): number {
   return pathname.match(/\[[^/]+\]/g)?.length ?? 0
 }
 
@@ -654,7 +660,7 @@ export function printPrerenderMatchers(
   prerenderManifest: Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>,
   emittedDynamicRoutes: ReadonlyArray<DynamicManifestRoute>
 ): void {
-  const sourceRoutes = new Set<string>()
+  const sourceRoutes = new Set<Route>()
   for (const route of Object.values(prerenderManifest.dynamicRoutes)) {
     if (route.fallbackSourceRoute) {
       sourceRoutes.add(route.fallbackSourceRoute)
@@ -673,7 +679,12 @@ export function printPrerenderMatchers(
   print()
 
   for (const sourceRoute of [...sourceRoutes].sort()) {
-    const matchers = Object.entries(prerenderManifest.dynamicRoutes)
+    const matchers = (
+      Object.entries(prerenderManifest.dynamicRoutes) as [
+        Route,
+        DynamicPrerenderManifestRoute,
+      ][]
+    )
       .filter(
         ([pathname, route]) =>
           pathname === sourceRoute || route.fallbackSourceRoute === sourceRoute
@@ -693,7 +704,12 @@ export function printPrerenderMatchers(
           a.pathname.localeCompare(b.pathname)
       )
 
-    const prerenders = Object.entries(prerenderManifest.routes)
+    const prerenders = (
+      Object.entries(prerenderManifest.routes) as [
+        Route,
+        PrerenderManifestRoute,
+      ][]
+    )
       .filter(([, route]) => route.srcRoute === sourceRoute)
       .map<PrerenderMatcherDigestEntry>(([pathname]) => ({
         behavior: 'prerender',
@@ -852,7 +868,7 @@ export async function isPageStatic({
   sriEnabled,
 }: {
   dir: string
-  page: string
+  page: Route
   distDir: string
   cacheComponents: boolean
   partialPrefetching: boolean
@@ -868,7 +884,7 @@ export async function isPageStatic({
   edgeInfo?: any
   pageType?: 'pages' | 'app'
   pageRuntime?: ServerRuntime
-  originalAppPath?: string
+  originalAppPath?: Page
   isrFlushToDisk?: boolean
   cacheMaxMemorySize: number
   cacheHandler?: string
@@ -949,6 +965,7 @@ export async function isPageStatic({
           Document: mod.Document,
           App: mod.App,
           routeModule: mod.routeModule,
+          // @ts-ignore -- Human review: the edge component record stores the normalized Route in a Page loader-result field, unlike the non-edge raw module lookup. Preserve existing metadata.
           page,
           ComponentMod: mod,
           pageConfig: mod.config || {},
@@ -961,6 +978,7 @@ export async function isPageStatic({
       } else {
         componentsResult = await loadComponents({
           distDir,
+          // @ts-ignore -- Human review: an absent raw App Page falls back to a normalized Route in the module loader. Pages namespaces can coincide, but App routes lose groups/leaf suffixes. Preserve the existing lookup.
           page: originalAppPath || page,
           isAppPath: pageType === 'app',
           isDev: false,
@@ -1031,9 +1049,10 @@ export async function isPageStatic({
         // build the static paths. The edge runtime doesn't support static
         // paths.
         if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
+          // @ts-ignore -- Human review: page is already a Route from appPathRoutes; raw Page normalization is applied again. Preserve the existing static metadata lookup assumption.
           let pathname = normalizeAppPath(page)
           if (pathname.endsWith('/route')) {
-            pathname = pathname.slice(0, -'/route'.length)
+            pathname = pathname.slice(0, -'/route'.length) as Route
           }
 
           if (
@@ -1254,7 +1273,7 @@ export async function hasCustomGetInitialProps({
   checkingApp,
   sriEnabled,
 }: {
-  page: string
+  page: Page
   distDir: string
   checkingApp: boolean
   sriEnabled: boolean
@@ -1286,7 +1305,7 @@ export async function getDefinedNamedExports({
   distDir,
   sriEnabled,
 }: {
-  page: string
+  page: Page
   distDir: string
   sriEnabled: boolean
 }): Promise<ReadonlyArray<string>> {
@@ -1305,22 +1324,20 @@ export async function getDefinedNamedExports({
 }
 
 export function detectConflictingPaths(
-  combinedPages: string[],
-  ssgPages: Set<string>,
-  additionalGeneratedSSGPaths: Map<string, string[]>
+  combinedPages: Route[],
+  ssgPages: Set<Route>,
+  additionalGeneratedSSGPaths: Map<Route, Route[]>
 ) {
   const conflictingPaths = new Map<
     string,
     Array<{
-      path: string
-      page: string
+      path: Route
+      page: Route
     }>
   >()
 
   const dynamicSsgPages = [...ssgPages].filter((page) => isDynamicRoute(page))
-  const additionalSsgPathsByPath: {
-    [page: string]: { [path: string]: string }
-  } = {}
+  const additionalSsgPathsByPath: Record<Route, Record<string, Route>> = {}
 
   additionalGeneratedSSGPaths.forEach((paths, pathsPage) => {
     additionalSsgPathsByPath[pathsPage] ||= {}
@@ -1343,7 +1360,7 @@ export function detectConflictingPaths(
           { path: conflictingPage, page: conflictingPage },
         ])
       } else {
-        let conflictingPath: string | undefined
+        let conflictingPath: Route | undefined
 
         conflictingPage = dynamicSsgPages.find((page) => {
           if (page === pathsPage) return false
@@ -1395,14 +1412,14 @@ export function detectConflictingPaths(
 export async function copyTracedFiles(
   dir: string,
   distDir: string,
-  pageKeys: readonly string[],
-  appPageKeys: readonly string[] | undefined,
+  pageKeys: readonly Page[],
+  appPageKeys: readonly Page[] | undefined,
   tracingRoot: string,
   serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
   hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
-  staticPages: Set<string>
+  staticPages: Set<Route>
 ) {
   const outputPath = path.join(distDir, 'standalone')
 
@@ -1541,7 +1558,9 @@ export async function copyTracedFiles(
     )
   }
 
-  async function handleEdgeFunction(page: EdgeFunctionDefinition) {
+  async function handleEdgeFunction(
+    page: Pick<EdgeFunctionDefinition, 'files' | 'wasm' | 'assets'>
+  ) {
     async function handleFile(file: string) {
       const originalPath = path.join(distDir, file)
       const fileOutputPath = path.join(
@@ -1579,6 +1598,7 @@ export async function copyTracedFiles(
     }
     const route = normalizePagePath(page)
 
+    // @ts-ignore -- Human review: file-encoded Page is tested against URL-keyed staticPages; /index encoding may differ. Preserve standalone trace selection.
     if (staticPages.has(route)) {
       continue
     }
@@ -1873,28 +1893,28 @@ export const RSPACK_DEFAULT_LAYERS_REGEX = new RegExp(
 )
 
 /**
- * Converts a page to a manifest route.
+ * Wraps a normalized pathname in a manifest route.
  *
- * @param page The page to convert to a route.
+ * @param page The normalized URL pattern (not a raw app Page).
  * @returns A route object.
  */
-export function pageToRoute(page: string): ManifestRoute
+export function pageToRoute(page: Route): ManifestRoute
 /**
- * Converts a page to a dynamic manifest route.
+ * Wraps a normalized pathname in a dynamic manifest route.
  *
- * @param page The page to convert to a route.
+ * @param page The normalized URL pattern (not a raw app Page).
  * @param sourcePage The source page that this route is based on. This is used
  * to determine the source page for the route and is only relevant for app
  * pages when PPR is enabled on them.
  * @returns A route object.
  */
 export function pageToRoute(
-  page: string,
-  sourcePage: string | undefined
+  page: Route,
+  sourcePage: Route | undefined
 ): DynamicManifestRoute
 export function pageToRoute(
-  page: string,
-  sourcePage?: string
+  page: Route,
+  sourcePage?: Route
 ): DynamicManifestRoute | ManifestRoute {
   const routeRegex = getNamedRouteRegex(page, {
     prefixRouteKeys: true,

@@ -1,3 +1,4 @@
+import type { Route } from '../route-types'
 import type { AppRouterInstance } from '../app-router-context.shared-runtime'
 import type { Params } from '../../../server/request/params'
 import type { NextRouter } from './router'
@@ -61,7 +62,9 @@ export function adaptForPathParams(
     return null
   }
   const pathParams: Params = {}
-  const routeRegex = getRouteRegex(router.pathname)
+  // The public NextRouter getter is string-compatible; its private state
+  // supplies the normalized pathname pattern at this adapter boundary.
+  const routeRegex = getRouteRegex(router.pathname as Route)
   const keys = Object.keys(routeRegex.groups)
   for (const key of keys) {
     pathParams[key] = router.query[key]!

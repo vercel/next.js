@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
@@ -48,9 +49,9 @@ import {
 export async function exportAppPage(
   req: MockedRequest,
   res: MockedResponse,
-  page: string,
-  path: string,
-  pathname: string,
+  page: Page,
+  path: Route,
+  pathname: Route,
   query: NextParsedUrlQuery,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
@@ -76,12 +77,12 @@ export async function exportAppPage(
   // If the page is `/_not-found`, then we should update the page to be `/404`.
   if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
     isDefaultNotFound = true
-    pathname = '/404'
+    pathname = '/404' as Route
   }
   // If the page is `/_global-error`, then we should update the page to be `/500`.
   if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY) {
     isDefaultGlobalError = true
-    pathname = '/500'
+    pathname = '/500' as Route
   }
 
   try {
@@ -317,7 +318,7 @@ function logDynamicUsageWarning({
   description,
   stack,
 }: {
-  path: string
+  path: Route
   description: string
   stack?: string
 }) {

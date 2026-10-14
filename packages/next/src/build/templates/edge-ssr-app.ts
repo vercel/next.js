@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import '../../server/web/globals'
 import {
   adapter,
@@ -54,7 +55,7 @@ const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
 
 if (rscManifest && rscServerManifest) {
   setManifestsSingleton({
-    page: 'VAR_PAGE',
+    page: 'VAR_PAGE' as Page,
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
   })
@@ -66,7 +67,7 @@ async function requestHandler(
   req: NextRequestHint,
   event: NextFetchEvent
 ): Promise<Response> {
-  let srcPage = 'VAR_PAGE'
+  let srcPage = 'VAR_PAGE' as Page
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
   const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
@@ -440,7 +441,7 @@ const internalHandler: EdgeHandler = (opts) => {
     IncrementalCache,
     handler: requestHandler,
     incrementalCacheHandler,
-    page: 'VAR_PAGE',
+    page: 'VAR_PAGE' as Page,
   })
 }
 
@@ -471,7 +472,7 @@ export async function handler(
         },
       },
       page: {
-        name: 'VAR_PAGE',
+        name: 'VAR_PAGE' as Page,
       },
       body:
         request.method !== 'GET' && request.method !== 'HEAD'

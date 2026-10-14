@@ -1,3 +1,4 @@
+import type { Page } from '../../../../shared/lib/route-types'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 
@@ -15,7 +16,7 @@ import type { MappedPages } from '../../../build-context'
 
 type RouteLoaderOptionsPagesAPIInput = {
   kind: RouteKind.PAGES_API
-  page: string
+  page: Page
   preferredRegion: string | string[] | undefined
   absolutePagePath: string
   middlewareConfig: ProxyConfig
@@ -23,7 +24,7 @@ type RouteLoaderOptionsPagesAPIInput = {
 
 type RouteLoaderOptionsPagesInput = {
   kind: RouteKind.PAGES
-  page: string
+  page: Page
   pages: MappedPages
   preferredRegion: string | string[] | undefined
   absolutePagePath: string
@@ -40,7 +41,7 @@ type RouteLoaderPagesAPIOptions = {
   /**
    * The page name for this particular route.
    */
-  page: string
+  page: Page
 
   /**
    * The preferred region for this route.
@@ -64,7 +65,7 @@ type RouteLoaderPagesOptions = {
   /**
    * The page name for this particular route.
    */
-  page: string
+  page: Page
 
   /**
    * The preferred region for this route.
@@ -113,8 +114,8 @@ export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
         absolutePagePath: options.absolutePagePath,
         // These are the path references to the internal components that may be
         // overridden by userland components.
-        absoluteAppPath: options.pages['/_app'],
-        absoluteDocumentPath: options.pages['/_document'],
+        absoluteAppPath: options.pages['/_app' as Page],
+        absoluteDocumentPath: options.pages['/_document' as Page],
         middlewareConfigBase64: encodeToBase64(options.middlewareConfig),
       }
 

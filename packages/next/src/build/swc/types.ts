@@ -1,3 +1,4 @@
+import type { Page, Route as RoutePathname } from '../../shared/lib/route-types'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import type {
@@ -202,7 +203,7 @@ export interface Instrumentation {
 }
 
 export interface RawEntrypoints {
-  routes: Map<string, Route>
+  routes: Map<RoutePathname, Route>
   middleware?: Middleware
   instrumentation?: Instrumentation
   pagesDocumentEndpoint: Endpoint
@@ -405,14 +406,14 @@ export type Route =
   | {
       type: 'app-page'
       pages: {
-        originalName: string
+        originalName: Page
         htmlEndpoint: Endpoint
         rscHmrEndpoint: Endpoint
       }[]
     }
   | {
       type: 'app-route'
-      originalName: string
+      originalName: Page
       hasActionManifest: boolean
       endpoint: Endpoint
     }
@@ -564,11 +565,11 @@ export type AppRoute =
       endpoint: Endpoint
     }
 
-// pathname -> route
-export type PageEntrypoints = Map<string, PageRoute>
+// Pages-router page identifiers use the same spelling as their URL pathname.
+export type PageEntrypoints = Map<Page, PageRoute>
 
 // originalName / page -> route
-export type AppEntrypoints = Map<string, AppRoute>
+export type AppEntrypoints = Map<Page, AppRoute>
 
 export type Entrypoints = {
   global: GlobalEntrypoints

@@ -1,3 +1,4 @@
+import type { Page } from '../shared/lib/route-types'
 import type { LoadedEnvFiles } from '@next/env'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { __ApiPreviewProps } from '../server/api-utils'
@@ -40,9 +41,7 @@ export function getPluginState() {
   return pluginState
 }
 
-export interface MappedPages {
-  [page: string]: string
-}
+export type MappedPages = Record<Page, string>
 
 // a global object to store context for the current build
 // this is used to pass data between different steps of the build without having

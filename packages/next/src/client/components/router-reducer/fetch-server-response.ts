@@ -7,6 +7,7 @@ import {
   createFromFetch as createFromFetchBrowser,
 } from 'react-server-dom-webpack/client'
 
+import type { Route } from '../../../shared/lib/route-types'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { fetch } from '../segment-cache/fetch'
 import type {
@@ -62,7 +63,7 @@ if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REACT_DEBUG_CHANNEL) {
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
-  readonly nextUrl: string | null
+  readonly nextUrl: Route | null
   readonly isHmrRefresh?: boolean
   readonly signal?: AbortSignal
 }

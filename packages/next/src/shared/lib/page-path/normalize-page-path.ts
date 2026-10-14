@@ -1,3 +1,4 @@
+import type { Page } from '../route-types'
 import { ensureLeadingSlash } from './ensure-leading-slash'
 import { isDynamicRoute } from '../router/utils'
 import { NormalizeError } from '../utils'
@@ -11,7 +12,7 @@ import { NormalizeError } from '../utils'
  *  - `/index/foo` -> `/index/index/foo`
  *  - `/index` -> `/index/index`
  */
-export function normalizePagePath(page: string): string {
+export function normalizePagePath(page: Page): Page {
   const normalized =
     /^\/index(\/|$)/.test(page) && !isDynamicRoute(page)
       ? `/index${page}`
@@ -29,5 +30,5 @@ export function normalizePagePath(page: string): string {
     }
   }
 
-  return normalized
+  return normalized as Page
 }

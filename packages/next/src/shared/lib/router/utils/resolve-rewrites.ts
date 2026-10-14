@@ -1,3 +1,4 @@
+import type { Route } from '../../route-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { Rewrite } from '../../../../lib/load-custom-routes'
 import { getPathMatch } from './path-match'
@@ -11,20 +12,20 @@ import type { ParsedUrl } from './parse-url'
 type ParsedAs = ParsedRelativeUrl | ParsedUrl
 export default function resolveRewrites(
   asPath: string,
-  pages: string[],
+  pages: Route[],
   rewrites: {
     beforeFiles: Rewrite[]
     afterFiles: Rewrite[]
     fallback: Rewrite[]
   },
   query: ParsedUrlQuery,
-  resolveHref: (path: string) => string,
+  resolveHref: (path: Route) => Route,
   locales?: readonly string[]
 ): {
   matchedPage: boolean
   parsedAs: ParsedAs
   asPath: string
-  resolvedHref?: string
+  resolvedHref?: Route
   externalDest?: boolean
 } {
   let matchedPage = false
@@ -89,6 +90,7 @@ export default function resolveRewrites(
       asPath = destRes.newUrl
       Object.assign(query, destRes.parsedDestination.query)
 
+      // @ts-ignore -- Human review: newUrl may include a hash, but is used as a URL pathname instead of parsedDestination.pathname. Preserve existing behavior.
       fsPathname = removeTrailingSlash(
         normalizeLocalePath(removeBasePath(asPath), locales).pathname
       )

@@ -5,15 +5,16 @@ import { join } from 'node:path'
 import { deserialize } from 'node:v8'
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Page, Route } from 'next/dist/shared/lib/route-types'
 
 describe('dynamicParams: false with a cache retained across builds', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
   it('rejects a removed build path even when its old cache entry still exists', async () => {
     const original = await next.readFile('slugs.json')
-    const cacheKey = getRouteCacheKey('/products/removed', {
+    const cacheKey = getRouteCacheKey('/products/removed' as Route, {
       kind: RouteKind.APP_PAGE,
-      sourceRoute: '/products/[slug]/page',
+      sourceRoute: '/products/[slug]/page' as Page,
     })
     const cacheFile = join(
       next.testDir,

@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../route-types'
 import { InvariantError } from '../../invariant-error'
 import { getSegmentParam, type SegmentParam } from '../utils/get-segment-param'
 import {
@@ -112,41 +113,46 @@ export function parseAppRouteSegment(segment: string): AppRouteSegment | null {
   }
 }
 
-export type AppRoute = {
+// Whole inputs retain their namespace. Recursive interception pieces can be
+// relative fragments, so their pathname is genuinely an unbranded string.
+export type AppRoute<Path extends string = Page> = {
   normalized: boolean
-  pathname: string
+  pathname: Path
   segments: AppRouteSegment[]
   dynamicSegments: DynamicAppRouteSegment[]
   interceptionMarker: InterceptionMarker | undefined
-  interceptingRoute: AppRoute | undefined
-  interceptedRoute: AppRoute | undefined
+  interceptingRoute: AppRoute<string> | undefined
+  interceptedRoute: AppRoute<string> | undefined
 }
 
-export type NormalizedAppRoute = Omit<AppRoute, 'normalized' | 'segments'> & {
+export type NormalizedAppRoute<Path extends string = Route> = Omit<
+  AppRoute<Path>,
+  'normalized' | 'segments'
+> & {
   normalized: true
   segments: NormalizedAppRouteSegment[]
 }
 
-export function isNormalizedAppRoute(
-  route: InterceptionAppRoute
-): route is NormalizedInterceptionAppRoute
-export function isNormalizedAppRoute(
-  route: AppRoute | InterceptionAppRoute
-): route is NormalizedAppRoute {
+export function isNormalizedAppRoute<Path extends string>(
+  route: InterceptionAppRoute<Path>
+): route is NormalizedInterceptionAppRoute<Path>
+export function isNormalizedAppRoute<Path extends string>(
+  route: AppRoute<Path> | InterceptionAppRoute<Path>
+): route is NormalizedAppRoute<Path> {
   return route.normalized
 }
 
-export type InterceptionAppRoute = Omit<
-  AppRoute,
+export type InterceptionAppRoute<Path extends string = Page> = Omit<
+  AppRoute<Path>,
   'interceptionMarker' | 'interceptingRoute' | 'interceptedRoute'
 > & {
   interceptionMarker: InterceptionMarker
-  interceptingRoute: AppRoute
-  interceptedRoute: AppRoute
+  interceptingRoute: AppRoute<string>
+  interceptedRoute: AppRoute<string>
 }
 
-export type NormalizedInterceptionAppRoute = Omit<
-  InterceptionAppRoute,
+export type NormalizedInterceptionAppRoute<Path extends string = Route> = Omit<
+  InterceptionAppRoute<Path>,
   | 'normalized'
   | 'segments'
   | 'interceptionMarker'
@@ -156,16 +162,16 @@ export type NormalizedInterceptionAppRoute = Omit<
   normalized: true
   segments: NormalizedAppRouteSegment[]
   interceptionMarker: InterceptionMarker
-  interceptingRoute: NormalizedAppRoute
-  interceptedRoute: NormalizedAppRoute
+  interceptingRoute: NormalizedAppRoute<string>
+  interceptedRoute: NormalizedAppRoute<string>
 }
 
-export function isInterceptionAppRoute(
-  route: NormalizedAppRoute
-): route is NormalizedInterceptionAppRoute
-export function isInterceptionAppRoute(
-  route: AppRoute
-): route is InterceptionAppRoute {
+export function isInterceptionAppRoute<Path extends string>(
+  route: NormalizedAppRoute<Path>
+): route is NormalizedInterceptionAppRoute<Path>
+export function isInterceptionAppRoute<Path extends string>(
+  route: AppRoute<Path>
+): route is InterceptionAppRoute<Path> {
   return (
     route.interceptionMarker !== undefined &&
     route.interceptingRoute !== undefined &&
@@ -181,10 +187,10 @@ const OnlyRoutableSegments = /*   */ 0b00
 const AllowParallelSegments = /*  */ 0b01
 const AllowGroupSegments = /*     */ 0b10
 
-function parseAppRouteImpl(
-  pathname: string,
+function parseAppRouteImpl<Path extends string>(
+  pathname: Path,
   allowedTypes: number
-): AppRoute | NormalizedAppRoute {
+): AppRoute<Path> {
   const pathnameSegments = pathname.split('/').filter(Boolean)
 
   // Build segments array with static and dynamic segments
@@ -192,8 +198,8 @@ function parseAppRouteImpl(
 
   // Parse if this is an interception route.
   let interceptionMarker: InterceptionMarker | undefined
-  let interceptingRoute: AppRoute | NormalizedAppRoute | undefined
-  let interceptedRoute: AppRoute | NormalizedAppRoute | undefined
+  let interceptingRoute: AppRoute<string> | undefined
+  let interceptedRoute: AppRoute<string> | undefined
 
   for (const segment of pathnameSegments) {
     const normalizedSegment = normalizeEncodedDynamicPlaceholder(segment)
@@ -255,7 +261,7 @@ function parseAppRouteImpl(
  * Parse an app route that has been fully normalized (no @slot or ()
  * group segments). Throws if either is present.
  */
-export function parseNormalizedAppRoute(pathname: string): NormalizedAppRoute {
+export function parseNormalizedAppRoute(pathname: Route): NormalizedAppRoute {
   return parseAppRouteImpl(pathname, OnlyRoutableSegments) as NormalizedAppRoute
 }
 
@@ -265,6 +271,6 @@ export function parseNormalizedAppRoute(pathname: string): NormalizedAppRoute {
  * type segments so callers can distinguish routes in different
  * parallel slots.
  */
-export function parseAppRouteWithSlots(pathname: string): AppRoute {
+export function parseAppRouteWithSlots(pathname: Page): AppRoute {
   return parseAppRouteImpl(pathname, AllowParallelSegments) as AppRoute
 }

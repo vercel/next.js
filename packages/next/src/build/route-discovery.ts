@@ -1,3 +1,4 @@
+import type { Page, Route } from '../shared/lib/route-types'
 import { join } from 'path'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -47,7 +48,7 @@ const PAGES_SUPPORT_ROUTES = new Set([
 ])
 const PAGES_FRAMEWORK_ROUTES = new Set(['/_app', '/_document', '/_error'])
 
-function isRenderablePagesRoute(page: string): boolean {
+function isRenderablePagesRoute(page: Page): boolean {
   return (
     !PAGES_FRAMEWORK_ROUTES.has(page) &&
     page !== '/api' &&
@@ -60,14 +61,17 @@ function removeSuffix(value: string, suffix: string): string {
 }
 
 /** Normalize a route for the app router */
-function normalizeAppRoute(pageName: string): string {
+function normalizeAppRoute(pageName: Page): Route {
   return normalizeAppPath(normalizePathSep(pageName))
 }
 
 /** Normalize a layout route (strip /layout suffix) */
-function normalizeLayoutRoute(pageName: string): string {
+function normalizeLayoutRoute(pageName: Page): Route {
   return ensureLeadingSlash(
-    removeSuffix(normalizeAppPath(normalizePathSep(pageName)), '/layout')
+    removeSuffix(
+      normalizeAppPath(normalizePathSep(pageName)),
+      '/layout'
+    ) as Route
   )
 }
 
@@ -77,7 +81,7 @@ function normalizeLayoutRoute(pageName: string): string {
 export function getPageFromPath(
   pagePath: string,
   pageExtensions: PageExtensions
-) {
+): Page {
   let page = normalizePathSep(pagePath)
   // Try longer extensions first so compound extensions like 'page.js'
   // match before shorter ones like 'js'
@@ -92,11 +96,13 @@ export function getPageFromPath(
 
   page = removeSuffix(page, '/index')
 
-  return page === '' ? '/' : page
+  return (page === '' ? '/' : page) as Page
 }
 
 /**
- * Collect app pages, layouts, and default files from the app directory
+ * Collect app pages, layouts, and default files from the app directory.
+ * These arrays hold discovered filenames, including extensions, not Page
+ * identifiers; createPagesMapping performs that boundary conversion later.
  */
 export async function collectAppFiles(
   appDir: string,
@@ -164,7 +170,7 @@ export function createRelativeFilePath(
  * Process pages routes from mapped pages
  */
 export function processPageRoutes(
-  mappedPages: { [page: string]: string },
+  mappedPages: MappedPages,
   baseDir: string,
   isSrcDir: boolean
 ): {
@@ -174,7 +180,12 @@ export function processPageRoutes(
   const pageRoutes: RouteInfo[] = []
   const pageApiRoutes: RouteInfo[] = []
 
-  for (const [route, filePath] of Object.entries(mappedPages)) {
+  // Pages-router mapping keys already spell the URL pathname; unlike app
+  // keys, they have no groups, slots or leaf suffixes to remove.
+  for (const [route, filePath] of Object.entries(mappedPages) as [
+    Page,
+    string,
+  ][]) {
     const relativeFilePath = createRelativeFilePath(
       baseDir,
       filePath,
@@ -184,14 +195,14 @@ export function processPageRoutes(
 
     if (route.startsWith('/api/')) {
       pageApiRoutes.push({
-        route: normalizePathSep(route),
+        route: normalizePathSep(route) as string as Route,
         filePath: relativeFilePath,
       })
     } else {
       if (isReservedPage(route)) continue
 
       pageRoutes.push({
-        route: normalizePathSep(route),
+        route: normalizePathSep(route) as string as Route,
         filePath: relativeFilePath,
       })
     }
@@ -204,7 +215,7 @@ export function processPageRoutes(
  * Process app routes from mapped app pages
  */
 export function processAppRoutes(
-  mappedAppPages: { [page: string]: string },
+  mappedAppPages: MappedPages,
   validFileMatcher: ReturnType<typeof createValidFileMatcher>,
   baseDir: string,
   isSrcDir: boolean
@@ -215,7 +226,10 @@ export function processAppRoutes(
   const appRoutes: RouteInfo[] = []
   const appRouteHandlers: RouteInfo[] = []
 
-  for (const [page, filePath] of Object.entries(mappedAppPages)) {
+  for (const [page, filePath] of Object.entries(mappedAppPages) as [
+    Page,
+    string,
+  ][]) {
     if (
       page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
       page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
@@ -245,14 +259,16 @@ export function processAppRoutes(
  * Process layout routes from mapped app layouts
  */
 export function processLayoutRoutes(
-  mappedAppLayouts: { [page: string]: string },
+  mappedAppLayouts: MappedPages,
   baseDir: string,
   isSrcDir: boolean
 ): RouteInfo[] {
-  return Object.entries(mappedAppLayouts).map(([route, filePath]) => ({
-    route: normalizeLayoutRoute(route),
-    filePath: createRelativeFilePath(baseDir, filePath, 'app', isSrcDir),
-  }))
+  return (Object.entries(mappedAppLayouts) as [Page, string][]).map(
+    ([route, filePath]) => ({
+      route: normalizeLayoutRoute(route),
+      filePath: createRelativeFilePath(baseDir, filePath, 'app', isSrcDir),
+    })
+  )
 }
 
 /**
@@ -277,7 +293,7 @@ export async function createPagesMapping({
 }): Promise<MappedPages> {
   const isAppRoute = pagesType === 'app'
 
-  const promises = pagePaths.map<Promise<[string, string] | undefined>>(
+  const promises = pagePaths.map<Promise<[Page, string] | undefined>>(
     async (pagePath) => {
       if (pagePath.endsWith('.d.ts') && pageExtensions.includes('ts')) {
         return
@@ -286,7 +302,7 @@ export async function createPagesMapping({
       let pageKey = getPageFromPath(pagePath, pageExtensions)
       if (isAppRoute) {
         // Turbopack encodes '_' as '%5F' in app paths; normalize to underscores.
-        pageKey = pageKey.replace(/%5F/g, '_')
+        pageKey = pageKey.replace(/%5F/g, '_') as Page
         if (pageKey === UNDERSCORE_NOT_FOUND_ROUTE) {
           pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
         }
@@ -359,9 +375,9 @@ export async function createPagesMapping({
     }
     case PAGE_TYPES.PAGES: {
       if (isDev) {
-        delete pages['/_app']
-        delete pages['/_error']
-        delete pages['/_document']
+        delete pages['/_app' as Page]
+        delete pages['/_error' as Page]
+        delete pages['/_document' as Page]
       }
 
       const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
@@ -449,7 +465,8 @@ export async function discoverRoutes(
       appDirOnly,
     })
 
-  // Helper to apply debugBuildPaths filtering
+  // Helper to apply debugBuildPaths filtering. Both arrays contain filesystem
+  // names resolved from CLI globs, not normalized route identities.
   const applyDebugFilter = (
     paths: string[],
     debugPaths: string[]

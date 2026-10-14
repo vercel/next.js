@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { ComponentType, ErrorInfo, JSX, ReactNode } from 'react'
 import type { PartialTransportData } from '../../shared/lib/rsc-transport'
 import type { RenderOpts, PreloadCallbacks } from './types'
@@ -420,7 +421,7 @@ export type AppRenderContext = {
   flightRouterState?: FlightRouterState
   requestId: string
   htmlRequestId: string
-  pagePath: string
+  pagePath: Route
   assetPrefix: string
   isNotFoundPath: boolean
   nonce: string | undefined
@@ -559,7 +560,7 @@ function NonIndex({
   isPossibleServerAction,
 }: {
   createElement: typeof ReactClient.createElement
-  pagePath: string
+  pagePath: Route
   statusCode: number | undefined
   isPossibleServerAction: boolean
 }) {
@@ -2623,7 +2624,7 @@ async function prepareAppPageRender(
   req: BaseNextRequest,
   res: BaseNextResponse,
   url: ReturnType<typeof parseRelativeUrl>,
-  pagePath: string,
+  pagePath: Route,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   workStore: WorkStore,
@@ -3214,7 +3215,7 @@ async function renderToHTMLOrFlightImpl(
   req: BaseNextRequest,
   res: BaseNextResponse,
   url: ReturnType<typeof parseRelativeUrl>,
-  pagePath: string,
+  pagePath: Route,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   workStore: WorkStore,
@@ -3263,7 +3264,7 @@ async function prerenderToHTMLOrFlightImpl(
   req: BaseNextRequest,
   res: BaseNextResponse,
   url: ReturnType<typeof parseRelativeUrl>,
-  pagePath: string,
+  pagePath: Route,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   workStore: WorkStore,
@@ -3310,7 +3311,7 @@ async function prerenderToHTMLOrFlightImpl(
 export type AppPageRender = (
   req: BaseNextRequest,
   res: BaseNextResponse,
-  pagePath: string,
+  pagePath: Route,
   query: NextParsedUrlQuery,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   renderOpts: RenderOpts,
@@ -3332,7 +3333,7 @@ type AppPagePreparation = {
 
 function prepareAppPage(
   req: BaseNextRequest,
-  pagePath: string,
+  pagePath: Route,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   renderOpts: RenderOpts
 ): AppPagePreparation {
@@ -11044,7 +11045,7 @@ async function collectSegmentData(
   prerenderStore: PrerenderStore,
   ComponentMod: AppPageModule,
   renderOpts: RenderOpts,
-  pagePath: string,
+  pagePath: Route,
   metadata: AppPageRenderResultMetadata
 ): Promise<void> {
   // Per-segment prefetch data
@@ -11219,7 +11220,7 @@ function isBypassingCachesInDev(
   )
 }
 
-function WarnForBypassCachesInDev({ route }: { route: string }) {
+function WarnForBypassCachesInDev({ route }: { route: Route }) {
   warnOnce(
     `Route ${route} is rendering with server caches disabled. For this navigation, Component Metadata in React DevTools will not accurately reflect what is statically prerenderable and runtime prefetchable. See more info here: https://nextjs.org/docs/messages/cache-bypass-in-dev`
   )

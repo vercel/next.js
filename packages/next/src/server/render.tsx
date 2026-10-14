@@ -1,4 +1,5 @@
 /* eslint-disable @next/internal/no-ambiguous-jsx -- Pages router doesn't use react-server */
+import type { Page, Route } from '../shared/lib/route-types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ReactDOMServerReadableStream } from 'react-dom/server'
@@ -141,8 +142,8 @@ async function renderToString(element: React.ReactElement) {
 }
 
 class ServerRouter implements NextRouter {
-  route: string
-  pathname: string
+  route: Route
+  pathname: Route
   query: ParsedUrlQuery
   asPath: string
   basePath: string
@@ -157,7 +158,7 @@ class ServerRouter implements NextRouter {
   isLocaleDomain: boolean
 
   constructor(
-    pathname: string,
+    pathname: Route,
     query: ParsedUrlQuery,
     as: string,
     { isFallback }: { isFallback: boolean },
@@ -170,7 +171,7 @@ class ServerRouter implements NextRouter {
     isPreview?: boolean,
     isLocaleDomain?: boolean
   ) {
-    this.route = pathname.replace(/\/$/, '') || '/'
+    this.route = (pathname.replace(/\/$/, '') || '/') as Route
     this.pathname = pathname
     this.query = query
     this.asPath = as
@@ -457,7 +458,7 @@ function getSafariCacheBusterQueryString(req: IncomingMessage): string {
 export async function renderToHTMLImpl(
   req: IncomingMessage,
   res: ServerResponse,
-  pathname: string,
+  pathname: Route,
   query: NextParsedUrlQuery,
   renderOpts: Omit<RenderOpts, keyof RenderOptsExtra>,
   extra: RenderOptsExtra,
@@ -1241,7 +1242,11 @@ export async function renderToHTMLImpl(
   // to speed up hydrating query values
   let filteredBuildManifest = buildManifest
   if (isAutoExport && pageIsDynamic) {
-    const page = denormalizePagePath(normalizePagePath(pathname))
+    // This renderer is Pages-only; its URL pattern also identifies the Pages
+    // manifest entry before the existing file-codec round trip.
+    const page = denormalizePagePath(
+      normalizePagePath(pathname as string as Page)
+    )
     // This code would be much cleaner using `immer` and directly pushing into
     // the result from `getPageFiles`, we could maybe consider that in the
     // future.
@@ -1612,7 +1617,7 @@ export async function renderToHTMLImpl(
 export type PagesRender = (
   req: IncomingMessage,
   res: ServerResponse,
-  pathname: string,
+  pathname: Route,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   sharedContext: PagesSharedContext,

@@ -1,3 +1,4 @@
+import type { Page } from '../route-types'
 import { ensureLeadingSlash } from './ensure-leading-slash'
 import { normalizePathSep } from './normalize-path-sep'
 import path from '../isomorphic/path'
@@ -28,7 +29,7 @@ export function absolutePathToPage(
     dir: string
     pagesType: PAGE_TYPES
   }
-) {
+): Page {
   const isAppDir = options.pagesType === 'app'
   const page = removePagePathTail(
     normalizePathSep(ensureLeadingSlash(path.relative(options.dir, pagePath))),
@@ -36,6 +37,6 @@ export function absolutePathToPage(
       extensions: options.extensions,
       keepIndex: options.keepIndex,
     }
-  )
+  ) as Page
   return isAppDir ? normalizeMetadataRoute(page) : page
 }

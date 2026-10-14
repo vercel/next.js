@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type {
@@ -331,7 +332,7 @@ export function calculateFallbackMode(
  * @returns The list of validated parameters.
  */
 function validateParams(
-  page: string,
+  page: Route,
   isRoutePPREnabled: boolean,
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
@@ -657,7 +658,7 @@ function getValueType(value: unknown): string {
  * making root param getters available during static param generation.
  */
 async function callGenerateStaticParams(
-  route: string,
+  route: Route,
   generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
   parentParams: Params,
   rootParamKeys: readonly string[],
@@ -890,7 +891,7 @@ export async function buildAppStaticPaths({
   rootParamKeys,
 }: {
   dir: string
-  page: string
+  page: Route
   route: NormalizedAppRoute
   cacheComponents: boolean
   authInterrupts: boolean
@@ -1198,17 +1199,17 @@ export async function buildAppStaticPaths({
     )
   }
 
-  const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>()
-  const blockingCandidatesByPathname = new Map<string, PrerenderedRoute>()
+  const prerenderedRoutesByPathname = new Map<Route, PrerenderedRoute>()
+  const blockingCandidatesByPathname = new Map<Route, PrerenderedRoute>()
   const prerenderRouteMatchersByPathname = new Map<
-    string,
+    Route,
     PrerenderRouteMatcher
   >()
 
   const addPrerenderCandidate = (
     params: Params,
-    pathname: string,
-    encodedPathname: string,
+    pathname: Route,
+    encodedPathname: Route,
     fallbackRouteParams: readonly FallbackRouteParam[],
     fallbackRootParams: readonly string[]
   ): void => {
@@ -1377,14 +1378,14 @@ export async function buildAppStaticPaths({
           // We're replacing the segment name with the replacement pathname
           // which will include the interception marker prefix if it exists.
           replacements.pathname
-        )
+        ) as Route
 
         encodedPathname = encodedPathname.replace(
           name,
           // We're replacing the segment name with the replacement encoded
           // pathname which will include the encoded param value.
           replacements.encodedPathname
-        )
+        ) as Route
       }
 
       // Resolve all route params from the loader tree if this is from an

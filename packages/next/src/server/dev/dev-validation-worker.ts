@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type {
   DevValidationWorkerMessage,
@@ -204,7 +205,7 @@ async function applyTestValidationDelay(signal: AbortSignal): Promise<void> {
  */
 async function registerAdditionalClientReferenceManifests(
   distDir: string,
-  pages: string[]
+  pages: Page[]
 ): Promise<void> {
   if (pages.length === 0) {
     return

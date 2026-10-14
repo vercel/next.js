@@ -1,6 +1,7 @@
 import type { DomainLocale } from '../config'
 import { I18NProvider } from './i18n-provider'
 import type { LocaleAnalysisResult } from './i18n-provider'
+import type { Route } from '../../shared/lib/route-types'
 
 describe('I18NProvider', () => {
   const config = {
@@ -76,10 +77,10 @@ describe('I18NProvider', () => {
     }>([
       // Verify un-prefixed index routes.
       {
-        pathname: '/',
+        pathname: '/' as Route,
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/',
+          pathname: '/' as Route,
           detectedLocale: config.defaultLocale,
           inferredFromDefault: true,
         },
@@ -87,10 +88,10 @@ describe('I18NProvider', () => {
 
       // Verify un-prefixed other routes.
       {
-        pathname: '/another/page',
+        pathname: '/another/page' as Route,
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/another/page',
+          pathname: '/another/page' as Route,
           detectedLocale: config.defaultLocale,
           inferredFromDefault: true,
         },
@@ -101,7 +102,7 @@ describe('I18NProvider', () => {
         pathname: `/${locale}`,
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/',
+          pathname: '/' as Route,
           detectedLocale: locale,
           inferredFromDefault: false,
         },
@@ -112,7 +113,7 @@ describe('I18NProvider', () => {
         pathname: `/${locale}/another/page`,
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/another/page',
+          pathname: '/another/page' as Route,
           detectedLocale: locale,
           inferredFromDefault: false,
         },
@@ -120,7 +121,9 @@ describe('I18NProvider', () => {
     ])(
       'for pathname $pathname and defaultLocale $defaultLocale',
       ({ pathname, defaultLocale, expected }) => {
-        expect(provider.analyze(pathname, { defaultLocale })).toEqual(expected)
+        expect(provider.analyze(pathname as Route, { defaultLocale })).toEqual(
+          expected
+        )
       }
     )
   })

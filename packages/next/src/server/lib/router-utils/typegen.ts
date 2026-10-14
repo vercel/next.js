@@ -1,12 +1,19 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { RouteTypesManifest } from './route-types-utils'
 import { isDynamicRoute } from '../../../shared/lib/router/utils/is-dynamic'
 
 function generateRouteTypes(routesManifest: RouteTypesManifest): string {
-  const appRoutes = Object.keys(routesManifest.appRoutes).sort()
-  const pageRoutes = Object.keys(routesManifest.pageRoutes).sort()
-  const layoutRoutes = Object.keys(routesManifest.layoutRoutes).sort()
-  const redirectRoutes = Object.keys(routesManifest.redirectRoutes).sort()
-  const rewriteRoutes = Object.keys(routesManifest.rewriteRoutes).sort()
+  const appRoutes = (Object.keys(routesManifest.appRoutes) as Route[]).sort()
+  const pageRoutes = (Object.keys(routesManifest.pageRoutes) as Route[]).sort()
+  const layoutRoutes = (
+    Object.keys(routesManifest.layoutRoutes) as Route[]
+  ).sort()
+  const redirectRoutes = (
+    Object.keys(routesManifest.redirectRoutes) as Route[]
+  ).sort()
+  const rewriteRoutes = (
+    Object.keys(routesManifest.rewriteRoutes) as Route[]
+  ).sort()
 
   let result = ''
 
@@ -18,8 +25,8 @@ function generateRouteTypes(routesManifest: RouteTypesManifest): string {
   }
 
   // Generate AppRouteHandlerRoutes union type for route handlers
-  const appRouteHandlerRoutes = Object.keys(
-    routesManifest.appRouteHandlerRoutes
+  const appRouteHandlerRoutes = (
+    Object.keys(routesManifest.appRouteHandlerRoutes) as Route[]
   ).sort()
 
   const hasAppRouteHandlers = appRouteHandlerRoutes.length > 0
@@ -90,9 +97,12 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
   let paramTypes = 'interface ParamMap {\n'
 
   // Sort routes deterministically for consistent output
-  const sortedRoutes = Object.entries(allRoutes).sort(([a], [b]) =>
-    a.localeCompare(b)
-  )
+  const sortedRoutes = (
+    Object.entries(allRoutes) as [
+      Route,
+      RouteTypesManifest['appRoutes'][Route],
+    ][]
+  ).sort(([a], [b]) => a.localeCompare(b))
 
   for (const [route, routeInfo] of sortedRoutes) {
     const { groups } = routeInfo
@@ -138,9 +148,12 @@ function generateLayoutSlotMap(routesManifest: RouteTypesManifest): string {
   let slotMap = 'interface LayoutSlotMap {\n'
 
   // Sort routes deterministically for consistent output
-  const sortedLayoutRoutes = Object.entries(routesManifest.layoutRoutes).sort(
-    ([a], [b]) => a.localeCompare(b)
-  )
+  const sortedLayoutRoutes = (
+    Object.entries(routesManifest.layoutRoutes) as [
+      Route,
+      RouteTypesManifest['layoutRoutes'][Route],
+    ][]
+  ).sort(([a], [b]) => a.localeCompare(b))
 
   for (const [route, routeInfo] of sortedLayoutRoutes) {
     if ('slots' in routeInfo) {
@@ -159,7 +172,13 @@ function generateLayoutSlotMap(routesManifest: RouteTypesManifest): string {
   return slotMap
 }
 
-// Helper function to format routes to route types (matches the plugin logic exactly)
+// Helper function to format routes to route types (matches the plugin logic exactly).
+// The implementation reuses its parameter for generated TypeScript text; only
+// the caller-facing input is a URL matcher, not that generated text.
+function formatRouteToRouteType(route: Route): {
+  isDynamic: boolean
+  routeType: string
+}
 function formatRouteToRouteType(route: string) {
   const isDynamic = isDynamicRoute(route)
   if (isDynamic) {
@@ -221,8 +240,9 @@ export function generateLinkTypesFile(
       }
       visited.add(route)
 
-      const { isDynamic, routeType } = formatRouteToRouteType(route)
-      const cause = routeMap[route].path
+      // A for-in key from these Route-keyed manifests retains the URL identity.
+      const { isDynamic, routeType } = formatRouteToRouteType(route as Route)
+      const cause = routeMap[route as Route].path
       if (isDynamic) {
         dynamicRouteTypes.push([routeType, cause])
       } else {
@@ -238,6 +258,7 @@ export function generateLinkTypesFile(
     }
     visited.add(filePath)
 
+    // @ts-ignore Human review: pageApiRoutes contains validation filenames, not URL Route patterns; preserve existing generated Link types rather than inventing a URL conversion.
     const { isDynamic, routeType } = formatRouteToRouteType(filePath)
     if (isDynamic) {
       dynamicRouteTypes.push([routeType, filePath])
@@ -441,7 +462,7 @@ type ParamMatchingExports<Route extends keyof ParamMap> =
 `
 
 function getPrerenderMatcherKeyValidation(
-  route: string | undefined,
+  route: Route | undefined,
   type: string
 ): string {
   return route && (type === 'AppPageConfig' || type === 'LayoutConfig')
@@ -467,7 +488,7 @@ export function generateValidatorFile(
       | 'LayoutConfig'
       | 'RouteHandlerConfig'
       | 'ApiRouteConfig',
-    pathToRouteMap?: Map<string, string>
+    pathToRouteMap?: Map<string, Route>
   ) =>
     paths
       .sort()
@@ -720,7 +741,7 @@ export function generateValidatorFileStrict(
       | 'LayoutConfig'
       | 'RouteHandlerConfig'
       | 'ApiRouteConfig',
-    pathToRouteMap?: Map<string, string>
+    pathToRouteMap?: Map<string, Route>
   ) =>
     paths
       .sort()

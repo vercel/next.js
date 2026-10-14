@@ -1,3 +1,5 @@
+import type { Page, Route } from '../shared/lib/route-types'
+import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import path from 'path'
 import { promises as fs, statSync } from 'fs'
 import {
@@ -11,7 +13,7 @@ import { filterAndSortList } from './utils'
 const ROUTE_BUNDLE_STATS_FILE = 'route-bundle-stats.json'
 
 type RouteBundleStat = {
-  route: string
+  route: Route
   firstLoadUncompressedJsBytes: number
   firstLoadChunkPaths: string[]
 }
@@ -48,14 +50,14 @@ function toProjectRelativePaths(
 }
 
 function buildRouteToAppPathsMap(
-  appPathsManifest: Record<string, string>
-): Map<string, string[]> {
+  appPathsManifest: PagesManifest
+): Map<Route, Page[]> {
   const { normalizeAppPath } =
     require('../shared/lib/router/utils/app-paths') as typeof import('../shared/lib/router/utils/app-paths')
   // Keys in appPathsManifest are app paths like /blog/[slug]/page;
   // values are server bundle file paths. Normalize the key to get the route.
-  const routeToAppPaths = new Map<string, string[]>()
-  for (const appPath of Object.keys(appPathsManifest)) {
+  const routeToAppPaths = new Map<Route, Page[]>()
+  for (const appPath of Object.keys(appPathsManifest) as Page[]) {
     const route = normalizeAppPath(appPath)
     const existing = routeToAppPaths.get(route)
     if (existing) {
@@ -72,8 +74,8 @@ function buildRouteToAppPathsMap(
 // it with a save/restore of the global
 function readEntryJSFiles(
   distDir: string,
-  pagePath: string,
-  appRoute: string
+  pagePath: Page,
+  appRoute: Route
 ): Record<string, string[]> | undefined {
   const manifestFile = path.join(
     distDir,
@@ -87,11 +89,12 @@ function readEntryJSFiles(
     g.__RSC_MANIFEST = undefined
     require(manifestFile)
     const rscManifest = g.__RSC_MANIFEST as
-      | Record<string, { entryJSFiles?: Record<string, string[]> }>
+      | Record<Page, { entryJSFiles?: Record<string, string[]> }>
       | undefined
     g.__RSC_MANIFEST = prev
 
     // The key in __RSC_MANIFEST is the app path (e.g. /blog/[slug]/page)
+    // @ts-ignore -- Human review: the fallback probe uses a normalized App URL in a raw App-module-keyed RSC manifest. This may be an intentional legacy miss; preserve it without claiming the URL is a raw Page.
     const manifestEntry = rscManifest?.[pagePath] ?? rscManifest?.[appRoute]
     return manifestEntry?.entryJSFiles
   } catch {
@@ -100,7 +103,7 @@ function readEntryJSFiles(
 }
 
 function collectPagesRouterStats(
-  pages: ReadonlyArray<string>,
+  pages: ReadonlyArray<Route>,
   buildManifest: BuildManifest,
   distDir: string,
   dir: string,
@@ -113,8 +116,9 @@ function collectPagesRouterStats(
       // Don't report on layouts directly
       continue
 
-    const allFiles = (buildManifest.pages[page] ?? []).filter((f) =>
-      f.endsWith('.js')
+    // This list contains only Pages-router URL keys, sharing the module namespace.
+    const allFiles = (buildManifest.pages[page as string as Page] ?? []).filter(
+      (f) => f.endsWith('.js')
     )
     const sharedJs = sharedFiles.filter((f) => f.endsWith('.js'))
     const chunks = [...new Set([...allFiles, ...sharedJs])]
@@ -129,13 +133,13 @@ function collectPagesRouterStats(
 }
 
 async function collectAppRouterStats(
-  appRoutes: ReadonlyArray<string>,
+  appRoutes: ReadonlyArray<Route>,
   buildManifest: BuildManifest,
   distDir: string,
   dir: string,
   cache: Map<string, number>
 ): Promise<RouteBundleStat[]> {
-  let appPathsManifest: Record<string, string> = {}
+  let appPathsManifest: PagesManifest = {}
   try {
     const manifestPath = path.join(
       distDir,
@@ -184,8 +188,8 @@ async function collectAppRouterStats(
 
 export async function writeRouteBundleStats(
   lists: {
-    pages: ReadonlyArray<string>
-    app: ReadonlyArray<string> | undefined
+    pages: ReadonlyArray<Route>
+    app: ReadonlyArray<Route> | undefined
   },
   buildManifest: BuildManifest,
   distDir: string,

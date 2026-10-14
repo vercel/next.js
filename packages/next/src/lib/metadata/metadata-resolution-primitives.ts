@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type {
   Metadata,
   ResolvedMetadata,
@@ -166,7 +167,7 @@ async function mergeStaticMetadata(
   metadataContext: MetadataContext,
   titleTemplates: TitleTemplates,
   leafSegmentStaticIcons: StaticIcons,
-  pathname: Promise<string>
+  pathname: Promise<Route>
 ): Promise<ResolvedMetadata> {
   if (!staticFilesMetadata) return target
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
@@ -213,8 +214,8 @@ async function mergeStaticMetadata(
  * Merges the given metadata with the resolved metadata. Returns a new object.
  */
 export async function mergeMetadata(
-  route: string,
-  pathname: Promise<string>,
+  route: Route,
+  pathname: Promise<Route>,
   {
     metadata,
     resolvedMetadata,

@@ -1,3 +1,4 @@
+import type { Page } from '../../route-types'
 import { getNamedRouteRegex } from './route-regex'
 import { parseParameter } from './get-dynamic-param'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
@@ -9,7 +10,9 @@ function compilePattern(
   route: string,
   options: Parameters<typeof getNamedRouteRegex>[1]
 ) {
-  const regex = getNamedRouteRegex(route, options)
+  // This helper constructs full raw path-pattern fixtures; the constructor
+  // deliberately supports Page as well as normalized URL Route patterns.
+  const regex = getNamedRouteRegex(route as Page, options)
 
   const compiled = pathToRegexp(regex.pathToRegexpPattern, [], {
     strict: true,
@@ -22,7 +25,7 @@ function compilePattern(
 
 describe('getNamedRouteRegex', () => {
   it('should handle interception markers adjacent to dynamic path segments', () => {
-    const regex = getNamedRouteRegex('/photos/(.)[author]/[id]', {
+    const regex = getNamedRouteRegex('/photos/(.)[author]/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -69,7 +72,7 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should match named routes correctly when interception markers are adjacent to dynamic segments', () => {
-    let regex = getNamedRouteRegex('/(.)[author]/[id]', {
+    let regex = getNamedRouteRegex('/(.)[author]/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -110,7 +113,7 @@ describe('getNamedRouteRegex', () => {
     expect(namedRegexp.test('/[author]/[id]')).toBe(false)
     expect(namedRegexp.test('/(.)[author]/[id]')).toBe(true)
 
-    regex = getNamedRouteRegex('/(..)(..)[author]/[id]', {
+    regex = getNamedRouteRegex('/(..)(..)[author]/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -153,7 +156,7 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should handle multi-level interception markers', () => {
-    const regex = getNamedRouteRegex('/photos/(..)(..)[author]/[id]', {
+    const regex = getNamedRouteRegex('/photos/(..)(..)[author]/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -201,7 +204,7 @@ describe('getNamedRouteRegex', () => {
 
   it('should not remove extra parts beside the param segments', () => {
     const regex = getNamedRouteRegex(
-      '/[locale]/about.segments/[...segmentPath].segment.rsc',
+      '/[locale]/about.segments/[...segmentPath].segment.rsc' as Page,
       {
         prefixRouteKeys: true,
         includeSuffix: true,
@@ -242,7 +245,7 @@ describe('getNamedRouteRegex', () => {
 
   it('should not remove extra parts in front of the param segments', () => {
     const regex = getNamedRouteRegex(
-      '/[locale]/about.segments/$dname$d[name].segment.rsc',
+      '/[locale]/about.segments/$dname$d[name].segment.rsc' as Page,
       {
         prefixRouteKeys: true,
         includeSuffix: true,
@@ -292,7 +295,7 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should handle interception markers not adjacent to dynamic path segments', () => {
-    const regex = getNamedRouteRegex('/photos/(.)author/[id]', {
+    const regex = getNamedRouteRegex('/photos/(.)author/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -329,7 +332,7 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should handle optional dynamic path segments', () => {
-    const regex = getNamedRouteRegex('/photos/[[id]]', {
+    const regex = getNamedRouteRegex('/photos/[[id]]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -369,7 +372,7 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should handle optional catch-all dynamic path segments', () => {
-    const regex = getNamedRouteRegex('/photos/[[...id]]', {
+    const regex = getNamedRouteRegex('/photos/[[...id]]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -420,7 +423,7 @@ describe('getNamedRouteRegex', () => {
 
 describe('getNamedRouteRegex - Parameter Sanitization', () => {
   it('should sanitize parameter names with hyphens', () => {
-    const regex = getNamedRouteRegex('/[foo-bar]/page', {
+    const regex = getNamedRouteRegex('/[foo-bar]/page' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -450,7 +453,7 @@ describe('getNamedRouteRegex - Parameter Sanitization', () => {
   })
 
   it('should sanitize parameter names with underscores', () => {
-    const regex = getNamedRouteRegex('/[foo_id]/page', {
+    const regex = getNamedRouteRegex('/[foo_id]/page' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -481,7 +484,7 @@ describe('getNamedRouteRegex - Parameter Sanitization', () => {
   })
 
   it('should handle parameters with multiple special characters', () => {
-    const regex = getNamedRouteRegex('/[this-is_my-route]/page', {
+    const regex = getNamedRouteRegex('/[this-is_my-route]/page' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -513,7 +516,7 @@ describe('getNamedRouteRegex - Parameter Sanitization', () => {
 
   it('should generate safe keys for invalid parameter names', () => {
     // Parameter name that starts with a number gets the prefix but keeps numbers
-    const regex1 = getNamedRouteRegex('/[123invalid]/page', {
+    const regex1 = getNamedRouteRegex('/[123invalid]/page' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -525,7 +528,7 @@ describe('getNamedRouteRegex - Parameter Sanitization', () => {
 
     // Parameter name that's too long (>30 chars) triggers fallback
     const longName = 'a'.repeat(35)
-    const regex2 = getNamedRouteRegex(`/[${longName}]/page`, {
+    const regex2 = getNamedRouteRegex(`/[${longName}]/page` as Page, {
       prefixRouteKeys: true,
     })
 
@@ -541,12 +544,12 @@ describe('getNamedRouteRegex - Parameter Sanitization', () => {
 describe('getNamedRouteRegex - Reference Mapping', () => {
   it('should use provided reference for parameter mapping', () => {
     // First call establishes the reference
-    const regex1 = getNamedRouteRegex('/[lang]/photos', {
+    const regex1 = getNamedRouteRegex('/[lang]/photos' as Page, {
       prefixRouteKeys: true,
     })
 
     // Second call uses the reference from the first
-    const regex2 = getNamedRouteRegex('/[lang]/photos/[id]', {
+    const regex2 = getNamedRouteRegex('/[lang]/photos/[id]' as Page, {
       prefixRouteKeys: true,
       reference: regex1.reference,
     })
@@ -560,14 +563,17 @@ describe('getNamedRouteRegex - Reference Mapping', () => {
   })
 
   it('should maintain reference consistency across multiple paths', () => {
-    const baseRegex = getNamedRouteRegex('/[locale]/example', {
+    const baseRegex = getNamedRouteRegex('/[locale]/example' as Page, {
       prefixRouteKeys: true,
     })
 
-    const interceptedRegex = getNamedRouteRegex('/[locale]/intercepted', {
-      prefixRouteKeys: true,
-      reference: baseRegex.reference,
-    })
+    const interceptedRegex = getNamedRouteRegex(
+      '/[locale]/intercepted' as Page,
+      {
+        prefixRouteKeys: true,
+        reference: baseRegex.reference,
+      }
+    )
 
     // Same parameter name should map to same prefixed key
     expect(baseRegex.reference.names.locale).toBe(
@@ -577,7 +583,7 @@ describe('getNamedRouteRegex - Reference Mapping', () => {
   })
 
   it('should generate inverse pattern with correct parameter references', () => {
-    const regex = getNamedRouteRegex('/[lang]/posts/[id]', {
+    const regex = getNamedRouteRegex('/[lang]/posts/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -592,7 +598,7 @@ describe('getNamedRouteRegex - Reference Mapping', () => {
 
 describe('getNamedRouteRegex - Duplicate Keys', () => {
   it('should handle duplicate parameters with backreferences', () => {
-    const regex = getNamedRouteRegex('/[id]/posts/[id]', {
+    const regex = getNamedRouteRegex('/[id]/posts/[id]' as Page, {
       prefixRouteKeys: true,
       backreferenceDuplicateKeys: true,
     })
@@ -625,7 +631,7 @@ describe('getNamedRouteRegex - Duplicate Keys', () => {
   })
 
   it('should handle duplicate parameters without backreferences', () => {
-    const regex = getNamedRouteRegex('/[id]/posts/[id]', {
+    const regex = getNamedRouteRegex('/[id]/posts/[id]' as Page, {
       prefixRouteKeys: true,
       backreferenceDuplicateKeys: false,
     })
@@ -659,9 +665,12 @@ describe('getNamedRouteRegex - Duplicate Keys', () => {
 
 describe('getNamedRouteRegex - Complex Paths', () => {
   it('should handle paths with multiple dynamic segments', () => {
-    const regex = getNamedRouteRegex('/[org]/[repo]/[branch]/[...path]', {
-      prefixRouteKeys: true,
-    })
+    const regex = getNamedRouteRegex(
+      '/[org]/[repo]/[branch]/[...path]' as Page,
+      {
+        prefixRouteKeys: true,
+      }
+    )
 
     expect(regex).toMatchInlineSnapshot(`
      {
@@ -720,7 +729,7 @@ describe('getNamedRouteRegex - Complex Paths', () => {
 
   it('should mark optional segments correctly', () => {
     // Optional segments are marked as optional in the groups
-    const regex = getNamedRouteRegex('/posts/[[slug]]', {
+    const regex = getNamedRouteRegex('/posts/[[slug]]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -740,7 +749,7 @@ describe('getNamedRouteRegex - Complex Paths', () => {
     const markers = ['(.)', '(..)', '(..)(..)', '(...)']
 
     for (const marker of markers) {
-      const regex = getNamedRouteRegex(`/photos/${marker}[id]`, {
+      const regex = getNamedRouteRegex(`/photos/${marker}[id]` as Page, {
         prefixRouteKeys: true,
       })
 
@@ -758,7 +767,7 @@ describe('getNamedRouteRegex - Complex Paths', () => {
 
 describe('getNamedRouteRegex - Trailing Slash Behavior', () => {
   it('should include optional trailing slash by default', () => {
-    const regex = getNamedRouteRegex('/posts/[id]', {
+    const regex = getNamedRouteRegex('/posts/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -794,7 +803,7 @@ describe('getNamedRouteRegex - Trailing Slash Behavior', () => {
   })
 
   it('should exclude optional trailing slash when specified', () => {
-    const regex = getNamedRouteRegex('/posts/[id]', {
+    const regex = getNamedRouteRegex('/posts/[id]' as Page, {
       prefixRouteKeys: true,
       excludeOptionalTrailingSlash: true,
     })
@@ -811,7 +820,7 @@ describe('getNamedRouteRegex - Trailing Slash Behavior', () => {
 
 describe('getNamedRouteRegex - Edge Cases', () => {
   it('should handle root route', () => {
-    const regex = getNamedRouteRegex('/', {
+    const regex = getNamedRouteRegex('/' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -821,7 +830,7 @@ describe('getNamedRouteRegex - Edge Cases', () => {
   })
 
   it('should handle route with only interception marker', () => {
-    const regex = getNamedRouteRegex('/(.)nested', {
+    const regex = getNamedRouteRegex('/(.)nested' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -834,7 +843,7 @@ describe('getNamedRouteRegex - Edge Cases', () => {
 
   it('should handle interception marker followed by catchall segment', () => {
     // Interception marker must be followed by a segment name, then catchall
-    const regex = getNamedRouteRegex('/photos/(.)images/[...path]', {
+    const regex = getNamedRouteRegex('/photos/(.)images/[...path]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -855,7 +864,7 @@ describe('getNamedRouteRegex - Edge Cases', () => {
 
   it('should handle dynamic segment with interception marker prefix', () => {
     // Interception marker can be adjacent to dynamic segment
-    const regex = getNamedRouteRegex('/photos/(.)[id]', {
+    const regex = getNamedRouteRegex('/photos/(.)[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -874,7 +883,7 @@ describe('getNamedRouteRegex - Edge Cases', () => {
   })
 
   it('should handle prefix and suffix options together', () => {
-    const regex = getNamedRouteRegex('/api.v1/users.$type$[id].json', {
+    const regex = getNamedRouteRegex('/api.v1/users.$type$[id].json' as Page, {
       prefixRouteKeys: true,
       includePrefix: true,
       includeSuffix: true,
@@ -890,7 +899,7 @@ describe('getNamedRouteRegex - Edge Cases', () => {
   })
 
   it('should generate correct inverse pattern for complex routes', () => {
-    const regex = getNamedRouteRegex('/[org]/@modal/(..)photo/[id]', {
+    const regex = getNamedRouteRegex('/[org]/@modal/(..)photo/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -906,7 +915,7 @@ describe('getNamedRouteRegex - Edge Cases', () => {
 
   it('should handle path with multiple separate segments', () => {
     // Dynamic segments need to be separated by slashes
-    const regex = getNamedRouteRegex('/[org]/[repo]/[branch]', {
+    const regex = getNamedRouteRegex('/[org]/[repo]/[branch]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -927,7 +936,7 @@ describe('getNamedRouteRegex - Edge Cases', () => {
 
 describe('getNamedRouteRegex - Named Capture Groups', () => {
   it('should extract values using named capture groups', () => {
-    const regex = getNamedRouteRegex('/posts/[category]/[id]', {
+    const regex = getNamedRouteRegex('/posts/[category]/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -942,7 +951,7 @@ describe('getNamedRouteRegex - Named Capture Groups', () => {
   })
 
   it('should extract values with interception markers', () => {
-    const regex = getNamedRouteRegex('/photos/(.)[author]/[id]', {
+    const regex = getNamedRouteRegex('/photos/(.)[author]/[id]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -957,7 +966,7 @@ describe('getNamedRouteRegex - Named Capture Groups', () => {
   })
 
   it('should extract catchall values correctly', () => {
-    const regex = getNamedRouteRegex('/files/[...path]', {
+    const regex = getNamedRouteRegex('/files/[...path]' as Page, {
       prefixRouteKeys: true,
     })
 
@@ -1197,7 +1206,8 @@ describe('getNamedRouteRegex - pathToRegexpPattern Conformance', () => {
 
   describe('Complex Patterns', () => {
     it('should generate a pattern for routes with prefixes and suffixes', () => {
-      const route = '/[locale]/about.segments/$dname$d[name].segment.rsc'
+      const route =
+        '/[locale]/about.segments/$dname$d[name].segment.rsc' as Page
       const regex = getNamedRouteRegex(route, {
         prefixRouteKeys: true,
         includeSuffix: true,

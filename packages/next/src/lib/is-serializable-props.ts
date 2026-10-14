@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import {
   isPlainObject,
   getObjectClassLabel,
@@ -6,7 +7,7 @@ import {
 const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
 export class SerializableError extends Error {
-  constructor(page: string, method: string, path: string, message: string) {
+  constructor(page: Route, method: string, path: string, message: string) {
     super(
       path
         ? `Error serializing \`${path}\` returned from \`${method}\` in "${page}".\nReason: ${message}`
@@ -16,7 +17,7 @@ export class SerializableError extends Error {
 }
 
 export function isSerializableProps(
-  page: string,
+  page: Route,
   method: string,
   input: any
 ): true {

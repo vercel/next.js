@@ -15,6 +15,7 @@ import {
 } from '../../../scripts/wait-for-preview-tarball.mjs'
 import { Span } from 'next/dist/trace'
 import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
+import type { Route } from 'next/dist/shared/lib/route-types'
 import {
   getRouteCacheKey,
   type ResponseCacheOwner,
@@ -1035,7 +1036,10 @@ export class NextInstance {
     pathname = `/${pathname.replace(/^\/+/, '')}`
     // Build artifacts retain their historical layout. A caller supplies an
     // owner only when it is intentionally addressing a scoped runtime entry.
-    const cacheKey = route ? getRouteCacheKey(pathname, route) : undefined
+    const cacheKey = route
+      ? getRouteCacheKey(pathname as Route, route)
+      : undefined
+    // @ts-ignore Human review: this public test helper encodes URLs for both routers with the Page-only file codec; preserve the existing artifact lookup, as in production, without asserting App URLs are raw modules.
     const filename = normalizePagePath(pathname)
     return path.join(
       distDir,

@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
@@ -298,18 +299,21 @@ export async function adapter(
               cookiesFromResponse = cookies
             }
             const previewProps = getEdgePreviewProps()
-            const page = '/' // Fake Work
+            const page = '/' as Page // Fake Work
             const fallbackRouteParams = null
 
             const implicitTags = await getImplicitTags(
               page,
-              request.nextUrl.pathname,
+              // The public NextURL getter exposes a native-parsed pathname.
+              request.nextUrl.pathname as Route,
               fallbackRouteParams
             )
 
             const requestStore = createRequestStoreForAPI(
               request,
-              request.nextUrl,
+              // NextURL's public getter stays string-compatible; its native URL
+              // parser establishes the internal request pathname here.
+              request.nextUrl as NextURL & { pathname: Route },
               implicitTags,
               onUpdateCookies,
               previewProps,

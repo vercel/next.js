@@ -1,3 +1,4 @@
+import type { Page, Route } from '../shared/lib/route-types'
 import {
   findIncompatibleParallelRouteSlots,
   normalizeCatchAllRoutes as normalizeCatchAllRoutesInternal,
@@ -7,7 +8,7 @@ import {
 export { findIncompatibleParallelRouteSlots }
 
 export function normalizeCatchAllRoutes(
-  appPaths: Record<string, string[]>,
+  appPaths: Record<Route, Page[]>,
   options: NormalizeCatchAllRoutesOptions = {}
 ) {
   return normalizeCatchAllRoutesInternal(appPaths, undefined, options)

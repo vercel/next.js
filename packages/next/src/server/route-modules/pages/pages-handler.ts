@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../shared/lib/route-types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ParsedUrlQuery } from 'node:querystring'
 import { RouteKind } from '../../route-kind'
@@ -60,7 +61,7 @@ export const getHandler = ({
   getStaticProps,
   getServerSideProps,
 }: {
-  srcPage: string
+  srcPage: Page
   config: Record<string, any> | undefined
   userland: any
   isFallbackError?: boolean
@@ -92,10 +93,10 @@ export const getHandler = ({
     // so we need to to process dynamic routes properly
     // TODO: fix turbopack providing differing value from webpack
     if (process.env.TURBOPACK) {
-      srcPage = srcPage.replace(/\/index$/, '') || '/'
+      srcPage = (srcPage.replace(/\/index$/, '') || '/') as Page
     } else if (srcPage === '/index') {
       // we always normalize /index specifically
-      srcPage = '/'
+      srcPage = '/' as Page
     }
     const multiZoneDraftMode = process.env
       .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
@@ -175,7 +176,7 @@ export const getHandler = ({
     const hasGetInitialProps = Boolean(
       (userland.default || userland).getInitialProps
     )
-    let cacheKey: null | string = null
+    let cacheKey: null | Route = null
     let isIsrFallback = false
     let isNextDataRequest =
       prepareResult.isNextDataRequest && (hasStaticProps || hasServerProps)
@@ -189,14 +190,14 @@ export const getHandler = ({
         (srcPage === '/' || resolvedPathname === '/') && locale
           ? ''
           : resolvedPathname
-      }`
+      }` as Route
 
       if (is404Page || is500Page || isErrorPage) {
-        cacheKey = `${locale ? `/${locale}` : ''}${srcPage}`
+        cacheKey = `${locale ? `/${locale}` : ''}${srcPage}` as Route
       }
 
       // ensure /index and / is normalized to one key
-      cacheKey = cacheKey === '/index' ? '/' : cacheKey
+      cacheKey = cacheKey === '/index' ? ('/' as Route) : cacheKey
     }
 
     if (hasStaticPaths && !isDraftMode) {
@@ -219,7 +220,10 @@ export const getHandler = ({
             nextConfig.i18n?.locales
           ))
 
-      const prerenderInfo = prerenderManifest.dynamicRoutes[srcPage]
+      // This handler is Pages-only: after its /index adjustment the module
+      // name identifies the same URL pattern in the prerender manifest.
+      const prerenderInfo =
+        prerenderManifest.dynamicRoutes[srcPage as string as Route]
 
       if (prerenderInfo) {
         if (prerenderInfo.fallback === false && !isPrerendered) {
@@ -284,7 +288,8 @@ export const getHandler = ({
                         ...params,
                       },
                 params,
-                page: srcPage,
+                // The adjusted Pages module name and URL pattern coincide.
+                page: srcPage as string as Route,
                 renderContext: {
                   isDraftMode,
                   isFallback: isIsrFallback,

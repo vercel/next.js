@@ -2,6 +2,7 @@ import { getPagesPageStaticInfo } from 'next/dist/build/analysis/get-page-static
 import { installBindings } from 'next/dist/build/swc/install-bindings'
 import { PAGE_TYPES } from 'next/dist/lib/page-types'
 import { join } from 'path'
+import type { Page } from 'next/dist/shared/lib/route-types'
 
 const fixtureDir = join(__dirname, 'fixtures')
 
@@ -15,7 +16,7 @@ describe('parse page static info', () => {
   })
   it('should parse nodejs runtime correctly', async () => {
     const { runtime } = await getPagesPageStaticInfo({
-      page: 'nodejs-ssr',
+      page: 'nodejs-ssr' as Page,
       pageFilePath: join(fixtureDir, 'page-runtime/nodejs-ssr.js'),
       nextConfig: createNextConfig(),
       pageType: PAGE_TYPES.PAGES,
@@ -26,7 +27,7 @@ describe('parse page static info', () => {
 
   it('should parse static runtime correctly', async () => {
     const { runtime } = await getPagesPageStaticInfo({
-      page: 'nodejs',
+      page: 'nodejs' as Page,
       pageFilePath: join(fixtureDir, 'page-runtime/nodejs.js'),
       nextConfig: createNextConfig(),
       pageType: PAGE_TYPES.PAGES,
@@ -37,7 +38,7 @@ describe('parse page static info', () => {
 
   it('should parse edge runtime correctly', async () => {
     const { runtime } = await getPagesPageStaticInfo({
-      page: 'edge',
+      page: 'edge' as Page,
       pageFilePath: join(fixtureDir, 'page-runtime/edge.js'),
       nextConfig: createNextConfig(),
       pageType: PAGE_TYPES.PAGES,
@@ -48,7 +49,7 @@ describe('parse page static info', () => {
 
   it('should return undefined if no runtime is specified', async () => {
     const { runtime } = await getPagesPageStaticInfo({
-      page: 'static',
+      page: 'static' as Page,
       pageFilePath: join(fixtureDir, 'page-runtime/static.js'),
       nextConfig: createNextConfig(),
       pageType: PAGE_TYPES.PAGES,

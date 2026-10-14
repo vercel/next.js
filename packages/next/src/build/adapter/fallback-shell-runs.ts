@@ -15,6 +15,7 @@
  * place relative to the routes around it.
  */
 
+import type { Route } from '../../shared/lib/route-types'
 import type { RoutesManifest } from '..'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
@@ -37,12 +38,12 @@ export type FallbackShellRuns = {
   /**
    * The runs, keyed by the page of the representative of each.
    */
-  byRepresentativePage: Map<string, FallbackShellRun>
+  byRepresentativePage: Map<Route, FallbackShellRun>
   /**
    * The pages of the shells that a run serves, apart from the representative
    * that keys it. The caller emits no entry of its own for these.
    */
-  replacedPages: Set<string>
+  replacedPages: Set<Route>
 }
 
 /**
@@ -53,7 +54,7 @@ type PendingRun = {
   /**
    * The source page that every shell of the run repeats.
    */
-  sourcePage: string
+  sourcePage: Route
   /**
    * The path that every shell of the run has after its prefix.
    */
@@ -70,7 +71,7 @@ type PendingRun = {
     /**
      * The page of the shell.
      */
-    page: string
+    page: Route
     /**
      * The leading part of that page, which holds the values that the shell
      * resolves for the params of the source page.
@@ -87,8 +88,8 @@ type PendingRun = {
  * segments are not consecutive from the first segment onwards.
  */
 function splitShellPage(
-  page: string,
-  sourcePage: string
+  page: Route,
+  sourcePage: Route
 ): { prefix: string; tail: string } | undefined {
   const pageSegments = page.split('/')
   const sourceSegments = sourcePage.split('/')
@@ -177,7 +178,7 @@ function splitShellPage(
  */
 export function collectFallbackShellRuns(
   dynamicRoutes: RoutesManifest['dynamicRoutes'],
-  hasFallbackFalse: (page: string) => boolean
+  hasFallbackFalse: (page: Route) => boolean
 ): FallbackShellRuns {
   const runs: PendingRun[] = []
   let current: PendingRun | undefined
@@ -224,8 +225,8 @@ export function collectFallbackShellRuns(
     current.shells.push({ page: route.page, prefix: split.prefix })
   }
 
-  const byRepresentativePage = new Map<string, FallbackShellRun>()
-  const replacedPages = new Set<string>()
+  const byRepresentativePage = new Map<Route, FallbackShellRun>()
+  const replacedPages = new Set<Route>()
 
   for (const run of runs) {
     if (run.shells.length < 2) {

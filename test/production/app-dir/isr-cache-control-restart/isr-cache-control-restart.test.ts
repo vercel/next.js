@@ -12,6 +12,7 @@ import type { AddressInfo } from 'net'
 import { join } from 'path'
 import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Page, Route } from 'next/dist/shared/lib/route-types'
 
 // An on-demand entry must retain its lifetime when read by a new process.
 describe('isr-cache-control-restart', () => {
@@ -55,9 +56,9 @@ describe('isr-cache-control-restart', () => {
   )
 
   describe('replacement entries shared by running instances', () => {
-    const cacheKey = getRouteCacheKey('/1', {
+    const cacheKey = getRouteCacheKey('/1' as Route, {
       kind: RouteKind.APP_PAGE,
-      sourceRoute: '/[id]/page',
+      sourceRoute: '/[id]/page' as Page,
     })
     const { next } = nextTestSetup({
       files: join(__dirname, 'cache-components'),

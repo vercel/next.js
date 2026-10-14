@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { NextApiResponse } from '../../types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
@@ -33,8 +34,8 @@ export const config = hoist(userland, 'config')
 const routeModule = new PagesAPIRouteModule({
   definition: {
     kind: RouteKind.PAGES_API,
-    page: 'VAR_DEFINITION_PAGE',
-    pathname: 'VAR_DEFINITION_PATHNAME',
+    page: 'VAR_DEFINITION_PAGE' as Page,
+    pathname: 'VAR_DEFINITION_PATHNAME' as Route,
     // The following aren't used in production.
     bundlePath: '',
     filename: '',
@@ -58,13 +59,13 @@ export async function handler(
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
-  let srcPage = 'VAR_DEFINITION_PAGE'
+  let srcPage = 'VAR_DEFINITION_PAGE' as Page
 
   // turbopack doesn't normalize `/index` in the page name
   // so we need to to process dynamic routes properly
   // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
-    srcPage = srcPage.replace(/\/index$/, '') || '/'
+    srcPage = (srcPage.replace(/\/index$/, '') || '/') as Page
   }
 
   const prepareResult = await routeModule.prepare(req, res, { srcPage })
@@ -108,7 +109,7 @@ export async function handler(
           previewProps,
           propagateError: false,
           dev: routeModule.isDev,
-          page: 'VAR_DEFINITION_PAGE',
+          page: 'VAR_DEFINITION_PAGE' as Page,
 
           internalRevalidate: routerServerContext?.revalidate,
 

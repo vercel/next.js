@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+import type { Route } from 'next/dist/shared/lib/route-types'
 import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
 import type {
   Issue,
@@ -408,63 +409,63 @@ describe('next.rs api', () => {
   const routes = [
     {
       name: 'root page',
-      path: '/',
+      path: '/' as Route,
       type: 'page',
       runtime: 'nodejs',
       config: {},
     },
     {
       name: 'pages edge api',
-      path: '/api/edge',
+      path: '/api/edge' as Route,
       type: 'page-api',
       runtime: 'edge',
       config: {},
     },
     {
       name: 'pages Node.js api',
-      path: '/api/nodejs',
+      path: '/api/nodejs' as Route,
       type: 'page-api',
       runtime: 'nodejs',
       config: {},
     },
     {
       name: 'app edge page',
-      path: '/app-edge',
+      path: '/app-edge' as Route,
       type: 'app-page',
       runtime: 'edge',
       config: {},
     },
     {
       name: 'app Node.js page',
-      path: '/app-nodejs',
+      path: '/app-nodejs' as Route,
       type: 'app-page',
       runtime: 'nodejs',
       config: {},
     },
     {
       name: 'pages edge page',
-      path: '/page-edge',
+      path: '/page-edge' as Route,
       type: 'page',
       runtime: 'edge',
       config: {},
     },
     {
       name: 'pages Node.js page',
-      path: '/page-nodejs',
+      path: '/page-nodejs' as Route,
       type: 'page',
       runtime: 'nodejs',
       config: {},
     },
     {
       name: 'app edge route',
-      path: '/route-edge',
+      path: '/route-edge' as Route,
       type: 'app-route',
       runtime: 'edge',
       config: {},
     },
     {
       name: 'app Node.js route',
-      path: '/route-nodejs',
+      path: '/route-nodejs' as Route,
       type: 'app-route',
       runtime: 'nodejs',
       config: {},
@@ -529,7 +530,7 @@ describe('next.rs api', () => {
 
   const hmrCases: {
     name: string
-    path: string
+    path: Route
     type: string
     file: string
     content: string
@@ -538,7 +539,7 @@ describe('next.rs api', () => {
   }[] = [
     {
       name: 'client-side change on a page',
-      path: '/',
+      path: '/' as Route,
       type: 'page',
       file: 'pages/index.js',
       content: pagesIndexCode('hello world2'),
@@ -547,7 +548,7 @@ describe('next.rs api', () => {
     },
     {
       name: 'server-side change on a page',
-      path: '/',
+      path: '/' as Route,
       type: 'page',
       file: 'lib/props.js',
       content: 'export default { some: "prop" }',
@@ -556,7 +557,7 @@ describe('next.rs api', () => {
     },
     {
       name: 'client and server-side change on a page',
-      path: '/',
+      path: '/' as Route,
       type: 'page',
       file: 'pages/index.js',
       content: pagesIndexCode('hello world2', { another: 'prop' }),
@@ -565,7 +566,7 @@ describe('next.rs api', () => {
     },
     {
       name: 'client-side change on a app page',
-      path: '/app',
+      path: '/app' as Route,
       type: 'app-page',
       file: 'app/app/client.tsx',
       content: '"use client";\nexport default () => <div>hello world2</div>',
@@ -574,7 +575,7 @@ describe('next.rs api', () => {
     },
     {
       name: 'server-side change on a app page',
-      path: '/app',
+      path: '/app' as Route,
       type: 'app-page',
       file: 'app/app/page.tsx',
       content: appPageCode('hello world2'),
@@ -748,7 +749,7 @@ describe('next.rs api', () => {
       throw new Error('Entrypoints not available due to compilation errors')
     }
 
-    const route = entrypoints.value.routes.get('/')
+    const route = entrypoints.value.routes.get('/' as Route)
     entrypointsSubscribtion.return()
 
     if (route.type !== 'page') throw new Error('unknown route type')

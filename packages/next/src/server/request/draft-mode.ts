@@ -9,6 +9,7 @@ import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
+import type { Route } from '../../shared/lib/route-types'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
@@ -117,7 +118,7 @@ const CachedDraftModes = new WeakMap<CacheLifetime, Promise<DraftMode>>()
 
 function createDraftModeWithDevWarnings(
   underlyingProvider: null | DraftModeProvider,
-  route: undefined | string
+  route: undefined | Route
 ): Promise<DraftMode> {
   const instance = new DraftMode(underlyingProvider)
   const promise = Promise.resolve(instance)
@@ -180,7 +181,7 @@ const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
 )
 
 function createDraftModeAccessError(
-  route: string | undefined,
+  route: Route | undefined,
   expression: string
 ) {
   const prefix = route ? `Route "${route}" ` : 'This route '

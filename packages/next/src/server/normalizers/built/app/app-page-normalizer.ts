@@ -1,9 +1,10 @@
+import type { Page } from '../../../../shared/lib/route-types'
 import { PAGE_TYPES } from '../../../../lib/page-types'
 import { AbsoluteFilenameNormalizer } from '../../absolute-filename-normalizer'
 import { Normalizers } from '../../normalizers'
 
 /**
- * DevAppPageNormalizer is a normalizer that is used to normalize a pathname
+ * DevAppPageNormalizer is a normalizer that is used to normalize a filename
  * to a page in the `app` directory.
  */
 class DevAppPageNormalizerInternal extends AbsoluteFilenameNormalizer {
@@ -12,7 +13,7 @@ class DevAppPageNormalizerInternal extends AbsoluteFilenameNormalizer {
   }
 }
 
-export class DevAppPageNormalizer extends Normalizers {
+export class DevAppPageNormalizer extends Normalizers<string, Page> {
   constructor(
     appDir: string,
     extensions: ReadonlyArray<string>,

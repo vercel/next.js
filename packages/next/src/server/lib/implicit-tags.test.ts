@@ -1,5 +1,6 @@
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import { getImplicitTags } from './implicit-tags'
+import type { Page, Route } from '../../shared/lib/route-types'
 
 describe('getImplicitTags()', () => {
   it.each<{
@@ -110,7 +111,12 @@ describe('getImplicitTags()', () => {
   ])(
     'for page $page with pathname $pathname',
     async ({ page, pathname, fallbackRouteParams, expectedTags }) => {
-      const result = await getImplicitTags(page, pathname, fallbackRouteParams)
+      // Construct raw module IDs and URL paths from the fixture table, including deliberate empty inputs.
+      const result = await getImplicitTags(
+        page as Page,
+        pathname as Route,
+        fallbackRouteParams
+      )
       expect(result.tags).toEqual(expectedTags)
     }
   )

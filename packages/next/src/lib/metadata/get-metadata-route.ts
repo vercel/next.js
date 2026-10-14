@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import { isMetadataPage } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
@@ -28,6 +29,8 @@ import {
  * /sitemap -> /sitemap
  * /(post)/sitemap -> /sitemap
  */
+// Hashes a metadata candidate spelling, including directory prefixes and basePath;
+// callers need not supply a complete module identifier or normalized URL pathname.
 function getMetadataRouteSuffix(page: string) {
   // Remove the last segment and get the parent pathname
   // e.g. /parent/a/b/c -> /parent/a/b
@@ -72,7 +75,8 @@ function normalizeStaticMetadataRouteSegment(segment: string) {
   return normalizedSegment
 }
 
-function getStaticMetadataRoute(segment: string) {
+function getStaticMetadataRoute(segment: string): Route {
+  // @ts-ignore -- Human review: this raw directory prefix is not a complete Page. normalizeAppPath can strip a real /page or /route parent; preserve existing metadata URL construction.
   const pathname = normalizeAppPath(segment)
 
   return normalizePathSep(
@@ -85,19 +89,20 @@ function getStaticMetadataRoute(segment: string) {
           normalizeStaticMetadataRouteSegment(pathnameSegment)
         )
     )
-  )
+  ) as Route
 }
 
 export function fillStaticMetadataSegment(
+  // A raw metadata directory prefix (possibly empty or basePath-prefixed), not a complete Page.
   segment: string,
   lastSegment: string
-) {
+): Route {
   return normalizePathSep(
     path.join(
       getStaticMetadataRoute(segment),
       getMetadataRouteFilename(segment, lastSegment)
     )
-  )
+  ) as Route
 }
 
 /**
@@ -105,9 +110,11 @@ export function fillStaticMetadataSegment(
  * segments are replaced with "-" placeholders so the file is exported once.
  */
 export function getStaticMetadataPrerenderPathname(
-  pathname: string
-): string | null {
-  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`
+  pathname: Route
+): Route | null {
+  const normalized = (
+    pathname.startsWith('/') ? pathname : `/${pathname}`
+  ) as Route
   if (!isMetadataRouteFile(normalized, [], true)) {
     return null
   }
@@ -139,15 +146,17 @@ export function getStaticMetadataPrerenderPathname(
  *
  */
 export function fillMetadataSegment(
+  // A raw metadata directory prefix, not a complete module identifier.
   segment: string,
   params: any,
   lastSegment: string,
   isStatic: boolean
-) {
+): Route {
   if (isStatic) {
     return fillStaticMetadataSegment(segment, lastSegment)
   }
 
+  // @ts-ignore -- Human review: this raw directory prefix is not a complete Page. normalizeAppPath can strip a real /page or /route parent; preserve existing metadata URL construction.
   const pathname = normalizeAppPath(segment)
   const routeRegex = getNamedRouteRegex(pathname, {
     prefixRouteKeys: false,
@@ -156,7 +165,7 @@ export function fillMetadataSegment(
 
   return normalizePathSep(
     path.join(route, getMetadataRouteFilename(segment, lastSegment))
-  )
+  ) as Route
 }
 
 /**
@@ -168,11 +177,11 @@ export function fillMetadataSegment(
  * @param page
  * @returns
  */
-export function normalizeMetadataRoute(page: string) {
+export function normalizeMetadataRoute(page: Page): Page {
   if (!isMetadataPage(page)) {
     return page
   }
-  let route = page
+  let route: string = page
   let suffix = ''
   if (page === '/robots') {
     route += '.txt'
@@ -192,7 +201,7 @@ export function normalizeMetadataRoute(page: string) {
     )
   }
 
-  return route
+  return route as Page
 }
 
 // Normalize metadata route page to either a single route or a dynamic route.
@@ -200,6 +209,18 @@ export function normalizeMetadataRoute(page: string) {
 // when isDynamic is false, single route -> /sitemap.xml/route
 // when isDynamic is false, dynamic route -> /sitemap/[__metadata_id__]/route
 // also works for pathname such as /sitemap -> /sitemap.xml, but will not append /route suffix
+export function normalizeMetadataPageToRoute(
+  page: Page,
+  isDynamic: boolean
+): Page
+export function normalizeMetadataPageToRoute(
+  page: Route,
+  isDynamic: boolean
+): Route
+export function normalizeMetadataPageToRoute(
+  page: string,
+  isDynamic: boolean
+): string
 export function normalizeMetadataPageToRoute(page: string, isDynamic: boolean) {
   const isRoute = page.endsWith('/route')
   const routePagePath = isRoute ? page.slice(0, -'/route'.length) : page

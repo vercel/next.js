@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import {
   workAsyncStorage,
   type WorkStore,
@@ -17,8 +18,8 @@ import {
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function createServerPathnameForMetadata(
-  underlyingPathname: string
-): Promise<string> {
+  underlyingPathname: Route
+): Promise<Route> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
     throw new InvariantError('Expected workStore to be initialized')
@@ -66,7 +67,7 @@ export function createServerPathnameForMetadata(
           )
         } else {
           if (workUnitStore.finalStage < pathnameStage) {
-            return makeDynamicHangingPromise<string>(
+            return makeDynamicHangingPromise<Route>(
               workUnitStore.renderSignal,
               workStore.route,
               '`pathname`'
@@ -87,16 +88,16 @@ export function createServerPathnameForMetadata(
 }
 
 function createPrerenderPathname(
-  underlyingPathname: string,
+  underlyingPathname: Route,
   workStore: WorkStore,
   prerenderStore: PrerenderStoreLegacy | PrerenderStoreModernServer
-): Promise<string> {
+): Promise<Route> {
   switch (prerenderStore.type) {
     case 'prerender': {
       const fallbackParams = prerenderStore.fallbackRouteParams
       if (fallbackParams && fallbackParams.size > 0) {
         // The pathname depends on params, so we track it like a fallback params access.
-        return makeFallbackParamsHangingPromise<string>(
+        return makeFallbackParamsHangingPromise<Route>(
           prerenderStore.renderSignal,
           workStore.route,
           '`pathname`',
@@ -115,6 +116,6 @@ function createPrerenderPathname(
   return Promise.resolve(underlyingPathname)
 }
 
-function createRenderPathname(underlyingPathname: string): Promise<string> {
+function createRenderPathname(underlyingPathname: Route): Promise<Route> {
   return Promise.resolve(underlyingPathname)
 }

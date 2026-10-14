@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import type { ComponentType } from 'react'
 import type { RouteLoader } from './route-loader'
 import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
@@ -22,6 +23,7 @@ import { resolvePromiseWithTimeout } from './lib/promise'
 declare global {
   interface Window {
     __DEV_MIDDLEWARE_MATCHERS?: ProxyMatcher[]
+    // Ambient declarations reach consumer projects; keep their legacy strings.
     __DEV_PAGES_MANIFEST?: { pages: string[] }
     __SSG_MANIFEST_CB?: () => void
     __SSG_MANIFEST?: Set<string>
@@ -38,8 +40,8 @@ export type GoodPageCache = {
 export default class PageLoader {
   private buildId: string
   private assetPrefix: string
-  private promisedSsgManifest: Promise<Set<string>>
-  private promisedDevPagesManifest?: Promise<string[]>
+  private promisedSsgManifest: Promise<Set<Route>>
+  private promisedDevPagesManifest?: Promise<Route[]>
   private promisedMiddlewareMatchers?: Promise<ProxyMatcher[]>
 
   public routeLoader: RouteLoader
@@ -52,16 +54,19 @@ export default class PageLoader {
 
     this.promisedSsgManifest = new Promise((resolve) => {
       if (window.__SSG_MANIFEST) {
-        resolve(window.__SSG_MANIFEST)
+        // Framework manifest data enters the private Route-keyed cache here.
+        resolve(window.__SSG_MANIFEST as Set<Route>)
       } else {
         window.__SSG_MANIFEST_CB = () => {
-          resolve(window.__SSG_MANIFEST!)
+          resolve(window.__SSG_MANIFEST! as Set<Route>)
         }
       }
     })
   }
 
-  getPageList() {
+  // Reachable through the exported Router.pageLoader; callers may mutate the
+  // returned array using ordinary strings. The private manifest stays branded.
+  getPageList(): Promise<string[]> | string[] {
     if (process.env.NODE_ENV === 'production') {
       return getClientBuildManifest().then((manifest) => manifest.sortedPages)
     } else {
@@ -73,7 +78,7 @@ export default class PageLoader {
           { credentials: 'same-origin' }
         )
           .then((res) => res.json())
-          .then((manifest: { pages: string[] }) => {
+          .then((manifest: { pages: Route[] }) => {
             window.__DEV_PAGES_MANIFEST = manifest
             return manifest.pages
           })
@@ -186,12 +191,15 @@ export default class PageLoader {
   }
 
   _isSsg(
-    /** the route (file-system path) */
+    /** Public Router.pageLoader input: a normalized pages-router URL pattern. */
     route: string
   ): Promise<boolean> {
-    return this.promisedSsgManifest.then((manifest) => manifest.has(route))
+    return this.promisedSsgManifest.then((manifest) =>
+      manifest.has(route as Route)
+    )
   }
 
+  // These methods are exposed by the concrete Router.pageLoader public field.
   loadPage(route: string): Promise<GoodPageCache> {
     return this.routeLoader.loadRoute(route).then((res) => {
       if ('component' in res) {

@@ -1,3 +1,5 @@
+import type { RouteUrl } from '../lib/url'
+import type { Page, Route } from '../shared/lib/route-types'
 import type { __ApiPreviewProps } from './api-utils'
 import type {
   GenericComponentMod,
@@ -9,6 +11,7 @@ import type { NextConfig, NextConfigRuntime } from './config-shared'
 import { parseMaxPostponedStateSize } from './config-shared'
 import type {
   NextParsedUrlQuery,
+  InternalNextUrlWithParsedQuery,
   NextUrlWithParsedQuery,
   RequestMeta,
 } from './request-meta'
@@ -189,7 +192,8 @@ export type FindComponentsResult<
 }
 
 export interface MiddlewareRoutingItem {
-  page: string
+  /** URL scope prefix used to select middleware, not its source module. */
+  page: Route
   match: MiddlewareRouteMatch
   matchers?: ProxyMatcher[]
 }
@@ -200,7 +204,7 @@ export type RouteHandler<
 > = (
   req: ServerRequest,
   res: ServerResponse,
-  parsedUrl: NextUrlWithParsedQuery
+  parsedUrl: InternalNextUrlWithParsedQuery
 ) => PromiseLike<boolean> | boolean
 
 /**
@@ -312,7 +316,7 @@ export type RequestContext<
 > = {
   req: ServerRequest
   res: ServerResponse
-  pathname: string
+  pathname: Route
   query: NextParsedUrlQuery
   renderOpts: RenderOpts
 }
@@ -360,7 +364,7 @@ export default abstract class Server<
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
-  protected readonly appPathRoutes?: Record<string, string[]>
+  protected readonly appPathRoutes?: Record<Route, Page[]>
   protected readonly clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
@@ -380,14 +384,14 @@ export default abstract class Server<
 
   protected abstract findPageComponents(params: {
     locale: string | undefined
-    page: string
+    page: Page
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
     // The following parameters are used in the development server's
     // implementation.
     sriEnabled?: boolean
-    appPaths?: ReadonlyArray<string> | null
+    appPaths?: ReadonlyArray<Page> | null
     shouldEnsure?: boolean
     url?: string
   }): Promise<FindComponentsResult | null>
@@ -398,9 +402,9 @@ export default abstract class Server<
     | undefined
   protected abstract attachRequestMeta(
     req: ServerRequest,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: InternalNextUrlWithParsedQuery
   ): void
-  protected abstract hasPage(pathname: string): Promise<boolean>
+  protected abstract hasPage(pathname: Page): Promise<boolean>
 
   protected abstract sendRenderResult(
     req: ServerRequest,
@@ -423,7 +427,7 @@ export default abstract class Server<
   protected abstract renderHTML(
     req: ServerRequest,
     res: ServerResponse,
-    pathname: string,
+    pathname: Route,
     query: NextParsedUrlQuery,
     renderOpts: LoadedRenderOpts,
     routeMatch: AppRenderRouteMatch
@@ -770,20 +774,25 @@ export default abstract class Server<
       }
 
       // re-create page's pathname
-      let pathname = `/${params.path.join('/')}`
-      pathname = getRouteFromAssetPath(pathname, '.json')
+      let pathname = `/${params.path.join('/')}` as Route
+      // The Pages-router data asset identifies the same pathname after decoding.
+      pathname = getRouteFromAssetPath(pathname, '.json') as string as Route
 
       // ensure trailing slash is normalized per config
       if (middleware) {
+        // Preserve the erased compound assignment; formatting its asserted
+        // left-hand side as a separate statement adds an ASI EmptyStatement.
+        // prettier-ignore
         if (this.nextConfig.trailingSlash && !pathname.endsWith('/')) {
-          pathname += '/'
+          // Appending a slash preserves this URL pathname's representation.
+          (pathname as string) += '/'
         }
         if (
           !this.nextConfig.trailingSlash &&
           pathname.length > 1 &&
           pathname.endsWith('/')
         ) {
-          pathname = pathname.substring(0, pathname.length - 1)
+          pathname = pathname.substring(0, pathname.length - 1) as Route
         }
       }
 
@@ -904,7 +913,11 @@ export default abstract class Server<
             },
           },
           async (span) =>
-            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+            this.handleRequestImpl(
+              req,
+              res,
+              parsedUrl as InternalNextUrlWithParsedQuery | undefined
+            ).finally(() => {
               if (!span) return
 
               const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
@@ -994,7 +1007,7 @@ export default abstract class Server<
   private async handleRequestImpl(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl?: NextUrlWithParsedQuery
+    parsedUrl?: InternalNextUrlWithParsedQuery
   ): Promise<void> {
     try {
       // ensure cookies set in middleware are merged and
@@ -1092,7 +1105,9 @@ export default abstract class Server<
               req.url = req.url.replace(/^\/index/, '/')
             }
             parsedUrl.pathname =
-              parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+              parsedUrl.pathname === '/index'
+                ? ('/' as Route)
+                : parsedUrl.pathname
           }
 
           // x-matched-path is the source of truth, it tells what page
@@ -1100,9 +1115,12 @@ export default abstract class Server<
           let { pathname: matchedPath } = new URL(
             fixMojibake(req.headers[MATCHED_PATH_HEADER] as string),
             'http://localhost'
-          )
+          ) as RouteUrl
 
-          let { pathname: urlPathname } = new URL(req.url, 'http://localhost')
+          let { pathname: urlPathname } = new URL(
+            req.url,
+            'http://localhost'
+          ) as RouteUrl
 
           // For ISR the URL is normalized to the prerenderPath so if
           // it's a data request the URL path will be the data URL,
@@ -1164,6 +1182,7 @@ export default abstract class Server<
           matchedPath = this.normalize(matchedPath)
           const normalizedUrlPath = this.stripNextDataPath(urlPathname)
 
+          // @ts-ignore -- Human review: matchedPath is a parsed URL Route, but this Page-file transform assumes deployment-specific filename encoding. Preserve existing behavior.
           matchedPath = denormalizePagePath(matchedPath)
 
           // Perform locale detection and normalization.
@@ -1247,7 +1266,8 @@ export default abstract class Server<
           // Ensure parsedUrl.pathname includes locale before processing
           // rewrites or they won't match correctly.
           if (defaultLocale && !pathnameInfo.locale) {
-            parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname}`
+            parsedUrl.pathname =
+              `/${defaultLocale}${parsedUrl.pathname}` as Route
           }
 
           // Store a copy of `parsedUrl.query` before calling handleRewrites.
@@ -1611,7 +1631,10 @@ export default abstract class Server<
           return this.renderError(err, req, res, '/_error', parsedUrl.query)
         }
 
-        const parsedMatchedPath = new URL(invokePath || '/', 'http://n')
+        const parsedMatchedPath = new URL(
+          invokePath || '/',
+          'http://n'
+        ) as RouteUrl
         const invokePathnameInfo = getNextPathnameInfo(
           parsedMatchedPath.pathname,
           {
@@ -1720,7 +1743,7 @@ export default abstract class Server<
    * @param pathname the pathname to normalize
    * @returns the normalized pathname
    */
-  private normalize = (pathname: string) => {
+  private normalize = (pathname: Route) => {
     const normalizers: Array<PathnameNormalizer> = []
 
     if (this.normalizers.data) {
@@ -1747,8 +1770,8 @@ export default abstract class Server<
   }
 
   private getPagesRouteDefinition(
-    page: string,
-    pathname: string,
+    page: Page,
+    pathname: Route,
     kind: RouteKind.PAGES | RouteKind.PAGES_API,
     locale?: string
   ): LocaleRouteDefinition<RouteKind.PAGES | RouteKind.PAGES_API> | undefined {
@@ -1773,7 +1796,7 @@ export default abstract class Server<
   }
 
   private getAppPageRouteDefinition(
-    pathname: string
+    pathname: Route
   ): AppPageRouteDefinition | undefined {
     const appPaths = this.appPathRoutes?.[pathname]
     if (!appPaths) return
@@ -1795,7 +1818,7 @@ export default abstract class Server<
   }
 
   private getAppRouteRouteDefinition(
-    page: string
+    page: Page
   ): AppRouteRouteDefinition | undefined {
     const filename = this.appPathsManifest?.[page]
     if (!filename) return
@@ -1818,9 +1841,10 @@ export default abstract class Server<
     const definitions: RouteDefinition[] = []
 
     if (this.enabledDirectories.pages) {
-      for (const page of Object.keys(this.pagesManifest || {})) {
-        const localeResult = this.i18nProvider?.analyze(page)
-        const pathname = localeResult?.pathname ?? page
+      for (const page of Object.keys(this.pagesManifest || {}) as Page[]) {
+        // Pages manifest identifiers already use the URL pathname namespace.
+        const localeResult = this.i18nProvider?.analyze(page as string as Route)
+        const pathname = localeResult?.pathname ?? (page as string as Route)
 
         if (isBlockedPage(pathname)) continue
 
@@ -1838,7 +1862,7 @@ export default abstract class Server<
     }
 
     if (this.enabledDirectories.app) {
-      for (const pathname of Object.keys(this.appPathRoutes || {})) {
+      for (const pathname of Object.keys(this.appPathRoutes || {}) as Route[]) {
         const definition = this.getAppPageRouteDefinition(pathname)
 
         if (definition) {
@@ -1846,7 +1870,7 @@ export default abstract class Server<
         }
       }
 
-      for (const page of Object.keys(this.appPathsManifest || {})) {
+      for (const page of Object.keys(this.appPathsManifest || {}) as Page[]) {
         if (!isAppRouteRoute(page)) continue
 
         const definition = this.getAppRouteRouteDefinition(page)
@@ -1863,8 +1887,8 @@ export default abstract class Server<
   private getSortedRouteDefinitions(
     definitions: RouteDefinition[]
   ): RouteDefinition[] {
-    const references = new Map<string, RouteDefinition[]>()
-    const pathnames: string[] = []
+    const references = new Map<Route, RouteDefinition[]>()
+    const pathnames: Route[] = []
 
     for (const definition of definitions) {
       const existing = references.get(definition.pathname)
@@ -1882,10 +1906,10 @@ export default abstract class Server<
   }
 
   private getRouteMatchPathname(
-    pathname: string,
+    pathname: Route,
     definition: RouteDefinition,
     localeAnalysisResult?: LocaleAnalysisResult
-  ): string | null {
+  ): Route | null {
     const localeDefinition = definition as RouteDefinition & {
       i18n?: { locale?: string }
     }
@@ -1910,7 +1934,7 @@ export default abstract class Server<
   }
 
   private testRouteDefinition(
-    pathname: string,
+    pathname: Route,
     definition: RouteDefinition,
     localeAnalysisResult?: LocaleAnalysisResult
   ): RouteMatch | null {
@@ -1946,7 +1970,7 @@ export default abstract class Server<
   }
 
   private getRoutePatternDefinition(
-    pathname: string,
+    pathname: Route,
     localeAnalysisResult?: LocaleAnalysisResult
   ): RouteDefinition | undefined {
     for (const definition of this.getRouteDefinitions()) {
@@ -1963,7 +1987,7 @@ export default abstract class Server<
   }
 
   protected getRouteMatch(
-    pathname: string,
+    pathname: Route,
     localeAnalysisResult?: LocaleAnalysisResult
   ): RouteMatch | null {
     const definitions = this.getRouteDefinitions()
@@ -2084,10 +2108,10 @@ export default abstract class Server<
 
   public async close(): Promise<void> {}
 
-  protected getAppPathRoutes(): Record<string, string[]> {
-    const appPathRoutes: Record<string, string[]> = {}
+  protected getAppPathRoutes(): Record<Route, Page[]> {
+    const appPathRoutes: Record<Route, Page[]> = {}
 
-    Object.keys(this.appPathsManifest || {}).forEach((entry) => {
+    ;(Object.keys(this.appPathsManifest || {}) as Page[]).forEach((entry) => {
       const normalizedPath = normalizeAppPath(entry)
       if (!appPathRoutes[normalizedPath]) {
         appPathRoutes[normalizedPath] = []
@@ -2103,7 +2127,7 @@ export default abstract class Server<
   protected async run(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: InternalNextUrlWithParsedQuery
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.run, async () =>
       this.runImpl(req, res, parsedUrl)
@@ -2113,7 +2137,7 @@ export default abstract class Server<
   private async runImpl(
     req: ServerRequest,
     res: ServerResponse,
-    parsedUrl: NextUrlWithParsedQuery
+    parsedUrl: InternalNextUrlWithParsedQuery
   ): Promise<void> {
     await this.handleCatchallRenderRequest(req, res, parsedUrl)
   }
@@ -2224,7 +2248,14 @@ export default abstract class Server<
     internalRender = false
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.render, async () =>
-      this.renderImpl(req, res, pathname, query, parsedUrl, internalRender)
+      this.renderImpl(
+        req,
+        res,
+        pathname as Route,
+        query,
+        parsedUrl as InternalNextUrlWithParsedQuery | undefined,
+        internalRender
+      )
     )
   }
 
@@ -2262,9 +2293,9 @@ export default abstract class Server<
   private async renderImpl(
     req: ServerRequest,
     res: ServerResponse,
-    pathname: string,
+    pathname: Route,
     query: NextParsedUrlQuery = {},
-    parsedUrl?: NextUrlWithParsedQuery,
+    parsedUrl?: InternalNextUrlWithParsedQuery,
     internalRender = false
   ): Promise<void> {
     if (!pathname.startsWith('/')) {
@@ -2276,11 +2307,11 @@ export default abstract class Server<
     if (
       this.serverOptions.customServer &&
       pathname === '/index' &&
-      !(await this.hasPage('/index'))
+      !(await this.hasPage('/index' as Page))
     ) {
       // maintain backwards compatibility for custom server
       // (see custom-server integration tests)
-      pathname = '/'
+      pathname = '/' as Route
     }
 
     const ua = req.headers['user-agent'] || ''
@@ -2315,12 +2346,12 @@ export default abstract class Server<
   protected async getStaticPaths({
     pathname,
   }: {
-    pathname: string
-    urlPathname: string
+    pathname: Route
+    urlPathname: Route
     requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
-    page: string
+    page: Page
     isAppPath: boolean
-  }): Promise<Partial<StaticPathsResult> & { staticPaths?: string[] }> {
+  }): Promise<Partial<StaticPathsResult> & { staticPaths?: Route[] }> {
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
       this.getPrerenderManifest().dynamicRoutes[pathname]?.fallback
@@ -2395,7 +2426,7 @@ export default abstract class Server<
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
-      pathname = '/404'
+      pathname = '/404' as Route
     }
     const isErrorPathname = pathname === '/_error'
     const is404Page =
@@ -2496,14 +2527,14 @@ export default abstract class Server<
     // Compute the iSSG cache key. We use the rewritten pathname since
     // pages with fallback: false are allowed to be rewritten to
     // and we need to look up the path by the rewritten path
-    let urlPathname = parseUrl(req.url || '').pathname || '/'
+    let urlPathname = parseUrl(req.url || '').pathname || ('/' as Route)
 
     let resolvedUrlPathname =
       getRequestMeta(req, 'rewrittenPathname') || urlPathname
 
     this.setVaryHeader(req, res, isAppPath, resolvedUrlPathname)
 
-    let staticPaths: string[] | undefined
+    let staticPaths: Route[] | undefined
     let hasFallback = false
 
     const prerenderManifest = this.getPrerenderManifest()
@@ -2555,6 +2586,7 @@ export default abstract class Server<
       req.headers[MATCHED_PATH_HEADER] &&
       req.url.startsWith('/_next/data')
     ) {
+      // @ts-ignore -- Human review: req.url may include query text, but this decoder expects a Route pathname and uses Page filename rules. Preserve the existing request-URL handling.
       req.url = this.stripNextDataPath(req.url)
     }
 
@@ -2873,7 +2905,7 @@ export default abstract class Server<
     const response = isNodeNextResponse(res) ? res.originalResponse : res
 
     const parsedInitUrl = parseUrl(getRequestMeta(req, 'initURL') || req.url)
-    let initPathname = parsedInitUrl.pathname || '/'
+    let initPathname = parsedInitUrl.pathname || ('/' as Route)
 
     for (const normalizer of [
       this.normalizers.segmentPrefetchRSC,
@@ -2940,13 +2972,16 @@ export default abstract class Server<
     return null
   }
 
-  private stripNextDataPath(filePath: string, stripLocale = true) {
+  private stripNextDataPath(filePath: Route, stripLocale = true) {
     if (filePath.includes(this.buildId)) {
       const splitPath = filePath.substring(
         filePath.indexOf(this.buildId) + this.buildId.length
       )
 
-      filePath = denormalizePagePath(splitPath.replace(/\.json$/, ''))
+      // Decode the Pages-router data filename back to its URL pathname.
+      filePath = denormalizePagePath(
+        splitPath.replace(/\.json$/, '') as Page
+      ) as string as Route
     }
 
     if (this.localeNormalizer && stripLocale) {
@@ -2956,7 +2991,7 @@ export default abstract class Server<
   }
 
   // map the route to the actual bundle name
-  protected getOriginalAppPaths(route: string) {
+  protected getOriginalAppPaths(route: Route) {
     if (this.enabledDirectories.app) {
       const originalAppPath = this.appPathRoutes?.[route]
 
@@ -2983,7 +3018,9 @@ export default abstract class Server<
         : null)
     const isAppPath = Array.isArray(appPaths)
 
-    let page = pathname
+    // Pages-router lookup uses the pathname as its page identifier; app
+    // entries below instead retain their original modifiers and leaf suffix.
+    let page = pathname as string as Page
     if (isAppPath) {
       // Load the same direct entry selected by the build and deployment
       // adapter. Expanded catch-all contributors are part of the route tree,
@@ -3152,7 +3189,7 @@ export default abstract class Server<
 
       // if pages/500 is present we still need to trigger
       // /_error `getInitialProps` to allow reporting error
-      if (await this.hasPage('/500')) {
+      if (await this.hasPage('/500' as Page)) {
         addRequestMeta(ctx.req, 'customErrorRender', true)
         await this.renderErrorToResponse(ctx, err)
         removeRequestMeta(ctx.req, 'customErrorRender')
@@ -3204,14 +3241,14 @@ export default abstract class Server<
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
     return getTracer().trace(BaseServerSpan.renderToHTML, async () => {
-      return this.renderToHTMLImpl(req, res, pathname, query)
+      return this.renderToHTMLImpl(req, res, pathname as Route, query)
     })
   }
 
   private async renderToHTMLImpl(
     req: ServerRequest,
     res: ServerResponse,
-    pathname: string,
+    pathname: Route,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
     return this.getStaticHTML((ctx) => this.renderToResponse(ctx), {
@@ -3231,7 +3268,14 @@ export default abstract class Server<
     setHeaders = true
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.renderError, async () => {
-      return this.renderErrorImpl(err, req, res, pathname, query, setHeaders)
+      return this.renderErrorImpl(
+        err,
+        req,
+        res,
+        pathname as Route,
+        query,
+        setHeaders
+      )
     })
   }
 
@@ -3239,7 +3283,7 @@ export default abstract class Server<
     err: Error | null,
     req: ServerRequest,
     res: ServerResponse,
-    pathname: string,
+    pathname: Route,
     query: NextParsedUrlQuery = {},
     setHeaders = true
   ): Promise<void> {
@@ -3312,10 +3356,10 @@ export default abstract class Server<
           using404Page = result !== null
         }
 
-        if (!result && (await this.hasPage('/404'))) {
+        if (!result && (await this.hasPage('/404' as Page))) {
           result = await this.findPageComponents({
             locale: getRequestMeta(ctx.req, 'locale'),
-            page: '/404',
+            page: '/404' as Page,
             query,
             params: {},
             isAppPath: false,
@@ -3326,7 +3370,7 @@ export default abstract class Server<
           using404Page = result !== null
         }
       }
-      let statusPage = `/${res.statusCode}`
+      let statusPage = `/${res.statusCode}` as Page
 
       if (
         !getRequestMeta(ctx.req, 'customErrorRender') &&
@@ -3368,7 +3412,7 @@ export default abstract class Server<
       if (!result) {
         result = await this.findPageComponents({
           locale: getRequestMeta(ctx.req, 'locale'),
-          page: '/_error',
+          page: '/_error' as Page,
           query,
           params: {},
           isAppPath: false,
@@ -3377,14 +3421,14 @@ export default abstract class Server<
           shouldEnsure: true,
           url: ctx.req.url,
         })
-        statusPage = '/_error'
+        statusPage = '/_error' as Page
       }
 
       if (
         process.env.NODE_ENV !== 'production' &&
         !using404Page &&
-        (await this.hasPage('/_error')) &&
-        !(await this.hasPage('/404'))
+        (await this.hasPage('/_error' as Page)) &&
+        !(await this.hasPage('/404' as Page))
       ) {
         this.customErrorNo404Warn()
       }
@@ -3435,7 +3479,8 @@ export default abstract class Server<
         return await this.renderToResponseWithComponents(
           {
             ...ctx,
-            pathname: statusPage,
+            // Built-in Pages-router error modules use the same URL pathname.
+            pathname: statusPage as string as Route,
             renderOpts: {
               ...ctx.renderOpts,
               err,
@@ -3471,7 +3516,7 @@ export default abstract class Server<
         return this.renderToResponseWithComponents(
           {
             ...ctx,
-            pathname: '/_error',
+            pathname: '/_error' as Route,
             renderOpts: {
               ...ctx.renderOpts,
               // We render `renderToHtmlError` here because `err` is
@@ -3503,7 +3548,7 @@ export default abstract class Server<
     return this.getStaticHTML((ctx) => this.renderErrorToResponse(ctx, err), {
       req,
       res,
-      pathname,
+      pathname: pathname as Route,
       query,
     })
   }

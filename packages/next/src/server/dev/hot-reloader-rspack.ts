@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import path from 'path'
 import fs from 'fs/promises'
 import { createHash } from 'crypto'
@@ -152,9 +153,9 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
     isApp,
     url,
   }: {
-    page: string
+    page: Page
     clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
+    appPaths?: ReadonlyArray<Page> | null
     isApp?: boolean
     definition?: RouteDefinition
     url?: string

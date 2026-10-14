@@ -1,4 +1,5 @@
 import type { HtmlProps } from './html-context.shared-runtime'
+import type { Page, Route } from './route-types'
 import type { ComponentType, JSX } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
@@ -356,7 +357,11 @@ export function isResSent(res: ServerResponse) {
   return res.finished || res.headersSent
 }
 
-export function normalizeRepeatedSlashes(url: string) {
+// Complete request URLs remain strings; an internal pathname keeps its Route
+// representation when only its separators are normalized.
+export function normalizeRepeatedSlashes(url: Route): Route
+export function normalizeRepeatedSlashes(url: string): string
+export function normalizeRepeatedSlashes(url: string): string {
   const urlParts = url.split('?')
   const urlNoQuery = urlParts[0]
 
@@ -434,6 +439,7 @@ export class NormalizeError extends Error {}
 export class PageNotFoundError extends Error {
   code: string
 
+  // Diagnostic label: some callers also prepend 'route not found' to a module identifier.
   constructor(page: string) {
     super()
     this.code = 'ENOENT'
@@ -443,7 +449,7 @@ export class PageNotFoundError extends Error {
 }
 
 export class MissingStaticPage extends Error {
-  constructor(page: string, message: string) {
+  constructor(page: Page, message: string) {
     super()
     this.message = `Failed to load static file for page: ${page} ${message}`
   }

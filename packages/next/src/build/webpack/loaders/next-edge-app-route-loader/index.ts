@@ -1,3 +1,4 @@
+import type { Page } from '../../../../shared/lib/route-types'
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -8,7 +9,7 @@ import { isMetadataRoute } from '../../../../lib/metadata/is-metadata-route'
 
 export type EdgeAppRouteLoaderQuery = {
   absolutePagePath: string
-  page: string
+  page: Page
   appDirLoader: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string

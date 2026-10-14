@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { NextApiResponse } from '../../shared/lib/utils'
@@ -20,7 +21,7 @@ export type __ApiPreviewProps = {
 }
 
 export function wrapApiHandler<T extends (...args: any[]) => any>(
-  page: string,
+  page: Page,
   handler: T
 ): T {
   return ((...args) => {

@@ -1,5 +1,6 @@
 import { z } from 'next/dist/compiled/zod'
 import { formatZodError } from '../../../shared/lib/zod'
+import type { Page } from '../../../shared/lib/route-types'
 
 /**
  * The schema for the page segment config.
@@ -36,12 +37,12 @@ const PagesSegmentConfigSchema = z.object({
 /**
  * Parse the page segment config.
  * @param data - The data to parse.
- * @param route - The route of the page.
+ * @param route - The Pages module's file counterpart used in configuration diagnostics.
  * @returns The parsed page segment config.
  */
 export function parsePagesSegmentConfig(
   data: unknown,
-  route: string
+  route: Page
 ): PagesSegmentConfig {
   const parsed = PagesSegmentConfigSchema.safeParse(data, {})
   if (!parsed.success) {

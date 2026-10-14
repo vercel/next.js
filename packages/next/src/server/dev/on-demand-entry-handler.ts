@@ -8,6 +8,7 @@ import type {
 } from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { Page } from '../../shared/lib/route-types'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
@@ -110,6 +111,9 @@ function convertDynamicParamTypeToSyntax(
  * format: {compiler type}@{page type}@{page path}
  * e.g. client@pages@/index
  * e.g. server@app@app/page
+ *
+ * Ordinary entries use their raw Page, whereas client child entries use a
+ * bundle path. This is a composite compiler-cache key, not a Page or Route.
  *
  * This guarantees the uniqueness for each page, to avoid conflicts between app/ and pages/
  */
@@ -215,7 +219,7 @@ interface Entry extends EntryType {
    * All parallel pages that match the same entry, for example:
    * ['/parallel/@bar/nested/@a/page', '/parallel/@bar/nested/@b/page', '/parallel/@foo/nested/@a/page', '/parallel/@foo/nested/@b/page']
    */
-  appPaths: ReadonlyArray<string> | null
+  appPaths: ReadonlyArray<Page> | null
 }
 
 interface ChildEntry extends EntryType {
@@ -372,7 +376,7 @@ function disposeInactiveEntries(
 }
 
 // Normalize both app paths and page paths
-function tryToNormalizePagePath(page: string) {
+function tryToNormalizePagePath(page: Page): Page {
   try {
     return normalizePagePath(page)
   } catch (err) {
@@ -384,7 +388,7 @@ function tryToNormalizePagePath(page: string) {
 interface PagePathData {
   filename: string
   bundlePath: string
-  page: string
+  page: Page
 }
 
 /**
@@ -393,14 +397,14 @@ interface PagePathData {
  * error. It defaults the `/_error` page to Next.js internal error page.
  *
  * @param rootDir Absolute path to the project root.
- * @param page The page normalized (it will be denormalized).
+ * @param page The raw module Page (its file counterpart will be denormalized).
  * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param appDir Absolute path to the app folder with trailing `/app`.
  */
 export async function findPagePathData(
   rootDir: string,
-  page: string,
+  page: Page,
   extensions: string[],
   pagesDir: string | undefined,
   appDir: string | undefined,
@@ -422,18 +426,19 @@ export async function findPagePathData(
       throw new PageNotFoundError(normalizedPagePath)
     }
 
+    // Filesystem discovery constructs a root-relative module identifier.
     const pageUrl = ensureLeadingSlash(
       removePagePathTail(normalizePathSep(pagePath), {
         extensions,
       })
-    )
+    ) as Page
 
-    let bundlePath = normalizedPagePath
-    let pageKey = posix.normalize(pageUrl)
+    let bundlePath: string = normalizedPagePath
+    let pageKey = posix.normalize(pageUrl) as Page
 
     if (isInstrumentation || isMiddlewareFile(normalizedPagePath)) {
       bundlePath = bundlePath.replace('/src', '')
-      pageKey = page.replace('/src', '')
+      pageKey = page.replace('/src', '') as Page
     }
 
     return {
@@ -451,7 +456,7 @@ export async function findPagePathData(
       if (isGlobalNotFoundEnabled) {
         const globalNotFoundPath = await findPageFile(
           appDir,
-          'global-not-found',
+          'global-not-found' as Page,
           extensions,
           true
         )
@@ -459,14 +464,14 @@ export async function findPagePathData(
           return {
             filename: join(appDir, globalNotFoundPath),
             bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY as Page,
           }
         }
       } else {
         // Then if global-not-found.js doesn't exist then load not-found.js
         const notFoundPath = await findPageFile(
           appDir,
-          'not-found',
+          'not-found' as Page,
           extensions,
           true
         )
@@ -474,7 +479,7 @@ export async function findPagePathData(
           return {
             filename: join(appDir, notFoundPath),
             bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY as Page,
           }
         }
       }
@@ -485,7 +490,7 @@ export async function findPagePathData(
           'next/dist/client/components/builtin/global-not-found'
         ),
         bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY as Page,
       }
     }
     pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
@@ -495,12 +500,12 @@ export async function findPagePathData(
           keepIndex: true,
           extensions,
         })
-      )
+      ) as Page
 
       return {
         filename: join(appDir, pagePath),
         bundlePath: posix.join('app', pageUrl),
-        page: posix.normalize(pageUrl),
+        page: posix.normalize(pageUrl) as Page,
       }
     }
   }
@@ -515,16 +520,17 @@ export async function findPagePathData(
   }
 
   if (pagePath !== null && pagesDir) {
+    // Filesystem discovery constructs a root-relative module identifier.
     const pageUrl = ensureLeadingSlash(
       removePagePathTail(normalizePathSep(pagePath), {
         extensions,
       })
-    )
+    ) as Page
 
     return {
       filename: join(pagesDir, pagePath),
       bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
-      page: posix.normalize(pageUrl),
+      page: posix.normalize(pageUrl) as Page,
     }
   }
 
@@ -775,6 +781,7 @@ export function onDemandEntryHandler({
   }
 
   function handlePing(pg: string): void {
+    // Pages pings address the textual compiler cache key, not URL matching.
     const page = normalizePathSep(pg)
     for (const compilerType of [
       COMPILER_NAMES.client,
@@ -818,8 +825,8 @@ export function onDemandEntryHandler({
     isApp,
     url,
   }: {
-    page: string
-    appPaths: ReadonlyArray<string> | null
+    page: Page
+    appPaths: ReadonlyArray<Page> | null
     definition: RouteDefinition | undefined
     isApp: boolean | undefined
     url?: string
@@ -1030,8 +1037,8 @@ export function onDemandEntryHandler({
   }
 
   type EnsurePageOptions = {
-    page: string
-    appPaths?: ReadonlyArray<string> | null
+    page: Page
+    appPaths?: ReadonlyArray<Page> | null
     definition?: RouteDefinition
     isApp?: boolean
     url?: string

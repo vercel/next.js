@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 
@@ -172,7 +173,7 @@ async function collectRoutesForAnalyze(
   dir: string,
   config: NextConfigComplete,
   appDirOnly: boolean
-): Promise<string[]> {
+): Promise<Route[]> {
   const { pagesDir, appDir } = findPagesDir(dir)
 
   let appType: RoutesManifest['appType']
@@ -197,9 +198,10 @@ async function collectRoutesForAnalyze(
   })
 
   const pageKeys = {
-    pages: Object.keys(discovery.mappedPages || {}),
+    // Discovered Pages keys are URL patterns in the Pages module namespace.
+    pages: Object.keys(discovery.mappedPages || {}) as Route[],
     app: discovery.mappedAppPages
-      ? Object.keys(discovery.mappedAppPages).map((key) =>
+      ? (Object.keys(discovery.mappedAppPages) as Page[]).map((key) =>
           normalizeAppPath(key)
         )
       : [],

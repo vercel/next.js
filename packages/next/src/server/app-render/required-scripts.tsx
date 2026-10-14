@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { BuildManifest } from '../get-page-files'
 
@@ -10,7 +11,7 @@ export function getRequiredScripts(
   SRIManifest: undefined | Record<string, string>,
   qs: string,
   nonce: string | undefined,
-  pagePath: string
+  pagePath: Page
 ): [
   () => void,
   { src: string; integrity?: string; crossOrigin?: string | undefined },

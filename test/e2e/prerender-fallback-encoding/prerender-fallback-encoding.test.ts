@@ -3,6 +3,7 @@ import { retry } from 'next-test-utils'
 import fs from 'fs'
 import { join } from 'path'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Route } from 'next/dist/shared/lib/route-types'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
@@ -106,7 +107,7 @@ describe('Fallback path encoding', () => {
                         router: 'pages',
                         route: {
                           kind: RouteKind.PAGES,
-                          sourceRoute: `/${mode}/[slug]`,
+                          sourceRoute: `/${mode}/[slug]` as Route,
                         },
                       }
                     )
@@ -126,7 +127,7 @@ describe('Fallback path encoding', () => {
                         router: 'pages',
                         route: {
                           kind: RouteKind.PAGES,
-                          sourceRoute: `/${mode}/[slug]`,
+                          sourceRoute: `/${mode}/[slug]` as Route,
                         },
                       }
                     )

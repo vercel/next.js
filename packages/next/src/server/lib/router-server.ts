@@ -1,7 +1,11 @@
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
-import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
+import type {
+  InternalNextUrlWithParsedQuery,
+  RequestMeta,
+} from '../request-meta'
+import type { Route } from '../../shared/lib/route-types'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
@@ -419,7 +423,7 @@ export async function initialize(opts: {
         urlNoQuery = removePathPrefix(urlNoQuery, config.basePath)
       }
 
-      const pathnameInfo = getNextPathnameInfo(urlNoQuery, {
+      const pathnameInfo = getNextPathnameInfo(urlNoQuery as Route, {
         nextConfig: config,
       })
 
@@ -444,9 +448,11 @@ export async function initialize(opts: {
         pathLocale: pathnameInfo.locale,
         urlParsed: {
           ...parsedUrl,
-          pathname: pathnameInfo.locale
+          // Request URL splitting and optional locale prefixing establish
+          // this internal pathname; the native URL object remains public.
+          pathname: (pathnameInfo.locale
             ? `/${pathnameInfo.locale}${urlNoQuery}`
-            : urlNoQuery,
+            : urlNoQuery) as Route,
         },
       })
 
@@ -480,8 +486,8 @@ export async function initialize(opts: {
     const invokedOutputs = new Set<string>()
 
     async function invokeRender(
-      parsedUrl: NextUrlWithParsedQuery,
-      invokePath: string,
+      parsedUrl: InternalNextUrlWithParsedQuery,
+      invokePath: Route,
       handleIndex: number,
       additionalRequestMeta?: RequestMeta
     ) {
@@ -688,12 +694,14 @@ export async function initialize(opts: {
       if (matchedOutput?.fsPath && matchedOutput.itemPath) {
         if (
           opts.dev &&
+          // @ts-ignore -- Human review: FsOutput.itemPath can also be an actual metadata asset filename; this conflict probe assumes every asset identifier is a URL Route. Preserve the expected-miss probe.
           (fsChecker.appFiles.has(matchedOutput.itemPath) ||
+            // @ts-ignore -- Human review: the same mixed asset URL/filename is probed against the Pages URL set. Do not brand a filesystem filename as Route.
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
           const message = `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
-          await invokeRender(parsedUrl, '/_error', handleIndex, {
+          await invokeRender(parsedUrl, '/_error' as Route, handleIndex, {
             invokeStatus: 500,
             invokeError: new Error(message),
           })
@@ -724,9 +732,14 @@ export async function initialize(opts: {
         if (!(req.method === 'GET' || req.method === 'HEAD')) {
           res.setHeader('Allow', ['GET', 'HEAD'])
           res.statusCode = 405
-          return await invokeRender(parseUrlUtil('/405'), '/405', handleIndex, {
-            invokeStatus: 405,
-          })
+          return await invokeRender(
+            parseUrlUtil('/405'),
+            '/405' as Route,
+            handleIndex,
+            {
+              invokeStatus: 405,
+            }
+          )
         }
 
         try {
@@ -781,7 +794,7 @@ export async function initialize(opts: {
           }
 
           if (typeof err.statusCode === 'number') {
-            const invokePath = `/${err.statusCode}`
+            const invokePath = `/${err.statusCode}` as Route
             const invokeStatus = err.statusCode
             res.statusCode = err.statusCode
             return await invokeRender(
@@ -812,10 +825,12 @@ export async function initialize(opts: {
 
         return await invokeRender(
           parsedUrl,
-          parsedUrl.pathname || '/',
+          parsedUrl.pathname || ('/' as Route),
           handleIndex,
           {
-            invokeOutput: matchedOutput.itemPath,
+            // Assets with real filesystem paths were handled above. Remaining
+            // matched outputs carry the filesystem checker's URL route keys.
+            invokeOutput: matchedOutput.itemPath as Route,
             ...(matchedOutput.error
               ? {
                   invokeStatus: 500,
@@ -899,14 +914,14 @@ export async function initialize(opts: {
 
       const appNotFound = opts.dev
         ? development?.bundler?.serverFields.hasAppNotFound
-        : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE)
+        : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE as Route)
 
       res.statusCode = 404
 
       if (appNotFound) {
         return await invokeRender(
           parsedUrl,
-          UNDERSCORE_NOT_FOUND_ROUTE,
+          UNDERSCORE_NOT_FOUND_ROUTE as Route,
           handleIndex,
           {
             invokeStatus: 404,
@@ -914,7 +929,7 @@ export async function initialize(opts: {
         )
       }
 
-      await invokeRender(parsedUrl, '/404', handleIndex, {
+      await invokeRender(parsedUrl, '/404' as Route, handleIndex, {
         invokeStatus: 404,
       })
     }
@@ -923,11 +938,11 @@ export async function initialize(opts: {
       await handleRequest(0)
     } catch (err) {
       try {
-        let invokePath = '/500'
+        let invokePath = '/500' as Route
         let invokeStatus = '500'
 
         if (err instanceof DecodeError) {
-          invokePath = '/400'
+          invokePath = '/400' as Route
           invokeStatus = '400'
         } else if (isModuleBuildError(err)) {
           // Webpack compilation failures may bubble out of invokeRender. Log

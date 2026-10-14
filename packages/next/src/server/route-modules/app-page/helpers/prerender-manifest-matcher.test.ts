@@ -4,6 +4,7 @@ import type {
   DynamicPrerenderManifestRoute,
 } from '../../../../build'
 import { RenderingMode } from '../../../../build/rendering-mode'
+import type { Route } from '../../../../shared/lib/route-types'
 
 // Helper function to create a mock PrerenderManifest
 function createMockPrerenderManifest(
@@ -52,11 +53,11 @@ describe('PrerenderManifestMatcher', () => {
     describe('successful matches', () => {
       it('should respect route specificity order', () => {
         const specificRoute = createMockDynamicRoute({
-          fallbackSourceRoute: '/[category]/[id]',
+          fallbackSourceRoute: '/[category]/[id]' as Route,
         })
 
         const catchAllRoute = createMockDynamicRoute({
-          fallbackSourceRoute: '/[category]/[id]',
+          fallbackSourceRoute: '/[category]/[id]' as Route,
         })
 
         // Order matters - more specific routes should come first
@@ -66,11 +67,11 @@ describe('PrerenderManifestMatcher', () => {
         })
 
         const matcher = new PrerenderManifestMatcher(
-          '/[category]/[id]',
+          '/[category]/[id]' as Route,
           manifest
         )
 
-        const result = matcher.match('/products/123')
+        const result = matcher.match('/products/123' as Route)
 
         expect(result).toEqual({
           source: '/products/[id]',
@@ -87,9 +88,12 @@ describe('PrerenderManifestMatcher', () => {
           '/products/[id]': route,
         })
 
-        const matcher = new PrerenderManifestMatcher('/products/[id]', manifest)
+        const matcher = new PrerenderManifestMatcher(
+          '/products/[id]' as Route,
+          manifest
+        )
 
-        const result = matcher.match('/products/123')
+        const result = matcher.match('/products/123' as Route)
 
         expect(result).toEqual({
           source: '/products/[id]',
@@ -99,7 +103,7 @@ describe('PrerenderManifestMatcher', () => {
 
       it('should match unknown root branches against the generic source shell', () => {
         const generatedRootRoute = createMockDynamicRoute({
-          fallbackSourceRoute: '/root-gsp/[lang]/[slug]',
+          fallbackSourceRoute: '/root-gsp/[lang]/[slug]' as Route,
           routeRegex: '^/root-gsp/en/([^/]+?)(?:/)?$',
           fallbackRootParams: [],
           fallbackRouteParams: [
@@ -111,7 +115,7 @@ describe('PrerenderManifestMatcher', () => {
         })
 
         const genericRootRoute = createMockDynamicRoute({
-          fallbackSourceRoute: '/root-gsp/[lang]/[slug]',
+          fallbackSourceRoute: '/root-gsp/[lang]/[slug]' as Route,
           routeRegex: '^/root-gsp/([^/]+?)/([^/]+?)(?:/)?$',
           fallbackRootParams: ['lang'],
           fallbackRouteParams: [
@@ -132,15 +136,15 @@ describe('PrerenderManifestMatcher', () => {
         })
 
         const matcher = new PrerenderManifestMatcher(
-          '/root-gsp/[lang]/[slug]',
+          '/root-gsp/[lang]/[slug]' as Route,
           manifest
         )
 
-        expect(matcher.match('/root-gsp/en/two')).toEqual({
+        expect(matcher.match('/root-gsp/en/two' as Route)).toEqual({
           source: '/root-gsp/en/[slug]',
           route: generatedRootRoute,
         })
-        expect(matcher.match('/root-gsp/fr/two')).toEqual({
+        expect(matcher.match('/root-gsp/fr/two' as Route)).toEqual({
           source: '/root-gsp/[lang]/[slug]',
           route: genericRootRoute,
         })
@@ -148,7 +152,7 @@ describe('PrerenderManifestMatcher', () => {
 
       it('should match a pathname that was already decoded for manifest lookup', () => {
         const route = createMockDynamicRoute({
-          fallbackSourceRoute: '/open/[...slug]',
+          fallbackSourceRoute: '/open/[...slug]' as Route,
         })
 
         const manifest = createMockPrerenderManifest({
@@ -156,12 +160,12 @@ describe('PrerenderManifestMatcher', () => {
         })
 
         const matcher = new PrerenderManifestMatcher(
-          '/open/[...slug]',
+          '/open/[...slug]' as Route,
           manifest
         )
 
         expect(
-          matcher.match('/open/docs/space here/with%2Fslash/100%')
+          matcher.match('/open/docs/space here/with%2Fslash/100%' as Route)
         ).toEqual({
           source: '/open/[...slug]',
           route,
@@ -172,7 +176,7 @@ describe('PrerenderManifestMatcher', () => {
     describe('no match scenarios', () => {
       it('should return null when no matching route is found', () => {
         const route = createMockDynamicRoute({
-          fallbackSourceRoute: '/[category]/[id]',
+          fallbackSourceRoute: '/[category]/[id]' as Route,
         })
 
         const manifest = createMockPrerenderManifest({
@@ -180,18 +184,18 @@ describe('PrerenderManifestMatcher', () => {
         })
 
         const matcher = new PrerenderManifestMatcher(
-          '/[category]/[id]',
+          '/[category]/[id]' as Route,
           manifest
         )
 
-        const result = matcher.match('/non-matching-path')
+        const result = matcher.match('/non-matching-path' as Route)
 
         expect(result).toBe(null)
       })
 
       it('should return null when no routes match the fallback source route', () => {
         const route = createMockDynamicRoute({
-          fallbackSourceRoute: '/products/[id]',
+          fallbackSourceRoute: '/products/[id]' as Route,
         })
 
         const manifest = createMockPrerenderManifest({
@@ -199,11 +203,11 @@ describe('PrerenderManifestMatcher', () => {
         })
 
         const matcher = new PrerenderManifestMatcher(
-          '/[category]/[id]',
+          '/[category]/[id]' as Route,
           manifest
         )
 
-        const result = matcher.match('/products/123')
+        const result = matcher.match('/products/123' as Route)
 
         expect(result).toBe(null)
       })

@@ -149,6 +149,7 @@ import {
   isRequestInsightsEnabled,
 } from '../lib/trace/request-insights'
 import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
+import type { Page, Route } from '../../shared/lib/route-types'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
@@ -642,7 +643,7 @@ export async function createHotReloaderTurbopack(
   let onBeforeDeferredEntriesCalled = false
   let onBeforeDeferredEntriesPromise: Promise<void> | null = null
   // Track non-deferred entries that are currently being built
-  const nonDeferredBuildingEntries: Set<string> = new Set()
+  const nonDeferredBuildingEntries: Set<Page> = new Set()
 
   // Function to wait for all non-deferred entries to be built
   async function waitForNonDeferredEntries(): Promise<void> {
@@ -877,7 +878,7 @@ export async function createHotReloaderTurbopack(
   let clientHmrEventHappened = false
   // Undefined until the first entrypoints emission. That one has nothing to
   // compare against, so every route it lists would look added.
-  let previousRouteKeys: Set<string> | undefined
+  let previousRouteKeys: Set<Route> | undefined
 
   // HACK: Defer sending `building` messages. Turbopack emits a compile pass for every
   // foreground-job cycle, including empty no-op recompiles scheduled by
@@ -1314,9 +1315,11 @@ export async function createHotReloaderTurbopack(
               // (opts.fsChecker) — the same one resolve-routes.ts consults on
               // every incoming HTTP request — so first-match ordering and live
               // route updates are inherited for free.
-              let page: string
+              let page: Route
               if (routeSpecifier != null) {
-                page = routeSpecifier
+                // MCP route specifiers are URL patterns from get_routes, not
+                // raw module identifiers. Keep the external string API.
+                page = routeSpecifier as Route
               } else if (path != null) {
                 const resolved = resolvePathToRoute(path, {
                   appFiles: opts.fsChecker.appFiles,
@@ -1390,6 +1393,7 @@ export async function createHotReloaderTurbopack(
               // as structured output rather than propagating the throw.
               let moduleBuildError: ModuleBuildError | undefined
               try {
+                // @ts-ignore -- Human review: this MCP URL Route is passed as a raw Page; only known App entries get a synthetic module definition. Preserve the fallback assumption without converting the URL to a module identifier.
                 await hotReloader.ensurePage(ensureOpts)
               } catch (err) {
                 if (err instanceof ModuleBuildError) {
@@ -1476,7 +1480,7 @@ export async function createHotReloaderTurbopack(
         if (params) {
           const decodedPagePath = `/${params.path
             .map((param: string) => decodeURIComponent(param))
-            .join('/')}`
+            .join('/')}` as Page
 
           const denormalizedPagePath = denormalizePagePath(decodedPagePath)
 
@@ -1507,7 +1511,9 @@ export async function createHotReloaderTurbopack(
           if (keys.length > 0 && (await project.activateLazyChunk(chunkPath))) {
             for (const key of keys) {
               await hotReloader.ensurePage({
-                page: splitEntryKey(key).page,
+                // This mapper registers only App/Pages module endpoints in
+                // handleRouteType/handlePagesErrorRoute, not root/asset IDs.
+                page: splitEntryKey(key).page as Page,
                 clientOnly: false,
                 definition: undefined,
                 url: req.url,
@@ -2346,7 +2352,9 @@ export async function createHotReloaderTurbopack(
       for (const key of keys) {
         const { page, type } = splitEntryKey(key)
         await hotReloader.ensurePage({
-          page,
+          // serverAssetMapper is populated only by the App/Pages handlers.
+          // Decode its serialized module identifier, not a root/asset name.
+          page: page as Page,
           clientOnly: false,
           definition: undefined,
         })

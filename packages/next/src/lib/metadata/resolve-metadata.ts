@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type {
   Metadata,
   ResolvedMetadata,
@@ -478,9 +479,9 @@ function freezeInDev<T extends object>(obj: T): T {
 }
 
 export async function accumulateMetadata(
-  route: string,
+  route: Route,
   metadataItems: MetadataItems,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
   let resolvedMetadata = createDefaultMetadata()
@@ -630,7 +631,7 @@ export async function accumulateViewport(
 // Exposed API for metadata component, that directly resolve the loader tree and related context as resolved metadata.
 export async function resolveMetadata(
   tree: LoaderTree,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   interpolatedParams: Params,

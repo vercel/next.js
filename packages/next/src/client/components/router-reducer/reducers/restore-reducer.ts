@@ -1,3 +1,4 @@
+import type { Route } from '../../../../shared/lib/route-types'
 import type {
   ReadonlyReducerState,
   ReducerState,
@@ -43,8 +44,10 @@ export function restoreReducer(
 
   const currentUrl = new URL(state.canonicalUrl, location.origin)
   const restoredUrl = action.url
-  const restoredNextUrl =
-    extractPathFromFlightRouterState(treeToRestore) ?? restoredUrl.pathname
+  // @ts-ignore Human review: nullish fallback retains the extractor's empty fragment sentinel as Next-Url. Preserve this unlike initial-state || handling.
+  const restoredNextUrl: Route =
+    extractPathFromFlightRouterState(treeToRestore) ??
+    (restoredUrl.pathname as Route)
 
   const now = Date.now()
   // TODO: Store the dynamic stale time on the top-level state so it's known

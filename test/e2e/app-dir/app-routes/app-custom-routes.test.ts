@@ -1,4 +1,5 @@
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Page } from 'next/dist/shared/lib/route-types'
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
 import { Readable } from 'stream'
@@ -49,7 +50,7 @@ describe('app-custom-routes', () => {
               next.getPrerenderFilePath('/api/dynamic', '.body', {
                 route: {
                   kind: RouteKind.APP_ROUTE,
-                  sourceRoute: '/api/dynamic/route',
+                  sourceRoute: '/api/dynamic/route' as Page,
                 },
               })
             )
@@ -61,7 +62,7 @@ describe('app-custom-routes', () => {
               next.getPrerenderFilePath('/api/dynamic', '.meta', {
                 route: {
                   kind: RouteKind.APP_ROUTE,
-                  sourceRoute: '/api/dynamic/route',
+                  sourceRoute: '/api/dynamic/route' as Page,
                 },
               })
             )
@@ -92,7 +93,7 @@ describe('app-custom-routes', () => {
               next.getPrerenderFilePath(path, '.body', {
                 route: {
                   kind: RouteKind.APP_ROUTE,
-                  sourceRoute: '/static/[slug]/data.json/route',
+                  sourceRoute: '/static/[slug]/data.json/route' as Page,
                 },
               })
             )
@@ -102,7 +103,7 @@ describe('app-custom-routes', () => {
               next.getPrerenderFilePath(path, '.meta', {
                 route: {
                   kind: RouteKind.APP_ROUTE,
-                  sourceRoute: '/static/[slug]/data.json/route',
+                  sourceRoute: '/static/[slug]/data.json/route' as Page,
                 },
               })
             )
@@ -135,7 +136,7 @@ describe('app-custom-routes', () => {
               next.getPrerenderFilePath(path, '.body', {
                 route: {
                   kind: RouteKind.APP_ROUTE,
-                  sourceRoute: '/revalidate-1/[slug]/data.json/route',
+                  sourceRoute: '/revalidate-1/[slug]/data.json/route' as Page,
                 },
               })
             )
@@ -145,7 +146,7 @@ describe('app-custom-routes', () => {
               next.getPrerenderFilePath(path, '.meta', {
                 route: {
                   kind: RouteKind.APP_ROUTE,
-                  sourceRoute: '/revalidate-1/[slug]/data.json/route',
+                  sourceRoute: '/revalidate-1/[slug]/data.json/route' as Page,
                 },
               })
             )

@@ -1,10 +1,13 @@
+import type { Route } from '../../../shared/lib/route-types'
+
 // TypeScript trick to simulate opaque types, like in Flow.
 type Opaque<K, T> = T & { __brand: K }
 
 // Only functions in this module should be allowed to create CacheKeys.
-export type NormalizedPathname = Opaque<'NormalizedPathname', string>
+// Keep the cache-specific opacity while retaining URL pathname semantics.
+export type NormalizedPathname = Opaque<'NormalizedPathname', Route>
 export type NormalizedSearch = Opaque<'NormalizedSearch', string>
-export type NormalizedNextUrl = Opaque<'NormalizedNextUrl', string>
+export type NormalizedNextUrl = Opaque<'NormalizedNextUrl', Route>
 
 export type RouteCacheKey = Opaque<
   'RouteCacheKey',
@@ -19,7 +22,7 @@ export type RouteCacheKey = Opaque<
 
 export function createCacheKey(
   originalHref: string,
-  nextUrl: string | null
+  nextUrl: Route | null
 ): RouteCacheKey {
   const originalUrl = new URL(originalHref)
   const cacheKey = {
@@ -43,7 +46,7 @@ export function createCacheKey(
  * and causes repeated "wrong map" deoptimizations in hot route-matching code.
  * Pushing into an array literal guarantees a packed elements kind.
  */
-export function splitPathnameIntoParts(pathname: string): Array<string> {
+export function splitPathnameIntoParts(pathname: Route): Array<string> {
   const parts: Array<string> = []
   let start = 0
   for (let i = 0; i < pathname.length; i++) {

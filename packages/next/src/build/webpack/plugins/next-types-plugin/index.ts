@@ -2,6 +2,7 @@
 // DOING SO PREVENTS THEM FROM WORKING FOR TURBOPACK USERS.
 // FOLLOW THE PATTERN OF TYPED-ROUTES AND CACHE-LIFE GENERATION
 
+import type { Route } from '../../../../shared/lib/route-types'
 import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
@@ -252,6 +253,11 @@ const pluginState = getProxiedPluginState({
   >,
 })
 
+function formatRouteToRouteType(route: Route): {
+  isDynamic: boolean
+  routeType: string
+}
+// The implementation rewrites the pathname into generated TypeScript template text.
 function formatRouteToRouteType(route: string) {
   const isDynamic = isDynamicRoute(route)
   if (isDynamic) {
@@ -437,6 +443,7 @@ export class NextTypesPlugin {
       )
     )
 
+    // @ts-ignore -- Human review: App normalization yields a Route, but the Pages branch decodes a Page-file identifier and treats it as a URL pattern. Preserve existing typed-route generation.
     const { isDynamic, routeType } = formatRouteToRouteType(route)
 
     pluginState.routeTypes[this.isEdgeServer ? 'edge' : 'node'][

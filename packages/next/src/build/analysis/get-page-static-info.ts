@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
@@ -174,7 +175,7 @@ export function getRSCModuleInformation(
 function checkExports(
   ast: any,
   expectedExports: string[],
-  page: string
+  page: Page
 ): {
   getStaticProps?: boolean
   getServerSideProps?: boolean
@@ -342,7 +343,7 @@ function validateMiddlewareProxyExports({
   isDev,
 }: {
   ast: any
-  page: string
+  page: Page
   pageFilePath: string
   isDev: boolean
 }): void {
@@ -536,7 +537,7 @@ export function getMiddlewareMatchers(
 }
 
 function parseMiddlewareConfig(
-  page: string,
+  page: Page,
   rawConfig: unknown,
   nextConfig: NextConfig
 ): ProxyConfig {
@@ -575,7 +576,7 @@ function parseMiddlewareConfig(
 }
 
 const apiRouteWarnings = new LRUCache(250)
-function warnAboutExperimentalEdge(apiRoute: string | null) {
+function warnAboutExperimentalEdge(apiRoute: Page | null) {
   if (
     process.env.NODE_ENV === 'production' &&
     process.env.NEXT_PRIVATE_BUILD_WORKER === '1'
@@ -603,7 +604,7 @@ const warnedUnsupportedValueMap = new LRUCache<boolean>(250, () => 1)
 
 function warnAboutUnsupportedValue(
   pageFilePath: string,
-  page: string | undefined,
+  page: Page | undefined,
   result: { unsupported: string; path?: string }
 ) {
   hadUnsupportedValue = true
@@ -641,7 +642,7 @@ type GetPageStaticInfoParams = {
   pageFilePath: string
   nextConfig: Partial<NextConfig>
   isDev: boolean
-  page: string
+  page: Page
   pageType: PAGE_TYPES
 }
 

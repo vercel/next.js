@@ -1,6 +1,8 @@
-export interface PathLocale {
+import type { Page, Route } from '../route-types'
+
+export interface PathLocale<Path extends string = string> {
   detectedLocale?: string
-  pathname: string
+  pathname: Path
 }
 
 /**
@@ -19,6 +21,18 @@ const cache = new WeakMap<readonly string[], readonly string[]>()
  * @param locales A list of locales.
  * @returns The detected locale and pathname without locale
  */
+export function normalizeLocalePath(
+  pathname: Page,
+  locales?: readonly string[]
+): PathLocale<Page>
+export function normalizeLocalePath(
+  pathname: Route,
+  locales?: readonly string[]
+): PathLocale<Route>
+export function normalizeLocalePath(
+  pathname: string,
+  locales?: readonly string[]
+): PathLocale
 export function normalizeLocalePath(
   pathname: string,
   locales?: readonly string[]

@@ -1,9 +1,10 @@
+import type { Page } from '../../shared/lib/route-types'
 import type { RouteDefinition } from './route-definition'
 import { RouteKind } from '../route-kind'
 
 export interface AppPageRouteDefinition
   extends RouteDefinition<RouteKind.APP_PAGE> {
-  readonly appPaths: ReadonlyArray<string>
+  readonly appPaths: ReadonlyArray<Page>
 }
 
 /**

@@ -1,4 +1,5 @@
 export class PageSignatureError extends Error {
+  // Middleware/edge adapter diagnostic label, also supplied by the public event constructor.
   constructor({ page }: { page: string }) {
     super(`The middleware "${page}" accepts an async API directly with the form:
   

@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type {
   GetServerSideProps,
@@ -87,14 +88,13 @@ export interface PagesRouteModuleOptions
 }
 
 /**
- * AppRouteRouteHandlerContext is the context that is passed to the route
- * handler for app routes.
+ * PagesRouteHandlerContext is the context passed to the Pages route renderer.
  */
 export interface PagesRouteHandlerContext extends RouteModuleHandleContext {
   /**
-   * The page for the given route.
+   * The URL pathname or pattern for the given Pages route.
    */
-  page: string
+  page: Route
 
   /**
    * The parsed URL query for the given request.

@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { Params } from '../../../server/request/params'
 import type { AppPageRouteModule } from '../../../server/route-modules/app-page/module.compiled'
 import type { AppRouteRouteModule } from '../../../server/route-modules/app-route/module.compiled'
@@ -36,7 +37,7 @@ export type ParamMatchingMode = (typeof PARAM_MATCHING_MODES)[number]
 export type ParamMatching = Record<string, ParamMatchingMode>
 
 function validateParamMatchingExport(
-  route: string,
+  route: Route,
   filePath: string | undefined,
   exportName: string,
   value: unknown,
@@ -76,7 +77,7 @@ function validateParamMatchingExport(
 function attach(
   segment: AppSegment,
   userland: unknown,
-  route: string,
+  route: Route,
   visibleParamNames: readonly string[]
 ) {
   // If the userland is not an object, then we can't do anything with it.

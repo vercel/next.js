@@ -1,11 +1,12 @@
+import type { Route } from '../../route-types'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { getRouteMatcher } from './route-matcher'
 import { getRouteRegex } from './route-regex'
 
 export function interpolateAs(
-  route: string,
-  asPathname: string,
+  route: Route,
+  asPathname: Route,
   query: ParsedUrlQuery
 ) {
   let interpolatedRoute = ''
@@ -63,6 +64,8 @@ export function interpolateAs(
   }
   return {
     params,
-    result: interpolatedRoute,
+    // Encoded substitutions preserve the URL namespace. Failure remains the
+    // existing empty sentinel, not a normalized pathname.
+    result: interpolatedRoute as Route | '',
   }
 }

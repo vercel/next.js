@@ -1,8 +1,9 @@
+import type { Page, Route } from '../shared/lib/route-types'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
 import type { BaseNextRequest } from './base-http'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import type { InternalNextUrlWithParsedQuery as NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -73,12 +74,20 @@ export function normalizeCdnUrl(
   req.url = formatUrl(_parsedUrl)
 }
 
-export function interpolateDynamicPath(
-  pathname: string,
+// Interpolation preserves a known representation, not exact string literals.
+// It also handles full request URLs and segment-prefetch request strings.
+type InterpolatedPath<Path extends string> = Path extends Page
+  ? Page
+  : Path extends Route
+    ? Route
+    : string
+
+export function interpolateDynamicPath<Path extends string>(
+  pathname: Path,
   params: ParsedUrlQuery,
   defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined
-) {
-  if (!defaultRouteRegex) return pathname
+): InterpolatedPath<Path> {
+  if (!defaultRouteRegex) return pathname as unknown as InterpolatedPath<Path>
 
   for (const param of Object.keys(defaultRouteRegex.groups)) {
     const { optional, repeat } = defaultRouteRegex.groups[param]
@@ -100,11 +109,11 @@ export function interpolateDynamicPath(
     }
 
     if (paramValue || optional) {
-      pathname = pathname.replaceAll(builtParam, paramValue)
+      pathname = pathname.replaceAll(builtParam, paramValue) as Path
     }
   }
 
-  return pathname
+  return pathname as unknown as InterpolatedPath<Path>
 }
 
 export function normalizeDynamicRouteParams(
@@ -223,7 +232,7 @@ export function getServerUtils({
   trailingSlash,
   caseSensitive,
 }: {
-  page: string
+  page: Route
   i18n?: NextConfig['i18n']
   basePath: string
   rewrites: DeepReadonly<{
@@ -483,8 +492,8 @@ export function getServerUtils({
       paramKeys: string[]
     ) => normalizeCdnUrl(req, paramKeys),
 
-    interpolateDynamicPath: (
-      pathname: string,
+    interpolateDynamicPath: <Path extends string>(
+      pathname: Path,
       params: Record<string, undefined | string | string[]>
     ) => interpolateDynamicPath(pathname, params, defaultRouteRegex),
 

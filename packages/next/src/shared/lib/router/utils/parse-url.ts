@@ -1,3 +1,4 @@
+import type { Route } from '../../route-types'
 import type { ParsedUrlQuery } from 'querystring'
 
 import { searchParamsToUrlQuery } from './querystring'
@@ -9,7 +10,7 @@ export interface ParsedUrl {
   hostname: string | null
   href: string
   origin?: string | null
-  pathname: string
+  pathname: Route
   port: string | null
   protocol: string | null
   query: ParsedUrlQuery
@@ -30,7 +31,7 @@ export function parseUrl(url: string): ParsedUrl {
       ? `${username}:${password}`
       : username
     : null
-  const pathname = parsedURL.pathname
+  const pathname = parsedURL.pathname as Route
   const search = parsedURL.search
   return {
     auth,

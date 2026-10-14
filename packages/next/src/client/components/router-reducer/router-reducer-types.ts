@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { RootRouteTree } from '../segment-cache/cache'
 import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
@@ -124,7 +125,7 @@ export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
   previousTree: FlightRouterState
   url: URL
-  nextUrl: string | null
+  nextUrl: Route | null
   seed: NavigationSeed | null
   mpa: boolean
   navigateType: 'push' | 'replace'
@@ -245,14 +246,15 @@ export type AppRouterState = {
   renderedSearch: string
 
   /**
-   * The underlying "url" representing the UI state, which is used for intercepting routes.
+   * The underlying URL pathname representing the UI state, used for interception.
+   * Unlike canonicalUrl, it does not carry an origin, query or hash.
    */
-  nextUrl: string | null
+  nextUrl: Route | null
 
   /**
    * The previous next-url that was used previous to a dynamic navigation.
    */
-  previousNextUrl: string | null
+  previousNextUrl: Route | null
 
   debugInfo: Array<unknown> | null
 }

@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { NextConfig } from '../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
@@ -886,14 +887,18 @@ export class AppRouteRouteModule extends RouteModule<
 
     const implicitTags = await getImplicitTags(
       this.definition.page,
-      req.nextUrl.pathname,
+      // NextURL is public/string-compatible; the native URL parser supplies
+      // this request pathname rather than a raw module identifier.
+      req.nextUrl.pathname as Route,
       // App Routes don't support unknown route params.
       null
     )
 
     const requestStore = createRequestStoreForAPI(
       req,
-      req.nextUrl,
+      // The public NextURL getter remains a string; its native URL construction
+      // establishes the internal pathname passed to request storage.
+      req.nextUrl as NextURL & { pathname: Route },
       implicitTags,
       undefined,
       context.previewProps,
@@ -1440,7 +1445,7 @@ const ensureStaticNextUrlHandlers = {
   },
 }
 
-function createCacheComponentsError(route: string) {
+function createCacheComponentsError(route: Route) {
   return new DynamicServerError(
     `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/cache-components`
   )

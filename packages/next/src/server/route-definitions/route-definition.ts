@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { RouteKind } from '../route-kind'
 
 export interface RouteDefinition<K extends RouteKind = RouteKind> {
@@ -9,10 +10,10 @@ export interface RouteDefinition<K extends RouteKind = RouteKind> {
    * intercepting routes, parallel routes and route/page suffixes that are not
    * part of the pathname.
    */
-  readonly page: string
+  readonly page: Page
 
   /**
    * The pathname (including dynamic placeholders) for a route to resolve.
    */
-  readonly pathname: string
+  readonly pathname: Route
 }

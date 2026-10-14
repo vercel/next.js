@@ -1,6 +1,7 @@
 /* global location */
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
+import type { Route } from '../shared/lib/route-types'
 import type Router from '../shared/lib/router/router'
 import type {
   AppComponent,
@@ -76,7 +77,9 @@ export const emitter: MittEmitter<string> = mitt()
 
 const looseToArray = <T extends {}>(input: any): T[] => [].slice.call(input)
 
-let initialData: NEXT_DATA
+// NEXT_DATA is public and remains string-compatible. The server-produced JSON
+// page is the Pages URL pattern on this internal side of deserialization.
+let initialData: NEXT_DATA & { page: Route }
 let defaultLocale: string | undefined = undefined
 let asPath: string
 let pageLoader: PageLoader
@@ -271,7 +274,8 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   pageLoader = new PageLoader(initialData.buildId, prefix)
 
   const register: RegisterFn = ([r, f]) =>
-    pageLoader.routeLoader.onEntrypoint(r, f)
+    // The generated public registration queue carries serialized Pages URLs.
+    pageLoader.routeLoader.onEntrypoint(r as Route, f)
   if (window.__NEXT_P) {
     // Defer page registration for another tick. This will increase the overall
     // latency in hydrating the page, but reduce the total blocking time.
@@ -377,7 +381,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   )
 
   return pageLoader
-    .loadPage('/_error')
+    .loadPage('/_error' as Route)
     .then(({ page: ErrorComponent, styleSheets }) => {
       return lastAppProps?.Component === ErrorComponent
         ? import('../pages/_error')
@@ -833,7 +837,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   let initialErr = initialData.err
 
   try {
-    const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
+    const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint(
+      '/_app' as Route
+    )
     if ('error' in appEntrypoint) {
       throw appEntrypoint.error
     }

@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import path from '../../../shared/lib/isomorphic/path'
 import type { MetadataContext } from '../types/resolvers'
 
@@ -85,7 +86,7 @@ function resolveUrl(
 }
 
 // Resolve with `pathname` if `url` is a relative path.
-function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
+function resolveRelativeUrl(url: string | URL, pathname: Route): string | URL {
   if (typeof url === 'string' && url.startsWith('./')) {
     return path.posix.resolve(pathname, url)
   }
@@ -103,7 +104,7 @@ function isFilePattern(pathname: string): boolean {
 function resolveAbsoluteUrlWithPathname(
   url: string | URL,
   metadataBase: MetadataBaseURL,
-  pathname: string,
+  pathname: Route,
   { trailingSlash }: MetadataContext
 ): string {
   // Resolve url with pathname that always starts with `/`

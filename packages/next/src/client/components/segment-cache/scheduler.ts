@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import { compareParams, ParamsChange } from './vary-path'
 import type {
   FlightRouterState,
@@ -432,7 +433,7 @@ export function reschedulePrefetchTask(
 
 export function isPrefetchTaskDirty(
   task: PrefetchTask,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   root: RootRouteTree<CacheNode>
 ): boolean {
   // This is used to quickly bail out of a prefetch task if the result is

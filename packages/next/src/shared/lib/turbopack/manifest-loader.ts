@@ -47,6 +47,7 @@ import {
   createEdgeRuntimeManifest,
 } from '../../../build/webpack/plugins/build-manifest-plugin-utils'
 import type { SubresourceIntegrityManifest } from '../../../build'
+import type { Page, Route } from '../route-types'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -68,6 +69,8 @@ type ManifestName =
   | typeof REACT_LOADABLE_MANIFEST
   | typeof TURBOPACK_CLIENT_BUILD_MANIFEST
 
+// Artifact location also accepts the synthetic root instrumentation/middleware
+// name (whose page component is ignored), not exclusively a module Page.
 const getManifestPath = (
   page: string,
   distDir: string,
@@ -238,7 +241,7 @@ export class TurbopackManifestLoader {
     this.pagesManifests.delete(key)
   }
 
-  loadActionManifest(pageName: string): void {
+  loadActionManifest(pageName: Page): void {
     this.actionManifests.set(
       getEntryKey('app', 'server', pageName),
       readPartialManifestContent(
@@ -315,7 +318,7 @@ export class TurbopackManifestLoader {
     )
   }
 
-  loadAppPathsManifest(pageName: string): void {
+  loadAppPathsManifest(pageName: Page): void {
     this.appPathsManifests.set(
       getEntryKey('app', 'server', pageName),
       readPartialManifestContent(
@@ -372,7 +375,7 @@ export class TurbopackManifestLoader {
     )
   }
 
-  loadBuildManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
+  loadBuildManifest(pageName: Page, type: 'app' | 'pages' = 'pages'): void {
     this.buildManifests.set(
       getEntryKey(type, 'server', pageName),
       readPartialManifestContent(this.distDir, BUILD_MANIFEST, pageName, type)
@@ -380,7 +383,7 @@ export class TurbopackManifestLoader {
   }
 
   loadClientBuildManifest(
-    pageName: string,
+    pageName: Page,
     type: 'app' | 'pages' = 'pages'
   ): void {
     this.clientBuildManifests.set(
@@ -394,7 +397,7 @@ export class TurbopackManifestLoader {
     )
   }
 
-  loadSriManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
+  loadSriManifest(pageName: Page, type: 'app' | 'pages' = 'pages'): void {
     if (!this.sriEnabled) return
     this.sriManifests.set(
       getEntryKey(type, 'client', pageName),
@@ -447,9 +450,9 @@ export class TurbopackManifestLoader {
   private mergeClientBuildManifests(
     manifests: Iterable<ClientBuildManifest>,
     rewrites: CustomRoutes['rewrites'],
-    sortedPageKeys: string[]
+    sortedPageKeys: Route[]
   ): ClientBuildManifest {
-    const manifest = {
+    const manifest: ClientBuildManifest = {
       __rewrites: rewrites as any,
       sortedPages: sortedPageKeys,
     }
@@ -525,8 +528,10 @@ export class TurbopackManifestLoader {
     // Write fallback build manifest
     const fallbackBuildManifest = this.mergeBuildManifests(
       [
-        this.buildManifests.get(getEntryKey('pages', 'server', '_app')),
-        this.buildManifests.get(getEntryKey('pages', 'server', '_error')),
+        this.buildManifests.get(getEntryKey('pages', 'server', '_app' as Page)),
+        this.buildManifests.get(
+          getEntryKey('pages', 'server', '_error' as Page)
+        ),
       ].filter(Boolean) as BuildManifest[],
       lowPriorityFiles
     )
@@ -555,12 +560,14 @@ export class TurbopackManifestLoader {
       }
     )
 
-    const pagesKeys = [...entrypoints.page.keys()]
+    // These are exclusively Pages-router module identifiers, already spelled
+    // in the Pages URL namespace used by the client routing manifest.
+    const pagesKeys = [...entrypoints.page.keys()] as string[] as Route[]
     if (entrypoints.global.app) {
-      pagesKeys.push('/_app')
+      pagesKeys.push('/_app' as Route)
     }
     if (entrypoints.global.error) {
-      pagesKeys.push('/_error')
+      pagesKeys.push('/_error' as Route)
     }
 
     const sortedPageKeys = getSortedRoutes(pagesKeys)
@@ -592,7 +599,7 @@ export class TurbopackManifestLoader {
     // Expose each route's bootstrap params and the chunk-loading global to the client
     // so `route-loader` can instantiate a navigated page's entry module. The server
     // stores params as raw JSON per route.
-    const pageBootstrapParams: Record<string, unknown> = {}
+    const pageBootstrapParams: Record<Route, unknown> = {}
     let chunkLoadingGlobal: string | undefined
     for (const [key, m] of this.buildManifests.entries()) {
       // Only the pages-router `route-loader` reads `__TURBOPACK_PAGE_BOOTSTRAP`. App routes
@@ -600,9 +607,10 @@ export class TurbopackManifestLoader {
       // (loaded on every page) small.
       if (splitEntryKey(key).type !== 'pages') continue
       if (m.chunkLoadingGlobal) chunkLoadingGlobal = m.chunkLoadingGlobal
+      // Pages-only native bootstrap module keys share the URL namespace.
       for (const [route, params] of Object.entries(
         m.pagesChunkGroupBootstrapParams ?? {}
-      )) {
+      ) as [Route, unknown][]) {
         pageBootstrapParams[route] = params
       }
     }
@@ -633,7 +641,7 @@ export class TurbopackManifestLoader {
     return [buildManifestPath, ssgManifestPath]
   }
 
-  loadFontManifest(pageName: string, type: 'app' | 'pages' = 'pages'): void {
+  loadFontManifest(pageName: Page, type: 'app' | 'pages' = 'pages'): void {
     this.fontManifests.set(
       getEntryKey(type, 'server', pageName),
       readPartialManifestContent(
@@ -695,9 +703,11 @@ export class TurbopackManifestLoader {
   /**
    * @returns If the manifest was written or not
    */
-  loadMiddlewareManifest(
-    pageName: string,
-    type: 'pages' | 'app' | 'middleware' | 'instrumentation'
+  loadMiddlewareManifest<
+    Type extends 'pages' | 'app' | 'middleware' | 'instrumentation',
+  >(
+    pageName: Type extends 'app' | 'pages' ? Page : string,
+    type: Type
   ): boolean {
     const middlewareManifestPath = getManifestPath(
       pageName,
@@ -756,25 +766,28 @@ export class TurbopackManifestLoader {
     }
     manifest.functions = sortObjectByKey(manifest.functions)
     manifest.middleware = sortObjectByKey(manifest.middleware)
-    const updateFunctionDefinition = (
-      fun: EdgeFunctionDefinition
-    ): EdgeFunctionDefinition => {
+    const updateFunctionDefinition = <Path extends Page | Route>(
+      fun: EdgeFunctionDefinition<Path>
+    ): EdgeFunctionDefinition<Path> => {
       return {
         ...fun,
         files: [...(instrumentation?.files ?? []), ...fun.files],
       }
     }
-    for (const key of Object.keys(manifest.middleware)) {
+    for (const key of Object.keys(manifest.middleware) as Route[]) {
       const value = manifest.middleware[key]
       manifest.middleware[key] = updateFunctionDefinition(value)
     }
-    for (const key of Object.keys(manifest.functions)) {
+    for (const key of Object.keys(manifest.functions) as Page[]) {
       const value = manifest.functions[key]
       manifest.functions[key] = updateFunctionDefinition(value)
     }
-    for (const fun of Object.values(manifest.functions).concat(
-      Object.values(manifest.middleware)
-    )) {
+    for (const fun of (
+      Object.values(manifest.functions) as (
+        | EdgeFunctionDefinition<Page>
+        | EdgeFunctionDefinition<Route>
+      )[]
+    ).concat(Object.values(manifest.middleware))) {
       for (const matcher of fun.matchers) {
         if (!matcher.regexp) {
           matcher.regexp = safePathToRegexp(matcher.originalSource, [], {
@@ -785,7 +798,7 @@ export class TurbopackManifestLoader {
         }
       }
     }
-    manifest.sortedMiddleware = Object.keys(manifest.middleware)
+    manifest.sortedMiddleware = Object.keys(manifest.middleware) as Route[]
 
     return manifest
   }
@@ -812,15 +825,17 @@ export class TurbopackManifestLoader {
 
     // Normalize regexes as it uses path-to-regexp
     for (const key in middlewareManifest.middleware) {
-      middlewareManifest.middleware[key].matchers.forEach((matcher) => {
-        if (!matcher.regexp.startsWith('^')) {
-          const parsedPage = tryToParsePath(matcher.regexp)
-          if (parsedPage.error || !parsedPage.regexStr) {
-            throw new Error(`Invalid source: ${matcher.regexp}`)
+      middlewareManifest.middleware[key as Route].matchers.forEach(
+        (matcher) => {
+          if (!matcher.regexp.startsWith('^')) {
+            const parsedPage = tryToParsePath(matcher.regexp)
+            if (parsedPage.error || !parsedPage.regexStr) {
+              throw new Error(`Invalid source: ${matcher.regexp}`)
+            }
+            matcher.regexp = parsedPage.regexStr
           }
-          matcher.regexp = parsedPage.regexStr
         }
-      })
+      )
     }
 
     const middlewareManifestPath = join(
@@ -836,7 +851,8 @@ export class TurbopackManifestLoader {
 
     // Client middleware manifest This is only used in dev though, packages/next/src/build/index.ts
     // writes the manifest again for builds.
-    const matchers = middlewareManifest?.middleware['/']?.matchers || []
+    const matchers =
+      middlewareManifest?.middleware['/' as Route]?.matchers || []
 
     const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
       matchers,
@@ -855,7 +871,7 @@ export class TurbopackManifestLoader {
     }
   }
 
-  loadPagesManifest(pageName: string): void {
+  loadPagesManifest(pageName: Page): void {
     this.pagesManifests.set(
       getEntryKey('pages', 'server', pageName),
       readPartialManifestContent(this.distDir, PAGES_MANIFEST, pageName)
@@ -920,14 +936,13 @@ export class TurbopackManifestLoader {
   }
 }
 
-function sortObjectByKey(obj: Record<string, any>) {
-  return Object.keys(obj)
+// Plain manifest records retain branded keys as well as explicit metadata
+// properties (such as ClientBuildManifest.sortedPages and __rewrites).
+function sortObjectByKey<T extends object>(obj: T): T {
+  return (Object.keys(obj) as Extract<keyof T, string>[])
     .sort()
-    .reduce(
-      (acc, key) => {
-        acc[key] = obj[key]
-        return acc
-      },
-      {} as Record<string, any>
-    )
+    .reduce((acc, key) => {
+      acc[key] = obj[key]
+      return acc
+    }, {} as T)
 }

@@ -2,11 +2,12 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { Route } from '../../shared/lib/route-types'
 import { createSearchParamsInUseCacheError } from '../use-cache/use-cache-messages'
 import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 
 export function throwWithStaticGenerationBailoutErrorWithDynamicError(
-  route: string,
+  route: Route,
   expression: string
 ): never {
   throw new StaticGenBailoutError(

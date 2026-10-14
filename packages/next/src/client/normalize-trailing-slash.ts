@@ -1,3 +1,4 @@
+import type { Page, Route } from '../shared/lib/route-types'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { parsePath } from '../shared/lib/router/utils/parse-path'
 
@@ -5,7 +6,7 @@ import { parsePath } from '../shared/lib/router/utils/parse-path'
  * Normalizes the trailing slash of a path according to the `trailingSlash` option
  * in `next.config.js`.
  */
-export const normalizePathTrailingSlash = (path: string) => {
+export const normalizePathTrailingSlash = ((path: string) => {
   // 47 is the char code for '/'
   if (path.charCodeAt(0) !== 47 || process.env.__NEXT_MANUAL_TRAILING_SLASH) {
     return path
@@ -23,4 +24,8 @@ export const normalizePathTrailingSlash = (path: string) => {
   }
 
   return `${removeTrailingSlash(pathname)}${query}${hash}`
+}) as {
+  (path: Page): Page
+  (path: Route): Route
+  (path: string): string
 }

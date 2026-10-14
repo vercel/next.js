@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import escapePathDelimiters from '../../../shared/lib/router/utils/escape-path-delimiters'
 import { DecodeError } from '../../../shared/lib/utils'
 
@@ -8,6 +9,10 @@ import { DecodeError } from '../../../shared/lib/utils'
  * this allows non-ascii values to be handled e.g.
  * Japanese characters.
  * */
+// The decoder also accepts relative/segment text (as in its existing tests).
+// Preserve a known Route without branding those unrelated strings.
+function decodePathParams(pathname: Route): Route
+function decodePathParams(pathname: string): string
 function decodePathParams(pathname: string): string {
   // TODO: investigate adding this handling for non-SSG
   // pages so non-ascii names also work there.

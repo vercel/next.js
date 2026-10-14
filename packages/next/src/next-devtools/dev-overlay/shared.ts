@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { RuntimeErrorMetadata } from '../../server/dev/hot-reloader-types'
 import { useReducer } from 'react'
 
@@ -85,6 +86,7 @@ export interface OverlayState {
     Record<DevtoolsPanelName, { width: number; height: number }>
   >
   readonly scale: number
+  /** Devtools navigation/display prefix from canonical URL text; may contain search text. Empty means no active tree (see LayoutRouter's human-review note). */
   readonly page: string
   readonly tree: FlightRouterState | null
   readonly theme: 'light' | 'dark' | 'system'
@@ -254,6 +256,7 @@ interface DevToolsScaleAction {
 
 interface DevToolUpdateRouteStateAction {
   type: typeof ACTION_DEVTOOL_UPDATE_ROUTE_STATE
+  // Mirrors the display prefix and explicit empty cleanup sentinel, not a raw Page identifier.
   page: string
   tree: FlightRouterState | null
 }
@@ -273,6 +276,7 @@ interface InstantNavResetAction {
 
 interface InstantErrorsClearAction {
   type: typeof ACTION_INSTANT_ERRORS_CLEAR
+  // Matches the devtools display prefix as generic candidate text, not a routing lookup key.
   currentPath: string
 }
 
@@ -338,13 +342,15 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
-export function getInstantErrorRoute(error: unknown): string | null {
+export function getInstantErrorRoute(error: unknown): Route | null {
   if (!error || typeof error !== 'object') return null
   const message = (error as Error).message
   if (typeof message !== 'string') return null
   if (!isBlockingRouteInNavError(message)) return null
   const prefixMatch = /^Route "([^"]+)":/.exec(message)
-  return prefixMatch ? prefixMatch[1] : null
+  // The recognized framework error serializes workStore.route. The existing
+  // message parser is the external-data boundary; no validation is added.
+  return prefixMatch ? (prefixMatch[1] as Route) : null
 }
 
 // The route stored on an instant error is the route *template* from
@@ -353,7 +359,7 @@ export function getInstantErrorRoute(error: unknown): string | null {
 // we compile the template to a regex so the clear-on-nav reducer keeps
 // errors whose template matches the page the user just landed on.
 export function routeTemplateMatchesPath(
-  template: string,
+  template: Route,
   path: string
 ): boolean {
   if (template === path) return true

@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../route-types'
 import { ensureLeadingSlash } from '../../page-path/ensure-leading-slash'
 import { isGroupSegment } from '../../segment'
 
@@ -17,10 +18,11 @@ import { isGroupSegment } from '../../segment'
  * - `/route` to `/`
  * - `/` to `/`
  *
- * @param route the app route to normalize
- * @returns the normalized pathname
+ * @param route the unnormalized app page to normalize
+ * @returns the normalized pathname (interception markers are currently retained)
  */
-export function normalizeAppPath(route: string) {
+export function normalizeAppPath(route: Page): Route {
+  // @ts-ignore -- Human review: interception markers survive this normalization, so its result is not always a URL Route. Preserve existing behavior.
   return ensureLeadingSlash(
     route.split('/').reduce((pathname, segment, index, segments) => {
       // Empty segments are ignored.
@@ -60,7 +62,7 @@ export function normalizeAppPath(route: string) {
  * before `@` (0x40), causing the children page to sort first instead of last
  * and leading to a manifest mismatch / 404 in webpack dev mode.
  */
-export function compareAppPaths(a: string, b: string): number {
+export function compareAppPaths(a: Page, b: Page): number {
   const aHasSlot = a.includes('/@')
   const bHasSlot = b.includes('/@')
   if (aHasSlot && !bHasSlot) return -1
@@ -68,10 +70,10 @@ export function compareAppPaths(a: string, b: string): number {
   return a.localeCompare(b)
 }
 
-function normalizeAppPageEntryPathname(appPath: string): string {
+function normalizeAppPageEntryPathname(appPath: Page): Route {
   // Webpack app entries preserve escaped underscore segments as `%5F`, while
   // normalized request pathnames expose the decoded `_` segment.
-  return normalizeAppPath(appPath).replace(/%5F/g, '_')
+  return normalizeAppPath(appPath).replace(/%5F/g, '_') as Route
 }
 
 /**
@@ -81,11 +83,11 @@ function normalizeAppPageEntryPathname(appPath: string): string {
  * the children/root page, or a stable slot when the route only has slots.
  */
 export function selectAppPageEntry(
-  pathname: string,
-  appPaths: readonly string[],
-  normalizePathname: (appPath: string) => string = normalizeAppPageEntryPathname
-): string {
-  let entry: string | undefined
+  pathname: Route,
+  appPaths: readonly Page[],
+  normalizePathname: (appPath: Page) => Route = normalizeAppPageEntryPathname
+): Page {
+  let entry: Page | undefined
 
   for (const appPath of appPaths) {
     if (normalizePathname(appPath) !== pathname) continue

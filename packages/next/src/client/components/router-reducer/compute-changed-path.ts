@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../shared/lib/route-types'
 import type {
   FlightRouterState,
   Segment,
@@ -64,22 +65,20 @@ export const segmentToSourcePagePathname = (segment: Segment): string => {
   }
 }
 
-function normalizeSegments(segments: string[]): string {
-  return (
-    segments.reduce((acc, segment) => {
-      segment = removeLeadingSlash(segment)
-      if (segment === '' || isGroupSegment(segment)) {
-        return acc
-      }
+function normalizeSegments(segments: string[]): Route {
+  return (segments.reduce((acc, segment) => {
+    segment = removeLeadingSlash(segment)
+    if (segment === '' || isGroupSegment(segment)) {
+      return acc
+    }
 
-      return `${acc}/${segment}`
-    }, '') || '/'
-  )
+    return `${acc}/${segment}`
+  }, '') || '/') as Route
 }
 
 export function extractPathFromFlightRouterState(
   flightRouterState: FlightRouterState
-): string | undefined {
+): Route | '' | undefined {
   const segment = Array.isArray(flightRouterState[0])
     ? flightRouterState[0][1]
     : flightRouterState[0]
@@ -158,10 +157,11 @@ function extractSourcePageSegmentsFromFlightRouterState(
 
 export function extractSourcePageFromFlightRouterState(
   flightRouterState: FlightRouterState
-): string | undefined {
+): Page | undefined {
   const sourcePageSegments =
     extractSourcePageSegmentsFromFlightRouterState(flightRouterState)
 
+  // @ts-ignore Human review: source-module reconstruction omits parallel slot keys, so it may not retain the full raw Page identity. Preserve the existing diagnostic value.
   return sourcePageSegments ? `/${sourcePageSegments.join('/')}` : undefined
 }
 
@@ -222,11 +222,11 @@ function computeChangedPathImpl(
 export function computeChangedPath(
   treeA: FlightRouterState,
   treeB: FlightRouterState
-): string | null {
+): Route | null {
   const changedPath = computeChangedPathImpl(treeA, treeB)
 
   if (changedPath == null || changedPath === '/') {
-    return changedPath
+    return changedPath as Route | null
   }
 
   // lightweight normalization to remove route groups

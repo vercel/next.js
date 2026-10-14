@@ -1,3 +1,5 @@
+import type { Page } from '../../route-types'
+
 // Translate a pages asset path (relative from a common prefix) back into its logical route
 
 import { isDynamicRoute } from './is-dynamic'
@@ -6,7 +8,7 @@ import { isDynamicRoute } from './is-dynamic'
 export default function getRouteFromAssetPath(
   assetPath: string,
   ext: string = ''
-): string {
+): Page {
   assetPath = assetPath.replace(/\\/g, '/')
   assetPath =
     ext && assetPath.endsWith(ext) ? assetPath.slice(0, -ext.length) : assetPath
@@ -15,5 +17,5 @@ export default function getRouteFromAssetPath(
   } else if (assetPath === '/index') {
     assetPath = '/'
   }
-  return assetPath
+  return assetPath as Page
 }

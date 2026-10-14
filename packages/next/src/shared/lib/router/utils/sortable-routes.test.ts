@@ -1,3 +1,5 @@
+import type { Route } from '../../route-types'
+
 import {
   sortSortableRoutes,
   sortSortableRouteObjects,
@@ -27,7 +29,7 @@ describe('sortSortableRoutes', () => {
         sourcePage: '/[lang]/[teamSlug]/[projectSlug]/monitoring',
         page: '/fr/[teamSlug]/[projectSlug]/monitoring',
       },
-    ]
+    ] as SortableRoute[]
 
     const sorted = sortSortableRoutes(routes)
 
@@ -69,7 +71,7 @@ describe('sortSortableRoutes', () => {
         sourcePage: '/docs/api',
         page: '/docs/api',
       },
-    ]
+    ] as SortableRoute[]
 
     const sorted = sortSortableRoutes(routes)
 
@@ -103,7 +105,7 @@ describe('sortSortableRoutes', () => {
         sourcePage: '/en/docs',
         page: '/[lang]/[...slug]',
       },
-    ]
+    ] as SortableRoute[]
 
     const sorted = sortSortableRoutes(routes)
 
@@ -137,7 +139,7 @@ describe('sortSortableRoutes', () => {
         sourcePage: '/api/users',
         page: '/api/users',
       },
-    ]
+    ] as SortableRoute[]
 
     const sorted = sortSortableRoutes(routes)
 
@@ -175,7 +177,7 @@ describe('sortSortableRoutes', () => {
         sourcePage: '/[lang]/banana',
         page: '/[lang]/banana',
       },
-    ]
+    ] as SortableRoute[]
 
     const sorted = sortSortableRoutes(routes)
 
@@ -196,7 +198,7 @@ describe('sortSortableRoutes', () => {
   })
 
   it('should handle empty routes array', () => {
-    const routes: SortableRoute[] = []
+    const routes: SortableRoute[] = [] as SortableRoute[]
     const sorted = sortSortableRoutes(routes)
     expect(sorted).toEqual([])
   })
@@ -207,7 +209,7 @@ describe('sortSortableRoutes', () => {
         sourcePage: '/api/users/[id]',
         page: '/api/users/[id]',
       },
-    ]
+    ] as SortableRoute[]
 
     const sorted = sortSortableRoutes(routes)
 
@@ -229,7 +231,7 @@ describe('sortSortableRoutes', () => {
         sourcePage: '/api/users',
         page: '/api/users',
       },
-    ]
+    ] as SortableRoute[]
 
     const sorted = sortSortableRoutes(routes)
 
@@ -271,7 +273,7 @@ describe('sortSortableRoutes', () => {
         sourcePage: '/[lang]/blog/[...slug]',
         page: '/[lang]/blog/[...slug]',
       },
-    ]
+    ] as SortableRoute[]
 
     const sorted = sortSortableRoutes(routes)
 
@@ -336,8 +338,8 @@ describe('sortSortableRouteObjects', () => {
     ]
 
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.sourcePage,
-      page: obj.page,
+      sourcePage: obj.sourcePage as Route,
+      page: obj.page as Route,
     }))
 
     expect(sorted).toEqual([
@@ -383,8 +385,8 @@ describe('sortSortableRouteObjects', () => {
     ]
 
     const sorted = sortSortableRouteObjects(routes, (route) => ({
-      sourcePage: route.page,
-      page: route.page,
+      sourcePage: route.page as Route,
+      page: route.page as Route,
     }))
 
     expect(sorted.map((r) => r.page)).toEqual([
@@ -416,8 +418,8 @@ describe('sortSortableRouteObjects', () => {
     ]
 
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.source,
-      page: obj.rendered,
+      sourcePage: obj.source as Route,
+      page: obj.rendered as Route,
     }))
 
     expect(sorted.map((r) => r.name)).toEqual([
@@ -439,8 +441,8 @@ describe('sortSortableRouteObjects', () => {
     ]
 
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.path,
-      page: obj.path,
+      sourcePage: obj.path as Route,
+      page: obj.path as Route,
     }))
 
     expect(sorted.map((r) => r.id)).toEqual([
@@ -463,8 +465,8 @@ describe('sortSortableRouteObjects', () => {
     const originalOrder = [...objects]
 
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.route,
-      page: obj.route,
+      sourcePage: obj.route as Route,
+      page: obj.route as Route,
     }))
 
     // Original array should be unchanged
@@ -478,8 +480,8 @@ describe('sortSortableRouteObjects', () => {
     const objects: any[] = []
 
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.path,
-      page: obj.path,
+      sourcePage: obj.path as Route,
+      page: obj.path as Route,
     }))
 
     expect(sorted).toEqual([])
@@ -489,8 +491,8 @@ describe('sortSortableRouteObjects', () => {
     const objects = [{ name: 'only', path: '/api/users/[id]' }]
 
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.path,
-      page: obj.path,
+      sourcePage: obj.path as Route,
+      page: obj.path as Route,
     }))
 
     expect(sorted).toEqual([{ name: 'only', path: '/api/users/[id]' }])
@@ -505,8 +507,8 @@ describe('sortSortableRouteObjects', () => {
     ]
 
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.pattern,
-      page: obj.pattern,
+      sourcePage: obj.pattern as Route,
+      page: obj.pattern as Route,
     }))
 
     // All should have same route, so original order preserved (stable sort)
@@ -526,8 +528,8 @@ describe('sortSortableRouteObjects', () => {
 
     // Getter that creates new objects each time (like in the build process)
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.page, // New object created each call
-      page: obj.page,
+      sourcePage: obj.page as Route, // New object created each call
+      page: obj.page as Route,
     }))
 
     expect(sorted.map((r) => r.page)).toEqual([
@@ -550,8 +552,8 @@ describe('sortSortableRouteObjects', () => {
     ]
 
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.route,
-      page: obj.route,
+      sourcePage: obj.route as Route,
+      page: obj.route as Route,
     }))
 
     expect(sorted.map((r) => r.name)).toEqual([
@@ -572,8 +574,8 @@ describe('sortSortableRouteObjects', () => {
     ]
 
     const sorted = sortSortableRouteObjects(objects, (obj) => ({
-      sourcePage: obj.route,
-      page: obj.route,
+      sourcePage: obj.route as Route,
+      page: obj.route as Route,
     }))
 
     expect(sorted.map((r) => r.letter)).toEqual(['a', 'b', 'm', 'z'])
@@ -592,7 +594,7 @@ describe('sortPageObjects', () => {
       { id: 'fifth', type: 'middleware', route: '/blog/[slug]' }, // Same route as first and third
     ]
 
-    const sorted = sortPageObjects(objects, (obj) => obj.route)
+    const sorted = sortPageObjects(objects, (obj) => obj.route as Route)
 
     // Should preserve all objects, even those with duplicate routes
     expect(sorted.length).toBe(5)
@@ -642,7 +644,7 @@ describe('sortPageObjects', () => {
       { name: 'optional', path: '/docs/[[...slug]]' },
     ]
 
-    const sorted = sortPageObjects(objects, (obj) => obj.path)
+    const sorted = sortPageObjects(objects, (obj) => obj.path as Route)
 
     expect(sorted.map((r) => r.name)).toEqual([
       'static', // '/docs/api' - static segment
@@ -659,7 +661,7 @@ describe('sortPageObjects', () => {
       { id: 'c', route: '/same' },
     ]
 
-    const sorted = sortPageObjects(objects, (obj) => obj.route)
+    const sorted = sortPageObjects(objects, (obj) => obj.route as Route)
 
     expect(sorted.map((r) => r.id)).toEqual(['a', 'b', 'c'])
   })
@@ -672,7 +674,7 @@ describe('sortPageObjects', () => {
       { name: 'mid', route: '/api/users' },
     ]
 
-    const sorted = sortPageObjects(objects, (obj) => obj.route)
+    const sorted = sortPageObjects(objects, (obj) => obj.route as Route)
 
     expect(sorted.map((r) => r.name)).toEqual([
       'root', // '/' - shortest and static
@@ -689,20 +691,20 @@ describe('sortPageObjects', () => {
       { letter: 'm', route: '/mango' },
     ]
 
-    const sorted = sortPageObjects(objects, (obj) => obj.route)
+    const sorted = sortPageObjects(objects, (obj) => obj.route as Route)
 
     expect(sorted.map((r) => r.letter)).toEqual(['a', 'm', 'z'])
   })
 
   it('should handle empty array', () => {
     const objects: any[] = []
-    const sorted = sortPageObjects(objects, (obj) => obj.route)
+    const sorted = sortPageObjects(objects, (obj) => obj.route as Route)
     expect(sorted).toEqual([])
   })
 
   it('should handle single object', () => {
     const objects = [{ name: 'only', route: '/single' }]
-    const sorted = sortPageObjects(objects, (obj) => obj.route)
+    const sorted = sortPageObjects(objects, (obj) => obj.route as Route)
     expect(sorted).toEqual([{ name: 'only', route: '/single' }])
   })
 
@@ -713,7 +715,7 @@ describe('sortPageObjects', () => {
     ]
     const originalOrder = [...objects]
 
-    const sorted = sortPageObjects(objects, (obj) => obj.route)
+    const sorted = sortPageObjects(objects, (obj) => obj.route as Route)
 
     // Original array should be unchanged
     expect(objects).toEqual(originalOrder)
@@ -730,7 +732,7 @@ describe('sortPageObjects', () => {
     }
     objects.push({ id: 'static', route: '/blog/about' })
 
-    const sorted = sortPageObjects(objects, (obj) => obj.route)
+    const sorted = sortPageObjects(objects, (obj) => obj.route as Route)
 
     // Should preserve all objects
     expect(sorted.length).toBe(101)

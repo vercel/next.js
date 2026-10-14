@@ -8,6 +8,7 @@ import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
+import type { Route } from '../../shared/lib/route-types'
 import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
@@ -193,7 +194,7 @@ function makeUntrackedCookies(
 function makeUntrackedCookiesWithDevWarnings(
   requestStore: RequestStore,
   underlyingCookies: ReadonlyRequestCookies,
-  route?: string
+  route?: Route
 ): Promise<ReadonlyRequestCookies> {
   if (requestStore.asyncApiPromises) {
     let promise: Promise<ReadonlyRequestCookies>
@@ -233,7 +234,7 @@ const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
 
 function instrumentCookiesPromiseWithDevWarnings(
   promise: Promise<ReadonlyRequestCookies>,
-  route: string | undefined
+  route: Route | undefined
 ) {
   Object.defineProperties(promise, {
     [Symbol.iterator]: replaceableWarningDescriptorForSymbolIterator(
@@ -255,7 +256,7 @@ function instrumentCookiesPromiseWithDevWarnings(
 function replaceableWarningDescriptor(
   target: unknown,
   prop: string,
-  route: string | undefined
+  route: Route | undefined
 ) {
   return {
     enumerable: false,
@@ -276,7 +277,7 @@ function replaceableWarningDescriptor(
 
 function replaceableWarningDescriptorForSymbolIterator(
   target: unknown,
-  route: string | undefined
+  route: Route | undefined
 ) {
   return {
     enumerable: false,
@@ -297,7 +298,7 @@ function replaceableWarningDescriptorForSymbolIterator(
 }
 
 function createCookiesAccessError(
-  route: string | undefined,
+  route: Route | undefined,
   expression: string
 ) {
   const prefix = route ? `Route "${route}" ` : 'This route '

@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { NextConfigComplete } from '../config-shared'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { WorkStore } from '../app-render/work-async-storage.external'
@@ -45,8 +46,8 @@ export type EncodedArgumentsForProbe =
 
 export type ProbeMessage = {
   distDir: string
-  page: string
-  route: string
+  page: Page
+  route: Route
   id: string
   kind: string
   encodedArguments: EncodedArgumentsForProbe

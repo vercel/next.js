@@ -1,3 +1,4 @@
+import type { Page } from '../../../shared/lib/route-types'
 import type webpack from 'webpack'
 import { getModuleBuildInfo } from './get-module-build-info'
 import { stringifyRequest } from '../stringify-request'
@@ -5,7 +6,7 @@ import type { ProxyConfig } from '../../analysis/get-page-static-info'
 
 export type EdgeFunctionLoaderOptions = {
   absolutePagePath: string
-  page: string
+  page: Page
   rootDir: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
@@ -31,13 +32,13 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
     buildInfo.route = {
-      page: page || '/',
+      page: page || ('/' as Page),
       absolutePagePath,
       preferredRegion,
       middlewareConfig,
     }
     buildInfo.nextEdgeApiFunction = {
-      page: page || '/',
+      page: page || ('/' as Page),
     }
     buildInfo.rootDir = rootDir
 

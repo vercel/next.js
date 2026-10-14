@@ -617,6 +617,7 @@ export default function OuterLayoutRouter({
       const { SegmentBoundaryTriggerNode, SegmentViewStateNode } =
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 
+      // @ts-ignore Human review: canonical navigation URL can contain search text and is not a raw Page; preserve the existing devtools prefix normalization.
       const pagePrefix = normalizeAppPath(url)
       segmentViewStateNode = (
         <SegmentViewStateNode key={pagePrefix} page={pagePrefix} />

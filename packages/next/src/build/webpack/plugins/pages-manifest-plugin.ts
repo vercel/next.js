@@ -1,3 +1,4 @@
+import type { Page } from '../../../shared/lib/route-types'
 import path from 'path'
 import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
@@ -8,12 +9,14 @@ import {
 import getRouteFromEntrypoint from '../../../server/get-route-from-entrypoint'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
-export type PagesManifest = { [page: string]: string }
+// Module lookup keys: raw app identifiers, or logical Pages identifiers which
+// coincide with their discovery URLs in the Pages namespace. Values are files.
+export type PagesManifest = Record<Page, string>
 
-export let edgeServerPages = {}
-export let nodeServerPages = {}
-export let edgeServerAppPaths = {}
-export let nodeServerAppPaths = {}
+export let edgeServerPages: PagesManifest = {}
+export let nodeServerPages: PagesManifest = {}
+export let edgeServerAppPaths: PagesManifest = {}
+export let nodeServerAppPaths: PagesManifest = {}
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
@@ -102,7 +105,7 @@ export default class PagesManifestPlugin
     // manifest path by merging existing manifest with new
     const writeMergedManifest = async (
       manifestPath: string,
-      entries: Record<string, string>
+      entries: PagesManifest
     ) => {
       await fs.mkdir(path.dirname(manifestPath), { recursive: true })
       await fs.writeFile(

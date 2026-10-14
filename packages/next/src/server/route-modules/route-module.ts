@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import '../../build/adapter/setup-node-env.external'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
@@ -231,7 +232,7 @@ export abstract class RouteModule<
   }
 
   private loadManifests(
-    srcPage: string,
+    srcPage: Page,
     projectDir?: string
   ): {
     buildId: string
@@ -636,7 +637,7 @@ export abstract class RouteModule<
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | null,
     options: {
-      srcPage: string
+      srcPage: Page
       multiZoneDraftMode?: boolean
     }
   ) {
@@ -654,7 +655,7 @@ export abstract class RouteModule<
       srcPage,
       multiZoneDraftMode,
     }: {
-      srcPage: string
+      srcPage: Page
       multiZoneDraftMode?: boolean
     }
   ): Promise<
@@ -667,14 +668,14 @@ export abstract class RouteModule<
         defaultLocale?: string
         query: ParsedUrlQuery
         originalQuery: ParsedUrlQuery
-        originalPathname: string
+        originalPathname: Route
         params?: ParsedUrlQuery
         parsedUrl: UrlWithParsedQuery
         previewData: PreviewData
         pageIsDynamic: boolean
         isDraftMode: boolean
-        resolvedPathname: string
-        encodedResolvedPathname: string
+        resolvedPathname: Route
+        encodedResolvedPathname: Route
         isNextDataRequest: boolean
         buildManifest: DeepReadonly<BuildManifest>
         fallbackBuildManifest: DeepReadonly<BuildManifest>
@@ -773,21 +774,23 @@ export abstract class RouteModule<
     }
     let isNextDataRequest = false
 
-    if (pathHasPrefix(parsedUrl.pathname || '/', '/_next/data')) {
+    if (pathHasPrefix(parsedUrl.pathname || ('/' as Route), '/_next/data')) {
       isNextDataRequest = true
-      parsedUrl.pathname = normalizeDataPath(parsedUrl.pathname || '/')
+      parsedUrl.pathname = normalizeDataPath(
+        parsedUrl.pathname || ('/' as Route)
+      )
     }
     this.normalizeUrl(req, parsedUrl)
-    let originalPathname = parsedUrl.pathname || '/'
+    let originalPathname = parsedUrl.pathname || ('/' as Route)
     const originalQuery = { ...parsedUrl.query }
     const pageIsDynamic = isDynamicRoute(srcPage)
 
-    let localeResult: PathLocale | undefined
+    let localeResult: PathLocale<Route> | undefined
     let detectedLocale: string | undefined
 
     if (i18n) {
       localeResult = normalizeLocalePath(
-        parsedUrl.pathname || '/',
+        parsedUrl.pathname || ('/' as Route),
         i18n.locales
       )
 
@@ -834,7 +837,8 @@ export abstract class RouteModule<
     // Ensure parsedUrl.pathname includes locale before processing
     // rewrites or they won't match correctly.
     if (defaultLocale && !detectedLocale) {
-      parsedUrl.pathname = `/${defaultLocale}${parsedUrl.pathname === '/' ? '' : parsedUrl.pathname}`
+      parsedUrl.pathname =
+        `/${defaultLocale}${parsedUrl.pathname === '/' ? '' : parsedUrl.pathname}` as Route
     }
     const locale =
       getRequestMeta(req, 'locale') || detectedLocale || defaultLocale
@@ -852,12 +856,12 @@ export abstract class RouteModule<
     // from parsedUrl pathname
     if (i18n) {
       parsedUrl.pathname = normalizeLocalePath(
-        parsedUrl.pathname || '/',
+        parsedUrl.pathname || ('/' as Route),
         i18n.locales
       ).pathname
 
       rewrittenParsedUrl.pathname = normalizeLocalePath(
-        rewrittenParsedUrl.pathname || '/',
+        rewrittenParsedUrl.pathname || ('/' as Route),
         i18n.locales
       ).pathname
     }
@@ -869,7 +873,7 @@ export abstract class RouteModule<
     if (!params && serverUtils.dynamicRouteMatcher) {
       const paramsMatch = serverUtils.dynamicRouteMatcher(
         normalizeDataPath(
-          rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
+          rewrittenParsedUrl?.pathname || parsedUrl.pathname || ('/' as Route)
         )
       )
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
@@ -978,7 +982,7 @@ export abstract class RouteModule<
         paramsToInterpolate
       )
       parsedUrl.pathname = serverUtils.interpolateDynamicPath(
-        parsedUrl.pathname || '/',
+        parsedUrl.pathname || ('/' as Route),
         paramsToInterpolate
       )
       originalPathname = serverUtils.interpolateDynamicPath(
@@ -1000,7 +1004,7 @@ export abstract class RouteModule<
           // use final params from URL matching
           const paramsMatch = serverUtils.dynamicRouteMatcher?.(
             normalizeDataPath(
-              localeResult?.pathname || parsedUrl.pathname || '/'
+              localeResult?.pathname || parsedUrl.pathname || ('/' as Route)
             )
           )
           // we don't normalize these as they are allowed to be
@@ -1095,7 +1099,7 @@ export abstract class RouteModule<
     }
 
     if (resolvedPathname === '/index') {
-      resolvedPathname = '/'
+      resolvedPathname = '/' as Route
     }
 
     if (

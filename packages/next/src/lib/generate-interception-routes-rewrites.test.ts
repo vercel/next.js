@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import type { Rewrite } from './load-custom-routes'
 import { generateInterceptionRoutesRewrites } from './generate-interception-routes-rewrites'
 
@@ -16,7 +17,9 @@ function getRewriteMatchers(rewrite: Rewrite) {
 describe('generateInterceptionRoutesRewrites', () => {
   describe('(.) same-level interception', () => {
     it('should generate rewrite for root-level slot intercepting root-level route', () => {
-      const rewrites = generateInterceptionRoutesRewrites(['/@slot/(.)nested'])
+      const rewrites = generateInterceptionRoutesRewrites([
+        '/@slot/(.)nested',
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -52,7 +55,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should generate rewrite for root-level slot intercepting nested route with dynamic segments', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/@modal/(.)groups/[id]/new',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -83,7 +86,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should generate rewrite for nested route intercepting sibling', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/intercepting-routes/feed/(.)photos/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -124,7 +127,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (.) with dynamic parameters in intercepting route', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/intercepting-siblings/@modal/(.)[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -154,7 +157,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (.) with multiple dynamic parameters', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/intercepting-routes-dynamic/photos/(.)[author]/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -194,7 +197,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (.) with optional catchall in intercepting route', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[[...locale]]/(.)settings',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -241,7 +244,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Boundary: /foo/bar with (..) goes to /foo (not root)
       const rewrites = generateInterceptionRoutesRewrites([
         '/foo/bar/(..)target',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -262,7 +265,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (..) with dynamic segment at boundary (2 levels to 1)', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[locale]/dashboard/(..)settings',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -285,7 +288,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // /[...all]/item with (..) removes one segment, leaving /[...all]
       const rewrites = generateInterceptionRoutesRewrites([
         '/[...all]/item/(..)target',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -309,7 +312,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Test WITHOUT catchall sibling - should only match exact level
       const rewritesWithoutCatchall = generateInterceptionRoutesRewrites([
         '/templates/(..)showcase/[...catchAll]',
-      ])
+      ] as Route[])
 
       expect(rewritesWithoutCatchall).toHaveLength(1)
       const rewriteWithoutCatchall = rewritesWithoutCatchall[0]
@@ -335,7 +338,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       const rewritesWithCatchall = generateInterceptionRoutesRewrites([
         '/templates/(..)showcase/[...catchAll]',
         '/templates/[...catchAll]', // Catchall sibling at same level
-      ])
+      ] as Route[])
 
       expect(rewritesWithCatchall).toHaveLength(1)
       const rewriteWithCatchall = rewritesWithCatchall[0]
@@ -363,7 +366,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should generate rewrite for parallel modal intercepting one level up', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/(group)/intercepting-parallel-modal/[username]/@modal/(..)photo/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -411,7 +414,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should generate rewrite with dynamic segment in parent', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[lang]/foo/(..)photos',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -442,7 +445,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (..) with optional catchall in intercepting route', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[[...locale]]/dashboard/(..)settings',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -475,7 +478,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[[...locale]]/dashboard/(..)settings',
         '/[[...locale]]/dashboard/[...slug]', // Catchall sibling at dashboard level
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -503,7 +506,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (..) with multiple dynamic segments including optional catchall', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[[...locale]]/[userId]/(..)profile',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -536,7 +539,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should generate rewrite for root interception from nested route', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[locale]/example/@modal/(...)[locale]/intercepted',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -569,7 +572,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should generate rewrite for (...) in basepath context', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[foo_id]/[bar_id]/@modal/(...)baz_id/[baz_id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -599,7 +602,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (...) with optional catchall in intercepted route', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[[...locale]]/dashboard/@modal/(...)[[...locale]]/intercepted',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -637,7 +640,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should generate rewrite for two levels up', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/foo/bar/(..)(..)hoge',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -668,7 +671,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (..)(..) with optional catchall in intercepting route', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[[...locale]]/foo/bar/(..)(..)hoge',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -709,7 +712,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // User at /blog/tech/nextjs/latest intercepts /blog/post/123
       const rewrites = generateInterceptionRoutesRewrites([
         '/blog/[...category]/@modal/(.)post/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -740,7 +743,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // i18n pattern: user at /en/US/dashboard intercepts /en/US/dashboard/settings
       const rewrites = generateInterceptionRoutesRewrites([
         '/[[...locale]]/dashboard/@modal/(.)settings',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -770,7 +773,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Docs site: user at /docs/api/reference/components navigates one level up
       const rewrites = generateInterceptionRoutesRewrites([
         '/docs/[...slug]/@modal/(..)related',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -793,7 +796,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should generate path-to-regexp format with + suffix for catchall parameters', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/templates/(..)showcase/[...catchAll]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -805,7 +808,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Test with multiple catchall parameters
       const multiCatchallRewrites = generateInterceptionRoutesRewrites([
         '/blog/[...category]/(..)archives/[...path]',
-      ])
+      ] as Route[])
 
       expect(multiCatchallRewrites).toHaveLength(1)
       const multiRewrite = multiCatchallRewrites[0]
@@ -821,7 +824,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle mixed parameter types correctly', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/shop/[category]/(..)products/[id]/reviews/[...path]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -837,7 +840,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (.) with catchall segments', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/intercepting-routes-dynamic-catchall/photos/(.)catchall/[...id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -889,7 +892,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle (.) with optional catchall segments', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/intercepting-routes-dynamic-catchall/photos/(.)optional-catchall/[[...id]]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -943,7 +946,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should normalize route groups in intercepting route', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/(group)/intercepting-parallel-modal/[username]/@modal/(..)photo/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
 
@@ -961,7 +964,9 @@ describe('generateInterceptionRoutesRewrites', () => {
     })
 
     it('should ignore @slot prefix when calculating interception level', () => {
-      const rewrites = generateInterceptionRoutesRewrites(['/@slot/(.)nested'])
+      const rewrites = generateInterceptionRoutesRewrites([
+        '/@slot/(.)nested',
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
 
@@ -980,7 +985,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle parallel routes at nested levels', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/parallel-layout/(.)sub/[slug]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
 
@@ -999,7 +1004,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle optional catchall in route groups with (..) interception', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/(group)/[[...locale]]/dashboard/(..)settings',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1024,7 +1029,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle optional catchall in parallel routes with (.) interception', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/@slot/[[...locale]]/(.)settings',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1057,7 +1062,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       // Pattern: /@modal/[modalId] for different modal types
       const rewrites = generateInterceptionRoutesRewrites([
         '/@modal/[modalId]/(.)photos/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1081,7 +1086,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle nested parallel route with dynamic segments in parent', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[org]/@sidebar/[section]/(..)profile',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1106,7 +1111,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle multiple parallel routes with their own dynamic segments', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[workspace]/@sidebar/[section]/@modal/[modalType]/(.)content/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1139,7 +1144,7 @@ describe('generateInterceptionRoutesRewrites', () => {
   describe('basePath support', () => {
     it('should include basePath in source and destination but not in header check', () => {
       const rewrites = generateInterceptionRoutesRewrites(
-        ['/@slot/(.)nested'],
+        ['/@slot/(.)nested'] as Route[],
         '/base'
       )
 
@@ -1169,7 +1174,7 @@ describe('generateInterceptionRoutesRewrites', () => {
 
     it('should handle optional catchall with basePath', () => {
       const rewrites = generateInterceptionRoutesRewrites(
-        ['/[[...locale]]/(.)settings'],
+        ['/[[...locale]]/(.)settings'] as Route[],
         '/base'
       )
 
@@ -1204,7 +1209,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle parameters with special characters', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[this-is-my-route]/@intercept/(.)some-page',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
 
@@ -1230,7 +1235,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should use consistent parameter names for (.) with dynamic segments', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/photos/(.)[author]/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1261,7 +1266,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should use consistent parameter names for (..) with dynamic segments', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[org]/projects/(..)team/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1289,7 +1294,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should use consistent parameter names for (...) with dynamic segments', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/[locale]/dashboard/@modal/(...)auth/[provider]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1327,7 +1332,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle parameter substitution correctly', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/shop/(.)[category]/[productId]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1358,7 +1363,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle catchall parameters with consistent naming', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/docs/(.)[...slug]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1392,7 +1397,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should handle multiple parameters with mixed types consistently', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/blog/[year]/[month]/(.)[slug]/comments/[...commentPath]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1443,7 +1448,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     it('should verify the actual failing case from the bug report', () => {
       const rewrites = generateInterceptionRoutesRewrites([
         '/intercepting-routes-dynamic/photos/(.)[author]/[id]',
-      ])
+      ] as Route[])
 
       expect(rewrites).toHaveLength(1)
       const rewrite = rewrites[0]
@@ -1497,7 +1502,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle multiple parallel routes @slot1/@slot2', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/@slot1/@slot2/(.)photos',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1521,7 +1526,7 @@ describe('generateInterceptionRoutesRewrites', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/templates/(..)showcase',
           '/templates/[[...slug]]', // Optional catchall sibling
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1544,7 +1549,7 @@ describe('generateInterceptionRoutesRewrites', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/[[...locale]]/dashboard/(..)settings',
           '/[[...locale]]/dashboard/[...slug]', // Required catchall sibling
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1569,7 +1574,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should intercept a required catchall route with (.)', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/feed/(.)blog/[...slug]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1597,7 +1602,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should intercept an optional catchall route with (..)', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/dashboard/settings/(..)docs/[[...path]]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1628,7 +1633,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle (...) intercepting a catchall at root', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/app/dashboard/@modal/(...)docs/[...path]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1661,7 +1666,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should escape dots in static segments', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/api.v1/(.)endpoint.users',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1683,7 +1688,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle hyphens and underscores in static segments', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/my-route_name/(.)my-nested_path',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1702,7 +1707,7 @@ describe('generateInterceptionRoutesRewrites', () => {
     describe('basePath edge cases', () => {
       it('should handle basePath with special characters', () => {
         const rewrites = generateInterceptionRoutesRewrites(
-          ['/@slot/(.)nested'],
+          ['/@slot/(.)nested'] as Route[],
           '/my-app.v1'
         )
 
@@ -1723,7 +1728,7 @@ describe('generateInterceptionRoutesRewrites', () => {
 
       it('should handle deeply nested basePath', () => {
         const rewrites = generateInterceptionRoutesRewrites(
-          ['/dashboard/(.)settings'],
+          ['/dashboard/(.)settings'] as Route[],
           '/app/v2/admin'
         )
 
@@ -1746,7 +1751,7 @@ describe('generateInterceptionRoutesRewrites', () => {
 
       it('should handle basePath with dynamic segments in path', () => {
         const rewrites = generateInterceptionRoutesRewrites(
-          ['/[locale]/dashboard/(.)profile'],
+          ['/[locale]/dashboard/(.)profile'] as Route[],
           '/base'
         )
 
@@ -1774,7 +1779,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle same parameter names in intercepting and intercepted routes', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/posts/[id]/(.)comments/[id]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1795,7 +1800,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle parameters with numbers and underscores', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/[user_id123]/(.)[post_id456]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1817,7 +1822,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle all-dynamic intercepting route path', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/[org]/[repo]/[branch]/(.)file/[path]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1845,7 +1850,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle consecutive dynamic segments', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/[a]/[b]/[c]/[d]/(.)photos',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1869,7 +1874,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle required and optional catchalls in same path', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/[[...locale]]/docs/[...path]/(.)modal',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1897,7 +1902,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle (..) with optional catchall intercepting required catchall', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/[[...locale]]/dashboard/(..)blog/[...slug]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1927,7 +1932,7 @@ describe('generateInterceptionRoutesRewrites', () => {
         // (..) from /[org]/[repo]/tree/[branch] goes to /[org]/[repo]/tree
         const rewrites = generateInterceptionRoutesRewrites([
           '/[org]/[repo]/tree/[branch]/@modal/(..)blob/[...filepath]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -1972,7 +1977,7 @@ describe('generateInterceptionRoutesRewrites', () => {
         // Pattern: /[workspace]/[project]/[env]/[service]/settings intercepts logs
         const rewrites = generateInterceptionRoutesRewrites([
           '/[workspace]/[project]/[env]/[service]/settings/@modal/(.)logs/[...path]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -2018,7 +2023,7 @@ describe('generateInterceptionRoutesRewrites', () => {
       it('should handle 6 consecutive dynamic segments with interception', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/[a]/[b]/[c]/[d]/[e]/[f]/(.)target',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -2059,7 +2064,7 @@ describe('generateInterceptionRoutesRewrites', () => {
           '/dashboard/@modal/(.)settings',
           '/dashboard/profile/@modal/(..)settings',
           '/@global-modal/(...)settings',
-        ])
+        ] as Route[])
 
         // Should generate 3 rewrites, one for each interception route
         expect(rewrites).toHaveLength(3)
@@ -2102,7 +2107,7 @@ describe('generateInterceptionRoutesRewrites', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/dashboard/@sidebar/(.)user/[id]',
           '/dashboard/@modal/(.)user/[id]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(2)
 
@@ -2131,7 +2136,7 @@ describe('generateInterceptionRoutesRewrites', () => {
         // i18n + multi-tenant + route groups + parallel routes + interception
         const rewrites = generateInterceptionRoutesRewrites([
           '/[[...locale]]/[workspace]/[project]/(dashboard)/[environment]/@modal/(..)settings/[section]/[...path]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -2181,7 +2186,7 @@ describe('generateInterceptionRoutesRewrites', () => {
         // (..) from /[[...locale]]/shop/[...category] goes to /[[...locale]]/shop
         const rewrites = generateInterceptionRoutesRewrites([
           '/[[...locale]]/shop/[...category]/@quickview/(..)product/[slug]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -2211,7 +2216,7 @@ describe('generateInterceptionRoutesRewrites', () => {
         // (..) from /[[...locale]]/docs/[version]/[...slug] goes to /[[...locale]]/docs/[version]
         const rewrites = generateInterceptionRoutesRewrites([
           '/[[...locale]]/docs/[version]/[...slug]/@modal/(..)api/[endpoint]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(1)
         const rewrite = rewrites[0]
@@ -2248,7 +2253,7 @@ describe('generateInterceptionRoutesRewrites', () => {
         const rewrites = generateInterceptionRoutesRewrites([
           '/[username]/@post-modal/[postId]/@comments/(..)comment/[commentId]',
           '/[username]/@photo-modal/(.)photos/[photoId]',
-        ])
+        ] as Route[])
 
         expect(rewrites).toHaveLength(2)
 

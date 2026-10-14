@@ -2,6 +2,7 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import type { NextAdapter } from 'next'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Route } from 'next/dist/shared/lib/route-types'
 
 describe('adapter config with i18n routes', () => {
   const { next } = nextTestSetup({
@@ -53,7 +54,7 @@ describe('adapter config with i18n routes', () => {
           router: 'pages',
           route: {
             kind: RouteKind.PAGES,
-            sourceRoute: '/fallback/[slug]',
+            sourceRoute: '/fallback/[slug]' as Route,
           },
         })
         expect(output?.fallback?.filePath).toBe(

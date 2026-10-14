@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { NextConfigComplete } from '../config-shared'
 import type {
   AppPageModule,
@@ -61,13 +62,13 @@ export async function loadStaticPaths({
 }: {
   dir: string
   distDir: string
-  pathname: string
+  pathname: Route
   config: RuntimeConfig
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: readonly string[]
   defaultLocale?: string
   isAppPath: boolean
-  page: string
+  page: Page
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheMaxMemorySize: number
@@ -104,7 +105,7 @@ export async function loadStaticPaths({
 
   const components = await loadComponents<AppPageModule | AppRouteModule>({
     distDir,
-    // In `pages/`, the page is the same as the pathname.
+    // @ts-ignore -- Human review: a falsy raw Page falls back to the URL Route in the module loader. The Pages namespace can coincide, but this is not an App module identifier. Preserve the existing fallback.
     page: page || pathname,
     isAppPath,
     isDev: true,

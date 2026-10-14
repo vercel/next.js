@@ -1,5 +1,7 @@
+import type { Route } from './route-types'
+
 export function createUnrenderedSegmentError(
-  route: string,
+  route: Route,
   missingFiles: readonly string[]
 ): Error {
   let message = `Route "${route}": Could not validate that a segment in your UI has instant navigation.`
@@ -17,7 +19,7 @@ export function createUnrenderedSegmentError(
   return new Error(message)
 }
 
-export function createLinkPrefetchPartialError(pathname: string): Error {
+export function createLinkPrefetchPartialError(pathname: Route): Error {
   return new Error(
     `Next.js encountered dynamic data during prefetching for "${pathname}".\n\n` +
       `This will lead to slower, more expensive prefetches.\n\n` +

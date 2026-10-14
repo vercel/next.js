@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { ScrollRef } from '../../shared/lib/app-router-types'
@@ -1328,7 +1329,7 @@ let previousNavigationDidMismatch = false
 export function spawnDynamicRequests(
   navigation: RootNavigationTask,
   primaryUrl: URL,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   freshnessPolicy: FreshnessPolicy,
   accumulation: NavigationRequestAccumulation,
   // The route cache entry used for this navigation, if it came from route
@@ -1459,7 +1460,7 @@ export function spawnDynamicRequests(
 
 async function finishNavigationTask(
   navigation: RootNavigationTask,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   primaryRequestPromise: ReturnType<typeof fetchMissingDynamicData>,
   refreshRequestPromises: Array<
     ReturnType<typeof fetchMissingDynamicData>
@@ -1629,7 +1630,7 @@ function waitForRequestsToFinish(
 function dispatchRetryDueToTreeMismatch(
   isHardRetry: boolean,
   retryUrl: URL,
-  retryNextUrl: string | null,
+  retryNextUrl: Route | null,
   seed: NavigationSeed | null,
   navigation: RootNavigationTask,
   // The route cache entry used for this navigation, if it came from route
@@ -1663,7 +1664,7 @@ function dispatchRetryDueToTreeMismatch(
     const now = Date.now()
     discoverKnownRoute(
       now,
-      retryUrl.pathname,
+      retryUrl.pathname as Route,
       retryUrl.search as NormalizedSearch,
       retryNextUrl,
       null,
@@ -1729,7 +1730,7 @@ async function fetchMissingDynamicData(
   head: NavigationTask | null,
   dynamicRequestTree: FlightRouterState,
   url: URL,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   freshnessPolicy: FreshnessPolicy,
   routeCacheEntry: FulfilledRouteCacheEntry | null,
   navigationLock: NavigationLock | null,

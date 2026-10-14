@@ -1,3 +1,4 @@
+import type { Route } from '../../route-types'
 import type { DynamicParam } from '../../../../server/app-render/app-render'
 import type { LoaderTree } from '../../../../server/lib/app-dir-module'
 import type { OpaqueFallbackRouteParams } from '../../../../server/request/fallback-params'
@@ -42,7 +43,7 @@ function getParamValue(
 export function interpolateParallelRouteParams(
   loaderTree: LoaderTree,
   params: Params,
-  pagePath: string,
+  pagePath: Route,
   fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Params {
   const interpolated = structuredClone(params)

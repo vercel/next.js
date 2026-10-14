@@ -9,6 +9,7 @@ import {
   getPageStaticInfo,
 } from './analysis/get-page-static-info'
 import type { PageExtensions } from './page-extensions-type'
+import type { Page } from '../shared/lib/route-types'
 
 import { PAGE_TYPES } from '../lib/page-types'
 import { isAppPageRoute } from '../lib/is-app-page-route'
@@ -30,7 +31,7 @@ export async function getStaticInfoIncludingLayouts({
   appDir: string | undefined
   config: NextConfigComplete
   isDev: boolean
-  page: string
+  page: Page
 }): Promise<Omit<PageStaticInfo, 'config'>> {
   // TODO: sync types for pages: PAGE_TYPES, ROUTER_TYPE, 'app' | 'pages', etc.
   const pageType = isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES

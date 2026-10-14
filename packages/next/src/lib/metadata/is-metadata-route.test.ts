@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import {
   getExtensionRegexString,
   isMetadataRouteFile,
@@ -113,45 +114,47 @@ describe('isMetadataRouteFile', () => {
 
 describe('isMetadataRoute', () => {
   it('should require suffix for metadata routes', () => {
-    expect(isMetadataRoute('/icon')).toBe(false)
-    expect(isMetadataRoute('/icon/route')).toBe(true)
-    expect(isMetadataRoute('/opengraph-image')).toBe(false)
-    expect(isMetadataRoute('/opengraph-image/route')).toBe(true)
+    expect(isMetadataRoute('/icon' as Page)).toBe(false)
+    expect(isMetadataRoute('/icon/route' as Page)).toBe(true)
+    expect(isMetadataRoute('/opengraph-image' as Page)).toBe(false)
+    expect(isMetadataRoute('/opengraph-image/route' as Page)).toBe(true)
   })
 
   it('should match metadata routes', () => {
-    expect(isMetadataRoute('/app/robots/route')).toBe(true)
-    expect(isMetadataRoute('/robots/route')).toBe(true)
-    expect(isMetadataRoute('/sitemap/[__metadata_id__]/route')).toBe(true)
-    expect(isMetadataRoute('/app/sitemap/page')).toBe(false)
-    expect(isMetadataRoute('/icon-a102f4/route')).toBe(true)
+    expect(isMetadataRoute('/app/robots/route' as Page)).toBe(true)
+    expect(isMetadataRoute('/robots/route' as Page)).toBe(true)
+    expect(isMetadataRoute('/sitemap/[__metadata_id__]/route' as Page)).toBe(
+      true
+    )
+    expect(isMetadataRoute('/app/sitemap/page' as Page)).toBe(false)
+    expect(isMetadataRoute('/icon-a102f4/route' as Page)).toBe(true)
   })
 
   it('should match grouped metadata routes', () => {
-    expect(isMetadataRoute('/opengraph-image-1ow20b/route')).toBe(true)
-    expect(isMetadataRoute('/foo/icon2-1ow20b/route')).toBe(true)
+    expect(isMetadataRoute('/opengraph-image-1ow20b/route' as Page)).toBe(true)
+    expect(isMetadataRoute('/foo/icon2-1ow20b/route' as Page)).toBe(true)
   })
 
   it('should support metadata variant numeric suffix', () => {
-    expect(isMetadataRoute('/icon0/route')).toBe(true)
-    expect(isMetadataRoute('/opengraph-image1/route')).toBe(true)
-    expect(isMetadataRoute('/foo/icon0-a120ff/route')).toBe(true)
-    expect(isMetadataRoute('/foo/icon0-a120ff3/route')).toBe(false)
+    expect(isMetadataRoute('/icon0/route' as Page)).toBe(true)
+    expect(isMetadataRoute('/opengraph-image1/route' as Page)).toBe(true)
+    expect(isMetadataRoute('/foo/icon0-a120ff/route' as Page)).toBe(true)
+    expect(isMetadataRoute('/foo/icon0-a120ff3/route' as Page)).toBe(false)
   })
 })
 
 describe('isMetadataPage', () => {
   it('should match metadata page path', () => {
-    expect(isMetadataPage('/sitemap.xml')).toBe(true)
-    expect(isMetadataPage('/favicon.ico')).toBe(true)
-    expect(isMetadataPage('/manifest.json')).toBe(true)
-    expect(isMetadataPage('/robots.txt')).toBe(true)
+    expect(isMetadataPage('/sitemap.xml' as Page)).toBe(true)
+    expect(isMetadataPage('/favicon.ico' as Page)).toBe(true)
+    expect(isMetadataPage('/manifest.json' as Page)).toBe(true)
+    expect(isMetadataPage('/robots.txt' as Page)).toBe(true)
   })
 
   it('should not match app router page path or error boundary path', () => {
-    expect(isMetadataPage('/icon/page')).toBe(false)
-    expect(isMetadataPage('/icon/route')).toBe(false)
-    expect(isMetadataPage('/icon/error')).toBe(false)
-    expect(isMetadataPage('/icon/not-found')).toBe(false)
+    expect(isMetadataPage('/icon/page' as Page)).toBe(false)
+    expect(isMetadataPage('/icon/route' as Page)).toBe(false)
+    expect(isMetadataPage('/icon/error' as Page)).toBe(false)
+    expect(isMetadataPage('/icon/not-found' as Page)).toBe(false)
   })
 })

@@ -1,3 +1,4 @@
+import type { Page, Route } from '../shared/lib/route-types'
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
@@ -126,6 +127,8 @@ export interface CreateEntrypointsParams {
  * @param deferredEntries - Array of path patterns to match against
  * @returns true if the page matches a deferred entry pattern
  */
+// Pattern matching also receives filesystem-derived paths (with extensions)
+// during dev entry disposal. It does not require a module Page or URL Route.
 export function isDeferredEntry(
   page: string,
   deferredEntries: string[] | undefined
@@ -163,7 +166,7 @@ export function getEdgeServerEntry(opts: {
   config: NextConfigComplete
   isDev: boolean
   isServerComponent: boolean
-  page: string
+  page: Page
   pages: MappedPages
   middleware?: Partial<ProxyConfig>
   pagesType: PAGE_TYPES
@@ -238,10 +241,10 @@ export function getEdgeServerEntry(opts: {
   }
 
   const loaderParams: EdgeSSRLoaderQuery = {
-    absolute500Path: opts.pages['/500'] || '',
-    absoluteAppPath: opts.pages['/_app'],
-    absoluteDocumentPath: opts.pages['/_document'],
-    absoluteErrorPath: opts.pages['/_error'],
+    absolute500Path: opts.pages['/500' as Page] || '',
+    absoluteAppPath: opts.pages['/_app' as Page],
+    absoluteDocumentPath: opts.pages['/_document' as Page],
+    absoluteErrorPath: opts.pages['/_error' as Page],
     absolutePagePath: opts.absolutePagePath,
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
@@ -300,13 +303,12 @@ export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   }
 }
 
-export function getClientEntry(opts: {
-  absolutePagePath: string
-  page: string
-}) {
+export function getClientEntry(opts: { absolutePagePath: string; page: Page }) {
   const loaderOptions: ClientPagesLoaderOptions = {
     absolutePagePath: opts.absolutePagePath,
-    page: opts.page,
+    // Pages-router discovery keys share the client URL namespace; raw module
+    // definition.page instead uses normalizePagePath's file encoding.
+    page: opts.page as unknown as Route,
   }
 
   const pageLoader = `next-client-pages-loader?${stringify(loaderOptions)}!`
@@ -323,7 +325,7 @@ export function runDependingOnPageType<T>(params: {
   onClient: () => T
   onEdgeServer: () => T
   onServer: () => T
-  page: string
+  page: Page
   pageRuntime: ServerRuntime
   pageType?: PAGE_TYPES
 }): void {
@@ -415,12 +417,12 @@ export async function createEntrypoints(
   const entrySourceDirectories = new Set<string>()
   let middlewareMatchers: ProxyMatcher[] | undefined = undefined
 
-  let appPathsPerRoute: Record<string, string[]> = {}
+  let appPathsPerRoute: Record<Route, Page[]> = {}
   if (appDir && appPaths) {
-    const appPageFiles = new Map<string, string>()
+    const appPageFiles = new Map<Page, string>()
     for (const pathname in appPaths) {
-      const normalizedPath = normalizeAppPath(pathname)
-      const actualPath = appPaths[pathname]
+      const normalizedPath = normalizeAppPath(pathname as Page)
+      const actualPath = appPaths[pathname as Page]
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
@@ -428,7 +430,7 @@ export async function createEntrypoints(
       const appPath = getPageFromPath(actualPath, pageExtensions).replace(
         APP_DIR_ALIAS,
         ''
-      )
+      ) as Page
       appPathsPerRoute[normalizedPath].push(appPath)
       appPageFiles.set(appPath, actualPath)
     }
@@ -437,7 +439,7 @@ export async function createEntrypoints(
     const { unmatchedAppPages, incompatibleParallelRouteSlots } =
       normalizeCatchAllRoutes(appPathsPerRoute, {
         strictRouteMatching: config.experimental.strictRouteMatching,
-        defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
+        defaultAppPaths: Object.keys(appDefaultPaths ?? {}) as Page[],
       })
     // Only App Router pages can make an intercepted URL directly renderable.
     // Route handlers and metadata routes may share the pathname, but they
@@ -447,7 +449,7 @@ export async function createEntrypoints(
         const pageAppPaths = routeAppPaths.filter(isAppPageRoute)
         return pageAppPaths.length > 0 ? [[route, pageAppPaths]] : []
       })
-    )
+    ) as Record<Route, Page[]>
     const missingCanonicalInterceptionRoutes = config.experimental
       .strictRouteMatching
       ? findMissingCanonicalInterceptionRoutes(appPagePathsPerRoute)
@@ -468,7 +470,7 @@ export async function createEntrypoints(
               const layoutPagePath = posix.join(
                 incompatibleRoute.layoutPath,
                 'layout'
-              )
+              ) as Page
               const layoutFile = await findPageFile(
                 appDir,
                 layoutPagePath,
@@ -531,11 +533,11 @@ export async function createEntrypoints(
         k,
         v.sort(compareAppPaths),
       ])
-    )
+    ) as Record<Route, Page[]>
   }
 
   const getEntryHandler =
-    (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
+    (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: Page) => void) =>
     async (page) => {
       if (
         pagesType === PAGE_TYPES.APP &&
@@ -645,7 +647,7 @@ export async function createEntrypoints(
               pagePath: absolutePagePath,
               appDir,
               appPaths: matchedAppPaths,
-              allNormalizedAppPaths: Object.keys(appPathsPerRoute),
+              allNormalizedAppPaths: Object.keys(appPathsPerRoute) as Route[],
               pageExtensions,
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
@@ -731,7 +733,7 @@ export async function createEntrypoints(
                 pagePath: absolutePagePath,
                 appDir: appDir!,
                 appPaths: matchedAppPaths,
-                allNormalizedAppPaths: Object.keys(appPathsPerRoute),
+                allNormalizedAppPaths: Object.keys(appPathsPerRoute) as Route[],
                 pageExtensions,
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,
@@ -778,18 +780,24 @@ export async function createEntrypoints(
 
   if (appPaths) {
     const entryHandler = getEntryHandler(appPaths, PAGE_TYPES.APP)
-    promises.push(Promise.all(Object.keys(appPaths).map(entryHandler)))
+    promises.push(
+      Promise.all((Object.keys(appPaths) as Page[]).map(entryHandler))
+    )
   }
   if (rootPaths) {
     promises.push(
       Promise.all(
-        Object.keys(rootPaths).map(getEntryHandler(rootPaths, PAGE_TYPES.ROOT))
+        (Object.keys(rootPaths) as Page[]).map(
+          getEntryHandler(rootPaths, PAGE_TYPES.ROOT)
+        )
       )
     )
   }
   promises.push(
     Promise.all(
-      Object.keys(pages).map(getEntryHandler(pages, PAGE_TYPES.PAGES))
+      (Object.keys(pages) as Page[]).map(
+        getEntryHandler(pages, PAGE_TYPES.PAGES)
+      )
     )
   )
 

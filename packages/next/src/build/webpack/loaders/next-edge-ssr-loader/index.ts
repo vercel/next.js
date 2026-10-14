@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../../shared/lib/route-types'
 import type webpack from 'webpack'
 import type { SizeLimit } from '../../../../types'
 import type { PagesRouteModuleOptions } from '../../../../server/route-modules/pages/module'
@@ -18,7 +19,7 @@ export type EdgeSSRLoaderQuery = {
   absolutePagePath: string
   dev: boolean
   isServerComponent: boolean
-  page: string
+  page: Page
   appDirLoader?: string
   pagesType: PAGE_TYPES
   sriEnabled: boolean
@@ -44,7 +45,7 @@ function swapDistFolderWithEsmDistFolder(path: string) {
   return path.replace('next/dist/pages', 'next/dist/esm/pages')
 }
 
-function getRouteModuleOptions(page: string) {
+function getRouteModuleOptions(page: Page) {
   const options: Omit<
     PagesRouteModuleOptions,
     'userland' | 'components' | 'distDir' | 'relativeProjectDir'
@@ -52,7 +53,9 @@ function getRouteModuleOptions(page: string) {
     definition: {
       kind: RouteKind.PAGES,
       page: normalizePagePath(page),
-      pathname: page,
+      // Pages-router discovery keys also identify URL patterns. The raw module
+      // page above has its separate file encoding from normalizePagePath.
+      pathname: page as unknown as Route,
       // The following aren't used in production.
       bundlePath: '',
       filename: '',
@@ -212,10 +215,10 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           pageRouteModuleOptions: JSON.stringify(getRouteModuleOptions(page)),
           errorRouteModuleOptions: JSON.stringify(
-            getRouteModuleOptions('/_error')
+            getRouteModuleOptions('/_error' as Page)
           ),
           user500RouteModuleOptions: JSON.stringify(
-            getRouteModuleOptions('/500')
+            getRouteModuleOptions('/500' as Page)
           ),
           ...(cacheHandlersSetup ?? {}),
         },

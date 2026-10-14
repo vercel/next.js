@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../shared/lib/route-types'
 import type { BloomFilter } from '../../../shared/lib/bloom-filter'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import devalue from 'next/dist/compiled/devalue'
@@ -60,10 +61,13 @@ export function generateClientManifest(
       __routerFilterDynamic: clientRouterFilters?.dynamicFilter as any,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
-    const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
+    // This is a pages-router manifest: its page keys have URL pathname spelling.
+    const sortedPageKeys = getSortedRoutes(
+      Object.keys(assetMap.pages) as Route[]
+    )
 
     sortedPageKeys.forEach((page) => {
-      const dependencies = assetMap.pages[page]
+      const dependencies = assetMap.pages[page as string as Page]
 
       if (page === '/_app') return
       // Filter out dependencies in the _app entry, because those will have already
@@ -218,13 +222,11 @@ export default class BuildManifestPlugin {
         )
       }
 
-      assetMap.pages = Object.keys(assetMap.pages)
-        .sort()
-        .reduce(
-          // eslint-disable-next-line
-          (a, c) => ((a[c] = assetMap.pages[c]), a),
-          {} as typeof assetMap.pages
-        )
+      assetMap.pages = (Object.keys(assetMap.pages) as Page[]).sort().reduce(
+        // eslint-disable-next-line
+        (a, c) => ((a[c] = assetMap.pages[c]), a),
+        {} as typeof assetMap.pages
+      )
 
       let buildManifestName = BUILD_MANIFEST
 

@@ -1,3 +1,5 @@
+import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin-utils'
+import type { Route } from '../shared/lib/route-types'
 import type { ComponentType } from 'react'
 import type { ProxyMatcher } from '../build/analysis/get-page-static-info'
 import type { RequiredServerFilesManifest } from '../build'
@@ -10,6 +12,7 @@ import { resolvePromiseWithTimeout } from './lib/promise'
 
 declare global {
   interface Window {
+    // Ambient declarations reach consumer projects; retain their legacy shapes.
     __BUILD_MANIFEST?: Record<string, string[]>
     __BUILD_MANIFEST_CB?: Function
     __TURBOPACK_PAGE_BOOTSTRAP?: Record<string, unknown>
@@ -54,8 +57,8 @@ interface Future<V> {
   future: Promise<V>
 }
 function withFuture<T extends object>(
-  key: string,
-  map: Map<string, Future<T> | T>,
+  key: Route,
+  map: Map<Route, Future<T> | T>,
   generator?: () => Promise<T>
 ): Promise<T> {
   let entry = map.get(key)
@@ -83,6 +86,8 @@ function withFuture<T extends object>(
     : prom
 }
 
+// Reachable through the exported Router.pageLoader.routeLoader public field.
+// Keep string inputs here; the implementation asserts at private Route-keyed caches.
 export interface RouteLoader {
   whenEntrypoint(route: string): Promise<RouteEntrypoint>
   onEntrypoint(route: string, execute: () => unknown): void
@@ -184,14 +189,26 @@ let devBuildPromise: Promise<void> | undefined
 // the Route Loader interface.
 export function getClientBuildManifest() {
   if (self.__BUILD_MANIFEST) {
-    return Promise.resolve(self.__BUILD_MANIFEST)
+    // Framework-emitted runtime data crosses the legacy ambient string shape;
+    // private consumers use the complete manifest and normalized URL keys.
+    return Promise.resolve(
+      self.__BUILD_MANIFEST as unknown as ClientBuildManifest & {
+        sortedPages: Route[]
+      }
+    )
   }
 
-  const onBuildManifest = new Promise<Record<string, string[]>>((resolve) => {
+  const onBuildManifest = new Promise<
+    ClientBuildManifest & { sortedPages: Route[] }
+  >((resolve) => {
     // Mandatory because this is not concurrent safe:
     const cb = self.__BUILD_MANIFEST_CB
     self.__BUILD_MANIFEST_CB = () => {
-      resolve(self.__BUILD_MANIFEST!)
+      resolve(
+        self.__BUILD_MANIFEST! as unknown as ClientBuildManifest & {
+          sortedPages: Route[]
+        }
+      )
       cb && cb()
     }
   })
@@ -209,7 +226,7 @@ interface RouteFiles {
 }
 function getFilesForRoute(
   assetPrefix: string,
-  route: string
+  route: Route
 ): Promise<RouteFiles> {
   if (process.env.NODE_ENV === 'development') {
     const scriptUrl =
@@ -242,17 +259,17 @@ function getFilesForRoute(
 }
 
 export function createRouteLoader(assetPrefix: string): RouteLoader {
-  const entrypoints: Map<string, Future<RouteEntrypoint> | RouteEntrypoint> =
+  const entrypoints: Map<Route, Future<RouteEntrypoint> | RouteEntrypoint> =
     new Map()
   const loadedScripts: Map<string, Promise<unknown>> = new Map()
   const styleSheets: Map<string, Promise<RouteStyleSheet>> = new Map()
-  const routes: Map<string, Future<RouteLoaderEntry> | RouteLoaderEntry> =
+  const routes: Map<Route, Future<RouteLoaderEntry> | RouteLoaderEntry> =
     new Map()
-  const bootstrappedRoutes: Set<string> = new Set()
+  const bootstrappedRoutes: Set<Route> = new Set()
 
   // Bootstrap a client-loaded route (navigation/prefetch) so its entry registers via
   // `window.__NEXT_P`. The initial page is bootstrapped in the document.
-  function bootstrapRoute(route: string): void {
+  function bootstrapRoute(route: Route): void {
     // Gated for DCE
     if (!process.env.__NEXT_TURBOPACK_SHARED_RUNTIME) return
     if (process.env.NODE_ENV === 'development') return
@@ -313,7 +330,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
 
   return {
     whenEntrypoint(route: string) {
-      return withFuture(route, entrypoints)
+      return withFuture(route as Route, entrypoints)
     },
     onEntrypoint(route: string, execute: undefined | (() => unknown)) {
       ;(execute
@@ -328,27 +345,27 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
             )
         : Promise.resolve(undefined)
       ).then((input: RouteEntrypoint | undefined) => {
-        const old = entrypoints.get(route)
+        const old = entrypoints.get(route as Route)
         if (old && 'resolve' in old) {
           if (input) {
-            entrypoints.set(route, input)
+            entrypoints.set(route as Route, input)
             old.resolve(input)
           }
         } else {
           if (input) {
-            entrypoints.set(route, input)
+            entrypoints.set(route as Route, input)
           } else {
-            entrypoints.delete(route)
+            entrypoints.delete(route as Route)
           }
           // when this entrypoint has been resolved before
           // the route is outdated and we want to invalidate
           // this cache entry
-          routes.delete(route)
+          routes.delete(route as Route)
         }
       })
     },
     loadRoute(route: string, prefetch?: boolean) {
-      return withFuture<RouteLoaderEntry>(route, routes, () => {
+      return withFuture<RouteLoaderEntry>(route as Route, routes, () => {
         let devBuildPromiseResolve: () => void
 
         if (process.env.NODE_ENV === 'development') {
@@ -358,13 +375,13 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
         }
 
         return resolvePromiseWithTimeout(
-          getFilesForRoute(assetPrefix, route)
+          getFilesForRoute(assetPrefix, route as Route)
             .then(({ scripts, css }) => {
               return Promise.all([
-                entrypoints.has(route)
+                entrypoints.has(route as Route)
                   ? []
                   : Promise.all(scripts.map(maybeExecuteScript)).then((r) => {
-                      bootstrapRoute(route)
+                      bootstrapRoute(route as Route)
                       return r
                     }),
                 Promise.all(css.map(fetchStyleSheet)),
@@ -404,7 +421,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
         // Don't prefetch if using 2G or if Save-Data is enabled.
         if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
       }
-      return getFilesForRoute(assetPrefix, route)
+      return getFilesForRoute(assetPrefix, route as Route)
         .then((output) =>
           Promise.all(
             canPrefetch

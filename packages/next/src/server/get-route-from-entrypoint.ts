@@ -1,3 +1,4 @@
+import type { Page } from '../shared/lib/route-types'
 import getAppRouteFromEntrypoint from './get-app-route-from-entrypoint'
 import matchBundle from './match-bundle'
 
@@ -10,7 +11,7 @@ const BROWSER_ROUTE_NAME_REGEX = /^static[/\\]pages[/\\](.*)$/
 export default function getRouteFromEntrypoint(
   entryFile: string,
   app?: boolean
-): string | null {
+): Page | null {
   let pagePath = matchBundle(SERVER_ROUTE_NAME_REGEX, entryFile)
 
   if (pagePath) {

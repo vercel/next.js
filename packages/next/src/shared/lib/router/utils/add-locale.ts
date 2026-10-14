@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../route-types'
 import { addPathPrefix } from './add-path-prefix'
 import { pathHasPrefix } from './path-has-prefix'
 
@@ -6,6 +7,24 @@ import { pathHasPrefix } from './path-has-prefix'
  * locale. The path shouldn't be an API path. If a default locale is given the
  * prefix will be omitted if the locale is already the default locale.
  */
+export function addLocale(
+  path: Page,
+  locale?: string | false,
+  defaultLocale?: string,
+  ignorePrefix?: boolean
+): Page
+export function addLocale(
+  path: Route,
+  locale?: string | false,
+  defaultLocale?: string,
+  ignorePrefix?: boolean
+): Route
+export function addLocale(
+  path: string,
+  locale?: string | false,
+  defaultLocale?: string,
+  ignorePrefix?: boolean
+): string
 export function addLocale(
   path: string,
   locale?: string | false,

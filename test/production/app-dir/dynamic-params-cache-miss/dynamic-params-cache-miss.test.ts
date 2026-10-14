@@ -1,13 +1,17 @@
 import { load } from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { getRouteCacheKey } from 'next/dist/server/lib/route-cache-key'
+import {
+  getRouteCacheKey,
+  type ResponseCacheOwner,
+} from 'next/dist/server/lib/route-cache-key'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Page, Route } from 'next/dist/shared/lib/route-types'
 
 describe('dynamicParams: false with an empty cache', () => {
   const { next } = nextTestSetup({ files: __dirname })
-  const owner = {
+  const owner: ResponseCacheOwner = {
     kind: RouteKind.APP_PAGE,
-    sourceRoute: '/closed/[slug]/page',
+    sourceRoute: '/closed/[slug]/page' as Page,
   }
 
   it('renders a build-generated path on every cache miss', async () => {
@@ -18,7 +22,7 @@ describe('dynamicParams: false with an empty cache', () => {
       expect(load(await response.text())('#slug').text()).toBe('known')
     }
     expect(next.cliOutput.slice(outputStart)).toContain(
-      `cache lookup ${getRouteCacheKey('/closed/known', owner)}`
+      `cache lookup ${getRouteCacheKey('/closed/known' as Route, owner)}`
     )
   })
 
@@ -45,7 +49,7 @@ describe('dynamicParams: false with an empty cache', () => {
       await response.text()
       const output = next.cliOutput.slice(outputStart)
       expect(output).not.toContain(
-        `cache lookup ${getRouteCacheKey('/closed/unlisted', owner)}`
+        `cache lookup ${getRouteCacheKey('/closed/unlisted' as Route, owner)}`
       )
       expect(output).not.toContain('closed page render unlisted')
       expect(output).not.toContain('NoFallbackError')

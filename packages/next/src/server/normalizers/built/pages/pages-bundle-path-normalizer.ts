@@ -1,31 +1,31 @@
+import type { Page } from '../../../../shared/lib/route-types'
 import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
 import type { Normalizer } from '../../normalizer'
 import { Normalizers } from '../../normalizers'
 import { PrefixingNormalizer } from '../../prefixing-normalizer'
 import { wrapNormalizerFn } from '../../wrap-normalizer-fn'
 
-export class PagesBundlePathNormalizer extends Normalizers {
+export class PagesBundlePathNormalizer extends Normalizers<Page, string> {
   constructor() {
     super([
-      // The bundle path should have the trailing `/index` stripped from
-      // it.
+      // Convert the page identifier to its file counterpart.
       wrapNormalizerFn(normalizePagePath),
       // The page should prefixed with `pages/`.
       new PrefixingNormalizer('pages'),
     ])
   }
 
-  public normalize(page: string): string {
+  public normalize(page: Page): string {
     return super.normalize(page)
   }
 }
 
 export class DevPagesBundlePathNormalizer extends Normalizers {
-  constructor(pagesNormalizer: Normalizer) {
+  constructor(pagesNormalizer: Normalizer<string, Page>) {
     super([
       // This should normalize the filename to a page.
       pagesNormalizer,
-      // Normalize the app page to a pathname.
+      // Convert the Pages module identifier to its bundle path.
       new PagesBundlePathNormalizer(),
     ])
   }

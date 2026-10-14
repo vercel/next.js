@@ -4,6 +4,7 @@ import {
 } from './resolve-metadata'
 import type { MetadataItems as FullMetadataItems } from './resolve-metadata'
 import type { Metadata, Viewport } from './types/metadata-interface'
+import type { Route } from '../../shared/lib/route-types'
 
 type FullMetadataItem = FullMetadataItems[number]
 type MetadataItems = [FullMetadataItem[0], FullMetadataItem[1]][]
@@ -13,8 +14,8 @@ function accumulateMetadata(metadataItems: MetadataItems) {
     item[0],
     item[1],
   ])
-  const route = '/test'
-  const pathname = Promise.resolve('/test')
+  const route = '/test' as Route
+  const pathname = Promise.resolve('/test' as Route)
   return originAccumulateMetadata(route, fullMetadataItems, pathname, {
     trailingSlash: false,
     isStaticMetadataRouteFile: false,

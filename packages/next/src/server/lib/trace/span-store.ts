@@ -27,6 +27,7 @@ export type SpanStoreRecord = {
   requestId?: string
   requestInsightKind?: RequestInsightKind
   htmlRequestId?: string
+  /** OTEL next.route/http.route attributes may contain arbitrary diagnostic or custom-pattern text, not only framework URL routes. */
   route?: string
   url?: string
   attributes?: SpanStoreAttributes

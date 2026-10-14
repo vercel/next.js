@@ -5,6 +5,7 @@ import { retry } from 'next-test-utils'
 import fs from 'fs'
 import { join } from 'path'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Route } from 'next/dist/shared/lib/route-types'
 
 describe('Preview mode with fallback pages', () => {
   const { next } = nextTestSetup({
@@ -130,7 +131,7 @@ describe('Preview mode with fallback pages', () => {
             router: 'pages',
             route: {
               kind: RouteKind.PAGES,
-              sourceRoute: '/no-fallback/[post]',
+              sourceRoute: '/no-fallback/[post]' as Route,
             },
           })
         ),
@@ -181,7 +182,7 @@ describe('Preview mode with fallback pages', () => {
               router: 'pages',
               route: {
                 kind: RouteKind.PAGES,
-                sourceRoute: '/no-fallback/[post]',
+                sourceRoute: '/no-fallback/[post]' as Route,
               },
             })
           )
@@ -223,7 +224,10 @@ describe('Preview mode with fallback pages', () => {
           next.testDir,
           next.getPrerenderFilePath('/fallback/first', '.html', {
             router: 'pages',
-            route: { kind: RouteKind.PAGES, sourceRoute: '/fallback/[post]' },
+            route: {
+              kind: RouteKind.PAGES,
+              sourceRoute: '/fallback/[post]' as Route,
+            },
           })
         ),
         'utf8'
@@ -282,7 +286,10 @@ describe('Preview mode with fallback pages', () => {
           next.testDir,
           next.getPrerenderFilePath('/fallback/second', '.html', {
             router: 'pages',
-            route: { kind: RouteKind.PAGES, sourceRoute: '/fallback/[post]' },
+            route: {
+              kind: RouteKind.PAGES,
+              sourceRoute: '/fallback/[post]' as Route,
+            },
           })
         ),
         'utf8'

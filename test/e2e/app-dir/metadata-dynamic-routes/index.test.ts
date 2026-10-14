@@ -1,4 +1,5 @@
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Page } from 'next/dist/shared/lib/route-types'
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
 import { check, expectDirectives, getDistDir } from 'next-test-utils'
@@ -391,7 +392,7 @@ describe('app dir - metadata dynamic routes', () => {
             next.getPrerenderFilePath(dynamicRoute, '.body', {
               route: {
                 kind: RouteKind.APP_ROUTE,
-                sourceRoute: `${dynamicRoute}/route`,
+                sourceRoute: `${dynamicRoute}/route` as Page,
               },
             })
           )
@@ -401,7 +402,7 @@ describe('app dir - metadata dynamic routes', () => {
             next.getPrerenderFilePath(dynamicRoute, '.meta', {
               route: {
                 kind: RouteKind.APP_ROUTE,
-                sourceRoute: `${dynamicRoute}/route`,
+                sourceRoute: `${dynamicRoute}/route` as Page,
               },
             })
           )

@@ -14,6 +14,7 @@ import {
   type SpanStoreLink,
 } from './span-store'
 import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
+import type { Route } from '../../../shared/lib/route-types'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
 
@@ -170,7 +171,7 @@ type RequestIdentity = {
   requestId?: string
   requestInsightKind?: RequestInsightKind
   htmlRequestId?: string
-  route?: string
+  route?: Route
   url?: string
 }
 

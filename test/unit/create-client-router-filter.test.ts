@@ -1,11 +1,12 @@
 /* eslint-env jest */
 import { createClientRouterFilter } from 'next/dist/lib/create-client-router-filter'
 import { BloomFilter } from 'next/dist/shared/lib/bloom-filter'
+import type { Route } from 'next/dist/shared/lib/route-types'
 
 describe('createClientRouterFilter', () => {
   it('creates a filter that does not collide with wildly different path names', () => {
     const { staticFilter, dynamicFilter } = createClientRouterFilter(
-      ['/_not-found', '/a/[lang]/corporate', '/a/[lang]/gift'], // Routes are based on BOTM's app router migration project.
+      ['/_not-found', '/a/[lang]/corporate', '/a/[lang]/gift'] as Route[], // Routes are based on BOTM's app router migration project.
       []
     )
 

@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { ResolvedMetadataWithURLs } from '../types/metadata-interface'
 import type {
   OpenGraphType,
@@ -160,7 +161,7 @@ function getFieldsByOgType(ogType: OpenGraphType | undefined) {
 
 export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
   'openGraph',
-  [MetadataBaseURL, Promise<string>, MetadataContext, string | null]
+  [MetadataBaseURL, Promise<Route>, MetadataContext, string | null]
 > = async (
   openGraph,
   metadataBase,

@@ -65,7 +65,7 @@ function update(
       errors,
       routerType: 'app',
     },
-  }
+  } as RuntimeErrorStateUpdate // Fixture wire boundary, including deliberately malformed pathname cases.
 }
 
 function formattedError(message: string, fatal = true): FormattedRuntimeError {

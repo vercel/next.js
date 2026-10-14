@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { RootRouteTree } from './segment-cache/cache'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
@@ -366,7 +367,7 @@ function rescheduleLinkPrefetch(
 }
 
 export function pingVisibleLinks(
-  nextUrl: string | null,
+  nextUrl: Route | null,
   root: RootRouteTree<CacheNode>
 ) {
   // For each currently visible link, cancel the existing prefetch task (if it

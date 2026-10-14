@@ -1,3 +1,4 @@
+import type { Page, Route } from '../shared/lib/route-types'
 import {
   findIncompatibleParallelRouteSlots,
   normalizeCatchAllRoutes,
@@ -10,7 +11,7 @@ describe('normalizeCatchallRoutes', () => {
       '/[...slug]': ['/[...slug]/page'],
       '/things/[...ids]': ['/things/[...ids]/page'],
       '/(.)things/[...ids]': ['/@modal/(.)things/[...ids]/page'],
-    }
+    } as Record<Route, Page[]>
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
 
@@ -39,7 +40,7 @@ describe('normalizeCatchallRoutes', () => {
       '/parallel-nested-catchall/foo/[...catchAll]': [
         '/parallel-nested-catchall/@slot/foo/[...catchAll]/page',
       ],
-    }
+    } as Record<Route, Page[]>
 
     // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
@@ -78,7 +79,7 @@ describe('normalizeCatchallRoutes', () => {
       '/foo': ['/foo/page', '/@slot/foo/page'],
       '/foo/[id]': ['/foo/[id]/page'],
       '/foo/[...catchAll]': ['/@slot/foo/[...catchAll]/page'],
-    }
+    } as Record<Route, Page[]>
 
     // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
@@ -110,7 +111,7 @@ describe('normalizeCatchallRoutes', () => {
       '/[[...catchAll]]': ['/@slot/[[...catchAll]]/page'],
       '/foo': ['/foo/page'],
       '/foo/[[...catchAll]]': ['/foo/@slot/[[...catchAll]]/page'],
-    }
+    } as Record<Route, Page[]>
 
     // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
@@ -141,7 +142,7 @@ describe('normalizeCatchallRoutes', () => {
         '/[[...catchAll]]/page',
       ],
       '/nested/[foo]/[bar]/[baz]': ['/nested/[foo]/[bar]/@slot/[baz]/page'],
-    }
+    } as Record<Route, Page[]>
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
 
@@ -172,7 +173,7 @@ describe('normalizeCatchallRoutes', () => {
       '/[locale]/nested/[foo]/[bar]/[baz]/[qux]': [
         '/[locale]/nested/[foo]/[bar]/@slot1/[baz]/[qux]/page',
       ],
-    }
+    } as Record<Route, Page[]>
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
 
@@ -196,7 +197,7 @@ describe('normalizeCatchallRoutes', () => {
       '/[locale]/nested/bar': ['/[locale]/nested/@slot0/bar/page'],
       '/[locale]/nested/foo': ['/[locale]/nested/@slot0/foo/page'],
       '/[locale]/nested/baz': ['/[locale]/nested/@slot1/baz/page'],
-    }
+    } as Record<Route, Page[]>
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
 
@@ -212,7 +213,7 @@ describe('normalizeCatchallRoutes', () => {
       '/': ['/@children/page', '/@slot/page'],
       '/[...slug]': ['/[...slug]/page'],
       '/nested': ['/nested/@children/page'],
-    }
+    } as Record<Route, Page[]>
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
 
@@ -229,7 +230,7 @@ describe('normalizeCatchallRoutes', () => {
         '/[...slug]': ['/[...slug]/page'],
         '/foo': ['/@first/foo/page'],
         '/bar': ['/@second/bar/page'],
-      }
+      } as Record<Route, Page[]>
 
       const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths)
 
@@ -240,7 +241,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/[...slug]': ['/@catchall/[...slug]/page'],
         '/foo': ['/@specific/foo/page'],
-      }
+      } as Record<Route, Page[]>
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
 
@@ -252,7 +253,7 @@ describe('normalizeCatchallRoutes', () => {
     it('keeps a named-only matcher when every declared slot matches', () => {
       const appPaths = {
         '/[...slug]': ['/@left/[...slug]/page', '/@right/[...slug]/page'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
@@ -265,7 +266,7 @@ describe('normalizeCatchallRoutes', () => {
         '/_not-found': ['/built-in/global-not-found'],
         '/_global-error': ['/built-in/app-error'],
         '/[case]': ['/@slot/[case]/page'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, {
@@ -274,7 +275,7 @@ describe('normalizeCatchallRoutes', () => {
           '/_not-found/page',
           '/_global-error/page',
           '/@slot/default',
-        ],
+        ] as Page[],
       })
 
       expect(appPaths).toEqual(expected)
@@ -284,7 +285,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/': ['/page', '/@slot/page'],
         '/icon.png': ['/@slot/icon/route'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
@@ -297,7 +298,7 @@ describe('normalizeCatchallRoutes', () => {
         '/foo': ['/foo/page'],
         '/bar': ['/bar/page'],
         '/[...parts]': ['/@slot/[...parts]/page'],
-      }
+      } as Record<Route, Page[]>
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
 
@@ -312,7 +313,7 @@ describe('normalizeCatchallRoutes', () => {
         '/[...slug]': ['/[...slug]/page'],
         '/foo': ['/@first/foo/page'],
         '/bar': ['/@second/bar/page'],
-      }
+      } as Record<Route, Page[]>
 
       const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
         strictRouteMatching: true,
@@ -330,7 +331,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/[[...slug]]': ['/[[...slug]]/page'],
         '/specific': ['/specific/page', '/@slot/specific/page'],
-      }
+      } as Record<Route, Page[]>
 
       const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
         strictRouteMatching: true,
@@ -353,7 +354,7 @@ describe('normalizeCatchallRoutes', () => {
           '/nested/@outer/specific/page',
           '/nested/@outer/@inner/specific/page',
         ],
-      }
+      } as Record<Route, Page[]>
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
 
@@ -373,7 +374,7 @@ describe('normalizeCatchallRoutes', () => {
           '/(pruning-group)/grouped/specific/page',
           '/(pruning-group)/grouped/@slot/specific/page',
         ],
-      }
+      } as Record<Route, Page[]>
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
 
@@ -389,7 +390,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/[...slug]': ['/[...slug]/page', '/@slot/[...slug]/page'],
         '/specific': ['/specific/page', '/@slot/specific/page'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
@@ -401,11 +402,11 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/[...slug]': ['/[...slug]/page'],
         '/specific': ['/@slot/specific/page'],
-      }
+      } as Record<Route, Page[]>
 
       normalizeCatchAllRoutes(appPaths, {
         strictRouteMatching: true,
-        defaultAppPaths: ['/default', '/@slot/default'],
+        defaultAppPaths: ['/default', '/@slot/default'] as Page[],
       })
 
       expect(appPaths).toEqual({
@@ -418,11 +419,11 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/': ['/page'],
         '/details': ['/@panel/details/page'],
-      }
+      } as Record<Route, Page[]>
 
       normalizeCatchAllRoutes(appPaths, {
         strictRouteMatching: true,
-        defaultAppPaths: ['/@panel/default'],
+        defaultAppPaths: ['/@panel/default'] as Page[],
       })
 
       expect(appPaths).toEqual({
@@ -433,7 +434,7 @@ describe('normalizeCatchallRoutes', () => {
     it('keeps a static matcher when every declared slot matches', () => {
       const appPaths = {
         '/foo': ['/@first/foo/page', '/@second/foo/page'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
@@ -445,7 +446,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/foo': ['/@first/foo/page'],
         '/bar': ['/@second/bar/page'],
-      }
+      } as Record<Route, Page[]>
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
 
@@ -456,12 +457,12 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/': ['/@content/page', '/@secondary/page'],
         '/photo/[...slug]': ['/@modal/(.)photo/[...slug]/page'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, {
         strictRouteMatching: true,
-        defaultAppPaths: ['/@modal/default'],
+        defaultAppPaths: ['/@modal/default'] as Page[],
       })
 
       expect(appPaths).toEqual(expected)
@@ -471,12 +472,12 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/': ['/page', '/@sidebar/page'],
         '/photo/[...slug]': ['/@modal/(.)photo/[...slug]/page'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, {
         strictRouteMatching: true,
-        defaultAppPaths: ['/@modal/default'],
+        defaultAppPaths: ['/@modal/default'] as Page[],
       })
 
       expect(appPaths).toEqual(expected)
@@ -486,7 +487,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/': ['/page', '/@sidebar/page'],
         '/photo/[...slug]': ['/(.)photo/[...slug]/page'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
@@ -498,7 +499,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/': ['/(host)/@modal/page', '/(host)/@modal/@sidebar/page'],
         '/photo/[...slug]': ['/(host)/@modal/(.)photo/[...slug]/page'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, { strictRouteMatching: true })
@@ -510,12 +511,12 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/': ['/page', '/@sidebar/page'],
         '/photo/[[...slug]]': ['/@modal/(.)photo/[[...slug]]/page'],
-      }
+      } as Record<Route, Page[]>
       const expected = structuredClone(appPaths)
 
       normalizeCatchAllRoutes(appPaths, {
         strictRouteMatching: true,
-        defaultAppPaths: ['/@modal/default'],
+        defaultAppPaths: ['/@modal/default'] as Page[],
       })
 
       expect(appPaths).toEqual(expected)
@@ -525,7 +526,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/photo/[...slug]': ['/@modal/(.)photo/@catchall/[...slug]/page'],
         '/photo/specific': ['/@modal/(.)photo/@specific/specific/page'],
-      }
+      } as Record<Route, Page[]>
 
       const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
         strictRouteMatching: true,
@@ -543,7 +544,7 @@ describe('normalizeCatchallRoutes', () => {
         '/foo': ['/foo/page'],
         '/bar': ['/bar/page'],
         '/[...parts]': ['/@slot/[...parts]/page'],
-      }
+      } as Record<Route, Page[]>
 
       const { unmatchedAppPages } = normalizeCatchAllRoutes(appPaths, {
         strictRouteMatching: true,
@@ -558,7 +559,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/foo': ['/@left/foo/page'],
         '/bar': ['/@right/bar/page'],
-      }
+      } as Record<Route, Page[]>
 
       const { incompatibleParallelRouteSlots } = normalizeCatchAllRoutes(
         appPaths,
@@ -584,7 +585,7 @@ describe('normalizeCatchallRoutes', () => {
       const appPaths = {
         '/foo': ['/foo/page'],
         '/[...parts]': ['/@slot/[...parts]/page'],
-      }
+      } as Record<Route, Page[]>
 
       const { incompatibleParallelRouteSlots } = normalizeCatchAllRoutes(
         appPaths,
@@ -601,7 +602,7 @@ describe('normalizeCatchallRoutes', () => {
       const incompatibleRoutes = findIncompatibleParallelRouteSlots({
         '/foo': ['/@left/foo/page'],
         '/bar': ['/@right/bar/page'],
-      })
+      } as Record<Route, Page[]>)
 
       expect(incompatibleRoutes).toEqual([
         {
@@ -621,7 +622,7 @@ describe('normalizeCatchallRoutes', () => {
       const incompatibleRoutes = findIncompatibleParallelRouteSlots({
         '/dashboard/foo': ['/dashboard/foo/page'],
         '/dashboard/bar': ['/dashboard/@panel/bar/page'],
-      })
+      } as Record<Route, Page[]>)
 
       expect(incompatibleRoutes).toEqual([
         {
@@ -642,8 +643,8 @@ describe('normalizeCatchallRoutes', () => {
         {
           '/foo': ['/@left/foo/page'],
           '/bar': ['/@right/bar/page'],
-        },
-        ['/@left/default', '/@right/default']
+        } as Record<Route, Page[]>,
+        ['/@left/default', '/@right/default'] as Page[]
       )
 
       expect(incompatibleRoutes).toEqual([])
@@ -655,8 +656,8 @@ describe('normalizeCatchallRoutes', () => {
           '/foo': ['/@left/foo/page'],
           '/bar': ['/@right/bar/page'],
           '/_not-found': ['/next/dist/builtin/global-not-found/page'],
-        },
-        ['/_global-error/page']
+        } as Record<Route, Page[]>,
+        ['/_global-error/page'] as Page[]
       )
 
       expect(incompatibleRoutes).toEqual([
@@ -678,8 +679,8 @@ describe('normalizeCatchallRoutes', () => {
         {
           '/': ['/@content/page'],
           '/photo/(.)[id]': ['/@modal/(.)photo/[id]/page'],
-        },
-        ['/@modal/default']
+        } as Record<Route, Page[]>,
+        ['/@modal/default'] as Page[]
       )
 
       expect(incompatibleRoutes).toEqual([])

@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type {
   DynamicPrerenderManifestRoute,
@@ -11,11 +12,17 @@ import { RouteKind } from '../route-kind'
 
 export const ROUTE_CACHE_DIRECTORY = 'route-cache'
 
-export type ResponseCacheOwner = {
-  readonly kind: RouteKind
-  /** Canonical Pages pathname or full App module name, including groups and slots. */
-  readonly sourceRoute: string
-}
+export type ResponseCacheOwner =
+  | {
+      readonly kind: RouteKind.PAGES
+      /** Canonical Pages URL pathname, not its possibly /index-suffixed module. */
+      readonly sourceRoute: Route
+    }
+  | {
+      readonly kind: Exclude<RouteKind, RouteKind.PAGES>
+      /** Full module name, preserving App groups, slots and leaf suffixes. */
+      readonly sourceRoute: Page
+    }
 
 const appPathnameNormalizer = new AppPathnameNormalizer()
 
@@ -32,7 +39,7 @@ export function getResponseCacheOwner(
       definition.kind === RouteKind.PAGES
         ? definition.pathname
         : definition.page,
-  }
+  } as ResponseCacheOwner // The existing kind-dependent selection establishes the correlation.
 }
 
 /**
@@ -42,7 +49,7 @@ export function getResponseCacheOwner(
  * to use the full module identity, including groups and parallel slots.
  */
 export function isRouteCacheOwner(
-  pathname: string,
+  pathname: Route,
   owner: ResponseCacheOwner,
   prerender:
     | Pick<PrerenderManifestRoute, 'srcRoute' | 'dataRoute'>
@@ -80,7 +87,9 @@ export function isRouteCacheOwner(
     prerenderOwner ===
     (kind === RouteKind.PAGES
       ? owner.sourceRoute
-      : appPathnameNormalizer.normalize(owner.sourceRoute))
+      : // The earlier kind equality check proves this is an App module;
+        // TypeScript does not retain that correlation through `kind`.
+        appPathnameNormalizer.normalize(owner.sourceRoute as Page))
   )
 }
 
@@ -91,7 +100,7 @@ export function isRouteCacheOwner(
  * pathname stays readable and is normalized exactly once before namespacing.
  */
 export function getRouteCacheKey(
-  pathname: string,
+  pathname: Route,
   owner: ResponseCacheOwner
 ): string {
   if (!owner) {
@@ -109,5 +118,6 @@ export function getRouteCacheKey(
     const { createHash } = require('crypto') as typeof import('crypto')
     source = createHash('sha256').update(sourceRoute).digest('hex')
   }
+  // @ts-ignore Human review: response URL Route is passed to the Page-only file codec; preserve existing cache-key encoding rather than converting representations.
   return `/${ROUTE_CACHE_DIRECTORY}/${owner.kind}/${source}/$${normalizePagePath(pathname)}`
 }

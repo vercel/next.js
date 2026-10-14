@@ -1,3 +1,5 @@
+import type { Page, Route } from '../../route-types'
+
 class UrlNode {
   placeholder: boolean = true
   children: Map<string, UrlNode> = new Map()
@@ -204,9 +206,9 @@ class UrlNode {
 /**
  * @deprecated Use `sortSortableRoutes` or `sortPages` instead.
  */
-export function getSortedRoutes(
-  normalizedPages: ReadonlyArray<string>
-): string[] {
+export function getSortedRoutes<Path extends Page | Route>(
+  normalizedPages: ReadonlyArray<Path>
+): Array<Path extends Page ? Page : Route> {
   // First the UrlNode is created, and every UrlNode can have only 1 dynamic segment
   // Eg you can't have pages/[post]/abc.js and pages/[hello]/something-else.js
   // Only 1 dynamic segment per nesting level
@@ -223,20 +225,22 @@ export function getSortedRoutes(
   // Here the `root` gets injected multiple paths, and insert will break them up into sublevels
   normalizedPages.forEach((pagePath) => root.insert(pagePath))
   // Smoosh will then sort those sublevels up to the point where you get the correct route definition priority
-  return root.smoosh()
+  // Reconstruction preserves the representation, not exact literal subtypes:
+  // UrlNode removes empty slash-separated segments and rebuilds whole paths.
+  return root.smoosh() as Array<Path extends Page ? Page : Route>
 }
 
 /**
  * @deprecated Use `sortSortableRouteObjects` or `sortPageObjects` instead.
  */
-export function getSortedRouteObjects<T>(
+export function getSortedRouteObjects<T, Path extends Page | Route>(
   objects: T[],
-  getter: (obj: T) => string
+  getter: (obj: T) => Path
 ): T[] {
   // We're assuming here that all the pathnames are unique, that way we can
   // sort the list and use the index as the key.
-  const indexes: Record<string, number> = {}
-  const pathnames: string[] = []
+  const indexes: Record<Page | Route, number> = {}
+  const pathnames: Path[] = []
   for (let i = 0; i < objects.length; i++) {
     const pathname = getter(objects[i])
     indexes[pathname] = i

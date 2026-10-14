@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 import type { RequestStore } from '../app-render/work-unit-async-storage.external'
@@ -90,7 +91,7 @@ type RequestContext = RequestResponsePair & {
     /**
      * The pathname of the requested URL.
      */
-    pathname: string
+    pathname: Route
 
     /**
      * The search part of the requested URL. If the request did not provide a
@@ -132,7 +133,7 @@ export type RequestStoreInputs = {
    * silently accept writes that would otherwise be rejected.
    */
   onUpdateCookies: ((cookies: string[]) => void) | undefined
-  url: { pathname: string; search?: string }
+  url: { pathname: Route; search?: string }
   rootParams: Params
   implicitTags: ImplicitTags
   resumeDataCache: ResumeDataCache | null

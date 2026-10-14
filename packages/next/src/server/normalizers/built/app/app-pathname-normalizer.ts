@@ -1,10 +1,11 @@
+import type { Page, Route } from '../../../../shared/lib/route-types'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { Normalizers } from '../../normalizers'
 import { wrapNormalizerFn } from '../../wrap-normalizer-fn'
 import { UnderscoreNormalizer } from '../../underscore-normalizer'
 import type { Normalizer } from '../../normalizer'
 
-export class AppPathnameNormalizer extends Normalizers {
+export class AppPathnameNormalizer extends Normalizers<Page, Route> {
   constructor() {
     super([
       // The pathname to match should have the trailing `/page` and other route
@@ -15,13 +16,13 @@ export class AppPathnameNormalizer extends Normalizers {
     ])
   }
 
-  public normalize(page: string): string {
+  public normalize(page: Page): Route {
     return super.normalize(page)
   }
 }
 
-export class DevAppPathnameNormalizer extends Normalizers {
-  constructor(pageNormalizer: Normalizer) {
+export class DevAppPathnameNormalizer extends Normalizers<string, Route> {
+  constructor(pageNormalizer: Normalizer<string, Page>) {
     super([
       // This should normalize the filename to a page.
       pageNormalizer,
@@ -30,7 +31,7 @@ export class DevAppPathnameNormalizer extends Normalizers {
     ])
   }
 
-  public normalize(filename: string): string {
+  public normalize(filename: string): Route {
     return super.normalize(filename)
   }
 }

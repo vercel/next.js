@@ -1,11 +1,13 @@
-export function throwMissingGspErrorInStaticRoute(page: string) {
+import type { Route } from '../route-types'
+
+export function throwMissingGspErrorInStaticRoute(page: Route) {
   throw new Error(
     `Page "${page}": \`ensureStatic = "navigation"\` requires an exported \`generateStaticParams()\` function.\nLearn more: https://nextjs.org/docs/messages/generate-static-params#with-ensurestatic`
   )
 }
 
 export function throwIncompleteStaticParamsErrorInStaticRoute(
-  page: string,
+  page: Route,
   missingParamNames: string[]
 ) {
   throw new Error(

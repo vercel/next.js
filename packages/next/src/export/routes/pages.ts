@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { ExportRouteResult } from '../types'
 import type { RouteCacheMetadata } from './types'
 import type {
@@ -30,8 +31,8 @@ import type { MultiFileWriter } from '../../lib/multi-file-writer'
 export async function exportPagesPage(
   req: MockedRequest,
   res: MockedResponse,
-  path: string,
-  page: string,
+  path: Route,
+  page: Page,
   query: NextParsedUrlQuery,
   params: Params | undefined,
   htmlFilepath: string,
@@ -98,7 +99,8 @@ export async function exportPagesPage(
       renderResult = await lazyRenderPagesPage(
         req,
         res,
-        page,
+        // Pages-only export entries use the module name as their URL pattern.
+        page as string as Route,
         searchAndDynamicParams,
         renderOpts,
         sharedContext,

@@ -1,3 +1,4 @@
+import type { Page } from '../route-types'
 import { isDynamicRoute } from '../router/utils'
 import { normalizePathSep } from './normalize-path-sep'
 
@@ -9,11 +10,13 @@ import { normalizePathSep } from './normalize-path-sep'
  *  - `/index/foo` -> `/foo`
  *  - `/index/index` -> `/index`
  */
-export function denormalizePagePath(page: string) {
+export function denormalizePagePath(page: Page): Page {
   let _page = normalizePathSep(page)
-  return _page.startsWith('/index/') && !isDynamicRoute(_page)
-    ? _page.slice(6)
-    : _page !== '/index'
-      ? _page
-      : '/'
+  return (
+    _page.startsWith('/index/') && !isDynamicRoute(_page)
+      ? _page.slice(6)
+      : _page !== '/index'
+        ? _page
+        : '/'
+  ) as Page
 }

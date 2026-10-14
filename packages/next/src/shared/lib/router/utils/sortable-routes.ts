@@ -1,20 +1,22 @@
+import type { Route } from '../../route-types'
+
 /**
  * A route that can be sorted by specificity.
  */
 export type SortableRoute = {
   /**
-   * The source page of the route. This represents the original page that's on
-   * disk. For example, the `app/[lang]/[...rest]/page.tsx` would have a source
+   * The source route pattern. This represents the normalized URL pathname,
+   * not the original app identifier on disk. For example, the `app/[lang]/[...rest]/page.tsx` would have a source
    * page of '/[lang]/[...rest]'.
    */
-  readonly sourcePage: string
+  readonly sourcePage: Route
 
   /**
    * The page of the route. This represents the final rendered route. For
    * example, the `app/[lang]/[...rest]/page.tsx` that was rendered with a lang
    * value of `en` would have a page of '/en/[...rest]'.
    */
-  readonly page: string
+  readonly page: Route
 }
 
 /**
@@ -173,7 +175,9 @@ export function sortSortableRoutes(
  * @param pages - Array of pages to sort
  * @returns New sorted array (does not mutate input)
  */
-export function sortPages(pages: readonly string[]): readonly string[] {
+export function sortPages<Path extends string>(
+  pages: readonly Path[]
+): readonly Path[] {
   // Because sort is always in-place, we need to create a shallow copy to avoid
   // mutating the input array.
   return [...pages].sort(compareRouteSegments)
@@ -185,20 +189,18 @@ export function sortPages(pages: readonly string[]): readonly string[] {
  * @param obj - object of pages to sort
  * @returns New sorted object (does not mutate input)
  */
-export function sortPagesObject<T>(
-  obj: Readonly<Record<string, T>>
-): Record<string, T> {
+export function sortPagesObject<T, Path extends string = string>(
+  obj: Readonly<Record<Path, T>>
+): Record<Path, T> {
   // Because sort is always in-place, we need to create a shallow copy to avoid
   // mutating the input.
-  return Object.keys(obj)
-    .sort(compareRouteSegments)
-    .reduce(
-      (acc, key) => {
-        acc[key] = obj[key]
-        return acc
-      },
-      {} as Record<string, T>
-    )
+  return (Object.keys(obj) as Path[]).sort(compareRouteSegments).reduce(
+    (acc, key) => {
+      acc[key] = obj[key]
+      return acc
+    },
+    {} as Record<Path, T>
+  )
 }
 
 /**
@@ -228,19 +230,19 @@ export function sortSortableRouteObjects<T>(
 }
 
 /**
- * Sorts an array of objects by page using a deterministic depth-first traversal
+ * Sorts an array of objects by normalized URL pattern using a deterministic depth-first traversal
  * approach.
  *
  * @param objects - Array of objects to sort
- * @param getter - Function to get the page from an object
+ * @param getter - Function to get the normalized URL pattern from an object
  * @returns New sorted array (does not mutate input)
  */
 export function sortPageObjects<T>(
   objects: readonly T[],
-  getter: (object: T) => string
+  getter: (object: T) => Route
 ): readonly T[] {
-  const indexes: Record<string, number[]> = {}
-  const pages: Set<string> = new Set()
+  const indexes: Record<Route, number[]> = {}
+  const pages: Set<Route> = new Set()
   for (let i = 0; i < objects.length; i++) {
     const object = objects[i]
     const page = getter(object)

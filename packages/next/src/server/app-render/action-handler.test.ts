@@ -1,4 +1,5 @@
 import { parseHostHeader } from './action-handler'
+import type { Page } from '../../shared/lib/route-types'
 import {
   getServerModuleMap,
   setManifestsSingleton,
@@ -11,7 +12,7 @@ describe('server module map', () => {
 
   beforeAll(() => {
     setManifestsSingleton({
-      page: '/test',
+      page: '/test' as Page,
       clientReferenceManifest: {} as ClientReferenceManifest,
       serverActionsManifest: {
         encryptionKey: '',

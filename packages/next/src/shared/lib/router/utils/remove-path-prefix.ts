@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../route-types'
 import { pathHasPrefix } from './path-has-prefix'
 
 /**
@@ -8,6 +9,9 @@ import { pathHasPrefix } from './path-has-prefix'
  * @param path The path to remove the prefix from.
  * @param prefix The prefix to be removed.
  */
+export function removePathPrefix(path: Page, prefix: string): Page
+export function removePathPrefix(path: Route, prefix: string): Route
+export function removePathPrefix(path: string, prefix: string): string
 export function removePathPrefix(path: string, prefix: string): string {
   // If the path doesn't start with the prefix we can return it as is. This
   // protects us from situations where the prefix is a substring of the path

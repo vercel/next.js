@@ -1,5 +1,7 @@
+import type { Route } from '../../shared/lib/route-types'
+
 export class UseCacheTimeoutError extends Error {
-  constructor(route: string) {
+  constructor(route: Route) {
     super(
       `Route "${route}": ` +
         `A \`"use cache"\` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as \`params\` or \`searchParams\`, into the cached function. Resolve the data before calling the function and pass only the values you need.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
@@ -8,7 +10,7 @@ export class UseCacheTimeoutError extends Error {
 }
 
 export class UseCacheDeadlockError extends Error {
-  constructor(route: string) {
+  constructor(route: Route) {
     super(
       `Route "${route}": ` +
         `A \`"use cache"\` function is awaiting a promise created outside it. The same call completed when run in isolation, so a module-scoped value (often a top-level \`Map\` used to dedupe fetches) is most likely blocking it. \`"use cache"\` already dedupes calls with the same arguments. Remove the surrounding dedupe layer.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
@@ -35,7 +37,7 @@ export class NestedDynamicUseCacheError extends Error {
 export const UNEXPECTED_CACHE_MISS_MESSAGE = `Unexpected cache miss after cache warming phase during prerendering. This is likely caused by non-deterministic arguments that differ between the cache warming phase and the final prerender phase (e.g. unstable array order). Ensure that arguments passed to cached functions are deterministic.`
 
 export class UnexpectedCacheMissError extends Error {
-  constructor(route: string) {
+  constructor(route: Route) {
     super(`Route "${route}": ` + UNEXPECTED_CACHE_MISS_MESSAGE)
   }
 }

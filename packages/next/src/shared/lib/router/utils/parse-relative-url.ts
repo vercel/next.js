@@ -1,3 +1,4 @@
+import type { Route } from '../../route-types'
 import type { ParsedUrlQuery } from 'querystring'
 import { getLocationOrigin } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
@@ -8,7 +9,7 @@ export interface ParsedRelativeUrl {
   host: string | null
   hostname: string | null
   href: string
-  pathname: string
+  pathname: Route
   port: string | null
   protocol: string | null
   query: ParsedUrlQuery
@@ -66,7 +67,7 @@ export function parseRelativeUrl(
     auth: null,
     host: null,
     hostname: null,
-    pathname,
+    pathname: pathname as Route,
     port: null,
     protocol: null,
     query: parseQuery ? searchParamsToUrlQuery(searchParams) : undefined,

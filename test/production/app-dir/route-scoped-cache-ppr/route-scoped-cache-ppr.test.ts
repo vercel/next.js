@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { load } from 'cheerio'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Page } from 'next/dist/shared/lib/route-types'
 
 describe('route-scoped-cache with PPR', () => {
   const { next, isNextDeploy } = nextTestSetup({ files: __dirname })
@@ -79,7 +80,7 @@ describe('route-scoped-cache with PPR', () => {
           next.getPrerenderFilePath(pathname, extension, {
             route: {
               kind: RouteKind.APP_PAGE,
-              sourceRoute: '/catalog/[category]/[item]/page',
+              sourceRoute: '/catalog/[category]/[item]/page' as Page,
             },
           })
         )

@@ -18,6 +18,7 @@ import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compi
 import { getSupportedBrowsers } from '../get-supported-browsers'
 import { printBuildErrors } from '../print-build-errors'
 import { normalizePath } from '../../lib/normalize-path'
+import type { Page } from '../../shared/lib/route-types'
 import type { ProjectOptions, RawEntrypoints } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
 import { getStrictRouteMatchingDefaultWarning } from '../../server/lib/router-utils/strict-route-matching-config'
@@ -266,14 +267,14 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
       // Only load pages router manifests if not app-only
       ...(!appDirOnly
         ? [
-            manifestLoader.loadBuildManifest('_app'),
-            manifestLoader.loadPagesManifest('_app'),
-            manifestLoader.loadFontManifest('_app'),
-            manifestLoader.loadPagesManifest('_document'),
-            manifestLoader.loadClientBuildManifest('_error'),
-            manifestLoader.loadBuildManifest('_error'),
-            manifestLoader.loadPagesManifest('_error'),
-            manifestLoader.loadFontManifest('_error'),
+            manifestLoader.loadBuildManifest('_app' as Page),
+            manifestLoader.loadPagesManifest('_app' as Page),
+            manifestLoader.loadFontManifest('_app' as Page),
+            manifestLoader.loadPagesManifest('_document' as Page),
+            manifestLoader.loadClientBuildManifest('_error' as Page),
+            manifestLoader.loadBuildManifest('_error' as Page),
+            manifestLoader.loadPagesManifest('_error' as Page),
+            manifestLoader.loadFontManifest('_error' as Page),
           ]
         : []),
       entrypoints.value.instrumentation &&

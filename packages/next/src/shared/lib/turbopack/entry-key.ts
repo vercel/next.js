@@ -1,3 +1,5 @@
+import type { Page } from '../route-types'
+
 /**
  * `app` -> app dir
  * `pages` -> pages dir
@@ -14,10 +16,10 @@ export type EntryKey =
 /**
  * Get a key that's unique across all entrypoints.
  */
-export function getEntryKey(
-  type: EntryKeyType,
+export function getEntryKey<Type extends EntryKeyType>(
+  type: Type,
   side: EntryKeySide,
-  page: string
+  page: Type extends 'app' | 'pages' ? Page : string
 ): EntryKey {
   return JSON.stringify({ type, side, page }) as EntryKey
 }
@@ -25,10 +27,10 @@ export function getEntryKey(
 /**
  * Split an `EntryKey` up into its components.
  */
-export function splitEntryKey(key: EntryKey): {
-  type: EntryKeyType
-  side: EntryKeySide
-  page: string
-} {
+export type EntryKeyParts =
+  | { type: 'app' | 'pages'; side: EntryKeySide; page: Page }
+  | { type: 'root' | 'assets'; side: EntryKeySide; page: string }
+
+export function splitEntryKey(key: EntryKey): EntryKeyParts {
   return JSON.parse(key)
 }

@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { DomainLocale, I18NConfig } from '../config-shared'
 import { getRequestMeta, type NextIncomingMessage } from '../request-meta'
 
@@ -8,7 +9,7 @@ export interface LocaleAnalysisResult {
   /**
    * The pathname without the locale prefix (if any).
    */
-  pathname: string
+  pathname: Route
 
   /**
    * The detected locale. If no locale was detected, this will be `undefined`.
@@ -105,7 +106,7 @@ export class I18NProvider {
    */
   public fromRequest(
     req: NextIncomingMessage,
-    pathname: string
+    pathname: Route
   ): LocaleAnalysisResult {
     const detectedLocale = getRequestMeta(req, 'locale')
 
@@ -144,7 +145,7 @@ export class I18NProvider {
    *          (if any).
    */
   public analyze(
-    pathname: string,
+    pathname: Route,
     options: LocaleAnalysisOptions = {}
   ): LocaleAnalysisResult {
     let detectedLocale: string | undefined = options.defaultLocale
@@ -181,7 +182,7 @@ export class I18NProvider {
     inferredFromDefault = false
 
     // Remove the `/${locale}` part of the pathname.
-    pathname = pathname.slice(detectedLocale.length + 1) || '/'
+    pathname = (pathname.slice(detectedLocale.length + 1) || '/') as Route
 
     return {
       detectedLocale,

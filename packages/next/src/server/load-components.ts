@@ -1,3 +1,4 @@
+import type { Page } from '../shared/lib/route-types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {
   AppType,
@@ -86,7 +87,7 @@ export type LoadComponentsReturnType<
   ComponentMod: NextModule
   routeModule: RouteModule
   isAppPath?: boolean
-  page: string
+  page: Page
   multiZoneDraftMode?: boolean
 }
 
@@ -150,10 +151,10 @@ export async function evalManifestWithRetries<T extends object>(
  */
 export async function loadClientReferenceManifestForPage(
   distDir: string,
-  page: string,
+  page: Page,
   attempts?: number
 ): Promise<DeepReadonly<ClientReferenceManifest> | undefined> {
-  const entryName = page.replace(/%5F/g, '_')
+  const entryName = page.replace(/%5F/g, '_') as Page
 
   const manifestPath = join(
     /* turbopackIgnore: true */ distDir,
@@ -164,7 +165,7 @@ export async function loadClientReferenceManifestForPage(
 
   try {
     const context = await evalManifestWithRetries<{
-      __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
+      __RSC_MANIFEST: Record<Page, ClientReferenceManifest>
     }>(manifestPath, attempts)
     return context.__RSC_MANIFEST[entryName]
   } catch (err) {
@@ -172,7 +173,7 @@ export async function loadClientReferenceManifestForPage(
   }
 }
 
-function loadRouteModule(page: string, distDir: string, isAppPath: boolean) {
+function loadRouteModule(page: Page, distDir: string, isAppPath: boolean) {
   return getTracer().trace(
     LoadComponentsSpan.loadRouteModule,
     { spanName: 'load route module' },
@@ -194,7 +195,7 @@ async function loadComponentsImpl<
   needsManifestsForLegacyReasons,
 }: {
   distDir: string
-  page: string
+  page: Page
   isAppPath: boolean
   isDev: boolean
   sriEnabled: boolean
@@ -204,8 +205,8 @@ async function loadComponentsImpl<
   let AppMod = {}
   if (!isAppPath) {
     ;[DocumentMod, AppMod] = await Promise.all([
-      requirePage('/_document', distDir, false),
-      requirePage('/_app', distDir, false),
+      requirePage('/_document' as Page, distDir, false),
+      requirePage('/_app' as Page, distDir, false),
     ])
   }
 

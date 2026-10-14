@@ -18,6 +18,7 @@ import {
   createDynamicViewportError,
 } from '../../../../server/app-render/blocking-route-messages'
 import { createLinkPrefetchPartialError } from '../../../../shared/lib/instant-messages'
+import type { Route } from '../../../../shared/lib/route-types'
 import {
   EXPLANATIONS,
   FIX_CARD_GROUPS,
@@ -69,113 +70,113 @@ describe('instant-guidance-data card ordering', () => {
   it.each([
     [
       'blocking-route runtime',
-      createRuntimeBodyError('/x').message,
+      createRuntimeBodyError('/x' as Route).message,
       'blocking-route',
       'runtime',
     ],
     [
       'blocking-route dynamic',
-      createDynamicBodyError('/x').message,
+      createDynamicBodyError('/x' as Route).message,
       'blocking-route',
       'dynamic',
     ],
 
     [
       'blocking-route runtime in navigation',
-      createRuntimeBodyErrorInNavigation('/x').message,
+      createRuntimeBodyErrorInNavigation('/x' as Route).message,
       'blocking-route',
       'runtime',
     ],
     [
       'blocking-route link in navigation',
-      createLinkBodyErrorInNavigation('/x').message,
+      createLinkBodyErrorInNavigation('/x' as Route).message,
       'blocking-route',
       'link',
     ],
     [
       'blocking-route prefetch in navigation',
-      createPrefetchBodyErrorInNavigation('/x').message,
+      createPrefetchBodyErrorInNavigation('/x' as Route).message,
       'blocking-route',
       'prefetch',
     ],
     [
       'blocking-route navigation in navigation',
-      createNavigationBodyErrorInNavigation('/x').message,
+      createNavigationBodyErrorInNavigation('/x' as Route).message,
       'blocking-route',
       'navigation',
     ],
     [
       'blocking-route dynamic in navigation',
-      createDynamicBodyErrorInNavigation('/x').message,
+      createDynamicBodyErrorInNavigation('/x' as Route).message,
       'blocking-route',
       'dynamic',
     ],
 
     [
       'metadata runtime',
-      createRuntimeMetadataError('/x').message,
+      createRuntimeMetadataError('/x' as Route).message,
       'metadata',
       'runtime',
     ],
     [
       'metadata link',
-      createLinkMetadataError('/x').message,
+      createLinkMetadataError('/x' as Route).message,
       'metadata',
       'link',
     ],
     [
       'metadata prefetch',
-      createPrefetchMetadataError('/x').message,
+      createPrefetchMetadataError('/x' as Route).message,
       'metadata',
       'prefetch',
     ],
     [
       'metadata navigation',
-      createNavigationMetadataError('/x').message,
+      createNavigationMetadataError('/x' as Route).message,
       'metadata',
       'navigation',
     ],
     [
       'metadata dynamic',
-      createDynamicMetadataError('/x').message,
+      createDynamicMetadataError('/x' as Route).message,
       'metadata',
       'dynamic',
     ],
 
     [
       'viewport runtime',
-      createRuntimeViewportError('/x').message,
+      createRuntimeViewportError('/x' as Route).message,
       'viewport',
       'runtime',
     ],
     [
       'viewport link',
-      createLinkViewportError('/x').message,
+      createLinkViewportError('/x' as Route).message,
       'viewport',
       'link',
     ],
     [
       'viewport prefetch',
-      createPrefetchViewportError('/x').message,
+      createPrefetchViewportError('/x' as Route).message,
       'viewport',
       'prefetch',
     ],
     [
       'viewport navigation',
-      createNavigationViewportError('/x').message,
+      createNavigationViewportError('/x' as Route).message,
       'viewport',
       'navigation',
     ],
     [
       'viewport dynamic',
-      createDynamicViewportError('/x').message,
+      createDynamicViewportError('/x' as Route).message,
       'viewport',
       'dynamic',
     ],
 
     [
       'link-prefetch-partial',
-      createLinkPrefetchPartialError('/x').message,
+      createLinkPrefetchPartialError('/x' as Route).message,
       'link-prefetch-partial',
       'runtime',
     ],

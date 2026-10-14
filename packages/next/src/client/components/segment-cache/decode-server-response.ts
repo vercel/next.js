@@ -1,3 +1,5 @@
+import type { Route } from '../../../shared/lib/route-types'
+
 /**
  * Decoding of RSC server responses (the transport format defined in
  * shared/lib/rsc-transport) into the client's own representations. This is
@@ -123,7 +125,7 @@ export function createNavigationSeed(
   // segments the server sent without a param value (`k: null`); see
   // decodeTransportTreeIntoRouteTree. Callers whose responses always carry
   // concrete values (navigation responses) may pass null.
-  renderedPathname: string | null,
+  renderedPathname: Route | null,
   // Already normalized by the response reader (see getRenderedSearch); the
   // router state stores it as a plain string, so it is re-branded here.
   renderedSearch: string,
@@ -336,7 +338,7 @@ export function decodeTransportTreeIntoRouteTree(
   // cacheable across param values); the client parses the value from the
   // pathname instead. Callers whose responses always carry concrete values
   // (navigation responses) may pass null.
-  renderedPathname: string | null,
+  renderedPathname: Route | null,
   renderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
 ): RouteTree<RSCSegmentData | null> {

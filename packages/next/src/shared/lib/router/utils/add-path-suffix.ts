@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../route-types'
 import { parsePath } from './parse-path'
 
 /**
@@ -5,6 +6,9 @@ import { parsePath } from './parse-path'
  * provided path. It also works only for paths ensuring the argument starts
  * with a slash.
  */
+export function addPathSuffix(path: Page, suffix?: string): Page
+export function addPathSuffix(path: Route, suffix?: string): Route
+export function addPathSuffix(path: string, suffix?: string): string
 export function addPathSuffix(path: string, suffix?: string) {
   if (!path.startsWith('/') || !suffix) {
     return path

@@ -4,6 +4,7 @@ import { nextTestSetup } from 'e2e-utils'
 import type { AdapterOutput, NextAdapter } from 'next'
 import { version as nextVersion } from 'next/package.json'
 import { RouteKind } from 'next/dist/server/route-kind'
+import type { Page, Route } from 'next/dist/shared/lib/route-types'
 
 describe('adapter-config', () => {
   const { next } = nextTestSetup({
@@ -472,28 +473,37 @@ describe('adapter-config', () => {
         '/grouped',
         'app',
         '.html',
-        { kind: RouteKind.APP_PAGE, sourceRoute: '/(group)/grouped/page' },
+        {
+          kind: RouteKind.APP_PAGE,
+          sourceRoute: '/(group)/grouped/page' as Page,
+        },
         '.rsc',
       ],
       [
         '/isr-app/first',
         'app',
         '.html',
-        { kind: RouteKind.APP_PAGE, sourceRoute: '/isr-app/[slug]/page' },
+        {
+          kind: RouteKind.APP_PAGE,
+          sourceRoute: '/isr-app/[slug]/page' as Page,
+        },
         '.rsc',
       ],
       [
         '/isr-route/first',
         'app',
         '.body',
-        { kind: RouteKind.APP_ROUTE, sourceRoute: '/isr-route/[slug]/route' },
+        {
+          kind: RouteKind.APP_ROUTE,
+          sourceRoute: '/isr-route/[slug]/route' as Page,
+        },
         undefined,
       ],
       [
         '/isr-pages/first',
         'pages',
         '.html',
-        { kind: RouteKind.PAGES, sourceRoute: '/isr-pages/[slug]' },
+        { kind: RouteKind.PAGES, sourceRoute: '/isr-pages/[slug]' as Route },
         '.json',
       ],
       [
@@ -502,7 +512,7 @@ describe('adapter-config', () => {
         '.html',
         {
           kind: RouteKind.PAGES,
-          sourceRoute: '/isr-pages-fallback-true/[slug]',
+          sourceRoute: '/isr-pages-fallback-true/[slug]' as Route,
         },
         undefined,
       ],

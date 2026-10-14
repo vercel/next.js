@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../route-types'
 import { normalizeAppPath } from './app-paths'
 
 // order matters here, the first match will be used
@@ -11,8 +12,8 @@ export const INTERCEPTION_ROUTE_MARKERS = [
 export type InterceptionMarker = (typeof INTERCEPTION_ROUTE_MARKERS)[number]
 
 export type MissingCanonicalInterceptionRoute = {
-  interceptionRoute: string
-  canonicalRoute: string
+  interceptionRoute: Route
+  canonicalRoute: Route
 }
 
 type RoutePattern = {
@@ -21,7 +22,7 @@ type RoutePattern = {
   unbounded: boolean
 }
 
-function parseRoutePattern(route: string): RoutePattern {
+function parseRoutePattern(route: Route): RoutePattern {
   const segments = route.split('/').filter(Boolean)
   const tail = segments.at(-1)
   const isOptionalCatchAll =
@@ -76,7 +77,7 @@ function patternCoversAtLength(
 }
 
 /** Returns whether ordinary route patterns cover every URL in `route`. */
-function isRoutePatternCovered(route: string, ordinaryRoutes: RoutePattern[]) {
+function isRoutePatternCovered(route: Route, ordinaryRoutes: RoutePattern[]) {
   const intercepted = parseRoutePattern(route)
 
   if (!intercepted.unbounded) {
@@ -163,6 +164,7 @@ export function extractInterceptionRouteInformation(
     )
   }
 
+  // @ts-ignore Human review: the split interception prefix is a path fragment, not a complete Page; preserve its existing raw App-prefix normalization.
   interceptingRoute = normalizeAppPath(interceptingRoute) // normalize the path, e.g. /(blog)/feed -> /feed
 
   switch (marker) {
@@ -220,19 +222,21 @@ export function extractInterceptionRouteInformation(
  * contains the final matcher set rather than every possible matcher candidate.
  */
 export function findMissingCanonicalInterceptionRoutes(
-  appPaths: Record<string, string[]>
+  appPaths: Record<Route, readonly Page[]>
 ): MissingCanonicalInterceptionRoute[] {
-  const canonicalRoutes = Object.keys(appPaths).filter(
+  const canonicalRoutes = (Object.keys(appPaths) as Route[]).filter(
     (route) => !isInterceptionRouteAppPath(route)
   )
   const canonicalRoutePatterns = canonicalRoutes.map(parseRoutePattern)
 
-  return Object.keys(appPaths)
+  return (Object.keys(appPaths) as Route[])
     .filter(isInterceptionRouteAppPath)
     .map((interceptionRoute) => ({
       interceptionRoute,
-      canonicalRoute:
-        extractInterceptionRouteInformation(interceptionRoute).interceptedRoute,
+      // Unlike the general fragment inspector, this manifest supplies full
+      // normalized matcher keys, so rebasing the marker constructs a URL.
+      canonicalRoute: extractInterceptionRouteInformation(interceptionRoute)
+        .interceptedRoute as Route,
     }))
     .filter(
       ({ canonicalRoute }) =>

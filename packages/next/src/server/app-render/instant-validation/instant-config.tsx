@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import { getLayoutOrPageModule } from '../../lib/app-dir-module'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import { parseLoaderTree } from '../../../shared/lib/router/utils/parse-loader-tree'
@@ -39,7 +40,7 @@ export function isImplicitValidationSegment(segment: Segment): boolean {
  * error UI — opting them into validation is something the user can do
  * explicitly via `instant`.
  */
-export function isFrameworkErrorRoute(route: string | undefined): boolean {
+export function isFrameworkErrorRoute(route: Route | undefined): boolean {
   return (
     route === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
     route === UNDERSCORE_NOT_FOUND_ROUTE

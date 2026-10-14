@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { AlternateLinkDescriptor } from '../types/alternative-urls-types'
 import type {
   Metadata,
@@ -19,7 +20,7 @@ import {
 function resolveAlternateUrl(
   url: string | URL,
   metadataBase: MetadataBaseURL,
-  pathname: string,
+  pathname: Route,
   metadataContext: MetadataContext
 ) {
   // If alter native url is an URL instance,
@@ -67,7 +68,7 @@ async function resolveUrlValuesOfObject(
     | null
     | undefined,
   metadataBase: MetadataBaseURL,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   metadataContext: MetadataContext
 ): Promise<null | Record<string, AlternateLinkDescriptor[]>> {
   if (!obj) return null
@@ -109,7 +110,7 @@ async function resolveUrlValuesOfObject(
 async function resolveCanonicalUrl(
   urlOrDescriptor: string | URL | null | AlternateLinkDescriptor | undefined,
   metadataBase: MetadataBaseURL,
-  pathname: Promise<string>,
+  pathname: Promise<Route>,
   metadataContext: MetadataContext
 ): Promise<null | AlternateLinkDescriptor> {
   if (!urlOrDescriptor) return null
@@ -134,7 +135,7 @@ async function resolveCanonicalUrl(
 
 export const resolveAlternates: AsyncFieldResolverExtraArgs<
   'alternates',
-  [MetadataBaseURL, Promise<string>, MetadataContext]
+  [MetadataBaseURL, Promise<Route>, MetadataContext]
 > = async (alternates, metadataBase, pathname, context) => {
   if (!alternates) return null
 
@@ -274,7 +275,7 @@ export const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
 
 export const resolveItunes: AsyncFieldResolverExtraArgs<
   'itunes',
-  [MetadataBaseURL, Promise<string>, MetadataContext]
+  [MetadataBaseURL, Promise<Route>, MetadataContext]
 > = async (itunes, metadataBase, pathname, context) => {
   if (!itunes) return null
   return {
@@ -300,7 +301,7 @@ export const resolveFacebook: FieldResolver<'facebook'> = (facebook) => {
 
 export const resolvePagination: AsyncFieldResolverExtraArgs<
   'pagination',
-  [MetadataBaseURL, Promise<string>, MetadataContext]
+  [MetadataBaseURL, Promise<Route>, MetadataContext]
 > = async (pagination, metadataBase, pathname, context) => {
   return {
     previous: pagination?.previous

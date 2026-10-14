@@ -1,3 +1,4 @@
+import type { Page, Route } from '../shared/lib/route-types'
 import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-render/types'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
 import type {
@@ -19,7 +20,10 @@ import type { StaticWorker } from '../build'
 import type { Bundler } from '../lib/bundler'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
-  path: string
+  /** Internal side of the public exportPathMap boundary. */
+  page: Page
+  path: Route
+  _ssgPath?: Route
 }
 
 export interface ExportPagesInput {
@@ -91,8 +95,9 @@ export type ExportPageResult = ExportRouteResult & {
 
 export type ExportPagesResult = {
   result: ExportPageResult | undefined
-  path: string
-  page: string
+  path: Route
+  page: Page
+  // A diagnostic identity can combine a module and URL ("page: path").
   pageKey: string
 }[]
 
@@ -110,7 +115,7 @@ export interface ExportAppOptions {
   silent?: boolean
   debugOutput?: boolean
   debugPrerender?: boolean
-  pages?: string[]
+  pages?: Route[]
   buildExport: boolean
   statusMessage?: string
   nextConfig?: NextConfigComplete
@@ -133,10 +138,10 @@ export type ExportPageMetadata = {
 
 export type ExportAppResult = {
   /**
-   * Page information keyed by path.
+   * Page information keyed by its prerender URL pathname.
    */
   byPath: Map<
-    string,
+    Route,
     {
       /**
        * The cache control for the page.
@@ -174,12 +179,12 @@ export type ExportAppResult = {
   /**
    * Durations for each page in milliseconds.
    */
-  byPage: Map<string, { durationsByPath: Map<string, number> }>
+  byPage: Map<Page, { durationsByPath: Map<Route, number> }>
 
   /**
    * The paths that were not found during SSG.
    */
-  ssgNotFoundPaths: Set<string>
+  ssgNotFoundPaths: Set<Route>
 
   /**
    * Traced dependencies for each page.

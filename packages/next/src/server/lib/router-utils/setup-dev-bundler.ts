@@ -9,6 +9,7 @@ import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { LocaleRouteDefinition } from '../../route-definitions/locale-route-definition'
+import type { Page, Route } from '../../../shared/lib/route-types'
 
 import { createDefineEnv } from '../../../build/swc'
 import { installBindings } from '../../../build/swc/install-bindings'
@@ -157,12 +158,12 @@ export interface DevRoutesManifest {
 }
 
 export type ServerFields = {
-  actualMiddlewareFile?: string | undefined
-  actualInstrumentationHookFile?: string | undefined
-  appPathRoutes?: Record<string, string | string[]>
+  actualMiddlewareFile?: Page | undefined
+  actualInstrumentationHookFile?: Page | undefined
+  appPathRoutes?: Record<Route, Page | Page[]>
   middleware?:
     | {
-        page: string
+        page: Route
         match: MiddlewareRouteMatch
         matchers?: ProxyMatcher[]
       }
@@ -389,7 +390,7 @@ async function startWatcher(
   })
 
   let resolved = false
-  let prevSortedRoutes: string[] = []
+  let prevSortedRoutes: Route[] = []
   let hasComputedSortedRoutes = false
 
   const pages = pagesDir ? [pagesDir] : []
@@ -435,7 +436,7 @@ async function startWatcher(
         nextConfig.pageExtensions
       ),
     ]
-    let nestedMiddleware: string[] = []
+    let nestedMiddleware: Route[] = []
 
     const envFiles = [
       '.env.development.local',
@@ -468,10 +469,10 @@ async function startWatcher(
     const fileWatchTimes = new Map()
     let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
-    let previousConflictingPagePaths: Set<string> = new Set()
+    let previousConflictingPagePaths: Set<Route> = new Set()
     let previousRouteMatchingErrors: string | null = null
     let hadInitialScan = false
-    let previousDuplicatePagePaths: Set<string> = new Set()
+    let previousDuplicatePagePaths: Set<Route> = new Set()
 
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
@@ -485,7 +486,7 @@ async function startWatcher(
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
-      const routedPages: string[] = []
+      const routedPages: Route[] = []
       const knownFiles = wp.getTimeInfoEntries()
 
       // Watchpack can emit an aggregation while its initial directory scan is
@@ -503,16 +504,16 @@ async function startWatcher(
       }
       hadInitialScan = true
 
-      const appPaths: Record<string, string[]> = {}
-      const defaultAppPaths = new Set<string>()
-      const pageNameSet = new Set<string>()
-      const conflictingAppPagePaths = new Set<string>()
-      const duplicatePagePaths = new Set<string>()
-      const appPageFilePaths = new Map<string, string>()
-      const appRouteFilePaths = new Map<string, string>()
-      const parallelRouteLayoutFiles = new Map<string, string>()
-      const pagesPageFilePaths = new Map<string, string>()
-      const appRouteHandlers: Array<RouteInfo & { page: string }> = []
+      const appPaths: Record<Route, Page[]> = {}
+      const defaultAppPaths = new Set<Page>()
+      const pageNameSet = new Set<Route>()
+      const conflictingAppPagePaths = new Set<Route>()
+      const duplicatePagePaths = new Set<Route>()
+      const appPageFilePaths = new Map<Route, string>()
+      const appRouteFilePaths = new Map<Page, string>()
+      const parallelRouteLayoutFiles = new Map<Page, string>()
+      const pagesPageFilePaths = new Map<Route, string>()
+      const appRouteHandlers: Array<RouteInfo & { page: Page }> = []
       const pageApiRoutes: RouteInfo[] = []
       const pageRoutes: RouteInfo[] = []
       const appRoutes: RouteInfo[] = []
@@ -698,7 +699,10 @@ async function startWatcher(
         // Collect all current filenames for the TS plugin to use
         devPageFiles.add(fileName)
 
-        let pageName = absolutePathToPage(fileName, {
+        // This local starts as the discovered module Page, then the app
+        // branch replaces it with its normalized URL Route. Pages identifiers
+        // already share the Pages URL namespace in the other branch.
+        let pageName: Page | Route = absolutePathToPage(fileName, {
           dir: isAppPath ? appDir! : pagesDir!,
           extensions: nextConfig.pageExtensions,
           keepIndex: isAppPath,
@@ -762,17 +766,20 @@ async function startWatcher(
             const layoutPath =
               normalizedPageName
                 .replace(/%5F/g, '_')
-                .replace(/\/layout$/, '') || '/'
-            parallelRouteLayoutFiles.set(layoutPath, fileName)
+                .replace(/\/layout$/, '') || ('/' as Page)
+            parallelRouteLayoutFiles.set(layoutPath as Page, fileName)
             const layoutRoute = ensureLeadingSlash(
-              normalizeAppPath(normalizedPageName).replace(/\/layout$/, '')
+              normalizeAppPath(normalizedPageName).replace(
+                /\/layout$/,
+                ''
+              ) as Route
             )
             layoutRoutes.push({ route: layoutRoute, filePath: fileName })
             continue
           }
 
           if (validFileMatcher.isAppDefaultPage(fileName)) {
-            defaultAppPaths.add(normalizedPageName.replace(/%5F/g, '_'))
+            defaultAppPaths.add(normalizedPageName.replace(/%5F/g, '_') as Page)
             continue
           }
 
@@ -780,10 +787,10 @@ async function startWatcher(
           if (!validFileMatcher.isAppRouterPage(fileName)) continue
 
           const originalPageName = pageName
-          pageName = normalizeAppPath(pageName).replace(/%5F/g, '_')
+          pageName = normalizeAppPath(pageName).replace(/%5F/g, '_') as Route
           const appRoute = normalizePathSep(pageName)
           const appPath = opts.turbo
-            ? originalPageName.replace(/%5F/g, '_')
+            ? (originalPageName.replace(/%5F/g, '_') as Page)
             : originalPageName
 
           if (!appPaths[pageName]) {
@@ -800,7 +807,7 @@ async function startWatcher(
                 segment,
                 lastSegment
               )
-              staticMetadataFiles.set(normalizedPath, fileName)
+              staticMetadataFiles.set(normalizedPath as Route, fileName)
             } else {
               appFiles.add(pageName)
             }
@@ -816,11 +823,15 @@ async function startWatcher(
           if (routedPages.includes(pageName)) continue
         } else {
           // Pages router
-          const existingPageFilePath = pagesPageFilePaths.get(pageName)
+          // Pages discovery gives the module identifier and URL pattern in
+          // the same namespace, unlike the normalized app branch above.
+          const existingPageFilePath = pagesPageFilePaths.get(
+            pageName as string as Route
+          )
           if (pagesDir && existingPageFilePath) {
-            duplicatePagePaths.add(pageName)
+            duplicatePagePaths.add(pageName as string as Route)
 
-            if (!previousDuplicatePagePaths.has(pageName)) {
+            if (!previousDuplicatePagePaths.has(pageName as string as Route)) {
               const existingPagePath = normalizePathSep(
                 path.join(
                   'pages',
@@ -842,11 +853,11 @@ async function startWatcher(
           }
 
           if (useFileSystemPublicRoutes) {
-            pageFiles.add(pageName)
-            opts.fsChecker.nextDataRoutes.add(pageName)
+            pageFiles.add(pageName as string as Route)
+            opts.fsChecker.nextDataRoutes.add(pageName as string as Route)
           }
 
-          const route = normalizePathSep(pageName)
+          const route = normalizePathSep(pageName) as string as Route
           const routeEntry = { route, filePath: fileName }
           if (isAPIRoute(pageName)) {
             pageApiRoutes.push(routeEntry)
@@ -857,15 +868,17 @@ async function startWatcher(
 
         // Record pages
         if (isAppPath) {
-          appPageFilePaths.set(pageName, fileName)
+          appPageFilePaths.set(pageName as Route, fileName)
         } else {
-          pagesPageFilePaths.set(pageName, fileName)
+          pagesPageFilePaths.set(pageName as string as Route, fileName)
         }
 
-        if (appDir && pageNameSet.has(pageName)) {
-          conflictingAppPagePaths.add(pageName)
+        // At this join app names have been normalized, while Pages names are
+        // already URL patterns. The collection is exclusively URL-keyed.
+        if (appDir && pageNameSet.has(pageName as string as Route)) {
+          conflictingAppPagePaths.add(pageName as string as Route)
         } else {
-          pageNameSet.add(pageName)
+          pageNameSet.add(pageName as string as Route)
         }
 
         /**
@@ -873,11 +886,11 @@ async function startWatcher(
          * warn without adding it so it doesn't make its way into the system.
          */
         if (/[\\\\/]_middleware$/.test(pageName)) {
-          nestedMiddleware.push(pageName)
+          nestedMiddleware.push(pageName as string as Route)
           continue
         }
 
-        routedPages.push(pageName)
+        routedPages.push(pageName as string as Route)
       }
 
       const numConflicting = conflictingAppPagePaths.size
@@ -906,7 +919,7 @@ async function startWatcher(
       let clientRouterFilters: any
       if (nextConfig.experimental.clientRouterFilter) {
         clientRouterFilters = createClientRouterFilter(
-          Object.keys(appPaths),
+          Object.keys(appPaths) as Route[],
           nextConfig.experimental.clientRouterFilterRedirects
             ? (opts.fsChecker.originalRedirects || []).filter(
                 (r) => !r.internal
@@ -1088,8 +1101,11 @@ async function startWatcher(
       // appPaths intentionally contains both pages and route handlers. The
       // removed matcher providers classified those entries independently, so
       // isolate pages before catch-all normalization and definition creation.
-      const appPagePaths: Record<string, string[]> = {}
-      for (const [route, routeAppPaths] of Object.entries(appPaths)) {
+      const appPagePaths: Record<Route, Page[]> = {}
+      for (const [route, routeAppPaths] of Object.entries(appPaths) as [
+        Route,
+        Page[],
+      ][]) {
         const pageAppPaths = routeAppPaths.filter(isAppPageRoute)
         if (pageAppPaths.length > 0) {
           appPagePaths[route] = pageAppPaths
@@ -1175,7 +1191,7 @@ async function startWatcher(
       // Make sure to sort parallel routes to make the result deterministic.
       serverFields.appPathRoutes = Object.fromEntries(
         Object.entries(appPaths).map(([k, v]) => [k, v.sort(compareAppPaths)])
-      )
+      ) as Record<Route, Page[]>
       await propagateServerField(
         opts,
         'appPathRoutes',
@@ -1186,13 +1202,18 @@ async function startWatcher(
       // definitions on every watcher pass so newly added routes can be ensured
       // and rendered without waiting for a separate matcher reload.
       const pageRouteDefinitions = [
+        // These entries are discovered Pages URLs, whose module identifiers
+        // share the Pages namespace; app definitions select a raw entry below.
         ...pageRoutes.map(
           ({ route, filePath }) =>
             ({
               kind: RouteKind.PAGES,
               pathname: route,
-              page: route,
-              bundlePath: path.posix.join('pages', normalizePagePath(route)),
+              page: route as string as Page,
+              bundlePath: path.posix.join(
+                'pages',
+                normalizePagePath(route as string as Page)
+              ),
               filename: filePath,
               ...(opts.nextConfig.i18n ? { i18n: {} } : undefined),
             }) satisfies LocaleRouteDefinition<RouteKind.PAGES>
@@ -1202,8 +1223,11 @@ async function startWatcher(
             ({
               kind: RouteKind.PAGES_API,
               pathname: route,
-              page: route,
-              bundlePath: path.posix.join('pages', normalizePagePath(route)),
+              page: route as string as Page,
+              bundlePath: path.posix.join(
+                'pages',
+                normalizePagePath(route as string as Page)
+              ),
               filename: filePath,
               ...(opts.nextConfig.i18n ? { i18n: {} } : undefined),
             }) satisfies LocaleRouteDefinition<RouteKind.PAGES_API>
@@ -1213,18 +1237,20 @@ async function startWatcher(
       >
 
       const appRouteDefinitions = [
-        ...Object.entries(appPagePaths).map(([route, routeAppPaths]) => {
-          const page = selectAppPageEntry(route, routeAppPaths)
-          const filePath = appRouteFilePaths.get(page)!
-          return {
-            kind: RouteKind.APP_PAGE,
-            pathname: route,
-            page,
-            bundlePath: path.posix.join('app', normalizePagePath(page)),
-            filename: filePath,
-            appPaths: routeAppPaths,
-          } satisfies AppPageRouteDefinition
-        }),
+        ...(Object.entries(appPagePaths) as [Route, Page[]][]).map(
+          ([route, routeAppPaths]) => {
+            const page = selectAppPageEntry(route, routeAppPaths)
+            const filePath = appRouteFilePaths.get(page)!
+            return {
+              kind: RouteKind.APP_PAGE,
+              pathname: route,
+              page,
+              bundlePath: path.posix.join('app', normalizePagePath(page)),
+              filename: filePath,
+              appPaths: routeAppPaths,
+            } satisfies AppPageRouteDefinition
+          }
+        ),
         ...appRouteHandlers.map(({ route, page, filePath }) => {
           return {
             kind: RouteKind.APP_ROUTE,
@@ -1243,7 +1269,7 @@ async function startWatcher(
       serverFields.middleware = middlewareMatchers
         ? {
             match: null as any,
-            page: '/',
+            page: '/' as Route,
             matchers: middlewareMatchers,
           }
         : undefined
@@ -1256,7 +1282,7 @@ async function startWatcher(
         : undefined
 
       const interceptionRoutes = generateInterceptionRoutesRewrites(
-        Object.keys(appPaths),
+        Object.keys(appPaths) as Route[],
         opts.nextConfig.basePath
       ).map((item) =>
         buildCustomRoute(
@@ -1493,13 +1519,16 @@ async function startWatcher(
     wp.watch({ directories: [dir], startTime: 0 })
   })
 
-  const clientPagesManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}`
+  const clientPagesManifestPath =
+    `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_PAGES_MANIFEST}` as Route
   opts.fsChecker.devVirtualFsItems.add(clientPagesManifestPath)
 
-  const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_MIDDLEWARE_MANIFEST}`
+  const devMiddlewareManifestPath =
+    `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_MIDDLEWARE_MANIFEST}` as Route
   opts.fsChecker.devVirtualFsItems.add(devMiddlewareManifestPath)
 
-  const devTurbopackMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+  const devTurbopackMiddlewareManifestPath =
+    `/_next/${CLIENT_STATIC_FILES_PATH}/development/${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}` as Route
   opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
 
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {

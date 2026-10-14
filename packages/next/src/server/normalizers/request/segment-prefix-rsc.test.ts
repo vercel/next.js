@@ -1,9 +1,12 @@
+import type { Route } from '../../../shared/lib/route-types'
 import { SegmentPrefixRSCPathnameNormalizer } from './segment-prefix-rsc'
 
 describe('SegmentPrefixRSCPathnameNormalizer', () => {
   it('should match and extract the original pathname and segment path', () => {
     const normalizer = new SegmentPrefixRSCPathnameNormalizer()
-    const result = normalizer.extract('/hello/hello.segments/_tree.segment.rsc')
+    const result = normalizer.extract(
+      '/hello/hello.segments/_tree.segment.rsc' as Route
+    )
     expect(result).toEqual({
       originalPathname: '/hello/hello',
       segmentPath: '/_tree',
@@ -13,7 +16,7 @@ describe('SegmentPrefixRSCPathnameNormalizer', () => {
   it('should extract segment prefetch paths for catch-all params named segments', () => {
     const normalizer = new SegmentPrefixRSCPathnameNormalizer()
     const result = normalizer.extract(
-      '/catch/[...segments].segments/catch/$c$segments/__PAGE__.segment.rsc'
+      '/catch/[...segments].segments/catch/$c$segments/__PAGE__.segment.rsc' as Route
     )
 
     expect(result).toEqual({
@@ -25,7 +28,7 @@ describe('SegmentPrefixRSCPathnameNormalizer', () => {
   it('should still extract segment prefetch paths for other catch-all param names', () => {
     const normalizer = new SegmentPrefixRSCPathnameNormalizer()
     const result = normalizer.extract(
-      '/catch/[...foobar].segments/catch/$c$foobar/__PAGE__.segment.rsc'
+      '/catch/[...foobar].segments/catch/$c$foobar/__PAGE__.segment.rsc' as Route
     )
 
     expect(result).toEqual({

@@ -1,3 +1,4 @@
+import type { Route } from '../../../../shared/lib/route-types'
 import type {
   DynamicPrerenderManifestRoute,
   PrerenderManifest,
@@ -18,7 +19,7 @@ type Matcher = {
   /**
    * The source of the dynamic route.
    */
-  source: string
+  source: Route
 
   /**
    * The route that matches the source.
@@ -27,7 +28,7 @@ type Matcher = {
 }
 
 export type PrerenderManifestMatch = {
-  source: string
+  source: Route
   route: DeepReadonly<DynamicPrerenderManifestRoute>
 }
 
@@ -39,10 +40,15 @@ export type PrerenderManifestMatch = {
 export class PrerenderManifestMatcher {
   private readonly matchers: Array<Matcher>
   constructor(
-    pathname: string,
+    pathname: Route,
     prerenderManifest: DeepReadonly<PrerenderManifest>
   ) {
-    this.matchers = Object.entries(prerenderManifest.dynamicRoutes)
+    this.matchers = (
+      Object.entries(prerenderManifest.dynamicRoutes) as [
+        Route,
+        DeepReadonly<DynamicPrerenderManifestRoute>,
+      ][]
+    )
       .filter(([source, route]) => {
         // If the pathname is a fallback source route, or the source route is
         // the same as the pathname, then we should include it in the matchers.
@@ -58,7 +64,7 @@ export class PrerenderManifestMatcher {
    * @param pathname - The pathname to match.
    * @returns The dynamic route that matches the pathname.
    */
-  public match(pathname: string): PrerenderManifestMatch | null {
+  public match(pathname: Route): PrerenderManifestMatch | null {
     // Iterate over the matchers. They're already in the correct order of
     // specificity as they were inserted into the prerender manifest that way
     // and iterating over them with Object.entries guarantees that.

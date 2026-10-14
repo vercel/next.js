@@ -1,3 +1,4 @@
+import type { Page } from '../shared/lib/route-types'
 import path from 'path'
 import {
   PAGES_MANIFEST,
@@ -17,7 +18,7 @@ const isDev = process.env.NODE_ENV === 'development'
 const pagePathCache = !isDev ? new LRUCache<string | null>(1000) : null
 
 export function getMaybePagePath(
-  page: string,
+  page: Page,
   distDir: string,
   locales: readonly string[] | undefined,
   isAppPath: boolean
@@ -59,10 +60,11 @@ export function getMaybePagePath(
   const checkManifest = (manifest: PagesManifest) => {
     let curPath = manifest[page]
 
+    // @ts-ignore -- Human review: curPath is a bundle filename, not a Page manifest key. Preserve the existing locale-fallback condition.
     if (!manifest[curPath] && locales) {
       const manifestNoLocales: typeof pagesManifest = {}
 
-      for (const key of Object.keys(manifest)) {
+      for (const key of Object.keys(manifest) as Page[]) {
         manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
           pagesManifest[key]
       }
@@ -98,7 +100,7 @@ export function getMaybePagePath(
 }
 
 export function getPagePath(
-  page: string,
+  page: Page,
   distDir: string,
   locales: string[] | undefined,
   isAppPath: boolean
@@ -113,7 +115,7 @@ export function getPagePath(
 }
 
 export async function requirePage(
-  page: string,
+  page: Page,
   distDir: string,
   isAppPath: boolean
 ): Promise<any> {

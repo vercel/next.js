@@ -1,3 +1,5 @@
+import type { Route } from '../../shared/lib/route-types'
+
 /**
  * This transforms a URL pathname into a route. It removes any trailing slashes
  * and the `/index` suffix.
@@ -21,6 +23,6 @@
  * // returns '/'
  * toRoute('/');
  */
-export function toRoute(pathname: string): string {
-  return pathname.replace(/(?:\/index)?\/?$/, '') || '/'
+export function toRoute(pathname: Route): Route {
+  return (pathname.replace(/(?:\/index)?\/?$/, '') || '/') as Route
 }

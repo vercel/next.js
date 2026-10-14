@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -65,13 +66,13 @@ interface RegisteredClientReferenceManifest {
    * stripped), so this is kept alongside for consumers that need to address the
    * manifest on disk again rather than reversing the normalization.
    */
-  readonly page: string
+  readonly page: Page
   readonly clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
 }
 
 interface ManifestsSingleton {
   readonly clientReferenceManifestsPerRoute: Map<
-    string,
+    Route,
     RegisteredClientReferenceManifest
   >
   readonly proxiedClientReferenceManifest: DeepReadonly<ClientReferenceManifest>
@@ -120,7 +121,7 @@ function isUseCacheStore(workUnitStore: WorkUnitStore | undefined): boolean {
 
 function createProxiedClientReferenceManifest(
   clientReferenceManifestsPerRoute: Map<
-    string,
+    Route,
     RegisteredClientReferenceManifest
   >
 ): Pick<
@@ -415,7 +416,7 @@ function createServerModuleMap(): ServerModuleMap {
  * The flight entry loader keys actions by bundlePath. bundlePath corresponds
  * with the relative path (including 'app') to the page entrypoint.
  */
-export function normalizeWorkerPageName(pageName: string) {
+export function normalizeWorkerPageName(pageName: Page) {
   if (pathHasPrefix(pageName, 'app')) {
     return pageName
   }
@@ -427,8 +428,8 @@ export function normalizeWorkerPageName(pageName: string) {
  * Converts a bundlePath (relative path to the entrypoint) to a routable page
  * name.
  */
-function denormalizeWorkerPageName(bundlePath: string) {
-  return normalizeAppPath(removePathPrefix(bundlePath, 'app'))
+function denormalizeWorkerPageName(bundlePath: string): Route {
+  return normalizeAppPath(removePathPrefix(bundlePath, 'app') as Page)
 }
 
 /**
@@ -437,8 +438,8 @@ function denormalizeWorkerPageName(bundlePath: string) {
  */
 export function selectWorkerForForwarding(
   actionId: string,
-  pageName: string
-): string | undefined {
+  pageName: Page
+): Route | undefined {
   const serverActionsManifest = getServerActionsManifest()
   const workers =
     serverActionsManifest[
@@ -464,7 +465,7 @@ export function setManifestsSingleton({
   clientReferenceManifest,
   serverActionsManifest: rawServerActionsManifest,
 }: {
-  page: string
+  page: Page
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   serverActionsManifest: DeepReadonly<ActionManifest>
 }) {
@@ -488,7 +489,7 @@ export function setManifestsSingleton({
     existingSingleton.serverActionsManifest = serverActionsManifest
   } else {
     const clientReferenceManifestsPerRoute = new Map<
-      string,
+      Route,
       RegisteredClientReferenceManifest
     >([[route, { page, clientReferenceManifest }]])
 

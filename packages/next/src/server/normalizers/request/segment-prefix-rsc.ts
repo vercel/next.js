@@ -1,3 +1,4 @@
+import type { Route } from '../../../shared/lib/route-types'
 import type { PathnameNormalizer } from './pathname-normalizer'
 
 import {
@@ -11,18 +12,18 @@ const PATTERN = new RegExp(
 )
 
 export class SegmentPrefixRSCPathnameNormalizer implements PathnameNormalizer {
-  public match(pathname: string): boolean {
+  public match(pathname: Route): boolean {
     return PATTERN.test(pathname)
   }
 
-  public extract(pathname: string) {
+  public extract(pathname: Route) {
     const match = pathname.match(PATTERN)
     if (!match) return null
 
-    return { originalPathname: match[1], segmentPath: match[2] }
+    return { originalPathname: match[1] as Route, segmentPath: match[2] }
   }
 
-  public normalize(pathname: string): string {
+  public normalize(pathname: Route): Route {
     const match = this.extract(pathname)
     if (!match) return pathname
 

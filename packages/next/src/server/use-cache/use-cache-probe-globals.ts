@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import type { Params } from '../request/params'
 
 // Cross-module handoff for the `'use cache'` hang-detection probe. A symbol on
@@ -19,7 +20,7 @@ const SYMBOL: unique symbol = Symbol.for('next.dev.useCacheProbe')
 export type UseCacheProbeRequestSnapshot = {
   headers: [string, string][]
   cookieHeader: string | undefined
-  urlPathname: string
+  urlPathname: Route
   urlSearch: string
   rootParams: Params
   isDraftMode: boolean
@@ -40,9 +41,9 @@ export type UseCacheProbe = (args: {
    * `app/static/page.tsx`. The trailing `/page` (or `/route`) suffix is
    * load-bearing — the worker passes this directly to `loadComponents()`.
    */
-  page: string
+  page: Page
   /** Route pathname; used to populate the worker's `WorkStore.route`. */
-  route: string
+  route: Route
   id: string
   kind: string
   encodedArguments: string | FormData

@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import { getCacheHandlerEntries } from '../use-cache/handlers'
@@ -23,7 +24,7 @@ export interface ImplicitTags {
   readonly expirationsByCacheKind: Map<string, LazyResult<number>>
 }
 
-const getDerivedTags = (pathname: string): string[] => {
+const getDerivedTags = (pathname: Page): string[] => {
   const derivedTags: string[] = [`/layout`]
 
   // we automatically add the current path segments as tags
@@ -81,8 +82,8 @@ function createTagsExpirationsByCacheKind(
 }
 
 export async function getImplicitTags(
-  page: string,
-  pathname: string,
+  page: Page,
+  pathname: Route,
   fallbackRouteParams: null | OpaqueFallbackRouteParams
 ): Promise<ImplicitTags> {
   const tags = new Set<string>()

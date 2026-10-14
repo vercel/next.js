@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { RootRouteTree } from './segment-cache/cache'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { PrefetchOptions } from '../../shared/lib/app-router-context.shared-runtime'
@@ -88,7 +89,7 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
  */
 export function prefetch(
   href: string,
-  nextUrl: string | null,
+  nextUrl: Route | null,
   renderTreeAtTimeOfPrefetch: RootRouteTree<CacheNode>,
   fetchStrategy: PrefetchTaskFetchStrategy,
   onInvalidate: null | (() => void)
