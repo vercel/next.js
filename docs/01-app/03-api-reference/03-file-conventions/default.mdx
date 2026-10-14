@@ -41,7 +41,7 @@ Additionally, since `children` is an implicit slot, you also need to create a `d
 
 A promise that resolves to an object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) from the root segment down to the slot's subpages. For example:
 
-```tsx filename="app/[artist]/@sidebar/default.js" switcher
+```tsx filename="app/[artist]/@sidebar/default.tsx" switcher
 export default async function Default({
   params,
 }: {

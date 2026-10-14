@@ -225,16 +225,16 @@ function PushNotificationManager() {
 
 ```jsx switcher
 function PushNotificationManager() {
-  const [isSupported, setIsSupported] = useState(false);
-  const [subscription, setSubscription] = useState(null);
-  const [message, setMessage] = useState('');
+  const [isSupported, setIsSupported] = useState(false)
+  const [subscription, setSubscription] = useState(null)
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     if ('serviceWorker' in navigator && 'PushManager' in window) {
-      setIsSupported(true);
-      registerServiceWorker();
+      setIsSupported(true)
+      registerServiceWorker()
     }
-  }, []);
+  }, [])
 
   async function registerServiceWorker() {
     const registration = await navigator.serviceWorker.register(
@@ -244,37 +244,38 @@ function PushNotificationManager() {
         updateViaCache: 'none',
       }
     )
-    const sub = await registration.pushManager.getSubscription();
-    setSubscription(sub);
+    const sub = await registration.pushManager.getSubscription()
+    setSubscription(sub)
   }
 
   async function subscribeToPush() {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await navigator.serviceWorker.ready
     const sub = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(
-        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       ),
-    });
-    setSubscription(sub);
-    await subscribeUser(sub);
+    })
+    setSubscription(sub)
+    const serializedSub = JSON.parse(JSON.stringify(sub))
+    await subscribeUser(serializedSub)
   }
 
   async function unsubscribeFromPush() {
-    await subscription?.unsubscribe();
-    setSubscription(null);
-    await unsubscribeUser();
+    await subscription?.unsubscribe()
+    setSubscription(null)
+    await unsubscribeUser()
   }
 
   async function sendTestNotification() {
     if (subscription) {
-      await sendNotification(message);
-      setMessage('');
+      await sendNotification(message)
+      setMessage('')
     }
   }
 
   if (!isSupported) {
-    return <p>Push notifications are not supported in this browser.</p>;
+    return <p>Push notifications are not supported in this browser.</p>
   }
 
   return (
@@ -299,7 +300,7 @@ function PushNotificationManager() {
         </>
       )}
     </div>
-  );
+  )
 }
 ```
 
@@ -357,19 +358,17 @@ export default function Page() {
 
 ```jsx switcher
 function InstallPrompt() {
-  const [isIOS, setIsIOS] = useState(false);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false)
+  const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
-    setIsIOS(
-      /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
-    );
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream)
 
-    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches);
-  }, []);
+    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches)
+  }, [])
 
   if (isStandalone) {
-    return null; // Don't show install button if already installed
+    return null // Don't show install button if already installed
   }
 
   return (
@@ -392,7 +391,7 @@ function InstallPrompt() {
         </p>
       )}
     </div>
-  );
+  )
 }
 
 export default function Page() {
@@ -401,7 +400,7 @@ export default function Page() {
       <PushNotificationManager />
       <InstallPrompt />
     </div>
-  );
+  )
 }
 ```
 
@@ -461,35 +460,35 @@ export async function sendNotification(message: string) {
 ```
 
 ```jsx filename="app/actions.js" switcher
-'use server';
+'use server'
 
-import webpush from 'web-push';
+import webpush from 'web-push'
 
 webpush.setVapidDetails(
   '<mailto:your-email@example.com>',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+  process.env.VAPID_PRIVATE_KEY
+)
 
-let subscription= null;
+let subscription = null
 
 export async function subscribeUser(sub) {
-  subscription = sub;
+  subscription = sub
   // In a production environment, you would want to store the subscription in a database
   // For example: await db.subscriptions.create({ data: sub })
-  return { success: true };
+  return { success: true }
 }
 
 export async function unsubscribeUser() {
-  subscription = null;
+  subscription = null
   // In a production environment, you would want to remove the subscription from the database
   // For example: await db.subscriptions.delete({ where: { ... } })
-  return { success: true };
+  return { success: true }
 }
 
 export async function sendNotification(message) {
   if (!subscription) {
-    throw new Error('No subscription available');
+    throw new Error('No subscription available')
   }
 
   try {
@@ -500,11 +499,11 @@ export async function sendNotification(message) {
         body: message,
         icon: '/icon.png',
       })
-    );
-    return { success: true };
+    )
+    return { success: true }
   } catch (error) {
-    console.error('Error sending push notification:', error);
-    return { success: false, error: 'Failed to send notification' };
+    console.error('Error sending push notification:', error)
+    return { success: false, error: 'Failed to send notification' }
   }
 }
 ```
