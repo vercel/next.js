@@ -7,9 +7,9 @@
     "version": {
       "exact": true,
       "allowBranch": [
-        "canary"
+        "releases/lts/active"
       ]
     }
   },
-  "version": "16.4.0"
+  "version": "16.4.1"
 }

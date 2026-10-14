@@ -181,8 +181,15 @@ function getBuildOutput(cliOutput: string, isNextDeploy: boolean): string {
   let skipLines = true
 
   for (const line of cliOutput.split('\n')) {
-    // The command exit status and inspect metadata are not compiler output.
-    if (isNextDeploy && /^Error: Command .* exited with \d+$/.test(line)) break
+    // Package-manager command failures and inspect metadata are not compiler output.
+    if (
+      isNextDeploy &&
+      /^(?:ELIFECYCLE\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
+        stripAnsi(line).trim()
+      )
+    ) {
+      break
+    }
     if (!skipLines) {
       if (line.includes('__next_edge_ssr_entry__')) {
         lines.push(

@@ -33,9 +33,8 @@ function _arrayLikeToArray(arr, len) {
   return arr2;
 }
 function _createForOfIteratorHelper(o, allowArrayLike) {
-  var it =
-    ("undefined" !== typeof Symbol && o[Symbol.iterator]) || o["@@iterator"];
-  if (!it) {
+  var it;
+  if ("undefined" === typeof Symbol || null == o[Symbol.iterator]) {
     if (
       Array.isArray(o) ||
       (it = _unsupportedIterableToArray(o)) ||
@@ -64,7 +63,7 @@ function _createForOfIteratorHelper(o, allowArrayLike) {
     err;
   return {
     s: function () {
-      it = it.call(o);
+      it = o[Symbol.iterator]();
     },
     n: function () {
       var step = it.next();
