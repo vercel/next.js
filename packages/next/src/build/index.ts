@@ -132,7 +132,7 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner, { finishSpinner } from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
-import { writeAnalyzeSnapshot } from './analyze/snapshot'
+import { readAnalyzeRoutes, writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
@@ -236,7 +236,7 @@ import {
   sortPagesObject,
   sortSortableRouteObjects,
 } from '../shared/lib/router/utils/sortable-routes'
-import { cp, mkdir, writeFile } from 'fs/promises'
+import { cp, mkdir } from 'fs/promises'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -4855,18 +4855,7 @@ export default async function build(
           recursive: true,
         })
 
-        // Write an index of routes for the route picker
-        const routes = Array.from(
-          new Set(
-            routesManifest.dynamicRoutes
-              .map((r) => r.page)
-              .concat(routesManifest.staticRoutes.map((r) => r.page))
-          )
-        )
-        await writeFile(
-          path.join(analyzeDir, 'data/routes.json'),
-          JSON.stringify(routes, null, 2)
-        )
+        const routes = readAnalyzeRoutes(path.join(analyzeDir, 'data'))
 
         // Capture this build alongside any prior builds so the analyzer UI
         // can offer it as a comparison baseline in the future.
