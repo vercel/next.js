@@ -1488,6 +1488,21 @@ export async function ncc_icss_utils(task, opts) {
 externals['scheduler'] = 'next/dist/compiled/scheduler-experimental'
 externals['scheduler'] = 'next/dist/compiled/scheduler'
 export async function copy_vendor_react(task_) {
+  // Use the exact CI-built packages for the unpublished Result experiment.
+  const reactBuildDir = dirname(
+    require.resolve('react-result-build/package.json')
+  )
+  function reactPackageDir(name, experimental = false) {
+    return relative(
+      __dirname,
+      join(
+        reactBuildDir,
+        experimental ? 'oss-experimental' : 'oss-stable',
+        name
+      )
+    )
+  }
+
   function* copy_vendor_react_impl(task, opts) {
     const channel = opts.experimental ? `experimental-builtin` : `builtin`
     const packageSuffix = opts.experimental ? `-experimental` : ``
@@ -1532,9 +1547,7 @@ export async function copy_vendor_react(task_) {
         )
     }
 
-    const schedulerDir = dirname(
-      relative(__dirname, require.resolve(`scheduler-${channel}/package.json`))
-    )
+    const schedulerDir = reactPackageDir('scheduler', opts.experimental)
     yield task
       .source(join(schedulerDir, '*.{json,js}'))
       // eslint-disable-next-line require-yield
@@ -1551,12 +1564,8 @@ export async function copy_vendor_react(task_) {
       .source(join(schedulerDir, 'LICENSE'))
       .target(`src/compiled/scheduler${packageSuffix}`)
 
-    const reactDir = dirname(
-      relative(__dirname, require.resolve(`react-${channel}/package.json`))
-    )
-    const reactDomDir = dirname(
-      relative(__dirname, require.resolve(`react-dom-${channel}/package.json`))
-    )
+    const reactDir = reactPackageDir('react', opts.experimental)
+    const reactDomDir = reactPackageDir('react-dom', opts.experimental)
 
     yield task
       .source(join(reactDir, '*.{json,js}'))
@@ -1670,7 +1679,10 @@ export async function copy_vendor_react(task_) {
       'cjs/react-dom-server.bun.development.js',
       'cjs/react-dom-server.bun.production.min.js',
       'cjs/react-dom-test-utils.development.js',
+      'cjs/react-dom-test-utils.production.js',
       'cjs/react-dom-test-utils.production.min.js',
+      'cjs/react-dom-unstable_testing.development.js',
+      'cjs/react-dom-unstable_testing.production.js',
       'unstable_server-external-runtime.js',
     ]
     for (const item of itemsToRemove) {
@@ -1680,11 +1692,9 @@ export async function copy_vendor_react(task_) {
     // react-server-dom-webpack
     // Currently, this `next` and `experimental` channels are always in sync so
     // we can use the same version for both.
-    const reactServerDomWebpackDir = dirname(
-      relative(
-        __dirname,
-        require.resolve(`react-server-dom-webpack${packageSuffix}/package.json`)
-      )
+    const reactServerDomWebpackDir = reactPackageDir(
+      'react-server-dom-webpack',
+      opts.experimental
     )
     yield task
       .source(join(reactServerDomWebpackDir, 'LICENSE'))
@@ -1729,13 +1739,9 @@ export async function copy_vendor_react(task_) {
     // react-server-dom-turbopack
     // Currently, this `next` and `experimental` channels are always in sync so
     // we can use the same version for both.
-    const reactServerDomTurbopackDir = dirname(
-      relative(
-        __dirname,
-        require.resolve(
-          `react-server-dom-turbopack${packageSuffix}/package.json`
-        )
-      )
+    const reactServerDomTurbopackDir = reactPackageDir(
+      'react-server-dom-turbopack',
+      opts.experimental
     )
     yield task
       .source(join(reactServerDomTurbopackDir, 'LICENSE'))
@@ -1797,9 +1803,7 @@ export async function copy_vendor_react(task_) {
 
   // TODO: Support react-is experimental channel. We currently assume Canary and Experimental are equal.
   await task_
-    .source(
-      join(dirname(require.resolve('react-is-builtin/package.json')), '**/*')
-    )
+    .source(join(reactPackageDir('react-is'), '**/*'))
     .target('src/compiled/react-is')
 }
 

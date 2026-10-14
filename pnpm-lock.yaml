@@ -675,6 +675,9 @@ importers:
       react-is-builtin:
         specifier: npm:react-is@19.3.0-canary-99c106c4-20261014
         version: react-is@19.3.0-canary-99c106c4-20261014
+      react-result-build:
+        specifier: file:./scripts/react-packages/react-result-build-0.0.0-cdec04a5.tgz
+        version: file:scripts/react-packages/react-result-build-0.0.0-cdec04a5.tgz
       react-server-dom-turbopack:
         specifier: npm:react-server-dom-turbopack@19.3.0-canary-99c106c4-20261014
         version: 19.3.0-canary-99c106c4-20261014(react-dom@19.3.0-canary-99c106c4-20261014(react@19.3.0-canary-99c106c4-20261014))(react@19.3.0-canary-99c106c4-20261014)
@@ -15193,6 +15196,10 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  react-result-build@file:scripts/react-packages/react-result-build-0.0.0-cdec04a5.tgz:
+    resolution: {integrity: sha512-6PeAoZVse5thz87Rra6ndjdOkmSKkcWBCf8in8W/AeSegrf0oPA+3Iblo/gJdxDdf7d5R3q4IMpU5phRz8+n5Q==, tarball: file:scripts/react-packages/react-result-build-0.0.0-cdec04a5.tgz}
+    version: 0.0.0-cdec04a5
 
   react-server-dom-turbopack@0.0.0-experimental-99c106c4-20261014:
     resolution: {integrity: sha512-+d4GiaVW+wGu4+ffYeKJH2TXs7DLcw9rAy3sbp0bVvrXfv4Pw4qnSuQWkm6T6KjliOm2gy1oH6A01bX2rQ2kww==}
@@ -34103,6 +34110,8 @@ snapshots:
       use-sidecar: 1.1.3(@types/react@19.2.18)(react@19.3.0-canary-99c106c4-20261014)
     optionalDependencies:
       '@types/react': 19.2.18
+
+  react-result-build@file:scripts/react-packages/react-result-build-0.0.0-cdec04a5.tgz: {}
 
   react-server-dom-turbopack@0.0.0-experimental-99c106c4-20261014(react-dom@19.3.0-canary-99c106c4-20261014(react@19.3.0-canary-99c106c4-20261014))(react@19.3.0-canary-99c106c4-20261014):
     dependencies:
