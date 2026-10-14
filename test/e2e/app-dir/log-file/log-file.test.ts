@@ -146,6 +146,9 @@ describe('log-file', () => {
     }
   })
 
+  // The snapshot includes an `ArrayBuffer.prototype.detached` warning that
+  // only React 19+ emits during Pages Router SSR.
+  // @force-gate !react18
   it('should capture logging in pages router', async () => {
     // Make request to page with getServerSideProps
     await next.browser('/pages-router-page')
