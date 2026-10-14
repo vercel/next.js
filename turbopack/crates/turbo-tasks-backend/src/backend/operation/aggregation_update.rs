@@ -688,41 +688,56 @@ struct AggregationUpdateJobGuard {
     _guard: Option<tracing::span::EnteredSpan>,
 }
 
-/// A FIFO queue that stores its front element inline, so a queue that only ever holds a single
-/// job doesn't allocate. That is the common case: every `connect_child` with activeness tracking
-/// runs a queue with just one `IncreaseActiveCount`.
-struct JobQueue<T> {
-    /// The front of the queue. `None` implies `rest` is empty.
-    front: Option<T>,
-    rest: VecDeque<T>,
-}
-
-impl<T> Default for JobQueue<T> {
-    fn default() -> Self {
-        Self {
-            front: None,
-            rest: VecDeque::new(),
-        }
-    }
+/// A FIFO queue that stores a single element inline, so a queue that only ever holds one job
+/// doesn't allocate. That is the common case: every `connect_child` with activeness tracking runs
+/// a queue with just one `IncreaseActiveCount`.
+///
+/// Once a second element is pushed the queue switches to a `VecDeque` and stays there, so longer
+/// cascades reuse its buffer.
+#[derive(Default)]
+enum JobQueue<T> {
+    #[default]
+    Empty,
+    One(T),
+    Many(VecDeque<T>),
 }
 
 impl<T> JobQueue<T> {
     fn is_empty(&self) -> bool {
-        self.front.is_none()
+        match self {
+            Self::Empty => true,
+            Self::One(_) => false,
+            Self::Many(items) => items.is_empty(),
+        }
     }
 
     fn push_back(&mut self, item: T) {
-        if self.front.is_none() {
-            self.front = Some(item);
-        } else {
-            self.rest.push_back(item);
+        match self {
+            Self::Empty => *self = Self::One(item),
+            Self::One(_) => {
+                let Self::One(first) = take(self) else {
+                    unreachable!()
+                };
+                let mut items = VecDeque::with_capacity(4);
+                items.push_back(first);
+                items.push_back(item);
+                *self = Self::Many(items);
+            }
+            Self::Many(items) => items.push_back(item),
         }
     }
 
     fn pop_front(&mut self) -> Option<T> {
-        let item = self.front.take()?;
-        self.front = self.rest.pop_front();
-        Some(item)
+        match self {
+            Self::Empty => None,
+            Self::One(_) => {
+                let Self::One(item) = take(self) else {
+                    unreachable!()
+                };
+                Some(item)
+            }
+            Self::Many(items) => items.pop_front(),
+        }
     }
 }
 
@@ -3574,7 +3589,7 @@ mod tests {
         queue.push_back(1);
         assert!(!queue.is_empty());
         // A single job stays inline.
-        assert_eq!(queue.rest.capacity(), 0);
+        assert!(matches!(queue, JobQueue::One(1)));
         queue.push_back(2);
         queue.push_back(3);
         assert_eq!(queue.pop_front(), Some(1));
