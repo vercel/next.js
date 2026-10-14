@@ -2327,6 +2327,19 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(crate) async fn mdx_transform_options(
+        self: Vc<Self>,
+        is_rsc_context: bool,
+    ) -> Result<Vc<turbopack::module_options::MdxTransformOptions>> {
+        Ok(next_core::get_mdx_transform_options(
+            self.project_path().owned().await?,
+            self.next_mode(),
+            self.next_config(),
+            is_rsc_context,
+        ))
+    }
+
+    #[turbo_tasks::function]
     async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
@@ -2358,6 +2371,7 @@ impl Project {
             } else {
                 ParseSegmentMode::Base
             },
+            self.mdx_transform_options(false),
         );
         let runtime = config.await?.runtime.unwrap_or(if is_proxy {
             NextRuntime::NodeJs

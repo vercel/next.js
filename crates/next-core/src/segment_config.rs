@@ -473,6 +473,7 @@ pub enum ParseSegmentMode {
 pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
+    mdx_options: ResolvedVc<MdxTransformOptions>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let ident = source.ident().await?;
     let path = &ident.path;
@@ -492,10 +493,10 @@ pub async fn parse_segment_config_from_source(
     }
 
     // Runtime selection happens before loaders run. Use the cached MDX transform
-    // so actual exports are visible without treating fenced code as config.
+    // with the same options as the module graph, without choosing an asset context.
     let source = if path.path.ends_with(".mdx") {
         ResolvedVc::upcast(
-            MdxTransformedAsset::new(*source, MdxTransformOptions::default().cell())
+            MdxTransformedAsset::new(*source, *mdx_options)
                 .to_resolved()
                 .await?,
         )
@@ -1562,23 +1563,32 @@ async fn parse_route_matcher_from_js_value(
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<AppPageLoaderTree>,
+    mdx_options: ResolvedVc<MdxTransformOptions>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = &*loader_tree.await?;
 
-    Ok(parse_segment_config_from_loader_tree_internal(loader_tree)
-        .await?
-        .cell())
+    Ok(
+        parse_segment_config_from_loader_tree_internal(loader_tree, mdx_options)
+            .await?
+            .cell(),
+    )
 }
 
 async fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &AppPageLoaderTree,
+    mdx_options: ResolvedVc<MdxTransformOptions>,
 ) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
 
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
-        .map(|loader_tree| Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)))
+        .map(|loader_tree| {
+            Box::pin(parse_segment_config_from_loader_tree_internal(
+                loader_tree,
+                mdx_options,
+            ))
+        })
         .join()
         .await;
 
@@ -1597,7 +1607,7 @@ async fn parse_segment_config_from_loader_tree_internal(
     {
         let source = Vc::upcast(FileSource::new(path.clone()));
         config.apply_parent_config(
-            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
+            &*parse_segment_config_from_source(source, ParseSegmentMode::App, *mdx_options).await?,
         );
     }
 

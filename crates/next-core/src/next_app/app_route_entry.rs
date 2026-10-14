@@ -10,6 +10,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
+use turbopack_mdx::MdxTransformOptions;
 
 use crate::{
     next_app::{AppEntry, AppPage, AppPath},
@@ -36,8 +37,10 @@ pub async fn get_app_route_entry(
     project_root: FileSystemPath,
     original_segment_config: Option<Vc<NextSegmentConfig>>,
     next_config: Vc<NextConfig>,
+    mdx_options: Vc<MdxTransformOptions>,
 ) -> Result<Vc<AppEntry>> {
-    let segment_from_source = parse_segment_config_from_source(source, ParseSegmentMode::App);
+    let segment_from_source =
+        parse_segment_config_from_source(source, ParseSegmentMode::App, mdx_options);
     let config = if let Some(original_segment_config) = original_segment_config {
         let mut segment_config = segment_from_source.owned().await?;
         segment_config.apply_parent_config(&*original_segment_config.await?);

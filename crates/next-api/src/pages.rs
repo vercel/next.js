@@ -1021,8 +1021,12 @@ impl PageEndpoint {
             ),
         };
 
-        let config =
-            parse_segment_config_from_source(self.source(), ParseSegmentMode::Base).await?;
+        let config = parse_segment_config_from_source(
+            self.source(),
+            ParseSegmentMode::Base,
+            this.pages_project.project().mdx_transform_options(false),
+        )
+        .await?;
 
         let runtime = config.runtime.unwrap_or(NextRuntime::NodeJs);
 

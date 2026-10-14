@@ -3,7 +3,8 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath};
 use turbopack::module_options::{
-    DecoratorsKind, DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
+    DecoratorsKind, DecoratorsOptions, JsxTransformOptions, MdxTransformOptions,
+    TypescriptTransformOptions,
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
@@ -15,6 +16,36 @@ use turbopack_ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconf
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{mode::NextMode, next_config::NextConfig};
+
+#[turbo_tasks::function]
+pub async fn get_mdx_transform_options(
+    project_path: FileSystemPath,
+    mode: Vc<NextMode>,
+    next_config: Vc<NextConfig>,
+    is_rsc_context: bool,
+) -> Result<Vc<MdxTransformOptions>> {
+    let tsconfig_path = next_config
+        .typescript_tsconfig_path()
+        .await?
+        .as_ref()
+        .map(|path| project_path.join(path))
+        .transpose()?;
+    let jsx_options = get_jsx_transform_options(
+        project_path,
+        mode,
+        None,
+        is_rsc_context,
+        next_config,
+        tsconfig_path,
+    )
+    .to_resolved()
+    .await?;
+
+    Ok(turbopack::module_options::get_mdx_transform_options(
+        next_config.mdx_rs().await?.map(|options| *options),
+        Some(*jsx_options),
+    ))
+}
 
 async fn get_typescript_options(
     project_path: FileSystemPath,
