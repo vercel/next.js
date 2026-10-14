@@ -23,7 +23,6 @@ use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
-    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     ident::{AssetIdent, Layer},
@@ -44,6 +43,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
+    source_map::SourceMapType,
     source_transform::SourceTransforms,
 };
 use turbopack_css::{CssModule, EcmascriptCssModule};
@@ -645,7 +645,7 @@ async fn process_default_internal(
             .await?;
         let source_maps = matches!(
             module_options_context.ecmascript.source_maps,
-            SourceMapsType::Full
+            Some(SourceMapType::Full)
         );
 
         // Determine the import map for loader-runner
@@ -915,11 +915,11 @@ pub async fn externals_tracing_module_context(
                 ),
                 // enable_types should not be enabled here. It gets set automatically when a TS file
                 // is encountered.
-                source_maps: SourceMapsType::None,
+                source_maps: None,
                 ..Default::default()
             },
             css: CssOptionsContext {
-                source_maps: SourceMapsType::None,
+                source_maps: None,
                 enable_raw_css: true,
                 ..Default::default()
             },
