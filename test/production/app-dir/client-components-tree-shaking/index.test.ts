@@ -1,10 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir client-components-tree-shaking', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-  if (skipped) return
 
   it('should only include imported components 3rd party package in browser bundle with direct imports', async () => {
     const $ = await next.render$('/third-party-dep')
@@ -93,10 +92,33 @@ describe('app-dir client-components-tree-shaking', () => {
       chunkContents.some((content) => content.includes('client-comp-imported'))
     ).toBe(true)
     expect(
-      chunkContents.every((content) => content.includes('client-comp-unused'))
+      chunkContents.some((content) => content.includes('client-comp-unused'))
     ).toBe(false)
     expect(
-      chunkContents.every((content) => content.includes('client-comp-default'))
+      chunkContents.some((content) => content.includes('client-comp-default'))
     ).toBe(false)
+
+    if (process.env.IS_TURBOPACK_TEST) {
+      const ssrChunkContents = await next.readFiles(
+        '.next/server/chunks/ssr',
+        (filename) => filename.endsWith('.js')
+      )
+
+      expect(
+        ssrChunkContents.some((content) =>
+          content.includes('client-comp-imported')
+        )
+      ).toBe(true)
+      expect(
+        ssrChunkContents.some((content) =>
+          content.includes('client-comp-unused')
+        )
+      ).toBe(false)
+      expect(
+        ssrChunkContents.some((content) =>
+          content.includes('client-comp-default')
+        )
+      ).toBe(false)
+    }
   })
 })

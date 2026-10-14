@@ -5,16 +5,16 @@
 //! produce. Living here means neither algorithm has to import from the other.
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{FxIndexMap, OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, OperationValue, ResolvedVc, Vc};
 
 use crate::chunk::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo};
 
-/// Wrapper around an `f32` that implements [`TaskInput`] (and the other derives the
+/// Wrapper around an `f32` that implements [`turbo_tasks::TaskInput`] (and the other derives the
 /// [`StyleGroupsAlgorithm`] enum needs) by going through the IEEE-754 bit pattern. Use
 /// [`F32TaskInput::get`] / [`F32TaskInput::from`] at the boundary; do not match on the inner
 /// `u32` directly.
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, OperationValue, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, OperationValue, Encode, Decode)]
 pub struct F32TaskInput(u32);
 
 impl F32TaskInput {
@@ -55,7 +55,7 @@ impl StyleGroupsAlgorithm {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,
     pub algorithm: StyleGroupsAlgorithm,
@@ -63,7 +63,7 @@ pub struct StyleGroupsConfig {
 
 /// Per-item metadata produced by the style chunking algorithms.
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct StyleItemInfo {
     /// Stable sort key applied by the production-chunking pass when ordering chunks within a chunk
     /// group. The loose algorithm produces all `None` orders and relies on input order; the graph

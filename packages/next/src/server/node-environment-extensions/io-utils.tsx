@@ -27,6 +27,7 @@ export function io(expression: string, type: SyncIOApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
+        // TODO: synchronize this with `stageController`
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
@@ -61,6 +62,7 @@ export function io(expression: string, type: SyncIOApiType) {
         // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
         switch (stageController.currentStage) {
           case RenderStage.ShellStatic:
+          case RenderStage.PrefetchStatic_prefetchApi:
           case RenderStage.PrefetchStatic:
           case RenderStage.NavigationStatic:
           case RenderStage.Static: {
@@ -68,10 +70,11 @@ export function io(expression: string, type: SyncIOApiType) {
             break
           }
           case RenderStage.ShellRuntime:
-          case RenderStage.Runtime:
+          case RenderStage.PrefetchRuntime_prefetchApi:
+          case RenderStage.PrefetchRuntime:
           case RenderStage.NavigationRuntime: {
-            // We're in the Runtime stage.
-            // We only error for Sync IO in the Runtime stage if the route has partialPrefetching enabled.
+            // We're in a runtime stage.
+            // We only error for Sync IO in runtime stages if the route has partialPrefetching enabled.
             syncIOError = createSyncIORuntimeError(
               workStore.route,
               expression,
@@ -107,7 +110,7 @@ export function io(expression: string, type: SyncIOApiType) {
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default:
       workUnitStore satisfies never

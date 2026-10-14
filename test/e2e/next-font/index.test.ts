@@ -35,12 +35,9 @@ function hrefMatchesFontWithoutSizeAdjust(href: string) {
   }
 }
 
+// Deploy mode exclusion: This suite passes an absolute local mocked-font-response path into the build.
+// @force-gate !deploy
 describe('next/font', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, `app/pages`)),

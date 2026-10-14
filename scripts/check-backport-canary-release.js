@@ -2,12 +2,12 @@
 // @ts-check
 
 const fs = require('fs/promises')
-const path = require('path')
 const semver = require('semver')
 const {
   getGitHubToken,
   getGitHubTokenMissingMessage,
 } = require('./release-github-auth')
+const { readReleaseVersion } = require('./release-version')
 
 const PUBLISH_RELEASE_JOB_NAME = 'Potentially publish release'
 const TRIGGER_RELEASE_WORKFLOW = 'trigger_release.yml'
@@ -148,9 +148,7 @@ async function main() {
   }
 
   const [owner, repo] = repoFullName.split('/')
-  const currentCanaryVersion = JSON.parse(
-    await fs.readFile(path.join(process.cwd(), 'lerna.json'), 'utf8')
-  ).version
+  const currentCanaryVersion = readReleaseVersion()
 
   const releaseCommitMessage =
     headCommitMessage || (await getCommitMessage(owner, repo, headSha, token))

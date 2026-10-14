@@ -1,0 +1,19 @@
+{
+  "id": 107285638067,
+  "name": "thank you, next",
+  "status": "completed",
+  "conclusion": "success",
+  "head_sha": "360b493601939d820d35a77c2d4ec691ce12089d",
+  "html_url": "https://github.com/vercel/next.js/actions/runs/35887957948/job/107285638067",
+  "app": { "slug": "github-actions" },
+  "pull_requests": [
+    {
+      "number": 99095,
+      "head": { "sha": "360b493601939d820d35a77c2d4ec691ce12089d" },
+      "base": {
+        "ref": "ci/branch-stack-polling-gate",
+        "sha": "939d61265dcb4a6f91485eb08b0907062f71ab51"
+      }
+    }
+  ]
+}

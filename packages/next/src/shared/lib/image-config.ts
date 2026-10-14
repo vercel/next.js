@@ -146,6 +146,94 @@ export type ImageConfigComplete = {
 
 export type ImageConfig = Partial<ImageConfigComplete>
 
+type RequiredImageConfigForRendering = Pick<
+  ImageConfigComplete,
+  | 'deviceSizes'
+  | 'imageSizes'
+  | 'loader'
+  | 'path'
+  | 'dangerouslyAllowSVG'
+  | 'unoptimized'
+>
+
+export type ImageConfigForRendering = RequiredImageConfigForRendering &
+  Partial<
+    Pick<
+      ImageConfigComplete,
+      'qualities' | 'domains' | 'remotePatterns' | 'localPatterns'
+    >
+  > & {
+    output?: 'standalone' | 'export'
+  }
+
+export type PreparedImageConfig = RequiredImageConfigForRendering & {
+  allSizes: number[]
+  qualities: ImageConfigComplete['qualities']
+  domains: ImageConfigComplete['domains'] | undefined
+  remotePatterns: ImageConfigComplete['remotePatterns'] | undefined
+  localPatterns: ImageConfigComplete['localPatterns']
+  output: 'standalone' | 'export' | undefined
+}
+
+const missingImageConfig = {}
+const preparedImageConfigs = new WeakMap<
+  object,
+  WeakMap<object, PreparedImageConfig>
+>()
+
+/**
+ * Prepare owned, sorted image options once for each env/context pair.
+ * Changed options require new objects because results are cached by identity.
+ */
+export function prepareImageConfig(
+  envConfig?: ImageConfigForRendering,
+  contextConfig?: ImageConfigComplete
+): PreparedImageConfig {
+  const envKey = envConfig ?? missingImageConfig
+  const contextKey = contextConfig ?? missingImageConfig
+  let preparedByContext = preparedImageConfigs.get(envKey)
+  if (preparedByContext) {
+    const cached = preparedByContext.get(contextKey)
+    if (cached) {
+      return cached
+    }
+  }
+
+  const source: ImageConfigForRendering =
+    envConfig || contextConfig || imageConfigDefault
+  const deviceSizes = [...source.deviceSizes].sort((a, b) => a - b)
+  const imageSizes = [...source.imageSizes]
+  const prepared: PreparedImageConfig = {
+    deviceSizes,
+    imageSizes,
+    allSizes: [...deviceSizes, ...imageSizes].sort((a, b) => a - b),
+    qualities:
+      source.qualities === undefined
+        ? undefined
+        : [...source.qualities].sort((a, b) => a - b),
+    path: source.path,
+    loader: source.loader,
+    dangerouslyAllowSVG: source.dangerouslyAllowSVG,
+    unoptimized: source.unoptimized,
+    domains: source.domains,
+    remotePatterns: source.remotePatterns,
+    // The inlined browser options supply their own patterns. During SSR the
+    // context supplies security-sensitive patterns omitted from the inline data.
+    localPatterns:
+      typeof window === 'undefined' && contextConfig !== undefined
+        ? contextConfig.localPatterns
+        : source.localPatterns,
+    output: source.output,
+  }
+
+  if (!preparedByContext) {
+    preparedByContext = new WeakMap()
+    preparedImageConfigs.set(envKey, preparedByContext)
+  }
+  preparedByContext.set(contextKey, prepared)
+  return prepared
+}
+
 export const imageConfigDefault: ImageConfigComplete = {
   deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
   imageSizes: [32, 48, 64, 96, 128, 256, 384],

@@ -13,7 +13,14 @@ import type {
   TraceQueryOptions,
   TraceQueryResult,
   MemoryEvictionMode,
+  NapiTurbopackGcOptions,
   ServerHmrVersion as NativeServerHmrVersion,
+  projectCompilationEventsSubscribe,
+  projectFeatureUsage,
+  projectInvalidateFileSystemCache,
+  projectOnExit,
+  projectShutdown,
+  projectUpdateInfoSubscribe,
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
@@ -21,6 +28,8 @@ export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export type { MemoryEvictionMode }
+
+export type { NapiTurbopackGcOptions as TurbopackGcOptions }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
@@ -35,7 +44,7 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
-    ): Promise<Project>
+    ): Promise<TurbopackResult<Project>>
     startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined
@@ -177,7 +186,8 @@ export interface BuildFeatureUsage {
   invocationCount: number
 }
 
-export type TurbopackResult<T = {}> = T & {
+export type TurbopackResult<T> = {
+  value: T
   issues: Issue[]
 }
 
@@ -335,6 +345,8 @@ export interface Project {
    * end of the build, after `writeAllEntrypointsToDisk`. The Rust implementation
    * walks the whole-app module graph and will error if invoked from a
    * development project, because dev builds do not produce a complete graph.
+   *
+   * @see {@link projectFeatureUsage}
    */
   featureUsage(): Promise<BuildFeatureUsage[]>
 
@@ -358,6 +370,7 @@ export interface Project {
   getSourceForAsset(filePath: string): Promise<string | null>
 
   getSourceMap(filePath: string): Promise<string | null>
+
   getSourceMapSync(filePath: string): string | null
 
   traceSource(
@@ -365,19 +378,24 @@ export interface Project {
     currentDirectoryFileUrl: string
   ): Promise<TurbopackStackFrame | null>
 
+  /** @see {@link projectUpdateInfoSubscribe} */
   updateInfoSubscribe(
     aggregationMs: number
-  ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+  ): AsyncIterableIterator<UpdateMessage>
 
+  /** @see {@link projectCompilationEventsSubscribe} */
   compilationEventsSubscribe(
     eventTypes?: string[]
-  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
+  ): AsyncIterableIterator<CompilationEvent>
 
+  /** @see {@link projectInvalidateFileSystemCache} */
   invalidateFileSystemCache(): Promise<void>
 
-  shutdown(): Promise<void>
+  /** @see {@link projectShutdown} */
+  shutdown(): ReturnType<typeof projectShutdown>
 
-  onExit(): Promise<void>
+  /** @see {@link projectOnExit} */
+  onExit(): ReturnType<typeof projectOnExit>
 }
 
 export type Route =
@@ -417,7 +435,7 @@ export interface Endpoint {
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<void>>>
 
   /**
    * Listen to server-side changes to the endpoint.
@@ -426,7 +444,7 @@ export interface Endpoint {
    */
   serverChanged(
     includeIssues: boolean
-  ): Promise<AsyncIterableIterator<TurbopackResult>>
+  ): Promise<AsyncIterableIterator<TurbopackResult<void>>>
 }
 
 interface EndpointConfig {
@@ -481,7 +499,7 @@ export type WrittenEndpoint =
     }
 
 export interface ProjectOptions
-  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
+  extends Omit<NapiProjectOptions, 'nextConfig' | 'additionalRoots' | 'env'> {
   /**
    * The next.config.js contents.
    */
@@ -495,8 +513,6 @@ export interface ProjectOptions
 
 export interface PartialProjectOptions
   extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
-  rootPath: NapiProjectOptions['rootPath']
-  projectPath: NapiProjectOptions['projectPath']
   /**
    * The next.config.js contents.
    */

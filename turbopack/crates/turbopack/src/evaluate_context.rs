@@ -139,7 +139,9 @@ pub async fn config_tracing_module_context(
             )
             .cell()
             .await?,
-        true,
-        None,
+        /* resolve_typescript */ true,
+        /* prune */ None,
+        // Don't trace fs.readFile in configs and webpack loaders. This can cause infinite loops
+        false,
     )))
 }

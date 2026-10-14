@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import fs from 'fs'
 import { join } from 'path'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
@@ -92,16 +93,45 @@ describe('Fallback path encoding', () => {
               slug: decodeURIComponent(testSlug),
             })
 
-            const pagesDir = join(next.testDir, '.next/server/pages')
             const prerenderedPath = newPrerenderedPaths[i]
             await retry(async () => {
               expect(
-                fs.existsSync(join(pagesDir, mode, prerenderedPath + '.html'))
+                fs.existsSync(
+                  join(
+                    next.testDir,
+                    next.getPrerenderFilePath(
+                      `/${mode}/${prerenderedPath}`,
+                      '.html',
+                      {
+                        router: 'pages',
+                        route: {
+                          kind: RouteKind.PAGES,
+                          sourceRoute: `/${mode}/[slug]`,
+                        },
+                      }
+                    )
+                  )
+                )
               ).toBe(true)
             })
             await retry(async () => {
               expect(
-                fs.existsSync(join(pagesDir, mode, prerenderedPath + '.json'))
+                fs.existsSync(
+                  join(
+                    next.testDir,
+                    next.getPrerenderFilePath(
+                      `/${mode}/${prerenderedPath}`,
+                      '.json',
+                      {
+                        router: 'pages',
+                        route: {
+                          kind: RouteKind.PAGES,
+                          sourceRoute: `/${mode}/[slug]`,
+                        },
+                      }
+                    )
+                  )
+                )
               ).toBe(true)
             })
 

@@ -44,6 +44,7 @@
             ),
         ],
         span: 16..43,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "global",

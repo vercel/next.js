@@ -7,8 +7,7 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
   const { next } = nextTestSetup({
     files: __dirname,
-    skipStart: isNextStart,
-    skipDeployment: true,
+    skipStart: !isNextDev,
   })
 
   if (isNextDev) {
@@ -16,12 +15,11 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
       const html = await next.render('/hello')
       expect(html).toMatch(errorRegex)
     })
-  }
-
-  if (isNextStart) {
+  } else {
     it('should catch it in server build mode', async () => {
-      const { cliOutput } = await next.build()
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
       expect(cliOutput).toMatch(errorRegex)
-    })
+    }, 240_000)
   }
 })

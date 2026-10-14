@@ -8,7 +8,6 @@ use crate::{
         TaskDataCategory,
         operation::{
             AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext,
-            Operation,
         },
         storage_schema::TaskStorageAccessors,
     },
@@ -22,7 +21,7 @@ impl UpdateCollectibleOperation {
         task_id: TaskId,
         collectible: CollectibleRef,
         mut count: i32,
-        mut ctx: impl ExecuteContext<'_>,
+        mut ctx: ExecuteContext<'_>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         if count < 0
@@ -63,7 +62,7 @@ impl UpdateCollectibleOperation {
                 if !dependent.is_empty() {
                     queue.push(AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                         task_ids: dependent,
-                        #[cfg(feature = "task_dirty_cause")]
+                        collectibles_task: task_id,
                         collectible_type: ty,
                     })
                 }

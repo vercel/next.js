@@ -6,6 +6,8 @@ const nextConfig = {
   productionBrowserSourceMaps: true,
 }
 
+// This suite reads emitted CSS and source maps from the local build output.
+// @force-gate !deploy
 describe.each([
   { dependencies: { sass: '1.54.0' }, nextConfig },
   {
@@ -18,17 +20,15 @@ describe.each([
     },
   },
 ])('SCSS Support ($dependencies)', ({ dependencies, nextConfig }) => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // This test is skipped because it is reading files in the `.next` file which
-    // isn't available/necessary in a deployment environment.
-    skipDeployment: true,
     dependencies,
     nextConfig,
   })
 
-  if (skipped) return // TODO: Figure out this test for dev and Turbopack
-  ;(isNextDev ? describe.skip : describe)('Production only', () => {
+  // This section only asserts production build output.
+  // @force-gate !dev
+  describe('Production only', () => {
     describe('CSS Compilation and Prefixing', () => {
       it(`should've compiled and prefixed`, async () => {
         const $ = await next.render$('/')

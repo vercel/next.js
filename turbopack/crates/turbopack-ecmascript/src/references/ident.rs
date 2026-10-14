@@ -2,35 +2,34 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::AstPath,
 };
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct IdentReplacement {
     value: RcStr,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl IdentReplacement {
-    pub fn new(value: RcStr, path: AstPath) -> Self {
+    pub fn new(value: RcStr, path: AstPathId) -> Self {
         IdentReplacement { value, path }
     }
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let value = self.value.clone();
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let id = Expr::Ident((&*value).into());
             *expr = quote!("(\"TURBOPACK ident replacement\", $e)" as Expr, e: Expr = id);
         });

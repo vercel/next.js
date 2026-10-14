@@ -298,7 +298,7 @@ export async function decryptActionBoundArgs(
           case 'cache':
           case 'private-cache':
           case 'unstable-cache':
-          case 'generate-static-params':
+          case 'build-time-generator':
           case undefined:
             return controller.close()
           default:

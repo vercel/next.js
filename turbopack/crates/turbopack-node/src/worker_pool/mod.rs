@@ -49,11 +49,11 @@ pub(crate) struct WorkerThreadPool {
     pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub(crate) assets_root: FileSystemPath,
     pub(crate) project_dir: FileSystemPath,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     state: Arc<PoolState>,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     bootup_semaphore: Arc<Semaphore>,
 }
 
@@ -220,7 +220,7 @@ impl WorkerThreadPool {
 impl EvaluateOperation for WorkerThreadPool {
     async fn operation(&self) -> Result<Box<dyn Operation>> {
         let operation = {
-            let _guard = duration_span!("Node.js operation");
+            let _guard = duration_span!("Node.js operation", blocking = true);
             let worker_options = self.worker_options.clone();
 
             let task_id = OPERATION_TASK_ID.fetch_add(1, Ordering::Release);

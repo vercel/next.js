@@ -1,6 +1,7 @@
 import { retry } from 'next-test-utils'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import stripAnsi from 'strip-ansi'
 import {
   createNextApp,
   projectFilesShouldExist,
@@ -139,6 +140,9 @@ describe('create-next-app prompts', () => {
       })
 
       expectTurbopackTailwindSetup(cwd, projectName)
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('cacheComponents: true')
     })
   })
 
@@ -204,7 +208,6 @@ describe('create-next-app prompts', () => {
               'next.config.ts',
               'tsconfig.json',
               'AGENTS.md',
-              'CLAUDE.md',
             ],
           })
           resolve()
@@ -222,6 +225,12 @@ describe('create-next-app prompts', () => {
           ],
         }
       `)
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).not.toContain('agentFeedback')
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('cacheComponents: true')
     })
   })
 
@@ -237,8 +246,16 @@ describe('create-next-app prompts', () => {
       )
 
       await new Promise<void>((resolve) => {
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+          process.stdout.write(data)
+        })
+
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)
+          expect(output).toContain('Agent feedback')
+          expect(output).not.toMatch(/agents prepare anonymized feedback/)
           projectFilesShouldExist({
             cwd,
             projectName,
@@ -247,8 +264,7 @@ describe('create-next-app prompts', () => {
               'package.json',
               'next.config.ts', // tailwind
               'tsconfig.json', // typescript
-              'AGENTS.md', // agent files
-              'CLAUDE.md',
+              'AGENTS.md', // agent instructions
             ],
           })
           resolve()
@@ -261,8 +277,91 @@ describe('create-next-app prompts', () => {
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
       expectTurbopackTailwindSetup(cwd, projectName)
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('\n  experimental: {\n    agentFeedback: true,\n  },\n')
+      expect(
+        readFileSync(join(cwd, projectName, 'next.config.ts'), 'utf8')
+      ).toContain('cacheComponents: true')
     })
   })
+
+  it.each([
+    { saved: undefined, reuse: false, enabled: true },
+    { saved: false, reuse: false, enabled: false },
+    { saved: false, reuse: true, enabled: false },
+  ])(
+    'should default Cache Components to $enabled with saved=$saved and reuse=$reuse',
+    async ({ saved, reuse, enabled }) => {
+      const Conf = require('next/dist/compiled/conf')
+
+      await useTempDir(async (cwd) => {
+        const conf = new Conf({ projectName: 'create-next-app' })
+        conf.clear()
+        if (saved !== undefined) {
+          conf.set('preferences', { cacheComponents: saved })
+        }
+
+        const projectName = 'cache-components-prompt'
+        const childProcess = createNextApp(
+          [projectName],
+          { cwd },
+          nextTgzFilename,
+          false
+        )
+        const exited = new Promise((resolve) => {
+          childProcess.on('exit', resolve)
+        })
+        let output = ''
+        childProcess.stdout.on('data', (data) => {
+          output += data
+        })
+
+        const answer = async (prompt: string, input = '\n') => {
+          await retry(async () => {
+            expect(stripAnsi(output)).toContain(prompt)
+          })
+          childProcess.stdin.write(input)
+        }
+
+        // Saved preferences add a reuse option before the customize option.
+        const selection = saved !== undefined && !reuse ? 2 : 1
+        await answer(
+          'Would you like to use the recommended Next.js defaults?',
+          '\u001b[B'.repeat(selection) + '\n'
+        )
+        if (!reuse) {
+          for (const prompt of [
+            'Would you like to use TypeScript?',
+            'Which linter would you like to use?',
+            'Would you like to use React Compiler?',
+            'Would you like to use Tailwind CSS?',
+            'Would you like your code inside a',
+            'Would you like to use App Router?',
+            'Would you like to use Cache Components?',
+            'Would you like to customize the import alias',
+            'Would you like to include AGENTS.md',
+          ]) {
+            await answer(prompt)
+          }
+        }
+        await answer('Would you like to help improve Next.js')
+        expect(await exited).toBe(0)
+
+        const config = readFileSync(
+          join(cwd, projectName, 'next.config.ts'),
+          'utf8'
+        )
+        if (enabled) {
+          expect(config).toContain('cacheComponents: true')
+          expect(config).toContain('partialPrefetching: true')
+        } else {
+          expect(config).not.toContain('cacheComponents:')
+          expect(config).not.toContain('partialPrefetching:')
+        }
+      })
+    }
+  )
 
   it('should show reuse previous settings option when preferences exist', async () => {
     const Conf = require('next/dist/compiled/conf')
@@ -305,6 +404,12 @@ describe('create-next-app prompts', () => {
         await retry(async () => {
           expect(output).toMatch(/No, reuse previous settings/)
         })
+
+        await retry(async () => {
+          expect(output).toMatch(/agents prepare anonymized feedback/)
+        })
+        // Accept the default "Yes" for agent feedback.
+        childProcess.stdin.write('\n')
 
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(0)

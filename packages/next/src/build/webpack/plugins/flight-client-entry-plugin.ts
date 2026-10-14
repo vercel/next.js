@@ -72,9 +72,14 @@ type Actions = {
       [name: string]: {
         moduleId: string | number
         async: boolean
+        // Root param dependencies collected from the cache module's graph. An
+        // empty list means none were found; absence means collection did not
+        // run.
+        rootParamDependencies?: readonly string[]
         durability?: {
           codeHash: string
-          runtimeEnvVars: string[]
+          runtimeEnvVarsRead: string[]
+          runtimeEnvVarsExistence: string[]
         }
       }
     }

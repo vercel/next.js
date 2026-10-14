@@ -1,3 +1,5 @@
+import { getRouteCacheKey } from '../server/lib/route-cache-key'
+import type { RouteCacheMetadata } from './routes/types'
 import type {
   ExportPagesInput,
   ExportPageInput,
@@ -7,7 +9,10 @@ import type {
   ExportPagesResult,
   ExportPathEntry,
 } from './types'
-import type { AppPageModule } from '../server/route-modules/app-page/module'
+import type {
+  AppPageModule,
+  RouteMatch,
+} from '../server/route-modules/app-page/module'
 import type { PagesModule } from '../server/route-modules/pages/module.compiled'
 
 import '../server/node-environment'
@@ -89,6 +94,7 @@ async function exportPageImpl(
     deploymentId,
     clientAssetToken,
     renderResumeDataCache,
+    useScopedBuildArtifacts,
   } = input
 
   if (enableExperimentalReact) {
@@ -101,6 +107,8 @@ async function exportPageImpl(
 
     // The parameters that are currently unknown.
     _fallbackRouteParams = [],
+
+    _notFoundParams: notFoundParams,
 
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
@@ -187,8 +195,8 @@ async function exportPageImpl(
     req.url += '/'
   }
 
-  // Set the resolved pathname without trailing slash as request metadata.
-  addRequestMeta(req, 'resolvedPathname', removeTrailingSlash(updatedPath))
+  // Resolve the pathname without a trailing slash for app page rendering.
+  const resolvedPathname = removeTrailingSlash(updatedPath)
 
   if (
     locale &&
@@ -229,11 +237,6 @@ async function exportPageImpl(
     htmlFilename = 'index.html'
   }
 
-  const baseDir = join(outDir, dirname(htmlFilename))
-  let htmlFilepath = join(outDir, htmlFilename)
-
-  await fs.mkdir(baseDir, { recursive: true })
-
   const components = await loadComponents({
     distDir,
     page,
@@ -242,6 +245,31 @@ async function exportPageImpl(
     sriEnabled,
     needsManifestsForLegacyReasons: true,
   })
+
+  const routeCache: RouteCacheMetadata | undefined =
+    buildExport &&
+    commonRenderOpts.nextConfigOutput !== 'export' &&
+    (isAppDir || components.getStaticProps)
+      ? {
+          key: getRouteCacheKey(path, components.routeModule.cacheOwner),
+          owner: components.routeModule.cacheOwner,
+          isFallback: isAppDir
+            ? fallbackRouteParams != null && fallbackRouteParams.size > 0
+            : (exportPath._pagesFallback ?? false),
+        }
+      : undefined
+  const htmlFilepath =
+    useScopedBuildArtifacts && routeCache
+      ? join(distDir, 'server', `${routeCache.key}.html`)
+      : join(outDir, htmlFilename)
+  const routePagesDataDir =
+    useScopedBuildArtifacts && routeCache
+      ? join(distDir, 'server')
+      : pagesDataDir
+  if (useScopedBuildArtifacts && routeCache) {
+    htmlFilename = `${routeCache.key}.html`
+  }
+  await fs.mkdir(dirname(htmlFilepath), { recursive: true })
 
   // Handle App Routes.
   if (isAppDir && isAppRouteRoute(page)) {
@@ -259,7 +287,8 @@ async function exportPageImpl(
       commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
       buildId,
-      deploymentId
+      deploymentId,
+      routeCache
     )
   }
 
@@ -279,6 +308,7 @@ async function exportPageImpl(
     allowEmptyStaticShell,
     runInstantValidation,
     isFallbackUpgradeable,
+    notFoundParams,
     experimental: {
       ...commonRenderOpts.experimental,
       isRoutePPREnabled,
@@ -288,6 +318,7 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
+    const routeMatch: RouteMatch = { resolvedPathname }
     const sharedContext: AppSharedContext = {
       buildId,
       deploymentId,
@@ -307,7 +338,9 @@ async function exportPageImpl(
       debugOutput,
       isDynamicError,
       fileWriter,
-      sharedContext
+      sharedContext,
+      routeMatch,
+      routeCache
     )
   } else {
     const sharedContext: PagesSharedContext = {
@@ -332,7 +365,7 @@ async function exportPageImpl(
       params,
       htmlFilepath,
       htmlFilename,
-      pagesDataDir,
+      routePagesDataDir,
       buildExport,
       isDynamic,
       sharedContext,
@@ -340,7 +373,8 @@ async function exportPageImpl(
       hasOrigQueryValues,
       renderOpts as WorkerRenderOpts<PagesModule>,
       components,
-      fileWriter
+      fileWriter,
+      routeCache
     )
   }
 }
@@ -444,6 +478,10 @@ export async function exportPages(
             deploymentId: input.deploymentId,
             clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
+            useScopedBuildArtifacts:
+              Boolean(nextConfig.adapterPath) &&
+              nextConfig.output !== 'export' &&
+              options.buildExport,
           }),
           hasDebuggerAttached
             ? // With a debugger attached, exporting can take infinitely if we paused script execution.

@@ -57,6 +57,7 @@ A meta file can contain metadata about multiple SST files. The metadata is store
   - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
   - 1 byte compression algorithm, which must match the configuration used to open the database
+  - 1 byte shard bits: the family had `2^bits` shards when the SST files were split
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
@@ -70,11 +71,14 @@ A meta file can contain metadata about multiple SST files. The metadata is store
     - 4 bytes flags
       - bit 0: cold (compacted and not recently accessed)
       - bit 1: fresh (not yet compacted)
+      - bit 2: bottom (part of the bottom run of its shard, written by merging all SST files of the shard; without the cold bit it holds the recently read keys)
+    - 4 bytes entry count
+    - 4 bytes tombstone count (entries that delete a key or a key-value pair), used by compaction to estimate reclaimable bytes
     - 4 bytes end of AMQF offset relative to start of all AMQF data
   - 4 bytes end of AMQF offset relative to start of all AMQF data of the "used key hashes" AMQF
 - foreach described SST file
   - serialized AMQF
-- serialized "used key hashes" AMQF
+- serialized "used key hashes" AMQF: the keys read since the previous commit (only in meta files written by a commit)
 
 ### SST file
 
@@ -118,39 +122,40 @@ The hashes are sorted.
 
 - 1 byte block type (1: key block with hash, 2: key block without hash)
 - 3 bytes entry count
-- foreach entry
+- offset table: foreach entry
+  - 8 bytes key hash (block type 1 only)
   - 1 byte type
   - 3 bytes position in block after header
 - Max block size: 16 KB
 
 A Key block contains n keys, which specify n key value pairs.
 
-The block type determines whether the key hash is stored per entry, and with it the order the
-entries are stored in:
+The block type determines whether the key hash is stored, and with it the order the entries are
+stored in:
 
-- Block type 1 (with hash): Full 8-byte hash stored per entry. Entries are sorted by
-  `(key hash, key)`.
+- Block type 1 (with hash): Full 8-byte hash per entry, stored in the offset table. Entries are
+  sorted by `(key hash, key)`.
 - Block type 2 (no hash): No hash stored (for keys ≤ 32 bytes). Entries are sorted by **key**.
 
 See [Entry ordering](#entry-ordering) for why the two differ.
 
+The hash lives in the offset table rather than beside its key so that a lookup's binary search reads
+only that dense array. Fixed-size key blocks apply the same idea; see
+[Two regions, not interleaved](#two-regions-not-interleaved).
+
 Depending on the `type` field entry has a different format:
 
 - 0: normal key (small value)
-  - 8 bytes key hash (if block type 1)
   - key data
   - 2 byte block index
   - 2 bytes size
   - 4 bytes position in block
 - 1: blob reference
-  - 8 bytes key hash (if block type 1)
   - key data
   - 4 bytes sequence number
 - 2: deleted key / key tombstone (no data)
-  - 8 bytes key hash (if block type 1)
   - key data
 - 3: normal key (medium sized value)
-  - 8 bytes key hash (if block type 1)
   - key data
   - 2 byte block index
 - 7: merge key (future)
@@ -160,12 +165,10 @@ Depending on the `type` field entry has a different format:
   - 4 bytes position in block
 - 8..=16: inlined value, size = type - 8 (the format supports up to 247, but `MAX_INLINE_VALUE_SIZE`
   currently caps it at 8)
-  - 8 bytes key hash (if block type 1)
   - key data
   - (type - 8) bytes value data (inline, no separate value block)
 - 17..=25: key-value tombstone, deleted value size = type - 17 (mirrors the inline range and shifts
   with `MAX_INLINE_VALUE_SIZE`)
-  - 8 bytes key hash (if block type 1)
   - key data
   - (type - 17) bytes of the deleted value, stored inline
 
@@ -174,7 +177,7 @@ the inline range.
 
 ##### Entry ordering
 
-Logically keys are ordered by hash (this is how we chose file and block assignments). However, within a single key block, however, the order is chosen per block type:
+Logically keys are ordered by hash (this is how we chose file and block assignments). However, within a key block, the order may be different
 
 - **With hash (types 1 and 3):** sorted by `(key hash, key)`.
 - **No hash (types 2 and 4):** sorted by **key** alone.
@@ -211,9 +214,10 @@ during binary search.
 - 1 byte value type (shared by all entries, same encoding as variable-size type field), or
   `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE` (4) when entries share a value size but not a value type
 - 1 byte value size — only present when the value type is `FIXED_KEY_BLOCK_MIXED_VALUE_TYPE`
-- foreach entry (packed at stride = hash_len + key_size + val_size):
-  - 8 bytes key hash (if block type 3)
-  - key data (key_size bytes)
+- search region, foreach entry at stride `search_stride`:
+  - 8 bytes key hash (block type 3), or key data (block type 4, `key_size` bytes)
+- tail region, foreach entry at stride `tail_stride`:
+  - key data (block type 3 only, `key_size` bytes)
   - 1 byte value type — only present when the block is mixed-type
   - value data (size determined by the block's or the entry's value type)
 
@@ -221,7 +225,21 @@ The mixed-type form exists so that same-sized inline values and key-value tombst
 fixed-size block: they have equal value sizes but different type bytes. Tag 4 is available as the
 mixed marker because it is not itself a valid entry type.
 
-Entry position for index `i` is computed as `header_size + i * stride` with no indirection. The writer automatically selects fixed-size format when all entries in a block qualify; otherwise falls back to the variable-size format above.
+##### Two regions, not interleaved
+
+Rather than one interleaved record per entry, entries are split into a **search region** and a
+**tail region**, indexed by the same entry number. The search region holds only the bytes binary
+search compares first — the hash for block type `3`, the key for block type `4` (see
+[Entry ordering](#entry-ordering)) — so a probe searches the dense prefix region. The _values_ are then found by index in the **tail**
+after the search succeeds.
+
+Entry positions for index `i` are `header_size + i * search_stride` and
+`header_size + entry_count * search_stride + i * tail_stride`, both with no indirection.
+
+The search region must be in ascending order for that binary search to be valid. This is inherited
+from the `(key hash, key)` order the writer requires of its input, not established per block, so
+reordering entries within a block is a format violation rather than a free choice — see
+[Entry ordering](#entry-ordering).
 
 #### Value Block
 
@@ -240,10 +258,11 @@ The checksum is verified on the compressed data **before** decompression when th
 
 ## Reading
 
-Reading start from the current sequence number and goes downwards.
+Opened meta files are stored in per-family shards. A lookup scans only the requested family's meta
+files, from newest to oldest; there is no ordering dependency between families.
 
 - We have all SST files memory mapped
-- for i = CURRENT sequence number .. 0
+- for each meta file of the queried key family, newest first
   - Check AMQF from SST file for key existence -> if not continue
   - let block = 0
   - loop
@@ -311,6 +330,10 @@ Since the process might exit unexpectedly, to avoid "forgetting" to delete the S
 
 We limit the number of SST files that are merged at once to avoid long compactions.
 
+Compaction keeps meta files incremental: a new meta file only describes SST files that were merged
+or moved. Metadata for untouched SST files stays in its existing meta file. When every active entry
+in an old meta file is superseded, that meta file is retired in the same compaction commit.
+
 Full example:
 
 Example:
@@ -357,10 +380,16 @@ DEL 17:  (2, 3, 4, 5, 6, 7, 8, 9)
 CURRENT: 17
 ```
 
-Configuration options for compactions are:
+### Choosing merge jobs
 
-- max number of SST files that are merged at once
-- coverage when compaction is triggered (otherwise calling compact is a noop)
+The key space of each family is split into a power-of-two number of shards by the leading bits of the key hash (starting at `FamilyConfig::initial_shard_bits`, then following the size of the family so that a shard holds about `DbConfig::target_shard_size` after compaction). The shard count doubles once a shard's bottom run exceeds 1.5 times the target and halves once it falls below half of it, so it doesn't flip back and forth. The size is estimated from the shards that have a bottom run, and the count is kept until one exists; the current count is recorded in each meta file. Commits and merges split SST files at shard boundaries, so each shard is compacted on its own. A shard has a bottom run (SST files flagged `bottom`, written by merging all files of the shard) and the files written since, above it.
+
+- A bottom merge merges all files of a shard into a new bottom run, dropping superseded entries and tombstones. It runs when the files above the bottom run exceed `max_space_amplification_percent` of the bottom run, counting each tombstone as an average bottom entry since it deletes one. This bounds the space amplification.
+- An intermediate merge merges files above the bottom run when there are more than `max_files_above_bottom`, to bound the number of files a lookup consults. Like RocksDB's universal compaction, it takes the newest file and then each next older one that is at most `size_ratio_percent` larger than the files taken so far (but at least the two newest), so small files from small commits are merged with each other without rewriting larger files written before them.
+
+A bottom merge writes the entries of recently read keys (the union of the "used key hashes" AMQFs of all meta files) into separate hot SST files, and the rest into cold ones. Processes tend to read the same keys again, so this packs them into fewer blocks, which matters on storage where reads are expensive. Since a bottom merge always includes the whole shard, hot and cold files are merged together and every version of a key meets. The used keys are never copied into the meta files written by compaction, so they expire once all SST files of the commit that recorded them are merged.
+
+Bottom merges are paced by the fresh (not yet compacted) files of the family: they are scheduled until they rewrote `rewrite_per_fresh_byte` times the size of those files (the last one may go past it, and the first one always runs), so compaction cost follows the amount of new data. Since keys are hashes, shards grow at the same rate; the rewrite quota spreads their bottom merges over multiple compactions. A skipped compaction leaves the fresh files in place, which increases the next quota. The default is 3: a bottom merge at the 50% trigger rewrites 1.5 times the bytes above the bottom run for each 0.5 of them, so in steady state a written byte is copied about 3 times. A shard over twice the trigger, or with over twice `max_files_above_bottom` files above its bottom run, is bottom merged even when the quota is reached, which bounds how far a shard can fall behind (e.g. after a GC purge, whose small tombstone files give a small quota).
 
 ## Opening
 

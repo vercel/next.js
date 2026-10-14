@@ -277,6 +277,134 @@ const PAGES: Record<
   },
 }
 
+type SideEffectsPage = {
+  name: string
+  url: string
+  selector: string
+  color: string
+  background: string
+  turbopackOnly?: boolean
+}
+
+const SIDE_EFFECTS_PAGES: SideEffectsPage[] = [
+  {
+    name: 'app router, CSS array',
+    url: '/vendor/a',
+    selector: '#vendor-side-effects-array',
+    color: 'rgb(254, 0, 0)',
+    background: 'rgb(0, 254, 0)',
+  },
+  {
+    name: 'app router, sideEffects true',
+    url: '/vendor/b',
+    selector: '#vendor-side-effects-true',
+    color: 'rgb(253, 0, 0)',
+    background: 'rgb(0, 253, 0)',
+  },
+  {
+    name: 'app router, sideEffects false',
+    url: '/vendor/c',
+    selector: '#vendor-side-effects-false',
+    color: 'rgb(252, 0, 0)',
+    background: 'rgb(0, 252, 0)',
+  },
+  {
+    name: 'app router, global CSS array',
+    url: '/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    color: 'rgb(250, 0, 0)',
+    background: 'rgb(0, 250, 0)',
+  },
+  {
+    name: 'app router client component, CSS array',
+    url: '/vendor/e',
+    selector: '#vendor-side-effects-array-client',
+    color: 'rgb(254, 254, 0)',
+    background: 'rgb(254, 254, 0)',
+  },
+  {
+    name: 'app router server component with client child, CSS array',
+    url: '/vendor/f',
+    selector: '#vendor-side-effects-array-server-client-subcomponent',
+    color: 'rgb(254, 0, 0)',
+    background: 'rgb(0, 254, 0)',
+    turbopackOnly: true,
+  },
+  {
+    name: 'app router client component, sideEffects true',
+    url: '/vendor/g',
+    selector: '#vendor-side-effects-true-client',
+    color: 'rgb(253, 253, 0)',
+    background: 'rgb(253, 253, 0)',
+  },
+  {
+    name: 'app router server component with client child, sideEffects true',
+    url: '/vendor/h',
+    selector: '#vendor-side-effects-true-server-client-subcomponent',
+    color: 'rgb(253, 0, 0)',
+    background: 'rgb(0, 253, 0)',
+    turbopackOnly: true,
+  },
+  {
+    name: 'app router client component, sideEffects false',
+    url: '/vendor/i',
+    selector: '#vendor-side-effects-false-client',
+    color: 'rgb(252, 252, 0)',
+    background: 'rgb(252, 252, 0)',
+  },
+  {
+    name: 'app router server component with client child, sideEffects false',
+    url: '/vendor/j',
+    selector: '#vendor-side-effects-false-server-client-subcomponent',
+    color: 'rgb(252, 0, 0)',
+    background: 'rgb(0, 252, 0)',
+    turbopackOnly: true,
+  },
+  {
+    name: 'app router client component, global CSS array',
+    url: '/vendor/k',
+    selector: '#vendor-side-effects-global-array-client',
+    color: 'rgb(250, 250, 0)',
+    background: 'rgb(250, 250, 0)',
+  },
+  {
+    name: 'app router server component with client child, global CSS array',
+    url: '/vendor/l',
+    selector: '#vendor-side-effects-global-array-server-client',
+    color: 'rgb(250, 0, 0)',
+    background: 'rgb(0, 250, 0)',
+    turbopackOnly: true,
+  },
+  {
+    name: 'pages router, CSS array',
+    url: '/pages/vendor/a',
+    selector: '#vendor-side-effects-array',
+    color: 'rgb(254, 0, 0)',
+    background: 'rgb(0, 254, 0)',
+  },
+  {
+    name: 'pages router, sideEffects true',
+    url: '/pages/vendor/b',
+    selector: '#vendor-side-effects-true',
+    color: 'rgb(253, 0, 0)',
+    background: 'rgb(0, 253, 0)',
+  },
+  {
+    name: 'pages router, sideEffects false',
+    url: '/pages/vendor/c',
+    selector: '#vendor-side-effects-false',
+    color: 'rgb(252, 0, 0)',
+    background: 'rgb(0, 252, 0)',
+  },
+  {
+    name: 'pages router, global CSS array',
+    url: '/pages/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    color: 'rgb(250, 0, 0)',
+    background: 'rgb(0, 250, 0)',
+  },
+]
+
 const allPairs = getPairs(Object.keys(PAGES))
 
 // Each entry is `[label, value]`, where `label` is shown in test names and `value` is what gets
@@ -327,19 +455,25 @@ function isStrictMode(value: CssChunkingValue): boolean {
   return value === 'strict'
 }
 
+const SIDE_EFFECTS_PACKAGES = [
+  'side-effects-array-dep',
+  'side-effects-array-global-only-dep',
+  'side-effects-dep',
+  'side-effects-false-dep',
+]
+
 const options = (value: CssChunkingValue) => ({
   files: {
     app: new FileRef(path.join(__dirname, 'app')),
     pages: new FileRef(path.join(__dirname, 'pages')),
-    'next.config.js':
-      value === undefined
-        ? `module.exports = {}`
-        : `module.exports = { experimental: { cssChunking: ${JSON.stringify(value)} } }`,
+    'next.config.js': `module.exports = ${JSON.stringify({
+      transpilePackages: SIDE_EFFECTS_PACKAGES,
+      ...(value === undefined ? {} : { experimental: { cssChunking: value } }),
+    })}`,
   },
   dependencies: {
     sass: 'latest',
   },
-  skipDeployment: true,
 })
 
 /**
@@ -379,11 +513,13 @@ function shouldSkipConflict(ordering: readonly string[]): boolean {
     )
 }
 
+// TODO(deploy-test-completion): No deploy-specific incompatibility is
+// documented.
+// @force-gate !deploy
 describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_TRUE)(
   'css-order %s',
   (_label: string, value: CssChunkingValue) => {
-    const { next, isNextDev, skipped } = nextTestSetup(options(value))
-    if (skipped) return
+    const { next, isNextDev } = nextTestSetup(options(value))
     for (const ordering of allPairs) {
       const name = `should load correct styles navigating back again ${ordering.join(
         ' -> '
@@ -433,6 +569,9 @@ describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_TRUE)(
     }
   }
 )
+// TODO(deploy-test-completion): No deploy-specific incompatibility is
+// documented.
+// @force-gate !deploy
 describe.each(
   process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
 )('css-order %s', (_label: string, value: CssChunkingValue) => {
@@ -476,6 +615,9 @@ describe.each(
     })
   }
 })
+// TODO(deploy-test-completion): No deploy-specific incompatibility is
+// documented.
+// @force-gate !deploy
 describe.each(
   process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
 )('css-order %s', (_label: string, value: CssChunkingValue) => {
@@ -509,5 +651,35 @@ describe.each(
       }
       await browser.close()
     })
+  }
+})
+
+// Webpack currently applies the client child's CSS module after the parent module in
+// App Router server-component-with-client-child cases. Gate only those known divergences;
+// the other package sideEffects scenarios share expectations across both bundlers.
+// The fixture creates dummy packages locally; they are unavailable to deployment builds.
+// @force-gate !deploy
+describe.each(
+  process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
+)('css-order sideEffects %s', (_label: string, value: CssChunkingValue) => {
+  const { next } = nextTestSetup(options(value))
+  const testPage = (page: SideEffectsPage) => async () => {
+    const browser = await next.browser(page.url)
+    const element = browser.waitForElementByCss(page.selector)
+
+    expect(await element.getComputedCss('color')).toBe(page.color)
+    expect(await element.getComputedCss('background-color')).toBe(
+      page.background
+    )
+    await browser.close()
+  }
+
+  for (const page of SIDE_EFFECTS_PAGES.filter((page) => !page.turbopackOnly)) {
+    it(`should load correct styles for ${page.name}`, testPage(page))
+  }
+
+  for (const page of SIDE_EFFECTS_PAGES.filter((page) => page.turbopackOnly)) {
+    // @gate turbopack
+    it(`should load correct styles for ${page.name}`, testPage(page))
   }
 })

@@ -6,15 +6,11 @@ import { createRouterAct } from 'router-act'
 // The `partial-prefetching` fixture enables Partial Prefetching globally via
 // the next-config `partialPrefetching: true`, which opts every route into
 // runtime Cached Navigations even without a per-segment `prefetch` config.
+// @force-gate !dev
 describe('cached navigations - global partialPrefetching', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: path.join(__dirname, 'partial-prefetching'),
   })
-
-  if (isNextDev) {
-    it('is skipped', () => {})
-    return
-  }
 
   it('runtime-caches a route that has no per-segment prefetch config', async () => {
     let page: Playwright.Page
@@ -88,6 +84,109 @@ describe('cached navigations - global partialPrefetching', () => {
     // After unblocking, the dynamic content resolves too.
     expect(await browser.elementById('connection-boundary').text()).toContain(
       'Dynamic content'
+    )
+  })
+
+  it('cache values are consistent across the HTML shell, static prefetches, and cached navigations', async () => {
+    const href = '/cache-from-rdc'
+    const htmlId = 'cached-data'
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal a link to the page. This should result in a static prefetch.
+    await act(async () => {
+      const linkToggle = await browser.elementByCss(
+        `[data-prefetch="auto"] input[data-link-accordion="${href}"]`
+      )
+      await linkToggle.click()
+    }, [
+      {
+        includes: 'cache-timestamp:',
+        kind: 'static',
+      },
+    ])
+
+    //===========================
+    // Test client navigation
+    //===========================
+
+    // Navigate to the page.
+    const cachedValueFromPrefetch = await act(async () => {
+      await browser
+        .elementByCss(`[data-prefetch="auto"] a[href="${href}"]`)
+        .click()
+
+      const cachedValueFromPrefetch = await browser.elementById(htmlId).text()
+      return cachedValueFromPrefetch
+    }, [{ includes: 'Navigation-only runtime data' }])
+
+    expect(await browser.elementById('runtime-data').text()).toBe(
+      'Navigation-only runtime data'
+    )
+
+    // The navigation response should also contain the same cache value.
+    expect(await browser.elementById(htmlId).text()).toBe(
+      cachedValueFromPrefetch
+    )
+
+    // Navigate back to the index page.
+    await act(() => browser.elementByCss('a[href="/"]').click(), 'no-requests')
+    // Then, navigate to the page again (without a prefetch).
+    // All the UI is cacheable, so it should be re-used from the client
+    // navigation, and we should navigate without any extra requests.
+    await act(async () => {
+      await browser
+        .elementByCss(`[data-prefetch="false"] a[href="${href}"]`)
+        .click()
+    }, 'no-requests')
+
+    expect(await browser.elementById('runtime-data').text()).toBe(
+      'Navigation-only runtime data'
+    )
+
+    // The cached client navigation should have the same cache value.
+    expect(await browser.elementById(htmlId).text()).toBe(
+      cachedValueFromPrefetch
+    )
+
+    //===========================
+    // Test initial load
+    //===========================
+
+    await browser.refresh()
+
+    expect(await browser.elementById('runtime-data').text()).toBe(
+      'Navigation-only runtime data'
+    )
+    // The initial load should have the same cache value.
+    expect(await browser.elementById(htmlId).text()).toBe(
+      cachedValueFromPrefetch
+    )
+
+    // Navigate to the index page.
+    await act(() => browser.elementByCss('a[href="/"]').click())
+    // Then, navigate back to the page without a prefetch.
+    // All the UI is cacheable, so it should be re-used from the initial
+    // load, and we should navigate without any extra requests.
+    await act(async () => {
+      await browser
+        .elementByCss(`[data-prefetch="false"] a[href="${href}"]`)
+        .click()
+    }, 'no-requests')
+
+    expect(await browser.elementById('runtime-data').text()).toBe(
+      'Navigation-only runtime data'
+    )
+
+    // The cached navigation should have the same cache value.
+    expect(await browser.elementById(htmlId).text()).toBe(
+      cachedValueFromPrefetch
     )
   })
 })

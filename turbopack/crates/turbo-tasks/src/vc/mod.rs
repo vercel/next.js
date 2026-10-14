@@ -45,7 +45,6 @@ pub use crate::vc::{
 use crate::{
     keyed::{KeyedAccess, KeyedEq},
     registry,
-    trace::{TraceRawVcs, TraceRawVcsContext},
     vc::read::{ReadContainsKeyedVcFuture, ReadKeyedVcFuture},
 };
 
@@ -441,7 +440,7 @@ where
     }
 
     /// Returns `true` if the reference is resolved, meaning the underlying [`RawVc`] uses the
-    /// [`RawVc::TaskCell`] representation.
+    /// [`RawVcUnpacked::TaskCell`] representation.
     ///
     /// If you need resolved [`Vc`] value, it's typically better to use the [`ResolvedVc`] type to
     /// enforce your requirements statically instead of dynamically at runtime.
@@ -471,15 +470,6 @@ where
             node,
             _t: PhantomData,
         }
-    }
-}
-
-impl<T> TraceRawVcs for Vc<T>
-where
-    T: ?Sized,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
     }
 }
 

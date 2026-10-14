@@ -24,7 +24,7 @@ export function setStackFrameResolver(fn: StackFrameResolver) {
   stackFrameResolver = fn
 }
 
-async function resolveStackFrames(
+export async function resolveStackFrames(
   request: OriginalStackFramesRequest
 ): Promise<OriginalStackFramesResponse> {
   if (!stackFrameResolver) {

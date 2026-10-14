@@ -5,9 +5,7 @@ use swc_core::{
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
@@ -24,14 +22,12 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     async_chunk::proxy::LazyCompilationProxyModule,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
+    references::pattern_mapping::{PatternMapping, ResolveType},
 };
 
 #[turbo_tasks::value]
@@ -143,7 +139,8 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
 
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -156,17 +153,16 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct EsmAsyncAssetReferenceCodeGen {
-    path: AstPath,
+    path: AstPathId,
     reference: ResolvedVc<EsmAsyncAssetReference>,
 }
 
 impl EsmAsyncAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -187,7 +183,7 @@ impl EsmAsyncAssetReferenceCodeGen {
 
         let import_externals = reference.import_externals;
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let old_expr = expr.take();
             let message = if let Expr::Call(CallExpr { args, .. }) = old_expr {
                 match args.into_iter().next() {

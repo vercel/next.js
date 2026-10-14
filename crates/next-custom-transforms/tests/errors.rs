@@ -14,11 +14,13 @@ use swc_core::{
     atoms::atom,
     common::{FileName, Mark},
     ecma::{
+        ast::fn_pass,
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
             testing::{FixtureTestConfig, test_fixture},
         },
+        visit::VisitWith,
     },
 };
 use testing::fixture;
@@ -108,6 +110,7 @@ fn react_server_components_errors(input: PathBuf) {
         .iter()
         .position(|s| s.to_str() == Some("app-dir"))
         .map(|pos| input.iter().take(pos + 1).collect());
+    let is_app_router = app_dir.is_some();
 
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
@@ -121,6 +124,7 @@ fn react_server_components_errors(input: PathBuf) {
                     use_cache_enabled,
                     taint_enabled,
                     page_extensions: vec![],
+                    is_app_router,
                 }),
                 tr.comments.as_ref().clone(),
                 app_dir.clone(),
@@ -181,6 +185,7 @@ fn react_server_actions_errors(input: PathBuf) {
                         use_cache_enabled: true,
                         taint_enabled: true,
                         page_extensions: vec![],
+                        is_app_router: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -201,6 +206,63 @@ fn react_server_actions_errors(input: PathBuf) {
                     Default::default(),
                     ServerActionsMode::Webpack,
                 ),
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            allow_error: true,
+            module: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+// Turbopack runs the server actions transform before the React Server Components assert on
+// the RSC layer (unlike webpack, which runs the RSC transform first). See
+// `crates/next-core/src/next_server/context.rs` (AppRSC module rules).
+#[fixture("tests/errors/server-actions-turbopack-rsc/**/input.js")]
+fn server_actions_turbopack_rsc_errors(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{
+        Config, Options, server_components_assert,
+    };
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|tr| {
+            let unresolved_mark = Mark::new();
+            (
+                resolver(unresolved_mark, Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    None,
+                    server_actions::Config {
+                        is_react_server_layer: true,
+                        is_development: true,
+                        use_cache_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
+                    },
+                    tr.comments.as_ref().clone(),
+                    unresolved_mark,
+                    tr.cm.clone(),
+                    Default::default(),
+                    ServerActionsMode::Turbopack,
+                ),
+                fn_pass(|program| {
+                    program.visit_with(&mut server_components_assert(
+                        FileName::Real(PathBuf::from("/app/item.js")),
+                        Config::WithOptions(Options {
+                            is_react_server_layer: true,
+                            cache_components_enabled: true,
+                            use_cache_enabled: true,
+                            taint_enabled: true,
+                            page_extensions: vec![],
+                            is_app_router: true,
+                        }),
+                        None,
+                    ));
+                }),
             )
         },
         &input,
@@ -251,6 +313,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         use_cache_enabled: false,
                         taint_enabled: true,
                         page_extensions: vec![],
+                        is_app_router: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,

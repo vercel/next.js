@@ -190,7 +190,9 @@ export default function NotFound() {
 }
 ```
 
-The trade-off is the HTTP status code. Because the check runs inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. The `noindex` tag keeps a soft 404 out of search results. To return a real `404` status, the resource has to be checked before the response streams. With [Cache Components](/docs/app/getting-started/caching), every dynamic route streams a static shell first, so run that check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) instead. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+The response starts streaming from the `<Suspense>` boundary before `notFound()` runs, so it keeps its `200` status. Next.js adds a `noindex` tag.
+
+Calling `notFound()` before streaming starts returns a `404`. A page that reaches `notFound()` during prerendering can remain `○` Static and serve a `404`. A request-time check can run in [Proxy](/docs/app/api-reference/file-conventions/proxy) before the page renders. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ### Serving a 404 from a Route Handler
 

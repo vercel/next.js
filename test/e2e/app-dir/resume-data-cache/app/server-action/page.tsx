@@ -8,7 +8,7 @@ async function getCachedRandomNumber() {
 
   await new Promise((resolve) => setTimeout(resolve, 100))
 
-  return Math.random()
+  return `cache-random-${Math.random()}`
 }
 
 async function getUncachedRandomNumber() {

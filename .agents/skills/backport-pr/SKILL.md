@@ -1,12 +1,12 @@
 ---
 name: backport-pr
 description: >
-  Backport a merged Next.js pull request from canary to a previous release
-  branch such as next-16-2. Use when the user asks to backport, cherry-pick,
-  or open a backport PR from a PR number to an older Next.js version. Covers
-  finding the merged PR commit, creating a backport branch from the target
-  release branch, cherry-picking from canary, validating, and opening the PR
-  with the release branch as the base.
+  Backport a merged Next.js pull request from canary to an LTS release branch
+  (releases/lts/active or releases/lts/maintenance). Use when the user asks to
+  backport, cherry-pick, or open a backport PR from a PR number to an older
+  Next.js version. Covers finding the merged PR commit, creating a backport
+  branch from the target release branch, cherry-picking from canary,
+  validating, and opening the PR with the release branch as the base.
 metadata:
   internal: true
 ---
@@ -18,11 +18,18 @@ branch.
 
 ## Inputs
 
-- Require a PR number and a target release branch, for example `next-16-2`.
+- Require a PR number and a target release branch. Almost always the target
+  is one of the LTS branches: `releases/lts/active` (the current major's
+  release line) or `releases/lts/maintenance` (the previous major's). Only in
+  exceptionally rare circumstances — a fix for an older minor line that
+  neither LTS branch supports anymore — is the target a non-LTS branch
+  (`next-<major>-<minor>`, which any maintainer can create by pushing a
+  branch from that line's last tag).
 - If the target branch is not provided and cannot be inferred confidently from
-  the user's request, ask before mutating git state.
-- Treat the target branch as variable; do not hard-code `next-16-2` except when
-  the user explicitly asks for it.
+  the user's request, ask before mutating git state — and default to an LTS
+  branch unless the user explicitly names an old minor line.
+- Treat the target branch as variable; do not hard-code a specific branch
+  except when the user explicitly asks for it.
 
 ## Workflow
 
@@ -87,10 +94,18 @@ branch.
 
 ## PR Shape
 
+The PR title should indicate the target branch and the original PR title.
+
 Use a title like:
 
 ```text
-[backport] <original PR title>
+[lts-active] <original PR title>
+```
+
+or
+
+```text
+[lts-maintenance] <original PR title>
 ```
 
 Use a concise PR body:

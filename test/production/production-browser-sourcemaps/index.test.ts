@@ -55,16 +55,12 @@ describe('Production browser sourcemaps', () => {
   describe.each([false, true] as const)(
     'productionBrowserSourceMaps = %s',
     (productionBrowserSourceMaps) => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         nextConfig: {
           productionBrowserSourceMaps,
         },
       })
-
-      if (skipped) {
-        return
-      }
 
       it('check sourcemaps for all browser files', async () => {
         const buildManifest = getBuildManifest(next.testDir)

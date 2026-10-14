@@ -3,14 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Node Extensions', () => {
   describe('Random', () => {
     describe('Cache Components', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname + '/fixtures/random/cache-components',
-        skipDeployment: true,
       })
-
-      if (skipped) {
-        return
-      }
 
       it('should not error when accessing middlware that use Math.random()', async () => {
         let res: Awaited<ReturnType<typeof next.fetch>>,

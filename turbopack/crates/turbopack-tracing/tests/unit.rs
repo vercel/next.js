@@ -173,6 +173,10 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::pixelmatch("pixelmatch")]
 #[case::pkg_dir_outside_base("pkg-dir-outside-base")]
 #[case::pkg_file_outside_base("pkg-file-outside-base")]
+#[case::pkg_project_root_static("pkg-project-root-static")]
+#[case::pkg_project_root_directory("pkg-project-root-directory")]
+#[case::pkg_project_root_mixed_directory("pkg-project-root-mixed-directory")]
+#[case::pkg_project_root_symlink_directory("pkg-project-root-symlink-directory")]
 // #[case::pkginfo("pkginfo")]
 // #[case::pnpm_symlinks("pnpm-symlinks")]
 // #[case::prisma_photon("prisma-photon")]
@@ -305,7 +309,7 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            analyze_mode: AnalyzeMode::Tracing,
+            analyze_mode: AnalyzeMode::tracing(),
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
             follow_reexports: false,

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -10,7 +10,7 @@ use turbopack_core::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(PartialOrd, Ord, Eq, PartialEq, Hash, Debug, Copy, Clone, TraceRawVcs, Encode, Decode)]
+#[derive(PartialOrd, Ord, Eq, PartialEq, Hash, Debug, Copy, Clone, Encode, Decode)]
 pub enum WebAssemblySourceType {
     /// Binary WebAssembly files (.wasm).
     Binary,

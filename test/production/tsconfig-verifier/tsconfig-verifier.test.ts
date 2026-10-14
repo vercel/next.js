@@ -3,8 +3,10 @@ import { nextTestSetup } from 'e2e-utils'
 const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('tsconfig.json verifier', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     nextConfig: {
       experimental: { useTypeScriptCli: false },
@@ -13,9 +15,7 @@ describe('tsconfig.json verifier', () => {
       NEXT_PRIVATE_LOCAL_DEV: '',
     },
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   beforeEach(async () => {
     await next.deleteFile('tsconfig.json')
@@ -1133,8 +1133,10 @@ describe('tsconfig.json verifier', () => {
 // `module: commonjs` forces Next.js to emit `moduleResolution: node`, which
 // TypeScript 6 deprecates (TS5107). Pin TypeScript 5.9 for this case until we
 // stop emitting the deprecated resolution.
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('tsconfig.json verifier 5.x', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     nextConfig: {
       experimental: { useTypeScriptCli: false },
@@ -1146,9 +1148,7 @@ describe('tsconfig.json verifier 5.x', () => {
     dependencies: {
       typescript: '5.9.3',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
 
   beforeEach(async () => {
     await next.deleteFile('tsconfig.json')

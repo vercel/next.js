@@ -170,7 +170,6 @@ describe('app dir - basepath', () => {
     const destinationPagePath = '/outsideBasePath'
 
     const requests: Request[] = []
-    const responses: Response[] = []
 
     const browser = await next.browser(initialPagePath)
 
@@ -182,39 +181,36 @@ describe('app dir - basepath', () => {
       }
     })
 
-    browser.on('response', (res) => {
-      const url = res.url()
-
-      if (!url.includes('_next')) {
-        responses.push(res)
-      }
-    })
-
     await browser.elementById('redirect-absolute-external').click()
-    await retry(async () =>
-      expect(await browser.url()).toContain('/outsideBasePath')
-    )
 
+    // `/outsideBasePath` is proxied to a third-party host, so the URL only
+    // commits once that host responds, which can take longer than a `retry()`
+    // cycle in CI. Wait for the browser to issue the document request instead,
+    // which only depends on Next.js.
+    //
     // We expect to see two requests, first a POST invoking the server
     // action. And second a GET request resolving the redirect.
-    expect(requests).toHaveLength(2)
-    expect(responses).toHaveLength(2)
+    await retry(async () => {
+      expect(requests.map((req) => [req.method(), req.url()])).toEqual([
+        ['POST', `${next.url}${initialPagePath}`],
+        ['GET', `${next.url}${destinationPagePath}`],
+      ])
+    })
 
     const [firstRequest, secondRequest] = requests
-    const [firstResponse, secondResponse] = responses
 
-    expect(firstRequest.url()).toEqual(`${next.url}${initialPagePath}`)
-    expect(firstRequest.method()).toEqual('POST')
-
-    expect(secondRequest.url()).toEqual(`${next.url}${destinationPagePath}`)
-    expect(secondRequest.method()).toEqual('GET')
-
+    const firstResponse = await firstRequest.response()
     expect(firstResponse.status()).toEqual(200)
     const headers = await firstResponse.allHeaders()
     expect(headers['x-action-redirect']).toBeDefined()
     expect(headers.location).toBeUndefined()
+
     // Since this is an external request to a resource outside of NextJS
     // we expect to see a separate request resolving the external URL.
+    const secondResponse = await secondRequest.response()
     expect(secondResponse.status()).toEqual(200)
+    await retry(async () => {
+      expect(await browser.url()).toBe(`${next.url}${destinationPagePath}`)
+    })
   })
 })

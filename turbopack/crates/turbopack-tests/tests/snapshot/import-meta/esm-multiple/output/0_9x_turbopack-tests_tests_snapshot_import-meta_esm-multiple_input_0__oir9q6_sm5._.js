@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_import-meta_esm-multiple_input_0__oir9q6_sm5._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_import-meta_esm-multiple_input_0__oir9q6_sm5._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-multiple/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -31,6 +31,6 @@ function bar() {
 foo();
 bar();
 }),
-]);
+]);})()
 
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_import-meta_esm-multiple_input_0__oir9q6_sm5._.js.map

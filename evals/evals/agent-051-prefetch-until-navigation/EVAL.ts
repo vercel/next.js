@@ -63,11 +63,11 @@ test('opts the project link into per-link prefetching', () => {
 
 test('uses the navigation cache stage', () => {
   const navigationImport = source.match(
-    /\bunstable_navigation(?:\s+as\s+([A-Za-z_$][\w$]*))?/
+    /import\s*\{[^}]*\bnavigation\b(?:\s+as\s+([A-Za-z_$][\w$]*))?[^}]*\}\s*from\s*['"]next\/cache['"]/
   )
   expect(navigationImport).not.toBeNull()
 
-  const localName = navigationImport?.[1] ?? 'unstable_navigation'
+  const localName = navigationImport?.[1] ?? 'navigation'
   expect(source).toMatch(new RegExp(`await\\s+${localName}\\s*\\(`))
 })
 
@@ -75,14 +75,14 @@ test('includes the project title in the selected prefetch', async () => {
   await expect(environment).toSatisfyCriterion(
     `The selected project's title must be available before the click from the dashboard's per-link prefetch. Keep the params-dependent title inside Suspense so the reusable App Shell can show a fallback while the selected prefetch resolves the title. The title must render before the nested boundary that waits for navigation.
 
-Accept equivalent component and file organization. Reject solutions that leave the title behind the reusable shell fallback, put it behind unstable_navigation(), disable prefetching, or prefetch the entire page.`
+Accept equivalent component and file organization. Reject solutions that leave the title behind the reusable shell fallback, put it behind navigation(), disable prefetching, or prefetch the entire page.`
   )
 })
 
 test('waits until navigation for project details', async () => {
   await expect(environment).toSatisfyCriterion(
-    `Project activity, deployments, description, and other detail content must not join the prefetch. Render those details inside a nested Suspense boundary through an async component that awaits unstable_navigation() before loading or rendering them.
+    `Project activity, deployments, description, and other detail content must not join the prefetch. Render those details inside a nested Suspense boundary through an async component that awaits navigation() before loading or rendering them.
 
-The unstable_navigation() call must remain outside every use cache scope; cached data functions may be called after it. Reject solutions that fetch project details before reaching unstable_navigation(), replace it with connection() or an uncached fetch, or prefetch the entire page. Accept equivalent component and file organization.`
+The navigation() call must remain outside every use cache scope; cached data functions may be called after it. Reject solutions that fetch project details before reaching navigation(), replace it with connection() or an uncached fetch, or prefetch the entire page. Accept equivalent component and file organization.`
   )
 })

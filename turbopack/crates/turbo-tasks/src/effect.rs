@@ -23,7 +23,6 @@ use crate::{
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     spawn,
-    trace::TraceRawVcs,
 };
 
 const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
@@ -58,7 +57,7 @@ where
 /// [`EffectStateStorage::run_apply`] (which handles the per-key state machine, in-progress
 /// coordination, dedup-hit short-circuit, and panic recovery).
 #[async_trait]
-pub trait CapturedEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
+pub trait CapturedEffect: NonLocalValue + Send + Sync + 'static {
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
     fn key(&self) -> Box<[u8]>;
 
@@ -73,14 +72,14 @@ pub trait CapturedEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
 
 /// Outcome of [`CapturedEffect::apply`]. Distinguishes a side-effect failure (terminal) from a
 /// soft failure where the captured form had no content and storage state diverged between
-/// capture and apply (recoverable via [`Effects::apply`]'s invalidator path).
+/// capture and apply (recoverable via `Effects::apply`'s invalidator path).
 #[derive(Debug)]
 pub enum ApplyError {
     /// The side effect itself failed.
     Failed(Arc<dyn EffectError>),
     /// Capture short-circuited content materialization (observed `Applied { matching }` in
     /// storage), but by apply time the storage state had diverged and we have no content to
-    /// re-apply. [`Effects::apply`] should invalidate the producing operation and return
+    /// re-apply. `Effects::apply` should invalidate the producing operation and return
     /// [`EffectsError::Retry`].
     Retry,
 }
@@ -98,8 +97,8 @@ pub enum ApplyError {
 /// So instead, we leave it up to the caller to figure out how to downcast these errors themselves.
 ///
 /// [`SharedError`]: crate::util::SharedError
-pub trait EffectError: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
-impl<T> EffectError for T where T: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
+pub trait EffectError: StdError + NonLocalValue + Send + Sync + 'static {}
+impl<T> EffectError for T where T: StdError + NonLocalValue + Send + Sync + 'static {}
 
 enum EffectLastApplied {
     Unapplied,
@@ -126,7 +125,7 @@ impl EffectStateStorage {
     ///
     /// Intended for use by [`Effect::capture`] to elide content materialization when the apply
     /// would dedup. Reading this from inside a turbo-tasks task is sound because
-    /// [`Effects::apply`] re-checks at apply time and fires the producing task's invalidator on
+    /// `Effects::apply` re-checks at apply time and fires the producing task's invalidator on
     /// mismatch (via the [`ApplyError::Retry`] / [`EffectsError::Retry`] pathway).
     pub fn matches_applied(&self, key: &[u8], target: u128) -> bool {
         let entry = self.effect_state.lock().get(key).cloned();
@@ -254,11 +253,11 @@ impl EffectStateStorage {
 /// Capture effects. Call this from within a [turbo-tasks operation][crate::OperationVc].
 ///
 /// Collectibles are read from `ResolvedVc`s, so this function, and the return value of this
-/// function should be applied with [`Effects::apply`].
+/// function should be applied with `Effects::apply`.
 ///
 /// It's important to wrap calls to this function in an [operation with a strongly consistent
 /// read][crate::OperationVc::read_strongly_consistent] before applying the effects outside of the
-/// operation at the top-level (e.g. in a `run_once` closure) with [`Effects::apply`].
+/// operation at the top-level (e.g. in a `run_once` closure) with `Effects::apply`.
 ///
 /// # Example
 ///
@@ -323,14 +322,14 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     Ok(Effects::new(captured, unique_keys, invalidator))
 }
 
-#[derive(thiserror::Error, Debug, TraceRawVcs, NonLocalValue)]
+#[derive(thiserror::Error, Debug, NonLocalValue)]
 #[error("Conflicting effects for the same key (key length: {key_len} bytes)")]
 struct ConflictingEffectError {
     key_len: usize,
 }
 
 const MAX_KEYS_TO_DISPLAY: usize = 10;
-/// Error returned by [`Effects::apply`]. Callers should retry on `Retry`; everything else is
+/// Error returned by `Effects::apply`. Callers should retry on `Retry`; everything else is
 /// terminal.
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum EffectsError {
@@ -384,16 +383,16 @@ pub struct Effects {
     /// Pre-resolved effects awaiting application. Lives for the lifetime of the cell — released
     /// when the producer reruns and `cell = "new"` overwrites the cell, which is when any
     /// upstream `ReadRef` strong-count cascades are naturally released.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     captured: CapturedSlice,
     /// Captured at `take_effects` time. `None` for `Effects::empty()` (nothing to retry).
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     invalidator: Option<Invalidator>,
     /// Unique key info computed eagerly in `take_effects`. Holds one index into `captured` per
     /// unique key, or a `ConflictingEffectError` if two captured effects share a key with
     /// different hashes. No [`EffectStateStorage`] interaction here — that is deferred to
     /// `apply()`.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     unique_keys: Arc<UniqueKeys>,
 }
 
@@ -548,7 +547,7 @@ impl Effects {
 /// `|v| &v.effects`; for an `OperationVc<Effects>` it is `|e| e`).
 ///
 /// On [`EffectsError::Retry`] the producing operation has already been invalidated by
-/// [`Effects::apply`], so the next
+/// `Effects::apply`, so the next
 /// [`read_strongly_consistent`][OperationVc::read_strongly_consistent] re-runs the producer and
 /// yields a fresh [`Effects`] whose `capture()` re-materializes content. Retries are bounded to
 /// avoid livelock when two producers perpetually stomp the same key; after the first retry a
@@ -556,7 +555,7 @@ impl Effects {
 /// error.
 ///
 /// This is one of two public entry points for applying effects (see also
-/// [`read_strongly_consistent_and_apply_effects_with`]) — [`Effects::apply`] is private so the
+/// [`resolve_strongly_consistent_and_take_and_apply_effects`]) — `Effects::apply` is private so the
 /// retry contract cannot be bypassed.
 pub async fn read_strongly_consistent_and_apply_effects<T, F>(
     op: OperationVc<T>,

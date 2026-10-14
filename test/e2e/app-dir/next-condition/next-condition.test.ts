@@ -1,5 +1,7 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
+// Deploy tests are broken with `config.serverExternalPackages`
+// @force-gate !deploy
 describe('`next-js` Condition - Rendering', () => {
   const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/render',
@@ -9,8 +11,6 @@ describe('`next-js` Condition - Rendering', () => {
       'sym-linked-packages': new FileRef(__dirname + '/packages'),
     },
     dependencies: require('./fixtures/render/package.json').dependencies,
-    // Deploy tests are broken with `config.serverExternalPackages`
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -623,6 +623,8 @@ describe('`next-js` Condition - Rendering', () => {
   }
 })
 
+// Deploy tests are broken with `config.serverExternalPackages`
+// @force-gate !deploy
 describe('`next-js` Condition - middleware (legacy)', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/middleware',
@@ -632,8 +634,6 @@ describe('`next-js` Condition - middleware (legacy)', () => {
       'sym-linked-packages': new FileRef(__dirname + '/packages'),
     },
     dependencies: require('./fixtures/middleware/package.json').dependencies,
-    // Deploy tests are broken with `config.serverExternalPackages`
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -668,6 +668,8 @@ describe('`next-js` Condition - middleware (legacy)', () => {
   })
 })
 
+// Deploy tests are broken with `config.serverExternalPackages`
+// @force-gate !deploy
 describe('`next-js` Condition - proxy', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/proxy',
@@ -677,8 +679,6 @@ describe('`next-js` Condition - proxy', () => {
       'sym-linked-packages': new FileRef(__dirname + '/packages'),
     },
     dependencies: require('./fixtures/proxy/package.json').dependencies,
-    // Deploy tests are broken with `config.serverExternalPackages`
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -713,6 +713,8 @@ describe('`next-js` Condition - proxy', () => {
   })
 })
 
+// Deploy tests are broken with `config.serverExternalPackages`
+// @force-gate !deploy
 describe('`next-js` Condition - instrumentation', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/instrumentation',
@@ -723,8 +725,6 @@ describe('`next-js` Condition - instrumentation', () => {
     },
     dependencies: require('./fixtures/instrumentation/package.json')
       .dependencies,
-    // Deploy tests are broken with `config.serverExternalPackages`
-    skipDeployment: true,
   })
 
   if (skipped) {

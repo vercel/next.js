@@ -103,6 +103,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             generate_source_map,
             original_source_map: analyze_ref.source_map,
             exports: self.get_exports().to_resolved().await?,
+            export_registration_mode: None,
             async_module_info,
         }
         .cell())
@@ -163,7 +164,12 @@ impl EcmascriptModulePartAsset {
                 ));
             }
 
-            ModulePart::Export(export) => {
+            part @ (ModulePart::Export(_) | ModulePart::PartialExport { .. }) => {
+                let (export, namespace_member) = match part {
+                    ModulePart::Export(export) => (export, None),
+                    ModulePart::PartialExport { export, member } => (export, Some(member)),
+                    _ => unreachable!(),
+                };
                 if entrypoints.contains_key(&Key::Export(export.clone())) {
                     return Ok(Vc::upcast(
                         EcmascriptModulePartAsset::new_with_resolved_part(
@@ -199,7 +205,12 @@ impl EcmascriptModulePartAsset {
                     ResolvedVc::upcast(
                         EcmascriptModuleRenameModule::new(
                             **final_module,
-                            ModulePart::renamed_namespace(export.clone()),
+                            match namespace_member {
+                                Some(member) => {
+                                    ModulePart::renamed_partial_namespace(export.clone(), member)
+                                }
+                                None => ModulePart::renamed_namespace(export.clone()),
+                            },
                         )
                         .to_resolved()
                         .await?,
@@ -311,7 +322,9 @@ impl Module for EcmascriptModulePartAsset {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
             let export = match &part {
-                ModulePart::Export(export) => ExportUsage::named(export.clone()),
+                ModulePart::Export(export) | ModulePart::PartialExport { export, .. } => {
+                    ExportUsage::named(export.clone())
+                }
                 ModulePart::Evaluation => ExportUsage::evaluation(),
                 _ => ExportUsage::all(),
             };
@@ -342,7 +355,7 @@ impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn side_effects(&self) -> Vc<ModuleSideEffects> {
         match self.part {
-            ModulePart::Exports | ModulePart::Export(..) => {
+            ModulePart::Exports | ModulePart::Export(_) | ModulePart::PartialExport { .. } => {
                 ModuleSideEffects::SideEffectFree.cell()
             }
             _ => self.full_module.side_effects(),

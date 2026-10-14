@@ -1,4 +1,9 @@
 import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import {
+  getStrictRouteMatchingDefaultWarning,
+  STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
+} from './lib/router-utils/strict-route-matching-config'
+import { configSchema } from './config-schema'
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -194,18 +199,41 @@ describe('loadConfig', () => {
   })
 
   describe('parallel route matching flags', () => {
-    it('allows explicit children detection without strict route matching', async () => {
+    it('enables strict route matching by default and exposes the opt-out warning', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {},
+      })
+
+      expect(result.experimental.strictRouteMatching).toBe(true)
+      expect(getStrictRouteMatchingDefaultWarning(result)).toBe(
+        STRICT_ROUTE_MATCHING_DEFAULT_WARNING
+      )
+    })
+
+    it('allows loose route matching through the deprecated opt-out', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
-          experimental: {
-            explicitParallelRouteChildren: true,
-            strictRouteMatching: false,
+          deprecated: {
+            looseRouteMatching: true,
           },
         },
       })
 
-      expect(result.experimental.explicitParallelRouteChildren).toBe(true)
       expect(result.experimental.strictRouteMatching).toBe(false)
+      expect(getStrictRouteMatchingDefaultWarning(result)).toBeUndefined()
+    })
+
+    it('only accepts true for the deprecated opt-out', () => {
+      expect(
+        configSchema.safeParse({
+          deprecated: { looseRouteMatching: true },
+        }).success
+      ).toBe(true)
+      expect(
+        configSchema.safeParse({
+          deprecated: { looseRouteMatching: false },
+        }).success
+      ).toBe(false)
     })
 
     it('disables strict route matching when explicit children detection is disabled', async () => {
@@ -213,13 +241,13 @@ describe('loadConfig', () => {
         customConfig: {
           experimental: {
             explicitParallelRouteChildren: false,
-            strictRouteMatching: true,
           },
         },
       })
 
       expect(result.experimental.explicitParallelRouteChildren).toBe(false)
       expect(result.experimental.strictRouteMatching).toBe(false)
+      expect(getStrictRouteMatchingDefaultWarning(result)).toBeUndefined()
     })
   })
 
@@ -262,6 +290,55 @@ describe('loadConfig', () => {
       expect(result.cacheHandlers?.['valid-handler']).toBeDefined()
       expect(result.cacheHandlers?.['abc-def']).toBeDefined()
     })
+  })
+
+  describe('partialPrefetching validation', () => {
+    const warning = [
+      '⚠ `cacheComponents` is enabled without a corresponding `partialPrefetching` option. Set `partialPrefetching` to either `true` or `false`.',
+      "The only reason to set `partialPrefetching` to `false` is if you're migrating an older Cache Components app. The initial release of Cache Components did not include Partial Prefetching. New projects should enable both Cache Components and Partial Prefetching.",
+      'Both Cache Components and Partial Prefetching will be enabled everywhere in the next major release, and the old configurations will be removed.',
+      'Learn more: https://nextjs.org/docs/app/guides/adopting-partial-prefetching',
+    ].join('\n\n')
+
+    afterEach(() => {
+      jest.restoreAllMocks()
+    })
+
+    it('warns when cacheComponents is enabled without partialPrefetching', async () => {
+      const consoleWarn = jest
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {})
+
+      await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          cacheComponents: true,
+        },
+        silent: false,
+      })
+
+      expect(consoleWarn).toHaveBeenCalledWith(warning)
+    })
+
+    it.each([true, false])(
+      'does not warn when partialPrefetching is explicitly set to %s',
+      async (partialPrefetching) => {
+        const consoleWarn = jest
+          .spyOn(console, 'warn')
+          .mockImplementation(() => {})
+
+        await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            cacheComponents: true,
+            partialPrefetching,
+          },
+          silent: false,
+        })
+
+        expect(consoleWarn).not.toHaveBeenCalledWith(
+          expect.stringContaining(warning)
+        )
+      }
+    )
   })
 
   describe('experimental.cssChunking bundler validation', () => {

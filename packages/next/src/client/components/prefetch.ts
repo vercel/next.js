@@ -1,4 +1,5 @@
-import type { FlightRouterState } from '../../shared/lib/app-router-types'
+import type { RootRouteTree } from './segment-cache/cache'
+import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { PrefetchOptions } from '../../shared/lib/app-router-context.shared-runtime'
 import { PrefetchKind } from './router-reducer/router-reducer-types'
 import { createPrefetchURL } from './app-router-utils'
@@ -61,7 +62,7 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
   prefetch(
     href,
     state.nextUrl,
-    state.tree,
+    state.root,
     fetchStrategy,
     options?.onInvalidate ?? null
   )
@@ -73,8 +74,8 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
  * or router.prefetch. It must be validated before we attempt to prefetch it.
  * @param nextUrl - A special header used by the server for interception routes.
  * Roughly corresponds to the current URL.
- * @param treeAtTimeOfPrefetch - The FlightRouterState at the time the prefetch
- * was requested. This is only used when PPR is disabled.
+ * @param renderTreeAtTimeOfPrefetch - The active render tree and head, and
+ * their vary paths.
  * @param fetchStrategy - Whether to prefetch dynamic data, in addition to
  * static data. This is used by `<Link prefetch={true}>`.
  * @param onInvalidate - A callback that will be called when the prefetch cache
@@ -90,7 +91,7 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
 export function prefetch(
   href: string,
   nextUrl: string | null,
-  treeAtTimeOfPrefetch: FlightRouterState,
+  renderTreeAtTimeOfPrefetch: RootRouteTree<CacheNode>,
   fetchStrategy: PrefetchTaskFetchStrategy,
   onInvalidate: null | (() => void)
 ) {
@@ -102,7 +103,7 @@ export function prefetch(
   const cacheKey = createCacheKey(url.href, nextUrl)
   schedulePrefetchTask(
     cacheKey,
-    treeAtTimeOfPrefetch,
+    renderTreeAtTimeOfPrefetch,
     fetchStrategy,
     PrefetchPriority.Default,
     onInvalidate,

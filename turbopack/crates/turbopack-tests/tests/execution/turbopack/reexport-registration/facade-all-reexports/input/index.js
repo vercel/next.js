@@ -1,0 +1,52 @@
+it('evaluates the locals part and re-export sources in ESM order', async () => {
+  const { order } = await import('./order')
+  await import('./reexports')
+  expect(order).toEqual(['x', 'y', 'locals'])
+})
+
+it('reuses source descriptors without exposing setters', async () => {
+  const sourceX = await import('./x')
+  const sourceY = await import('./y')
+  const namespace = await import('./reexports')
+
+  const sourceConstant = Object.getOwnPropertyDescriptor(sourceX, 'default')
+  const constant = Object.getOwnPropertyDescriptor(namespace, 'x')
+  expect(sourceConstant?.get).toBeUndefined()
+  expect(constant?.get).toBeUndefined()
+  expect(constant?.value).toBe('x')
+  expect(constant?.set).toBeUndefined()
+
+  const sourceLive = Object.getOwnPropertyDescriptor(sourceY, 'y')
+  const live = Object.getOwnPropertyDescriptor(namespace, 'y')
+  expect(typeof sourceLive?.get).toBe('function')
+  expect(live?.get).toBe(sourceLive?.get)
+  expect(live?.get?.call({ y: 'wrong receiver' })).toBe('y')
+  expect(live?.set).toBeUndefined()
+  expect(live?.writable).toBeUndefined()
+  expect(live?.configurable).toBe(false)
+  expect(live?.enumerable).toBe(true)
+
+  const callable = Object.getOwnPropertyDescriptor(namespace, 'setY')
+  expect(callable?.get).toBeUndefined()
+  expect(callable?.value).toBe(sourceY.setY)
+
+  const sourceFrozen = Object.getOwnPropertyDescriptor(sourceY, 'frozen')
+  const frozen = Object.getOwnPropertyDescriptor(namespace, 'frozen')
+  expect(frozen?.get).toBeUndefined()
+  expect(frozen?.value).toBe(sourceFrozen?.value)
+  expect(frozen?.writable).toBe(false)
+  expect(frozen?.configurable).toBe(false)
+  expect(frozen?.enumerable).toBe(true)
+  expect(Object.isFrozen(frozen?.value)).toBe(true)
+
+  const absent = Object.getOwnPropertyDescriptor(namespace, 'absent')
+  expect(typeof absent?.get).toBe('function')
+  expect(absent?.get?.()).toBeUndefined()
+  expect(absent?.set).toBeUndefined()
+  expect(absent?.writable).toBeUndefined()
+  expect(absent?.configurable).toBe(false)
+  expect(absent?.enumerable).toBe(true)
+
+  sourceY.setY('updated')
+  expect(namespace.y).toBe('updated')
+})

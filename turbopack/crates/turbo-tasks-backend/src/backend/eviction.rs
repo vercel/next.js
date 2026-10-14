@@ -19,7 +19,7 @@ pub enum EvictionMode {
     /// Evict after a snapshot only once enough memory has been allocated since
     /// the last eviction to justify the cost of restoring evicted tasks on
     /// demand. Uses allocator statistics to estimate reclaimable memory.
-    /// See [`EvictionControl::auto_threshold_exceeded`].
+    /// See `EvictionControl::auto_threshold_exceeded`.
     Auto,
     /// After every snapshot, evict all evictable tasks from memory, reloading
     /// them from disk on demand.

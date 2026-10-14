@@ -5,6 +5,7 @@ const fs = require('fs-extra')
 const childProcess = require('child_process')
 const { randomBytes } = require('crypto')
 const { linkPackages } = require('./link-packed-packages')
+const lockfile = require('proper-lockfile')
 const yaml = require('js-yaml')
 const {
   getPnpmSecuritySettings,
@@ -140,32 +141,89 @@ async function applyWorkspaceOverrides(installDir, isolationRoot, overrides) {
 }
 
 /**
+ * pnpm's hoisted linker does not expose the `@pkg+name@file` virtual-store
+ * path used by the default linker. Verify the exact local tarball through the
+ * lockfile instead.
+ *
+ * @param {string} installDir
+ * @param {string} packageName
+ * @param {string} expectedTarballPath
+ * @returns {Promise<boolean>}
+ */
+async function lockfileResolvesLocalTarball(
+  installDir,
+  packageName,
+  expectedTarballPath
+) {
+  const lockfile = /** @type {Record<string, any>} */ (
+    yaml.load(
+      await fs.readFile(path.join(installDir, 'pnpm-lock.yaml'), 'utf8')
+    )
+  )
+  const expectedRealpath = await fs.realpath(expectedTarballPath)
+
+  for (const [key, pkg] of Object.entries(lockfile.packages || {})) {
+    const tarball = pkg?.resolution?.tarball
+    if (
+      !key.startsWith(`${packageName}@file:`) ||
+      typeof tarball !== 'string' ||
+      !tarball.startsWith('file:')
+    ) {
+      continue
+    }
+
+    const resolvedTarball = path.resolve(
+      installDir,
+      tarball.slice('file:'.length)
+    )
+    if ((await fs.realpath(resolvedTarball)) === expectedRealpath) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
  * @param {import('next/dist/trace').Span} parentSpan
  * @returns {Promise<Map<string, string>>}
  */
 async function packPackages(parentSpan) {
-  const repositoryDirectory = path.join(__dirname, '../..')
-  await parentSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-    execa(
-      'pnpm',
-      [
-        'turbo',
-        'run',
-        'pack-for-isolated-tests',
-        '--output-logs',
-        'new-only',
-        '--ui',
-        'stream',
-      ],
-      {
-        cwd: repositoryDirectory,
-        stdio: ['ignore', 'inherit', 'inherit'],
-      }
+  const repositoryDirectory = await fs.realpath(path.join(__dirname, '../..'))
+  const cacheDir = path.join(repositoryDirectory, '.turbo')
+  await fs.ensureDir(cacheDir)
+  // Serialize the entire Turbo invocation, including cache restoration, when
+  // multiple test runners start in parallel.
+  const release = await lockfile.lock(repositoryDirectory, {
+    lockfilePath: path.join(cacheDir, 'pack-for-isolated-tests.lock'),
+    stale: 10 * 60 * 1000,
+    update: 10 * 1000,
+    retries: { retries: 3600, factor: 1, minTimeout: 1000, maxTimeout: 1000 },
+  })
+  try {
+    await parentSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
+      execa(
+        'pnpm',
+        [
+          'turbo',
+          'run',
+          'pack-for-isolated-tests',
+          '--output-logs',
+          'new-only',
+          '--ui',
+          'stream',
+        ],
+        {
+          cwd: repositoryDirectory,
+          stdio: ['ignore', 'inherit', 'inherit'],
+        }
+      )
     )
-  )
-  return parentSpan
-    .traceChild('linkPackages')
-    .traceAsyncFn(() => linkPackages({ repoDir: repositoryDirectory }))
+    return await parentSpan
+      .traceChild('linkPackages')
+      .traceAsyncFn(() => linkPackages({ repoDir: repositoryDirectory }))
+  } finally {
+    await release()
+  }
 }
 
 /**
@@ -368,7 +426,9 @@ async function createNextInstall({
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
 
         // `@next/env` is a dependency of `next`, so it only resolves to the
-        // local tarball if the overrides were applied.
+        // local tarball if the overrides were applied. Every generic isolated
+        // install reaches this guard, but the lockfile fallback short-circuits
+        // off when the default linker exposes its virtual-store path.
         if (!combinedDependencies['@next/env']) {
           const envDir = await fs.realpath(
             path.join(
@@ -376,7 +436,18 @@ async function createNextInstall({
               '../@next/env'
             )
           )
-          if (!envDir.includes('@next+env@file')) {
+          const envTarballPath = pkgPaths.get('@next/env')
+          if (
+            !envDir.includes('@next+env@file') &&
+            !(
+              envTarballPath &&
+              (await lockfileResolvesLocalTarball(
+                installDir,
+                '@next/env',
+                envTarballPath
+              ))
+            )
+          ) {
             throw new Error(
               `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
                 'the workspace overrides were not applied to the install'

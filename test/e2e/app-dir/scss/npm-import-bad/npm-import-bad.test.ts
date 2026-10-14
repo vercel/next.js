@@ -1,24 +1,20 @@
 /* eslint-env jest */
 
-import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('CSS Import from node_modules', () => {
-  const { next, skipped, isTurbopack, isRspack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
-    skipStart: isNextStart,
-    skipDeployment: true,
+    skipStart: !isNextDev,
     dependencies: { sass: '1.54.0' },
   })
 
-  if (skipped) {
-    return
-  }
-
-  if (isNextStart) {
+  if (!isNextDev) {
     it('should fail the build', async () => {
-      const { exitCode, cliOutput } = await next.build()
-      expect(exitCode).not.toBe(0)
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
+
       if (isRspack) {
         expect(cliOutput).toMatch(
           /RspackResolver\(NotFound\(\\?"nprogress\/nprogress.css\\?"\)\)/
@@ -27,7 +23,7 @@ describe('CSS Import from node_modules', () => {
         expect(cliOutput).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
       }
       expect(cliOutput).toMatch(/Build failed|Build error occurred/)
-    })
+    }, 240_000)
   } else {
     it('should show a build error', async () => {
       const browser = await next.browser('/')

@@ -34,8 +34,10 @@ type RevalidationState = Required<
 
 function cloneRevalidationState(store: WorkStore): RevalidationState {
   return {
+    // revalidateTag updates revalidatedAt in place when the tag/profile already
+    // exists, so snapshot the items as well as the array.
     pendingRevalidatedTags: store.pendingRevalidatedTags
-      ? [...store.pendingRevalidatedTags]
+      ? store.pendingRevalidatedTags.map((item) => ({ ...item }))
       : [],
     pendingRevalidates: { ...store.pendingRevalidates },
     pendingRevalidateWrites: store.pendingRevalidateWrites
@@ -48,13 +50,13 @@ function diffRevalidationState(
   prev: RevalidationState,
   curr: RevalidationState
 ): RevalidationState {
-  const prevTagsWithProfile = new Set(
+  const prevTagsWithProfile = new Map(
     prev.pendingRevalidatedTags.map((item) => {
       const profileKey =
         typeof item.profile === 'object'
           ? JSON.stringify(item.profile)
           : item.profile || ''
-      return `${item.tag}:${profileKey}`
+      return [`${item.tag}:${profileKey}`, item.revalidatedAt] as const
     })
   )
   const prevRevalidateWrites = new Set(prev.pendingRevalidateWrites)
@@ -64,7 +66,13 @@ function diffRevalidationState(
         typeof item.profile === 'object'
           ? JSON.stringify(item.profile)
           : item.profile || ''
-      return !prevTagsWithProfile.has(`${item.tag}:${profileKey}`)
+      const previousRevalidatedAt = prevTagsWithProfile.get(
+        `${item.tag}:${profileKey}`
+      )
+      return (
+        previousRevalidatedAt === undefined ||
+        item.revalidatedAt > previousRevalidatedAt
+      )
     }),
     pendingRevalidates: Object.fromEntries(
       Object.entries(curr.pendingRevalidates).filter(
@@ -89,7 +97,7 @@ async function revalidateTags(
     return
   }
 
-  const handlers = getCacheHandlers()
+  const handlers = getCacheHandlers() ?? []
   const promises: Promise<void>[] = []
 
   // Group tags by profile for batch processing
@@ -167,7 +175,7 @@ async function revalidateTags(
     // If profile is not found and not 'max', durations will be undefined
     // which will trigger immediate expiration in the cache handler
 
-    for (const handler of handlers || []) {
+    for (const handler of handlers) {
       if (profile) {
         promises.push(handler.updateTags?.(tagsForProfile, durations))
       } else {

@@ -369,7 +369,7 @@ describe('cached navigations', () => {
 
     await page.clock.fastForward(60_000)
 
-    // Second navigation — fallback params are deferred to the runtime stage,
+    // Second navigation — fallback params are deferred to the PrefetchRuntime stage,
     // so they should NOT be visible while the dynamic request is blocked
     await act(async () => {
       await act(
@@ -405,33 +405,56 @@ describe('cached navigations', () => {
     )
   })
 
-  it.each([
-    { source: 'dynamic RSC', top: 't2' },
-    { source: 'initial HTML with partial resume', top: 't3' },
-  ])(
-    'caches a required fallback shell from $source for repeated navigations',
-    async ({ source, top }) => {
-      const route = `/required-fallback-params/${top}/b1`
-      const startDate = Date.now()
-      let bottomIsStatic = false
-      let page: Playwright.Page
-      let initialDocument: Promise<Playwright.Response>
-      const browser = await next.browser(
-        source === 'dynamic RSC' ? `/fallback-params-hub/${top}/start` : route,
-        {
-          async beforePageLoad(p: Playwright.Page) {
-            page = p
-            await page.clock.install()
-            await page.clock.setFixedTime(startDate)
-            initialDocument = page.waitForResponse((response) =>
-              response.request().isNavigationRequest()
-            )
-          },
-        }
-      )
-      const act = createRouterAct(page)
+  // The legacy Vercel builder incorrectly prerenders params omitted from
+  // generateStaticParams.
+  // @gate !deploy || adapter
+  it('caches only eligible params from a cold RSC navigation for repeated navigations', async () => {
+    const top = 't2'
+    const route = `/required-fallback-params/${top}/b1`
+    const startDate = Date.now()
+    let page: Playwright.Page
+    const browser = await next.browser(`/fallback-params-hub/${top}/start`, {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+        await page.clock.install()
+        await page.clock.setFixedTime(startDate)
+      },
+    })
+    const act = createRouterAct(page)
 
-      if (source === 'dynamic RSC') {
+    await act(
+      async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${route}"]`)
+          .click()
+        await browser.elementByCss(`a[href="${route}"]`).click()
+      },
+      { includes: 'Dynamic content' }
+    )
+
+    expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
+    expect(await browser.elementById('bottom').text()).toBe('Bottom: b1')
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
+    )
+
+    for (const [index, step] of ['a', 'b'].entries()) {
+      const hub = `/fallback-params-hub/${top}/${step}`
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${hub}"]`)
+            .click()
+          await browser.elementByCss(`a[href="${hub}"]`).click()
+        },
+        { includes: `Fallback params hub ${step}` }
+      )
+      expect(await browser.elementByCss('h1').text()).toBe(
+        `Fallback params hub ${step}`
+      )
+      await page.clock.setFixedTime(startDate + (index + 1) * 60_000)
+
+      await act(async () => {
         await act(
           async () => {
             await browser
@@ -439,79 +462,112 @@ describe('cached navigations', () => {
               .click()
             await browser.elementByCss(`a[href="${route}"]`).click()
           },
-          { includes: 'Dynamic content' }
+          { includes: 'Dynamic content', block: true }
         )
-      } else {
-        // Inspect the document that populated this browser's cache, not a
-        // separate prefetch or a later request after the shell was cached.
-        const html = await (await initialDocument).text()
-        const [shell, resume] = html.split('<!-- PPR_BOUNDARY_SENTINEL -->')
-        expect(resume).toBeDefined()
-        const $ = cheerio.load(shell)
-        expect($('#top').text()).toBe(`Top: ${top}`)
-        bottomIsStatic = $('#bottom').length > 0
-        expect($('#bottom-boundary').text()).toBe(
-          bottomIsStatic ? 'Bottom: b1' : 'Loading bottom...'
+
+        expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
+        expect(await browser.elementById('bottom-boundary').text()).toBe(
+          'Loading bottom...'
         )
-        expect($('#connection-boundary').text()).toBe('Loading connection...')
-        expect(resume).toContain('id="dynamic-content"')
-      }
+        expect(await browser.elementById('connection-boundary').text()).toBe(
+          'Loading connection...'
+        )
+      })
 
       expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
       expect(await browser.elementById('bottom').text()).toBe('Bottom: b1')
       expect(await browser.elementById('dynamic-content').text()).toBe(
         'Dynamic content'
       )
+    }
+  })
 
-      for (const [index, step] of ['a', 'b'].entries()) {
-        const hub = `/fallback-params-hub/${top}/${step}`
+  // The legacy Vercel builder incorrectly prerenders params omitted from
+  // generateStaticParams.
+  // @gate !deploy || adapter
+  it('caches only eligible params from an initial HTML on-demand prerender for repeated navigations', async () => {
+    const top = 't3'
+    const route = `/required-fallback-params/${top}/b1`
+    const startDate = Date.now()
+    let page: Playwright.Page
+    let initialDocument: Promise<Playwright.Response>
+    const browser = await next.browser(route, {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+        await page.clock.install()
+        await page.clock.setFixedTime(startDate)
+        initialDocument = page.waitForResponse((response) =>
+          response.request().isNavigationRequest()
+        )
+      },
+    })
+    const act = createRouterAct(page)
+
+    // Inspect the document that populated this browser's cache, not a separate
+    // prefetch or a later request after the shell was cached.
+    const response = await initialDocument
+    expect(response.status()).toBe(200)
+    const html = await response.text()
+    const [shell, resume] = html.split('<!-- PPR_BOUNDARY_SENTINEL -->')
+    expect(resume).toBeDefined()
+    const $ = cheerio.load(shell)
+    expect($('#top').text()).toBe(`Top: ${top}`)
+    expect($('#bottom').length).toBe(0)
+    expect($('#bottom-boundary').text()).toBe('Loading bottom...')
+    expect($('#dynamic-content').length).toBe(0)
+    expect($('#connection-boundary').text()).toBe('Loading connection...')
+    expect(resume).toContain('id="bottom"')
+    expect(resume).toContain('id="dynamic-content"')
+
+    expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
+    expect(await browser.elementById('bottom').text()).toBe('Bottom: b1')
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content'
+    )
+
+    for (const [index, step] of ['a', 'b'].entries()) {
+      const hub = `/fallback-params-hub/${top}/${step}`
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${hub}"]`)
+            .click()
+          await browser.elementByCss(`a[href="${hub}"]`).click()
+        },
+        { includes: `Fallback params hub ${step}` }
+      )
+      expect(await browser.elementByCss('h1').text()).toBe(
+        `Fallback params hub ${step}`
+      )
+      await page.clock.setFixedTime(startDate + (index + 1) * 60_000)
+
+      await act(async () => {
         await act(
           async () => {
             await browser
-              .elementByCss(`input[data-link-accordion="${hub}"]`)
+              .elementByCss(`input[data-link-accordion="${route}"]`)
               .click()
-            await browser.elementByCss(`a[href="${hub}"]`).click()
+            await browser.elementByCss(`a[href="${route}"]`).click()
           },
-          { includes: `Fallback params hub ${step}` }
+          { includes: 'Dynamic content', block: true }
         )
-        expect(await browser.elementByCss('h1').text()).toBe(
-          `Fallback params hub ${step}`
-        )
-        await page.clock.setFixedTime(startDate + (index + 1) * 60_000)
-
-        await act(async () => {
-          await act(
-            async () => {
-              await browser
-                .elementByCss(`input[data-link-accordion="${route}"]`)
-                .click()
-              await browser.elementByCss(`a[href="${route}"]`).click()
-            },
-            { includes: 'Dynamic content', block: true }
-          )
-
-          // Hydration retains the static content of its actual prerender. A
-          // cold dynamic RSC render retains the required shell's unresolved
-          // bottom param.
-          expect(await browser.elementByCss('main').text()).toContain(
-            `Top: ${top}`
-          )
-          expect(await browser.elementById('bottom-boundary').text()).toBe(
-            bottomIsStatic ? 'Bottom: b1' : 'Loading bottom...'
-          )
-          expect(await browser.elementById('connection-boundary').text()).toBe(
-            'Loading connection...'
-          )
-        })
 
         expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
-        expect(await browser.elementById('bottom').text()).toBe('Bottom: b1')
-        expect(await browser.elementById('dynamic-content').text()).toBe(
-          'Dynamic content'
+        expect(await browser.elementById('bottom-boundary').text()).toBe(
+          'Loading bottom...'
         )
-      }
+        expect(await browser.elementById('connection-boundary').text()).toBe(
+          'Loading connection...'
+        )
+      })
+
+      expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
+      expect(await browser.elementById('bottom').text()).toBe('Bottom: b1')
+      expect(await browser.elementById('dynamic-content').text()).toBe(
+        'Dynamic content'
+      )
     }
-  )
+  })
 
   it('caches a fully static on-demand param for repeated navigations', async () => {
     const route = '/fully-static-params/t4'
@@ -1235,6 +1291,63 @@ describe('cached navigations', () => {
     )
   })
 
+  it('reuses cached page segment across fallback params after a draft mode HTML load', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser(
+      '/api/draft/enable?to=/with-fallback-params/foo',
+      {
+        async beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      }
+    )
+    const act = createRouterAct(page)
+
+    try {
+      await retry(async () => {
+        expect(
+          await browser.elementById('connection-boundary').text()
+        ).toContain('Dynamic content')
+      })
+      expect(await browser.elementById('params-boundary').text()).toContain(
+        'Param: foo'
+      )
+
+      await act(async () => {
+        await act(
+          async () => {
+            await browser
+              .elementByCss('a[href="/with-fallback-params/bar"]')
+              .click()
+          },
+          {
+            includes: 'Dynamic content',
+            block: true,
+          }
+        )
+
+        expect(await browser.elementById('cached-content').text()).toContain(
+          'Cached content'
+        )
+        expect(await browser.elementById('params-boundary').text()).toBe(
+          'Loading params...'
+        )
+        expect(await browser.elementById('connection-boundary').text()).toBe(
+          'Loading connection...'
+        )
+      })
+
+      expect(await browser.elementById('params-boundary').text()).toContain(
+        'Param: bar'
+      )
+      expect(await browser.elementById('connection-boundary').text()).toContain(
+        'Dynamic content'
+      )
+    } finally {
+      await page.context().clearCookies()
+    }
+  })
+
   it('does not leak resolved param-specific content across params when using prefetch={true}', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/with-fallback-params', {
@@ -1354,5 +1467,154 @@ describe('cached navigations', () => {
 
   it('runtime-caches a route with prefetch = "partial"', async () => {
     await expectRuntimeCachedOnSecondNavigation('/prefetch-partial')
+  })
+
+  it('cache values are consistent across the HTML shell, static prefetches, and cached navigations', async () => {
+    const href = '/cache-from-rdc'
+    const htmlId = 'cached-data'
+
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    const getRenderId = async (): Promise<string> => {
+      return await browser.elementById('render-id').text()
+    }
+
+    // Reveal a link to the page. This should result in a static prefetch.
+    await act(async () => {
+      const linkToggle = await browser.elementByCss(
+        `[data-prefetch="auto"] input[data-link-accordion="${href}"]`
+      )
+      await linkToggle.click()
+    }, [
+      {
+        includes: 'cache-timestamp:',
+        kind: 'static',
+      },
+    ])
+
+    //===========================
+    // Test client navigation
+    //===========================
+
+    // Navigate to the page.
+    const { cachedValueFromPrefetch, prefetchRenderId } = await act(
+      async () => {
+        await browser
+          .elementByCss(`[data-prefetch="auto"] a[href="${href}"]`)
+          .click()
+
+        const cachedValueFromPrefetch = await browser.elementById(htmlId).text()
+        const prefetchRenderId = await getRenderId()
+        return { cachedValueFromPrefetch, prefetchRenderId }
+      },
+      { includes: 'Dynamic data' }
+    )
+    {
+      expect(await browser.elementById('dynamic-data').text()).toBe(
+        'Dynamic data'
+      )
+
+      // The navigation response should also contain the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cachedValueFromPrefetch
+      )
+      const clientNavRenderId = await getRenderId()
+
+      // Navigate back to the index page.
+      await act(
+        () => browser.elementByCss('a[href="/"]').click(),
+        'no-requests'
+      )
+      // Then, navigate to the page again (without a prefetch).
+      // We should re-use the cacheable part of the UI from the navigation.
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`[data-prefetch="false"] a[href="${href}"]`)
+            .click()
+
+          // Make sure we're showing the content from the cached navigation,
+          // not the static prefetch -- otherwise, the cache consistency check
+          // would be meaningless.
+          const visibleRenderId = await getRenderId()
+          expect(visibleRenderId).not.toBe(prefetchRenderId)
+          expect(visibleRenderId).toBe(clientNavRenderId)
+
+          // The cacheable UI extracted from the navigation (shown while navigating)
+          // should have the same cache value.
+          expect(await browser.elementById(htmlId).text()).toBe(
+            cachedValueFromPrefetch
+          )
+        },
+        { includes: 'Dynamic data' }
+      )
+
+      expect(await browser.elementById('dynamic-data').text()).toBe(
+        'Dynamic data'
+      )
+
+      // The second navigation result should have the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cachedValueFromPrefetch
+      )
+      // We have uncached data, so this was a fresh render.
+      expect(await getRenderId()).not.toBe(clientNavRenderId)
+    }
+
+    //===========================
+    // Test initial load
+    //===========================
+    {
+      await browser.refresh()
+
+      expect(await browser.elementById('dynamic-data').text()).toBe(
+        'Dynamic data'
+      )
+      // The initial load should have the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cachedValueFromPrefetch
+      )
+      const initialLoadRenderId = await getRenderId()
+
+      // Navigate to the index page.
+      await act(() => browser.elementByCss('a[href="/"]').click())
+      // Then, navigate back to the page without a prefetch.
+      // We should re-use the cacheable part of the UI from the navigation.
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`[data-prefetch="false"] a[href="${href}"]`)
+            .click()
+
+          // Make sure we're showing the content from the cached navigation.
+          const visibleRenderId = await getRenderId()
+          expect(visibleRenderId).toBe(initialLoadRenderId)
+
+          // The cacheable UI extracted from the navigation (shown while navigating)
+          // should have the same cache value.
+          expect(await browser.elementById(htmlId).text()).toBe(
+            cachedValueFromPrefetch
+          )
+        },
+        { includes: 'Dynamic data' }
+      )
+
+      expect(await browser.elementById('dynamic-data').text()).toBe(
+        'Dynamic data'
+      )
+
+      // The second navigation result should have the same cache value.
+      expect(await browser.elementById(htmlId).text()).toBe(
+        cachedValueFromPrefetch
+      )
+      // We have uncached data, so this was a fresh render.
+      expect(await getRenderId()).not.toBe(initialLoadRenderId)
+    }
   })
 })

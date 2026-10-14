@@ -8,7 +8,16 @@ const { bold } = require('kleur')
 const yargs = require('yargs/yargs')
 const { hideBin } = require('yargs/helpers')
 
-const WORKING_PATH = '/root/actions-runner/_work/next.js/next.js/'
+// Test results contain absolute paths from the GitHub Actions job that ran
+// the tests. GitHub-hosted runners use the same workspace path for that job
+// and this one, so strip `GITHUB_WORKSPACE` to get repo-relative paths.
+if (!process.env.GITHUB_WORKSPACE) {
+  console.error(
+    'missing GITHUB_WORKSPACE env, set it to the workspace path used by the CI job that produced the test results (e.g. /home/runner/work/next.js/next.js)'
+  )
+  process.exit(1)
+}
+const WORKING_PATH = process.env.GITHUB_WORKSPACE.replace(/\/*$/, '/')
 
 const INITIALIZING_TEST_CASES = [
   'compile successfully',

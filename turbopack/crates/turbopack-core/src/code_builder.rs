@@ -9,7 +9,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
@@ -25,7 +25,7 @@ use crate::{
 
 /// A per-section source map: either an opaque serialized map or a structured one whose
 /// `sourcesContent` is shared rather than copied when the section is embedded.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
 pub enum SectionMap {
     Raw(Rope),
     Structured(Box<StructuredSourceMap>),
