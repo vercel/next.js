@@ -79,7 +79,6 @@ import {
   MIDDLEWARE_MANIFEST,
   APP_PATHS_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
-  RSC_MODULE_TYPES,
   NEXT_FONT_MANIFEST,
   SUBRESOURCE_INTEGRITY_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
@@ -2498,7 +2497,6 @@ export default async function build(
                 let isEnsureStaticPage = false
                 let isSSG = false
                 let isStatic = false
-                let isServerComponent = false
                 let ssgPageRoutes: string[] | null = null
                 let pagePath = ''
 
@@ -2589,10 +2587,6 @@ export default async function build(
                   : staticInfo?.runtime
 
                 if (!isCompileMode) {
-                  isServerComponent =
-                    pageType === 'app' &&
-                    staticInfo?.rsc !== RSC_MODULE_TYPES.client
-
                   if (pageType === 'app' || !isReservedPage(page)) {
                     try {
                       let edgeInfo: any
@@ -2834,16 +2828,10 @@ export default async function build(
                           serverPropsPages.add(page)
                         } else if (
                           workerResult.isStatic &&
-                          !isServerComponent &&
                           (await customAppGetInitialPropsPromise) === false
                         ) {
                           staticPages.add(page)
                           isStatic = true
-                        } else if (isServerComponent) {
-                          // This is a static server component page that doesn't have
-                          // gSP or gSSP. We still treat it as a SSG page.
-                          ssgPages.add(page)
-                          isSSG = true
                         }
 
                         if (hasPages404 && page === '/404') {

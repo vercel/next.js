@@ -31,7 +31,6 @@ import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
-  RSC_MODULE_TYPES,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
@@ -928,9 +927,6 @@ export function onDemandEntryHandler({
       })
 
       const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
-      const isServerComponent =
-        isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-
       let pageRuntime = staticInfo.runtime
 
       runDependingOnPageType({
@@ -938,8 +934,8 @@ export function onDemandEntryHandler({
         pageRuntime,
         pageType: pageBundleType,
         onClient: () => {
-          // Skip adding the client entry for app / Server Components.
-          if (isServerComponent || isInsideAppDir) {
+          // Skip adding the client entry for app pages.
+          if (isInsideAppDir) {
             return
           }
           added.set(COMPILER_NAMES.client, addEntry(COMPILER_NAMES.client))
