@@ -12,9 +12,6 @@ use crate::backend::{
     TaskDataCategory, operation::ExecuteContext, storage_schema::TaskStorageAccessors,
 };
 
-/// The maximum number of leaf distance updates processed in one step.
-const MAX_COUNT_BEFORE_YIELD: usize = 1000;
-
 /// We avoid incrementing the leaf distance by 1 each time to avoid frequent updates.
 /// Instead we use a buffer zone that shrinks as the leaf distance increases.
 /// This constant defines the size of that buffer zone at leaf distance 0.
@@ -52,10 +49,6 @@ impl LeafDistanceUpdateQueue {
         Self::default()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.queue.is_empty()
-    }
-
     pub fn push(
         &mut self,
         task_id: TaskId,
@@ -84,39 +77,32 @@ impl LeafDistanceUpdateQueue {
         };
     }
 
-    /// Executes a single step of the queue. Returns true, when the queue is empty.
-    pub fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
-        let mut remaining = MAX_COUNT_BEFORE_YIELD;
-        while remaining > 0 {
-            if let Some((Reverse(queue_dependencies_distance), task_id)) = self.queue.pop() {
-                let &mut LeafDistanceUpdate {
-                    dependencies_distance,
-                    dependencies_max_distance_in_buffer,
-                    ref mut done,
-                    #[cfg(feature = "trace_leaf_distance_update")]
-                    ref span,
-                } = self.leaf_distance_updates.get_mut(&task_id).unwrap();
-                if queue_dependencies_distance != dependencies_distance {
-                    // Stale entry in queue
-                    // Re-enqueue to keep the ordering correct
-                    self.queue.push((Reverse(dependencies_distance), task_id));
-                    continue;
-                }
+    /// Executes all jobs in the queue.
+    pub fn execute(&mut self, ctx: &mut ExecuteContext<'_>) {
+        while let Some((Reverse(queue_dependencies_distance), task_id)) = self.queue.pop() {
+            let &mut LeafDistanceUpdate {
+                dependencies_distance,
+                dependencies_max_distance_in_buffer,
+                ref mut done,
                 #[cfg(feature = "trace_leaf_distance_update")]
-                let _guard = span.as_ref().map(|s| s.clone().entered());
-                *done = true;
-                self.update_leaf_distance(
-                    ctx,
-                    task_id,
-                    dependencies_distance,
-                    dependencies_max_distance_in_buffer,
-                );
-                remaining -= 1;
-            } else {
-                return true;
+                ref span,
+            } = self.leaf_distance_updates.get_mut(&task_id).unwrap();
+            if queue_dependencies_distance != dependencies_distance {
+                // Stale entry in queue
+                // Re-enqueue to keep the ordering correct
+                self.queue.push((Reverse(dependencies_distance), task_id));
+                continue;
             }
+            #[cfg(feature = "trace_leaf_distance_update")]
+            let _guard = span.as_ref().map(|s| s.clone().entered());
+            *done = true;
+            self.update_leaf_distance(
+                ctx,
+                task_id,
+                dependencies_distance,
+                dependencies_max_distance_in_buffer,
+            );
         }
-        false
     }
 
     fn update_leaf_distance(
@@ -167,12 +153,5 @@ impl LeafDistanceUpdateQueue {
             );
         }
         task.set_leaf_distance(leaf_distance);
-    }
-
-    pub fn execute(&mut self, ctx: &mut ExecuteContext<'_>) {
-        if self.is_empty() {
-            return;
-        }
-        while !self.process(ctx) {}
     }
 }

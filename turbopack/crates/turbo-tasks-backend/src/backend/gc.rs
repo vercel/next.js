@@ -302,7 +302,7 @@ impl TurboTasksBackend {
             let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &noop_collector);
             let mut queue = AggregationUpdateQueue::new();
             queue.extend_balance_edges(deferred, &mut ctx);
-            while !queue.process(&mut ctx) {}
+            queue.execute(&mut ctx);
         }
 
         // Collect all active roots

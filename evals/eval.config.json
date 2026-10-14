@@ -16,10 +16,10 @@
   },
   "agent-050-optimize-static-shell": {
     "skills": ["next-cache-components-optimizer"],
+    "publish": false,
     "timeout": 7200
   },
   "agent-054-cache-components-empty-static-params": {
-    "skills": ["next-cache-components-adoption"],
     "timeout": 1800
   },
   "agent-055-stale-build-error": {

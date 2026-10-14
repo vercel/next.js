@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="bdc42f8b-8d80-c59c-9d6a-5809b45f190d")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -2283,6 +2283,62 @@ function getAssetSuffixFromScriptSrc() {
     const qi = src.indexOf('?');
     return qi >= 0 ? src.slice(qi) : '';
 }
+/**
+ * Whether a `src` / `href` attribute value refers to `url`: either exactly, or
+ * with an additional query string (e.g. `?dpl=...`). Also matches the decoded
+ * form of `url`.
+ *
+ * TODO(PACK-2140): drop the decoded variant once all filenames are guaranteed
+ * to be escaped.
+ */ function matchesChunkUrl(value, url, decodedUrl) {
+    return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?'));
+}
+// These lookups only search `<head>`: the runtime inserts its chunk tags there,
+// and chunk tags rendered into the HTML are expected there too. Tags in
+// `<body>` are deliberately ignored, so that the cost of a lookup does not grow
+// with the size of the page content. A chunk whose tag is only in `<body>` is
+// loaded again through a new tag in `<head>`, and unloading a chunk leaves its
+// `<body>` tags in place.
+//
+// They iterate the tag collection and compare attribute values as plain
+// strings. `querySelectorAll` with attribute selectors would need the URL to be
+// CSS-escaped.
+/**
+ * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
+ */ function findChunkScripts(url) {
+    const decodedUrl = decodeURI(url);
+    const scripts = document.head.getElementsByTagName('script');
+    const result = [];
+    for(let i = 0; i < scripts.length; i++){
+        const script = scripts[i];
+        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+            result.push(script);
+        }
+    }
+    return result;
+}
+/**
+ * Returns all `<link>` elements in `<head>` whose `href` refers to `url`.
+ * With `stylesheetsOnly`, only links whose `rel` is exactly `stylesheet`
+ * (ASCII case-insensitive) are returned.
+ */ function findChunkLinks(url, stylesheetsOnly = false) {
+    const decodedUrl = decodeURI(url);
+    const links = document.head.getElementsByTagName('link');
+    const result = [];
+    for(let i = 0; i < links.length; i++){
+        const link = links[i];
+        if ((!stylesheetsOnly || link.getAttribute('rel')?.toLowerCase() === 'stylesheet') && matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)) {
+            result.push(link);
+        }
+    }
+    return result;
+}
+/**
+ * Returns all `<link rel=stylesheet>` elements in `<head>` whose `href`
+ * refers to `url`.
+ */ function findChunkStylesheets(url) {
+    return findChunkLinks(url, true);
+}
 let BACKEND;
 /**
  * Maps chunk paths to the corresponding resolver.
@@ -2422,10 +2478,8 @@ let BACKEND;
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
         } else {
-            // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-            const decodedChunkUrl = decodeURI(chunkUrl);
             if (isCss(chunkUrl)) {
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                const previousLinks = findChunkStylesheets(chunkUrl);
                 if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
@@ -2454,9 +2508,9 @@ let BACKEND;
                     document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
-                const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                const previousScripts = findChunkScripts(chunkUrl);
                 if (previousScripts.length > 0) {
-                    for (const script of Array.from(previousScripts)){
+                    for (const script of previousScripts){
                         script.addEventListener('error', ()=>{
                             // Drop the failed tag so a retry can re-add it cleanly.
                             script.remove();
@@ -2505,20 +2559,16 @@ let DEV_BACKEND;
             // Strip query string so we match links regardless of cache-busting
             // params (e.g. ?ts=) that may differ between HMR updates.
             const baseChunkUrl = chunkUrl.split('?')[0];
-            // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-            const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
             if (isCss(chunkUrl)) {
-                const links = document.querySelectorAll(`link[href="${baseChunkUrl}"],link[href^="${baseChunkUrl}?"],link[href="${decodedBaseChunkUrl}"],link[href^="${decodedBaseChunkUrl}?"]`);
-                for (const link of Array.from(links)){
+                for (const link of findChunkLinks(baseChunkUrl)){
                     link.remove();
                 }
             } else if (isJs(chunkUrl)) {
                 // Unloading a JS chunk would have no effect, as it lives in the JS
                 // runtime once evaluated.
-                // However, we still want to remove the script tag from the DOM to keep
+                // However, we still want to remove the script tag from `<head>` to keep
                 // the HTML somewhat consistent from the user's perspective.
-                const scripts = document.querySelectorAll(`script[src="${baseChunkUrl}"],script[src^="${baseChunkUrl}?"],script[src="${decodedBaseChunkUrl}"],script[src^="${decodedBaseChunkUrl}?"]`);
-                for (const script of Array.from(scripts)){
+                for (const script of findChunkScripts(baseChunkUrl)){
                     script.remove();
                 }
             } else {
@@ -2534,8 +2584,7 @@ let DEV_BACKEND;
                 // Strip query string so we match links regardless of cache-busting
                 // params (e.g. ?ts=) that may differ between HMR updates.
                 const baseChunkUrl = chunkUrl.split('?')[0];
-                const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`);
+                const previousLinks = findChunkStylesheets(baseChunkUrl);
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
                 link.crossOrigin = CROSS_ORIGIN;
@@ -2565,7 +2614,7 @@ let DEV_BACKEND;
                     // First load the new CSS, then remove the old ones. This prevents visible
                     // flickering that would happen in-between removing the previous CSS and
                     // loading the new one.
-                    for (const previousLink of Array.from(previousLinks))previousLink.remove();
+                    for (const previousLink of previousLinks)previousLink.remove();
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
                     resolve();
@@ -2610,5 +2659,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=bdc42f8b-8d80-c59c-9d6a-5809b45f190d
+//# debugId=bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
