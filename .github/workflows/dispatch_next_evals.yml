@@ -170,7 +170,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@d0369a3855d9dd194c199929fd3ae7074b36e63a # PR #138
+    uses: vercel/next-evals-oss/.github/workflows/release-evals.yml@362f3171c89d62cab234b86e569d750f7f347b67 # PR #138
     with:
       releaseKind: ${{ needs.identify.outputs.release_kind }}
       nextVersion: ${{ needs.identify.outputs.version }}
