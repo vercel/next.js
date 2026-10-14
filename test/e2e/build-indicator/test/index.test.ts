@@ -20,22 +20,24 @@ const installCheckVisible = (browser) => {
   })()`)
 }
 
-const installCheckCompilingWithIssueVisible = (browser) => {
+const installCheckCompilingReplacesIssue = (browser) => {
   return browser.eval(`(function() {
-    sessionStorage.setItem('showedCompilingWithIssueWithoutLogo', 'false')
+    sessionStorage.setItem('showedCompilingInPlaceOfIssue', 'false')
     window.checkInterval = setInterval(function() {
       const root = document.querySelector('nextjs-portal').shadowRoot
       const statusElement = root.querySelector('[data-indicator-status]')
       const issuesElement = root.querySelector('[data-issues]')
       const logoButton = root.querySelector('[data-nextjs-dev-tools-button]')
+      const badge = root.querySelector('[data-next-badge]')
 
       const isVisible =
         statusElement?.textContent.includes('Compiling') &&
-        issuesElement !== null &&
+        issuesElement === null &&
         logoButton !== null &&
-        getComputedStyle(logoButton).display === 'none'
+        getComputedStyle(logoButton).display === 'none' &&
+        badge?.getAttribute('data-error') === 'false'
       if (isVisible) {
-        sessionStorage.setItem('showedCompilingWithIssueWithoutLogo', 'true')
+        sessionStorage.setItem('showedCompilingInPlaceOfIssue', 'true')
         clearInterval(window.checkInterval)
       }
     }, 5)
@@ -103,7 +105,7 @@ describe('Build Activity Indicator', () => {
         },
       })
 
-      it('shows compiling status without the logo while an issue is present', async () => {
+      it('shows compiling status in place of an existing issue', async () => {
         const browser = await next.browser('/app/issue')
 
         await retry(async () => {
@@ -115,13 +117,13 @@ describe('Build Activity Indicator', () => {
           ).toContain('Issue')
         })
 
-        await installCheckCompilingWithIssueVisible(browser)
+        await installCheckCompilingReplacesIssue(browser)
         await browser.elementByCss('#to-slow').click()
 
         await retry(async () => {
           expect(
             await browser.eval(
-              `sessionStorage.getItem('showedCompilingWithIssueWithoutLogo')`
+              `sessionStorage.getItem('showedCompilingInPlaceOfIssue')`
             )
           ).toBe('true')
         })

@@ -114,6 +114,8 @@ export function NextLogo({
     state.cacheIndicator
   )
   const showStatusIndicator = displayStatus !== Status.None
+  const showIssues =
+    !showStatusIndicator && (isErrorExpanded || state.disableDevIndicator)
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
@@ -437,8 +439,8 @@ export function NextLogo({
       </style>
       <div
         data-next-badge
-        data-error={hasError && !insightsOnly}
-        data-insights-only={insightsOnly}
+        data-error={hasError && !insightsOnly && !showStatusIndicator}
+        data-insights-only={insightsOnly && !showStatusIndicator}
         data-error-expanded={isExpanded}
         data-status={displayStatus}
         data-cache-badge={cacheBadge ?? undefined}
@@ -470,7 +472,7 @@ export function NextLogo({
           {isExpanded && (
             <>
               {/* Error badge has priority over cache indicator */}
-              {(isErrorExpanded || state.disableDevIndicator) && (
+              {showIssues && (
                 <div data-issues data-toast-pill>
                   <button
                     data-issues-open
