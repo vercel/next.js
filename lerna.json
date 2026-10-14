@@ -7,7 +7,7 @@
     "version": {
       "exact": true,
       "allowBranch": [
-        "canary"
+        "releases/lts/active"
       ]
     }
   },
