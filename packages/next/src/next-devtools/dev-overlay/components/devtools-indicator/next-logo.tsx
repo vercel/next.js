@@ -460,7 +460,7 @@ export function NextLogo({
               aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
               data-nextjs-dev-tools-button
               style={{
-                display: showStatusIndicator && !hasError ? 'none' : 'flex',
+                display: showStatusIndicator ? 'none' : 'flex',
               }}
               {...buttonProps}
             >

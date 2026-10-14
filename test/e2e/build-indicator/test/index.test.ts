@@ -22,17 +22,20 @@ const installCheckVisible = (browser) => {
 
 const installCheckCompilingWithIssueVisible = (browser) => {
   return browser.eval(`(function() {
-    sessionStorage.setItem('showedCompilingWithIssue', 'false')
+    sessionStorage.setItem('showedCompilingWithIssueWithoutLogo', 'false')
     window.checkInterval = setInterval(function() {
       const root = document.querySelector('nextjs-portal').shadowRoot
       const statusElement = root.querySelector('[data-indicator-status]')
       const issuesElement = root.querySelector('[data-issues]')
+      const logoButton = root.querySelector('[data-nextjs-dev-tools-button]')
 
       const isVisible =
         statusElement?.textContent.includes('Compiling') &&
-        issuesElement !== null
+        issuesElement !== null &&
+        logoButton !== null &&
+        getComputedStyle(logoButton).display === 'none'
       if (isVisible) {
-        sessionStorage.setItem('showedCompilingWithIssue', 'true')
+        sessionStorage.setItem('showedCompilingWithIssueWithoutLogo', 'true')
         clearInterval(window.checkInterval)
       }
     }, 5)
@@ -100,7 +103,7 @@ describe('Build Activity Indicator', () => {
         },
       })
 
-      it('shows compiling status while an issue is present', async () => {
+      it('shows compiling status without the logo while an issue is present', async () => {
         const browser = await next.browser('/app/issue')
 
         await retry(async () => {
@@ -118,7 +121,7 @@ describe('Build Activity Indicator', () => {
         await retry(async () => {
           expect(
             await browser.eval(
-              `sessionStorage.getItem('showedCompilingWithIssue')`
+              `sessionStorage.getItem('showedCompilingWithIssueWithoutLogo')`
             )
           ).toBe('true')
         })
