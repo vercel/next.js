@@ -29,7 +29,7 @@ Next.js dispatches Server Actions one at a time per client. If a user triggers t
 
 A consequence: do not rely on `Promise.all` to parallelize Server Actions from the client. If you need parallel work, do it inside a single Server Action, fetch in parallel from a [Server Component](/docs/app/getting-started/fetching-data#server-components), or use a [Route Handler](/docs/app/guides/backend-for-frontend#manipulating-data) for non-mutation requests.
 
-> **Good to know:** This is a property of the client dispatcher, not of Server Functions in general. Server-side, an action runs in its own request and can do anything an async function can do.
+> **Good to know:** This is a property of the client dispatcher, not of Server Functions in general. The server does not queue Server Actions. Each one runs in its own request as it arrives, and can do anything an async function can do.
 
 ## A single response carries data and UI
 
