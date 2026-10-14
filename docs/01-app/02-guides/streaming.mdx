@@ -614,11 +614,11 @@ Once streaming begins, the HTTP response headers (including the status code) hav
 
 ### Status codes
 
-When a `<Suspense>` fallback renders or a component suspends, the server must commit to `200 OK` in order to start sending the HTML stream. If a [`notFound()`](/docs/app/api-reference/functions/not-found) fires mid-stream, Next.js cannot go back and change the status to 404. Instead, it injects `<meta name="robots" content="noindex">` into the streamed HTML so that search engines don't index the page. Similarly, a [`redirect()`](/docs/app/api-reference/functions/redirect) mid-stream becomes a client-side redirect rather than an HTTP redirect header.
+When a `<Suspense>` fallback renders or a component suspends, the server must commit to `200 OK` to start sending the HTML stream. If a [`notFound()`](/docs/app/api-reference/functions/not-found) fires mid-stream, Next.js cannot go back and change the status to `404`. Instead, it injects `<meta name="robots" content="noindex">` into the streamed HTML so that search engines don't index the page. Similarly, a [`redirect()`](/docs/app/api-reference/functions/redirect) mid-stream becomes a client-side redirect rather than an HTTP redirect header.
 
 ### When does streaming start?
 
-The response body begins streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a component suspends under a `<Suspense>` boundary. To get a real HTTP status code for errors, place `notFound()` **before** any `await` or `<Suspense>` boundary:
+The response body begins streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a component suspends under a `<Suspense>` boundary. To return a `404`, place `notFound()` before the boundary:
 
 ```tsx filename="app/post/[slug]/page.tsx" switcher
 import { Suspense } from 'react'
@@ -637,7 +637,7 @@ export default async function PostPage({
 }) {
   const { slug } = await params
   const exists = await checkSlugExists(slug) // Fast existence check
-  if (!exists) notFound() // Real 404, before any Suspense boundary
+  if (!exists) notFound() // Returns a 404 before streaming starts
 
   return (
     <Suspense fallback={<p>Loading post...</p>}>
@@ -660,7 +660,7 @@ export async function generateStaticParams() {
 export default async function PostPage({ params }) {
   const { slug } = await params
   const exists = await checkSlugExists(slug) // Fast existence check
-  if (!exists) notFound() // Real 404, before any Suspense boundary
+  if (!exists) notFound() // Returns a 404 before streaming starts
 
   return (
     <Suspense fallback={<p>Loading post...</p>}>
@@ -670,7 +670,9 @@ export default async function PostPage({ params }) {
 }
 ```
 
-> **Good to know:** You can also reject requests early using [`proxy`](/docs/app/api-reference/file-conventions/proxy) (for redirects, rewrites, or returning a response) or [`next.config.js` redirects](/docs/app/api-reference/config/next-config-js/redirects). Both run before the page renders, so HTTP status codes are still available.
+> **Good to know:** With [Cache Components](/docs/app/getting-started/caching), Next.js sends the prerendered shell and headers that preload CSS, fonts, and images while the request-time check runs. This starts a `200` response even when the shell has no visible UI or the route sets `instant = false`. A later `notFound()` still renders the not-found UI and adds `noindex`.
+>
+> To return a request-time `404`, use [Proxy](/docs/app/api-reference/file-conventions/proxy) before the page renders. Proxy can also redirect, rewrite, or return a response before rendering starts. Redirects configured in [`next.config.js`](/docs/app/api-reference/config/next-config-js/redirects) also run before the page renders.
 
 ### Bots and crawlers
 
