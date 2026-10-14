@@ -9,6 +9,7 @@
  */
 
 import type { PostponedState, PrerenderOptions } from 'react-dom/static'
+import type { FlightResult } from './entry-base'
 import {
   renderToPipeableStream,
   resumeToPipeableStream,
@@ -553,6 +554,26 @@ export function renderToNodeFlightStream(
   const { signal, ...renderOptions } = opts ?? {}
   const pipeable = ComponentMod.renderToPipeableStream!(
     payload,
+    clientModules,
+    renderOptions
+  )
+  return pipeFlightToNodeStream(pipeable, signal)
+}
+
+export function renderResultToNodeStream(
+  ComponentMod: FlightComponentMod,
+  result: FlightResult,
+  clientModules: FlightClientModules,
+  opts: Omit<FlightRenderOptions, 'debugChannel'>
+): AnyStream {
+  if (!ComponentMod.renderToPipeableStream) {
+    throw new Error('renderToPipeableStream is not implemented')
+  }
+  // renderToPipeableStream serializes a Result through the ordinary request,
+  // reading Server Component output from the Result instead of rendering.
+  const { signal, ...renderOptions } = opts ?? {}
+  const pipeable = ComponentMod.renderToPipeableStream(
+    result,
     clientModules,
     renderOptions
   )
