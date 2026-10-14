@@ -342,6 +342,58 @@ struct DirtyContainerUpdate {
     current_session_clean_count: i32,
 }
 
+/// Builds the collectibles part of an [`AggregatedDataUpdate`] for an aggregating task that gains a
+/// new upper: the task's own collectible counts plus `+1` for every aggregated collectible with a
+/// positive count, combined into a single net count per collectible.
+///
+/// Entries whose own and aggregated contributions cancel out are omitted. This is common for tasks
+/// that drop or take the collectibles of their children: they hold a negative own count for each
+/// collectible of their subgraph. Without netting, every new upper of such a task would receive
+/// (and insert and remove again) twice the number of collectibles.
+///
+/// Applying the netted update yields the same counts in the upper as applying the own and the
+/// aggregated entries separately. Only intermediate presence flips within the same update are
+/// skipped; the set of collectibles whose presence changes between before and after is the same.
+/// A collectible whose combined count isn't representable (an own count of `i32::MAX`) keeps its
+/// two separate entries.
+///
+/// `own` and `aggregated_positive` must not contain duplicate keys. `capacity` must be an upper
+/// bound of the number of entries, so the update is allocated once.
+fn net_collectibles_update<K: Copy>(
+    own: impl Iterator<Item = (K, i32)>,
+    is_aggregated_positive: impl Fn(&K) -> bool,
+    aggregated_positive: impl Iterator<Item = K>,
+    is_own: impl Fn(&K) -> bool,
+    capacity: usize,
+) -> Vec<(K, i32)> {
+    let mut update = Vec::with_capacity(capacity);
+    let mut not_combined = SmallVec::<[K; 1]>::new();
+    for (key, count) in own {
+        let net = if is_aggregated_positive(&key) {
+            match count.checked_add(1) {
+                Some(net) => net,
+                None => {
+                    not_combined.push(key);
+                    count
+                }
+            }
+        } else {
+            count
+        };
+        if net != 0 {
+            update.push((key, net));
+        }
+    }
+    for key in aggregated_positive {
+        // Keys that also have an own count were already combined above.
+        if !is_own(&key) {
+            update.push((key, 1));
+        }
+    }
+    update.extend(not_combined.into_iter().map(|key| (key, 1)));
+    update
+}
+
 /// Aggregated data update.
 #[derive(Default, Clone, Debug)]
 pub struct AggregatedDataUpdate {
@@ -358,9 +410,7 @@ impl AggregatedDataUpdate {
         let aggregation = get_aggregation_number(task);
         let mut dirty_count = 0;
         let mut current_session_clean_count = 0;
-        let mut collectibles_update: Vec<_> =
-            task.iter_collectibles().map(|(&k, &v)| (k, v)).collect();
-        if is_aggregating_node(aggregation) {
+        let collectibles_update = if is_aggregating_node(aggregation) {
             dirty_count = task
                 .get_aggregated_dirty_container_count()
                 .copied()
@@ -369,12 +419,20 @@ impl AggregatedDataUpdate {
                 .get_aggregated_current_session_clean_container_count()
                 .copied()
                 .unwrap_or_default();
-            for (collectible, count) in task.iter_aggregated_collectibles() {
-                if *count > 0 {
-                    collectibles_update.push((*collectible, 1));
-                }
-            }
-        }
+            net_collectibles_update(
+                task.iter_collectibles().map(|(&k, &v)| (k, v)),
+                |k| task.get_aggregated_collectibles(k).is_some_and(|&c| c > 0),
+                task.iter_aggregated_collectibles()
+                    .filter(|(_, count)| **count > 0)
+                    .map(|(&k, _)| k),
+                |k| task.get_collectibles(k).is_some(),
+                // An upper bound of the number of entries, so the update isn't reallocated while
+                // the task is locked.
+                task.collectibles_len() + task.aggregated_collectibles_len(),
+            )
+        } else {
+            task.iter_collectibles().map(|(&k, &v)| (k, v)).collect()
+        };
         let (dirty, current_session_clean) = task.dirty_state();
         if dirty {
             dirty_count += 1;
@@ -3523,5 +3581,168 @@ fn retry_loop(mut retry: u16, mut f: impl FnMut() -> ControlFlow<()>) -> Result<
         } else {
             time = Some(Instant::now());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rustc_hash::{FxHashMap, FxHashSet};
+
+    use super::net_collectibles_update;
+
+    /// Models the collectibles part of `AggregatedDataUpdate::apply`: applies `update` to the
+    /// counts of an upper and returns the keys whose presence (count > 0) flipped, in order.
+    fn apply(upper: &mut FxHashMap<u32, i32>, update: &[(u32, i32)]) -> Vec<u32> {
+        let mut flips = Vec::new();
+        for &(key, count) in update {
+            let old = upper.get(&key).copied().unwrap_or(0);
+            let new = old + count;
+            if (old <= 0 && new > 0) || (old > 0 && new <= 0) {
+                flips.push(key);
+            }
+            if new == 0 {
+                upper.remove(&key);
+            } else {
+                upper.insert(key, new);
+            }
+        }
+        flips
+    }
+
+    fn presence_changes(before: &FxHashMap<u32, i32>, after: &FxHashMap<u32, i32>) -> Vec<u32> {
+        let mut keys: Vec<u32> = before
+            .keys()
+            .chain(after.keys())
+            .copied()
+            .collect::<FxHashSet<_>>()
+            .into_iter()
+            .filter(|k| {
+                (before.get(k).copied().unwrap_or(0) > 0)
+                    != (after.get(k).copied().unwrap_or(0) > 0)
+            })
+            .collect();
+        keys.sort_unstable();
+        keys
+    }
+
+    /// The update as built before netting: own entries, then `+1` per positive aggregated entry.
+    fn unnetted(own: &[(u32, i32)], aggregated_positive: &[u32]) -> Vec<(u32, i32)> {
+        own.iter()
+            .copied()
+            .chain(aggregated_positive.iter().map(|&k| (k, 1)))
+            .collect()
+    }
+
+    fn netted(own: &[(u32, i32)], aggregated_positive: &[u32]) -> Vec<(u32, i32)> {
+        let own_keys: FxHashSet<u32> = own.iter().map(|&(k, _)| k).collect();
+        let aggregated: FxHashSet<u32> = aggregated_positive.iter().copied().collect();
+        let capacity = own.len() + aggregated_positive.len();
+        let update = net_collectibles_update(
+            own.iter().copied(),
+            |k| aggregated.contains(k),
+            aggregated_positive.iter().copied(),
+            |k| own_keys.contains(k),
+            capacity,
+        );
+        // The capacity is an upper bound, so the update was never reallocated.
+        assert!(update.len() <= capacity);
+        assert!(update.capacity() < capacity.max(1) * 2);
+        update
+    }
+
+    fn invert(update: &[(u32, i32)]) -> Vec<(u32, i32)> {
+        update.iter().map(|&(k, c)| (k, -c)).collect()
+    }
+
+    /// Checks that the netted update and its inversion have the same effect on `start` as the
+    /// unnetted ones: equal final counts, and equal sets of keys whose presence changed.
+    fn assert_equivalent(start: &FxHashMap<u32, i32>, own: &[(u32, i32)], aggregated: &[u32]) {
+        let old_update = unnetted(own, aggregated);
+        let new_update = netted(own, aggregated);
+
+        let mut old_upper = start.clone();
+        let old_flips = apply(&mut old_upper, &old_update);
+        let mut new_upper = start.clone();
+        let new_flips = apply(&mut new_upper, &new_update);
+        assert_eq!(old_upper, new_upper, "final counts differ");
+        let changes = presence_changes(start, &new_upper);
+        assert_eq!(presence_changes(start, &old_upper), changes);
+        // The netted update only flips keys whose presence actually changed, each once.
+        let mut new_flips_sorted = new_flips.clone();
+        new_flips_sorted.sort_unstable();
+        assert_eq!(new_flips_sorted, changes);
+        // The unnetted update flips at least those keys.
+        assert!(changes.iter().all(|k| old_flips.contains(k)));
+
+        // Removing the task from the upper again (`invert()`) restores the start state.
+        let after_add = new_upper.clone();
+        let old_flips_inv = apply(&mut old_upper, &invert(&old_update));
+        let new_flips_inv = apply(&mut new_upper, &invert(&new_update));
+        assert_eq!(old_upper, *start);
+        assert_eq!(new_upper, *start);
+        let changes_inv = presence_changes(&after_add, start);
+        let mut new_flips_inv_sorted = new_flips_inv;
+        new_flips_inv_sorted.sort_unstable();
+        assert_eq!(new_flips_inv_sorted, changes_inv);
+        assert!(changes_inv.iter().all(|k| old_flips_inv.contains(k)));
+    }
+
+    #[test]
+    fn netting_matches_unnetted_update() {
+        // Mixed-sign own counts; some keys only own, some only aggregated, some both.
+        let own = [(1, -1), (2, -1), (3, -2), (4, 1), (5, 3), (9, -1)];
+        let aggregated = [1, 2, 3, 6, 7];
+
+        let empty = FxHashMap::default();
+        assert_equivalent(&empty, &own, &aggregated);
+
+        // A nonempty upper, including positive, larger and negative counts.
+        let nonempty: FxHashMap<u32, i32> = [(1, 1), (3, 2), (4, -1), (6, -1), (8, 1), (9, 1)]
+            .into_iter()
+            .collect();
+        assert_equivalent(&nonempty, &own, &aggregated);
+
+        // Only own or only aggregated collectibles.
+        assert_equivalent(&nonempty, &own, &[]);
+        assert_equivalent(&nonempty, &[], &aggregated);
+    }
+
+    #[test]
+    fn netting_drops_cancelled_collectibles() {
+        // A task that dropped the collectibles of its subgraph: one negative own count for each
+        // positive aggregated collectible, plus a few collectibles it didn't drop.
+        let own: Vec<(u32, i32)> = (0..1000).map(|k| (k, -1)).collect();
+        let aggregated: Vec<u32> = (0..1004).collect();
+
+        let update = netted(&own, &aggregated);
+        let mut keys: Vec<u32> = update.iter().map(|&(k, _)| k).collect();
+        keys.sort_unstable();
+        assert_eq!(keys, vec![1000, 1001, 1002, 1003]);
+        assert!(update.iter().all(|&(_, c)| c == 1));
+        assert_eq!(unnetted(&own, &aggregated).len(), 2004);
+
+        assert_equivalent(&FxHashMap::default(), &own, &aggregated);
+    }
+
+    #[test]
+    fn netting_disjoint_collectibles() {
+        // Nothing to combine: the result has every entry and still fits the reserved capacity.
+        let own: Vec<(u32, i32)> = (0..100).map(|k| (k, 1)).collect();
+        let aggregated: Vec<u32> = (100..200).collect();
+        assert_eq!(netted(&own, &aggregated).len(), 200);
+        assert_equivalent(&FxHashMap::default(), &own, &aggregated);
+    }
+
+    #[test]
+    fn netting_keeps_unrepresentable_combination_separate() {
+        // `i32::MAX + 1` isn't representable, but applying the two entries one after another to
+        // an upper that starts at -1 is fine. That must keep working.
+        let own = [(1, i32::MAX), (2, -1)];
+        let aggregated = [1, 2];
+        let update = netted(&own, &aggregated);
+        assert_eq!(update, vec![(1, i32::MAX), (1, 1)]);
+
+        let start: FxHashMap<u32, i32> = [(1, -1)].into_iter().collect();
+        assert_equivalent(&start, &own, &aggregated);
     }
 }
