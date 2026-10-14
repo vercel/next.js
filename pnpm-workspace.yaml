@@ -78,10 +78,10 @@ overrides:
   '@types/react-dom': 19.2.4
   '@types/retry': 0.12.0
   jest-snapshot: 30.0.0-alpha.6
-  react: 'npm:react@19.3.0-canary-07dde64d-20261013'
-  react-dom: 'npm:react-dom@19.3.0-canary-07dde64d-20261013'
-  react-is: 'npm:react-is@19.3.0-canary-07dde64d-20261013'
-  scheduler: 'npm:scheduler@0.28.0-canary-07dde64d-20261013'
+  react: 'npm:react@19.3.0-canary-99c106c4-20261014'
+  react-dom: 'npm:react-dom@19.3.0-canary-99c106c4-20261014'
+  react-is: 'npm:react-is@19.3.0-canary-99c106c4-20261014'
+  scheduler: 'npm:scheduler@0.28.0-canary-99c106c4-20261014'
 
 packageExtensions:
   eslint-plugin-react-hooks@0.0.0-experimental-6de32a5a-20250822:
