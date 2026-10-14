@@ -1046,6 +1046,12 @@ async function pullFlightData(
         return
       }
 
+      // A raw encoder stream can fail before hydration attaches its reader.
+      // Its error event has already fired, but the failure remains on the stream.
+      if (dataStream.errored) {
+        throw dataStream.errored
+      }
+
       await waitForReadableOrEnd()
     }
   } catch (err) {
