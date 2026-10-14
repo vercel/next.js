@@ -2,10 +2,7 @@
 
 import type { RouteTree } from '../../client/components/segment-cache/cache'
 
-import type {
-  ScrollHandlerRef,
-  PrefetchKind,
-} from '../../client/components/router-reducer/router-reducer-types'
+import type { ScrollHandlerRef } from '../../client/components/router-reducer/router-reducer-types'
 import type { Params } from '../../server/request/params'
 import type {
   FlightRouterState,
@@ -28,7 +25,7 @@ export interface NavigateOptions {
 }
 
 export interface PrefetchOptions {
-  kind: PrefetchKind
+  kind?: 'auto' | 'full'
   onInvalidate?: () => void
 }
 

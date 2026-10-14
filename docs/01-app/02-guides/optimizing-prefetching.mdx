@@ -17,7 +17,7 @@ Prefetching downloads a route's JavaScript, CSS, and RSC payload before the user
 With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), Next.js loads server-rendered output in stages, before and during a client navigation. These are the route's [navigation stages](/docs/app/glossary#navigation-stages):
 
 1. A default [`<Link>`](/docs/app/api-reference/components/link) loads the route's [**App Shell**](/docs/app/glossary#app-shell). It holds the route's static output and, for routes that read [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers), its session-specific UI. Links to the same route share it.
-2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) also loads static or cached content that depends on the link's [URL data](/docs/app/glossary#url-data), such as [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional), which the shared shell cannot include.
+2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), or [`router.prefetch(href, { kind: 'full' })`](/docs/app/api-reference/functions/use-router), also loads static or cached content that depends on the link's [URL data](/docs/app/glossary#url-data), such as [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional), which the shared shell cannot include.
 3. When the user follows the link, the navigation renders the rest of the route.
 
 Use [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation()`](/docs/app/api-reference/functions/navigation) to move expensive work to a later stage. To require that a stage stays static across a route, see [Keeping pages static](/docs/app/guides/keeping-pages-static).
@@ -56,6 +56,8 @@ If the route is not yet structured for instant navigation, start with the [Insta
 ## Resolve URL data at prefetch time
 
 Set `<Link prefetch={true}>` to resolve URL data for that link before navigation. The destination must use [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), enabled globally with `partialPrefetching` or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial).
+
+For a custom link, call `router.prefetch(href, { kind: 'full' })` to request the same per-link stage. Calling `router.prefetch(href)` without the `kind` option requests only the App Shell.
 
 A user on `/` sees links to `/search?q=react` and `/search?q=next`, each opting in with `prefetch={true}`:
 
@@ -211,7 +213,7 @@ Everything inside the scope shares the same lifetime. Colocate `"use cache: priv
 
 ## Defer work to a later stage
 
-The App Shell is shared by the links into a route. A per-link prefetch runs for a visible `<Link prefetch={true}>`, and the navigation runs when the user clicks. Expensive work may not be worth generating for links the user never follows.
+The App Shell is shared by the links into a route. A per-link prefetch runs for a visible `<Link prefetch={true}>` or a manual `router.prefetch(href, { kind: 'full' })` call, and the navigation runs when the user clicks. Expensive work may not be worth generating for links the user never follows.
 
 Uncached work is already left out of prefetches. For cacheable work, `next/cache` exports functions that defer the code below each call:
 
