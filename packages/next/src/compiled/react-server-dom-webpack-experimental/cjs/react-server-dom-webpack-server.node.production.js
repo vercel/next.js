@@ -42,8 +42,11 @@ var ASYNC_ITERATOR = Symbol.asyncIterator,
     ArrayBuffer.prototype,
     "detached"
   ),
-  scheduleMicrotask = queueMicrotask,
-  currentView = null,
+  scheduleMicrotask = queueMicrotask;
+function flushBuffered(destination) {
+  "function" === typeof destination.flush && destination.flush();
+}
+var currentView = null,
   writtenBytes = 0,
   destinationHasCapacity = !0;
 function writeChunk(destination, chunk) {
@@ -119,7 +122,29 @@ function writeChunkAndReturn(destination, chunk) {
   writeChunk(destination, chunk);
   return destinationHasCapacity;
 }
+function completeWriting(destination) {
+  currentView &&
+    0 < writtenBytes &&
+    destination.write(currentView.subarray(0, writtenBytes));
+  currentView = null;
+  writtenBytes = 0;
+  destinationHasCapacity = !0;
+}
 var textEncoder = new util.TextEncoder();
+function typedArrayToBinaryChunk(content) {
+  var view = new Uint8Array(
+    content.buffer,
+    content.byteOffset,
+    content.byteLength
+  );
+  return 4096 < content.byteLength &&
+    (0 !== content.byteOffset ||
+      content.byteLength !== content.buffer.byteLength ||
+      content.buffer.resizable ||
+      !supportsArrayBufferDetached)
+    ? view.slice()
+    : view;
+}
 function byteLengthOfChunk(chunk) {
   return "string" === typeof chunk
     ? Buffer.byteLength(chunk, "utf8")
@@ -127,6 +152,12 @@ function byteLengthOfChunk(chunk) {
 }
 var CLIENT_REFERENCE_TAG$1 = Symbol.for("react.client.reference"),
   SERVER_REFERENCE_TAG = Symbol.for("react.server.reference");
+function isClientReference(reference) {
+  return reference.$$typeof === CLIENT_REFERENCE_TAG$1;
+}
+function isServerReference(reference) {
+  return reference.$$typeof === SERVER_REFERENCE_TAG;
+}
 function registerClientReferenceImpl(proxyImplementation, id, async) {
   return Object.defineProperties(proxyImplementation, {
     $$typeof: { value: CLIENT_REFERENCE_TAG$1 },
@@ -134,12 +165,12 @@ function registerClientReferenceImpl(proxyImplementation, id, async) {
     $$async: { value: async }
   });
 }
-var FunctionBind = Function.prototype.bind,
-  ArraySlice = Array.prototype.slice;
+var FunctionBind$1 = Function.prototype.bind,
+  ArraySlice$1 = Array.prototype.slice;
 function bind() {
-  var newFn = FunctionBind.apply(this, arguments);
+  var newFn = FunctionBind$1.apply(this, arguments);
   if (this.$$typeof === SERVER_REFERENCE_TAG) {
-    var args = ArraySlice.call(arguments, 1),
+    var args = ArraySlice$1.call(arguments, 1),
       $$typeof = { value: SERVER_REFERENCE_TAG },
       $$id = { value: this.$$id };
     args = { value: this.$$bound ? this.$$bound.concat(args) : args };
@@ -153,13 +184,25 @@ function bind() {
   return newFn;
 }
 var serverReferenceToString = {
-    value: function () {
-      return "function () { [omitted code] }";
-    },
-    configurable: !0,
-    writable: !0
+  value: function () {
+    return "function () { [omitted code] }";
   },
-  PROMISE_PROTOTYPE = Promise.prototype,
+  configurable: !0,
+  writable: !0
+};
+function registerServerReference(reference, id, exportName) {
+  return Object.defineProperties(reference, {
+    $$typeof: { value: SERVER_REFERENCE_TAG },
+    $$id: {
+      value: null === exportName ? id : id + "#" + exportName,
+      configurable: !0
+    },
+    $$bound: { value: null, configurable: !0 },
+    bind: { value: bind, configurable: !0 },
+    toString: serverReferenceToString
+  });
+}
+var PROMISE_PROTOTYPE = Promise.prototype,
   deepProxyHandlers = {
     get: function (target, name, receiver) {
       switch (name) {
@@ -274,69 +317,96 @@ function getReference(target, name) {
   return clientReference;
 }
 var proxyHandlers$1 = {
-    get: function (target, name) {
-      return getReference(target, name);
-    },
-    getOwnPropertyDescriptor: function (target, name) {
-      var descriptor = Object.getOwnPropertyDescriptor(target, name);
-      descriptor ||
-        ((descriptor = {
-          value: getReference(target, name),
-          writable: !1,
-          configurable: !1,
-          enumerable: !1
-        }),
-        Object.defineProperty(target, name, descriptor));
-      return descriptor;
-    },
-    getPrototypeOf: function () {
-      return PROMISE_PROTOTYPE;
-    },
-    set: function () {
-      throw Error("Cannot assign to a client module from a server module.");
-    }
+  get: function (target, name) {
+    return getReference(target, name);
   },
-  ReactDOMSharedInternals =
-    ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
-  previousDispatcher = ReactDOMSharedInternals.d;
-ReactDOMSharedInternals.d = {
-  f: previousDispatcher.f,
-  r: previousDispatcher.r,
-  D: prefetchDNS,
-  C: preconnect,
-  L: preload,
-  m: preloadModule$1,
-  X: preinitScript,
-  S: preinitStyle,
-  M: preinitModuleScript
+  getOwnPropertyDescriptor: function (target, name) {
+    var descriptor = Object.getOwnPropertyDescriptor(target, name);
+    descriptor ||
+      ((descriptor = {
+        value: getReference(target, name),
+        writable: !1,
+        configurable: !1,
+        enumerable: !1
+      }),
+      Object.defineProperty(target, name, descriptor));
+    return descriptor;
+  },
+  getPrototypeOf: function () {
+    return PROMISE_PROTOTYPE;
+  },
+  set: function () {
+    throw Error("Cannot assign to a client module from a server module.");
+  }
 };
-function prefetchDNS(href) {
+function resolveClientReferenceMetadata(config, clientReference) {
+  var modulePath = clientReference.$$id,
+    name = "",
+    resolvedModuleData = config[modulePath];
+  if (resolvedModuleData) name = resolvedModuleData.name;
+  else {
+    var idx = modulePath.lastIndexOf("#");
+    -1 !== idx &&
+      ((name = modulePath.slice(idx + 1)),
+      (resolvedModuleData = config[modulePath.slice(0, idx)]));
+    if (!resolvedModuleData)
+      throw Error(
+        'Could not find the module "' +
+          modulePath +
+          '" in the React Client Manifest. This is probably a bug in the React Server Components bundler.'
+      );
+  }
+  if (!0 === resolvedModuleData.async && !0 === clientReference.$$async)
+    throw Error(
+      'The module "' +
+        modulePath +
+        '" is marked as an async ESM module but was loaded as a CJS proxy. This is probably a bug in the React Server Components bundler.'
+    );
+  return !0 === resolvedModuleData.async || !0 === clientReference.$$async
+    ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+    : [resolvedModuleData.id, resolvedModuleData.chunks, name];
+}
+var ReactDOMSharedInternals =
+    ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+  previousDispatcher$1 = ReactDOMSharedInternals.d;
+ReactDOMSharedInternals.d = {
+  f: previousDispatcher$1.f,
+  r: previousDispatcher$1.r,
+  D: prefetchDNS$1,
+  C: preconnect$1,
+  L: preload$1,
+  m: preloadModule$2,
+  X: preinitScript$1,
+  S: preinitStyle$1,
+  M: preinitModuleScript$1
+};
+function prefetchDNS$1(href) {
   if ("string" === typeof href && href) {
-    var request = resolveRequest();
+    var request = resolveRequest$1();
     if (request) {
       var hints = request.hints,
         key = "D|" + href;
-      hints.has(key) || (hints.add(key), emitHint(request, "D", href));
-    } else previousDispatcher.D(href);
+      hints.has(key) || (hints.add(key), emitHint$2(request, "D", href));
+    } else previousDispatcher$1.D(href);
   }
 }
-function preconnect(href, crossOrigin) {
+function preconnect$1(href, crossOrigin) {
   if ("string" === typeof href) {
-    var request = resolveRequest();
+    var request = resolveRequest$1();
     if (request) {
       var hints = request.hints,
         key = "C|" + (null == crossOrigin ? "null" : crossOrigin) + "|" + href;
       hints.has(key) ||
         (hints.add(key),
         "string" === typeof crossOrigin
-          ? emitHint(request, "C", [href, crossOrigin])
-          : emitHint(request, "C", href));
-    } else previousDispatcher.C(href, crossOrigin);
+          ? emitHint$2(request, "C", [href, crossOrigin])
+          : emitHint$2(request, "C", href));
+    } else previousDispatcher$1.C(href, crossOrigin);
   }
 }
-function preload(href, as, options) {
+function preload$1(href, as, options) {
   if ("string" === typeof href) {
-    var request = resolveRequest();
+    var request = resolveRequest$1();
     if (request) {
       var hints = request.hints,
         key = "L";
@@ -353,79 +423,79 @@ function preload(href, as, options) {
       } else key += "[" + as + "]" + href;
       hints.has(key) ||
         (hints.add(key),
-        (options = trimOptions(options))
-          ? emitHint(request, "L", [href, as, options])
-          : emitHint(request, "L", [href, as]));
-    } else previousDispatcher.L(href, as, options);
+        (options = trimOptions$1(options))
+          ? emitHint$2(request, "L", [href, as, options])
+          : emitHint$2(request, "L", [href, as]));
+    } else previousDispatcher$1.L(href, as, options);
   }
 }
-function preloadModule$1(href, options) {
+function preloadModule$2(href, options) {
   if ("string" === typeof href) {
-    var request = resolveRequest();
+    var request = resolveRequest$1();
     if (request) {
       var hints = request.hints,
         key = "m|" + href;
       if (hints.has(key)) return;
       hints.add(key);
-      return (options = trimOptions(options))
-        ? emitHint(request, "m", [href, options])
-        : emitHint(request, "m", href);
+      return (options = trimOptions$1(options))
+        ? emitHint$2(request, "m", [href, options])
+        : emitHint$2(request, "m", href);
     }
-    previousDispatcher.m(href, options);
+    previousDispatcher$1.m(href, options);
   }
 }
-function preinitStyle(href, precedence, options) {
+function preinitStyle$1(href, precedence, options) {
   if ("string" === typeof href) {
-    var request = resolveRequest();
+    var request = resolveRequest$1();
     if (request) {
       var hints = request.hints,
         key = "S|" + href;
       if (hints.has(key)) return;
       hints.add(key);
-      return (options = trimOptions(options))
-        ? emitHint(request, "S", [
+      return (options = trimOptions$1(options))
+        ? emitHint$2(request, "S", [
             href,
             "string" === typeof precedence ? precedence : 0,
             options
           ])
         : "string" === typeof precedence
-          ? emitHint(request, "S", [href, precedence])
-          : emitHint(request, "S", href);
+          ? emitHint$2(request, "S", [href, precedence])
+          : emitHint$2(request, "S", href);
     }
-    previousDispatcher.S(href, precedence, options);
+    previousDispatcher$1.S(href, precedence, options);
   }
 }
-function preinitScript(src, options) {
+function preinitScript$1(src, options) {
   if ("string" === typeof src) {
-    var request = resolveRequest();
+    var request = resolveRequest$1();
     if (request) {
       var hints = request.hints,
         key = "X|" + src;
       if (hints.has(key)) return;
       hints.add(key);
-      return (options = trimOptions(options))
-        ? emitHint(request, "X", [src, options])
-        : emitHint(request, "X", src);
+      return (options = trimOptions$1(options))
+        ? emitHint$2(request, "X", [src, options])
+        : emitHint$2(request, "X", src);
     }
-    previousDispatcher.X(src, options);
+    previousDispatcher$1.X(src, options);
   }
 }
-function preinitModuleScript(src, options) {
+function preinitModuleScript$1(src, options) {
   if ("string" === typeof src) {
-    var request = resolveRequest();
+    var request = resolveRequest$1();
     if (request) {
       var hints = request.hints,
         key = "M|" + src;
       if (hints.has(key)) return;
       hints.add(key);
-      return (options = trimOptions(options))
-        ? emitHint(request, "M", [src, options])
-        : emitHint(request, "M", src);
+      return (options = trimOptions$1(options))
+        ? emitHint$2(request, "M", [src, options])
+        : emitHint$2(request, "M", src);
     }
-    previousDispatcher.M(src, options);
+    previousDispatcher$1.M(src, options);
   }
 }
-function trimOptions(options) {
+function trimOptions$1(options) {
   if (null == options) return null;
   var hasProperties = !1,
     trimmed = {},
@@ -435,7 +505,11 @@ function trimOptions(options) {
       ((hasProperties = !0), (trimmed[key] = options[key]));
   return hasProperties ? trimmed : null;
 }
-function getChildFormatContext(parentContext, type, props) {
+function getCrossOriginString(input) {
+  if ("string" === typeof input)
+    return "use-credentials" === input ? input : "";
+}
+function getChildFormatContext$1(parentContext, type, props) {
   switch (type) {
     case "img":
       type = props.src;
@@ -462,17 +536,12 @@ function getChildFormatContext(parentContext, type, props) {
           ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
           ("a" !== srcSet[3] && "A" !== srcSet[3]))
       ) {
-        var sizes = "string" === typeof props.sizes ? props.sizes : void 0;
-        var input = props.crossOrigin;
-        preload(type || "", "image", {
+        var sizes = "string" === typeof props.sizes ? props.sizes : void 0,
+          crossOrigin = getCrossOriginString(props.crossOrigin);
+        preload$1(type || "", "image", {
           imageSrcSet: srcSet,
           imageSizes: sizes,
-          crossOrigin:
-            "string" === typeof input
-              ? "use-credentials" === input
-                ? input
-                : ""
-              : void 0,
+          crossOrigin: crossOrigin,
           integrity: props.integrity,
           type: props.type,
           fetchPriority: props.fetchPriority,
@@ -494,7 +563,7 @@ function getChildFormatContext(parentContext, type, props) {
       )
         switch (type) {
           case "preload":
-            preload(srcSet, props.as, {
+            preload$1(srcSet, props.as, {
               crossOrigin: props.crossOrigin,
               integrity: props.integrity,
               nonce: props.nonce,
@@ -507,7 +576,7 @@ function getChildFormatContext(parentContext, type, props) {
             });
             break;
           case "modulepreload":
-            preloadModule$1(srcSet, {
+            preloadModule$2(srcSet, {
               as: props.as,
               crossOrigin: props.crossOrigin,
               integrity: props.integrity,
@@ -515,7 +584,7 @@ function getChildFormatContext(parentContext, type, props) {
             });
             break;
           case "stylesheet":
-            preload(srcSet, "style", {
+            preload$1(srcSet, "style", {
               crossOrigin: props.crossOrigin,
               integrity: props.integrity,
               nonce: props.nonce,
@@ -534,7 +603,19 @@ function getChildFormatContext(parentContext, type, props) {
       return parentContext;
   }
 }
+var currentCache = null;
+function setCurrentCache(cache) {
+  var previousCache = currentCache;
+  currentCache = cache;
+  return previousCache;
+}
+function resolveCache() {
+  if (currentCache) return currentCache;
+  var cache = cacheStorage.getStore();
+  return cache ? cache : null;
+}
 var requestStorage = new async_hooks.AsyncLocalStorage(),
+  cacheStorage = new async_hooks.AsyncLocalStorage(),
   TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
   proxyHandlers = {
     get: function (target, name, receiver) {
@@ -644,79 +725,79 @@ function getSuspendedThenable() {
   suspendedThenable = null;
   return thenable;
 }
-var currentRequest$1 = null,
-  thenableIndexCounter = 0,
-  thenableState = null;
-function getThenableStateAfterSuspending() {
-  var state = thenableState || [];
-  thenableState = null;
+var currentRequest$2 = null,
+  thenableIndexCounter$1 = 0,
+  thenableState$1 = null;
+function getThenableStateAfterSuspending$1() {
+  var state = thenableState$1 || [];
+  thenableState$1 = null;
   return state;
 }
-var HooksDispatcher = {
-  readContext: unsupportedContext,
-  use: use,
+var HooksDispatcher$1 = {
+  readContext: unsupportedContext$1,
+  use: use$1,
   useCallback: function (callback) {
     return callback;
   },
-  useContext: unsupportedContext,
-  useEffect: unsupportedHook,
-  useImperativeHandle: unsupportedHook,
-  useLayoutEffect: unsupportedHook,
-  useInsertionEffect: unsupportedHook,
+  useContext: unsupportedContext$1,
+  useEffect: unsupportedHook$1,
+  useImperativeHandle: unsupportedHook$1,
+  useLayoutEffect: unsupportedHook$1,
+  useInsertionEffect: unsupportedHook$1,
   useMemo: function (nextCreate) {
     return nextCreate();
   },
-  useReducer: unsupportedHook,
-  useRef: unsupportedHook,
-  useState: unsupportedHook,
+  useReducer: unsupportedHook$1,
+  useRef: unsupportedHook$1,
+  useState: unsupportedHook$1,
   useDebugValue: function () {},
-  useDeferredValue: unsupportedHook,
-  useTransition: unsupportedHook,
-  useSyncExternalStore: unsupportedHook,
-  useId: useId,
-  useHostTransitionStatus: unsupportedHook,
-  useFormState: unsupportedHook,
-  useActionState: unsupportedHook,
-  useOptimistic: unsupportedHook,
+  useDeferredValue: unsupportedHook$1,
+  useTransition: unsupportedHook$1,
+  useSyncExternalStore: unsupportedHook$1,
+  useId: useId$1,
+  useHostTransitionStatus: unsupportedHook$1,
+  useFormState: unsupportedHook$1,
+  useActionState: unsupportedHook$1,
+  useOptimistic: unsupportedHook$1,
   useMemoCache: function (size) {
     for (var data = Array(size), i = 0; i < size; i++)
       data[i] = REACT_MEMO_CACHE_SENTINEL;
     return data;
   },
   useCacheRefresh: function () {
-    return unsupportedRefresh;
+    return unsupportedRefresh$1;
   },
-  useEffectEvent: unsupportedHook
+  useEffectEvent: unsupportedHook$1
 };
-function unsupportedHook() {
+function unsupportedHook$1() {
   throw Error("This Hook is not supported in Server Components.");
 }
-function unsupportedRefresh() {
+function unsupportedRefresh$1() {
   throw Error("Refreshing the cache is not supported in Server Components.");
 }
-function unsupportedContext() {
+function unsupportedContext$1() {
   throw Error("Cannot read a Client Context from a Server Component.");
 }
-function useId() {
-  if (null === currentRequest$1)
+function useId$1() {
+  if (null === currentRequest$2)
     throw Error("useId can only be used while React is rendering");
-  var id = currentRequest$1.identifierCount++;
-  return "_" + currentRequest$1.identifierPrefix + "S_" + id.toString(32) + "_";
+  var id = currentRequest$2.identifierCount++;
+  return "_" + currentRequest$2.identifierPrefix + "S_" + id.toString(32) + "_";
 }
-function use(usable) {
+function use$1(usable) {
   if (
     (null !== usable && "object" === typeof usable) ||
     "function" === typeof usable
   ) {
     if ("function" === typeof usable.then) {
-      var index = thenableIndexCounter;
-      thenableIndexCounter += 1;
-      null === thenableState && (thenableState = []);
-      return trackUsedThenable(thenableState, usable, index);
+      var index = thenableIndexCounter$1;
+      thenableIndexCounter$1 += 1;
+      null === thenableState$1 && (thenableState$1 = []);
+      return trackUsedThenable(thenableState$1, usable, index);
     }
-    usable.$$typeof === REACT_CONTEXT_TYPE && unsupportedContext();
+    usable.$$typeof === REACT_CONTEXT_TYPE && unsupportedContext$1();
   }
-  if (usable.$$typeof === CLIENT_REFERENCE_TAG$1) {
+  if (isClientReference(usable)) {
     if (null != usable.value && usable.value.$$typeof === REACT_CONTEXT_TYPE)
       throw Error("Cannot read a Client Context from a Server Component.");
     throw Error("Cannot use() an already resolved Client Reference.");
@@ -725,19 +806,16 @@ function use(usable) {
 }
 var DefaultAsyncDispatcher = {
     getCacheForType: function (resourceType) {
-      var JSCompiler_inline_result = (JSCompiler_inline_result =
-        resolveRequest())
-        ? JSCompiler_inline_result.cache
-        : new Map();
-      var entry = JSCompiler_inline_result.get(resourceType);
+      var context = resolveCache();
+      context = context ? context.cache : new Map();
+      var entry = context.get(resourceType);
       void 0 === entry &&
-        ((entry = resourceType()),
-        JSCompiler_inline_result.set(resourceType, entry));
+        ((entry = resourceType()), context.set(resourceType, entry));
       return entry;
     },
     cacheSignal: function () {
-      var request = resolveRequest();
-      return request ? request.cacheController.signal : null;
+      var context = resolveCache();
+      return context ? context.cacheController.signal : null;
     }
   },
   ReactSharedInternalsServer =
@@ -747,7 +825,8 @@ if (!ReactSharedInternalsServer)
     'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
   );
 var isArrayImpl = Array.isArray,
-  getPrototypeOf = Object.getPrototypeOf;
+  getPrototypeOf$2 = Object.getPrototypeOf;
+new WeakMap();
 function objectName(object) {
   object = Object.prototype.toString.call(object);
   return object.slice(8, object.length - 1);
@@ -856,35 +935,41 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
         "\n  " + str + "\n  " + objectOrArray)
       : "\n  " + str;
 }
-var ObjectPrototype$1 = Object.prototype,
-  stringify = JSON.stringify,
-  NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol(),
-  TaintRegistryObjects = ReactSharedInternalsServer.TaintRegistryObjects,
-  TaintRegistryValues = ReactSharedInternalsServer.TaintRegistryValues,
-  TaintRegistryByteLengths =
+function binaryToComparableString(view) {
+  return String.fromCharCode.apply(
+    String,
+    new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
+  );
+}
+var ObjectPrototype$3 = Object.prototype,
+  stringify$1 = JSON.stringify,
+  NEXT_TWO_CHUNKS_ARE_ATOMIC$1 = Symbol(),
+  TaintRegistryObjects$2 = ReactSharedInternalsServer.TaintRegistryObjects,
+  TaintRegistryValues$2 = ReactSharedInternalsServer.TaintRegistryValues,
+  TaintRegistryByteLengths$2 =
     ReactSharedInternalsServer.TaintRegistryByteLengths,
-  TaintRegistryPendingRequests =
+  TaintRegistryPendingRequests$2 =
     ReactSharedInternalsServer.TaintRegistryPendingRequests;
-function throwTaintViolation(message) {
+function throwTaintViolation$2(message) {
   throw Error(message);
 }
-function cleanupTaintQueue(request) {
+function cleanupTaintQueue$2(request) {
   request = request.taintCleanupQueue;
-  TaintRegistryPendingRequests.delete(request);
+  TaintRegistryPendingRequests$2.delete(request);
   for (var i = 0; i < request.length; i++) {
     var entryValue = request[i],
-      entry = TaintRegistryValues.get(entryValue);
+      entry = TaintRegistryValues$2.get(entryValue);
     void 0 !== entry &&
       (1 === entry.count
-        ? TaintRegistryValues.delete(entryValue)
+        ? TaintRegistryValues$2.delete(entryValue)
         : entry.count--);
   }
   request.length = 0;
 }
-function defaultErrorHandler(error) {
+function defaultErrorHandler$2(error) {
   console.error(error);
 }
-function RequestInstance(
+function RequestInstance$2(
   type,
   model,
   bundlerConfig,
@@ -903,7 +988,7 @@ function RequestInstance(
   var abortSet = new Set(),
     pingedTasks = [],
     cleanupQueue = [];
-  TaintRegistryPendingRequests.add(cleanupQueue);
+  TaintRegistryPendingRequests$2.add(cleanupQueue);
   var hints = new Set();
   this.type = type;
   this.status = 10;
@@ -930,23 +1015,23 @@ function RequestInstance(
   this.identifierPrefix = identifierPrefix || "";
   this.identifierCount = 1;
   this.taintCleanupQueue = cleanupQueue;
-  this.onError = void 0 === onError ? defaultErrorHandler : onError;
+  this.onError = void 0 === onError ? defaultErrorHandler$2 : onError;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
-  type = createTask(this, model, null, !1, 0, abortSet);
+  type = createTask$2(this, model, null, !1, 0, abortSet);
   pingedTasks.push(type);
 }
-var currentRequest = null;
-function resolveRequest() {
-  if (currentRequest) return currentRequest;
+var currentRequest$1 = null;
+function resolveRequest$1() {
+  if (currentRequest$1) return currentRequest$1;
   var store = requestStorage.getStore();
   return store ? store : null;
 }
-function serializeThenable(request, task, thenable) {
+function serializeThenable$1(request, task, thenable) {
   switch (thenable.status) {
     case "fulfilled":
       return (
-        (task = createTask(
+        (task = createTask$2(
           request,
           thenable,
           task.keyPath,
@@ -955,12 +1040,12 @@ function serializeThenable(request, task, thenable) {
           request.abortableTasks
         )),
         (task.model = thenable.value),
-        pingTask(request, task),
+        pingTask$2(request, task),
         task.id
       );
     case "rejected":
       return (
-        (task = createTask(
+        (task = createTask$2(
           request,
           thenable,
           task.keyPath,
@@ -968,7 +1053,7 @@ function serializeThenable(request, task, thenable) {
           task.formatContext,
           request.abortableTasks
         )),
-        erroredTask(request, task, thenable.reason),
+        erroredTask$2(request, task, thenable.reason),
         task.id
       );
     case "pending_weak":
@@ -991,7 +1076,7 @@ function serializeThenable(request, task, thenable) {
               formatContext,
               request.abortableTasks
             )),
-            pingTask(request, value));
+            pingTask$2(request, value));
         },
         function (reason) {
           if (!(settled || 11 < request.status)) {
@@ -1005,14 +1090,14 @@ function serializeThenable(request, task, thenable) {
               formatContext,
               request.abortableTasks
             );
-            erroredTask(request, newTask, reason);
-            enqueueFlush(request);
+            erroredTask$2(request, newTask, reason);
+            enqueueFlush$1(request);
           }
         }
       );
       return id;
     default:
-      var newTask$12 = createTask(
+      var newTask$14 = createTask$2(
         request,
         thenable,
         task.keyPath,
@@ -1022,13 +1107,13 @@ function serializeThenable(request, task, thenable) {
       );
       if (12 === request.status)
         return (
-          request.abortableTasks.delete(newTask$12),
+          request.abortableTasks.delete(newTask$14),
           21 === request.type
-            ? (haltTask(newTask$12), finishHaltedTask(newTask$12, request))
+            ? (haltTask$1(newTask$14), finishHaltedTask$1(newTask$14, request))
             : ((task = request.fatalError),
-              abortTask(newTask$12),
-              finishAbortedTask(newTask$12, request, task)),
-          newTask$12.id
+              abortTask$2(newTask$14),
+              finishAbortedTask$1(newTask$14, request, task)),
+          newTask$14.id
         );
       "string" !== typeof thenable.status &&
         ((thenable.status = "pending"),
@@ -1045,18 +1130,19 @@ function serializeThenable(request, task, thenable) {
         ));
       thenable.then(
         function (value) {
-          newTask$12.model = value;
-          pingTask(request, newTask$12);
+          newTask$14.model = value;
+          pingTask$2(request, newTask$14);
         },
         function (reason) {
-          0 === newTask$12.status &&
-            (erroredTask(request, newTask$12, reason), enqueueFlush(request));
+          0 === newTask$14.status &&
+            (erroredTask$2(request, newTask$14, reason),
+            enqueueFlush$1(request));
         }
       );
-      return newTask$12.id;
+      return newTask$14.id;
   }
 }
-function serializeReadableStream(request, task, stream) {
+function serializeReadableStream$1(request, task, stream) {
   function progress(entry) {
     if (0 === streamTask.status)
       if (entry.done)
@@ -1068,32 +1154,32 @@ function serializeReadableStream(request, task, stream) {
             "abort",
             abortStream
           ),
-          enqueueFlush(request),
+          enqueueFlush$1(request),
           callOnAllReadyIfReady(request);
       else
         try {
           request.pendingChunks++,
             (streamTask.model = entry.value),
             isByteStream
-              ? emitTypedArrayChunk(
+              ? emitTypedArrayChunk$1(
                   request,
                   streamTask.id,
                   "b",
                   streamTask.model,
                   !1
                 )
-              : tryStreamTask(request, streamTask),
-            enqueueFlush(request),
+              : tryStreamTask$2(request, streamTask),
+            enqueueFlush$1(request),
             reader.read().then(progress, error);
-        } catch (x$13) {
-          error(x$13);
+        } catch (x$15) {
+          error(x$15);
         }
   }
   function error(reason) {
     0 === streamTask.status &&
       (request.cacheController.signal.removeEventListener("abort", abortStream),
-      erroredTask(request, streamTask, reason),
-      enqueueFlush(request),
+      erroredTask$2(request, streamTask, reason),
+      enqueueFlush$1(request),
       reader.cancel(reason).then(error, error));
   }
   function abortStream() {
@@ -1103,9 +1189,9 @@ function serializeReadableStream(request, task, stream) {
       signal = signal.reason;
       21 === request.type
         ? (request.abortableTasks.delete(streamTask),
-          haltTask(streamTask),
-          finishHaltedTask(streamTask, request))
-        : (erroredTask(request, streamTask, signal), enqueueFlush(request));
+          haltTask$1(streamTask),
+          finishHaltedTask$1(streamTask, request))
+        : (erroredTask$2(request, streamTask, signal), enqueueFlush$1(request));
       reader.cancel(signal).then(error, error);
     }
   }
@@ -1118,7 +1204,7 @@ function serializeReadableStream(request, task, stream) {
     }
   var isByteStream = supportsBYOB,
     reader = stream.getReader(),
-    streamTask = createTask(
+    streamTask = createTask$2(
       request,
       task.model,
       task.keyPath,
@@ -1131,9 +1217,9 @@ function serializeReadableStream(request, task, stream) {
   request.completedRegularChunks.push(task);
   request.cacheController.signal.addEventListener("abort", abortStream);
   reader.read().then(progress, error);
-  return serializeByValueID(streamTask.id);
+  return serializeByValueID$1(streamTask.id);
 }
-function serializeAsyncIterable(request, task, iterable, iterator) {
+function serializeAsyncIterable$1(request, task, iterable, iterator) {
   function progress(entry) {
     if (0 === streamTask.status)
       if (entry.done) {
@@ -1142,7 +1228,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
           var endStreamRow = streamTask.id.toString(16) + ":C\n";
         else
           try {
-            var chunkId = outlineModelWithFormatContext(
+            var chunkId = outlineModelWithFormatContext$1(
               request,
               entry.value,
               0
@@ -1150,7 +1236,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             endStreamRow =
               streamTask.id.toString(16) +
               ":C" +
-              stringify(serializeByValueID(chunkId)) +
+              stringify$1(serializeByValueID$1(chunkId)) +
               "\n";
           } catch (x) {
             error(x);
@@ -1162,17 +1248,17 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
           "abort",
           abortIterable
         );
-        enqueueFlush(request);
+        enqueueFlush$1(request);
         callOnAllReadyIfReady(request);
       } else
         try {
           (streamTask.model = entry.value),
             request.pendingChunks++,
-            tryStreamTask(request, streamTask),
-            enqueueFlush(request),
+            tryStreamTask$2(request, streamTask),
+            enqueueFlush$1(request),
             iterator.next().then(progress, error);
-        } catch (x$14) {
-          error(x$14);
+        } catch (x$16) {
+          error(x$16);
         }
   }
   function error(reason) {
@@ -1181,8 +1267,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
         "abort",
         abortIterable
       ),
-      erroredTask(request, streamTask, reason),
-      enqueueFlush(request),
+      erroredTask$2(request, streamTask, reason),
+      enqueueFlush$1(request),
       "function" === typeof iterator.throw &&
         iterator.throw(reason).then(noop, noop));
   }
@@ -1193,16 +1279,16 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
       var reason = signal.reason;
       21 === request.type
         ? (request.abortableTasks.delete(streamTask),
-          haltTask(streamTask),
-          finishHaltedTask(streamTask, request))
-        : (erroredTask(request, streamTask, signal.reason),
-          enqueueFlush(request));
+          haltTask$1(streamTask),
+          finishHaltedTask$1(streamTask, request))
+        : (erroredTask$2(request, streamTask, signal.reason),
+          enqueueFlush$1(request));
       "function" === typeof iterator.throw &&
         iterator.throw(reason).then(noop, noop);
     }
   }
   iterable = iterable === iterator;
-  var streamTask = createTask(
+  var streamTask = createTask$2(
     request,
     task.model,
     task.keyPath,
@@ -1215,19 +1301,19 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
   request.completedRegularChunks.push(task);
   request.cacheController.signal.addEventListener("abort", abortIterable);
   iterator.next().then(progress, error);
-  return serializeByValueID(streamTask.id);
+  return serializeByValueID$1(streamTask.id);
 }
-function emitHint(request, code, model) {
-  model = stringify(model);
+function emitHint$2(request, code, model) {
+  model = stringify$1(model);
   request.completedHintChunks.push(":H" + code + model + "\n");
-  enqueueFlush(request);
+  enqueueFlush$1(request);
 }
-function readThenable(thenable) {
+function readThenable$1(thenable) {
   if ("fulfilled" === thenable.status) return thenable.value;
   if ("rejected" === thenable.status) throw thenable.reason;
   throw thenable;
 }
-function createLazyWrapperAroundWakeable(request, task, wakeable) {
+function createLazyWrapperAroundWakeable$1(request, task, wakeable) {
   switch (wakeable.status) {
     case "fulfilled":
       return wakeable.value;
@@ -1248,18 +1334,22 @@ function createLazyWrapperAroundWakeable(request, task, wakeable) {
           }
         ));
   }
-  return { $$typeof: REACT_LAZY_TYPE, _payload: wakeable, _init: readThenable };
+  return {
+    $$typeof: REACT_LAZY_TYPE,
+    _payload: wakeable,
+    _init: readThenable$1
+  };
 }
 function voidHandler() {}
 function processServerComponentReturnValue(request, task, Component, result) {
   if (
     "object" !== typeof result ||
     null === result ||
-    result.$$typeof === CLIENT_REFERENCE_TAG$1
+    isClientReference(result)
   )
     return result;
   if ("function" === typeof result.then)
-    return createLazyWrapperAroundWakeable(request, task, result);
+    return createLazyWrapperAroundWakeable$1(request, task, result);
   var iteratorFn = getIteratorFn(result);
   return iteratorFn
     ? ((request = {}),
@@ -1277,18 +1367,18 @@ function processServerComponentReturnValue(request, task, Component, result) {
         }),
         request);
 }
-function renderFunctionComponent(request, task, key, Component, props) {
+function renderFunctionComponent$1(request, task, key, Component, props) {
   var prevThenableState = task.thenableState;
   task.thenableState = null;
-  thenableIndexCounter = 0;
-  thenableState = prevThenableState;
+  thenableIndexCounter$1 = 0;
+  thenableState$1 = prevThenableState;
   props = Component(props, void 0);
   if (12 === request.status)
     throw (
-      ("object" === typeof props &&
-        null !== props &&
-        "function" === typeof props.then &&
-        props.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
+      ("object" !== typeof props ||
+        null === props ||
+        "function" !== typeof props.then ||
+        isClientReference(props) ||
         props.then(voidHandler, voidHandler),
       null)
     );
@@ -1303,12 +1393,12 @@ function renderFunctionComponent(request, task, key, Component, props) {
             ? key
             : Component + "," + key)
     : null === Component && (task.implicitSlot = !0);
-  request = renderModelDestructive(request, task, emptyRoot, "", props);
+  request = renderModelDestructive$2(request, task, emptyRoot$1, "", props);
   task.keyPath = Component;
   task.implicitSlot = prevThenableState;
   return request;
 }
-function renderFragment(request, task, children) {
+function renderFragment$1(request, task, children) {
   return null !== task.keyPath
     ? ((request = [
         REACT_ELEMENT_TYPE,
@@ -1319,9 +1409,9 @@ function renderFragment(request, task, children) {
       task.implicitSlot ? [request] : request)
     : children;
 }
-var serializedSize = 0;
-function deferTask(request, task) {
-  task = createTask(
+var serializedSize$1 = 0;
+function deferTask$2(request, task) {
+  task = createTask$2(
     request,
     task.model,
     task.keyPath,
@@ -1329,57 +1419,59 @@ function deferTask(request, task) {
     task.formatContext,
     request.abortableTasks
   );
-  pingTask(request, task);
-  return serializeLazyID(task.id);
+  pingTask$2(request, task);
+  return serializeLazyID$1(task.id);
 }
-function renderElement(request, task, type, key, ref, props) {
+function renderElement$1(request, task, type, key, ref, props) {
   if (null !== ref && void 0 !== ref)
     throw Error(
       "Refs cannot be used in Server Components, nor passed to Client Components."
     );
   if (
-    "function" === typeof type &&
-    type.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
-    type.$$typeof !== TEMPORARY_REFERENCE_TAG
-  )
-    return renderFunctionComponent(request, task, key, type, props);
-  if (type === REACT_FRAGMENT_TYPE && null === key)
-    return (
-      (type = task.implicitSlot),
-      null === task.keyPath && (task.implicitSlot = !0),
-      (props = renderModelDestructive(
-        request,
-        task,
-        emptyRoot,
-        "",
-        props.children
-      )),
-      (task.implicitSlot = type),
-      props
-    );
-  if (
-    null != type &&
-    "object" === typeof type &&
-    type.$$typeof !== CLIENT_REFERENCE_TAG$1
-  )
-    switch (type.$$typeof) {
-      case REACT_LAZY_TYPE:
-        var init = type._init;
-        type = init(type._payload);
-        if (12 === request.status) throw null;
-        return renderElement(request, task, type, key, ref, props);
-      case REACT_FORWARD_REF_TYPE:
-        return renderFunctionComponent(request, task, key, type.render, props);
-      case REACT_MEMO_TYPE:
-        return renderElement(request, task, type.type, key, ref, props);
-    }
-  else
-    "string" === typeof type &&
-      ((ref = task.formatContext),
-      (init = getChildFormatContext(ref, type, props)),
-      ref !== init &&
-        null != props.children &&
-        outlineModelWithFormatContext(request, props.children, init));
+    "function" !== typeof type ||
+    isClientReference(type) ||
+    type.$$typeof === TEMPORARY_REFERENCE_TAG
+  ) {
+    if (type === REACT_FRAGMENT_TYPE && null === key)
+      return (
+        (type = task.implicitSlot),
+        null === task.keyPath && (task.implicitSlot = !0),
+        (props = renderModelDestructive$2(
+          request,
+          task,
+          emptyRoot$1,
+          "",
+          props.children
+        )),
+        (task.implicitSlot = type),
+        props
+      );
+    if (null == type || "object" !== typeof type || isClientReference(type))
+      "string" === typeof type &&
+        ((ref = task.formatContext),
+        (init = getChildFormatContext$1(ref, type, props)),
+        ref !== init &&
+          null != props.children &&
+          outlineModelWithFormatContext$1(request, props.children, init));
+    else
+      switch (type.$$typeof) {
+        case REACT_LAZY_TYPE:
+          var init = type._init;
+          type = init(type._payload);
+          if (12 === request.status) throw null;
+          return renderElement$1(request, task, type, key, ref, props);
+        case REACT_FORWARD_REF_TYPE:
+          return renderFunctionComponent$1(
+            request,
+            task,
+            key,
+            type.render,
+            props
+          );
+        case REACT_MEMO_TYPE:
+          return renderElement$1(request, task, type.type, key, ref, props);
+      }
+  } else return renderFunctionComponent$1(request, task, key, type, props);
   request = key;
   key = task.keyPath;
   null === request
@@ -1393,20 +1485,20 @@ function renderElement(request, task, type, key, ref, props) {
   task = task.implicitSlot && null !== request ? [props] : props;
   return task;
 }
-function pingTask(request, task) {
+function pingTask$2(request, task) {
   var pingedTasks = request.pingedTasks;
   pingedTasks.push(task);
   1 === pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
     21 === request.type || 10 === request.status
       ? scheduleMicrotask(function () {
-          return performWork(request);
+          return performWork$2(request);
         })
       : setImmediate(function () {
-          return performWork(request);
+          return performWork$2(request);
         }));
 }
-function createTask(
+function createTask$2(
   request,
   model,
   keyPath,
@@ -1438,7 +1530,7 @@ function createTaskWithID(
     null === model ||
     null !== keyPath ||
     implicitSlot ||
-    request.writtenObjects.set(model, serializeByValueID(id));
+    request.writtenObjects.set(model, serializeByValueID$1(id));
   var task = {
     id: id,
     status: 0,
@@ -1447,25 +1539,25 @@ function createTaskWithID(
     implicitSlot: implicitSlot,
     formatContext: formatContext,
     ping: function () {
-      return pingTask(request, task);
+      return pingTask$2(request, task);
     },
     thenableState: null
   };
   abortSet.add(task);
   return task;
 }
-function resolveModel(request, task, parent, parentPropertyName, value) {
+function resolveModel$2(request, task, parent, parentPropertyName, value) {
   var jsonValue = value;
-  null !== value &&
-    "object" === typeof value &&
-    value.$$typeof !== SERVER_REFERENCE_TAG &&
-    "function" === typeof value.toJSON &&
+  null === value ||
+    "object" !== typeof value ||
+    isServerReference(value) ||
+    "function" !== typeof value.toJSON ||
     (jsonValue = value.toJSON(parentPropertyName));
-  serializedSize += parentPropertyName.length;
+  serializedSize$1 += parentPropertyName.length;
   value = task.keyPath;
   var prevImplicitSlot = task.implicitSlot;
   try {
-    var JSCompiler_inline_result = renderModelDestructive(
+    var JSCompiler_inline_result = renderModelDestructive$2(
       request,
       task,
       parent,
@@ -1484,13 +1576,13 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
           21 === request.type
             ? ((value = request.nextChunkId++),
               (value = parent
-                ? serializeLazyID(value)
-                : serializeByValueID(value)),
+                ? serializeLazyID$1(value)
+                : serializeByValueID$1(value)),
               (JSCompiler_inline_result = value))
             : ((value = request.fatalError),
               (JSCompiler_inline_result = parent
-                ? serializeLazyID(value)
-                : serializeByValueID(value))))
+                ? serializeLazyID$1(value)
+                : serializeByValueID$1(value))))
         : ((parentPropertyName =
             thrownValue === SuspenseException
               ? getSuspendedThenable()
@@ -1498,7 +1590,7 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
           "object" === typeof parentPropertyName &&
           null !== parentPropertyName &&
           "function" === typeof parentPropertyName.then
-            ? ((jsonValue = createTask(
+            ? ((jsonValue = createTask$2(
                 request,
                 task.model,
                 task.keyPath,
@@ -1511,75 +1603,75 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
                 JSCompiler_inline_result,
                 JSCompiler_inline_result
               ),
-              (jsonValue.thenableState = getThenableStateAfterSuspending()),
+              (jsonValue.thenableState = getThenableStateAfterSuspending$1()),
               (task.keyPath = value),
               (task.implicitSlot = prevImplicitSlot),
               (JSCompiler_inline_result = parent
-                ? serializeLazyID(jsonValue.id)
-                : serializeByValueID(jsonValue.id)))
+                ? serializeLazyID$1(jsonValue.id)
+                : serializeByValueID$1(jsonValue.id)))
             : ((task.keyPath = value),
               (task.implicitSlot = prevImplicitSlot),
               request.pendingChunks++,
               (value = request.nextChunkId++),
-              (prevImplicitSlot = logRecoverableError(
+              (prevImplicitSlot = logRecoverableError$2(
                 request,
                 parentPropertyName,
                 task
               )),
-              emitErrorChunk(request, value, prevImplicitSlot),
+              emitErrorChunk$1(request, value, prevImplicitSlot),
               (JSCompiler_inline_result = parent
-                ? serializeLazyID(value)
-                : serializeByValueID(value))));
+                ? serializeLazyID$1(value)
+                : serializeByValueID$1(value))));
   }
   value = JSCompiler_inline_result;
   if (null === value || "object" !== typeof value) return value;
   if (isArrayImpl(value)) {
-    var resolved$16 = [];
+    var resolved$18 = [];
     for (
       prevImplicitSlot = 0;
       prevImplicitSlot < value.length;
       prevImplicitSlot++
     )
-      resolved$16[prevImplicitSlot] = resolveModel(
+      resolved$18[prevImplicitSlot] = resolveModel$2(
         request,
         task,
         value,
         "" + prevImplicitSlot,
         value[prevImplicitSlot]
       );
-    return resolved$16;
+    return resolved$18;
   }
   prevImplicitSlot = {};
-  for (resolved$16 in value)
-    hasOwnProperty.call(value, resolved$16) &&
-      ((parent = resolveModel(
+  for (resolved$18 in value)
+    hasOwnProperty.call(value, resolved$18) &&
+      ((parent = resolveModel$2(
         request,
         task,
         value,
-        resolved$16,
-        value[resolved$16]
+        resolved$18,
+        value[resolved$18]
       )),
-      "__proto__" === resolved$16
-        ? Object.defineProperty(prevImplicitSlot, resolved$16, {
+      "__proto__" === resolved$18
+        ? Object.defineProperty(prevImplicitSlot, resolved$18, {
             value: parent,
             enumerable: !0,
             writable: !0,
             configurable: !0
           })
-        : (prevImplicitSlot[resolved$16] = parent));
+        : (prevImplicitSlot[resolved$18] = parent));
   return prevImplicitSlot;
 }
-function serializeByValueID(id) {
+function serializeByValueID$1(id) {
   return "$" + id.toString(16);
 }
-function serializeLazyID(id) {
+function serializeLazyID$1(id) {
   return "$L" + id.toString(16);
 }
-function encodeReferenceChunk(request, id, reference) {
-  request = stringify(reference);
+function encodeReferenceChunk$1(request, id, reference) {
+  request = stringify$1(reference);
   return id.toString(16) + ":" + request + "\n";
 }
-function serializeClientReference(
+function serializeClientReference$1(
   request,
   parent,
   parentPropertyName,
@@ -1592,76 +1684,53 @@ function serializeClientReference(
     existingId = writtenClientReferences.get(clientReferenceKey);
   if (void 0 !== existingId)
     return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-      ? serializeLazyID(existingId)
-      : serializeByValueID(existingId);
+      ? serializeLazyID$1(existingId)
+      : serializeByValueID$1(existingId);
   try {
-    var config = request.bundlerConfig,
-      modulePath = clientReference.$$id;
-    existingId = "";
-    var resolvedModuleData = config[modulePath];
-    if (resolvedModuleData) existingId = resolvedModuleData.name;
-    else {
-      var idx = modulePath.lastIndexOf("#");
-      -1 !== idx &&
-        ((existingId = modulePath.slice(idx + 1)),
-        (resolvedModuleData = config[modulePath.slice(0, idx)]));
-      if (!resolvedModuleData)
-        throw Error(
-          'Could not find the module "' +
-            modulePath +
-            '" in the React Client Manifest. This is probably a bug in the React Server Components bundler.'
-        );
-    }
-    if (!0 === resolvedModuleData.async && !0 === clientReference.$$async)
-      throw Error(
-        'The module "' +
-          modulePath +
-          '" is marked as an async ESM module but was loaded as a CJS proxy. This is probably a bug in the React Server Components bundler.'
-      );
-    var JSCompiler_inline_result =
-      !0 === resolvedModuleData.async || !0 === clientReference.$$async
-        ? [resolvedModuleData.id, resolvedModuleData.chunks, existingId, 1]
-        : [resolvedModuleData.id, resolvedModuleData.chunks, existingId];
-    var copy = transformImportMetadata(request, JSCompiler_inline_result, 0);
-    if (copy !== NOT_PLAIN_IMPORT_METADATA)
-      var JSCompiler_temp = stringify(copy);
+    var clientReferenceMetadata = resolveClientReferenceMetadata(
+      request.bundlerConfig,
+      clientReference
+    );
+    var copy = transformImportMetadata$1(request, clientReferenceMetadata, 0);
+    if (copy !== NOT_PLAIN_IMPORT_METADATA$1)
+      var JSCompiler_temp = stringify$1(copy);
     else
       b: {
-        clientReference = importStringRequest;
-        importStringRequest = request;
+        clientReference = importStringRequest$1;
+        importStringRequest$1 = request;
         try {
-          JSCompiler_temp = stringify(
-            JSCompiler_inline_result,
-            importMetadataReplacer
+          JSCompiler_temp = stringify$1(
+            clientReferenceMetadata,
+            importMetadataReplacer$1
           );
           break b;
         } finally {
-          importStringRequest = clientReference;
+          importStringRequest$1 = clientReference;
         }
         JSCompiler_temp = void 0;
       }
-    var JSCompiler_inline_result$jscomp$0 = JSCompiler_temp;
+    var JSCompiler_inline_result = JSCompiler_temp;
     request.pendingChunks++;
     var importId = request.nextChunkId++,
       processedChunk =
-        importId.toString(16) + ":I" + JSCompiler_inline_result$jscomp$0 + "\n";
+        importId.toString(16) + ":I" + JSCompiler_inline_result + "\n";
     request.completedImportChunks.push(processedChunk);
     writtenClientReferences.set(clientReferenceKey, importId);
     return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-      ? serializeLazyID(importId)
-      : serializeByValueID(importId);
+      ? serializeLazyID$1(importId)
+      : serializeByValueID$1(importId);
   } catch (x) {
     return (
       request.pendingChunks++,
       (parent = request.nextChunkId++),
-      (parentPropertyName = logRecoverableError(request, x, null)),
-      emitErrorChunk(request, parent, parentPropertyName),
-      serializeByValueID(parent)
+      (parentPropertyName = logRecoverableError$2(request, x, null)),
+      emitErrorChunk$1(request, parent, parentPropertyName),
+      serializeByValueID$1(parent)
     );
   }
 }
-function outlineModelWithFormatContext(request, value, formatContext) {
-  value = createTask(
+function outlineModelWithFormatContext$1(request, value, formatContext) {
+  value = createTask$2(
     request,
     value,
     null,
@@ -1669,10 +1738,10 @@ function outlineModelWithFormatContext(request, value, formatContext) {
     formatContext,
     request.abortableTasks
   );
-  retryTask(request, value);
+  retryTask$2(request, value);
   return value.id;
 }
-function serializeServerReference(request, serverReference) {
+function serializeServerReference$1(request, serverReference) {
   var isObjectReference = "object" === typeof serverReference,
     writtenServerReferences = request.writtenServerReferences,
     existingId = writtenServerReferences.get(serverReference);
@@ -1687,24 +1756,24 @@ function serializeServerReference(request, serverReference) {
     boundArgs = null === boundArgs ? null : Promise.resolve(boundArgs);
     existingId = { id: existingId, bound: boundArgs };
   }
-  request = outlineModelWithFormatContext(request, existingId, 0);
+  request = outlineModelWithFormatContext$1(request, existingId, 0);
   writtenServerReferences.set(serverReference, request);
   return isObjectReference
     ? "$H" + request.toString(16)
     : "$h" + request.toString(16);
 }
-function serializeTypedArray(request, tag, typedArray) {
+function serializeTypedArray$1(request, tag, typedArray) {
   request.pendingChunks++;
   var bufferId = request.nextChunkId++;
-  emitTypedArrayChunk(request, bufferId, tag, typedArray, !1);
-  return serializeByValueID(bufferId);
+  emitTypedArrayChunk$1(request, bufferId, tag, typedArray, !1);
+  return serializeByValueID$1(bufferId);
 }
-function serializeBlob(request, blob) {
+function serializeBlob$1(request, blob) {
   function progress(entry) {
     if (0 === newTask.status)
       if (entry.done)
         request.cacheController.signal.removeEventListener("abort", abortBlob),
-          pingTask(request, newTask);
+          pingTask$2(request, newTask);
       else
         return (
           model.push(entry.value), reader.read().then(progress).catch(error)
@@ -1713,8 +1782,8 @@ function serializeBlob(request, blob) {
   function error(reason) {
     0 === newTask.status &&
       (request.cacheController.signal.removeEventListener("abort", abortBlob),
-      erroredTask(request, newTask, reason),
-      enqueueFlush(request),
+      erroredTask$2(request, newTask, reason),
+      enqueueFlush$1(request),
       reader.cancel(reason).then(error, error));
   }
   function abortBlob() {
@@ -1724,40 +1793,40 @@ function serializeBlob(request, blob) {
       signal = signal.reason;
       21 === request.type
         ? (request.abortableTasks.delete(newTask),
-          haltTask(newTask),
-          finishHaltedTask(newTask, request))
-        : (erroredTask(request, newTask, signal), enqueueFlush(request));
+          haltTask$1(newTask),
+          finishHaltedTask$1(newTask, request))
+        : (erroredTask$2(request, newTask, signal), enqueueFlush$1(request));
       reader.cancel(signal).then(error, error);
     }
   }
   var model = [blob.type],
-    newTask = createTask(request, model, null, !1, 0, request.abortableTasks),
+    newTask = createTask$2(request, model, null, !1, 0, request.abortableTasks),
     reader = blob.stream().getReader();
   request.cacheController.signal.addEventListener("abort", abortBlob);
   reader.read().then(progress).catch(error);
   return "$B" + newTask.id.toString(16);
 }
-function escapeStringValue(value) {
+function escapeStringValue$1(value) {
   return "$" === value[0] ? "$" + value : value;
 }
-function serializeImportString(request, value) {
-  if (16 > value.length) return escapeStringValue(value);
+function serializeImportString$1(request, value) {
+  if (16 > value.length) return escapeStringValue$1(value);
   var writtenStrings = request.writtenImportStrings,
     existing = writtenStrings.get(value);
   if (void 0 !== existing) return existing;
   existing = request.writtenImportStringsSize + value.length;
-  if (32768 < existing) return escapeStringValue(value);
+  if (32768 < existing) return escapeStringValue$1(value);
   request.writtenImportStringsSize = existing;
   request.pendingChunks++;
   existing = request.nextChunkId++;
-  var json = stringify(escapeStringValue(value));
+  var json = stringify$1(escapeStringValue$1(value));
   request.completedImportChunks.push(existing.toString(16) + ":" + json + "\n");
-  request = serializeByValueID(existing);
+  request = serializeByValueID$1(existing);
   writtenStrings.set(value, request);
   return request;
 }
-var modelRoot = !1;
-function renderModelDestructive(
+var modelRoot$2 = !1;
+function renderModelDestructive$2(
   request,
   task,
   parent,
@@ -1775,7 +1844,7 @@ function renderModelDestructive(
         if (null === task.keyPath && !task.implicitSlot) {
           var existingReference = writtenObjects.get(value);
           if (void 0 !== existingReference)
-            if (modelRoot === value) modelRoot = null;
+            if (modelRoot$2 === value) modelRoot$2 = null;
             else return existingReference;
           else
             -1 === parentPropertyName.indexOf(":") &&
@@ -1784,10 +1853,10 @@ function renderModelDestructive(
                 ((elementReference = parent + ":" + parentPropertyName),
                 writtenObjects.set(value, elementReference)));
         }
-        if (3200 < serializedSize) return deferTask(request, task);
+        if (3200 < serializedSize$1) return deferTask$2(request, task);
         parentPropertyName = value.props;
         parent = parentPropertyName.ref;
-        value = renderElement(
+        value = renderElement$1(
           request,
           task,
           value.type,
@@ -1802,12 +1871,12 @@ function renderModelDestructive(
             writtenObjects.set(value, elementReference));
         return value;
       case REACT_LAZY_TYPE:
-        if (3200 < serializedSize) return deferTask(request, task);
+        if (3200 < serializedSize$1) return deferTask$2(request, task);
         task.thenableState = null;
         elementReference = value._init;
         value = elementReference(value._payload);
         if (12 === request.status) throw null;
-        return renderModelDestructive(
+        return renderModelDestructive$2(
           request,
           task,
           parent,
@@ -1819,38 +1888,38 @@ function renderModelDestructive(
           'A React Element from an older version of React was rendered. This is not supported. It can happen if:\n- Multiple copies of the "react" package is used.\n- A library pre-bundled an old copy of "react" or "react/jsx-runtime".\n- A compiler tries to "inline" JSX instead of using the runtime.'
         );
     }
-    if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
-      return serializeClientReference(
+    if (isClientReference(value))
+      return serializeClientReference$1(
         request,
         parent,
         parentPropertyName,
         value
       );
-    if (value.$$typeof === SERVER_REFERENCE_TAG)
-      return serializeServerReference(request, value);
+    if (isServerReference(value))
+      return serializeServerReference$1(request, value);
     if (
       void 0 !== request.temporaryReferences &&
       ((elementReference = request.temporaryReferences.get(value)),
       void 0 !== elementReference)
     )
       return "$T" + elementReference;
-    elementReference = TaintRegistryObjects.get(value);
-    void 0 !== elementReference && throwTaintViolation(elementReference);
+    elementReference = TaintRegistryObjects$2.get(value);
+    void 0 !== elementReference && throwTaintViolation$2(elementReference);
     elementReference = request.writtenObjects;
     writtenObjects = elementReference.get(value);
     if ("function" === typeof value.then) {
       if (void 0 !== writtenObjects) {
         if (null !== task.keyPath || task.implicitSlot)
           return (
-            (request = serializeThenable(request, task, value)),
+            (request = serializeThenable$1(request, task, value)),
             "pending_weak" === value.status
               ? "$w" + request.toString(16)
               : "$@" + request.toString(16)
           );
-        if (modelRoot === value) modelRoot = null;
+        if (modelRoot$2 === value) modelRoot$2 = null;
         else return writtenObjects;
       }
-      request = serializeThenable(request, task, value);
+      request = serializeThenable$1(request, task, value);
       request =
         "pending_weak" === value.status
           ? "$w" + request.toString(16)
@@ -1859,10 +1928,10 @@ function renderModelDestructive(
       return request;
     }
     if (void 0 !== writtenObjects)
-      if (modelRoot === value) {
-        if (writtenObjects !== serializeByValueID(task.id))
+      if (modelRoot$2 === value) {
+        if (writtenObjects !== serializeByValueID$1(task.id))
           return writtenObjects;
-        modelRoot = null;
+        modelRoot$2 = null;
       } else return writtenObjects;
     else if (
       -1 === parentPropertyName.indexOf(":") &&
@@ -1886,62 +1955,62 @@ function renderModelDestructive(
         }
       elementReference.set(value, writtenObjects + ":" + existingReference);
     }
-    if (isArrayImpl(value)) return renderFragment(request, task, value);
+    if (isArrayImpl(value)) return renderFragment$1(request, task, value);
     if (value instanceof Map)
       return (
         (value = Array.from(value)),
-        "$Q" + outlineModelWithFormatContext(request, value, 0).toString(16)
+        "$Q" + outlineModelWithFormatContext$1(request, value, 0).toString(16)
       );
     if (value instanceof Set)
       return (
         (value = Array.from(value)),
-        "$W" + outlineModelWithFormatContext(request, value, 0).toString(16)
+        "$W" + outlineModelWithFormatContext$1(request, value, 0).toString(16)
       );
     if ("function" === typeof FormData && value instanceof FormData)
       return (
         (value = Array.from(value.entries())),
-        "$K" + outlineModelWithFormatContext(request, value, 0).toString(16)
+        "$K" + outlineModelWithFormatContext$1(request, value, 0).toString(16)
       );
     if (value instanceof Error) return "$Z";
     if (value instanceof ArrayBuffer)
-      return serializeTypedArray(request, "A", new Uint8Array(value));
+      return serializeTypedArray$1(request, "A", new Uint8Array(value));
     if (value instanceof Int8Array)
-      return serializeTypedArray(request, "O", value);
+      return serializeTypedArray$1(request, "O", value);
     if (value instanceof Uint8Array)
-      return serializeTypedArray(request, "o", value);
+      return serializeTypedArray$1(request, "o", value);
     if (value instanceof Uint8ClampedArray)
-      return serializeTypedArray(request, "U", value);
+      return serializeTypedArray$1(request, "U", value);
     if (value instanceof Int16Array)
-      return serializeTypedArray(request, "S", value);
+      return serializeTypedArray$1(request, "S", value);
     if (value instanceof Uint16Array)
-      return serializeTypedArray(request, "s", value);
+      return serializeTypedArray$1(request, "s", value);
     if (value instanceof Int32Array)
-      return serializeTypedArray(request, "L", value);
+      return serializeTypedArray$1(request, "L", value);
     if (value instanceof Uint32Array)
-      return serializeTypedArray(request, "l", value);
+      return serializeTypedArray$1(request, "l", value);
     if (value instanceof Float32Array)
-      return serializeTypedArray(request, "G", value);
+      return serializeTypedArray$1(request, "G", value);
     if (value instanceof Float64Array)
-      return serializeTypedArray(request, "g", value);
+      return serializeTypedArray$1(request, "g", value);
     if (value instanceof BigInt64Array)
-      return serializeTypedArray(request, "M", value);
+      return serializeTypedArray$1(request, "M", value);
     if (value instanceof BigUint64Array)
-      return serializeTypedArray(request, "m", value);
+      return serializeTypedArray$1(request, "m", value);
     if (value instanceof DataView)
-      return serializeTypedArray(request, "V", value);
+      return serializeTypedArray$1(request, "V", value);
     if ("function" === typeof Blob && value instanceof Blob)
-      return serializeBlob(request, value);
+      return serializeBlob$1(request, value);
     if ((elementReference = getIteratorFn(value)))
       return (
         (parentPropertyName = elementReference.call(value)),
         parentPropertyName === value
           ? ((value = Array.from(parentPropertyName)),
             "$i" +
-              outlineModelWithFormatContext(request, value, 0).toString(16))
-          : renderFragment(request, task, Array.from(parentPropertyName))
+              outlineModelWithFormatContext$1(request, value, 0).toString(16))
+          : renderFragment$1(request, task, Array.from(parentPropertyName))
       );
     if ("function" === typeof ReadableStream && value instanceof ReadableStream)
-      return serializeReadableStream(request, task, value);
+      return serializeReadableStream$1(request, task, value);
     elementReference = value[ASYNC_ITERATOR];
     if ("function" === typeof elementReference)
       return (
@@ -1954,7 +2023,7 @@ function renderModelDestructive(
             ]),
             (value = task.implicitSlot ? [value] : value))
           : ((parentPropertyName = elementReference.call(value)),
-            (value = serializeAsyncIterable(
+            (value = serializeAsyncIterable$1(
               request,
               task,
               value,
@@ -1963,10 +2032,10 @@ function renderModelDestructive(
         value
       );
     if (value instanceof Date) return "$D" + value.toJSON();
-    request = getPrototypeOf(value);
+    request = getPrototypeOf$2(value);
     if (
-      request !== ObjectPrototype$1 &&
-      (null === request || null !== getPrototypeOf(request))
+      request !== ObjectPrototype$3 &&
+      (null === request || null !== getPrototypeOf$2(request))
     )
       throw Error(
         "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
@@ -1976,18 +2045,18 @@ function renderModelDestructive(
   }
   if ("string" === typeof value)
     return (
-      (task = TaintRegistryValues.get(value)),
-      void 0 !== task && throwTaintViolation(task.message),
-      (serializedSize += value.length),
+      (task = TaintRegistryValues$2.get(value)),
+      void 0 !== task && throwTaintViolation$2(task.message),
+      (serializedSize$1 += value.length),
       "Z" === value[value.length - 1] &&
       parent[parentPropertyName] instanceof Date
         ? "$D" + value
         : 1024 <= value.length && null !== byteLengthOfChunk
           ? (request.pendingChunks++,
             (parentPropertyName = request.nextChunkId++),
-            emitTextChunk(request, parentPropertyName, value, !1),
-            serializeByValueID(parentPropertyName))
-          : escapeStringValue(value)
+            emitTextChunk$1(request, parentPropertyName, value, !1),
+            serializeByValueID$1(parentPropertyName))
+          : escapeStringValue$1(value)
     );
   if ("boolean" === typeof value) return value;
   if ("number" === typeof value)
@@ -2002,22 +2071,22 @@ function renderModelDestructive(
           : "$NaN";
   if ("undefined" === typeof value) return "$undefined";
   if ("function" === typeof value) {
-    if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
-      return serializeClientReference(
+    if (isClientReference(value))
+      return serializeClientReference$1(
         request,
         parent,
         parentPropertyName,
         value
       );
-    if (value.$$typeof === SERVER_REFERENCE_TAG)
-      return serializeServerReference(request, value);
+    if (isServerReference(value))
+      return serializeServerReference$1(request, value);
     if (
       void 0 !== request.temporaryReferences &&
       ((request = request.temporaryReferences.get(value)), void 0 !== request)
     )
       return "$T" + request;
-    request = TaintRegistryObjects.get(value);
-    void 0 !== request && throwTaintViolation(request);
+    request = TaintRegistryObjects$2.get(value);
+    void 0 !== request && throwTaintViolation$2(request);
     if (value.$$typeof === TEMPORARY_REFERENCE_TAG)
       throw Error(
         "Could not reference an opaque temporary reference. This is likely due to misconfiguring the temporaryReferences options on the server."
@@ -2037,7 +2106,7 @@ function renderModelDestructive(
     task = request.writtenSymbols;
     elementReference = task.get(value);
     if (void 0 !== elementReference)
-      return serializeByValueID(elementReference);
+      return serializeByValueID$1(elementReference);
     elementReference = value.description;
     if (Symbol.for(elementReference) !== value)
       throw Error(
@@ -2047,19 +2116,19 @@ function renderModelDestructive(
       );
     request.pendingChunks++;
     parentPropertyName = request.nextChunkId++;
-    parent = encodeReferenceChunk(
+    parent = encodeReferenceChunk$1(
       request,
       parentPropertyName,
       "$S" + elementReference
     );
     request.completedImportChunks.push(parent);
     task.set(value, parentPropertyName);
-    return serializeByValueID(parentPropertyName);
+    return serializeByValueID$1(parentPropertyName);
   }
   if ("bigint" === typeof value)
     return (
-      (request = TaintRegistryValues.get(value)),
-      void 0 !== request && throwTaintViolation(request.message),
+      (request = TaintRegistryValues$2.get(value)),
+      void 0 !== request && throwTaintViolation$2(request.message),
       "$n" + value.toString(10)
     );
   throw Error(
@@ -2069,13 +2138,17 @@ function renderModelDestructive(
       describeObjectForErrorMessage(parent, parentPropertyName)
   );
 }
-function logRecoverableError(request, error) {
-  var prevRequest = currentRequest;
-  currentRequest = null;
+function logRecoverableError$2(request, error) {
+  var prevRequest = currentRequest$1;
+  currentRequest$1 = null;
+  var prevCache = setCurrentCache(null);
   try {
-    var errorDigest = requestStorage.run(void 0, request.onError, error);
+    var onError = request.onError;
+    var errorDigest = cacheStorage.run(void 0, function () {
+      return requestStorage.run(void 0, onError, error);
+    });
   } finally {
-    currentRequest = prevRequest;
+    (currentRequest$1 = prevRequest), setCurrentCache(prevCache);
   }
   if (null != errorDigest && "string" !== typeof errorDigest)
     throw Error(
@@ -2085,10 +2158,10 @@ function logRecoverableError(request, error) {
     );
   return errorDigest || "";
 }
-function fatalError(request, error) {
+function fatalError$2(request, error) {
   var onFatalError = request.onFatalError;
   onFatalError(error);
-  cleanupTaintQueue(request);
+  cleanupTaintQueue$2(request);
   null !== request.destination
     ? ((request.status = 14), request.destination.destroy(error))
     : ((request.status = 13), (request.fatalError = error));
@@ -2096,25 +2169,25 @@ function fatalError(request, error) {
     Error("The render was aborted due to a fatal error.", { cause: error })
   );
 }
-function emitErrorChunk(request, id, digest) {
+function emitErrorChunk$1(request, id, digest) {
   digest = { digest: digest };
-  id = id.toString(16) + ":E" + stringify(digest) + "\n";
+  id = id.toString(16) + ":E" + stringify$1(digest) + "\n";
   request.completedErrorChunks.push(id);
 }
-var importStringRequest = null;
-function importMetadataReplacer(key, value) {
+var importStringRequest$1 = null;
+function importMetadataReplacer$1(key, value) {
   return "string" === typeof value
-    ? ((key = importStringRequest),
+    ? ((key = importStringRequest$1),
       null === key
-        ? escapeStringValue(value)
-        : serializeImportString(key, value))
+        ? escapeStringValue$1(value)
+        : serializeImportString$1(key, value))
     : value;
 }
-var NOT_PLAIN_IMPORT_METADATA = {};
-function transformImportMetadata(request, value, depth) {
+var NOT_PLAIN_IMPORT_METADATA$1 = {};
+function transformImportMetadata$1(request, value, depth) {
   switch (typeof value) {
     case "string":
-      return serializeImportString(request, value);
+      return serializeImportString$1(request, value);
     case "number":
     case "boolean":
     case "undefined":
@@ -2122,7 +2195,7 @@ function transformImportMetadata(request, value, depth) {
     case "object":
       if (null === value) return null;
       if (16 < depth || "function" === typeof value.toJSON)
-        return NOT_PLAIN_IMPORT_METADATA;
+        return NOT_PLAIN_IMPORT_METADATA$1;
       if (isArrayImpl(value)) {
         for (
           var length = value.length, copy = Array(length), i = 0;
@@ -2131,89 +2204,65 @@ function transformImportMetadata(request, value, depth) {
         ) {
           var element = value[i];
           if ("string" === typeof element)
-            copy[i] = serializeImportString(request, element);
+            copy[i] = serializeImportString$1(request, element);
           else {
-            element = transformImportMetadata(request, element, depth + 1);
-            if (element === NOT_PLAIN_IMPORT_METADATA)
-              return NOT_PLAIN_IMPORT_METADATA;
+            element = transformImportMetadata$1(request, element, depth + 1);
+            if (element === NOT_PLAIN_IMPORT_METADATA$1)
+              return NOT_PLAIN_IMPORT_METADATA$1;
             copy[i] = element;
           }
         }
         return copy;
       }
-      length = getPrototypeOf(value);
-      if (length !== ObjectPrototype$1 && null !== length)
-        return NOT_PLAIN_IMPORT_METADATA;
+      length = getPrototypeOf$2(value);
+      if (length !== ObjectPrototype$3 && null !== length)
+        return NOT_PLAIN_IMPORT_METADATA$1;
       length = Object.keys(value);
       copy = {};
       for (i = 0; i < length.length; i++) {
         element = length[i];
-        if (element in ObjectPrototype$1) return NOT_PLAIN_IMPORT_METADATA;
-        var element$28 = value[element];
-        if ("string" === typeof element$28)
-          copy[element] = serializeImportString(request, element$28);
+        if (element in ObjectPrototype$3) return NOT_PLAIN_IMPORT_METADATA$1;
+        var element$30 = value[element];
+        if ("string" === typeof element$30)
+          copy[element] = serializeImportString$1(request, element$30);
         else {
-          element$28 = transformImportMetadata(request, element$28, depth + 1);
-          if (element$28 === NOT_PLAIN_IMPORT_METADATA)
-            return NOT_PLAIN_IMPORT_METADATA;
-          copy[element] = element$28;
+          element$30 = transformImportMetadata$1(
+            request,
+            element$30,
+            depth + 1
+          );
+          if (element$30 === NOT_PLAIN_IMPORT_METADATA$1)
+            return NOT_PLAIN_IMPORT_METADATA$1;
+          copy[element] = element$30;
         }
       }
       return copy;
     default:
-      return NOT_PLAIN_IMPORT_METADATA;
+      return NOT_PLAIN_IMPORT_METADATA$1;
   }
 }
-function emitModelChunk(request, id, json) {
+function emitModelChunk$1(request, id, json) {
   id = id.toString(16) + ":" + json + "\n";
   request.completedRegularChunks.push(id);
 }
-function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
-  if (TaintRegistryByteLengths.has(typedArray.byteLength)) {
-    var tainted = TaintRegistryValues.get(
-      String.fromCharCode.apply(
-        String,
-        new Uint8Array(
-          typedArray.buffer,
-          typedArray.byteOffset,
-          typedArray.byteLength
-        )
-      )
+function emitTypedArrayChunk$1(request, id, tag, typedArray, debug) {
+  if (TaintRegistryByteLengths$2.has(typedArray.byteLength)) {
+    var tainted = TaintRegistryValues$2.get(
+      binaryToComparableString(typedArray)
     );
-    void 0 !== tainted && throwTaintViolation(tainted.message);
+    void 0 !== tainted && throwTaintViolation$2(tainted.message);
   }
   debug ? request.pendingDebugChunks++ : request.pendingChunks++;
-  a: {
-    debug = new Uint8Array(
-      typedArray.buffer,
-      typedArray.byteOffset,
-      typedArray.byteLength
-    );
-    if (4096 < typedArray.byteLength) {
-      if (
-        0 !== typedArray.byteOffset ||
-        typedArray.byteLength !== typedArray.buffer.byteLength ||
-        typedArray.buffer.resizable
-      ) {
-        typedArray = debug.slice();
-        break a;
-      }
-      if (!supportsArrayBufferDetached) {
-        typedArray = debug.slice();
-        break a;
-      }
-    }
-    typedArray = debug;
-  }
+  typedArray = typedArrayToBinaryChunk(typedArray);
   debug = typedArray.byteLength;
   id = id.toString(16) + ":" + tag + debug.toString(16) + ",";
   request.completedRegularChunks.push(
-    NEXT_TWO_CHUNKS_ARE_ATOMIC,
+    NEXT_TWO_CHUNKS_ARE_ATOMIC$1,
     id,
     typedArray
   );
 }
-function emitTextChunk(request, id, text, debug) {
+function emitTextChunk$1(request, id, text, debug) {
   if (null === byteLengthOfChunk)
     throw Error(
       "Existence of byteLengthOfChunk should have already been checked. This is a bug in React."
@@ -2221,91 +2270,98 @@ function emitTextChunk(request, id, text, debug) {
   debug ? request.pendingDebugChunks++ : request.pendingChunks++;
   debug = byteLengthOfChunk(text);
   id = id.toString(16) + ":T" + debug.toString(16) + ",";
-  request.completedRegularChunks.push(NEXT_TWO_CHUNKS_ARE_ATOMIC, id, text);
+  request.completedRegularChunks.push(NEXT_TWO_CHUNKS_ARE_ATOMIC$1, id, text);
 }
-function emitChunk(request, task, value) {
+function emitChunk$1(request, task, value) {
   var id = task.id;
   "string" === typeof value && null !== byteLengthOfChunk
-    ? ((task = TaintRegistryValues.get(value)),
-      void 0 !== task && throwTaintViolation(task.message),
-      emitTextChunk(request, id, value, !1))
-    : "object" === typeof value &&
-        null !== value &&
-        value.$$typeof === SERVER_REFERENCE_TAG
-      ? ((task = stringify(serializeServerReference(request, value))),
-        emitModelChunk(request, id, task))
+    ? ((task = TaintRegistryValues$2.get(value)),
+      void 0 !== task && throwTaintViolation$2(task.message),
+      emitTextChunk$1(request, id, value, !1))
+    : "object" === typeof value && null !== value && isServerReference(value)
+      ? ((task = stringify$1(serializeServerReference$1(request, value))),
+        emitModelChunk$1(request, id, task))
       : value instanceof ArrayBuffer
-        ? emitTypedArrayChunk(request, id, "A", new Uint8Array(value), !1)
+        ? emitTypedArrayChunk$1(request, id, "A", new Uint8Array(value), !1)
         : value instanceof Int8Array
-          ? emitTypedArrayChunk(request, id, "O", value, !1)
+          ? emitTypedArrayChunk$1(request, id, "O", value, !1)
           : value instanceof Uint8Array
-            ? emitTypedArrayChunk(request, id, "o", value, !1)
+            ? emitTypedArrayChunk$1(request, id, "o", value, !1)
             : value instanceof Uint8ClampedArray
-              ? emitTypedArrayChunk(request, id, "U", value, !1)
+              ? emitTypedArrayChunk$1(request, id, "U", value, !1)
               : value instanceof Int16Array
-                ? emitTypedArrayChunk(request, id, "S", value, !1)
+                ? emitTypedArrayChunk$1(request, id, "S", value, !1)
                 : value instanceof Uint16Array
-                  ? emitTypedArrayChunk(request, id, "s", value, !1)
+                  ? emitTypedArrayChunk$1(request, id, "s", value, !1)
                   : value instanceof Int32Array
-                    ? emitTypedArrayChunk(request, id, "L", value, !1)
+                    ? emitTypedArrayChunk$1(request, id, "L", value, !1)
                     : value instanceof Uint32Array
-                      ? emitTypedArrayChunk(request, id, "l", value, !1)
+                      ? emitTypedArrayChunk$1(request, id, "l", value, !1)
                       : value instanceof Float32Array
-                        ? emitTypedArrayChunk(request, id, "G", value, !1)
+                        ? emitTypedArrayChunk$1(request, id, "G", value, !1)
                         : value instanceof Float64Array
-                          ? emitTypedArrayChunk(request, id, "g", value, !1)
+                          ? emitTypedArrayChunk$1(request, id, "g", value, !1)
                           : value instanceof BigInt64Array
-                            ? emitTypedArrayChunk(request, id, "M", value, !1)
+                            ? emitTypedArrayChunk$1(request, id, "M", value, !1)
                             : value instanceof BigUint64Array
-                              ? emitTypedArrayChunk(request, id, "m", value, !1)
+                              ? emitTypedArrayChunk$1(
+                                  request,
+                                  id,
+                                  "m",
+                                  value,
+                                  !1
+                                )
                               : value instanceof DataView
-                                ? emitTypedArrayChunk(
+                                ? emitTypedArrayChunk$1(
                                     request,
                                     id,
                                     "V",
                                     value,
                                     !1
                                   )
-                                : ((id = resolveModel(
+                                : ((id = resolveModel$2(
                                     request,
                                     task,
                                     { "": value },
                                     "",
                                     value
                                   )),
-                                  (id = stringify(id)),
-                                  emitModelChunk(request, task.id, id));
+                                  (id = stringify$1(id)),
+                                  emitModelChunk$1(request, task.id, id));
 }
-function erroredTask(request, task, error) {
+function erroredTask$2(request, task, error) {
   task.status = 4;
-  error = logRecoverableError(request, error, task);
-  emitErrorChunk(request, task.id, error);
+  error = logRecoverableError$2(request, error, task);
+  emitErrorChunk$1(request, task.id, error);
   request.abortableTasks.delete(task);
   callOnAllReadyIfReady(request);
 }
-var emptyRoot = {};
-function retryTask(request, task) {
+var emptyRoot$1 = {};
+function retryTask$2(request, task) {
   if (0 === task.status) {
     task.status = 5;
-    var parentSerializedSize = serializedSize;
+    var parentSerializedSize = serializedSize$1;
     try {
-      modelRoot = task.model;
-      var resolvedModel = renderModelDestructive(
+      modelRoot$2 = task.model;
+      var resolvedModel = renderModelDestructive$2(
         request,
         task,
-        emptyRoot,
+        emptyRoot$1,
         "",
         task.model
       );
-      modelRoot = resolvedModel;
+      modelRoot$2 = resolvedModel;
       task.keyPath = null;
       task.implicitSlot = !1;
       if ("object" === typeof resolvedModel && null !== resolvedModel)
-        request.writtenObjects.set(resolvedModel, serializeByValueID(task.id)),
-          emitChunk(request, task, resolvedModel);
+        request.writtenObjects.set(
+          resolvedModel,
+          serializeByValueID$1(task.id)
+        ),
+          emitChunk$1(request, task, resolvedModel);
       else {
-        var json = stringify(resolvedModel);
-        emitModelChunk(request, task.id, json);
+        var json = stringify$1(resolvedModel);
+        emitModelChunk$1(request, task.id, json);
       }
       task.status = 1;
       request.abortableTasks.delete(task);
@@ -2317,11 +2373,11 @@ function retryTask(request, task) {
           (task.status = 0),
           21 === request.type)
         )
-          haltTask(task), finishHaltedTask(task, request);
+          haltTask$1(task), finishHaltedTask$1(task, request);
         else {
           var errorId = request.fatalError;
-          abortTask(task);
-          finishAbortedTask(task, request, errorId);
+          abortTask$2(task);
+          finishAbortedTask$1(task, request, errorId);
         }
       else {
         var x =
@@ -2334,59 +2390,62 @@ function retryTask(request, task) {
           "function" === typeof x.then
         ) {
           task.status = 0;
-          task.thenableState = getThenableStateAfterSuspending();
+          task.thenableState = getThenableStateAfterSuspending$1();
           var ping = task.ping;
           x.then(ping, ping);
-        } else erroredTask(request, task, x);
+        } else erroredTask$2(request, task, x);
       }
     } finally {
-      serializedSize = parentSerializedSize;
+      serializedSize$1 = parentSerializedSize;
     }
   }
 }
-function tryStreamTask(request, task) {
-  var parentSerializedSize = serializedSize;
+function tryStreamTask$2(request, task) {
+  var parentSerializedSize = serializedSize$1;
   try {
-    emitChunk(request, task, task.model);
+    emitChunk$1(request, task, task.model);
   } finally {
-    serializedSize = parentSerializedSize;
+    serializedSize$1 = parentSerializedSize;
   }
 }
-function performWork(request) {
+function performWork$2(request) {
   var prevDispatcher = ReactSharedInternalsServer.H;
-  ReactSharedInternalsServer.H = HooksDispatcher;
-  var prevRequest = currentRequest;
-  currentRequest$1 = currentRequest = request;
+  ReactSharedInternalsServer.H = HooksDispatcher$1;
+  var prevRequest = currentRequest$1;
+  currentRequest$1 = request;
+  var prevCache = setCurrentCache(request);
+  currentRequest$2 = request;
   try {
     var pingedTasks = request.pingedTasks;
     request.pingedTasks = [];
     for (var i = 0; i < pingedTasks.length; i++)
-      retryTask(request, pingedTasks[i]);
-    flushCompletedChunks(request);
+      retryTask$2(request, pingedTasks[i]);
+    flushCompletedChunks$1(request);
   } catch (error) {
-    logRecoverableError(request, error, null), fatalError(request, error);
+    logRecoverableError$2(request, error, null), fatalError$2(request, error);
   } finally {
     (ReactSharedInternalsServer.H = prevDispatcher),
-      (currentRequest$1 = null),
-      (currentRequest = prevRequest);
+      (currentRequest$2 = null),
+      (currentRequest$1 = prevRequest),
+      setCurrentCache(prevCache);
   }
 }
-function abortTask(task) {
+function abortTask$2(task) {
   0 === task.status && (task.status = 3);
 }
-function finishAbortedTask(task, request, errorId) {
+function finishAbortedTask$1(task, request, errorId) {
   3 === task.status &&
-    ((errorId = serializeByValueID(errorId)),
-    (task = encodeReferenceChunk(request, task.id, errorId)),
+    ((errorId = serializeByValueID$1(errorId)),
+    (task = encodeReferenceChunk$1(request, task.id, errorId)),
     request.completedErrorChunks.push(task));
 }
-function haltTask(task) {
+function haltTask$1(task) {
   0 === task.status && (task.status = 3);
 }
-function finishHaltedTask(task, request) {
+function finishHaltedTask$1(task, request) {
   3 === task.status && request.pendingChunks--;
 }
-function flushCompletedChunks(request) {
+function flushCompletedChunks$1(request) {
   var destination = request.destination;
   if (null !== destination) {
     currentView = new Uint8Array(4096);
@@ -2419,7 +2478,7 @@ function flushCompletedChunks(request) {
       for (i = 0; i < regularChunks.length; i++) {
         var item = regularChunks[i];
         importsChunks = void 0;
-        if (item === NEXT_TWO_CHUNKS_ARE_ATOMIC) {
+        if (item === NEXT_TWO_CHUNKS_ARE_ATOMIC$1) {
           if (i + 2 >= regularChunks.length)
             throw Error("A chunk pair is incomplete. This is a bug in React.");
           request.pendingChunks -= 2;
@@ -2451,15 +2510,9 @@ function flushCompletedChunks(request) {
         }
       errorChunks.splice(0, i);
     } finally {
-      (request.flushScheduled = !1),
-        currentView &&
-          0 < writtenBytes &&
-          destination.write(currentView.subarray(0, writtenBytes)),
-        (currentView = null),
-        (writtenBytes = 0),
-        (destinationHasCapacity = !0);
+      (request.flushScheduled = !1), completeWriting(destination);
     }
-    "function" === typeof destination.flush && destination.flush();
+    flushBuffered(destination);
   }
   0 === request.pendingChunks &&
     (12 > request.status &&
@@ -2468,83 +2521,85 @@ function flushCompletedChunks(request) {
           "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
         )
       ),
-    cleanupTaintQueue(request),
+    cleanupTaintQueue$2(request),
     null !== request.destination &&
       ((request.status = 14),
       request.destination.end(),
       (request.destination = null)));
 }
-function startWork(request) {
+function startWork$2(request) {
   request.flushScheduled = null !== request.destination;
   scheduleMicrotask(function () {
-    requestStorage.run(request, performWork, request);
+    cacheStorage.run(request, function () {
+      return requestStorage.run(request, performWork$2, request);
+    });
   });
   setImmediate(function () {
     10 === request.status && (request.status = 11);
   });
 }
-function enqueueFlush(request) {
+function enqueueFlush$1(request) {
   !1 === request.flushScheduled &&
     0 === request.pingedTasks.length &&
     null !== request.destination &&
     ((request.flushScheduled = !0),
     setImmediate(function () {
       request.flushScheduled = !1;
-      flushCompletedChunks(request);
+      flushCompletedChunks$1(request);
     }));
 }
 function callOnAllReadyIfReady(request) {
   0 === request.abortableTasks.size &&
     ((request = request.onAllReady), request());
 }
-function startFlowing(request, destination) {
+function startFlowing$1(request, destination) {
   if (13 === request.status)
     (request.status = 14), destination.destroy(request.fatalError);
   else if (14 !== request.status && null === request.destination) {
     request.destination = destination;
     try {
-      flushCompletedChunks(request);
+      flushCompletedChunks$1(request);
     } catch (error) {
-      logRecoverableError(request, error, null), fatalError(request, error);
+      logRecoverableError$2(request, error, null), fatalError$2(request, error);
     }
   }
 }
 function finishHalt(request, abortedTasks) {
   try {
     abortedTasks.forEach(function (task) {
-      return finishHaltedTask(task, request);
+      return finishHaltedTask$1(task, request);
     });
     var onAllReady = request.onAllReady;
     onAllReady();
-    flushCompletedChunks(request);
+    flushCompletedChunks$1(request);
   } catch (error) {
-    logRecoverableError(request, error, null), fatalError(request, error);
+    logRecoverableError$2(request, error, null), fatalError$2(request, error);
   }
 }
-function finishAbort(request, abortedTasks, errorId) {
+function finishAbort$2(request, abortedTasks, errorId) {
   try {
     abortedTasks.forEach(function (task) {
-      return finishAbortedTask(task, request, errorId);
+      return finishAbortedTask$1(task, request, errorId);
     });
     var onAllReady = request.onAllReady;
     onAllReady();
-    flushCompletedChunks(request);
+    flushCompletedChunks$1(request);
   } catch (error) {
-    logRecoverableError(request, error, null), fatalError(request, error);
+    logRecoverableError$2(request, error, null), fatalError$2(request, error);
   }
 }
-function attachAbortSignal(request, signal) {
+function attachAbortSignal$2(request, signal) {
   signal.aborted
-    ? abort(request, signal.reason)
+    ? abort$2(request, signal.reason)
     : signal.addEventListener(
         "abort",
         function () {
-          abort(request, signal.reason);
+          abort$2(request, signal.reason);
         },
         { signal: request.cacheController.signal }
       );
 }
-function abort(request, reason) {
+function abort$2(request, reason) {
   if (!(11 < request.status))
     try {
       request.status = 12;
@@ -2553,7 +2608,7 @@ function abort(request, reason) {
       if (0 < abortableTasks.size)
         if (21 === request.type)
           abortableTasks.forEach(function (task) {
-            return haltTask(task, request);
+            return haltTask$1(task, request);
           }),
             setImmediate(function () {
               return finishHalt(request, abortableTasks);
@@ -2571,26 +2626,26 @@ function abort(request, reason) {
                       "The render was aborted by the server with a promise."
                     )
                   : reason,
-            digest = logRecoverableError(request, error, null),
+            digest = logRecoverableError$2(request, error, null),
             errorId = request.nextChunkId++;
           request.fatalError = errorId;
           request.pendingChunks++;
-          emitErrorChunk(request, errorId, digest, error, !1, null);
+          emitErrorChunk$1(request, errorId, digest, error, !1, null);
           abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId);
+            return abortTask$2(task, request, errorId);
           });
           setImmediate(function () {
-            return finishAbort(request, abortableTasks, errorId);
+            return finishAbort$2(request, abortableTasks, errorId);
           });
         }
       else {
         var onAllReady = request.onAllReady;
         onAllReady();
-        flushCompletedChunks(request);
+        flushCompletedChunks$1(request);
       }
-    } catch (error$36) {
-      logRecoverableError(request, error$36, null),
-        fatalError(request, error$36);
+    } catch (error$38) {
+      logRecoverableError$2(request, error$38, null),
+        fatalError$2(request, error$38);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2631,7 +2686,7 @@ function requireAsyncModule(id) {
   return promise;
 }
 function ignoreReject() {}
-function preloadModule(metadata) {
+function preloadModule$1(metadata) {
   for (var chunks = metadata[1], promises = [], i = 0; i < chunks.length; ) {
     var chunkId = chunks[i++];
     chunks[i++];
@@ -2699,13 +2754,13 @@ function getBackingBlob(backingStore, key) {
   return null === backingStore ? void 0 : backingStore.get(key);
 }
 var RESPONSE_SYMBOL = Symbol();
-function ReactPromise(status, value, reason) {
+function ReactPromise$1(status, value, reason) {
   this.status = status;
   this.value = value;
   this.reason = reason;
 }
-ReactPromise.prototype = Object.create(Promise.prototype);
-Object.defineProperty(ReactPromise.prototype, "then", {
+ReactPromise$1.prototype = Object.create(Promise.prototype);
+Object.defineProperty(ReactPromise$1.prototype, "then", {
   writable: !0,
   enumerable: !0,
   configurable: !0,
@@ -2721,7 +2776,7 @@ Object.defineProperty(ReactPromise.prototype, "then", {
             var inspectedValue = this.value,
               cycleProtection = 0,
               visited = new Set();
-            inspectedValue instanceof ReactPromise;
+            inspectedValue instanceof ReactPromise$1;
 
           ) {
             cycleProtection++;
@@ -2755,7 +2810,7 @@ Object.defineProperty(ReactPromise.prototype, "then", {
     }
   }
 });
-var ObjectPrototype = Object.prototype,
+var ObjectPrototype$2 = Object.prototype,
   ArrayPrototype = Array.prototype;
 function wakeChunk(response, listeners, value, chunk) {
   for (var i = 0; i < listeners.length; i++) {
@@ -2785,7 +2840,7 @@ function triggerErrorOnChunk(response, chunk, error) {
 }
 function createResolvedModelChunk(response, value, id) {
   var $jscomp$compprop2 = {};
-  return new ReactPromise(
+  return new ReactPromise$1(
     "resolved_model",
     value,
     (($jscomp$compprop2.id = id),
@@ -2836,7 +2891,7 @@ function resolveModelChunk(response, chunk, value, id) {
 }
 function createResolvedIteratorResultChunk(response, value, done) {
   var $jscomp$compprop4 = {};
-  return new ReactPromise(
+  return new ReactPromise$1(
     "resolved_model",
     (done ? '{"done":true,"value":' : '{"done":false,"value":') + value + "}",
     (($jscomp$compprop4.id = -1),
@@ -2858,14 +2913,14 @@ function loadServerReference$1(response, metaData, parentObject, key) {
   var cachedPromise = response._serverReferenceCache.get(metaData);
   if (void 0 !== cachedPromise)
     return readServerReference(response, cachedPromise, parentObject, key);
-  var blockedPromise = new ReactPromise("blocked", null, null);
+  var blockedPromise = new ReactPromise$1("blocked", null, null);
   response._serverReferenceCache.set(metaData, blockedPromise);
   var serverReference = resolveServerReference(response._bundlerConfig, id);
   id = metaData.bound;
-  if ((cachedPromise = preloadModule(serverReference)))
-    id instanceof ReactPromise &&
+  if ((cachedPromise = preloadModule$1(serverReference)))
+    id instanceof ReactPromise$1 &&
       (cachedPromise = Promise.all([cachedPromise, id]));
-  else if (id instanceof ReactPromise) cachedPromise = Promise.resolve(id);
+  else if (id instanceof ReactPromise$1) cachedPromise = Promise.resolve(id);
   else
     return (
       (id = requireServerReference(response, serverReference)),
@@ -2956,10 +3011,10 @@ function loadServerObjectReference(response, metaData, parentObject, key) {
   var cachedPromise = response._serverObjectReferenceCache.get(metaData);
   if (void 0 !== cachedPromise)
     return readServerReference(response, cachedPromise, parentObject, key);
-  var blockedPromise = new ReactPromise("blocked", null, null);
+  var blockedPromise = new ReactPromise$1("blocked", null, null);
   response._serverObjectReferenceCache.set(metaData, blockedPromise);
   var serverReference = resolveServerReference(response._bundlerConfig, id);
-  metaData = preloadModule(serverReference);
+  metaData = preloadModule$1(serverReference);
   null === metaData
     ? fulfill()
     : metaData.then(fulfill, function (error) {
@@ -3113,8 +3168,8 @@ function getChunk(response, id) {
       "string" === typeof chunk
         ? createResolvedModelChunk(response, chunk, id)
         : response._closed
-          ? new ReactPromise("rejected", null, response._closedReason)
-          : new ReactPromise("pending", null, null);
+          ? new ReactPromise$1("rejected", null, response._closedReason)
+          : new ReactPromise$1("pending", null, null);
     chunks.set(id, chunk);
   }
   return chunk;
@@ -3140,8 +3195,8 @@ function fulfillReference(response, reference, value, arrayRoot) {
         null === value ||
         (null !== serverReferenceObjects &&
           serverReferenceObjects.has(value)) ||
-        (getPrototypeOf(value) !== ObjectPrototype &&
-          getPrototypeOf(value) !== ArrayPrototype) ||
+        (getPrototypeOf$2(value) !== ObjectPrototype$2 &&
+          getPrototypeOf$2(value) !== ArrayPrototype) ||
         !hasOwnProperty.call(value, name)
       )
         throw Error("Invalid reference.");
@@ -3257,8 +3312,8 @@ function getOutlinedModel(
           "object" !== typeof id ||
           null === id ||
           (null !== serverReferenceObjects && serverReferenceObjects.has(id)) ||
-          (getPrototypeOf(id) !== ObjectPrototype &&
-            getPrototypeOf(id) !== ArrayPrototype) ||
+          (getPrototypeOf$2(id) !== ObjectPrototype$2 &&
+            getPrototypeOf$2(id) !== ArrayPrototype) ||
           !hasOwnProperty.call(id, localLength)
         )
           throw Error("Invalid reference.");
@@ -3373,7 +3428,7 @@ function parseTypedArray(
     throw Error("Already initialized typed array.");
   bytesPerElement.set(
     reference,
-    new ReactPromise(
+    new ReactPromise$1(
       "rejected",
       null,
       Error("Already initialized typed array.")
@@ -3421,7 +3476,7 @@ function parseTypedArray(
 }
 function resolveStream(response, id, stream, controller) {
   var chunks = response._chunks;
-  stream = new ReactPromise("fulfilled", stream, controller);
+  stream = new ReactPromise$1("fulfilled", stream, controller);
   chunks.set(id, stream);
   chunks = response._prefix;
   response = response._formData.streamChunks;
@@ -3462,12 +3517,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$39 = new ReactPromise("pending", null, null);
-          chunk$39.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$39;
+          var chunk$41 = new ReactPromise$1("pending", null, null);
+          chunk$41.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$41;
           chunk.then(function () {
-            previousBlockedChunk === chunk$39 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$39, json, -1);
+            previousBlockedChunk === chunk$41 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$41, json, -1);
           });
         }
       },
@@ -3524,12 +3579,12 @@ function parseAsyncIterable(response, reference, iterator) {
           );
         if (nextReadIndex === buffer.length) {
           if (closed)
-            return new ReactPromise(
+            return new ReactPromise$1(
               "fulfilled",
               { done: !0, value: void 0 },
               null
             );
-          buffer[nextReadIndex] = new ReactPromise("pending", null, null);
+          buffer[nextReadIndex] = new ReactPromise$1("pending", null, null);
         }
         return buffer[nextReadIndex++];
       });
@@ -3584,7 +3639,7 @@ function parseAsyncIterable(response, reference, iterator) {
         for (
           closed = !0,
             nextWriteIndex === buffer.length &&
-              (buffer[nextWriteIndex] = new ReactPromise(
+              (buffer[nextWriteIndex] = new ReactPromise$1(
                 "pending",
                 null,
                 null
@@ -3940,7 +3995,7 @@ function loadServerReference(bundlerConfig, metaData) {
   var id = metaData.id;
   if ("string" !== typeof id) return null;
   var serverReference = resolveServerReference(bundlerConfig, id);
-  bundlerConfig = preloadModule(serverReference);
+  bundlerConfig = preloadModule$1(serverReference);
   metaData = metaData.bound;
   return metaData instanceof Promise
     ? Promise.all([metaData, bundlerConfig]).then(function (_ref) {
@@ -3979,18 +4034,18 @@ function decodeBoundActionMetaData(
   if ("fulfilled" !== body.status) throw body.reason;
   return body.value;
 }
-function createDrainHandler(destination, request) {
+function createDrainHandler$1(destination, request) {
   return function () {
-    return startFlowing(request, destination);
+    return startFlowing$1(request, destination);
   };
 }
-function createCancelHandler(request, reason) {
+function createCancelHandler$1(request, reason) {
   return function () {
     request.destination = null;
-    abort(request, Error(reason));
+    abort$2(request, Error(reason));
   };
 }
-function createFakeWritableFromReadableStreamController(controller) {
+function createFakeWritableFromReadableStreamController$1(controller) {
   return {
     write: function (chunk) {
       "string" === typeof chunk && (chunk = textEncoder.encode(chunk));
@@ -4019,6 +4074,5252 @@ function createFakeWritableFromNodeReadable(readable) {
       readable.destroy(error);
     }
   };
+}
+var SequencePrototype = {};
+function createSequence() {
+  function finish(nextStatus, reason) {
+    0 === status &&
+      ((status = nextStatus),
+      (errorReason = reason),
+      readers.forEach(function (reader) {
+        1 === status
+          ? reader.close()
+          : 2 === status
+            ? reader.error(reason)
+            : reader.halt();
+      }),
+      readers.clear());
+  }
+  var models = [],
+    readers = new Set(),
+    status = 0,
+    errorReason;
+  return {
+    model: Object.create(SequencePrototype),
+    subscribe: function (reader) {
+      for (var i = 0; i < models.length; i++) {
+        var entry = models[i];
+        reader.enqueue(entry.model, entry.done);
+      }
+      0 === status
+        ? readers.add(reader)
+        : 1 === status
+          ? reader.close()
+          : 2 === status
+            ? reader.error(errorReason)
+            : reader.halt();
+      return function () {
+        readers.delete(reader);
+      };
+    },
+    enqueue: function (model) {
+      var done =
+        1 < arguments.length && void 0 !== arguments[1] ? arguments[1] : !1;
+      0 === status &&
+        (models.push({ model: model, done: done }),
+        readers.forEach(function (reader) {
+          return reader.enqueue(model, done);
+        }));
+    },
+    close: function () {
+      finish(1, void 0);
+    },
+    error: function (reason) {
+      finish(2, reason);
+    },
+    halt: function () {
+      finish(3, void 0);
+    }
+  };
+}
+function createAsyncIterable(isIterator) {
+  var sequence = createSequence();
+  return {
+    iterable: sequence.model,
+    isIterator: isIterator,
+    subscribe: sequence.subscribe,
+    enqueue: sequence.enqueue,
+    close: function (model) {
+      sequence.enqueue(model, !0);
+      sequence.close();
+    },
+    error: sequence.error,
+    halt: sequence.halt
+  };
+}
+function createReadableStream(isByteStream) {
+  var sequence = createSequence();
+  return {
+    stream: sequence.model,
+    isByteStream: isByteStream,
+    subscribe: sequence.subscribe,
+    enqueue: sequence.enqueue,
+    close: sequence.close,
+    error: sequence.error,
+    halt: sequence.halt
+  };
+}
+var currentRequest = null,
+  thenableIndexCounter = 0,
+  thenableState = null;
+function getThenableStateAfterSuspending() {
+  var state = thenableState || [];
+  thenableState = null;
+  return state;
+}
+var HooksDispatcher = {
+  readContext: unsupportedContext,
+  use: use,
+  useCallback: function (callback) {
+    return callback;
+  },
+  useContext: unsupportedContext,
+  useEffect: unsupportedHook,
+  useImperativeHandle: unsupportedHook,
+  useLayoutEffect: unsupportedHook,
+  useInsertionEffect: unsupportedHook,
+  useMemo: function (nextCreate) {
+    return nextCreate();
+  },
+  useReducer: unsupportedHook,
+  useRef: unsupportedHook,
+  useState: unsupportedHook,
+  useDebugValue: function () {},
+  useDeferredValue: unsupportedHook,
+  useTransition: unsupportedHook,
+  useSyncExternalStore: unsupportedHook,
+  useId: useId,
+  useHostTransitionStatus: unsupportedHook,
+  useFormState: unsupportedHook,
+  useActionState: unsupportedHook,
+  useOptimistic: unsupportedHook,
+  useMemoCache: function (size) {
+    for (var data = Array(size), i = 0; i < size; i++)
+      data[i] = REACT_MEMO_CACHE_SENTINEL;
+    return data;
+  },
+  useCacheRefresh: function () {
+    return unsupportedRefresh;
+  },
+  useEffectEvent: unsupportedHook
+};
+function unsupportedHook() {
+  throw Error("This Hook is not supported in Server Components.");
+}
+function unsupportedRefresh() {
+  throw Error("Refreshing the cache is not supported in Server Components.");
+}
+function unsupportedContext() {
+  throw Error("Cannot read a Client Context from a Server Component.");
+}
+function useId() {
+  if (null === currentRequest)
+    throw Error("useId can only be used while React is rendering");
+  var id = currentRequest.identifierCount++;
+  return "_" + currentRequest.identifierPrefix + "S_" + id.toString(32) + "_";
+}
+function use(usable) {
+  if (
+    (null !== usable && "object" === typeof usable) ||
+    "function" === typeof usable
+  ) {
+    if ("function" === typeof usable.then) {
+      var index = thenableIndexCounter;
+      thenableIndexCounter += 1;
+      null === thenableState && (thenableState = []);
+      return trackUsedThenable(thenableState, usable, index);
+    }
+    usable.$$typeof === REACT_CONTEXT_TYPE && unsupportedContext();
+  }
+  if (isClientReference(usable)) {
+    if (null != usable.value && usable.value.$$typeof === REACT_CONTEXT_TYPE)
+      throw Error("Cannot read a Client Context from a Server Component.");
+    throw Error("Cannot use() an already resolved Client Reference.");
+  }
+  throw Error("An unsupported type was passed to use(): " + String(usable));
+}
+function packModelInfo(flags, jsonWork) {
+  return 0 < jsonWork && 33554431 >= jsonWork
+    ? flags | 8 | (jsonWork << 5)
+    : flags;
+}
+function getJSONValueWork(value, info) {
+  return null === value || "boolean" === typeof value
+    ? 1
+    : "number" === typeof value
+      ? Number.isFinite(value) && !Object.is(value, -0)
+        ? 1
+        : 0
+      : "string" === typeof value
+        ? 1024 > value.length && "$" !== value[0]
+          ? 1 + value.length
+          : 0
+        : 0 === (info & 8)
+          ? 0
+          : info >>> 5;
+}
+function abortResult(result, reason) {
+  result = result.abortCallback;
+  null !== result && result(reason);
+}
+function createResult(root, abort, temporaryReferenceSet) {
+  root = {
+    root: root,
+    temporaryReferenceSet: temporaryReferenceSet,
+    closed: !1,
+    completionListeners: null,
+    hintQueue: null,
+    hintsClosed: !1,
+    abortCallback: abort,
+    abort: noop,
+    errorReferences: new WeakMap(),
+    errorInfos: null,
+    haltedModels: null,
+    modelReferences: null,
+    valueReferences: null,
+    temporaryReferences: null,
+    serverReferences: null,
+    formDataWithBlobs: null,
+    asyncIterables: null,
+    readableStreams: null,
+    iteratorEntries: null,
+    collectionEntries: null,
+    modelInfo: null,
+    jsonWorkCredit: 0
+  };
+  root.abort = abortResult.bind(null, root);
+  return root;
+}
+function completeResult(result) {
+  if (!result.closed) {
+    result.closed = !0;
+    result.abortCallback = null;
+    var listeners = result.completionListeners;
+    result.completionListeners = null;
+    null !== listeners &&
+      (listeners.forEach(function (listener) {
+        return listener();
+      }),
+      listeners.clear());
+  }
+}
+function subscribeToResult(result, listener) {
+  if (result.closed) return listener(), noop;
+  var listeners = result.completionListeners;
+  null === listeners && (result.completionListeners = listeners = new Set());
+  listeners.add(listener);
+  var subscriptions = listeners;
+  return function () {
+    subscriptions.delete(listener);
+  };
+}
+function getHintQueue(result) {
+  var queue = result.hintQueue;
+  null === queue &&
+    (result.hintQueue = queue =
+      {
+        completedHints: [],
+        closed: result.hintsClosed,
+        wakeup: null,
+        resolve: noop
+      });
+  return queue;
+}
+function wakeHintQueue(queue) {
+  var resolve = queue.resolve;
+  queue.wakeup = null;
+  queue.resolve = noop;
+  resolve();
+}
+function waitForHints(queue) {
+  var wakeup = queue.wakeup;
+  null === wakeup &&
+    (queue.wakeup = wakeup =
+      new Promise(function (resolve) {
+        queue.resolve = resolve;
+      }));
+  return wakeup;
+}
+function closeHints(result) {
+  result.hintsClosed = !0;
+  result = result.hintQueue;
+  null !== result && ((result.closed = !0), wakeHintQueue(result));
+}
+function createValueReference(result, reference) {
+  var references = result.valueReferences;
+  null === references && (result.valueReferences = references = new WeakSet());
+  references.add(reference);
+  return reference;
+}
+function getValueReference(result, value) {
+  result = result.valueReferences;
+  return null !== result && result.has(value) ? value : void 0;
+}
+function copyErrorReference(result, thenable, source) {
+  source = result.errorReferences.get(source);
+  void 0 !== source && result.errorReferences.set(thenable, source);
+}
+function forwardModelReference(result, promise, thenable) {
+  var references = result.modelReferences;
+  null === references && (result.modelReferences = references = new WeakMap());
+  references.set(promise, thenable);
+  thenable.then(noop, function () {
+    copyErrorReference(result, promise, thenable);
+  });
+}
+function setModelInfo(result, model, info) {
+  var work = 0 === (info & 8) ? 0 : info >>> 5;
+  (0 < work && 129 > work) ||
+    ((work = result.modelInfo),
+    null === work && (result.modelInfo = work = new Map()),
+    work.set(model, info));
+}
+function getModelInfo(result, model) {
+  result = result.modelInfo;
+  return null === result ? 0 : result.get(model) || 0;
+}
+function markHalted(result, model) {
+  var haltedModels = result.haltedModels;
+  null === haltedModels && (result.haltedModels = haltedModels = new WeakSet());
+  haltedModels.add(model);
+}
+function isHalted(result, model) {
+  var haltedModels = result.haltedModels;
+  if (null === haltedModels) return !1;
+  result = result.modelReferences;
+  for (var visited = new Set(); !visited.has(model); ) {
+    if (haltedModels.has(model)) return !0;
+    visited.add(model);
+    model = null === result ? void 0 : result.get(model);
+    if (void 0 === model) break;
+  }
+  return !1;
+}
+function getIteratorEntries(result, iterator) {
+  result = result.iteratorEntries;
+  return null === result ? void 0 : result.get(iterator);
+}
+function setServerReference(result, value, metadata) {
+  var serverReferences = result.serverReferences;
+  null === serverReferences &&
+    (result.serverReferences = serverReferences = new WeakMap());
+  serverReferences.set(value, metadata);
+}
+function getTemporaryReference(result, value) {
+  result = result.temporaryReferences;
+  return null === result ? void 0 : result.get(value);
+}
+function setReadableStream(result, controller) {
+  var readableStreams = result.readableStreams;
+  null === readableStreams &&
+    (result.readableStreams = readableStreams = new WeakMap());
+  readableStreams.set(controller.stream, controller);
+}
+function getReadableStream(result, stream) {
+  result = result.readableStreams;
+  return null === result ? void 0 : result.get(stream);
+}
+function setAsyncIterable(result, controller) {
+  var asyncIterables = result.asyncIterables;
+  null === asyncIterables &&
+    (result.asyncIterables = asyncIterables = new WeakMap());
+  asyncIterables.set(controller.iterable, controller);
+}
+function getAsyncIterable(result, iterable) {
+  result = result.asyncIterables;
+  return null === result ? void 0 : result.get(iterable);
+}
+var RESULT_MODEL_TYPE = Symbol.for("react.result.model");
+function ReactPromise(weak) {
+  var $jscomp$this = this;
+  this.$$typeof = RESULT_MODEL_TYPE;
+  this.status = weak ? "pending_weak" : "pending";
+  this.reason = this.value = void 0;
+  this._promise = new Promise(function (resolve, reject) {
+    $jscomp$this._resolve = resolve;
+    $jscomp$this._reject = reject;
+  });
+  this._promise.catch(noop);
+}
+ReactPromise.prototype = Object.create(Promise.prototype);
+Object.defineProperty(ReactPromise.prototype, "then", {
+  writable: !0,
+  enumerable: !0,
+  configurable: !0,
+  value: function (resolve, reject) {
+    return this._promise.then(function (outcome) {
+      return "function" === typeof resolve
+        ? resolve(outcome.value)
+        : outcome.value;
+    }, reject);
+  }
+});
+function createResultModel() {
+  return new ReactPromise(
+    0 < arguments.length && void 0 !== arguments[0] ? arguments[0] : !1
+  );
+}
+function fulfillResultModel(model, value) {
+  if ("pending" === model.status || "pending_weak" === model.status)
+    (model.status = "fulfilled"),
+      (model.value = value),
+      model._resolve({ value: value });
+}
+function rejectResultModel(model, error) {
+  if ("pending" === model.status || "pending_weak" === model.status)
+    (model.status = "rejected"), (model.reason = error), model._reject(error);
+}
+var previousDispatcher = ReactDOMSharedInternals.d;
+ReactDOMSharedInternals.d = {
+  f: previousDispatcher.f,
+  r: previousDispatcher.r,
+  D: prefetchDNS,
+  C: preconnect,
+  L: preload,
+  m: preloadModule,
+  X: preinitScript,
+  S: preinitStyle,
+  M: preinitModuleScript
+};
+function prefetchDNS(href) {
+  if ("string" === typeof href && href) {
+    var request = resolveRequest();
+    if (request) {
+      var hints = request.hints,
+        key = "D|" + href;
+      hints.has(key) || (hints.add(key), emitHint$1(request, "D", href));
+    } else previousDispatcher.D(href);
+  }
+}
+function preconnect(href, crossOrigin) {
+  if ("string" === typeof href) {
+    var request = resolveRequest();
+    if (request) {
+      var hints = request.hints,
+        key = "C|" + (null == crossOrigin ? "null" : crossOrigin) + "|" + href;
+      hints.has(key) ||
+        (hints.add(key),
+        "string" === typeof crossOrigin
+          ? emitHint$1(request, "C", [href, crossOrigin])
+          : emitHint$1(request, "C", href));
+    } else previousDispatcher.C(href, crossOrigin);
+  }
+}
+function preload(href, as, options) {
+  if ("string" === typeof href) {
+    var request = resolveRequest();
+    if (request) {
+      var hints = request.hints,
+        key = "L";
+      if ("image" === as && options) {
+        var imageSrcSet = options.imageSrcSet,
+          imageSizes = options.imageSizes,
+          uniquePart = "";
+        "string" === typeof imageSrcSet && "" !== imageSrcSet
+          ? ((uniquePart += "[" + imageSrcSet + "]"),
+            "string" === typeof imageSizes &&
+              (uniquePart += "[" + imageSizes + "]"))
+          : (uniquePart += "[][]" + href);
+        key += "[image]" + uniquePart;
+      } else key += "[" + as + "]" + href;
+      hints.has(key) ||
+        (hints.add(key),
+        (options = trimOptions(options))
+          ? emitHint$1(request, "L", [href, as, options])
+          : emitHint$1(request, "L", [href, as]));
+    } else previousDispatcher.L(href, as, options);
+  }
+}
+function preloadModule(href, options) {
+  if ("string" === typeof href) {
+    var request = resolveRequest();
+    if (request) {
+      var hints = request.hints,
+        key = "m|" + href;
+      if (hints.has(key)) return;
+      hints.add(key);
+      return (options = trimOptions(options))
+        ? emitHint$1(request, "m", [href, options])
+        : emitHint$1(request, "m", href);
+    }
+    previousDispatcher.m(href, options);
+  }
+}
+function preinitStyle(href, precedence, options) {
+  if ("string" === typeof href) {
+    var request = resolveRequest();
+    if (request) {
+      var hints = request.hints,
+        key = "S|" + href;
+      if (hints.has(key)) return;
+      hints.add(key);
+      return (options = trimOptions(options))
+        ? emitHint$1(request, "S", [
+            href,
+            "string" === typeof precedence ? precedence : 0,
+            options
+          ])
+        : "string" === typeof precedence
+          ? emitHint$1(request, "S", [href, precedence])
+          : emitHint$1(request, "S", href);
+    }
+    previousDispatcher.S(href, precedence, options);
+  }
+}
+function preinitScript(src, options) {
+  if ("string" === typeof src) {
+    var request = resolveRequest();
+    if (request) {
+      var hints = request.hints,
+        key = "X|" + src;
+      if (hints.has(key)) return;
+      hints.add(key);
+      return (options = trimOptions(options))
+        ? emitHint$1(request, "X", [src, options])
+        : emitHint$1(request, "X", src);
+    }
+    previousDispatcher.X(src, options);
+  }
+}
+function preinitModuleScript(src, options) {
+  if ("string" === typeof src) {
+    var request = resolveRequest();
+    if (request) {
+      var hints = request.hints,
+        key = "M|" + src;
+      if (hints.has(key)) return;
+      hints.add(key);
+      return (options = trimOptions(options))
+        ? emitHint$1(request, "M", [src, options])
+        : emitHint$1(request, "M", src);
+    }
+    previousDispatcher.M(src, options);
+  }
+}
+function trimOptions(options) {
+  if (null == options) return null;
+  var hasProperties = !1,
+    trimmed = {},
+    key;
+  for (key in options)
+    null != options[key] &&
+      ((hasProperties = !0), (trimmed[key] = options[key]));
+  return hasProperties ? trimmed : null;
+}
+function getChildFormatContext(parentContext, type, props) {
+  switch (type) {
+    case "img":
+      type = props.src;
+      var srcSet = props.srcSet;
+      if (
+        !(
+          "lazy" === props.loading ||
+          (!type && !srcSet) ||
+          ("string" !== typeof type && null != type) ||
+          ("string" !== typeof srcSet && null != srcSet) ||
+          "low" === props.fetchPriority ||
+          parentContext & 3
+        ) &&
+        ("string" !== typeof type ||
+          ":" !== type[4] ||
+          ("d" !== type[0] && "D" !== type[0]) ||
+          ("a" !== type[1] && "A" !== type[1]) ||
+          ("t" !== type[2] && "T" !== type[2]) ||
+          ("a" !== type[3] && "A" !== type[3])) &&
+        ("string" !== typeof srcSet ||
+          ":" !== srcSet[4] ||
+          ("d" !== srcSet[0] && "D" !== srcSet[0]) ||
+          ("a" !== srcSet[1] && "A" !== srcSet[1]) ||
+          ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
+          ("a" !== srcSet[3] && "A" !== srcSet[3]))
+      ) {
+        var sizes = "string" === typeof props.sizes ? props.sizes : void 0,
+          crossOrigin = getCrossOriginString(props.crossOrigin);
+        preload(type || "", "image", {
+          imageSrcSet: srcSet,
+          imageSizes: sizes,
+          crossOrigin: crossOrigin,
+          integrity: props.integrity,
+          type: props.type,
+          fetchPriority: props.fetchPriority,
+          referrerPolicy: props.referrerPolicy
+        });
+      }
+      return parentContext;
+    case "link":
+      type = props.rel;
+      srcSet = props.href;
+      if (
+        !(
+          parentContext & 1 ||
+          null != props.itemProp ||
+          "string" !== typeof type ||
+          "string" !== typeof srcSet ||
+          "" === srcSet
+        )
+      )
+        switch (type) {
+          case "preload":
+            preload(srcSet, props.as, {
+              crossOrigin: props.crossOrigin,
+              integrity: props.integrity,
+              nonce: props.nonce,
+              type: props.type,
+              fetchPriority: props.fetchPriority,
+              referrerPolicy: props.referrerPolicy,
+              imageSrcSet: props.imageSrcSet,
+              imageSizes: props.imageSizes,
+              media: props.media
+            });
+            break;
+          case "modulepreload":
+            preloadModule(srcSet, {
+              as: props.as,
+              crossOrigin: props.crossOrigin,
+              integrity: props.integrity,
+              nonce: props.nonce
+            });
+            break;
+          case "stylesheet":
+            preload(srcSet, "style", {
+              crossOrigin: props.crossOrigin,
+              integrity: props.integrity,
+              nonce: props.nonce,
+              type: props.type,
+              fetchPriority: props.fetchPriority,
+              referrerPolicy: props.referrerPolicy,
+              media: props.media
+            });
+        }
+      return parentContext;
+    case "picture":
+      return parentContext | 2;
+    case "noscript":
+      return parentContext | 1;
+    default:
+      return parentContext;
+  }
+}
+var UNDEFINED_MODEL = Symbol(),
+  ObjectPrototype$1 = Object.prototype,
+  DatePrototype = Date.prototype,
+  dateToJSON = DatePrototype.toJSON,
+  dateToISOString = DatePrototype.toISOString,
+  dateValueOf = DatePrototype.valueOf,
+  dateToPrimitive = Date.prototype[Symbol.toPrimitive],
+  dateGetTime = DatePrototype.getTime;
+function isSimpleDate(value) {
+  return (
+    getPrototypeOf$1(value) === DatePrototype &&
+    !hasOwnProperty.call(value, "toJSON") &&
+    !hasOwnProperty.call(value, "toISOString") &&
+    !hasOwnProperty.call(value, "valueOf") &&
+    !hasOwnProperty.call(value, Symbol.toPrimitive) &&
+    DatePrototype.toJSON === dateToJSON &&
+    DatePrototype.toISOString === dateToISOString &&
+    DatePrototype.valueOf === dateValueOf &&
+    Date.prototype[Symbol.toPrimitive] === dateToPrimitive
+  );
+}
+var getPrototypeOf$1 = Object.getPrototypeOf,
+  modelRoot$1 = null,
+  modelDepth = 0,
+  emptyRoot = {};
+function defaultErrorHandler$1(error) {
+  console.error(error);
+}
+var TaintRegistryObjects$1 = ReactSharedInternalsServer.TaintRegistryObjects,
+  TaintRegistryValues$1 = ReactSharedInternalsServer.TaintRegistryValues,
+  TaintRegistryByteLengths$1 =
+    ReactSharedInternalsServer.TaintRegistryByteLengths,
+  TaintRegistryPendingRequests$1 =
+    ReactSharedInternalsServer.TaintRegistryPendingRequests;
+function throwTaintViolation$1(message) {
+  throw Error(message);
+}
+function cleanupTaintQueue$1(request) {
+  request = request.taintCleanupQueue;
+  TaintRegistryPendingRequests$1.delete(request);
+  for (var i = 0; i < request.length; i++) {
+    var entryValue = request[i],
+      entry = TaintRegistryValues$1.get(entryValue);
+    void 0 !== entry &&
+      (1 === entry.count
+        ? TaintRegistryValues$1.delete(entryValue)
+        : entry.count--);
+  }
+  request.length = 0;
+}
+function RequestInstance$1(
+  model,
+  onError,
+  identifierPrefix,
+  temporaryReferences,
+  createServerReference,
+  type,
+  onAllReady,
+  onFatalError
+) {
+  var $jscomp$this = this;
+  if (
+    null !== ReactSharedInternalsServer.A &&
+    ReactSharedInternalsServer.A !== DefaultAsyncDispatcher
+  )
+    throw Error("Currently React only supports one RSC renderer at a time.");
+  ReactSharedInternalsServer.A = DefaultAsyncDispatcher;
+  this.type = type;
+  this.onAllReady = onAllReady;
+  this.onFatalError = onFatalError;
+  this.status = 10;
+  this.abortModel = this.fatalError = null;
+  this.onError = void 0 === onError ? defaultErrorHandler$1 : onError;
+  this.hints = new Set();
+  this.cache = new Map();
+  this.cacheController = new AbortController();
+  this.modelEntries = new WeakMap();
+  this.renderingComponents = new Map();
+  this.renderedImplicitModels = new WeakMap();
+  this.resolvedOutlinedModels =
+    this.outlinedModelDependencies =
+    this.outlinedModels =
+    this.publishedModelReferences =
+    this.renderedKeyedModels =
+      null;
+  this.resolvingModelStack = [];
+  this.resolvingModels = null;
+  this.hasByValueModels = !1;
+  this.deferredBlobs = null;
+  onError = [];
+  TaintRegistryPendingRequests$1.add(onError);
+  this.taintCleanupQueue = onError;
+  this.pendingWeakModels = null;
+  this.abortableTasks = new Set();
+  this.identifierPrefix = identifierPrefix || "";
+  this.temporaryReferences = temporaryReferences;
+  this.createServerReference = createServerReference;
+  this.identifierCount = 1;
+  model = createTask$1(this, model, null, !1, 0);
+  this.result = createResult(
+    model.promise,
+    function (reason) {
+      return abort$1($jscomp$this, reason);
+    },
+    temporaryReferences
+  );
+  this.pingedTasks = [model];
+}
+function resolveRequest() {
+  var cache = resolveCache();
+  return cache instanceof RequestInstance$1 ? cache : null;
+}
+function emitHint$1(request, code, model) {
+  request = request.result;
+  request.hintsClosed ||
+    ((request = getHintQueue(request)),
+    request.completedHints.push({ code: code, model: model }),
+    wakeHintQueue(request));
+}
+function renderFunctionComponent(request, task, Component, props, element) {
+  var renderedModels = getRenderedModels(
+      request,
+      element,
+      task.keyPath,
+      task.implicitSlot
+    ),
+    prevThenableState = task.thenableState,
+    key = element.key;
+  task.thenableState = null;
+  var isRendering = request.renderingComponents.has(element);
+  isRendering
+    ? (prevThenableState = request.renderingComponents.get(element))
+    : ((thenableIndexCounter = 0),
+      (thenableState = prevThenableState),
+      (prevThenableState = Component(props, void 0)));
+  if (12 === request.status || 14 === request.status)
+    throw (
+      (null === prevThenableState ||
+        "object" !== typeof prevThenableState ||
+        isClientReference(prevThenableState) ||
+        "function" !== typeof prevThenableState.then ||
+        prevThenableState.then(noop, noop),
+      request.fatalError)
+    );
+  Component = task.keyPath;
+  props = task.implicitSlot;
+  null !== key
+    ? (task.keyPath =
+        key === REACT_OPTIMISTIC_KEY || Component === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : null === Component
+            ? key
+            : Component + "," + key)
+    : null === Component && (task.implicitSlot = !0);
+  if (isRendering)
+    return (
+      (element = renderModelDestructive$1(
+        request,
+        task,
+        emptyRoot,
+        "",
+        prevThenableState
+      )),
+      (task.keyPath = Component),
+      (task.implicitSlot = props),
+      element
+    );
+  if (
+    null !== prevThenableState &&
+    "object" === typeof prevThenableState &&
+    !isClientReference(prevThenableState) &&
+    "function" === typeof prevThenableState.then
+  )
+    return (
+      (request = renderModelDestructive$1(
+        request,
+        task,
+        emptyRoot,
+        "",
+        prevThenableState
+      )),
+      (request = createLazyWrapperAroundWakeable(request)),
+      setRenderedModel(renderedModels, element, request),
+      (task.keyPath = Component),
+      (task.implicitSlot = props),
+      (task.isModelReference = !0),
+      request
+    );
+  if (
+    !(
+      null === prevThenableState ||
+      "object" !== typeof prevThenableState ||
+      prevThenableState.$$typeof === REACT_ELEMENT_TYPE ||
+      isClientReference(prevThenableState) ||
+      isArrayImpl(prevThenableState) ||
+      prevThenableState instanceof Map ||
+      prevThenableState instanceof Set
+    )
+  ) {
+    var iteratorFn = getIteratorFn(prevThenableState);
+    if (iteratorFn) {
+      var iterableChild = prevThenableState;
+      key = {};
+      prevThenableState =
+        ((key[Symbol.iterator] = function () {
+          return iteratorFn.call(iterableChild);
+        }),
+        key);
+    } else if (
+      !(
+        "function" !== typeof prevThenableState[ASYNC_ITERATOR] ||
+        ("function" === typeof ReadableStream &&
+          prevThenableState instanceof ReadableStream)
+      )
+    ) {
+      var iterableChild$51 = prevThenableState;
+      key = {};
+      prevThenableState =
+        ((key[ASYNC_ITERATOR] = function () {
+          return iterableChild$51[ASYNC_ITERATOR]();
+        }),
+        key);
+    }
+  }
+  request.renderingComponents.set(element, prevThenableState);
+  try {
+    var resolvedModel$53 = renderModelDestructive$1(
+      request,
+      task,
+      emptyRoot,
+      "",
+      prevThenableState
+    );
+    setRenderedModel(
+      renderedModels,
+      element,
+      void 0 === resolvedModel$53 ? UNDEFINED_MODEL : resolvedModel$53
+    );
+    task.keyPath = Component;
+    task.implicitSlot = props;
+    return resolvedModel$53;
+  } finally {
+    request.renderingComponents.delete(element);
+  }
+}
+function createTask$1(request, model, keyPath, implicitSlot, formatContext) {
+  var promise = createResultModel(),
+    reference = { root: promise, parent: null, key: "" };
+  null !== model &&
+    "object" === typeof model &&
+    setModelReferenceIfAbsent(request, model, reference);
+  var task = {
+    model: model,
+    promise: promise,
+    reference: reference,
+    currentReference: reference,
+    fieldParentReference: void 0,
+    renderedModel: void 0,
+    resolvedModelInfo: 0,
+    modelDependencies: null,
+    resolve: function (value) {
+      return fulfillResultModel(promise, value);
+    },
+    reject: function (error) {
+      return rejectResultModel(promise, error);
+    },
+    status: 0,
+    formatContext: formatContext,
+    isModelReference: !1,
+    ping: function () {
+      return pingTask$1(request, task);
+    },
+    thenableState: null,
+    keyPath: keyPath,
+    implicitSlot: implicitSlot
+  };
+  request.abortableTasks.add(task);
+  return task;
+}
+function pingTask$1(request, task) {
+  if (14 !== request.status && 0 === task.status) {
+    var pingedTasks = request.pingedTasks;
+    pingedTasks.push(task);
+    1 === pingedTasks.length &&
+      (21 === request.type || 10 === request.status
+        ? scheduleMicrotask(function () {
+            return performWork$1(request);
+          })
+        : setImmediate(function () {
+            return performWork$1(request);
+          }));
+  }
+}
+function outlineModelWithFormatContext(request, value, formatContext) {
+  formatContext = createTask$1(request, value, null, !1, formatContext);
+  null !== value &&
+    "object" === typeof value &&
+    (setModelReference(request, value, formatContext.reference),
+    setRenderedModel(request.modelEntries, value, formatContext.promise));
+  retryTask$1(request, formatContext);
+  var model =
+    1 === formatContext.status ? formatContext.model : formatContext.promise;
+  null !== value &&
+    "object" === typeof value &&
+    setRenderedModel(
+      request.modelEntries,
+      value,
+      void 0 === model ? UNDEFINED_MODEL : model
+    );
+  1 !== formatContext.status &&
+    ((value = request.outlinedModels),
+    null === value && (request.outlinedModels = value = new WeakMap()),
+    value.set(formatContext.promise, formatContext),
+    (request.hasByValueModels = !0));
+  return model;
+}
+function outlineModel$1(request, value) {
+  if (null !== value && "object" === typeof value) {
+    var existingModel = getRenderedModel(request.modelEntries, value);
+    if (void 0 !== existingModel)
+      return existingModel === UNDEFINED_MODEL ? void 0 : existingModel;
+  }
+  return outlineModelWithFormatContext(request, value, 0);
+}
+function readThenable(thenable) {
+  if ("fulfilled" === thenable.status) return thenable.value;
+  if ("rejected" === thenable.status) throw thenable.reason;
+  throw thenable;
+}
+function createLazyWrapperAroundWakeable(thenable) {
+  switch (thenable.status) {
+    case "fulfilled":
+      return thenable.value;
+    case "rejected":
+      break;
+    default:
+      "string" !== typeof thenable.status &&
+        ((thenable.status = "pending"),
+        thenable.then(
+          function (value) {
+            "pending" === thenable.status &&
+              ((thenable.status = "fulfilled"), (thenable.value = value));
+          },
+          function (error) {
+            "pending" === thenable.status &&
+              ((thenable.status = "rejected"), (thenable.reason = error));
+          }
+        ));
+  }
+  return { $$typeof: REACT_LAZY_TYPE, _payload: thenable, _init: readThenable };
+}
+function erroredTask$1(request, task, error) {
+  task.status = 4;
+  logRecoverableError$1(request, error, task);
+  var model = task.model;
+  if (
+    null !== model &&
+    "object" === typeof model &&
+    model.$$typeof === REACT_ELEMENT_TYPE
+  ) {
+    var renderedModels = getRenderedModels(
+      request,
+      model,
+      task.keyPath,
+      task.implicitSlot
+    );
+    void 0 === getRenderedModel(renderedModels, model) &&
+      setRenderedModel(
+        renderedModels,
+        model,
+        createLazyWrapperAroundWakeable(task.promise)
+      );
+  }
+  request.abortableTasks.delete(task);
+  task.reject(error);
+}
+function logRecoverableError$1(request, error) {
+  var task =
+      2 < arguments.length && void 0 !== arguments[2] ? arguments[2] : null,
+    prevCache = setCurrentCache(null);
+  try {
+    var onError = request.onError;
+    var errorDigest = cacheStorage.run(void 0, function () {
+      return requestStorage.run(void 0, onError, error);
+    });
+  } finally {
+    setCurrentCache(prevCache);
+  }
+  if (null != errorDigest && "string" !== typeof errorDigest)
+    throw Error(
+      'onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "' +
+        typeof errorDigest +
+        '" instead'
+    );
+  prevCache = errorDigest || "";
+  null !== task &&
+    request.result.errorReferences.set(task.promise, { digest: prevCache });
+  return prevCache;
+}
+function fatalError$1(request, error) {
+  14 !== request.status &&
+    ((request.status = 12),
+    (request.fatalError = error),
+    request.cacheController.abort(error),
+    finishAbort$1(request, error),
+    request.onFatalError(error));
+}
+function renderThenable(request, task, value) {
+  if ("pending_weak" === value.status)
+    return renderWeakThenable(request, task, value);
+  var newTask = createTask$1(
+    request,
+    value,
+    task.keyPath,
+    task.implicitSlot,
+    task.formatContext
+  );
+  setRenderedModel(
+    getRenderedModels(request, value, task.keyPath, task.implicitSlot),
+    value,
+    newTask.promise
+  );
+  switch (value.status) {
+    case "fulfilled":
+      newTask.model = value.value;
+      pingTask$1(request, newTask);
+      break;
+    case "rejected":
+      try {
+        erroredTask$1(request, newTask, value.reason);
+      } catch (error) {
+        fatalError$1(request, error);
+      }
+      break;
+    default:
+      12 === request.status
+        ? abortTask$1(request, newTask)
+        : ("string" !== typeof value.status &&
+            ((value.status = "pending"),
+            value.then(
+              function (fulfilledValue) {
+                "pending" === value.status &&
+                  ((value.status = "fulfilled"),
+                  (value.value = fulfilledValue));
+              },
+              function (error) {
+                "pending" === value.status &&
+                  ((value.status = "rejected"), (value.reason = error));
+              }
+            )),
+          value.then(
+            function (fulfilledValue) {
+              0 === newTask.status &&
+                ((newTask.model = fulfilledValue),
+                pingTask$1(request, newTask));
+            },
+            function (reason) {
+              if (0 === newTask.status) {
+                try {
+                  erroredTask$1(request, newTask, reason);
+                } catch (error$54) {
+                  fatalError$1(request, error$54);
+                }
+                scheduleMicrotask(function () {
+                  return performWork$1(request);
+                });
+              }
+            }
+          ));
+  }
+  return newTask.promise;
+}
+function renderModelDestructive$1(
+  request,
+  task,
+  parent,
+  parentPropertyName,
+  value,
+  parentReference
+) {
+  modelDepth++;
+  try {
+    return renderModelDestructiveImpl(
+      request,
+      task,
+      parent,
+      parentPropertyName,
+      value,
+      parentReference
+    );
+  } finally {
+    modelDepth--;
+  }
+}
+function renderModelDestructiveImpl(
+  request$jscomp$0,
+  task$jscomp$0,
+  parent,
+  parentPropertyName,
+  value$jscomp$2,
+  parentReference
+) {
+  task$jscomp$0.model = value$jscomp$2;
+  if (
+    null !== value$jscomp$2 &&
+    "object" === typeof value$jscomp$2 &&
+    void 0 !== getValueReference(request$jscomp$0.result, value$jscomp$2)
+  )
+    return renderModelReference(task$jscomp$0, value$jscomp$2);
+  if (
+    null !== value$jscomp$2 &&
+    ("object" === typeof value$jscomp$2 || "function" === typeof value$jscomp$2)
+  ) {
+    if (isClientReference(value$jscomp$2))
+      return renderModelReference(task$jscomp$0, value$jscomp$2);
+    if (isServerReference(value$jscomp$2))
+      return renderModelReference(
+        task$jscomp$0,
+        renderServerReference(request$jscomp$0, value$jscomp$2)
+      );
+    if (void 0 !== request$jscomp$0.temporaryReferences) {
+      var reference$56 =
+        request$jscomp$0.temporaryReferences.get(value$jscomp$2);
+      if (void 0 !== reference$56) {
+        var result = request$jscomp$0.result,
+          value = value$jscomp$2,
+          temporaryReferences = result.temporaryReferences;
+        null === temporaryReferences &&
+          (result.temporaryReferences = temporaryReferences = new WeakMap());
+        temporaryReferences.set(value, reference$56);
+        return renderModelReference(task$jscomp$0, value$jscomp$2);
+      }
+    }
+  }
+  if (
+    "string" === typeof value$jscomp$2 ||
+    "bigint" === typeof value$jscomp$2
+  ) {
+    var tainted = TaintRegistryValues$1.get(value$jscomp$2);
+    void 0 !== tainted && throwTaintViolation$1(tainted.message);
+  } else if (
+    null !== value$jscomp$2 &&
+    ("object" === typeof value$jscomp$2 || "function" === typeof value$jscomp$2)
+  ) {
+    var tainted$57 = TaintRegistryObjects$1.get(value$jscomp$2);
+    void 0 !== tainted$57 && throwTaintViolation$1(tainted$57);
+  }
+  if (null === value$jscomp$2 || "object" !== typeof value$jscomp$2) {
+    "string" === typeof value$jscomp$2 &&
+      1024 <= value$jscomp$2.length &&
+      (value$jscomp$2 = value$jscomp$2.toWellFormed());
+    if (
+      "string" === typeof value$jscomp$2 &&
+      "Z" === value$jscomp$2[value$jscomp$2.length - 1] &&
+      parent[parentPropertyName] instanceof Date
+    )
+      return renderModelReference(task$jscomp$0, new Date(value$jscomp$2));
+    if ("function" === typeof value$jscomp$2) {
+      if (value$jscomp$2.$$typeof === TEMPORARY_REFERENCE_TAG)
+        throw Error(
+          "Could not reference an opaque temporary reference. This is likely due to misconfiguring the temporaryReferences options on the server."
+        );
+      if (/^on[A-Z]/.test(parentPropertyName))
+        throw Error(
+          "Event handlers cannot be passed to Client Component props." +
+            describeObjectForErrorMessage(parent, parentPropertyName) +
+            "\nIf you need interactivity, consider converting part of this to a Client Component."
+        );
+      throw Error(
+        'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.' +
+          describeObjectForErrorMessage(parent, parentPropertyName)
+      );
+    }
+    if ("symbol" === typeof value$jscomp$2) {
+      var value$jscomp$0 = value$jscomp$2,
+        name = value$jscomp$0.description;
+      if (Symbol.for(name) !== value$jscomp$0)
+        throw Error(
+          "Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for(" +
+            (name + ") cannot be found among global symbols.") +
+            describeObjectForErrorMessage(parent, parentPropertyName)
+        );
+    }
+    return value$jscomp$2;
+  }
+  var renderedModels = getRenderedModels(
+      request$jscomp$0,
+      value$jscomp$2,
+      task$jscomp$0.keyPath,
+      task$jscomp$0.implicitSlot
+    ),
+    modelEntry = renderedModels.get(value$jscomp$2),
+    existingModel = void 0 === modelEntry ? void 0 : modelEntry.model,
+    elementType = value$jscomp$2.$$typeof,
+    canReference =
+      elementType === REACT_ELEMENT_TYPE
+        ? null === task$jscomp$0.keyPath && !task$jscomp$0.implicitSlot
+        : (isArrayImpl(value$jscomp$2) && null === task$jscomp$0.keyPath) ||
+          value$jscomp$2 instanceof Map ||
+          value$jscomp$2 instanceof Set ||
+          getPrototypeOf$1(value$jscomp$2) === ObjectPrototype$1,
+    referenceEntry = canReference
+      ? renderedModels === request$jscomp$0.modelEntries
+        ? modelEntry
+        : request$jscomp$0.modelEntries.get(value$jscomp$2)
+      : void 0,
+    reference = getEntryReference(referenceEntry);
+  if (
+    canReference &&
+    void 0 !== reference &&
+    reference.root !== task$jscomp$0.promise &&
+    void 0 !== existingModel &&
+    "function" !== typeof value$jscomp$2.then
+  )
+    return renderModelReference(
+      task$jscomp$0,
+      createValueReference(
+        request$jscomp$0.result,
+        getPublishedModelReference(request$jscomp$0, reference)
+      )
+    );
+  if (void 0 !== existingModel) {
+    if (
+      elementType === REACT_ELEMENT_TYPE &&
+      "string" === typeof existingModel &&
+      void 0 !== modelEntry &&
+      void 0 !== modelEntry.root &&
+      modelRoot$1 !== value$jscomp$2
+    )
+      return renderModelReference(
+        task$jscomp$0,
+        createValueReference(
+          request$jscomp$0.result,
+          getPublishedModelReference(request$jscomp$0, modelEntry)
+        )
+      );
+    existingModel === UNDEFINED_MODEL && (existingModel = void 0);
+    if (
+      request$jscomp$0.hasByValueModels &&
+      existingModel !== task$jscomp$0.promise
+    ) {
+      var outlinedModels = request$jscomp$0.outlinedModels;
+      if (null !== outlinedModels) {
+        var dependency = outlinedModels.get(existingModel);
+        if (void 0 !== dependency && 1 === dependency.status)
+          existingModel = dependency.model;
+        else if (dependency === task$jscomp$0 && 5 === task$jscomp$0.status)
+          existingModel = task$jscomp$0.renderedModel;
+        else
+          for (
+            var iterator = getOutlinedModelDependencies(
+                request$jscomp$0,
+                existingModel,
+                outlinedModels
+              ).values(),
+              entry = iterator.next();
+            !entry.done;
+            entry = iterator.next()
+          )
+            addModelDependency(task$jscomp$0, entry.value);
+      }
+    }
+    if (modelRoot$1 === value$jscomp$2) {
+      if (
+        existingModel !== task$jscomp$0.promise &&
+        (null === existingModel ||
+          "object" !== typeof existingModel ||
+          existingModel.$$typeof !== REACT_LAZY_TYPE ||
+          existingModel._payload !== task$jscomp$0.promise)
+      )
+        return renderModelReference(task$jscomp$0, existingModel);
+      modelRoot$1 = null;
+    } else return renderModelReference(task$jscomp$0, existingModel);
+  }
+  if (void 0 === parentReference) {
+    if (parent === emptyRoot)
+      var JSCompiler_temp = task$jscomp$0.currentReference;
+    else {
+      var entry$jscomp$0 = request$jscomp$0.modelEntries.get(parent);
+      JSCompiler_temp = getEntryReference(entry$jscomp$0);
+    }
+    parentReference = JSCompiler_temp;
+  }
+  if (
+    void 0 === reference &&
+    null != parentReference &&
+    -1 === parentPropertyName.indexOf(":")
+  )
+    if (canReference) {
+      var newEntry = {
+        model: void 0 === referenceEntry ? void 0 : referenceEntry.model,
+        root: parentReference.root,
+        parent: parent === emptyRoot ? parentReference.parent : parentReference,
+        key: parent === emptyRoot ? parentReference.key : parentPropertyName
+      };
+      request$jscomp$0.modelEntries.set(value$jscomp$2, newEntry);
+      reference = newEntry;
+      renderedModels === request$jscomp$0.modelEntries &&
+        (modelEntry = newEntry);
+    } else
+      reference =
+        parent === emptyRoot
+          ? parentReference
+          : {
+              root: parentReference.root,
+              parent: parentReference,
+              key: parentPropertyName
+            };
+  task$jscomp$0.currentReference = void 0 === reference ? null : reference;
+  if (elementType === REACT_ELEMENT_TYPE) {
+    if (128 < modelDepth) return deferTask$1(request$jscomp$0, task$jscomp$0);
+    var element = value$jscomp$2;
+    a: for (var type = element.type; ; ) {
+      var key = element.key,
+        props = element.props,
+        ref = props.ref;
+      if (null !== ref && void 0 !== ref)
+        throw Error(
+          "Refs cannot be used in Server Components, nor passed to Client Components."
+        );
+      if (
+        "function" === typeof type &&
+        !isClientReference(type) &&
+        type.$$typeof !== TEMPORARY_REFERENCE_TAG
+      ) {
+        var JSCompiler_inline_result = renderFunctionComponent(
+          request$jscomp$0,
+          task$jscomp$0,
+          type,
+          props,
+          element
+        );
+        break a;
+      }
+      if (type === REACT_FRAGMENT_TYPE && null === key) {
+        var prevImplicitSlot = task$jscomp$0.implicitSlot,
+          renderedModels$jscomp$0 = getRenderedModels(
+            request$jscomp$0,
+            element,
+            task$jscomp$0.keyPath,
+            task$jscomp$0.implicitSlot
+          );
+        null === task$jscomp$0.keyPath && (task$jscomp$0.implicitSlot = !0);
+        var resolvedModel = renderModelDestructive$1(
+          request$jscomp$0,
+          task$jscomp$0,
+          emptyRoot,
+          "",
+          props.children
+        );
+        setRenderedModel(
+          renderedModels$jscomp$0,
+          element,
+          void 0 === resolvedModel ? UNDEFINED_MODEL : resolvedModel
+        );
+        task$jscomp$0.implicitSlot = prevImplicitSlot;
+        JSCompiler_inline_result = resolvedModel;
+        break a;
+      }
+      if (null != type && "object" === typeof type && !isClientReference(type))
+        switch (type.$$typeof) {
+          case REACT_LAZY_TYPE:
+            var init = type._init;
+            var wrappedType = init(type._payload);
+            if (
+              12 === request$jscomp$0.status ||
+              14 === request$jscomp$0.status
+            )
+              throw request$jscomp$0.fatalError;
+            type = wrappedType;
+            continue;
+          case REACT_FORWARD_REF_TYPE:
+            JSCompiler_inline_result = renderFunctionComponent(
+              request$jscomp$0,
+              task$jscomp$0,
+              type.render,
+              props,
+              element
+            );
+            break a;
+          case REACT_MEMO_TYPE:
+            type = type.type;
+            continue;
+        }
+      else if ("string" === typeof type) {
+        var parentFormatContext = task$jscomp$0.formatContext,
+          newFormatContext = getChildFormatContext(
+            parentFormatContext,
+            type,
+            props
+          );
+        parentFormatContext !== newFormatContext &&
+          null != props.children &&
+          outlineModelWithFormatContext(
+            request$jscomp$0,
+            props.children,
+            newFormatContext
+          );
+      }
+      var resolvedElement = void 0,
+        request = request$jscomp$0,
+        task = task$jscomp$0,
+        key$jscomp$0 = element.key,
+        props$jscomp$0 = element.props,
+        keyPath = task.keyPath;
+      null === key$jscomp$0
+        ? (key$jscomp$0 = keyPath)
+        : null !== keyPath &&
+          (key$jscomp$0 =
+            keyPath === REACT_OPTIMISTIC_KEY ||
+            key$jscomp$0 === REACT_OPTIMISTIC_KEY
+              ? REACT_OPTIMISTIC_KEY
+              : keyPath + "," + key$jscomp$0);
+      resolvedElement = {
+        $$typeof: REACT_ELEMENT_TYPE,
+        type: type,
+        key: key$jscomp$0,
+        ref: null,
+        props: props$jscomp$0
+      };
+      var renderedModels$jscomp$1 = getRenderedModels(
+          request,
+          element,
+          keyPath,
+          task.implicitSlot
+        ),
+        resolvedModel$jscomp$0 = resolvedElement;
+      if (task.implicitSlot && null !== key$jscomp$0) {
+        var children = [resolvedElement],
+          copy = [];
+        setRenderedModel(request.modelEntries, children, copy);
+        var reference$55 = task.currentReference;
+        null !== reference$55 &&
+          (setModelReference(request, children, reference$55),
+          setModelReference(request, resolvedElement, {
+            root: reference$55.root,
+            parent: reference$55,
+            key: "0"
+          }));
+        task.model = children;
+        resolvedModel$jscomp$0 = copy;
+      }
+      setRenderedModel(
+        renderedModels$jscomp$1,
+        element,
+        resolvedModel$jscomp$0
+      );
+      var reference$jscomp$0 = task.currentReference;
+      task.fieldParentReference =
+        resolvedModel$jscomp$0 !== resolvedElement
+          ? void 0
+          : null === reference$jscomp$0
+            ? null
+            : {
+                root: reference$jscomp$0.root,
+                parent: reference$jscomp$0.parent,
+                key: reference$jscomp$0.key
+              };
+      task.keyPath = null;
+      task.implicitSlot = !1;
+      task.isModelReference = !1;
+      JSCompiler_inline_result = resolvedModel$jscomp$0;
+      break a;
+    }
+    var rendered = JSCompiler_inline_result;
+    if ("string" === typeof rendered && void 0 !== reference) {
+      var entry$58 = renderedModels.get(value$jscomp$2);
+      void 0 !== entry$58 &&
+        renderedModels.set(
+          value$jscomp$2,
+          createModelEntry(entry$58.model, reference)
+        );
+    }
+    null !== rendered &&
+      "object" === typeof rendered &&
+      null != reference &&
+      rendered.$$typeof === REACT_ELEMENT_TYPE &&
+      null === task$jscomp$0.fieldParentReference &&
+      (task$jscomp$0.fieldParentReference = {
+        root: reference.root,
+        parent: reference.parent,
+        key: reference.key
+      });
+    return rendered;
+  }
+  if (elementType === REACT_LAZY_TYPE) {
+    if (128 < modelDepth) return deferTask$1(request$jscomp$0, task$jscomp$0);
+    var lazy = value$jscomp$2;
+    task$jscomp$0.thenableState = null;
+    var init$jscomp$0 = lazy._init,
+      resolvedModel$jscomp$1 = init$jscomp$0(lazy._payload);
+    if (12 === request$jscomp$0.status || 14 === request$jscomp$0.status)
+      throw request$jscomp$0.fatalError;
+    return renderModelDestructive$1(
+      request$jscomp$0,
+      task$jscomp$0,
+      parent,
+      parentPropertyName,
+      resolvedModel$jscomp$1,
+      parentReference
+    );
+  }
+  if (elementType === REACT_LEGACY_ELEMENT_TYPE)
+    throw Error(
+      'A React Element from an older version of React was rendered. This is not supported. It can happen if:\n- Multiple copies of the "react" package is used.\n- A library pre-bundled an old copy of "react" or "react/jsx-runtime".\n- A compiler tries to "inline" JSX instead of using the runtime.'
+    );
+  if (isArrayImpl(value$jscomp$2))
+    return renderFragment(request$jscomp$0, task$jscomp$0, value$jscomp$2);
+  if ("function" === typeof value$jscomp$2.then)
+    return renderModelReference(
+      task$jscomp$0,
+      renderThenable(request$jscomp$0, task$jscomp$0, value$jscomp$2)
+    );
+  if (value$jscomp$2 instanceof Date) {
+    var date = value$jscomp$2;
+    return renderModelReference(
+      task$jscomp$0,
+      isSimpleDate(date)
+        ? new Date(dateGetTime.call(date))
+        : new Date("" + date.toJSON())
+    );
+  }
+  if (
+    value$jscomp$2 instanceof ArrayBuffer ||
+    ArrayBuffer.isView(value$jscomp$2)
+  ) {
+    var typedArray =
+      value$jscomp$2 instanceof ArrayBuffer
+        ? new Uint8Array(value$jscomp$2)
+        : value$jscomp$2;
+    if (TaintRegistryByteLengths$1.has(typedArray.byteLength)) {
+      var tainted$59 = TaintRegistryValues$1.get(
+        binaryToComparableString(typedArray)
+      );
+      void 0 !== tainted$59 && throwTaintViolation$1(tainted$59.message);
+    }
+    return renderModelReference(task$jscomp$0, value$jscomp$2);
+  }
+  if (value$jscomp$2 instanceof Map)
+    return renderModelReference(
+      task$jscomp$0,
+      renderMap(request$jscomp$0, task$jscomp$0, value$jscomp$2)
+    );
+  if (value$jscomp$2 instanceof Set)
+    return renderModelReference(
+      task$jscomp$0,
+      renderSet(request$jscomp$0, task$jscomp$0, value$jscomp$2)
+    );
+  var prototype = getPrototypeOf$1(value$jscomp$2);
+  if (prototype !== ObjectPrototype$1) {
+    if ("function" === typeof FormData && value$jscomp$2 instanceof FormData) {
+      var formData = value$jscomp$2;
+      if (0 !== task$jscomp$0.formatContext)
+        var JSCompiler_inline_result$jscomp$0 = outlineModel$1(
+          request$jscomp$0,
+          formData
+        );
+      else {
+        var entries = Array.from(formData.entries()),
+          hasBlob = !1,
+          hasOutlinedEntry = !1;
+        setRenderedModel(request$jscomp$0.modelEntries, formData, formData);
+        task$jscomp$0.keyPath = null;
+        task$jscomp$0.implicitSlot = !1;
+        for (var i = 0; i < entries.length; i++) {
+          var entry$jscomp$1 = entries[i],
+            key$jscomp$1 = resolveModel$1(
+              request$jscomp$0,
+              task$jscomp$0,
+              entry$jscomp$1,
+              "0",
+              entry$jscomp$1[0]
+            ),
+            value$jscomp$1 = resolveModel$1(
+              request$jscomp$0,
+              task$jscomp$0,
+              entry$jscomp$1,
+              "1",
+              entry$jscomp$1[1]
+            );
+          "string" !== typeof entry$jscomp$1[1] && (hasBlob = !0);
+          if (
+            key$jscomp$1 !== entry$jscomp$1[0] ||
+            value$jscomp$1 !== entry$jscomp$1[1]
+          )
+            (hasOutlinedEntry = !0),
+              (entry$jscomp$1[0] = key$jscomp$1),
+              (entry$jscomp$1[1] = value$jscomp$1);
+        }
+        if (hasBlob) {
+          var result$jscomp$0 = request$jscomp$0.result,
+            formDataWithBlobs = result$jscomp$0.formDataWithBlobs;
+          null === formDataWithBlobs &&
+            (result$jscomp$0.formDataWithBlobs = formDataWithBlobs =
+              new WeakSet());
+          formDataWithBlobs.add(formData);
+        }
+        if (hasOutlinedEntry) {
+          var outlinedModels$jscomp$0 = request$jscomp$0.outlinedModels;
+          if (null !== outlinedModels$jscomp$0) {
+            var dependencies = getOutlinedModelDependencies(
+              request$jscomp$0,
+              entries,
+              outlinedModels$jscomp$0
+            );
+            if (0 < dependencies.size) {
+              var newTask = createTask$1(
+                request$jscomp$0,
+                formData,
+                null,
+                !1,
+                0
+              );
+              outlinedModels$jscomp$0.set(formData, newTask);
+              blockTask(request$jscomp$0, newTask, formData, dependencies);
+            }
+          }
+        }
+        JSCompiler_inline_result$jscomp$0 = formData;
+      }
+      return renderModelReference(
+        task$jscomp$0,
+        JSCompiler_inline_result$jscomp$0
+      );
+    }
+    if (value$jscomp$2 instanceof Error) {
+      var error = value$jscomp$2;
+      setRenderedModel(request$jscomp$0.modelEntries, error, error);
+      return renderModelReference(task$jscomp$0, error);
+    }
+    if ("function" === typeof Blob && value$jscomp$2 instanceof Blob) {
+      var blob = value$jscomp$2;
+      setRenderedModel(request$jscomp$0.modelEntries, blob, blob);
+      var newTask$jscomp$0 = createTask$1(request$jscomp$0, blob, null, !1, 0),
+        outlinedModels$jscomp$1 = request$jscomp$0.outlinedModels;
+      null === outlinedModels$jscomp$1 &&
+        (request$jscomp$0.outlinedModels = outlinedModels$jscomp$1 =
+          new WeakMap());
+      outlinedModels$jscomp$1.set(blob, newTask$jscomp$0);
+      request$jscomp$0.hasByValueModels = !0;
+      addModelDependency(task$jscomp$0, newTask$jscomp$0.promise);
+      var deferredBlobs = request$jscomp$0.deferredBlobs;
+      null === deferredBlobs
+        ? (request$jscomp$0.deferredBlobs = [newTask$jscomp$0])
+        : deferredBlobs.push(newTask$jscomp$0);
+      return renderModelReference(task$jscomp$0, blob);
+    }
+  }
+  var iteratorFn = getIteratorFn(value$jscomp$2);
+  if (iteratorFn) {
+    var iterator$60 = iteratorFn.call(value$jscomp$2);
+    if (iterator$60 === value$jscomp$2) {
+      if (0 !== task$jscomp$0.formatContext)
+        var JSCompiler_inline_result$jscomp$1 = outlineModel$1(
+          request$jscomp$0,
+          iterator$60
+        );
+      else {
+        var existingModel$jscomp$0 = getRenderedModel(
+          request$jscomp$0.modelEntries,
+          iterator$60
+        );
+        if (
+          void 0 !== existingModel$jscomp$0 &&
+          existingModel$jscomp$0 !== task$jscomp$0.promise
+        )
+          JSCompiler_inline_result$jscomp$1 = existingModel$jscomp$0;
+        else {
+          var entries$jscomp$0 = Array.from(iterator$60),
+            copy$jscomp$0 = [],
+            resolvedIterator = copy$jscomp$0.values();
+          setRenderedModel(
+            request$jscomp$0.modelEntries,
+            iterator$60,
+            resolvedIterator
+          );
+          var result$jscomp$1 = request$jscomp$0.result,
+            iteratorEntries = result$jscomp$1.iteratorEntries;
+          null === iteratorEntries &&
+            (result$jscomp$1.iteratorEntries = iteratorEntries = new WeakMap());
+          iteratorEntries.set(resolvedIterator, copy$jscomp$0);
+          task$jscomp$0.keyPath = null;
+          task$jscomp$0.implicitSlot = !1;
+          for (
+            var i$jscomp$0 = 0;
+            i$jscomp$0 < entries$jscomp$0.length;
+            i$jscomp$0++
+          )
+            copy$jscomp$0[i$jscomp$0] = resolveModel$1(
+              request$jscomp$0,
+              task$jscomp$0,
+              entries$jscomp$0,
+              "" + i$jscomp$0,
+              entries$jscomp$0[i$jscomp$0]
+            );
+          JSCompiler_inline_result$jscomp$1 = resolvedIterator;
+        }
+      }
+      return renderModelReference(
+        task$jscomp$0,
+        JSCompiler_inline_result$jscomp$1
+      );
+    }
+    return renderFragment(
+      request$jscomp$0,
+      task$jscomp$0,
+      Array.from(iterator$60),
+      value$jscomp$2
+    );
+  }
+  if (
+    "function" === typeof ReadableStream &&
+    value$jscomp$2 instanceof ReadableStream
+  )
+    return renderModelReference(
+      task$jscomp$0,
+      renderReadableStream(request$jscomp$0, task$jscomp$0, value$jscomp$2)
+    );
+  var getAsyncIterator = value$jscomp$2[ASYNC_ITERATOR];
+  if ("function" === typeof getAsyncIterator) {
+    var children$jscomp$0 = value$jscomp$2,
+      keyPath$jscomp$0 = task$jscomp$0.keyPath,
+      implicitSlot = task$jscomp$0.implicitSlot;
+    task$jscomp$0.keyPath = null;
+    task$jscomp$0.implicitSlot = !1;
+    var existingIterable = getRenderedModel(
+        request$jscomp$0.modelEntries,
+        children$jscomp$0
+      ),
+      resolvedIterable =
+        void 0 === existingIterable ||
+        existingIterable === task$jscomp$0.promise
+          ? renderAsyncIterable(
+              request$jscomp$0,
+              task$jscomp$0,
+              children$jscomp$0,
+              getAsyncIterator.call(children$jscomp$0)
+            )
+          : existingIterable;
+    if (null !== keyPath$jscomp$0) {
+      var fragment = {
+        $$typeof: REACT_ELEMENT_TYPE,
+        type: REACT_FRAGMENT_TYPE,
+        key: keyPath$jscomp$0,
+        ref: null,
+        props: { children: resolvedIterable }
+      };
+      var resolvedModel$jscomp$2 = implicitSlot ? [fragment] : fragment;
+      setRenderedModel(
+        getRenderedModels(
+          request$jscomp$0,
+          children$jscomp$0,
+          keyPath$jscomp$0,
+          implicitSlot
+        ),
+        children$jscomp$0,
+        resolvedModel$jscomp$2
+      );
+      var JSCompiler_inline_result$jscomp$2 = resolvedModel$jscomp$2;
+    } else JSCompiler_inline_result$jscomp$2 = resolvedIterable;
+    return renderModelReference(
+      task$jscomp$0,
+      JSCompiler_inline_result$jscomp$2
+    );
+  }
+  if (
+    prototype !== ObjectPrototype$1 &&
+    (null === prototype || null !== getPrototypeOf$1(prototype))
+  )
+    throw Error(
+      "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
+        describeObjectForErrorMessage(parent, parentPropertyName)
+    );
+  var copy$jscomp$1 = {};
+  renderedModels !== request$jscomp$0.modelEntries
+    ? setRenderedModel(
+        request$jscomp$0.modelEntries,
+        value$jscomp$2,
+        copy$jscomp$1
+      )
+    : void 0 === modelEntry
+      ? request$jscomp$0.modelEntries.set(
+          value$jscomp$2,
+          createModelEntry(copy$jscomp$1, void 0)
+        )
+      : (modelEntry.model = copy$jscomp$1);
+  task$jscomp$0.isModelReference = !1;
+  task$jscomp$0.fieldParentReference = void 0;
+  return copy$jscomp$1;
+}
+function resolveModel$1(
+  request,
+  task,
+  parent,
+  parentPropertyName,
+  value,
+  parentReference$jscomp$0,
+  renderedRoot
+) {
+  modelDepth++;
+  try {
+    var jsonValue = value;
+    if (
+      null !== value &&
+      "object" === typeof value &&
+      !isServerReference(value) &&
+      "function" === typeof value.toJSON
+    ) {
+      var tainted = TaintRegistryObjects$1.get(value);
+      void 0 !== tainted && throwTaintViolation$1(tainted);
+      if (value instanceof Date && isSimpleDate(value)) {
+        var time = dateGetTime.call(value);
+        if (!Number.isNaN(time)) {
+          var tainted$61 = TaintRegistryValues$1.get(
+            dateToISOString.call(value)
+          );
+          void 0 !== tainted$61 && throwTaintViolation$1(tainted$61.message);
+        }
+        task.resolvedModelInfo = 0;
+        return renderModelReference(
+          task,
+          Number.isNaN(time) ? null : new Date(time)
+        );
+      }
+      jsonValue = value.toJSON(parentPropertyName);
+    }
+    if (void 0 !== renderedRoot && jsonValue === value)
+      var JSCompiler_temp = renderedRoot;
+    else {
+      tainted = jsonValue;
+      var prevKeyPath = task.keyPath,
+        prevImplicitSlot = task.implicitSlot;
+      try {
+        JSCompiler_temp = renderModelDestructive$1(
+          request,
+          task,
+          parent,
+          parentPropertyName,
+          tainted,
+          parentReference$jscomp$0
+        );
+      } catch (thrownValue) {
+        if (14 === request.status) throw request.fatalError;
+        var error$jscomp$0 =
+            12 === request.status
+              ? request.fatalError
+              : thrownValue === SuspenseException
+                ? getSuspendedThenable()
+                : thrownValue,
+          model = task.model;
+        if (
+          null === model ||
+          "object" !== typeof model ||
+          (model.$$typeof !== REACT_ELEMENT_TYPE &&
+            model.$$typeof !== REACT_LAZY_TYPE)
+        ) {
+          task.keyPath = prevKeyPath;
+          task.implicitSlot = prevImplicitSlot;
+          var newTask$62 = createTask$1(
+            request,
+            model,
+            prevKeyPath,
+            prevImplicitSlot,
+            task.formatContext
+          );
+          newTask$62.resolve = resolveBoxedModel.bind(null, newTask$62.resolve);
+          null !== model &&
+            "object" === typeof model &&
+            setModelReference(request, model, {
+              root: newTask$62.promise,
+              parent: newTask$62.reference,
+              key: "value"
+            });
+          var outlinedModels = request.outlinedModels;
+          null === outlinedModels &&
+            (request.outlinedModels = outlinedModels = new WeakMap());
+          outlinedModels.set(newTask$62.promise, newTask$62);
+          request.hasByValueModels = !0;
+          addModelDependency(task, newTask$62.promise);
+          markErroredModel(
+            request,
+            newTask$62,
+            tainted,
+            prevKeyPath,
+            prevImplicitSlot
+          );
+          if (12 === request.status) abortTask$1(request, newTask$62);
+          else if (
+            null != error$jscomp$0 &&
+            "object" === typeof error$jscomp$0 &&
+            "function" === typeof error$jscomp$0.then
+          ) {
+            newTask$62.thenableState = getThenableStateAfterSuspending();
+            var ping$63 = newTask$62.ping;
+            error$jscomp$0.then(ping$63, ping$63);
+          } else erroredTask$1(request, newTask$62, error$jscomp$0);
+          JSCompiler_temp = renderModelReference(task, newTask$62.promise);
+        } else {
+          var newTask = createTask$1(
+              request,
+              model,
+              task.keyPath,
+              task.implicitSlot,
+              task.formatContext
+            ),
+            lazy = createLazyWrapperAroundWakeable(newTask.promise);
+          setModelReference(request, model, newTask.reference);
+          if (model.$$typeof === REACT_ELEMENT_TYPE) {
+            var renderedModels = getRenderedModels(
+              request,
+              model,
+              task.keyPath,
+              task.implicitSlot
+            );
+            void 0 === getRenderedModel(renderedModels, model) &&
+              setRenderedModel(renderedModels, model, lazy);
+          }
+          tainted !== model &&
+            null !== tainted &&
+            "object" === typeof tainted &&
+            tainted.$$typeof === REACT_ELEMENT_TYPE &&
+            setRenderedModel(
+              getRenderedModels(
+                request,
+                tainted,
+                prevKeyPath,
+                prevImplicitSlot
+              ),
+              tainted,
+              lazy
+            );
+          task.keyPath = prevKeyPath;
+          task.implicitSlot = prevImplicitSlot;
+          if (12 === request.status) abortTask$1(request, newTask);
+          else if (
+            null != error$jscomp$0 &&
+            "object" === typeof error$jscomp$0 &&
+            "function" === typeof error$jscomp$0.then
+          ) {
+            var ping = newTask.ping;
+            error$jscomp$0.then(ping, ping);
+            newTask.thenableState = getThenableStateAfterSuspending();
+          } else erroredTask$1(request, newTask, error$jscomp$0);
+          JSCompiler_temp = renderModelReference(task, lazy);
+        }
+      }
+    }
+    parent = JSCompiler_temp;
+    if (
+      void 0 !== renderedRoot &&
+      ((task.renderedModel = parent), jsonValue !== value)
+    ) {
+      var outlinedModels$jscomp$0 = request.outlinedModels;
+      null === outlinedModels$jscomp$0 &&
+        (request.outlinedModels = outlinedModels$jscomp$0 = new WeakMap());
+      outlinedModels$jscomp$0.set(renderedRoot, task);
+      request.hasByValueModels = !0;
+    }
+    if (task.isModelReference)
+      return (
+        (task.resolvedModelInfo =
+          null !== parent && "object" === typeof parent
+            ? getModelInfo(request.result, parent)
+            : 0),
+        parent
+      );
+    if (null === parent || "object" !== typeof parent)
+      return (task.resolvedModelInfo = 0), parent;
+    var resolvingModelStack = request.resolvingModelStack;
+    resolvingModelStack.push(parent);
+    null !== request.resolvingModels && request.resolvingModels.add(parent);
+    try {
+      a: {
+        var model$jscomp$0 = task.model,
+          parentReference = task.fieldParentReference,
+          prevKeyPath$jscomp$0 = task.keyPath,
+          prevImplicitSlot$jscomp$0 = task.implicitSlot;
+        if (parent.$$typeof === REACT_ELEMENT_TYPE) {
+          var prevDependencies = task.modelDependencies;
+          task.modelDependencies = null;
+          task.keyPath = null;
+          task.implicitSlot = !1;
+          try {
+            parent.type = resolveModel$1(
+              request,
+              task,
+              parent,
+              "type",
+              parent.type,
+              parentReference
+            );
+            parent.props = resolveModel$1(
+              request,
+              task,
+              parent,
+              "props",
+              parent.props,
+              parentReference
+            );
+            var propsInfo = task.resolvedModelInfo;
+            var dependencies = task.modelDependencies,
+              outlinedModels$jscomp$1 = request.outlinedModels;
+            if (null !== outlinedModels$jscomp$1 && null !== dependencies) {
+              var newTask$jscomp$0 = createTask$1(
+                request,
+                parent,
+                null,
+                !1,
+                task.formatContext
+              );
+              blockTask(request, newTask$jscomp$0, parent, dependencies);
+              var lazy$jscomp$0 = createLazyWrapperAroundWakeable(
+                newTask$jscomp$0.promise
+              );
+              outlinedModels$jscomp$1.set(parent, newTask$jscomp$0);
+              outlinedModels$jscomp$1.set(
+                newTask$jscomp$0.promise,
+                newTask$jscomp$0
+              );
+              null !== model$jscomp$0 &&
+                "object" === typeof model$jscomp$0 &&
+                setRenderedModel(
+                  getRenderedModels(
+                    request,
+                    model$jscomp$0,
+                    prevKeyPath$jscomp$0,
+                    prevImplicitSlot$jscomp$0
+                  ),
+                  model$jscomp$0,
+                  lazy$jscomp$0
+                );
+              var JSCompiler_inline_result = renderModelReference(
+                task,
+                lazy$jscomp$0
+              );
+            } else JSCompiler_inline_result = parent;
+            value = JSCompiler_inline_result;
+            var info =
+              3 |
+              (value !== parent ||
+              ("string" !== typeof parent.type &&
+                "symbol" !== typeof parent.type) ||
+              (null !== parent.props &&
+                ("object" === typeof parent.props ||
+                  "function" === typeof parent.props) &&
+                0 === (propsInfo & 4))
+                ? 0
+                : 4);
+            setModelInfo(request.result, parent, info);
+            task.resolvedModelInfo = value === parent ? info : 0;
+            var JSCompiler_inline_result$jscomp$0 = value;
+            break a;
+          } catch (error) {
+            throw (
+              (markErroredModel(
+                request,
+                task,
+                parent,
+                prevKeyPath$jscomp$0,
+                prevImplicitSlot$jscomp$0,
+                parent
+              ),
+              error)
+            );
+          } finally {
+            task.modelDependencies = prevDependencies;
+          }
+        }
+        if (isArrayImpl(parent)) {
+          task.keyPath = null;
+          task.implicitSlot = !1;
+          try {
+            for (
+              var directlyReusable$65 = !0,
+                noEagerDependencies = !0,
+                jsonWork = 1,
+                localWork = 1,
+                i = 0;
+              i < model$jscomp$0.length;
+              i++
+            )
+              if (i in model$jscomp$0) {
+                var key = "" + i,
+                  child = resolveModel$1(
+                    request,
+                    task,
+                    model$jscomp$0,
+                    key,
+                    model$jscomp$0[i],
+                    parentReference
+                  ),
+                  info$66 = task.resolvedModelInfo;
+                parent[i] = child;
+                (prevDependencies =
+                  null !== child &&
+                  ("object" === typeof child || "function" === typeof child)) &&
+                  0 === (info$66 & 4) &&
+                  (directlyReusable$65 = !1);
+                prevDependencies &&
+                  0 === (info$66 & 20) &&
+                  3 !== (info$66 & 3) &&
+                  (noEagerDependencies = !1);
+                var childWork = getJSONValueWork(child, info$66);
+                localWork +=
+                  key.length + 1 + (prevDependencies ? 0 : childWork);
+                0 !== jsonWork &&
+                  ((jsonWork += key.length + 1 + childWork),
+                  0 === childWork || 33554431 < jsonWork) &&
+                  (jsonWork = 0);
+              } else (directlyReusable$65 = !1), (jsonWork = 0);
+            parent.length = model$jscomp$0.length;
+            var info$67 = packModelInfo(
+              2 |
+                (directlyReusable$65 ? 4 : 0) |
+                (noEagerDependencies ? 16 : 0),
+              jsonWork
+            );
+            setModelInfo(request.result, parent, info$67);
+            task.resolvedModelInfo = info$67;
+            var result = request.result;
+            result.jsonWorkCredit += localWork;
+            JSCompiler_inline_result$jscomp$0 = parent;
+            break a;
+          } catch (error$68) {
+            throw (
+              (markErroredModel(
+                request,
+                task,
+                model$jscomp$0,
+                prevKeyPath$jscomp$0,
+                prevImplicitSlot$jscomp$0
+              ),
+              error$68)
+            );
+          }
+        }
+        task.keyPath = null;
+        task.implicitSlot = !1;
+        try {
+          info$66 = child = !0;
+          info$67 = childWork = 1;
+          for (directlyReusable$65 in model$jscomp$0)
+            hasOwnProperty.call(model$jscomp$0, directlyReusable$65) &&
+              ((noEagerDependencies = resolveModel$1(
+                request,
+                task,
+                model$jscomp$0,
+                directlyReusable$65,
+                model$jscomp$0[directlyReusable$65],
+                parentReference
+              )),
+              (jsonWork = task.resolvedModelInfo),
+              (result =
+                null !== noEagerDependencies &&
+                ("object" === typeof noEagerDependencies ||
+                  "function" === typeof noEagerDependencies)) &&
+                0 === (jsonWork & 4) &&
+                (child = !1),
+              result &&
+                0 === (jsonWork & 20) &&
+                3 !== (jsonWork & 3) &&
+                (info$66 = !1),
+              (localWork = getJSONValueWork(noEagerDependencies, jsonWork)),
+              (info$67 +=
+                directlyReusable$65.length + 1 + (result ? 0 : localWork)),
+              0 !== childWork &&
+                ((childWork += directlyReusable$65.length + 1 + localWork),
+                0 === localWork || 33554431 < childWork) &&
+                (childWork = 0),
+              "__proto__" === directlyReusable$65
+                ? Object.defineProperty(parent, directlyReusable$65, {
+                    value: noEagerDependencies,
+                    enumerable: !0,
+                    writable: !0,
+                    configurable: !0
+                  })
+                : (parent[directlyReusable$65] = noEagerDependencies));
+          i = packModelInfo(
+            1 | (child ? 4 : 0) | (info$66 ? 16 : 0),
+            childWork
+          );
+          setModelInfo(request.result, parent, i);
+          task.resolvedModelInfo = i;
+          key = request.result;
+          key.jsonWorkCredit += info$67;
+          JSCompiler_inline_result$jscomp$0 = parent;
+        } catch (error$79) {
+          throw (
+            (markErroredModel(
+              request,
+              task,
+              model$jscomp$0,
+              prevKeyPath$jscomp$0,
+              prevImplicitSlot$jscomp$0
+            ),
+            error$79)
+          );
+        }
+      }
+      return JSCompiler_inline_result$jscomp$0;
+    } finally {
+      resolvingModelStack.pop(),
+        null !== request.resolvingModels &&
+          request.resolvingModels.delete(parent);
+    }
+  } finally {
+    modelDepth--;
+  }
+}
+function retryTask$1(request, task) {
+  if (14 !== request.status && 0 === task.status) {
+    task.status = 5;
+    var originalModel = task.model,
+      originalKeyPath = task.keyPath,
+      originalImplicitSlot = task.implicitSlot;
+    task.currentReference = task.reference;
+    try {
+      modelRoot$1 = task.model;
+      var rendered = renderModelDestructive$1(
+        request,
+        task,
+        emptyRoot,
+        "",
+        task.model
+      );
+      task.renderedModel = rendered;
+      var rootModel =
+          null !== rendered &&
+          "object" === typeof rendered &&
+          rendered.$$typeof === REACT_ELEMENT_TYPE
+            ? rendered
+            : task.model,
+        resolvedModel =
+          task.isModelReference ||
+          null === rendered ||
+          "object" !== typeof rendered
+            ? rendered
+            : resolveModel$1(
+                request,
+                task,
+                { "": rootModel },
+                "",
+                rootModel,
+                void 0,
+                rendered
+              );
+      if (14 !== request.status) {
+        validateDeferredBlobs(request);
+        var outlinedModels = request.outlinedModels;
+        (null !== outlinedModels &&
+          waitForOutlinedModel(request, task, resolvedModel, outlinedModels)) ||
+          completeTask(request, task, resolvedModel);
+      }
+    } catch (thrownValue) {
+      if (12 <= request.status)
+        12 === request.status && abortTask$1(request, task);
+      else {
+        var error =
+          thrownValue === SuspenseException
+            ? getSuspendedThenable()
+            : thrownValue;
+        if (
+          "object" === typeof error &&
+          null !== error &&
+          "function" === typeof error.then
+        ) {
+          markErroredModel(
+            request,
+            task,
+            task.model,
+            task.keyPath,
+            task.implicitSlot
+          );
+          task.status = 0;
+          task.thenableState = getThenableStateAfterSuspending();
+          var ping = task.ping;
+          error.then(ping, ping);
+        } else
+          markErroredModel(
+            request,
+            task,
+            originalModel,
+            originalKeyPath,
+            originalImplicitSlot
+          ),
+            erroredTask$1(request, task, error);
+      }
+    } finally {
+      validateDeferredBlobs(request);
+    }
+  }
+}
+function getRenderedModels(request, value, keyPath, implicitSlot) {
+  return null === keyPath ||
+    null === value ||
+    "object" !== typeof value ||
+    (value.$$typeof !== REACT_ELEMENT_TYPE &&
+      "function" !== typeof value.then &&
+      !isArrayImpl(value) &&
+      (value instanceof Map ||
+        value instanceof Set ||
+        (null === getIteratorFn(value) &&
+          "function" !== typeof value[ASYNC_ITERATOR])))
+    ? implicitSlot &&
+      null !== value &&
+      "object" === typeof value &&
+      ((value.$$typeof === REACT_ELEMENT_TYPE && null !== value.key) ||
+        "function" === typeof value.then)
+      ? request.renderedImplicitModels
+      : request.modelEntries
+    : ((value = request.renderedKeyedModels),
+      null === value && (request.renderedKeyedModels = value = new Map()),
+      (request = value.get(keyPath)),
+      void 0 === request &&
+        ((request = { explicit: new WeakMap(), implicit: new WeakMap() }),
+        value.set(keyPath, request)),
+      implicitSlot ? request.implicit : request.explicit);
+}
+function renderFragment(request, task, children) {
+  var source =
+      3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : children,
+    keyPath = task.keyPath;
+  if (null !== keyPath) {
+    var resolvedModel = {
+      $$typeof: REACT_ELEMENT_TYPE,
+      type: REACT_FRAGMENT_TYPE,
+      key: keyPath,
+      ref: null,
+      props: { children: children }
+    };
+    if (task.implicitSlot) {
+      resolvedModel = [resolvedModel];
+      var copy = [];
+      setRenderedModel(request.modelEntries, resolvedModel, copy);
+      task.model = resolvedModel;
+      resolvedModel = copy;
+    }
+    task.fieldParentReference = null;
+    setRenderedModel(
+      getRenderedModels(request, source, keyPath, task.implicitSlot),
+      source,
+      resolvedModel
+    );
+  } else
+    (keyPath = Array(children.length)),
+      setRenderedModel(request.modelEntries, children, keyPath),
+      source !== children &&
+        setRenderedModel(request.modelEntries, source, keyPath),
+      (task.model = children),
+      (resolvedModel = keyPath),
+      (task.fieldParentReference = source === children ? void 0 : null);
+  task.isModelReference = !1;
+  return resolvedModel;
+}
+function performWork$1(request) {
+  if (14 !== request.status) {
+    var prevDispatcher = ReactSharedInternalsServer.H;
+    ReactSharedInternalsServer.H = HooksDispatcher;
+    var prevCache = setCurrentCache(request);
+    currentRequest = request;
+    try {
+      var pingedTasks = request.pingedTasks;
+      request.pingedTasks = [];
+      for (var i = 0; i < pingedTasks.length; i++)
+        retryTask$1(request, pingedTasks[i]);
+    } catch (error) {
+      fatalError$1(request, error);
+    } finally {
+      (modelRoot$1 = null),
+        14 !== request.status &&
+          0 === request.abortableTasks.size &&
+          ((request.status = 14),
+          closeResult(request),
+          cleanupTaintQueue$1(request),
+          request.cacheController.abort(
+            Error(
+              "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
+            )
+          ),
+          request.onAllReady()),
+        (ReactSharedInternalsServer.H = prevDispatcher),
+        (currentRequest = null),
+        setCurrentCache(prevCache);
+    }
+  }
+}
+function startWork$1(request) {
+  scheduleMicrotask(function () {
+    cacheStorage.run(request, function () {
+      return requestStorage.run(void 0, performWork$1, request);
+    });
+  });
+  setImmediate(function () {
+    10 === request.status && (request.status = 11);
+  });
+}
+function createModelEntry(model, reference) {
+  return void 0 === reference
+    ? { model: model, root: void 0, parent: null, key: "" }
+    : {
+        model: model,
+        root: reference.root,
+        parent: reference.parent,
+        key: reference.key
+      };
+}
+function getEntryReference(entry) {
+  return void 0 === entry || void 0 === entry.root ? void 0 : entry;
+}
+function getPublishedModelReference(request, reference) {
+  if (null === reference.parent && !hasOwnProperty.call(reference, "model"))
+    return reference;
+  var publishedReferences = request.publishedModelReferences;
+  null === publishedReferences &&
+    (request.publishedModelReferences = publishedReferences = new WeakMap());
+  request = publishedReferences.get(reference);
+  if (void 0 !== request) return request;
+  request = [];
+  for (var published; ; ) {
+    published = reference.parent;
+    if (null === published) {
+      hasOwnProperty.call(reference, "model")
+        ? ((published = {
+            root: reference.root,
+            parent: null,
+            key: reference.key
+          }),
+          publishedReferences.set(reference, published))
+        : (published = reference);
+      break;
+    }
+    request.push(reference);
+    reference = published;
+    published = publishedReferences.get(reference);
+    if (void 0 !== published) break;
+  }
+  for (reference = request.length - 1; 0 <= reference; reference--) {
+    var source = request[reference];
+    hasOwnProperty.call(source, "model") || source.parent !== published
+      ? ((published = {
+          root: source.root,
+          parent: published,
+          key: source.key
+        }),
+        publishedReferences.set(source, published))
+      : (published = source);
+  }
+  return published;
+}
+function getRenderedModel(models, value) {
+  models = models.get(value);
+  return void 0 === models ? void 0 : models.model;
+}
+function setRenderedModel(models, value, model) {
+  var entry = models.get(value);
+  void 0 === entry
+    ? models.set(value, createModelEntry(model, void 0))
+    : (entry.model = model);
+}
+function setModelReference(request, value, reference) {
+  var entry = request.modelEntries.get(value);
+  request.modelEntries.set(
+    value,
+    createModelEntry(void 0 === entry ? void 0 : entry.model, reference)
+  );
+}
+function setModelReferenceIfAbsent(request, value, reference) {
+  var entry = request.modelEntries.get(value);
+  void 0 === entry
+    ? request.modelEntries.set(value, createModelEntry(void 0, reference))
+    : void 0 === entry.root &&
+      request.modelEntries.set(value, createModelEntry(entry.model, reference));
+}
+function resolveBoxedModel(resolve, model) {
+  resolve({ value: model });
+}
+function markErroredModel(request, task, model, keyPath, implicitSlot) {
+  var rendered =
+    5 < arguments.length && void 0 !== arguments[5] ? arguments[5] : void 0;
+  if (null !== model && "object" === typeof model) {
+    var models = getRenderedModels(request, model, keyPath, implicitSlot);
+    rendered = void 0 === rendered ? getRenderedModel(models, model) : rendered;
+    if (
+      null !== rendered &&
+      "object" === typeof rendered &&
+      rendered !== task.promise &&
+      rendered.$$typeof !== REACT_LAZY_TYPE
+    ) {
+      var outlinedModels = request.outlinedModels;
+      null === outlinedModels &&
+        (request.outlinedModels = outlinedModels = new WeakMap());
+      outlinedModels.set(rendered, task);
+      request.hasByValueModels = !0;
+    }
+    setRenderedModel(
+      models,
+      model,
+      model.$$typeof === REACT_ELEMENT_TYPE
+        ? createLazyWrapperAroundWakeable(task.promise)
+        : task.promise
+    );
+  }
+}
+function renderModelReference(task, model) {
+  task.isModelReference = !0;
+  return model;
+}
+function addModelDependency(task, promise) {
+  var dependencies = task.modelDependencies;
+  null === dependencies && (task.modelDependencies = dependencies = new Set());
+  dependencies.add(promise);
+}
+function getOutlinedModelDependencies(request, model, outlinedModels) {
+  function visit(value, parent) {
+    if (null !== value && "object" === typeof value) {
+      var outlinedTask = outlinedModels.get(value);
+      if (void 0 !== outlinedTask)
+        null !== parent &&
+          1 !== outlinedTask.status &&
+          parent.dependencies.add(outlinedTask.promise);
+      else if (((outlinedTask = cache.get(value)), void 0 !== outlinedTask))
+        null !== parent &&
+          null !== outlinedTask &&
+          "fulfilled" !== outlinedTask.status &&
+          parent.dependencies.add(outlinedTask);
+      else if (((outlinedTask = records.get(value)), void 0 !== outlinedTask))
+        null !== parent &&
+          (outlinedTask.active
+            ? (parent.low = Math.min(parent.low, outlinedTask.index))
+            : (null !== outlinedTask.ready &&
+                "fulfilled" !== outlinedTask.ready.status &&
+                parent.dependencies.add(outlinedTask.ready),
+              (parent.stable = parent.stable && outlinedTask.stable)));
+      else {
+        var record = {
+          model: value,
+          index: index,
+          low: index++,
+          active: !0,
+          stable: !resolvingModels.has(value),
+          dependencies: new Set(),
+          ready: null
+        };
+        records.set(value, record);
+        stack.push(record);
+        visitFields(value, record);
+        if (record.low === record.index) {
+          value = [];
+          do
+            (outlinedTask = stack[stack.length - 1]),
+              stack.length--,
+              value.push(outlinedTask),
+              outlinedTask.dependencies.forEach(function (dependency) {
+                return record.dependencies.add(dependency);
+              }),
+              (record.stable = record.stable && outlinedTask.stable);
+          while (outlinedTask !== record);
+          var dependencies$81 = record.dependencies;
+          dependencies$81.forEach(function (dependency) {
+            "fulfilled" === dependency.status &&
+              dependencies$81.delete(dependency);
+          });
+          if (1 === dependencies$81.size)
+            dependencies$81.forEach(function (dependency) {
+              record.ready = dependency;
+            });
+          else if (1 < dependencies$81.size) {
+            var ready = createResultModel();
+            record.ready = ready;
+            var remaining = dependencies$81.size;
+            dependencies$81.forEach(function (dependency) {
+              dependency.then(
+                function () {
+                  0 === --remaining && fulfillResultModel(ready, void 0);
+                },
+                function (error) {
+                  copyErrorReference(request.result, ready, dependency);
+                  rejectResultModel(ready, error);
+                }
+              );
+            });
+          }
+          for (var i = 0; i < value.length; i++)
+            (outlinedTask = value[i]),
+              (outlinedTask.active = !1),
+              (outlinedTask.stable = record.stable),
+              (outlinedTask.ready = record.ready),
+              outlinedTask.dependencies.clear(),
+              record.stable && cache.set(outlinedTask.model, record.ready);
+        }
+        null !== parent &&
+          (record.active
+            ? (parent.low = Math.min(parent.low, record.low))
+            : (null !== record.ready &&
+                "fulfilled" !== record.ready.status &&
+                parent.dependencies.add(record.ready),
+              (parent.stable = parent.stable && record.stable)));
+      }
+    }
+  }
+  function visitFields(value, record) {
+    var kind = getModelInfo(request.result, value) & 3;
+    if (
+      0 !== kind ||
+      (!isClientReference(value) &&
+        !isServerReference(value) &&
+        void 0 === getTemporaryReference(request.result, value) &&
+        void 0 === getValueReference(request.result, value))
+    )
+      if (3 === kind || (0 === kind && value.$$typeof === REACT_ELEMENT_TYPE))
+        visit(value.type, record), visit(value.props, record);
+      else if (
+        0 !== kind ||
+        !(
+          value.$$typeof === REACT_LAZY_TYPE ||
+          "function" === typeof value.then ||
+          value instanceof Date ||
+          value instanceof ArrayBuffer ||
+          ArrayBuffer.isView(value)
+        )
+      )
+        if (2 === kind || (0 === kind && isArrayImpl(value)))
+          for (kind = 0; kind < value.length; kind++)
+            visit(value[kind], record);
+        else if (0 === kind && value instanceof Map)
+          value.forEach(function (child, key) {
+            visit(key, record);
+            visit(child, record);
+          });
+        else if (0 === kind && value instanceof Set)
+          value.forEach(function (child) {
+            return visit(child, record);
+          });
+        else {
+          if (0 === kind && getPrototypeOf$1(value) !== ObjectPrototype$1) {
+            if ("function" === typeof FormData && value instanceof FormData) {
+              value = value.entries();
+              for (kind = value.next(); !kind.done; kind = value.next())
+                visit(kind.value[1], record);
+              return;
+            }
+            if ("function" === typeof Blob && value instanceof Blob) return;
+            kind = getIteratorEntries(request.result, value);
+            if (void 0 !== kind) {
+              visit(kind, record);
+              return;
+            }
+            if (value instanceof Error) return;
+          }
+          kind = Object.keys(value);
+          for (var i$82 = 0; i$82 < kind.length; i$82++)
+            visit(value[kind[i$82]], record);
+        }
+  }
+  var resolvingModels =
+    null === request.resolvingModels
+      ? new Set(request.resolvingModelStack)
+      : request.resolvingModels;
+  request.resolvingModels = resolvingModels;
+  var cache =
+    null === request.outlinedModelDependencies
+      ? new WeakMap()
+      : request.outlinedModelDependencies;
+  request.outlinedModelDependencies = cache;
+  var records = new Map(),
+    stack = [],
+    index = 0;
+  visit(model, null);
+  var dependencies = new Set();
+  if (null !== model && "object" === typeof model) {
+    var ownTask = outlinedModels.get(model);
+    void 0 !== ownTask
+      ? 1 !== ownTask.status && dependencies.add(ownTask.promise)
+      : ((ownTask = records.get(model)),
+        (model = void 0 === ownTask ? cache.get(model) : ownTask.ready),
+        void 0 !== model &&
+          null !== model &&
+          "fulfilled" !== model.status &&
+          dependencies.add(model));
+  }
+  return dependencies;
+}
+function resolveOutlinedModel(request, model, outlinedModels) {
+  function resolve(value) {
+    if (null === value || "object" !== typeof value) return value;
+    if (visited.has(value)) return visited.get(value);
+    visited.set(value, value);
+    var dependency = outlinedModels.get(value);
+    if (void 0 !== dependency && value !== dependency.model)
+      return (
+        visited.set(value, dependency.model),
+        (dependency = resolve(dependency.model)),
+        visited.set(value, dependency),
+        dependency
+      );
+    dependency = getModelInfo(request.result, value) & 3;
+    if (
+      0 === dependency &&
+      (isClientReference(value) ||
+        isServerReference(value) ||
+        void 0 !== getTemporaryReference(request.result, value) ||
+        void 0 !== getValueReference(request.result, value))
+    )
+      return value;
+    if (
+      3 === dependency ||
+      (0 === dependency && value.$$typeof === REACT_ELEMENT_TYPE)
+    )
+      (dependency = resolve(value.type)),
+        dependency !== value.type && (value.type = dependency),
+        (dependency = resolve(value.props)),
+        dependency !== value.props && (value.props = dependency);
+    else if (
+      0 !== dependency ||
+      !(
+        value.$$typeof === REACT_LAZY_TYPE ||
+        "function" === typeof value.then ||
+        value instanceof Date ||
+        value instanceof ArrayBuffer ||
+        ArrayBuffer.isView(value)
+      )
+    )
+      if (2 === dependency || (0 === dependency && isArrayImpl(value)))
+        for (dependency = 0; dependency < value.length; dependency++) {
+          if (hasOwnProperty.call(value, dependency)) {
+            var child = resolve(value[dependency]);
+            Object.is(child, value[dependency]) || (value[dependency] = child);
+          }
+        }
+      else if (0 === dependency && value instanceof Map)
+        for (
+          dependency = Array.from(value), value.clear(), child = 0;
+          child < dependency.length;
+          child++
+        )
+          value.set(
+            resolve(dependency[child][0]),
+            resolve(dependency[child][1])
+          );
+      else if (0 === dependency && value instanceof Set)
+        for (
+          dependency = Array.from(value), value.clear(), child = 0;
+          child < dependency.length;
+          child++
+        )
+          value.add(resolve(dependency[child]));
+      else {
+        if (
+          0 === dependency &&
+          getPrototypeOf$1(value) !== ObjectPrototype$1 &&
+          (("function" === typeof FormData && value instanceof FormData) ||
+            ("function" === typeof Blob && value instanceof Blob))
+        )
+          return value;
+        child =
+          0 === dependency ? getIteratorEntries(request.result, value) : void 0;
+        if (0 === dependency && value instanceof Error) return value;
+        if (void 0 !== child) return resolve(child), value;
+        dependency = Object.keys(value);
+        for (child = 0; child < dependency.length; child++) {
+          var key = dependency[child],
+            child$88 = resolve(value[key]);
+          Object.is(child$88, value[key]) || (value[key] = child$88);
+        }
+      }
+    return value;
+  }
+  var visited =
+    null === request.resolvedOutlinedModels
+      ? new WeakMap()
+      : request.resolvedOutlinedModels;
+  request.resolvedOutlinedModels = visited;
+  return resolve(model);
+}
+function waitForOutlinedModel(request, task, model, outlinedModels) {
+  outlinedModels = getOutlinedModelDependencies(request, model, outlinedModels);
+  if (0 === outlinedModels.size) return !1;
+  blockTask(request, task, model, outlinedModels);
+  return !0;
+}
+function blockTask(request, task, model, dependencies) {
+  task.model = model;
+  task.status = 6;
+  if (12 === request.status) abortTask$1(request, task);
+  else {
+    var remaining = dependencies.size;
+    dependencies.forEach(function (dependency) {
+      function reject(error) {
+        6 === task.status &&
+          (copyErrorReference(request.result, task.promise, dependency),
+          (task.status = 4),
+          task.reject(error),
+          request.abortableTasks.delete(task),
+          scheduleMicrotask(function () {
+            return performWork$1(request);
+          }));
+      }
+      function resolve() {
+        if (6 === task.status && 0 === --remaining) {
+          var outlinedModels = request.outlinedModels;
+          completeTask(
+            request,
+            task,
+            null === outlinedModels
+              ? model
+              : resolveOutlinedModel(request, model, outlinedModels)
+          );
+          scheduleMicrotask(function () {
+            return performWork$1(request);
+          });
+        }
+      }
+      "fulfilled" === dependency.status
+        ? resolve()
+        : "rejected" === dependency.status
+          ? reject(dependency.reason)
+          : dependency.then(resolve, reject);
+    });
+  }
+}
+function completeTask(request, task, resolvedModel) {
+  task.model = resolvedModel;
+  task.status = 1;
+  if (
+    null !== resolvedModel &&
+    "object" === typeof resolvedModel &&
+    resolvedModel.$$typeof === REACT_LAZY_TYPE &&
+    0 === getModelInfo(request.result, resolvedModel)
+  ) {
+    var outlinedModels = request.outlinedModels;
+    if (
+      null === outlinedModels ||
+      !outlinedModels.has(resolvedModel._payload)
+    ) {
+      var source = resolvedModel._payload;
+      forwardModelReference(request.result, task.promise, source);
+      source.then(task.resolve, function (error) {
+        copyErrorReference(request.result, task.promise, source);
+        task.reject(error);
+      });
+      request.abortableTasks.delete(task);
+      return;
+    }
+  }
+  task.resolve(resolvedModel);
+  request.abortableTasks.delete(task);
+}
+function deferTask$1(request, task) {
+  var newTask = createTask$1(
+      request,
+      task.model,
+      task.keyPath,
+      task.implicitSlot,
+      task.formatContext
+    ),
+    lazy = createLazyWrapperAroundWakeable(newTask.promise),
+    model = task.model;
+  null !== model &&
+    "object" === typeof model &&
+    (setModelReference(request, model, newTask.reference),
+    setRenderedModel(
+      getRenderedModels(request, model, task.keyPath, task.implicitSlot),
+      model,
+      lazy
+    ));
+  pingTask$1(request, newTask);
+  return renderModelReference(task, lazy);
+}
+function abortTask$1(request, task) {
+  task.status = 3;
+  if (21 === request.type) markHalted(request.result, task.promise);
+  else {
+    var abortModel = request.abortModel;
+    null !== abortModel &&
+      copyErrorReference(request.result, task.promise, abortModel);
+    task.reject(request.fatalError);
+  }
+  request.abortableTasks.delete(task);
+}
+function finishAbort$1(request, error) {
+  var preserveRendering =
+    2 < arguments.length && void 0 !== arguments[2] ? arguments[2] : !1;
+  request.abortableTasks.forEach(function (task) {
+    preserveRendering
+      ? 5 !== task.status && abortTask$1(request, task)
+      : ((task.status = 3),
+        task.reject(error),
+        request.abortableTasks.delete(task));
+  });
+  request.pingedTasks.length = 0;
+  0 === request.abortableTasks.size &&
+    ((request.status = 14), closeResult(request), cleanupTaintQueue$1(request));
+}
+function renderAsyncIterable(request, task, iterable, iterator) {
+  function progress(entry) {
+    if (0 === streamTask.status) {
+      var entryTask = createTask$1(
+        request,
+        entry.value,
+        null,
+        !1,
+        entry.done ? 0 : streamTask.formatContext
+      );
+      entry.done
+        ? ((streamTask.status = 1),
+          request.abortableTasks.delete(streamTask),
+          request.cacheController.signal.removeEventListener(
+            "abort",
+            abortIterable
+          ),
+          controller.close(entryTask.promise))
+        : controller.enqueue(entryTask.promise);
+      request.pingedTasks.push(entryTask);
+      performWork$1(request);
+      entry.done || 0 !== streamTask.status || next();
+    }
+  }
+  function throwIntoIterator(reason) {
+    if ("function" === typeof iterator.throw)
+      try {
+        iterator.throw(reason).then(noop, noop);
+      } catch (x) {}
+  }
+  function error(reason) {
+    if (0 === streamTask.status) {
+      request.cacheController.signal.removeEventListener(
+        "abort",
+        abortIterable
+      );
+      try {
+        erroredTask$1(request, streamTask, reason),
+          copyErrorReference(
+            request.result,
+            resolvedIterable,
+            streamTask.promise
+          ),
+          controller.error(reason);
+      } catch (callbackError) {
+        controller.error(callbackError), fatalError$1(request, callbackError);
+      } finally {
+        throwIntoIterator(reason),
+          scheduleMicrotask(function () {
+            return performWork$1(request);
+          });
+      }
+    }
+  }
+  function abortIterable() {
+    var signal = request.cacheController.signal;
+    signal.removeEventListener("abort", abortIterable);
+    signal = signal.reason;
+    21 === request.type
+      ? (markHalted(request.result, resolvedIterable), controller.halt())
+      : streamTask.promise.then(noop, function (abortError) {
+          copyErrorReference(
+            request.result,
+            resolvedIterable,
+            streamTask.promise
+          );
+          controller.error(abortError);
+        });
+    throwIntoIterator(signal);
+  }
+  function next() {
+    try {
+      iterator.next().then(progress, error);
+    } catch (x) {
+      error(x);
+    }
+  }
+  var controller = createAsyncIterable(iterable === iterator),
+    streamTask = createTask$1(
+      request,
+      task.model,
+      null,
+      !1,
+      task.formatContext
+    ),
+    resolvedIterable = controller.iterable;
+  setRenderedModel(request.modelEntries, iterable, resolvedIterable);
+  setAsyncIterable(request.result, controller);
+  request.cacheController.signal.addEventListener("abort", abortIterable);
+  next();
+  return resolvedIterable;
+}
+function attachAbortSignal$1(request, signal) {
+  function onAbort() {
+    var current = subscription.request;
+    null !== current && abort$1(current, signal.reason);
+  }
+  if (signal.aborted) abort$1(request, signal.reason);
+  else {
+    var cacheSignal = request.cacheController.signal;
+    if (!cacheSignal.aborted) {
+      var subscription = { request: request };
+      signal.addEventListener("abort", onAbort);
+      cacheSignal.addEventListener(
+        "abort",
+        function () {
+          subscription.request = null;
+          signal.removeEventListener("abort", onAbort);
+        },
+        { once: !0 }
+      );
+    }
+  }
+}
+function abort$1(request, reason) {
+  if (!(11 < request.status))
+    try {
+      request.status = 12;
+      request.cacheController.abort(reason);
+      if (21 === request.type) finishAbort$1(request, reason, !0);
+      else {
+        var error =
+          void 0 === reason
+            ? Error("The render was aborted by the server without a reason.")
+            : "object" === typeof reason &&
+                null !== reason &&
+                "function" === typeof reason.then
+              ? Error("The render was aborted by the server with a promise.")
+              : reason;
+        request.fatalError = error;
+        if (0 < request.abortableTasks.size) {
+          var digest = logRecoverableError$1(request, error),
+            abortModel = createResultModel();
+          request.abortModel = abortModel;
+          request.result.errorReferences.set(abortModel, { digest: digest });
+          rejectResultModel(abortModel, error);
+        }
+        finishAbort$1(request, error, !0);
+      }
+      if (14 === request.status) request.onAllReady();
+    } catch (error$89) {
+      fatalError$1(request, error$89);
+    }
+}
+function createPrerenderRequest(
+  model,
+  onAllReady,
+  onFatalError,
+  onError,
+  identifierPrefix,
+  temporaryReferences,
+  createServerReference
+) {
+  return new RequestInstance$1(
+    model,
+    onError,
+    identifierPrefix,
+    temporaryReferences,
+    createServerReference,
+    21,
+    onAllReady,
+    onFatalError
+  );
+}
+function renderMap(request, task, map) {
+  function populate(values) {
+    for (var i = 0; i < values.length; i++)
+      copy.set(values[i][0], values[i][1]);
+  }
+  if (0 !== task.formatContext) return outlineModel$1(request, map);
+  var entries = Array.from(map),
+    copy = new Map();
+  setRenderedModel(request.modelEntries, map, copy);
+  request = renderCollectionEntries(request, task, copy, entries);
+  task = request.value;
+  "fulfilled" === request.status && void 0 !== task
+    ? populate(task)
+    : request.then(populate, noop);
+  return copy;
+}
+function renderSet(request, task, set) {
+  function populate(values) {
+    for (var i = 0; i < values.length; i++) copy.add(values[i]);
+  }
+  if (0 !== task.formatContext) return outlineModel$1(request, set);
+  var entries = Array.from(set),
+    copy = new Set();
+  setRenderedModel(request.modelEntries, set, copy);
+  request = renderCollectionEntries(request, task, copy, entries);
+  task = request.value;
+  "fulfilled" === request.status && void 0 !== task
+    ? populate(task)
+    : request.then(populate, noop);
+  return copy;
+}
+function renderCollectionEntries(request, task, collection, entries) {
+  var reference = task.currentReference;
+  null !== reference && setModelReference(request, collection, reference);
+  task = createTask$1(request, entries, null, !1, task.formatContext);
+  entries = request.result;
+  reference = task.promise;
+  var collections = entries.collectionEntries;
+  null === collections &&
+    (entries.collectionEntries = collections = new WeakMap());
+  collections.set(collection, reference);
+  retryTask$1(request, task);
+  return task.promise;
+}
+function validateBlob(request, newTask) {
+  function progress(entry) {
+    if (0 === newTask.status)
+      if (entry.done)
+        request.cacheController.signal.removeEventListener("abort", abortBlob),
+          scheduleMicrotask(function () {
+            return performWork$1(request);
+          }),
+          completeTask(request, newTask, blob);
+      else
+        return (
+          (entry = entry.value),
+          TaintRegistryByteLengths$1.has(entry.byteLength) &&
+            ((entry = TaintRegistryValues$1.get(
+              binaryToComparableString(entry)
+            )),
+            void 0 !== entry && throwTaintViolation$1(entry.message)),
+          reader.read().then(progress).catch(error)
+        );
+  }
+  function error(reason) {
+    if (0 === newTask.status) {
+      request.cacheController.signal.removeEventListener("abort", abortBlob);
+      scheduleMicrotask(function () {
+        return performWork$1(request);
+      });
+      try {
+        erroredTask$1(request, newTask, reason);
+      } catch (callbackError) {
+        fatalError$1(request, callbackError);
+      } finally {
+        reader.cancel(reason).then(noop, noop);
+      }
+    }
+  }
+  function abortBlob() {
+    var signal = request.cacheController.signal;
+    signal.removeEventListener("abort", abortBlob);
+    reader.cancel(signal.reason).then(noop, noop);
+  }
+  if (0 === newTask.status) {
+    var blob = newTask.model;
+    try {
+      var taintedType = TaintRegistryValues$1.get(blob.type);
+      void 0 !== taintedType && throwTaintViolation$1(taintedType.message);
+      if (0 === TaintRegistryByteLengths$1.size) {
+        completeTask(request, newTask, blob);
+        return;
+      }
+    } catch (x) {
+      erroredTask$1(request, newTask, x);
+      return;
+    }
+    var reader = new Blob([blob], { type: blob.type }).stream().getReader();
+    request.cacheController.signal.addEventListener("abort", abortBlob);
+    reader.read().then(progress).catch(error);
+  }
+}
+function validateDeferredBlobs(request) {
+  var deferredBlobs = request.deferredBlobs;
+  request.deferredBlobs = null;
+  if (null !== deferredBlobs)
+    for (var i = 0; i < deferredBlobs.length; i++)
+      validateBlob(request, deferredBlobs[i]);
+}
+function renderServerReference(request, reference) {
+  var existingReference = getRenderedModel(request.modelEntries, reference);
+  if (void 0 !== existingReference) return existingReference;
+  existingReference = reference.$$id;
+  if ("function" !== typeof reference)
+    return (
+      setServerReference(request.result, reference, {
+        id: existingReference,
+        bound: null,
+        isObjectReference: !0
+      }),
+      setRenderedModel(request.modelEntries, reference, reference),
+      reference
+    );
+  var boundArgs = reference.$$bound;
+  existingReference = {
+    id: existingReference,
+    bound: null,
+    isObjectReference: !1
+  };
+  if (null === boundArgs)
+    return (
+      setServerReference(request.result, reference, existingReference),
+      setRenderedModel(request.modelEntries, reference, reference),
+      reference
+    );
+  boundArgs = createTask$1(request, boundArgs, null, !1, 0);
+  boundArgs.promise.then(noop, noop);
+  var copy = request.createServerReference(reference, boundArgs.promise);
+  existingReference.bound = boundArgs.promise;
+  setServerReference(request.result, copy, existingReference);
+  setRenderedModel(request.modelEntries, reference, copy);
+  pingTask$1(request, boundArgs);
+  return copy;
+}
+function renderReadableStream(request, task, stream) {
+  function progress(entry) {
+    if (0 === streamTask.status)
+      if (entry.done)
+        (streamTask.status = 1),
+          request.abortableTasks.delete(streamTask),
+          request.cacheController.signal.removeEventListener(
+            "abort",
+            abortStream
+          ),
+          controller.close(),
+          scheduleMicrotask(function () {
+            return performWork$1(request);
+          });
+      else {
+        var entryTask = null;
+        try {
+          streamTask.model = entry.value;
+          if (isByteStream) {
+            var value = renderModelDestructive$1(
+              request,
+              streamTask,
+              emptyRoot,
+              "",
+              entry.value
+            );
+            controller.enqueue(Promise.resolve(value));
+          } else
+            (entryTask = createTask$1(
+              request,
+              entry.value,
+              streamTask.keyPath,
+              streamTask.implicitSlot,
+              streamTask.formatContext
+            )),
+              controller.enqueue(entryTask.promise),
+              tryStreamTask$1(request, entryTask);
+          0 === streamTask.status && reader.read().then(progress, error);
+        } catch (x$90) {
+          error(x$90),
+            null !== entryTask &&
+              5 === entryTask.status &&
+              (copyErrorReference(
+                request.result,
+                entryTask.promise,
+                streamTask.promise
+              ),
+              (entryTask.status = 4),
+              entryTask.reject(x$90),
+              request.abortableTasks.delete(entryTask));
+        }
+      }
+  }
+  function error(reason) {
+    if (0 === streamTask.status) {
+      request.cacheController.signal.removeEventListener("abort", abortStream);
+      try {
+        erroredTask$1(request, streamTask, reason),
+          copyErrorReference(
+            request.result,
+            resolvedStream,
+            streamTask.promise
+          ),
+          controller.error(reason);
+      } catch (callbackError) {
+        controller.error(callbackError), fatalError$1(request, callbackError);
+      } finally {
+        reader.cancel(reason).then(noop, noop),
+          scheduleMicrotask(function () {
+            return performWork$1(request);
+          });
+      }
+    }
+  }
+  function abortStream() {
+    var signal = request.cacheController.signal;
+    signal.removeEventListener("abort", abortStream);
+    signal = signal.reason;
+    21 === request.type
+      ? (markHalted(request.result, resolvedStream), controller.halt())
+      : streamTask.promise.then(noop, function (abortError) {
+          copyErrorReference(
+            request.result,
+            resolvedStream,
+            streamTask.promise
+          );
+          controller.error(abortError);
+        });
+    reader.cancel(signal).then(noop, noop);
+  }
+  var supportsBYOB = stream.supportsBYOB;
+  if (void 0 === supportsBYOB)
+    try {
+      stream.getReader({ mode: "byob" }).releaseLock(), (supportsBYOB = !0);
+    } catch (x) {
+      supportsBYOB = !1;
+    }
+  var isByteStream = supportsBYOB,
+    reader = stream.getReader(),
+    controller = createReadableStream(isByteStream),
+    streamTask = createTask$1(
+      request,
+      task.model,
+      task.keyPath,
+      task.implicitSlot,
+      task.formatContext
+    ),
+    resolvedStream = controller.stream;
+  setRenderedModel(request.modelEntries, stream, resolvedStream);
+  setReadableStream(request.result, controller);
+  request.cacheController.signal.addEventListener("abort", abortStream);
+  reader.read().then(progress, error);
+  return resolvedStream;
+}
+function tryStreamTask$1(request, task) {
+  var prevDispatcher = ReactSharedInternalsServer.H;
+  ReactSharedInternalsServer.H = HooksDispatcher;
+  var prevCache = setCurrentCache(request);
+  currentRequest = request;
+  task.status = 5;
+  try {
+    var model = resolveModel$1(request, task, emptyRoot, "", task.model);
+    if (14 !== request.status) {
+      validateDeferredBlobs(request);
+      var outlinedModels = request.outlinedModels;
+      (null !== outlinedModels &&
+        waitForOutlinedModel(request, task, model, outlinedModels)) ||
+        completeTask(request, task, model);
+    }
+  } catch (error) {
+    if (12 === request.status) abortTask$1(request, task);
+    else throw error;
+  } finally {
+    modelRoot$1 = null;
+    try {
+      validateDeferredBlobs(request),
+        14 !== request.status &&
+          0 === request.abortableTasks.size &&
+          ((request.status = 14),
+          closeResult(request),
+          cleanupTaintQueue$1(request),
+          request.cacheController.abort(
+            Error(
+              "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
+            )
+          ),
+          request.onAllReady());
+    } finally {
+      (ReactSharedInternalsServer.H = prevDispatcher),
+        (currentRequest = null),
+        setCurrentCache(prevCache);
+    }
+  }
+}
+function renderWeakThenable(request, task, thenable) {
+  function createThenableTask(model) {
+    settled = !0;
+    weakModels.delete(promise);
+    var newTask = createTask$1(
+      request,
+      model,
+      keyPath,
+      implicitSlot,
+      formatContext
+    );
+    newTask.promise.then(
+      function (value) {
+        fulfillResultModel(promise, value);
+      },
+      function (error) {
+        copyErrorReference(request.result, promise, newTask.promise);
+        rejectResultModel(promise, error);
+      }
+    );
+    return newTask;
+  }
+  var promise = createResultModel(!0),
+    pendingWeakModels = request.pendingWeakModels;
+  null === pendingWeakModels &&
+    (request.pendingWeakModels = pendingWeakModels = new Set());
+  pendingWeakModels.add(promise);
+  var weakModels = pendingWeakModels,
+    keyPath = task.keyPath,
+    implicitSlot = task.implicitSlot,
+    formatContext = task.formatContext;
+  setRenderedModel(
+    getRenderedModels(request, thenable, keyPath, implicitSlot),
+    thenable,
+    promise
+  );
+  var settled = !1;
+  thenable.then(
+    function (value) {
+      settled ||
+        11 < request.status ||
+        ((value = createThenableTask(value)), pingTask$1(request, value));
+    },
+    function (reason) {
+      if (!(settled || 11 < request.status)) {
+        var newTask = createThenableTask(thenable);
+        try {
+          erroredTask$1(request, newTask, reason);
+        } catch (error) {
+          fatalError$1(request, error);
+        }
+        scheduleMicrotask(function () {
+          return performWork$1(request);
+        });
+      }
+    }
+  );
+  return promise;
+}
+function closeResult(request) {
+  var pendingWeakModels = request.pendingWeakModels;
+  null !== pendingWeakModels &&
+    (pendingWeakModels.forEach(function (model) {
+      return markHalted(request.result, model);
+    }),
+    pendingWeakModels.clear(),
+    (request.pendingWeakModels = null));
+  closeHints(request.result);
+  completeResult(request.result);
+}
+function subscribeToThenable$1(result, thenable, reader) {
+  function detach() {
+    unsubscribeDebug();
+    unsubscribeDebug = noop;
+    JSCompiler_object_inline_reader_780 = JSCompiler_object_inline_result_779 =
+      null;
+    unsubscribe();
+  }
+  var unsubscribeDebug = noop;
+  if (isHalted(result, thenable))
+    return unsubscribeDebug(), reader.halt(), noop;
+  if ("fulfilled" === thenable.status)
+    return unsubscribeDebug(), reader.resolve(thenable.value), noop;
+  if ("rejected" === thenable.status)
+    return (
+      unsubscribeDebug(),
+      reader.reject(thenable.reason, result.errorReferences.get(thenable)),
+      noop
+    );
+  var JSCompiler_object_inline_result_779 = result;
+  var JSCompiler_object_inline_reader_780 = reader;
+  var unsubscribe = noop;
+  unsubscribe = subscribeToResult(result, function () {
+    var current = JSCompiler_object_inline_reader_780,
+      source = JSCompiler_object_inline_result_779;
+    null !== current &&
+      null !== source &&
+      isHalted(source, thenable) &&
+      (detach(), current.halt());
+  });
+  null !== JSCompiler_object_inline_reader_780 &&
+    thenable.then(
+      function (value) {
+        var current = JSCompiler_object_inline_reader_780;
+        null !== current && (detach(), current.resolve(value));
+      },
+      function (error) {
+        var current = JSCompiler_object_inline_reader_780,
+          source = JSCompiler_object_inline_result_779;
+        if (null !== current && null !== source) {
+          var reference = source.errorReferences.get(thenable);
+          detach();
+          isHalted(source, thenable)
+            ? current.halt()
+            : current.reject(error, reference);
+        }
+      }
+    );
+  return detach;
+}
+function createInput(result) {
+  return {
+    root: result.root,
+    getReadableStream: function (value) {
+      var source = getReadableStream(result, value);
+      return void 0 === source
+        ? void 0
+        : {
+            isByteStream: source.isByteStream,
+            subscribe: function (reader) {
+              return subscribeToSequence(result, value, source, reader);
+            }
+          };
+    },
+    getAsyncIterable: function (value) {
+      var source = getAsyncIterable(result, value);
+      return void 0 === source
+        ? void 0
+        : {
+            isIterator: source.isIterator,
+            subscribe: function (reader) {
+              return subscribeToAsyncIterable(result, value, source, reader);
+            }
+          };
+    },
+    getIteratorEntries: function (value) {
+      return getIteratorEntries(result, value);
+    },
+    temporaryReferences: result.temporaryReferenceSet,
+    getServerReference: function (value) {
+      var serverReferences = result.serverReferences;
+      return null === serverReferences ? void 0 : serverReferences.get(value);
+    },
+    getValueReference: function (value) {
+      return getValueReference(result, value);
+    },
+    getModelInfo: function (value) {
+      return getModelInfo(result, value);
+    },
+    getJSONWorkCredit: function () {
+      return result.jsonWorkCredit;
+    },
+    getErrorInfo: function (value) {
+      var errorInfos = result.errorInfos;
+      return null === errorInfos ? void 0 : errorInfos.get(value);
+    },
+    getCollectionEntries: function (value) {
+      var collections = result.collectionEntries;
+      return null === collections ? void 0 : collections.get(value);
+    },
+    subscribeToThenable: function (thenable, reader) {
+      return subscribeToThenable$1(result, thenable, reader);
+    },
+    subscribe: function (reader) {
+      function detach() {
+        JSCompiler_object_inline_reader_782 =
+          JSCompiler_object_inline_queue_781 = null;
+        unsubscribe();
+      }
+      function flushHints() {
+        var queue = JSCompiler_object_inline_queue_781,
+          current = JSCompiler_object_inline_reader_782;
+        if (null !== queue && null !== current) {
+          for (
+            var hints = queue.completedHints;
+            nextHintIndex < hints.length &&
+            null !== JSCompiler_object_inline_reader_782;
+
+          ) {
+            var hint = hints[nextHintIndex++];
+            current.hint(hint.code, hint.model);
+          }
+          queue.closed || waitForHints(queue).then(flushHints);
+        }
+      }
+      var JSCompiler_object_inline_queue_781 = getHintQueue(result);
+      var JSCompiler_object_inline_reader_782 = reader;
+      var nextHintIndex = 0,
+        unsubscribe = noop;
+      unsubscribe = subscribeToResult(result, function () {
+        var current = JSCompiler_object_inline_reader_782;
+        null !== current && (flushHints(), detach(), current.complete());
+      });
+      flushHints();
+      return detach;
+    }
+  };
+}
+function subscribeToSequence(result, model, source, reader) {
+  function detach() {
+    active = !1;
+    entries.length = 0;
+    unsubscribeSource();
+    unsubscribeEntry();
+  }
+  function halt() {
+    active && (detach(), reader.halt());
+  }
+  function readNext() {
+    if (active && !reading && !draining) {
+      draining = !0;
+      try {
+        for (; active && !reading; ) {
+          if (nextEntryIndex >= entries.length) {
+            null !== finish && finish();
+            break;
+          }
+          var entry = entries[nextEntryIndex++];
+          nextEntryIndex === entries.length &&
+            (nextEntryIndex = entries.length = 0);
+          reading = !0;
+          var unsubscribe = subscribeToThenable$1(result, entry, {
+            resolve: function (value) {
+              active &&
+                ((reading = !1),
+                (unsubscribeEntry = noop),
+                reader.progress({ value: value }),
+                readNext());
+            },
+            reject: function (reason, reference) {
+              active &&
+                ((reading = !1),
+                (unsubscribeEntry = noop),
+                reader.rejectEntry(reason, reference),
+                readNext());
+            },
+            halt: halt
+          });
+          active && reading ? (unsubscribeEntry = unsubscribe) : unsubscribe();
+        }
+      } finally {
+        draining = !1;
+      }
+    }
+  }
+  var entries = [],
+    nextEntryIndex = 0,
+    reading = !1,
+    draining = !1,
+    active = !0,
+    finish = null,
+    unsubscribeSource = noop,
+    unsubscribeEntry = noop;
+  unsubscribeSource = source.subscribe({
+    enqueue: function (entry) {
+      active && (entries.push(entry), readNext());
+    },
+    close: function () {
+      finish = function () {
+        detach();
+        reader.progress({ done: !0, value: void 0 });
+      };
+      readNext();
+    },
+    error: function (reason) {
+      finish = function () {
+        var reference = result.errorReferences.get(model);
+        active && (detach(), reader.error(reason, reference));
+      };
+      readNext();
+    },
+    halt: function () {
+      finish = halt;
+      readNext();
+    }
+  });
+  active || unsubscribeSource();
+  return detach;
+}
+function subscribeToAsyncIterable(result, model, source, reader) {
+  return source.subscribe({
+    enqueue: reader.enqueue,
+    close: reader.close,
+    error: function (reason) {
+      return reader.error(reason, result.errorReferences.get(model));
+    },
+    halt: reader.halt
+  });
+}
+var stringify = JSON.stringify,
+  getPrototypeOf = Object.getPrototypeOf,
+  ObjectPrototype = Object.prototype,
+  importStringRequest = null,
+  NOT_PLAIN_IMPORT_METADATA = {},
+  NEXT_TWO_CHUNKS_ARE_ATOMIC = Symbol(),
+  TaintRegistryObjects = ReactSharedInternalsServer.TaintRegistryObjects,
+  TaintRegistryValues = ReactSharedInternalsServer.TaintRegistryValues,
+  TaintRegistryByteLengths =
+    ReactSharedInternalsServer.TaintRegistryByteLengths,
+  TaintRegistryPendingRequests =
+    ReactSharedInternalsServer.TaintRegistryPendingRequests;
+function throwTaintViolation(message) {
+  throw Error(message);
+}
+function cleanupTaintQueue(request) {
+  request = request.taintCleanupQueue;
+  TaintRegistryPendingRequests.delete(request);
+  for (var i = 0; i < request.length; i++) {
+    var entryValue = request[i],
+      entry = TaintRegistryValues.get(entryValue);
+    void 0 !== entry &&
+      (1 === entry.count
+        ? TaintRegistryValues.delete(entryValue)
+        : entry.count--);
+  }
+  request.length = 0;
+}
+function RequestInstance(input, bundlerConfig, onError, temporaryReferences) {
+  var cleanupQueue = [];
+  TaintRegistryPendingRequests.add(cleanupQueue);
+  this.taintCleanupQueue = cleanupQueue;
+  this.temporaryReferences = input.temporaryReferences || temporaryReferences;
+  this.writtenServerReferences = new Map();
+  this.input = input;
+  this.abortController = new AbortController();
+  this.destination = null;
+  this.status = 10;
+  this.fatalError = null;
+  this.completedRegularChunks = [];
+  this.completedHintChunks = [];
+  this.flushScheduled = !1;
+  this.bundlerConfig = bundlerConfig;
+  this.writtenClientReferences = new Map();
+  this.writtenImportStrings = new Map();
+  this.writtenImportStringsSize = 0;
+  this.completedImportChunks = [];
+  this.writtenModels = new WeakMap();
+  this.writtenObjects = new WeakMap();
+  this.inputSubscriptions = new Set();
+  this.writtenSymbols = new Map();
+  this.writtenErrors = new WeakMap();
+  this.completedErrorChunks = [];
+  this.onError = void 0 === onError ? defaultErrorHandler : onError;
+  this.nextChunkId = this.jsonWorkSpent = this.pendingChunks = 0;
+  this.abortableTasks = new Set();
+  this.pingedTasks = [];
+  bundlerConfig = createTask(this, null, this.abortableTasks);
+  this.pendingChunks++;
+  subscribeHints(this);
+  11 < this.status ||
+    (this.writtenModels.set(input.root, bundlerConfig.id),
+    subscribeToThenable(this, bundlerConfig, input.root));
+}
+function defaultErrorHandler(error) {
+  console.error(error);
+}
+var modelRoot = null,
+  serializedSize = 0;
+function outlineModel(request, value) {
+  var task = createTask(request, value, request.abortableTasks);
+  null !== value &&
+    "object" === typeof value &&
+    request.writtenObjects.set(value, serializeByValueID(task.id));
+  retryTask(request, task);
+  return task.id;
+}
+function renderModelDestructive(
+  request,
+  task,
+  parent,
+  parentPropertyName,
+  value,
+  parentReference,
+  modelInfo
+) {
+  task.model = value;
+  if (
+    null !== value &&
+    ("object" === typeof value || "function" === typeof value) &&
+    isClientReference(value)
+  ) {
+    parentReference = value.$$async ? value.$$id + "#async" : value.$$id;
+    modelInfo = request.writtenClientReferences;
+    var existingId = modelInfo.get(parentReference);
+    if (void 0 !== existingId)
+      var JSCompiler_inline_result =
+        parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
+          ? "$L" + existingId.toString(16)
+          : serializeByValueID(existingId);
+    else
+      try {
+        var clientReferenceMetadata = resolveClientReferenceMetadata(
+            request.bundlerConfig,
+            value
+          ),
+          copy = transformImportMetadata(request, clientReferenceMetadata, 0);
+        if (copy !== NOT_PLAIN_IMPORT_METADATA)
+          var JSCompiler_temp = stringify(copy);
+        else
+          b: {
+            value = importStringRequest;
+            importStringRequest = request;
+            try {
+              JSCompiler_temp = stringify(
+                clientReferenceMetadata,
+                importMetadataReplacer
+              );
+              break b;
+            } finally {
+              importStringRequest = value;
+            }
+            JSCompiler_temp = void 0;
+          }
+        var JSCompiler_inline_result$jscomp$0 = JSCompiler_temp;
+        request.pendingChunks++;
+        var importId = request.nextChunkId++,
+          processedChunk =
+            importId.toString(16) +
+            ":I" +
+            JSCompiler_inline_result$jscomp$0 +
+            "\n";
+        request.completedImportChunks.push(processedChunk);
+        modelInfo.set(parentReference, importId);
+        JSCompiler_inline_result =
+          parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
+            ? "$L" + importId.toString(16)
+            : serializeByValueID(importId);
+      } catch (error) {
+        request.pendingChunks++,
+          (value = request.nextChunkId++),
+          (task = logRecoverableError(request, error, task)),
+          emitErrorChunk(request, value, task),
+          (JSCompiler_inline_result = serializeByValueID(value));
+      }
+    return JSCompiler_inline_result;
+  }
+  if (
+    null !== value &&
+    ("object" === typeof value || "function" === typeof value)
+  ) {
+    if (isServerReference(value))
+      return serializeServerReference(request, value);
+    if (
+      void 0 !== request.temporaryReferences &&
+      ((JSCompiler_inline_result = request.temporaryReferences.get(value)),
+      void 0 !== JSCompiler_inline_result)
+    )
+      return "$T" + JSCompiler_inline_result;
+  }
+  if (null === value) return null;
+  if ("object" === typeof value) {
+    JSCompiler_inline_result = TaintRegistryObjects.get(value);
+    void 0 !== JSCompiler_inline_result &&
+      throwTaintViolation(JSCompiler_inline_result);
+    JSCompiler_inline_result = request.input;
+    clientReferenceMetadata =
+      null === JSCompiler_inline_result
+        ? void 0
+        : JSCompiler_inline_result.getValueReference(value);
+    if (void 0 !== clientReferenceMetadata) {
+      a: {
+        value = clientReferenceMetadata.root;
+        if (
+          "fulfilled" === value.status &&
+          ((parent = value.value),
+          null !== parent &&
+            "object" === typeof parent &&
+            ((parent = request.writtenObjects.get(parent)), void 0 !== parent))
+        ) {
+          request = parent;
+          break a;
+        }
+        request = serializeByValueID(serializeThenable(request, task, value));
+      }
+      value = [];
+      task = clientReferenceMetadata;
+      for (parent = task.parent; null !== parent; )
+        value.push(task.key), (task = parent), (parent = task.parent);
+      for (task = value.length - 1; 0 <= task; task--)
+        request += ":" + value[task];
+      return request;
+    }
+    modelInfo =
+      (void 0 === modelInfo
+        ? null === JSCompiler_inline_result
+          ? 0
+          : JSCompiler_inline_result.getModelInfo(value)
+        : modelInfo) & 3;
+    if (
+      1 === modelInfo ||
+      2 === modelInfo ||
+      3 === modelInfo ||
+      (0 === modelInfo &&
+        (isArrayImpl(value) ||
+          value.$$typeof === REACT_ELEMENT_TYPE ||
+          value instanceof Map ||
+          value instanceof Set ||
+          value instanceof Error ||
+          ("function" === typeof FormData && value instanceof FormData) ||
+          ("function" === typeof Blob && value instanceof Blob) ||
+          value instanceof ArrayBuffer ||
+          ArrayBuffer.isView(value) ||
+          (null !== JSCompiler_inline_result &&
+            (void 0 !== JSCompiler_inline_result.getReadableStream(value) ||
+              void 0 !== JSCompiler_inline_result.getAsyncIterable(value) ||
+              void 0 !== JSCompiler_inline_result.getIteratorEntries(value))) ||
+          getPrototypeOf(value) === ObjectPrototype))
+    ) {
+      a: {
+        clientReferenceMetadata = request.writtenObjects;
+        JSCompiler_inline_result$jscomp$0 = clientReferenceMetadata.get(value);
+        if (void 0 !== JSCompiler_inline_result$jscomp$0)
+          if (modelRoot === value) {
+            if (
+              JSCompiler_inline_result$jscomp$0 !== serializeByValueID(task.id)
+            ) {
+              parent = JSCompiler_inline_result$jscomp$0;
+              break a;
+            }
+            modelRoot = null;
+          } else {
+            parent = JSCompiler_inline_result$jscomp$0;
+            break a;
+          }
+        else if (-1 !== parentPropertyName.indexOf(":")) {
+          parent = serializeByValueID(outlineModel(request, value));
+          break a;
+        } else if (
+          (void 0 === parentReference &&
+            (parentReference = clientReferenceMetadata.get(parent)),
+          null != parentReference)
+        ) {
+          JSCompiler_inline_result$jscomp$0 = parentPropertyName;
+          if (isArrayImpl(parent) && parent[0] === REACT_ELEMENT_TYPE)
+            switch (parentPropertyName) {
+              case "1":
+                JSCompiler_inline_result$jscomp$0 = "type";
+                break;
+              case "2":
+                JSCompiler_inline_result$jscomp$0 = "key";
+                break;
+              case "3":
+                JSCompiler_inline_result$jscomp$0 = "props";
+                break;
+              case "4":
+                JSCompiler_inline_result$jscomp$0 = "_owner";
+            }
+          clientReferenceMetadata.set(
+            value,
+            parentReference + ":" + JSCompiler_inline_result$jscomp$0
+          );
+        }
+        parent = null;
+      }
+      if (null !== parent) return parent;
+    }
+    if (1 === modelInfo || 2 === modelInfo) return value;
+    if (value.$$typeof === REACT_LAZY_TYPE)
+      return (
+        "$L" + serializeThenable(request, task, value._payload).toString(16)
+      );
+    if ("function" === typeof value.then)
+      return (
+        (request = serializeThenable(request, task, value)),
+        "pending_weak" === value.status
+          ? "$w" + request.toString(16)
+          : "$@" + request.toString(16)
+      );
+    if (value instanceof Date)
+      return (
+        (request = value.toJSON()),
+        "string" === typeof request &&
+          ((value = TaintRegistryValues.get(request)),
+          void 0 !== value && throwTaintViolation(value.message)),
+        "$D" + request
+      );
+    if (3 === modelInfo || value.$$typeof === REACT_ELEMENT_TYPE) {
+      if (3200 < serializedSize)
+        return (
+          (value = createTask(request, task.model, request.abortableTasks)),
+          "object" === typeof task.model &&
+            null !== task.model &&
+            request.writtenObjects.set(
+              task.model,
+              serializeByValueID(value.id)
+            ),
+          pingTask(request, value),
+          "$L" + value.id.toString(16)
+        );
+      parent = [REACT_ELEMENT_TYPE, value.type, value.key, value.props];
+      request = request.writtenObjects.get(value);
+      task.returnedTupleReference = void 0 === request ? null : request;
+      return parent;
+    }
+    if (value instanceof Map)
+      return (
+        (task = request.input),
+        (task = null === task ? void 0 : task.getCollectionEntries(value)),
+        void 0 !== task
+          ? (request =
+              "$Q" + serializeCollectionEntries(request, task).toString(16))
+          : ((value = Array.from(value)),
+            (request = "$Q" + outlineModel(request, value).toString(16))),
+        request
+      );
+    if (value instanceof Set)
+      return (
+        (task = request.input),
+        (task = null === task ? void 0 : task.getCollectionEntries(value)),
+        void 0 !== task
+          ? (request =
+              "$W" + serializeCollectionEntries(request, task).toString(16))
+          : ((value = Array.from(value)),
+            (request = "$W" + outlineModel(request, value).toString(16))),
+        request
+      );
+    if (value instanceof ArrayBuffer)
+      return serializeTypedArray(request, "A", new Uint8Array(value));
+    if (value instanceof Int8Array)
+      return serializeTypedArray(request, "O", value);
+    if (value instanceof Uint8Array)
+      return serializeTypedArray(request, "o", value);
+    if (value instanceof Uint8ClampedArray)
+      return serializeTypedArray(request, "U", value);
+    if (value instanceof Int16Array)
+      return serializeTypedArray(request, "S", value);
+    if (value instanceof Uint16Array)
+      return serializeTypedArray(request, "s", value);
+    if (value instanceof Int32Array)
+      return serializeTypedArray(request, "L", value);
+    if (value instanceof Uint32Array)
+      return serializeTypedArray(request, "l", value);
+    if (value instanceof Float32Array)
+      return serializeTypedArray(request, "G", value);
+    if (value instanceof Float64Array)
+      return serializeTypedArray(request, "g", value);
+    if (value instanceof BigInt64Array)
+      return serializeTypedArray(request, "M", value);
+    if (value instanceof BigUint64Array)
+      return serializeTypedArray(request, "m", value);
+    if (value instanceof DataView)
+      return serializeTypedArray(request, "V", value);
+    if ("function" === typeof FormData && value instanceof FormData)
+      return (
+        (value = Array.from(value.entries())),
+        "$K" + outlineModel(request, value).toString(16)
+      );
+    if ("function" === typeof Blob && value instanceof Blob)
+      return serializeBlob(request, value);
+    if (value instanceof Error) return "$Z";
+    if (isArrayImpl(value)) return value;
+    if (getIteratorFn(value)) {
+      value =
+        null === JSCompiler_inline_result
+          ? void 0
+          : JSCompiler_inline_result.getIteratorEntries(value);
+      if (void 0 === value)
+        throw Error("A Result must record iterators before serialization.");
+      return "$i" + outlineModel(request, value).toString(16);
+    }
+    return null !== JSCompiler_inline_result &&
+      void 0 !== JSCompiler_inline_result.getReadableStream(value)
+      ? serializeReadableStream(request, task, value)
+      : null !== JSCompiler_inline_result &&
+          void 0 !== JSCompiler_inline_result.getAsyncIterable(value)
+        ? serializeAsyncIterable(request, task, value)
+        : value;
+  }
+  if ("string" === typeof value)
+    return (
+      (task = TaintRegistryValues.get(value)),
+      void 0 !== task && throwTaintViolation(task.message),
+      (serializedSize += value.length),
+      1024 <= value.length && null !== byteLengthOfChunk
+        ? (request.pendingChunks++,
+          (task = request.nextChunkId++),
+          emitTextChunk(request, task, value),
+          serializeByValueID(task))
+        : escapeStringValue(value)
+    );
+  if ("boolean" === typeof value) return value;
+  if ("number" === typeof value)
+    return Number.isFinite(value)
+      ? 0 === value && -Infinity === 1 / value
+        ? "$-0"
+        : value
+      : Infinity === value
+        ? "$Infinity"
+        : -Infinity === value
+          ? "$-Infinity"
+          : "$NaN";
+  if ("undefined" === typeof value) return "$undefined";
+  if (
+    value === REACT_ELEMENT_TYPE &&
+    "0" === parentPropertyName &&
+    isArrayImpl(parent)
+  )
+    return "$";
+  if ("symbol" === typeof value) {
+    task = request.writtenSymbols;
+    parent = task.get(value);
+    if (void 0 !== parent) return serializeByValueID(parent);
+    parentPropertyName = value.description;
+    request.pendingChunks++;
+    parent = request.nextChunkId++;
+    parentPropertyName = encodeReferenceChunk(
+      request,
+      parent,
+      "$S" + parentPropertyName
+    );
+    request.completedImportChunks.push(parentPropertyName);
+    task.set(value, parent);
+    return serializeByValueID(parent);
+  }
+  if ("bigint" === typeof value)
+    return (
+      (request = TaintRegistryValues.get(value)),
+      void 0 !== request && throwTaintViolation(request.message),
+      "$n" + value.toString(10)
+    );
+  throw Error("A Result must validate models before serialization.");
+}
+function resolveModel(request, task, parent, parentPropertyName, value) {
+  var parentReference = 6 < arguments.length ? arguments[6] : void 0,
+    input = request.input;
+  input =
+    null !== value && "object" === typeof value && null !== input
+      ? input.getModelInfo(value)
+      : 0;
+  serializedSize += parentPropertyName.length;
+  try {
+    var JSCompiler_inline_result = renderModelDestructive(
+      request,
+      task,
+      parent,
+      parentPropertyName,
+      value,
+      parentReference,
+      input
+    );
+  } catch (thrownValue) {
+    (parentReference = task.model),
+      (JSCompiler_inline_result =
+        null !== parentReference &&
+        "object" === typeof parentReference &&
+        null !== request.input
+          ? request.input.getModelInfo(parentReference) & 3
+          : 0),
+      (parentReference =
+        "object" === typeof parentReference &&
+        null !== parentReference &&
+        (3 === JSCompiler_inline_result ||
+          (0 === JSCompiler_inline_result &&
+            (parentReference.$$typeof === REACT_ELEMENT_TYPE ||
+              parentReference.$$typeof === REACT_LAZY_TYPE)))),
+      12 === request.status
+        ? ((task.status = 3),
+          (JSCompiler_inline_result = request.fatalError),
+          (JSCompiler_inline_result = parentReference
+            ? "$L" + JSCompiler_inline_result.toString(16)
+            : serializeByValueID(JSCompiler_inline_result)))
+        : (request.pendingChunks++,
+          (JSCompiler_inline_result = request.nextChunkId++),
+          (input = logRecoverableError(request, thrownValue, task)),
+          emitErrorChunk(request, JSCompiler_inline_result, input),
+          (JSCompiler_inline_result = parentReference
+            ? "$L" + JSCompiler_inline_result.toString(16)
+            : serializeByValueID(JSCompiler_inline_result)));
+  }
+  parentReference = JSCompiler_inline_result;
+  if (null === parentReference || "object" !== typeof parentReference)
+    return parentReference;
+  if (isArrayImpl(parentReference)) {
+    if (parentReference !== value) {
+      input = task.returnedTupleReference;
+      var marker = resolveModel(
+          request,
+          task,
+          parentReference,
+          "0",
+          parentReference[0],
+          !1,
+          input
+        ),
+        type = resolveModel(
+          request,
+          task,
+          parentReference,
+          "1",
+          parentReference[1],
+          !1,
+          input
+        );
+      JSCompiler_inline_result = resolveModel(
+        request,
+        task,
+        parentReference,
+        "2",
+        parentReference[2],
+        !1,
+        input
+      );
+      input = resolveModel(
+        request,
+        task,
+        parentReference,
+        "3",
+        parentReference[3],
+        !1,
+        input
+      );
+      parentReference[0] = marker;
+      parentReference[1] = type;
+      parentReference[2] = JSCompiler_inline_result;
+      parentReference[3] = input;
+      return parentReference;
+    }
+    marker = null;
+    for (type = 0; type < parentReference.length; type++)
+      (JSCompiler_inline_result = parentReference[type]),
+        (input = resolveModel(
+          request,
+          task,
+          parentReference,
+          "" + type,
+          JSCompiler_inline_result
+        )),
+        null === marker &&
+          input !== JSCompiler_inline_result &&
+          (marker = 0 === type ? [] : parentReference.slice(0, type)),
+        null !== marker && (marker[type] = input);
+    return null === marker ? parentReference : marker;
+  }
+  JSCompiler_inline_result = null;
+  for (marker in parentReference)
+    if (hasOwnProperty.call(parentReference, marker)) {
+      input = parentReference[marker];
+      var resolvedValue$98 = resolveModel(
+        request,
+        task,
+        parentReference,
+        marker,
+        input
+      );
+      if (null === JSCompiler_inline_result && resolvedValue$98 !== input)
+        for (type in ((JSCompiler_inline_result = {}), parentReference)) {
+          if (type === marker) break;
+          hasOwnProperty.call(parentReference, type) &&
+            ("__proto__" === type
+              ? Object.defineProperty(JSCompiler_inline_result, type, {
+                  value: parentReference[type],
+                  enumerable: !0,
+                  writable: !0,
+                  configurable: !0
+                })
+              : (JSCompiler_inline_result[type] = parentReference[type]));
+        }
+      null !== JSCompiler_inline_result &&
+        ("__proto__" === marker
+          ? Object.defineProperty(JSCompiler_inline_result, marker, {
+              value: resolvedValue$98,
+              enumerable: !0,
+              writable: !0,
+              configurable: !0
+            })
+          : (JSCompiler_inline_result[marker] = resolvedValue$98));
+    }
+  return null === JSCompiler_inline_result
+    ? parentReference
+    : JSCompiler_inline_result;
+}
+function emitTextChunk(request, id, text) {
+  var debug =
+    3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : !1;
+  if (null === byteLengthOfChunk)
+    throw Error(
+      "Existence of byteLengthOfChunk should have already been checked. This is a bug in React."
+    );
+  debug ? request.pendingDebugChunks++ : request.pendingChunks++;
+  debug = byteLengthOfChunk(text);
+  debug = id.toString(16) + ":T" + debug.toString(16) + ",";
+  request.completedRegularChunks.push(NEXT_TWO_CHUNKS_ARE_ATOMIC, debug, text);
+}
+function emitModelChunk(request, id, json) {
+  id = id.toString(16) + ":" + json + "\n";
+  request.completedRegularChunks.push(id);
+}
+function createTask(request, model, abortSet) {
+  var id = request.nextChunkId++;
+  request.pendingChunks++;
+  request = { id: id, status: 0, model: model, returnedTupleReference: null };
+  abortSet.add(request);
+  return request;
+}
+function retryTask(request, task) {
+  if (0 === task.status) {
+    task.status = 6;
+    var parentSerializedSize = serializedSize;
+    try {
+      var model = task.model;
+      modelRoot = model;
+      null === model ||
+        "object" !== typeof model ||
+        request.writtenObjects.has(model) ||
+        request.writtenObjects.set(model, serializeByValueID(task.id));
+      var resolvedModel = resolveModel(
+          request,
+          task,
+          { "": model },
+          "",
+          model,
+          !0
+        ),
+        json = JSON.stringify(resolvedModel);
+      emitModelChunk(request, task.id, json);
+      task.status = 1;
+      request.abortableTasks.delete(task);
+    } catch (error) {
+      if (12 === request.status) {
+        request.abortableTasks.delete(task);
+        task.status = 0;
+        var errorId = request.fatalError;
+        0 === task.status && (task.status = 3);
+        finishAbortedTask(task, request, errorId);
+      } else
+        try {
+          erroredTask(request, task, error);
+        } catch (fatal) {
+          fatalError(request, fatal);
+        }
+    } finally {
+      serializedSize = parentSerializedSize;
+    }
+  }
+}
+function performWork(request) {
+  if (14 !== request.status && 13 !== request.status) {
+    var prevCache = setCurrentCache(null);
+    try {
+      var pingedTasks = request.pingedTasks;
+      request.pingedTasks = [];
+      for (var i = 0; i < pingedTasks.length; i++)
+        if (
+          (retryTask(request, pingedTasks[i]),
+          14 === request.status || 13 === request.status)
+        )
+          return;
+      flushCompletedChunks(request);
+    } catch (error) {
+      logRecoverableError(request, error, null), fatalError(request, error);
+    } finally {
+      setCurrentCache(prevCache);
+    }
+  }
+}
+function performWorkWithContext(request) {
+  cacheStorage.run(void 0, function () {
+    return requestStorage.run(void 0, performWork, request);
+  });
+}
+function pingTask(request, task) {
+  if (14 !== request.status && 0 === task.status) {
+    var pingedTasks = request.pingedTasks;
+    pingedTasks.push(task);
+    1 === pingedTasks.length &&
+      (10 === request.status
+        ? scheduleMicrotask(function () {
+            return performWorkWithContext(request);
+          })
+        : setImmediate(function () {
+            return performWorkWithContext(request);
+          }));
+  }
+}
+function serializeByValueID(id) {
+  return "$" + id.toString(16);
+}
+function escapeStringValue(value) {
+  return "$" === value[0] ? "$" + value : value;
+}
+function serializeImportString(request, value) {
+  if (16 > value.length) return escapeStringValue(value);
+  var writtenStrings = request.writtenImportStrings,
+    existing = writtenStrings.get(value);
+  if (void 0 !== existing) return existing;
+  existing = request.writtenImportStringsSize + value.length;
+  if (32768 < existing) return escapeStringValue(value);
+  request.writtenImportStringsSize = existing;
+  request.pendingChunks++;
+  existing = request.nextChunkId++;
+  var json = stringify(escapeStringValue(value));
+  request.completedImportChunks.push(existing.toString(16) + ":" + json + "\n");
+  request = serializeByValueID(existing);
+  writtenStrings.set(value, request);
+  return request;
+}
+function importMetadataReplacer(key, value) {
+  return "string" === typeof value
+    ? ((key = importStringRequest),
+      null === key
+        ? escapeStringValue(value)
+        : serializeImportString(key, value))
+    : value;
+}
+function transformImportMetadata(request, value, depth) {
+  switch (typeof value) {
+    case "string":
+      return serializeImportString(request, value);
+    case "number":
+    case "boolean":
+    case "undefined":
+      return value;
+    case "object":
+      if (null === value) return null;
+      if (16 < depth || "function" === typeof value.toJSON)
+        return NOT_PLAIN_IMPORT_METADATA;
+      if (isArrayImpl(value)) {
+        for (
+          var length = value.length, copy = Array(length), i = 0;
+          i < length;
+          i++
+        ) {
+          var element = value[i];
+          if ("string" === typeof element)
+            copy[i] = serializeImportString(request, element);
+          else {
+            element = transformImportMetadata(request, element, depth + 1);
+            if (element === NOT_PLAIN_IMPORT_METADATA)
+              return NOT_PLAIN_IMPORT_METADATA;
+            copy[i] = element;
+          }
+        }
+        return copy;
+      }
+      length = getPrototypeOf(value);
+      if (length !== ObjectPrototype && null !== length)
+        return NOT_PLAIN_IMPORT_METADATA;
+      length = Object.keys(value);
+      copy = {};
+      for (i = 0; i < length.length; i++) {
+        element = length[i];
+        if (element in ObjectPrototype) return NOT_PLAIN_IMPORT_METADATA;
+        var element$101 = value[element];
+        if ("string" === typeof element$101)
+          copy[element] = serializeImportString(request, element$101);
+        else {
+          element$101 = transformImportMetadata(
+            request,
+            element$101,
+            depth + 1
+          );
+          if (element$101 === NOT_PLAIN_IMPORT_METADATA)
+            return NOT_PLAIN_IMPORT_METADATA;
+          copy[element] = element$101;
+        }
+      }
+      return copy;
+    default:
+      return NOT_PLAIN_IMPORT_METADATA;
+  }
+}
+function encodeReferenceChunk(request, id, reference) {
+  request = JSON.stringify(reference);
+  return id.toString(16) + ":" + request + "\n";
+}
+function subscribeToThenable(request, task, thenable, outlineNow) {
+  var synchronous = !0 === outlineNow;
+  try {
+    var input = request.input;
+    null !== input &&
+      subscribeInput(request, function (detach) {
+        return input.subscribeToThenable(thenable, {
+          debug: void 0,
+          halt: function () {
+            detach();
+            0 === task.status &&
+              (haltTask(task, request),
+              request.abortableTasks.delete(task),
+              3 === task.status && request.pendingChunks--,
+              enqueueFlush(request));
+          },
+          resolve: function (value) {
+            detach();
+            if (11 >= request.status && 0 === task.status)
+              if (((task.model = value), synchronous)) {
+                value = task.model;
+                null !== value &&
+                  "object" === typeof value &&
+                  request.writtenObjects.set(
+                    value,
+                    serializeByValueID(task.id)
+                  );
+                value = modelRoot;
+                try {
+                  retryTask(request, task);
+                } finally {
+                  modelRoot = value;
+                }
+              } else pingTask(request, task);
+          },
+          reject: function (error, reference) {
+            detach();
+            if (11 >= request.status && 0 === task.status)
+              try {
+                erroredInputTask(request, task, error, reference),
+                  enqueueFlush(request);
+              } catch (fatal) {
+                fatalError(request, fatal);
+              }
+          }
+        });
+      });
+  } finally {
+    synchronous = !1;
+  }
+}
+function subscribeInput(request, subscribe) {
+  function detach() {
+    active = !1;
+    request.inputSubscriptions.delete(detach);
+    unsubscribe();
+  }
+  var unsubscribe = noop,
+    active = !0;
+  request.inputSubscriptions.add(detach);
+  unsubscribe = subscribe(detach);
+  (!active || 11 < request.status) && detach();
+}
+function serializeThenable(request, task, thenable) {
+  if (null === request.input)
+    throw Error("Cannot serialize a detached Result.");
+  task = request.writtenModels.get(thenable);
+  if (void 0 !== task) return task;
+  task = createTask(request, null, request.abortableTasks);
+  request.writtenModels.set(thenable, task.id);
+  subscribeToThenable(request, task, thenable);
+  return task.id;
+}
+function logRecoverableError(request, error) {
+  var prevCache = setCurrentCache(null);
+  try {
+    var onError = request.onError;
+    var errorDigest = cacheStorage.run(void 0, function () {
+      return requestStorage.run(void 0, onError, error);
+    });
+  } finally {
+    setCurrentCache(prevCache);
+  }
+  if (null != errorDigest && "string" !== typeof errorDigest)
+    throw Error(
+      'onError returned something with a type other than "string". onError should return a string and may return null or undefined but must not return anything else. It received something of type "' +
+        typeof errorDigest +
+        '" instead'
+    );
+  return errorDigest || "";
+}
+function erroredTask(request, task, error) {
+  task.status = 4;
+  request.abortableTasks.delete(task);
+  error = logRecoverableError(request, error, task);
+  emitErrorChunk(request, task.id, error);
+}
+function erroredInputTask(request, task, error, reference) {
+  void 0 === reference
+    ? erroredTask(request, task, error)
+    : ((task.status = 4),
+      request.abortableTasks.delete(task),
+      (error = request.writtenErrors.get(reference)),
+      void 0 === error
+        ? (request.writtenErrors.set(reference, task.id),
+          emitErrorChunk(request, task.id, reference.digest))
+        : ((reference = serializeByValueID(error)),
+          request.completedErrorChunks.push(
+            encodeReferenceChunk(request, task.id, reference)
+          )));
+}
+function emitErrorChunk(request, id, digest) {
+  digest = { digest: digest };
+  id = id.toString(16) + ":E" + stringify(digest) + "\n";
+  request.completedErrorChunks.push(id);
+}
+function enqueueFlush(request) {
+  request.flushScheduled ||
+    null === request.destination ||
+    ((request.flushScheduled = !0),
+    setImmediate(function () {
+      request.flushScheduled = !1;
+      flushCompletedChunks(request);
+    }));
+}
+function cleanupInput(request) {
+  request.input = null;
+  request.inputSubscriptions.forEach(function (detach) {
+    return detach();
+  });
+  request.inputSubscriptions.clear();
+}
+function subscribeHints(request) {
+  function completeInput() {
+    sourceComplete ||
+      ((sourceComplete = !0), request.pendingChunks--, enqueueFlush(request));
+  }
+  var input = request.input;
+  if (null !== input) {
+    var sourceComplete = !1;
+    request.abortController.signal.addEventListener(
+      "abort",
+      function () {
+        completeInput();
+        cleanupInput(request);
+      },
+      { once: !0 }
+    );
+    subscribeInput(request, function (detach) {
+      return input.subscribe({
+        hint: function (code, model) {
+          try {
+            var json = JSON.stringify(model);
+            request.completedHintChunks.push(":H" + code + json + "\n");
+            enqueueFlush(request);
+          } catch (error) {
+            fatalError(request, error);
+          }
+        },
+        console: function () {},
+        complete: function () {
+          detach();
+          completeInput();
+        }
+      });
+    });
+  }
+}
+function fatalError(request, error) {
+  request.abortController.abort(error);
+  request.fatalError = error;
+  cleanupInput(request);
+  cleanupTaintQueue(request);
+  var destination = request.destination;
+  null !== destination
+    ? ((request.status = 14), destination.destroy(error))
+    : (request.status = 13);
+}
+function flushCompletedChunks(request) {
+  var destination = request.destination;
+  if (null !== destination) {
+    currentView = new Uint8Array(4096);
+    writtenBytes = 0;
+    destinationHasCapacity = !0;
+    try {
+      for (
+        var importsChunks = request.completedImportChunks, i = 0;
+        i < importsChunks.length;
+        i++
+      )
+        if (
+          (request.pendingChunks--,
+          !writeChunkAndReturn(destination, importsChunks[i]))
+        ) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      importsChunks.splice(0, i);
+      var hintChunks = request.completedHintChunks;
+      for (i = 0; i < hintChunks.length; i++)
+        if (!writeChunkAndReturn(destination, hintChunks[i])) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      hintChunks.splice(0, i);
+      var regularChunks = request.completedRegularChunks;
+      for (i = 0; i < regularChunks.length; i++) {
+        var item = regularChunks[i];
+        importsChunks = void 0;
+        if ("symbol" === typeof item) {
+          var headerChunk = regularChunks[i + 1],
+            contentChunk = regularChunks[i + 2];
+          if (
+            i + 2 >= regularChunks.length ||
+            "symbol" === typeof headerChunk ||
+            "symbol" === typeof contentChunk
+          )
+            throw Error("A chunk pair is incomplete. This is a bug in React.");
+          request.pendingChunks -= 2;
+          writeChunk(destination, headerChunk);
+          importsChunks = writeChunkAndReturn(destination, contentChunk);
+          i += 2;
+        } else
+          request.pendingChunks--,
+            (importsChunks = writeChunkAndReturn(destination, item));
+        if (!importsChunks) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      }
+      regularChunks.splice(0, i);
+      var errorChunks = request.completedErrorChunks;
+      for (i = 0; i < errorChunks.length; i++)
+        if (
+          (request.pendingChunks--,
+          !writeChunkAndReturn(destination, errorChunks[i]))
+        ) {
+          request.destination = null;
+          i++;
+          break;
+        }
+      errorChunks.splice(0, i);
+    } finally {
+      (request.flushScheduled = !1), completeWriting(destination);
+    }
+    flushBuffered(destination);
+  }
+  0 === request.pendingChunks &&
+    (cleanupInput(request),
+    12 > request.status && request.abortController.abort(),
+    cleanupTaintQueue(request),
+    null !== request.destination &&
+      ((request.status = 14),
+      request.destination.end(),
+      (request.destination = null)));
+}
+function startWork(request) {
+  scheduleMicrotask(function () {
+    return performWorkWithContext(request);
+  });
+  setImmediate(function () {
+    10 === request.status && (request.status = 11);
+  });
+}
+function startFlowing(request, destination) {
+  if (13 === request.status)
+    (request.status = 14), destination.destroy(request.fatalError);
+  else if (14 !== request.status && null === request.destination) {
+    request.destination = destination;
+    try {
+      flushCompletedChunks(request);
+    } catch (error) {
+      fatalError(request, error);
+    }
+  }
+}
+function finishAbortedTask(task, request, errorId) {
+  3 === task.status &&
+    ((errorId = serializeByValueID(errorId)),
+    (task = encodeReferenceChunk(request, task.id, errorId)),
+    request.completedErrorChunks.push(task));
+}
+function haltTask(task) {
+  0 === task.status && (task.status = 3);
+}
+function finishAbort(request, abortedTasks, errorId) {
+  try {
+    abortedTasks.forEach(function (task) {
+      return finishAbortedTask(task, request, errorId);
+    }),
+      flushCompletedChunks(request);
+  } catch (error) {
+    logRecoverableError(request, error), fatalError(request, error);
+  }
+}
+function attachAbortSignal(request, signal) {
+  signal.aborted
+    ? abort(request, signal.reason)
+    : signal.addEventListener(
+        "abort",
+        function () {
+          abort(request, signal.reason);
+        },
+        { signal: request.abortController.signal }
+      );
+}
+function abort(request, reason) {
+  if (!(11 < request.status))
+    try {
+      request.status = 12;
+      request.abortController.abort(reason);
+      var abortableTasks = request.abortableTasks;
+      if (0 < abortableTasks.size) {
+        var error =
+            void 0 === reason
+              ? Error("The render was aborted by the server without a reason.")
+              : "object" === typeof reason &&
+                  null !== reason &&
+                  "function" === typeof reason.then
+                ? Error("The render was aborted by the server with a promise.")
+                : reason,
+          digest = logRecoverableError(request, error),
+          errorId = request.nextChunkId++;
+        request.fatalError = errorId;
+        request.pendingChunks++;
+        emitErrorChunk(request, errorId, digest, error);
+        abortableTasks.forEach(function (task) {
+          0 === task.status && (task.status = 3);
+        });
+        setImmediate(function () {
+          return finishAbort(request, abortableTasks, errorId);
+        });
+      } else flushCompletedChunks(request);
+    } catch (error$108) {
+      logRecoverableError(request, error$108), fatalError(request, error$108);
+    }
+}
+function serializeCollectionEntries(request, model) {
+  if (null === request.input)
+    throw Error("Cannot serialize a detached Result.");
+  var existingId = request.writtenModels.get(model);
+  if (void 0 !== existingId) return existingId;
+  existingId = createTask(request, null, request.abortableTasks);
+  request.writtenModels.set(model, existingId.id);
+  subscribeToThenable(request, existingId, model, !0);
+  return existingId.id;
+}
+function serializeTypedArray(request, tag, typedArray) {
+  var bufferId = request.nextChunkId++;
+  emitTypedArrayChunk(request, bufferId, tag, typedArray);
+  request.pendingChunks++;
+  return serializeByValueID(bufferId);
+}
+function emitTypedArrayChunk(request, id, tag, typedArray) {
+  var debug =
+    4 < arguments.length && void 0 !== arguments[4] ? arguments[4] : !1;
+  if (TaintRegistryByteLengths.has(typedArray.byteLength)) {
+    var tainted = TaintRegistryValues.get(binaryToComparableString(typedArray));
+    void 0 !== tainted && throwTaintViolation(tainted.message);
+  }
+  debug ? request.pendingDebugChunks++ : request.pendingChunks++;
+  debug = new Uint8Array(
+    new Uint8Array(
+      typedArray.buffer,
+      typedArray.byteOffset,
+      typedArray.byteLength
+    )
+  );
+  debug = typedArrayToBinaryChunk(debug);
+  tainted = debug.byteLength;
+  tainted = id.toString(16) + ":" + tag + tainted.toString(16) + ",";
+  request.completedRegularChunks.push(
+    NEXT_TWO_CHUNKS_ARE_ATOMIC,
+    tainted,
+    debug
+  );
+}
+function serializeBlob(request, blob) {
+  function progress(entry) {
+    if (0 === newTask.status)
+      if (entry.done)
+        request.abortController.signal.removeEventListener("abort", abortBlob),
+          pingTask(request, newTask);
+      else
+        return (
+          model.push(entry.value), reader.read().then(progress).catch(error)
+        );
+  }
+  function error(reason) {
+    0 === newTask.status &&
+      (request.abortController.signal.removeEventListener("abort", abortBlob),
+      erroredTask(request, newTask, reason),
+      enqueueFlush(request),
+      reader.cancel(reason).then(error, error));
+  }
+  function abortBlob() {
+    if (0 === newTask.status) {
+      var signal = request.abortController.signal;
+      signal.removeEventListener("abort", abortBlob);
+      signal = signal.reason;
+      erroredTask(request, newTask, signal);
+      enqueueFlush(request);
+      reader.cancel(signal).then(error, error);
+    }
+  }
+  var model = [blob.type],
+    reader = blob.stream().getReader(),
+    newTask = createTask(request, model, request.abortableTasks);
+  request.abortController.signal.addEventListener("abort", abortBlob);
+  reader.read().then(progress).catch(error);
+  return "$B" + newTask.id.toString(16);
+}
+function serializeServerReference(request, serverReference) {
+  var isObjectReference = "object" === typeof serverReference,
+    writtenServerReferences = request.writtenServerReferences,
+    existingId = writtenServerReferences.get(serverReference);
+  if (void 0 !== existingId)
+    return isObjectReference
+      ? "$H" + existingId.toString(16)
+      : "$h" + existingId.toString(16);
+  existingId = serverReference.$$id;
+  if (isObjectReference) existingId = { id: existingId };
+  else {
+    var input = request.input;
+    input = null === input ? void 0 : input.getServerReference(serverReference);
+    if (void 0 === input)
+      throw Error(
+        "A Result must record server references before serialization."
+      );
+    existingId = { id: existingId, bound: input.bound };
+  }
+  request = outlineModel(request, existingId);
+  writtenServerReferences.set(serverReference, request);
+  return isObjectReference
+    ? "$H" + request.toString(16)
+    : "$h" + request.toString(16);
+}
+function emitChunk(request, task, value) {
+  var id = task.id;
+  if ("string" === typeof value && null !== byteLengthOfChunk)
+    (task = TaintRegistryValues.get(value)),
+      void 0 !== task && throwTaintViolation(task.message),
+      emitTextChunk(request, id, value);
+  else {
+    var input = request.input;
+    if (
+      0 ===
+      (null !== value && "object" === typeof value && null !== input
+        ? input.getModelInfo(value) & 3
+        : 0)
+    ) {
+      if (
+        "object" === typeof value &&
+        null !== value &&
+        isServerReference(value)
+      ) {
+        task = JSON.stringify(serializeServerReference(request, value));
+        emitModelChunk(request, id, task);
+        return;
+      }
+      if (value instanceof ArrayBuffer) {
+        emitTypedArrayChunk(request, id, "A", new Uint8Array(value));
+        return;
+      }
+      if (value instanceof Int8Array) {
+        emitTypedArrayChunk(request, id, "O", value);
+        return;
+      }
+      if (value instanceof Uint8Array) {
+        emitTypedArrayChunk(request, id, "o", value);
+        return;
+      }
+      if (value instanceof Uint8ClampedArray) {
+        emitTypedArrayChunk(request, id, "U", value);
+        return;
+      }
+      if (value instanceof Int16Array) {
+        emitTypedArrayChunk(request, id, "S", value);
+        return;
+      }
+      if (value instanceof Uint16Array) {
+        emitTypedArrayChunk(request, id, "s", value);
+        return;
+      }
+      if (value instanceof Int32Array) {
+        emitTypedArrayChunk(request, id, "L", value);
+        return;
+      }
+      if (value instanceof Uint32Array) {
+        emitTypedArrayChunk(request, id, "l", value);
+        return;
+      }
+      if (value instanceof Float32Array) {
+        emitTypedArrayChunk(request, id, "G", value);
+        return;
+      }
+      if (value instanceof Float64Array) {
+        emitTypedArrayChunk(request, id, "g", value);
+        return;
+      }
+      if (value instanceof BigInt64Array) {
+        emitTypedArrayChunk(request, id, "M", value);
+        return;
+      }
+      if (value instanceof BigUint64Array) {
+        emitTypedArrayChunk(request, id, "m", value);
+        return;
+      }
+      if (value instanceof DataView) {
+        emitTypedArrayChunk(request, id, "V", value);
+        return;
+      }
+    }
+    id = resolveModel(request, task, { "": value }, "", value, !0);
+    id = JSON.stringify(id);
+    emitModelChunk(request, task.id, id);
+  }
+}
+function serializeReadableStream(request, task, stream) {
+  function error(reason, reference) {
+    if (0 === streamTask.status)
+      try {
+        erroredInputTask(request, streamTask, reason, reference),
+          scheduleMicrotask(function () {
+            return flushCompletedChunks(request);
+          });
+      } catch (fatal) {
+        fatalError(request, fatal);
+      }
+  }
+  var input = request.input,
+    source = null === input ? void 0 : input.getReadableStream(stream);
+  if (void 0 === source)
+    throw Error("A Result must record streams before serialization.");
+  var isByteStream = source.isByteStream,
+    streamTask = createTask(request, task.model, request.abortableTasks);
+  request.pendingChunks++;
+  task = streamTask.id.toString(16) + ":" + (isByteStream ? "r" : "R") + "\n";
+  request.writtenObjects.set(stream, serializeByValueID(streamTask.id));
+  request.completedRegularChunks.push(task);
+  subscribeInput(request, function (detach) {
+    return source.subscribe({
+      progress: function (entry) {
+        if (0 === streamTask.status)
+          if (entry.done) {
+            streamTask.status = 1;
+            var endStreamRow = streamTask.id.toString(16) + ":C\n";
+            request.completedRegularChunks.push(endStreamRow);
+            request.abortableTasks.delete(streamTask);
+            enqueueFlush(request);
+          } else {
+            request.pendingChunks++;
+            endStreamRow = !0;
+            try {
+              streamTask.model = entry.value;
+              if (isByteStream)
+                emitTypedArrayChunk(
+                  request,
+                  streamTask.id,
+                  "b",
+                  streamTask.model
+                );
+              else {
+                entry = modelRoot;
+                var parentSerializedSize = serializedSize;
+                try {
+                  (modelRoot = null),
+                    emitChunk(request, streamTask, streamTask.model);
+                } finally {
+                  (modelRoot = entry), (serializedSize = parentSerializedSize);
+                }
+              }
+              endStreamRow = !1;
+              enqueueFlush(request);
+            } catch (reason) {
+              endStreamRow && request.pendingChunks--, error(reason, void 0);
+            }
+          }
+        0 !== streamTask.status && detach();
+      },
+      error: function (reason, reference) {
+        detach();
+        error(reason, reference);
+      },
+      rejectEntry: function (reason, reference) {
+        detach();
+        error(reason, reference);
+      },
+      halt: function () {
+        detach();
+        0 === streamTask.status &&
+          (request.abortableTasks.delete(streamTask),
+          haltTask(streamTask),
+          3 === streamTask.status && request.pendingChunks--,
+          enqueueFlush(request));
+      }
+    });
+  });
+  return serializeByValueID(streamTask.id);
+}
+function serializeAsyncIterable(request, task, iterable) {
+  function error(reason, reference) {
+    if (0 === streamTask.status)
+      try {
+        erroredInputTask(request, streamTask, reason, reference),
+          scheduleMicrotask(function () {
+            return flushCompletedChunks(request);
+          });
+      } catch (fatal) {
+        fatalError(request, fatal);
+      }
+  }
+  var input = request.input,
+    source = null === input ? void 0 : input.getAsyncIterable(iterable);
+  if (void 0 === source)
+    throw Error("A Result must record async iterables before serialization.");
+  var streamTask = createTask(request, task.model, request.abortableTasks);
+  request.pendingChunks++;
+  task =
+    streamTask.id.toString(16) + ":" + (source.isIterator ? "x" : "X") + "\n";
+  request.writtenObjects.set(iterable, serializeByValueID(streamTask.id));
+  request.completedRegularChunks.push(task);
+  subscribeInput(request, function (detach) {
+    return source.subscribe({
+      enqueue: function (entry, done) {
+        if (0 === streamTask.status)
+          try {
+            var entryId = serializeThenable(request, streamTask, entry),
+              reference = serializeByValueID(entryId);
+            if (done) {
+              streamTask.status = 1;
+              var endStreamRow =
+                streamTask.id.toString(16) +
+                ":C" +
+                JSON.stringify(reference) +
+                "\n";
+              request.completedRegularChunks.push(endStreamRow);
+              request.abortableTasks.delete(streamTask);
+              detach();
+            } else
+              request.pendingChunks++,
+                emitModelChunk(
+                  request,
+                  streamTask.id,
+                  JSON.stringify(reference)
+                );
+            enqueueFlush(request);
+          } catch (reason) {
+            detach(), error(reason, void 0);
+          }
+      },
+      close: function () {
+        detach();
+      },
+      error: function (reason, reference) {
+        detach();
+        error(reason, reference);
+      },
+      halt: function () {
+        detach();
+        0 === streamTask.status &&
+          (request.abortableTasks.delete(streamTask),
+          haltTask(streamTask),
+          3 === streamTask.status && request.pendingChunks--,
+          enqueueFlush(request));
+      }
+    });
+  });
+  return serializeByValueID(streamTask.id);
+}
+function createDrainHandler(destination, request) {
+  return function () {
+    return startFlowing(request, destination);
+  };
+}
+function createCancelHandler(request, reason) {
+  return function () {
+    request.destination = null;
+    abort(request, Error(reason));
+  };
+}
+function renderToPipeableStream(input, webpackMap, options) {
+  var request = new RequestInstance(
+      input,
+      webpackMap,
+      options ? options.onError : void 0,
+      options ? options.temporaryReferences : void 0
+    ),
+    hasStartedFlowing = !1;
+  startWork(request);
+  input = options ? options.signal : void 0;
+  void 0 !== input && attachAbortSignal(request, input);
+  return {
+    pipe: function (destination) {
+      if (hasStartedFlowing)
+        throw Error(
+          "React currently only supports piping to one writable stream."
+        );
+      hasStartedFlowing = !0;
+      startFlowing(request, destination);
+      destination.on("drain", createDrainHandler(destination, request));
+      destination.on(
+        "error",
+        createCancelHandler(
+          request,
+          "The destination stream errored while writing data."
+        )
+      );
+      destination.on(
+        "close",
+        createCancelHandler(request, "The destination stream closed early.")
+      );
+      return destination;
+    },
+    abort: function (reason) {
+      abort(request, reason);
+    }
+  };
+}
+function createFakeWritableFromReadableStreamController(controller) {
+  return {
+    write: function (chunk) {
+      "string" === typeof chunk && (chunk = textEncoder.encode(chunk));
+      controller.enqueue(chunk);
+      return !0;
+    },
+    end: function () {
+      controller.close();
+    },
+    destroy: function (error) {
+      "function" === typeof controller.error
+        ? controller.error(error)
+        : controller.close();
+    }
+  };
+}
+function renderToReadableStream(input, webpackMap, options) {
+  var request = new RequestInstance(
+    input,
+    webpackMap,
+    options ? options.onError : void 0,
+    options ? options.temporaryReferences : void 0
+  );
+  options && options.signal && attachAbortSignal(request, options.signal);
+  var writable;
+  return new ReadableStream(
+    {
+      type: "bytes",
+      start: function (controller) {
+        writable = createFakeWritableFromReadableStreamController(controller);
+        startWork(request);
+      },
+      pull: function () {
+        startFlowing(request, writable);
+      },
+      cancel: function (reason) {
+        request.destination = null;
+        abort(request, reason);
+      }
+    },
+    { highWaterMark: 0 }
+  );
+}
+var FunctionBind = Function.prototype.bind,
+  ArraySlice = Array.prototype.slice;
+function createServerReference(reference, bound) {
+  var copy = FunctionBind.call(reference, null);
+  registerServerReference(copy, reference.$$id, null);
+  Object.defineProperties(copy, {
+    $$bound: { value: bound },
+    bind: { value: bindServerReference }
+  });
+  return copy;
+}
+function bindServerReference() {
+  var copy = FunctionBind.apply(this, arguments),
+    args = ArraySlice.call(arguments, 1),
+    bound = Promise.resolve(this.$$bound).then(function (values) {
+      return values.concat(args);
+    });
+  bound.catch(noop);
+  registerServerReference(copy, this.$$id, null);
+  Object.defineProperties(copy, {
+    $$bound: { value: bound },
+    bind: { value: bindServerReference }
+  });
+  return copy;
 }
 exports.createClientModuleProxy = function (moduleId) {
   moduleId = registerClientReferenceImpl({}, moduleId, !1);
@@ -4235,7 +9536,7 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
 };
 exports.prerender = function (model, webpackMap, options) {
   return new Promise(function (resolve, reject) {
-    var request = new RequestInstance(
+    var request = new RequestInstance$2(
       21,
       model,
       webpackMap,
@@ -4247,14 +9548,14 @@ exports.prerender = function (model, webpackMap, options) {
               type: "bytes",
               start: function (controller) {
                 writable =
-                  createFakeWritableFromReadableStreamController(controller);
+                  createFakeWritableFromReadableStreamController$1(controller);
               },
               pull: function () {
-                startFlowing(request, writable);
+                startFlowing$1(request, writable);
               },
               cancel: function (reason) {
                 request.destination = null;
-                abort(request, reason);
+                abort$2(request, reason);
               }
             },
             { highWaterMark: 0 }
@@ -4265,13 +9566,13 @@ exports.prerender = function (model, webpackMap, options) {
       options ? options.identifierPrefix : void 0,
       options ? options.temporaryReferences : void 0
     );
-    options && options.signal && attachAbortSignal(request, options.signal);
-    startWork(request);
+    options && options.signal && attachAbortSignal$2(request, options.signal);
+    startWork$2(request);
   });
 };
 exports.prerenderToNodeStream = function (model, webpackMap, options) {
   return new Promise(function (resolve, reject) {
-    var request = new RequestInstance(
+    var request = new RequestInstance$2(
       21,
       model,
       webpackMap,
@@ -4279,7 +9580,7 @@ exports.prerenderToNodeStream = function (model, webpackMap, options) {
       function () {
         var readable = new stream.Readable({
             read: function () {
-              startFlowing(request, writable);
+              startFlowing$1(request, writable);
             }
           }),
           writable = createFakeWritableFromNodeReadable(readable);
@@ -4289,8 +9590,26 @@ exports.prerenderToNodeStream = function (model, webpackMap, options) {
       options ? options.identifierPrefix : void 0,
       options ? options.temporaryReferences : void 0
     );
-    options && options.signal && attachAbortSignal(request, options.signal);
-    startWork(request);
+    options && options.signal && attachAbortSignal$2(request, options.signal);
+    startWork$2(request);
+  });
+};
+exports.prerenderToResult = function (model, options) {
+  return new Promise(function (resolve, reject) {
+    var request = createPrerenderRequest(
+      model,
+      function () {
+        return resolve(request.result);
+      },
+      reject,
+      options ? options.onError : void 0,
+      options ? options.identifierPrefix : void 0,
+      options ? options.temporaryReferences : void 0,
+      createServerReference
+    );
+    startWork$1(request);
+    (reject = options ? options.signal : void 0) &&
+      attachAbortSignal$1(request, reject);
   });
 };
 exports.registerClientReference = function (
@@ -4304,20 +9623,17 @@ exports.registerClientReference = function (
     !1
   );
 };
-exports.registerServerReference = function (reference, id, exportName) {
-  return Object.defineProperties(reference, {
-    $$typeof: { value: SERVER_REFERENCE_TAG },
-    $$id: {
-      value: null === exportName ? id : id + "#" + exportName,
-      configurable: !0
-    },
-    $$bound: { value: null, configurable: !0 },
-    bind: { value: bind, configurable: !0 },
-    toString: serverReferenceToString
-  });
+exports.registerServerReference = registerServerReference;
+exports.renderResultToPipeableStream = function (result, webpackMap, options) {
+  result = createInput(result);
+  return renderToPipeableStream(result, webpackMap, options);
+};
+exports.renderResultToReadableStream = function (result, webpackMap, options) {
+  result = createInput(result);
+  return renderToReadableStream(result, webpackMap, options);
 };
 exports.renderToPipeableStream = function (model, webpackMap, options) {
-  var request = new RequestInstance(
+  var request = new RequestInstance$2(
       20,
       model,
       webpackMap,
@@ -4328,7 +9644,7 @@ exports.renderToPipeableStream = function (model, webpackMap, options) {
       options ? options.temporaryReferences : void 0
     ),
     hasStartedFlowing = !1;
-  startWork(request);
+  startWork$2(request);
   return {
     pipe: function (destination) {
       if (hasStartedFlowing)
@@ -4336,28 +9652,28 @@ exports.renderToPipeableStream = function (model, webpackMap, options) {
           "React currently only supports piping to one writable stream."
         );
       hasStartedFlowing = !0;
-      startFlowing(request, destination);
-      destination.on("drain", createDrainHandler(destination, request));
+      startFlowing$1(request, destination);
+      destination.on("drain", createDrainHandler$1(destination, request));
       destination.on(
         "error",
-        createCancelHandler(
+        createCancelHandler$1(
           request,
           "The destination stream errored while writing data."
         )
       );
       destination.on(
         "close",
-        createCancelHandler(request, "The destination stream closed early.")
+        createCancelHandler$1(request, "The destination stream closed early.")
       );
       return destination;
     },
     abort: function (reason) {
-      abort(request, reason);
+      abort$2(request, reason);
     }
   };
 };
 exports.renderToReadableStream = function (model, webpackMap, options) {
-  var request = new RequestInstance(
+  var request = new RequestInstance$2(
     20,
     model,
     webpackMap,
@@ -4367,23 +9683,38 @@ exports.renderToReadableStream = function (model, webpackMap, options) {
     options ? options.identifierPrefix : void 0,
     options ? options.temporaryReferences : void 0
   );
-  options && options.signal && attachAbortSignal(request, options.signal);
+  options && options.signal && attachAbortSignal$2(request, options.signal);
   var writable;
   return new ReadableStream(
     {
       type: "bytes",
       start: function (controller) {
-        writable = createFakeWritableFromReadableStreamController(controller);
-        startWork(request);
+        writable = createFakeWritableFromReadableStreamController$1(controller);
+        startWork$2(request);
       },
       pull: function () {
-        startFlowing(request, writable);
+        startFlowing$1(request, writable);
       },
       cancel: function (reason) {
         request.destination = null;
-        abort(request, reason);
+        abort$2(request, reason);
       }
     },
     { highWaterMark: 0 }
   );
+};
+exports.renderToResult = function (model, options) {
+  model = new RequestInstance$1(
+    model,
+    options ? options.onError : void 0,
+    options ? options.identifierPrefix : void 0,
+    options ? options.temporaryReferences : void 0,
+    createServerReference,
+    20,
+    noop,
+    noop
+  );
+  startWork$1(model);
+  options && options.signal && attachAbortSignal$1(model, options.signal);
+  return model.result;
 };

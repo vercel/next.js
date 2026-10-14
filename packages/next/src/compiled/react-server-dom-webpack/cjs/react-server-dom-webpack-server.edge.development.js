@@ -578,6 +578,19 @@
     function unsupportedContext() {
       throw Error("Cannot read a Client Context from a Server Component.");
     }
+    function setCurrentCache(cache) {
+      var previousCache = currentCache;
+      currentCache = cache;
+      return previousCache;
+    }
+    function resolveCache() {
+      if (currentCache) return currentCache;
+      if (supportsRequestStorage) {
+        var cache = cacheStorage.getStore();
+        if (cache) return cache;
+      }
+      return null;
+    }
     function resolveOwner() {
       if (currentOwner) return currentOwner;
       if (supportsComponentStorage) {
@@ -2840,25 +2853,30 @@
     function logRecoverableError(request, error, task) {
       var prevRequest = currentRequest;
       currentRequest = null;
+      var prevCache = setCurrentCache(null);
       try {
         var onError = request.onError;
         var errorDigest =
           null !== task
             ? supportsRequestStorage
-              ? requestStorage.run(
-                  void 0,
-                  callWithDebugContextInDEV,
-                  request,
-                  task,
-                  onError,
-                  error
-                )
+              ? cacheStorage.run(void 0, function () {
+                  return requestStorage.run(
+                    void 0,
+                    callWithDebugContextInDEV,
+                    request,
+                    task,
+                    onError,
+                    error
+                  );
+                })
               : callWithDebugContextInDEV(request, task, onError, error)
             : supportsRequestStorage
-              ? requestStorage.run(void 0, onError, error)
+              ? cacheStorage.run(void 0, function () {
+                  return requestStorage.run(void 0, onError, error);
+                })
               : onError(error);
       } finally {
-        currentRequest = prevRequest;
+        (currentRequest = prevRequest), setCurrentCache(prevCache);
       }
       if (null != errorDigest && "string" !== typeof errorDigest)
         throw Error(
@@ -3881,7 +3899,9 @@
       var prevDispatcher = ReactSharedInternalsServer.H;
       ReactSharedInternalsServer.H = HooksDispatcher;
       var prevRequest = currentRequest;
-      currentRequest$1 = currentRequest = request;
+      currentRequest = request;
+      var prevCache = setCurrentCache(request);
+      currentRequest$1 = request;
       try {
         var pingedTasks = request.pingedTasks;
         request.pingedTasks = [];
@@ -3893,7 +3913,8 @@
       } finally {
         (ReactSharedInternalsServer.H = prevDispatcher),
           (currentRequest$1 = null),
-          (currentRequest = prevRequest);
+          (currentRequest = prevRequest),
+          setCurrentCache(prevCache);
       }
     }
     function abortTask(task) {
@@ -4085,7 +4106,9 @@
       request.flushScheduled = null !== request.destination;
       supportsRequestStorage
         ? scheduleMicrotask(function () {
-            requestStorage.run(request, performWork, request);
+            cacheStorage.run(request, function () {
+              return requestStorage.run(request, performWork, request);
+            });
           })
         : scheduleMicrotask(function () {
             return performWork(request);
@@ -5830,6 +5853,7 @@
       stackTraceCache = new WeakMap(),
       supportsRequestStorage = "function" === typeof AsyncLocalStorage,
       requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null,
+      cacheStorage = supportsRequestStorage ? new AsyncLocalStorage() : null,
       supportsComponentStorage = supportsRequestStorage,
       componentStorage = supportsComponentStorage
         ? new AsyncLocalStorage()
@@ -5952,18 +5976,20 @@
         },
         useEffectEvent: unsupportedHook
       },
+      currentCache = null,
       currentOwner = null,
       DefaultAsyncDispatcher = {
         getCacheForType: function (resourceType) {
-          var cache = (cache = resolveRequest()) ? cache.cache : new Map();
-          var entry = cache.get(resourceType);
+          var context = resolveCache();
+          context = context ? context.cache : new Map();
+          var entry = context.get(resourceType);
           void 0 === entry &&
-            ((entry = resourceType()), cache.set(resourceType, entry));
+            ((entry = resourceType()), context.set(resourceType, entry));
           return entry;
         },
         cacheSignal: function () {
-          var request = resolveRequest();
-          return request ? request.cacheController.signal : null;
+          var context = resolveCache();
+          return context ? context.cacheController.signal : null;
         }
       };
     DefaultAsyncDispatcher.getOwner = resolveOwner;
