@@ -1,8 +1,9 @@
+import type { Route } from '../../../shared/lib/route-types'
 import { stringifyRequest } from '../stringify-request'
 
 export type ClientPagesLoaderOptions = {
   absolutePagePath: string
-  page: string
+  page: Route
 }
 
 // this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters

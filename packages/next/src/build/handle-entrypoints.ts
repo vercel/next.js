@@ -1,3 +1,9 @@
+import {
+  type Page,
+  createPage,
+  createRoute,
+  pagesRouteToPage,
+} from '../shared/lib/route-types'
 import type { TurbopackManifestLoader } from '../shared/lib/turbopack/manifest-loader'
 import type {
   Entrypoints,
@@ -10,19 +16,25 @@ import * as Log from './output/log'
 
 export async function rawEntrypointsToEntrypoints(
   entrypointsOp: RawEntrypoints
-): Promise<Entrypoints> {
-  const page = new Map()
-  const app = new Map()
+): Promise<Entrypoints<Page>> {
+  const page: Entrypoints<Page>['page'] = new Map()
+  const app: Entrypoints<Page>['app'] = new Map()
 
   for (const [pathname, route] of entrypointsOp.routes) {
     switch (route.type) {
       case 'page':
       case 'page-api':
-        page.set(pathname, route)
+        // At the native pages-router boundary, a URL pathname also identifies
+        // the page; there are no app modifiers or leaf suffixes to preserve.
+        // Native transport has primitive string keys; this paired Pages case
+        // owns their URL ingestion before the proven module-ID identity bridge.
+        page.set(pagesRouteToPage(createRoute(pathname)), route)
         break
       case 'app-page': {
         for (const p of route.pages) {
-          app.set(p.originalName, {
+          // Native originalName is the complete raw App module ID, not the
+          // normalized outer route key. Ingest only at this owned boundary.
+          app.set(createPage(p.originalName), {
             type: 'app-page',
             ...p,
           })
@@ -30,7 +42,7 @@ export async function rawEntrypointsToEntrypoints(
         break
       }
       case 'app-route': {
-        app.set(route.originalName, route)
+        app.set(createPage(route.originalName), route)
         break
       }
       case 'conflict':
@@ -59,6 +71,8 @@ export async function handleRouteType({
   route,
   manifestLoader,
 }: {
+  // Untouched dev callers retain their module-ID string contract. This
+  // dispatcher forwards to legacy manifest readers without reconstructing it.
   page: string
   route: PageRoute | AppRoute
   manifestLoader: TurbopackManifestLoader
@@ -77,7 +91,7 @@ export async function handleRouteType({
         manifestLoader.deleteMiddlewareManifest(serverKey)
       }
 
-      await manifestLoader.loadFontManifest('/_app', 'pages')
+      await manifestLoader.loadFontManifest(createPage('/_app'), 'pages')
       await manifestLoader.loadFontManifest(page, 'pages')
 
       await manifestLoader.loadSriManifest(page, 'pages')

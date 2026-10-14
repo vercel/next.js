@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import { isMetadataPage } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
@@ -105,6 +106,12 @@ export function fillStaticMetadataSegment(
  * segments are replaced with "-" placeholders so the file is exported once.
  */
 export function getStaticMetadataPrerenderPathname(
+  pathname: Route
+): Route | null
+export function getStaticMetadataPrerenderPathname(
+  pathname: string
+): string | null
+export function getStaticMetadataPrerenderPathname(
   pathname: string
 ): string | null {
   const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`
@@ -168,7 +175,10 @@ export function fillMetadataSegment(
  * @param page
  * @returns
  */
-export function normalizeMetadataRoute(page: string) {
+// Metadata discovery changes module spelling, not the Page namespace.
+export function normalizeMetadataRoute(page: Page): Page
+export function normalizeMetadataRoute(page: string): string
+export function normalizeMetadataRoute(page: string): string {
   if (!isMetadataPage(page)) {
     return page
   }
@@ -200,7 +210,22 @@ export function normalizeMetadataRoute(page: string) {
 // when isDynamic is false, single route -> /sitemap.xml/route
 // when isDynamic is false, dynamic route -> /sitemap/[__metadata_id__]/route
 // also works for pathname such as /sitemap -> /sitemap.xml, but will not append /route suffix
-export function normalizeMetadataPageToRoute(page: string, isDynamic: boolean) {
+export function normalizeMetadataPageToRoute(
+  page: Page,
+  isDynamic: boolean
+): Page
+export function normalizeMetadataPageToRoute(
+  page: Route,
+  isDynamic: boolean
+): Route
+export function normalizeMetadataPageToRoute(
+  page: string,
+  isDynamic: boolean
+): string
+export function normalizeMetadataPageToRoute(
+  page: string,
+  isDynamic: boolean
+): string {
   const isRoute = page.endsWith('/route')
   const routePagePath = isRoute ? page.slice(0, -'/route'.length) : page
   const metadataRouteExtension = routePagePath.endsWith('/sitemap')

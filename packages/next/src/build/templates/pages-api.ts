@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import type { NextApiResponse } from '../../types'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
@@ -58,12 +59,14 @@ export async function handler(
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
-  let srcPage = 'VAR_DEFINITION_PAGE'
+  // @ts-ignore -- TODO: Temporary template boundary: injected Pages API module key; guarded ingestion deferred.
+  let srcPage: Page = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
   // so we need to to process dynamic routes properly
   // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
+    // @ts-ignore -- TODO: Temporary template boundary: completed Pages API module-key normalization; guarded construction deferred.
     srcPage = srcPage.replace(/\/index$/, '') || '/'
   }
 

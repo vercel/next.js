@@ -1,3 +1,4 @@
+import type { Page } from '../shared/lib/route-types'
 import type { LoadedEnvFiles } from '@next/env'
 import type { Rewrite } from '../lib/load-custom-routes'
 import type { __ApiPreviewProps } from '../server/api-utils'
@@ -40,9 +41,9 @@ export function getPluginState() {
   return pluginState
 }
 
-export interface MappedPages {
-  [page: string]: string
-}
+// Dev callers retain string-compatible module lookup keys. Build-owned context
+// and discovery opt into the Page-keyed view.
+export type MappedPages<Key extends string = string> = Record<Key, string>
 
 // a global object to store context for the current build
 // this is used to pass data between different steps of the build without having
@@ -67,10 +68,10 @@ export const NextBuildContext: Partial<{
   hasRewrites: boolean
   loadedEnvFiles: LoadedEnvFiles
   previewProps: __ApiPreviewProps
-  mappedPages: MappedPages | undefined
-  mappedAppPages: MappedPages | undefined
-  mappedAppDefaults: MappedPages | undefined
-  mappedRootPaths: MappedPages
+  mappedPages: MappedPages<Page> | undefined
+  mappedAppPages: MappedPages<Page> | undefined
+  mappedAppDefaults: MappedPages<Page> | undefined
+  mappedRootPaths: MappedPages<Page>
   hasInstrumentationHook: boolean
 
   // misc fields

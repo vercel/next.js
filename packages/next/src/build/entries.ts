@@ -1,3 +1,9 @@
+import {
+  createPage,
+  pagesPageToRoute,
+  type Page,
+  type Route,
+} from '../shared/lib/route-types'
 import type { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import type { MiddlewareLoaderOptions } from './webpack/loaders/next-middleware-loader'
 import type { EdgeSSRLoaderQuery } from './webpack/loaders/next-edge-ssr-loader'
@@ -97,19 +103,19 @@ export function getPageFilePath({
   return require.resolve(absolutePagePath)
 }
 
-export interface CreateEntrypointsParams {
+export interface CreateEntrypointsParams<ModulePage extends string = string> {
   buildId: string
   config: NextConfigComplete
   envFiles: LoadedEnvFiles
   isDev: boolean
-  pages: MappedPages
+  pages: MappedPages<ModulePage>
   pagesDir?: string
   previewMode: __ApiPreviewProps
   rootDir: string
-  rootPaths?: MappedPages
+  rootPaths?: MappedPages<ModulePage>
   appDir?: string
-  appPaths?: MappedPages
-  appDefaultPaths?: MappedPages
+  appPaths?: MappedPages<ModulePage>
+  appDefaultPaths?: MappedPages<ModulePage>
   pageExtensions: PageExtensions
   hasInstrumentationHook?: boolean
   /**
@@ -126,6 +132,8 @@ export interface CreateEntrypointsParams {
  * @param deferredEntries - Array of path patterns to match against
  * @returns true if the page matches a deferred entry pattern
  */
+// Pattern matching also receives filesystem-derived paths (with extensions)
+// during dev entry disposal. It does not require a module Page or URL Route.
 export function isDeferredEntry(
   page: string,
   deferredEntries: string[] | undefined
@@ -163,6 +171,8 @@ export function getEdgeServerEntry(opts: {
   config: NextConfigComplete
   isDev: boolean
   isServerComponent: boolean
+  // Legacy dev callers supply module ID strings; the loader owns their decoded
+  // Page view. This entry helper only serializes that paired protocol.
   page: string
   pages: MappedPages
   middleware?: Partial<ProxyConfig>
@@ -238,10 +248,10 @@ export function getEdgeServerEntry(opts: {
   }
 
   const loaderParams: EdgeSSRLoaderQuery = {
-    absolute500Path: opts.pages['/500'] || '',
-    absoluteAppPath: opts.pages['/_app'],
-    absoluteDocumentPath: opts.pages['/_document'],
-    absoluteErrorPath: opts.pages['/_error'],
+    absolute500Path: opts.pages[createPage('/500')] || '',
+    absoluteAppPath: opts.pages[createPage('/_app')],
+    absoluteDocumentPath: opts.pages[createPage('/_document')],
+    absoluteErrorPath: opts.pages[createPage('/_error')],
     absolutePagePath: opts.absolutePagePath,
     dev: opts.isDev,
     isServerComponent: opts.isServerComponent,
@@ -300,13 +310,22 @@ export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   }
 }
 
+// Accept legacy unbranded module IDs without erasing a known opposite brand.
+// Pages-only dispatch owns the Page view at the client-entry protocol boundary.
+type PagesClientEntryInput = string & { readonly __route?: never }
+
 export function getClientEntry(opts: {
   absolutePagePath: string
-  page: string
+  page: PagesClientEntryInput
 }) {
   const loaderOptions: ClientPagesLoaderOptions = {
     absolutePagePath: opts.absolutePagePath,
-    page: opts.page,
+    // Pages-router discovery keys share the client URL namespace; raw module
+    // definition.page instead uses normalizePagePath's file encoding.
+    // Both callers dispatch only Pages client entries, whose module keys equal URLs.
+    // Keep known Pages IDs intact; raw legacy IDs enter the same Pages-only
+    // protocol. This scoped view is not validation or raw reconstruction.
+    page: pagesPageToRoute(opts.page as Page),
   }
 
   const pageLoader = `next-client-pages-loader?${stringify(loaderOptions)}!`
@@ -385,8 +404,20 @@ export function runDependingOnPageType<T>(params: {
   return
 }
 
+// Keep untouched dev callers' string-compatible entry contract. The paired
+// implementation owns the module-keyed dictionary view, not generic JSON input.
+export function createEntrypoints(params: CreateEntrypointsParams): Promise<{
+  client: webpack.EntryObject
+  server: webpack.EntryObject
+  edgeServer: webpack.EntryObject
+  entrySourceDirectories: string[]
+  middlewareMatchers: undefined
+}>
 export async function createEntrypoints(
-  params: CreateEntrypointsParams
+  // These legacy-compatible dictionaries are keyed by raw module IDs. Keep
+  // the build-owned view private; record iteration must retain, not reconstruct,
+  // keys already discovered as Pages.
+  params: CreateEntrypointsParams<Page>
 ): Promise<{
   client: webpack.EntryObject
   server: webpack.EntryObject
@@ -415,19 +446,24 @@ export async function createEntrypoints(
   const entrySourceDirectories = new Set<string>()
   let middlewareMatchers: ProxyMatcher[] | undefined = undefined
 
-  let appPathsPerRoute: Record<string, string[]> = {}
+  let appPathsPerRoute: Record<Route, Page[]> = {}
   if (appDir && appPaths) {
-    const appPageFiles = new Map<string, string>()
+    const appPageFiles = new Map<Page, string>()
     for (const pathname in appPaths) {
-      const normalizedPath = normalizeAppPath(pathname)
-      const actualPath = appPaths[pathname]
+      // for-in erases the existing module-key type; preserve it, do not construct it.
+      const normalizedPath = normalizeAppPath(
+        pathname as /* TODO: Preserve Page keys across Object.keys rather than reconstructing them. */ keyof typeof appPaths
+      )
+      const actualPath =
+        appPaths[
+          pathname as /* TODO: Preserve Page keys across Object.keys rather than reconstructing them. */ keyof typeof appPaths
+        ]
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
       // TODO-APP: refactor to pass the page path from createPagesMapping instead.
-      const appPath = getPageFromPath(actualPath, pageExtensions).replace(
-        APP_DIR_ALIAS,
-        ''
+      const appPath = createPage(
+        getPageFromPath(actualPath, pageExtensions).replace(APP_DIR_ALIAS, '')
       )
       appPathsPerRoute[normalizedPath].push(appPath)
       appPageFiles.set(appPath, actualPath)
@@ -437,17 +473,22 @@ export async function createEntrypoints(
     const { unmatchedAppPages, incompatibleParallelRouteSlots } =
       normalizeCatchAllRoutes(appPathsPerRoute, {
         strictRouteMatching: config.experimental.strictRouteMatching,
-        defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
+        // TODO: Retain the discovered default-module Page keys across Object.keys.
+        defaultAppPaths: Object.keys(
+          appDefaultPaths ?? {}
+        ) as (keyof NonNullable<typeof appDefaultPaths>)[],
       })
     // Only App Router pages can make an intercepted URL directly renderable.
     // Route handlers and metadata routes may share the pathname, but they
     // cannot provide the canonical page shown by an initial request.
+    // Filtering retains the source's normalized URL keys and module-key arrays.
+    // TODO: Preserve the reconstructed URL-keyed record shape without this schema assertion.
     const appPagePathsPerRoute = Object.fromEntries(
       Object.entries(appPathsPerRoute).flatMap(([route, routeAppPaths]) => {
         const pageAppPaths = routeAppPaths.filter(isAppPageRoute)
         return pageAppPaths.length > 0 ? [[route, pageAppPaths]] : []
       })
-    )
+    ) as typeof appPathsPerRoute
     const missingCanonicalInterceptionRoutes = config.experimental
       .strictRouteMatching
       ? findMissingCanonicalInterceptionRoutes(appPagePathsPerRoute)
@@ -465,9 +506,8 @@ export async function createEntrypoints(
         new IncompatibleParallelRouteSlotsError(
           await Promise.all(
             incompatibleParallelRouteSlots.map(async (incompatibleRoute) => {
-              const layoutPagePath = posix.join(
-                incompatibleRoute.layoutPath,
-                'layout'
+              const layoutPagePath = createPage(
+                posix.join(incompatibleRoute.layoutPath, 'layout')
               )
               const layoutFile = await findPageFile(
                 appDir,
@@ -526,16 +566,21 @@ export async function createEntrypoints(
     }
 
     // Make sure to sort parallel routes to make the result deterministic.
+    // TODO: Preserve the existing URL-key schema across native entries/fromEntries sorting.
+    // Object.fromEntries erases the existing URL-key schema; sorting preserves it.
     appPathsPerRoute = Object.fromEntries(
       Object.entries(appPathsPerRoute).map(([k, v]) => [
         k,
         v.sort(compareAppPaths),
       ])
-    )
+    ) as typeof appPathsPerRoute
   }
 
   const getEntryHandler =
-    (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
+    (
+      mappings: MappedPages<Page>,
+      pagesType: PAGE_TYPES
+    ): ((page: Page) => void) =>
     async (page) => {
       if (
         pagesType === PAGE_TYPES.APP &&
@@ -645,7 +690,10 @@ export async function createEntrypoints(
               pagePath: absolutePagePath,
               appDir,
               appPaths: matchedAppPaths,
-              allNormalizedAppPaths: Object.keys(appPathsPerRoute),
+              // TODO: Preserve the normalized URL keys erased by Object.keys.
+              allNormalizedAppPaths: Object.keys(
+                appPathsPerRoute
+              ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof appPathsPerRoute)[],
               pageExtensions,
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
@@ -731,7 +779,10 @@ export async function createEntrypoints(
                 pagePath: absolutePagePath,
                 appDir: appDir!,
                 appPaths: matchedAppPaths,
-                allNormalizedAppPaths: Object.keys(appPathsPerRoute),
+                // TODO: Preserve the normalized URL keys erased by Object.keys.
+                allNormalizedAppPaths: Object.keys(
+                  appPathsPerRoute
+                ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof appPathsPerRoute)[],
                 pageExtensions,
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,
@@ -776,20 +827,37 @@ export async function createEntrypoints(
 
   const promises: Promise<void[]>[] = []
 
+  // Object.keys preserves these discovery maps' module keys at runtime.
   if (appPaths) {
     const entryHandler = getEntryHandler(appPaths, PAGE_TYPES.APP)
-    promises.push(Promise.all(Object.keys(appPaths).map(entryHandler)))
+    promises.push(
+      Promise.all(
+        (
+          Object.keys(
+            appPaths
+          ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof appPaths)[]
+        ).map(entryHandler)
+      )
+    )
   }
   if (rootPaths) {
     promises.push(
       Promise.all(
-        Object.keys(rootPaths).map(getEntryHandler(rootPaths, PAGE_TYPES.ROOT))
+        (
+          Object.keys(
+            rootPaths
+          ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof rootPaths)[]
+        ).map(getEntryHandler(rootPaths, PAGE_TYPES.ROOT))
       )
     )
   }
   promises.push(
     Promise.all(
-      Object.keys(pages).map(getEntryHandler(pages, PAGE_TYPES.PAGES))
+      (
+        Object.keys(
+          pages
+        ) as /* TODO: Preserve the discovered Page key type across native iteration. */ (keyof typeof pages)[]
+      ).map(getEntryHandler(pages, PAGE_TYPES.PAGES))
     )
   )
 

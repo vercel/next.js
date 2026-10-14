@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import { readFileSync, writeSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 
@@ -145,7 +146,7 @@ function sourcePaths(sources: Source[]): string[] {
   return sources.map((_, i) => path(i))
 }
 
-function routeFile(directory: string, route: string): string {
+function routeFile(directory: string, route: Route): string {
   if (
     !route.startsWith('/') ||
     route.includes('\\') ||
@@ -333,9 +334,11 @@ export function dumpAnalyzeGraph(
     // @ts-ignore Node's internal handle, also used by the native bindings loader.
     process.stdout._handle.setBlocking?.(true)
   }
+  // Native serialized collectRoutesForAnalyze URL patterns; existing guards
+  // remain unchanged. The public CLI filter is only a string equality probe.
   const routes = JSON.parse(
     readFileSync(join(directory, 'routes.json'), 'utf8')
-  ) as string[]
+  ) as Route[]
   if (
     !Array.isArray(routes) ||
     routes.some((route) => typeof route !== 'string')

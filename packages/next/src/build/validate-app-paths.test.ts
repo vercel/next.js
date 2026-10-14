@@ -1,3 +1,4 @@
+import { createRoutes } from '../shared/lib/route-types'
 import { validateAppPaths } from './validate-app-paths'
 
 describe('validateAppPaths', () => {
@@ -10,49 +11,66 @@ describe('validateAppPaths', () => {
 
   describe('should allow valid route configurations', () => {
     it('allows routes with different static segments', () => {
-      const paths = ['/blog/posts', '/blog/authors', '/about']
+      const paths = createRoutes(['/blog/posts', '/blog/authors', '/about'])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     it('allows routes with different depths', () => {
-      const paths = ['/blog', '/blog/[slug]', '/blog/[slug]/comments']
+      const paths = createRoutes([
+        '/blog',
+        '/blog/[slug]',
+        '/blog/[slug]/comments',
+      ])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     it('allows routes with different dynamic segment positions', () => {
-      const paths = ['/[category]/posts', '/posts/[slug]', '/posts/featured']
+      const paths = createRoutes([
+        '/[category]/posts',
+        '/posts/[slug]',
+        '/posts/featured',
+      ])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     it('allows routes with different catch-all patterns', () => {
-      const paths = ['/docs/[...slug]', '/blog/[slug]']
+      const paths = createRoutes(['/docs/[...slug]', '/blog/[slug]'])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     it('allows special routes', () => {
-      const paths = ['/_not-found', '/_global-error', '/blog/[slug]', '/about']
+      const paths = createRoutes([
+        '/_not-found',
+        '/_global-error',
+        '/blog/[slug]',
+        '/about',
+      ])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     it('allows same dynamic segment names in different paths', () => {
-      const paths = ['/blog/[slug]', '/posts/[slug]', '/docs/[slug]']
+      const paths = createRoutes([
+        '/blog/[slug]',
+        '/posts/[slug]',
+        '/docs/[slug]',
+      ])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     it('allows routes with optional catch-all', () => {
-      const paths = ['/docs/[[...slug]]', '/blog/[slug]']
+      const paths = createRoutes(['/docs/[[...slug]]', '/blog/[slug]'])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     it('allows catch-all at the end of path', () => {
-      const paths = ['/docs/[...slug]', '/blog/posts/[...rest]']
+      const paths = createRoutes(['/docs/[...slug]', '/blog/posts/[...rest]'])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
@@ -61,13 +79,15 @@ describe('validateAppPaths', () => {
       // Interception routes should validate the intercepting and intercepted parts separately
       // /[locale]/example is the intercepting route
       // /[locale]/intercepted is the intercepted route
-      const paths = ['/[locale]/example/(...)[locale]/intercepted']
+      const paths = createRoutes([
+        '/[locale]/example/(...)[locale]/intercepted',
+      ])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     it('allows interception routes with different parameter names', () => {
-      const paths = ['/blog/example/(...)[slug]/post']
+      const paths = createRoutes(['/blog/example/(...)[slug]/post'])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
@@ -75,7 +95,9 @@ describe('validateAppPaths', () => {
 
   describe('interception route validation', () => {
     it('detects duplicate slug names in intercepting part', () => {
-      const paths = ['/[locale]/[locale]/example/(...)intercepted']
+      const paths = createRoutes([
+        '/[locale]/[locale]/example/(...)intercepted',
+      ])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
         `"You cannot have the same slug name "locale" repeat within a single dynamic path in route "/[locale]/[locale]/example/"."`
@@ -83,7 +105,7 @@ describe('validateAppPaths', () => {
     })
 
     it('detects duplicate slug names in intercepted part', () => {
-      const paths = ['/blog/example/(...)[slug]/post/[slug]']
+      const paths = createRoutes(['/blog/example/(...)[slug]/post/[slug]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
         `"You cannot have the same slug name "slug" repeat within a single dynamic path in route "[slug]/post/[slug]"."`
@@ -91,7 +113,7 @@ describe('validateAppPaths', () => {
     })
 
     it('detects catch-all not at end in intercepting part', () => {
-      const paths = ['/[...slug]/extra/(...)intercepted']
+      const paths = createRoutes(['/[...slug]/extra/(...)intercepted'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
         `"Catch-all must be the last part of the URL in route "/[...slug]/extra/"."`
@@ -99,7 +121,7 @@ describe('validateAppPaths', () => {
     })
 
     it('detects catch-all not at end in intercepted part', () => {
-      const paths = ['/intercepting/(...)[...slug]/extra']
+      const paths = createRoutes(['/intercepting/(...)[...slug]/extra'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
         `"Catch-all must be the last part of the URL in route "[...slug]/extra"."`
@@ -107,7 +129,7 @@ describe('validateAppPaths', () => {
     })
 
     it('detects syntax error in intercepted part', () => {
-      const paths = ['/blog/(...)[.slug]']
+      const paths = createRoutes(['/blog/(...)[.slug]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
         `"Segment names may not start with erroneous periods ('.slug') in route "[.slug]"."`
@@ -115,7 +137,7 @@ describe('validateAppPaths', () => {
     })
 
     it('detects syntax error in intercepting part', () => {
-      const paths = ['/blog/[.invalid]/(...)intercepted']
+      const paths = createRoutes(['/blog/[.invalid]/(...)intercepted'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
         `"Segment names may not start with erroneous periods ('.invalid') in route "/blog/[.invalid]/"."`
@@ -124,10 +146,10 @@ describe('validateAppPaths', () => {
 
     it('does not error when routes differ only by interception markers', () => {
       expect(() =>
-        validateAppPaths(['/blog/test', '/blog/(..)test'])
+        validateAppPaths(createRoutes(['/blog/test', '/blog/(..)test']))
       ).not.toThrow()
       expect(() =>
-        validateAppPaths(['/blog/[slug]', '/blog/(..)[slug]'])
+        validateAppPaths(createRoutes(['/blog/[slug]', '/blog/(..)[slug]']))
       ).not.toThrow()
     })
   })
@@ -137,7 +159,7 @@ describe('validateAppPaths', () => {
       // This represents:
       // - app/blog/[slug]/page.tsx
       // - app/blog/@modal/[modalSlug]/page.tsx (normalized to /blog/[modalSlug])
-      const paths = ['/blog/[slug]', '/blog/[modalSlug]']
+      const paths = createRoutes(['/blog/[slug]', '/blog/[modalSlug]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
        "Ambiguous app routes detected:
@@ -152,7 +174,7 @@ describe('validateAppPaths', () => {
 
     it('detects conflict between three normalized parallel routes', () => {
       // This represents multiple parallel slots with dynamic segments
-      const paths = ['/dashboard/[id]', '/dashboard/[userId]']
+      const paths = createRoutes(['/dashboard/[id]', '/dashboard/[userId]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
        "Ambiguous app routes detected:
@@ -166,7 +188,7 @@ describe('validateAppPaths', () => {
     })
 
     it('detects conflict with different dynamic segment names', () => {
-      const paths = ['/blog/[slug]', '/blog/[id]']
+      const paths = createRoutes(['/blog/[slug]', '/blog/[id]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
        "Ambiguous app routes detected:
@@ -180,7 +202,7 @@ describe('validateAppPaths', () => {
     })
 
     it('detects conflict with catch-all segments', () => {
-      const paths = ['/docs/[...slug]', '/docs/[...pages]']
+      const paths = createRoutes(['/docs/[...slug]', '/docs/[...pages]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
        "Ambiguous app routes detected:
@@ -194,7 +216,7 @@ describe('validateAppPaths', () => {
     })
 
     it('detects conflict with optional catch-all segments', () => {
-      const paths = ['/docs/[[...slug]]', '/docs/[[...pages]]']
+      const paths = createRoutes(['/docs/[[...slug]]', '/docs/[[...pages]]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
        "Ambiguous app routes detected:
@@ -208,12 +230,12 @@ describe('validateAppPaths', () => {
     })
 
     it('detects multiple conflicts', () => {
-      const paths = [
+      const paths = createRoutes([
         '/blog/[slug]',
         '/blog/[id]',
         '/posts/[id]',
         '/posts/[slug]',
-      ]
+      ])
 
       // Should report both conflicts
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
@@ -233,7 +255,11 @@ describe('validateAppPaths', () => {
 
     it('detects conflict with three or more routes', () => {
       // Three different routes that all normalize to the same pattern
-      const paths = ['/blog/[slug]', '/blog/[id]', '/blog/[postId]']
+      const paths = createRoutes([
+        '/blog/[slug]',
+        '/blog/[id]',
+        '/blog/[postId]',
+      ])
 
       // All three should be listed
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
@@ -250,7 +276,7 @@ describe('validateAppPaths', () => {
 
     it('detects conflict between routes differing only by case', () => {
       // Different paths with case-different parameter names
-      const paths = ['/blog/[Slug]', '/blog/[slug]']
+      const paths = createRoutes(['/blog/[Slug]', '/blog/[slug]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
        "Ambiguous app routes detected:
@@ -265,7 +291,7 @@ describe('validateAppPaths', () => {
 
     it('detects conflict between routes with underscores vs hyphens', () => {
       // These should be considered ambiguous even though underscore is a word character
-      const paths = ['/blog/[hello_world]', '/blog/[hello-world]']
+      const paths = createRoutes(['/blog/[hello_world]', '/blog/[hello-world]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
        "Ambiguous app routes detected:
@@ -282,7 +308,7 @@ describe('validateAppPaths', () => {
   describe('individual path validation', () => {
     describe('segment syntax errors', () => {
       it('detects three-dot character (…) instead of ...', () => {
-        const paths = ['/docs/[…slug]']
+        const paths = createRoutes(['/docs/[…slug]'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -292,7 +318,7 @@ describe('validateAppPaths', () => {
       })
 
       it('detects extra brackets in segment names', () => {
-        const paths = ['/blog/[[slug]']
+        const paths = createRoutes(['/blog/[[slug]'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -302,7 +328,7 @@ describe('validateAppPaths', () => {
       })
 
       it('detects erroneous periods at start of segment', () => {
-        const paths = ['/blog/[.slug]']
+        const paths = createRoutes(['/blog/[.slug]'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -312,7 +338,7 @@ describe('validateAppPaths', () => {
       })
 
       it('detects optional non-catch-all segments', () => {
-        const paths = ['/blog/[[slug]]']
+        const paths = createRoutes(['/blog/[[slug]]'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -322,26 +348,26 @@ describe('validateAppPaths', () => {
       })
 
       it('detects empty parameter name in dynamic segment', () => {
-        const paths = ['/blog/[]']
+        const paths = createRoutes(['/blog/[]'])
 
         expect(() => validateAppPaths(paths)).toThrow(/empty/i)
       })
 
       it('detects empty parameter name in catch-all segment', () => {
-        const paths = ['/docs/[...]']
+        const paths = createRoutes(['/docs/[...]'])
 
         expect(() => validateAppPaths(paths)).toThrow(/empty/i)
       })
 
       it('detects empty parameter name in optional catch-all segment', () => {
-        const paths = ['/docs/[[...]]]']
+        const paths = createRoutes(['/docs/[[...]]]'])
 
         // Note: This malformed syntax triggers the "extra brackets" error first
         expect(() => validateAppPaths(paths)).toThrow(/extra brackets|empty/i)
       })
 
       it('detects extra closing bracket only', () => {
-        const paths = ['/blog/[slug]]']
+        const paths = createRoutes(['/blog/[slug]]'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -351,7 +377,7 @@ describe('validateAppPaths', () => {
       })
 
       it('detects two periods instead of three', () => {
-        const paths = ['/blog/[..slug]']
+        const paths = createRoutes(['/blog/[..slug]'])
 
         expect(() => validateAppPaths(paths)).toThrow(
           /segment names may not start with erroneous periods/i
@@ -359,7 +385,7 @@ describe('validateAppPaths', () => {
       })
 
       it('detects four periods in segment', () => {
-        const paths = ['/blog/[....slug]']
+        const paths = createRoutes(['/blog/[....slug]'])
 
         expect(() => validateAppPaths(paths)).toThrow(
           /segment names may not start with erroneous periods/i
@@ -367,7 +393,7 @@ describe('validateAppPaths', () => {
       })
 
       it('detects only periods in segment', () => {
-        const paths = ['/blog/[....]]']
+        const paths = createRoutes(['/blog/[....]]'])
 
         expect(() => validateAppPaths(paths)).toThrow()
       })
@@ -375,7 +401,7 @@ describe('validateAppPaths', () => {
 
     describe('duplicate slug names', () => {
       it('detects duplicate slug names in same path', () => {
-        const paths = ['/blog/[slug]/posts/[slug]']
+        const paths = createRoutes(['/blog/[slug]/posts/[slug]'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -385,7 +411,7 @@ describe('validateAppPaths', () => {
       })
 
       it('detects slug names differing only by non-word symbols', () => {
-        const paths = ['/blog/[helloworld]/[hello-world]']
+        const paths = createRoutes(['/blog/[helloworld]/[hello-world]'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -397,7 +423,7 @@ describe('validateAppPaths', () => {
 
     describe('catch-all placement', () => {
       it('detects catch-all not at the end', () => {
-        const paths = ['/docs/[...slug]/more']
+        const paths = createRoutes(['/docs/[...slug]/more'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -407,7 +433,7 @@ describe('validateAppPaths', () => {
       })
 
       it('detects optional catch-all not at the end', () => {
-        const paths = ['/docs/[[...slug]]/more']
+        const paths = createRoutes(['/docs/[[...slug]]/more'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -418,7 +444,7 @@ describe('validateAppPaths', () => {
 
       it('detects both required and optional catch-all in same path', () => {
         // This would be impossible in practice but we should catch it
-        const paths = ['/docs/[...required]/[[...optional]]']
+        const paths = createRoutes(['/docs/[...required]/[[...optional]]'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -430,7 +456,7 @@ describe('validateAppPaths', () => {
 
     describe('optional catch-all specificity conflicts', () => {
       it('detects route with same specificity as optional catch-all', () => {
-        const paths = ['/docs', '/docs/[[...slug]]']
+        const paths = createRoutes(['/docs', '/docs/[[...slug]]'])
 
         expect(() =>
           validateAppPaths(paths)
@@ -440,13 +466,13 @@ describe('validateAppPaths', () => {
       })
 
       it('allows optional catch-all without conflicting route', () => {
-        const paths = ['/docs/[[...slug]]']
+        const paths = createRoutes(['/docs/[[...slug]]'])
 
         expect(() => validateAppPaths(paths)).not.toThrow()
       })
 
       it('allows nested optional catch-all without conflict', () => {
-        const paths = ['/docs/api/[[...slug]]', '/docs/guides']
+        const paths = createRoutes(['/docs/api/[[...slug]]', '/docs/guides'])
 
         expect(() => validateAppPaths(paths)).not.toThrow()
       })
@@ -459,27 +485,29 @@ describe('validateAppPaths', () => {
     })
 
     it('handles single route', () => {
-      expect(() => validateAppPaths(['/blog/[slug]'])).not.toThrow()
+      expect(() =>
+        validateAppPaths(createRoutes(['/blog/[slug]']))
+      ).not.toThrow()
     })
 
     it('handles complex nested structures', () => {
-      const paths = [
+      const paths = createRoutes([
         '/[locale]/blog/[category]/[slug]',
         '/[locale]/blog/[category]/featured',
-      ]
+      ])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     it('handles root route', () => {
-      const paths = ['/', '/blog']
+      const paths = createRoutes(['/', '/blog'])
 
       expect(() => validateAppPaths(paths)).not.toThrow()
     })
 
     // Test for optional catch-all at root level
     it('detects conflict between root route and root-level optional catch-all', () => {
-      const paths = ['/', '/[[...slug]]']
+      const paths = createRoutes(['/', '/[[...slug]]'])
 
       expect(() => validateAppPaths(paths)).toThrow(
         /same specificity as an optional catch-all/
@@ -490,7 +518,10 @@ describe('validateAppPaths', () => {
     it('detects conflict when optional catch-all prefix has dynamic segment with different param name', () => {
       // /blog/[category]/[[...slug]] with zero slug segments = /blog/[category]
       // /blog/[cat] is structurally identical to /blog/[category]
-      const paths = ['/blog/[category]/[[...slug]]', '/blog/[cat]']
+      const paths = createRoutes([
+        '/blog/[category]/[[...slug]]',
+        '/blog/[cat]',
+      ])
 
       expect(() => validateAppPaths(paths)).toThrow(
         /same specificity as an optional catch-all/
@@ -501,10 +532,10 @@ describe('validateAppPaths', () => {
     it('detects conflict with multiple dynamic segments in prefix', () => {
       // /[locale]/blog/[category]/[[...slug]] with zero slug = /[locale]/blog/[category]
       // /[lang]/blog/[cat] is structurally identical
-      const paths = [
+      const paths = createRoutes([
         '/[locale]/blog/[category]/[[...slug]]',
         '/[lang]/blog/[cat]',
-      ]
+      ])
 
       expect(() => validateAppPaths(paths)).toThrow(
         /same specificity as an optional catch-all/
@@ -514,7 +545,7 @@ describe('validateAppPaths', () => {
 
   describe('error message quality', () => {
     it('provides clear error message with normalized path', () => {
-      const paths = ['/blog/[slug]', '/blog/[modalSlug]']
+      const paths = createRoutes(['/blog/[slug]', '/blog/[modalSlug]'])
 
       expect(() => validateAppPaths(paths)).toThrow(
         /Ambiguous route pattern "\/blog\/\[\*\]"/
@@ -522,7 +553,7 @@ describe('validateAppPaths', () => {
     })
 
     it('provides actionable guidance', () => {
-      const paths = ['/blog/[slug]', '/blog/[id]']
+      const paths = createRoutes(['/blog/[slug]', '/blog/[id]'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
        "Ambiguous app routes detected:
@@ -536,7 +567,11 @@ describe('validateAppPaths', () => {
     })
 
     it('lists all conflicting routes', () => {
-      const paths = ['/blog/[slug]', '/blog/[id]', '/blog/[postId]']
+      const paths = createRoutes([
+        '/blog/[slug]',
+        '/blog/[id]',
+        '/blog/[postId]',
+      ])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(`
        "Ambiguous app routes detected:
@@ -551,7 +586,7 @@ describe('validateAppPaths', () => {
     })
 
     it('provides clear message for syntax errors', () => {
-      const paths = ['/docs/[...slug]/more']
+      const paths = createRoutes(['/docs/[...slug]/more'])
 
       expect(() => validateAppPaths(paths)).toThrowErrorMatchingInlineSnapshot(
         `"Catch-all must be the last part of the URL in route "/docs/[...slug]/more"."`

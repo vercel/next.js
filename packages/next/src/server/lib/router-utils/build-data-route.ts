@@ -5,7 +5,12 @@ import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex
 import { normalizeRouteRegex } from '../../../lib/load-custom-routes'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 
-export function buildDataRoute(page: string, buildId: string) {
+// The metadata retains the exact input page; only its data endpoint regex is
+// derived. Carry that member type without changing legacy string callers.
+export function buildDataRoute<Path extends string>(
+  page: Path,
+  buildId: string
+) {
   const pagePath = normalizePagePath(page)
   const dataRoute = path.posix.join('/_next/data', buildId, `${pagePath}.json`)
 

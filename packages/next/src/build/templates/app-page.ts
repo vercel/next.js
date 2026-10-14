@@ -21,7 +21,9 @@ declare const __next_app_load_chunk__: (id: string | number) => Promise<unknown>
 
 const entrypoint = createAppPageEntrypoint({
   tree,
+  // @ts-ignore -- TODO: Temporary template boundary: injected full App module identifier; guarded ingestion deferred.
   page: 'VAR_DEFINITION_PAGE',
+  // @ts-ignore -- TODO: Temporary template boundary: injected normalized App URL pattern; guarded ingestion deferred.
   pathname: 'VAR_DEFINITION_PATHNAME',
   require: __next_app_require__,
   loadChunk: __next_app_load_chunk__,

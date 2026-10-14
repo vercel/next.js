@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import '../../server/web/globals'
 import {
   adapter,
@@ -66,7 +67,8 @@ async function requestHandler(
   req: NextRequestHint,
   event: NextFetchEvent
 ): Promise<Response> {
-  let srcPage = 'VAR_PAGE'
+  // @ts-ignore -- TODO: Temporary template boundary: injected full App module identifier; guarded ingestion deferred.
+  let srcPage: Page = 'VAR_PAGE'
 
   const normalizedSrcPage = normalizeAppPath(srcPage)
   const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`

@@ -1,3 +1,4 @@
+import type { Route } from '../../shared/lib/route-types'
 import type { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
@@ -5,8 +6,8 @@ import type { ParamMatching } from '../segment-config/app/app-segments'
 
 type StaticPrerenderedRoute = {
   readonly params: Params
-  readonly pathname: string
-  readonly encodedPathname: string
+  readonly pathname: Route
+  readonly encodedPathname: Route
   readonly fallbackRouteParams: undefined
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: undefined
@@ -34,8 +35,8 @@ export type FallbackRouteParam = {
 
 type FallbackPrerenderedRoute = {
   readonly params: Params
-  readonly pathname: string
-  readonly encodedPathname: string
+  readonly pathname: Route
+  readonly encodedPathname: Route
 
   /**
    * The fallback route params for the route. This includes all route parameters
@@ -82,7 +83,7 @@ export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
  * must not assume pathname identifies a single candidate or render result.
  */
 export type PrerenderRouteMatcher = {
-  readonly pathname: string
+  readonly pathname: Route
   readonly fallbackRouteParams: readonly FallbackRouteParam[]
   readonly fallbackMode: FallbackMode | undefined
   /**

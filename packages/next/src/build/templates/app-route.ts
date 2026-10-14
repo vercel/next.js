@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import {
   AppRouteRouteModule,
   type AppRouteRouteHandlerContext,
@@ -117,15 +118,18 @@ export async function handler(
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
-  let srcPage = 'VAR_DEFINITION_PAGE'
+  // @ts-ignore -- TODO: Temporary template boundary: injected full App module identifier; guarded ingestion deferred.
+  let srcPage: Page = 'VAR_DEFINITION_PAGE'
 
   // turbopack doesn't normalize `/index` in the page name
   // so we need to to process dynamic routes properly
   // TODO: fix turbopack providing differing value from webpack
   if (process.env.TURBOPACK) {
+    // @ts-ignore -- TODO: Temporary template boundary: completed App module-key normalization; guarded construction deferred.
     srcPage = srcPage.replace(/\/index$/, '') || '/'
   } else if (srcPage === '/index') {
     // we always normalize /index specifically
+    // @ts-ignore -- TODO: Temporary template boundary: existing root module-key normalization; guarded construction deferred.
     srcPage = '/'
   }
   const multiZoneDraftMode = process.env
