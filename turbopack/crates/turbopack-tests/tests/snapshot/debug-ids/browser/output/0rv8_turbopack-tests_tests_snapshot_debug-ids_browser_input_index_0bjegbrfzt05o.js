@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="0d0afa13-573e-ca83-5e2b-a015e0fe4f3b")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -57,9 +57,6 @@ var CHUNK_LOAD_RETRY_MAX_JITTER_MS = 400;
  * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
  * uses plain Module objects.
  */ let createModuleWithDirectionFlag = false;
-/**
- * Maps module IDs to the factory functions that instantiate them.
- */ const moduleFactories = new Map();
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -75,21 +72,10 @@ const REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 const contextPrototype = Context.prototype;
-contextPrototype.M = moduleFactories;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
-}
-/**
- * Returns the cached module for `id`, or `undefined` if it has not been
- * instantiated yet. Rethrows the error if the module's factory threw.
- */ function getCachedModule(moduleCache, id) {
-    const module = moduleCache.get(id);
-    if (module?.error) {
-        throw module.error;
-    }
-    return module;
 }
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache.get(id);
@@ -495,7 +481,7 @@ function esmImport(id) {
 }
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
-    const loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
+    const loader = this.r(moduleId);
     return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
@@ -567,11 +553,11 @@ contextPrototype.f = moduleContext;
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
 // The flat format alternates one or more module IDs with their factory function.
 // Strict factories can be prepended as a nested array.
-function installCompressedModuleFactories(chunkModules, offset, newModuleId) {
+function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     let i = offset;
     const strictFactories = chunkModules[i];
     if (Array.isArray(strictFactories)) {
-        installCompressedModuleFactories(strictFactories, 0, newModuleId);
+        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
         i++;
     }
     while(i < chunkModules.length){
@@ -829,8 +815,29 @@ contextPrototype.a = asyncModule;
 // Used in WebWorkers to tell the runtime about the chunk suffix
 const browserContextPrototype = Context.prototype;
 const RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
+const moduleFactories = new Map();
+contextPrototype.M = moduleFactories;
 const availableModules = new Map();
 const availableModuleChunks = new Map();
+// Paths of successfully loaded chunks in registration/load order. JS chunks
+// register their module factories; CSS chunks resolved by the runtime are recorded
+// when their stylesheet is available. CSS in initial HTML is included by the getter
+// below. Unlike CSS, JS factories remain installed after a script is removed.
+const loadedChunkPaths = new Set();
+function registerLoadedChunk(chunk) {
+    loadedChunkPaths.add(getPathFromScript(chunk));
+}
+function unregisterLoadedChunk(chunkPath) {
+    loadedChunkPaths.delete(chunkPath);
+}
+// Runtime primitive exposed as `__turbopack_get_loaded_chunk_paths__`.
+function getLoadedChunkPaths() {
+    const paths = new Set(loadedChunkPaths);
+    for (const path of BACKEND.getExtraLoadedChunkPaths?.() ?? []){
+        paths.add(path);
+    }
+    return Array.from(paths);
+}
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 const chunkComponents = new Map();
 // Registry mapping a component chunk's path to its size in bytes, used by the
@@ -1061,7 +1068,7 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
 /**
  * Returns an absolute url to an asset.
  */ function resolvePathFromModule(moduleId) {
-    const exported = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
+    const exported = this.r(moduleId);
     return exported?.default ?? exported;
 }
 browserContextPrototype.R = resolvePathFromModule;
@@ -1106,6 +1113,8 @@ browserContextPrototype.X = ASSET_SUFFIX;
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
 // helper and the WASM helper, exposed as `__turbopack_chunk_relative_url__`.
 browserContextPrototype.h = getChunkRelativeUrl;
+// Shared runtime primitive: paths of all chunks loaded in this runtime.
+browserContextPrototype.G = getLoadedChunkPaths;
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
@@ -1170,7 +1179,6 @@ function isCss(chunkUrl) {
 /// <reference path="./runtime-types.d.ts" />
 /// <reference path="./dev-extensions.ts" />
 /// <reference path="./dev-protocol.d.ts" />
-/// <reference path="./dev-runtime-hooks.d.ts" />
 /**
  * Shared HMR (Hot Module Replacement) implementation.
  *
@@ -1179,14 +1187,12 @@ function isCss(chunkUrl) {
  * tracking, the module.hot API, and the full HMR update flow.
  */ /**
  * The development module cache shared across the runtime.
- */ const moduleCache = new Map();
+ * Browser runtime declares this directly.
+ * Node.js runtime assigns globalThis.__turbopack_module_cache__ to this.
+ */ let devModuleCache;
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
  */ let runtimeModules;
-/**
- * Whether to set `module.loaded` once a module has evaluated, as Node.js does
- * for CommonJS modules. Set by the Node.js dev runtime.
- */ let markDevModulesLoaded = false;
 /**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
@@ -1267,7 +1273,7 @@ function formatDependencyChain(dependencyChain) {
                 dependencyChain
             };
         }
-        const module = moduleCache.get(moduleId);
+        const module = devModuleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (// The module is not in the cache. Since this is a "modified" update,
         // it means that the module was never instantiated before.
@@ -1295,7 +1301,7 @@ function formatDependencyChain(dependencyChain) {
             continue;
         }
         for (const parentId of module.parents){
-            const parent = moduleCache.get(parentId);
+            const parent = devModuleCache.get(parentId);
             if (!parent) {
                 continue;
             }
@@ -1494,7 +1500,7 @@ function formatDependencyChain(dependencyChain) {
  */ function computeOutdatedSelfAcceptedModules(outdatedModules) {
     const outdatedSelfAcceptedModules = [];
     for (const moduleId of outdatedModules){
-        const module = moduleCache.get(moduleId);
+        const module = devModuleCache.get(moduleId);
         const hotState = moduleHotState.get(module);
         if (module && hotState?.selfAccepted && !hotState.selfInvalidated) {
             outdatedSelfAcceptedModules.push({
@@ -1509,10 +1515,10 @@ function formatDependencyChain(dependencyChain) {
  * Disposes of an instance of a module.
  * Runs hot.dispose handlers and manages persistent hot data.
  *
- * NOTE: mode = "replace" will not remove modules from moduleCache.
+ * NOTE: mode = "replace" will not remove modules from devModuleCache.
  * This must be done in a separate step afterwards.
  */ function disposeModule(moduleId, mode) {
-    const module = moduleCache.get(moduleId);
+    const module = devModuleCache.get(moduleId);
     if (!module) {
         return;
     }
@@ -1536,7 +1542,7 @@ function formatDependencyChain(dependencyChain) {
     // It will be added back once the module re-instantiates and imports its
     // children again.
     for (const childId of module.children){
-        const child = moduleCache.get(childId);
+        const child = devModuleCache.get(childId);
         if (!child) {
             continue;
         }
@@ -1547,7 +1553,7 @@ function formatDependencyChain(dependencyChain) {
     }
     switch(mode){
         case 'clear':
-            moduleCache.delete(module.id);
+            devModuleCache.delete(module.id);
             moduleHotData.delete(module.id);
             break;
         case 'replace':
@@ -1571,18 +1577,16 @@ function formatDependencyChain(dependencyChain) {
     // We also want to keep track of previous parents of the outdated modules.
     const outdatedModuleParents = new Map();
     for (const moduleId of outdatedModules){
-        const oldModule = moduleCache.get(moduleId);
-        if (oldModule) {
-            outdatedModuleParents.set(moduleId, oldModule.parents);
-        }
-        moduleCache.delete(moduleId);
+        const oldModule = devModuleCache.get(moduleId);
+        outdatedModuleParents.set(moduleId, oldModule?.parents);
+        devModuleCache.delete(moduleId);
     }
     // Remove outdated dependencies from parent module's children list.
     // When a parent accepts a child's update, the child is re-instantiated
     // but the parent stays alive. We remove the old child reference so it
     // gets re-added when the child re-imports.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = moduleCache.get(parentId);
+        const module = devModuleCache.get(parentId);
         if (module) {
             for (const dep of deps){
                 const idx = module.children.indexOf(dep);
@@ -1597,48 +1601,24 @@ function formatDependencyChain(dependencyChain) {
     };
 }
 /* eslint-disable @typescript-eslint/no-unused-vars */ /**
- * Instantiates a module in development mode.
- *
- * This calls the module factory directly, and allows different runtimes to supply hooks via
- * `interceptDevModuleExecution`/`createDevModuleContext` hooks.
- */ function instantiateModule(moduleId, sourceType, sourceData) {
-    const moduleFactory = moduleFactories.get(moduleId);
+ * Shared module instantiation logic.
+ * This handles the full module instantiation flow for both browser and Node.js.
+ * Only React Refresh hooks differ between platforms (passed as callback).
+ */ function instantiateModuleShared(moduleId, sourceType, sourceData, moduleFactories, devModuleCache, runtimeModules, createModuleObjectFn, createContextFn, runModuleExecutionHooksFn) {
+    // 1. Factory validation (same in both browser and Node.js)
+    const id = moduleId;
+    const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
         throw new Error(factoryNotAvailableMessage(moduleId, sourceType, sourceData) + `\nThis is often caused by a stale browser cache, misconfigured Cache-Control headers, or a service worker serving outdated responses.` + `\nTo fix this, make sure your Cache-Control headers allow revalidation of chunks and review your service worker configuration. ` + `As an immediate workaround, try hard-reloading the page, clearing the browser cache, or unregistering any service workers.`);
     }
-    const module = createDevModule(moduleId, sourceType, sourceData);
-    const exports = module.exports;
-    const finishExecution = interceptDevModuleExecution(module);
-    try {
-        // Called like in the production runtimes, without a `this`, which keeps
-        // this frame smaller.
-        moduleFactory(createDevModuleContext(module, exports, finishExecution !== undefined), module, exports);
-    } catch (error) {
-        module.error = error;
-        throw error;
-    } finally{
-        finishExecution?.();
-    }
-    if (markDevModulesLoaded) {
-        ;
-        module.loaded = true;
-    }
-    if (module.namespaceObject && module.exports !== module.namespaceObject) {
-        // in case of a circular dependency: cjs1 -> esm2 -> cjs1
-        interopEsm(module.exports, module.namespaceObject);
-    }
-    return module;
-}
-/**
- * Creates a module object with its hot API and parents, and adds it to the
- * module cache.
- */ function createDevModule(moduleId, sourceType, sourceData) {
-    const hotData = moduleHotData.get(moduleId);
-    const { hot, hotState } = createModuleHot(moduleId, hotData);
+    // 2. Hot API setup (same in both - works for browser, included for Node.js)
+    const hotData = moduleHotData.get(id);
+    const { hot, hotState } = createModuleHot(id, hotData);
+    // 3. Parent assignment logic (same in both)
     let parents;
     switch(sourceType){
         case SourceType.Runtime:
-            runtimeModules.add(moduleId);
+            runtimeModules.add(id);
             parents = [];
             break;
         case SourceType.Parent:
@@ -1652,12 +1632,29 @@ function formatDependencyChain(dependencyChain) {
         default:
             throw new Error(`Unknown source type: ${sourceType}`);
     }
-    // The module object becomes a HotModule once `hot` is assigned.
-    const module = createModuleWithDirection(moduleId);
+    // 4. Module creation (platform creates base module object)
+    const module = createModuleObjectFn(id);
+    const exports = module.exports;
     module.parents = parents;
+    module.children = [];
     module.hot = hot;
-    moduleCache.set(moduleId, module);
+    devModuleCache.set(id, module);
     moduleHotState.set(module, hotState);
+    // 5. Module execution (React Refresh hooks are platform-specific)
+    try {
+        runModuleExecutionHooksFn(module, (refresh)=>{
+            const context = createContextFn(module, exports, refresh);
+            moduleFactory.call(exports, context, module, exports);
+        });
+    } catch (error) {
+        module.error = error;
+        throw error;
+    }
+    // 6. ESM interop (same in both)
+    if (module.namespaceObject && module.exports !== module.namespaceObject) {
+        // in case of a circular dependency: cjs1 -> esm2 -> cjs1
+        interopEsm(module.exports, module.namespaceObject);
+    }
     return module;
 }
 /**
@@ -1764,7 +1761,7 @@ function formatDependencyChain(dependencyChain) {
 /**
  * Updates module factories and re-instantiates self-accepted modules.
  * Uses the instantiateModule function (platform-specific via callback).
- */ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, instantiateModuleFn, applyModuleFactoryNameFn, reportError) {
+ */ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError) {
     // Update module factories
     for (const [moduleId, factory] of newModuleFactories.entries()){
         applyModuleFactoryNameFn(factory);
@@ -1775,7 +1772,7 @@ function formatDependencyChain(dependencyChain) {
     // This runs BEFORE re-instantiating self-accepted modules, matching
     // webpack's behavior.
     for (const [parentId, deps] of outdatedDependencies){
-        const module = moduleCache.get(parentId);
+        const module = devModuleCache.get(parentId);
         if (!module) continue;
         const hotState = moduleHotState.get(module);
         if (!hotState) continue;
@@ -1825,7 +1822,7 @@ function formatDependencyChain(dependencyChain) {
                 try {
                     errorHandler(err, {
                         moduleId,
-                        module: moduleCache.get(moduleId)
+                        module: devModuleCache.get(moduleId)
                     });
                 } catch (err2) {
                     reportError(err2);
@@ -1842,7 +1839,7 @@ function formatDependencyChain(dependencyChain) {
  * invalidation, disposal, and application of new modules.
  *
  * @param autoAcceptRootModules - If true, root modules auto-accept updates without explicit module.hot.accept()
- */ function applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules) {
+ */ function applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules) {
     ;
     ({ outdatedModules, outdatedDependencies } = applyInvalidatedModules(outdatedModules, outdatedDependencies, autoAcceptRootModules));
     // Find self-accepted modules to re-instantiate
@@ -1853,13 +1850,13 @@ function formatDependencyChain(dependencyChain) {
     function reportError(err) {
         if (!error) error = err; // Keep first error
     }
-    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, instantiateModuleFn, applyModuleFactoryNameFn, reportError);
+    applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedModuleParents, outdatedDependencies, moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, reportError);
     if (error) {
         throw error;
     }
     // Recursively apply any queued invalidations from new module execution
     if (queuedInvalidatedModules.size > 0) {
-        applyInternal(new Set(), new Map(), [], new Map(), instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules);
+        applyInternal(new Set(), new Map(), [], new Map(), moduleFactories, devModuleCache, instantiateModuleFn, applyModuleFactoryNameFn, autoAcceptRootModules);
     }
 }
 /**
@@ -1870,9 +1867,9 @@ function formatDependencyChain(dependencyChain) {
  *                                   module.hot.accept(). Used for server-side HMR where pages
  *                                   auto-accept at the top level.
  */ function applyEcmascriptMergedUpdateShared(options) {
-    const { added, modified, disposedModules, evalModuleEntry, instantiateModule, applyModuleFactoryName, autoAcceptRootModules } = options;
+    const { added, modified, disposedModules, evalModuleEntry, instantiateModule, applyModuleFactoryName, moduleFactories, devModuleCache, autoAcceptRootModules } = options;
     const { outdatedModules, outdatedDependencies, newModuleFactories } = computeOutdatedModules(added, modified, evalModuleEntry, autoAcceptRootModules);
-    applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, instantiateModule, applyModuleFactoryName, autoAcceptRootModules);
+    applyInternal(outdatedModules, outdatedDependencies, disposedModules, newModuleFactories, moduleFactories, devModuleCache, instantiateModule, applyModuleFactoryName, autoAcceptRootModules);
 }
 /// <reference path="../../../shared/runtime/dev-globals.d.ts" />
 /// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
@@ -1884,8 +1881,9 @@ const devContextPrototype = Context.prototype;
  *
  * It will be appended to the runtime code of each runtime right after the
  * shared runtime utils.
- */ /* eslint-disable @typescript-eslint/no-unused-vars */ devContextPrototype.c = moduleCache;
-// Assign browser's runtime modules to shared HMR state
+ */ /* eslint-disable @typescript-eslint/no-unused-vars */ // Assign browser's module cache and runtime modules to shared HMR state
+devModuleCache = new Map();
+devContextPrototype.c = devModuleCache;
 runtimeModules = new Set();
 // Set flag to indicate we use ModuleWithDirection
 createModuleWithDirectionFlag = true;
@@ -1914,7 +1912,15 @@ createModuleWithDirectionFlag = true;
  * Gets or instantiates a runtime module.
  */ // @ts-ignore
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    return getCachedModule(moduleCache, moduleId) ?? instantiateModule(moduleId, SourceType.Runtime, chunkPath);
+    const module = devModuleCache.get(moduleId);
+    if (module) {
+        if (module.error) {
+            throw module.error;
+        }
+        return module;
+    }
+    // @ts-ignore
+    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
@@ -1923,11 +1929,14 @@ const getOrInstantiateModuleFromParent = (id, sourceModule)=>{
     if (!sourceModule.hot.active) {
         console.warn(`Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`);
     }
+    const module = devModuleCache.get(id);
     if (sourceModule.children.indexOf(id) === -1) {
         sourceModule.children.push(id);
     }
-    const module = getCachedModule(moduleCache, id);
     if (module) {
+        if (module.error) {
+            throw module.error;
+        }
         if (module.parents.indexOf(sourceModule.id) === -1) {
             module.parents.push(sourceModule.id);
         }
@@ -1940,6 +1949,18 @@ function DevContext(module, exports, refresh) {
     this.k = refresh;
 }
 DevContext.prototype = Context.prototype;
+function instantiateModule(moduleId, sourceType, sourceData) {
+    // Browser: creates base HotModule object (hot API added by shared code)
+    const createModuleObjectFn = (id)=>{
+        return createModuleObject(id);
+    };
+    // Browser: creates DevContext with refresh
+    const createContext = (module, exports, refresh)=>{
+        return new DevContext(module, exports, refresh);
+    };
+    // Use shared instantiation logic (includes hot API setup)
+    return instantiateModuleShared(moduleId, sourceType, sourceData, moduleFactories, devModuleCache, runtimeModules, createModuleObjectFn, createContext, runModuleExecutionHooks);
+}
 const DUMMY_REFRESH_CONTEXT = {
     register: (_type, _id)=>{},
     signature: ()=>(_type)=>{},
@@ -1948,24 +1969,26 @@ const DUMMY_REFRESH_CONTEXT = {
 /**
  * NOTE(alexkirsz) Webpack has a "module execution" interception hook that
  * Next.js' React Refresh runtime hooks into to add module context to the
- * refresh registry. The returned cleanup restores the previous registry.
- */ function interceptDevModuleExecution(module) {
+ * refresh registry.
+ */ function runModuleExecutionHooks(module, executeModule) {
     if (typeof globalThis.$RefreshInterceptModuleExecution$ === 'function') {
-        return globalThis.$RefreshInterceptModuleExecution$(module.id);
+        const cleanupReactRefreshIntercept = globalThis.$RefreshInterceptModuleExecution$(module.id);
+        try {
+            executeModule({
+                register: globalThis.$RefreshReg$,
+                signature: globalThis.$RefreshSig$,
+                registerExports: registerExportsAndSetupBoundaryForReactRefresh
+            });
+        } finally{
+            // Always cleanup the intercept, even if module execution failed.
+            cleanupReactRefreshIntercept();
+        }
+    } else {
+        // If the react refresh hooks are not installed we need to bind dummy functions.
+        // This is expected when running in a Web Worker.  It is also common in some of
+        // our test environments.
+        executeModule(DUMMY_REFRESH_CONTEXT);
     }
-    return undefined;
-}
-/**
- * Creates the module's context. When the execution was intercepted,
- * `$RefreshReg$` and `$RefreshSig$` already belong to this module.
- */ function createDevModuleContext(module, exports, intercepted) {
-    return new DevContext(module, exports, intercepted ? {
-        register: globalThis.$RefreshReg$,
-        signature: globalThis.$RefreshSig$,
-        registerExports: registerExportsAndSetupBoundaryForReactRefresh
-    } : // This is expected when running in a Web Worker.  It is also common in some of
-    // our test environments.
-    DUMMY_REFRESH_CONTEXT);
 }
 /**
  * This is adapted from https://github.com/vercel/next.js/blob/3466862d9dc9c8bb3131712134d38757b918d1c0/packages/react-refresh-utils/internal/ReactRefreshModule.runtime.ts
@@ -2090,6 +2113,8 @@ function applyEcmascriptMergedUpdate(update) {
         evalModuleEntry: _eval,
         instantiateModule,
         applyModuleFactoryName,
+        moduleFactories,
+        devModuleCache,
         autoAcceptRootModules: false
     });
 }
@@ -2237,7 +2262,9 @@ function registerChunk(registration) {
     } else {
         let chunkPath = getPathFromScript(chunk);
         runtimeParams = undefined;
-        installCompressedModuleFactories(registration, /* offset= */ 1, (id)=>addModuleToChunk(id, chunkPath));
+        installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories, (id)=>addModuleToChunk(id, chunkPath));
+        // Module factories are available as soon as their chunk registers.
+        registerLoadedChunk(chunk);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -2283,68 +2310,25 @@ function getAssetSuffixFromScriptSrc() {
     const qi = src.indexOf('?');
     return qi >= 0 ? src.slice(qi) : '';
 }
-/**
- * Whether a `src` / `href` attribute value refers to `url`: either exactly, or
- * with an additional query string (e.g. `?dpl=...`). Also matches the decoded
- * form of `url`.
- *
- * TODO(PACK-2140): drop the decoded variant once all filenames are guaranteed
- * to be escaped.
- */ function matchesChunkUrl(value, url, decodedUrl) {
-    return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?'));
-}
-// These lookups only search `<head>`: the runtime inserts its chunk tags there,
-// and chunk tags rendered into the HTML are expected there too. Tags in
-// `<body>` are deliberately ignored, so that the cost of a lookup does not grow
-// with the size of the page content. A chunk whose tag is only in `<body>` is
-// loaded again through a new tag in `<head>`, and unloading a chunk leaves its
-// `<body>` tags in place.
-//
-// They iterate the tag collection and compare attribute values as plain
-// strings. `querySelectorAll` with attribute selectors would need the URL to be
-// CSS-escaped.
-/**
- * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
- */ function findChunkScripts(url) {
-    const decodedUrl = decodeURI(url);
-    const scripts = document.head.getElementsByTagName('script');
-    const result = [];
-    for(let i = 0; i < scripts.length; i++){
-        const script = scripts[i];
-        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
-            result.push(script);
-        }
-    }
-    return result;
-}
-/**
- * Returns all `<link>` elements in `<head>` whose `href` refers to `url`.
- * With `stylesheetsOnly`, only links whose `rel` is exactly `stylesheet`
- * (ASCII case-insensitive) are returned.
- */ function findChunkLinks(url, stylesheetsOnly = false) {
-    const decodedUrl = decodeURI(url);
-    const links = document.head.getElementsByTagName('link');
-    const result = [];
-    for(let i = 0; i < links.length; i++){
-        const link = links[i];
-        if ((!stylesheetsOnly || link.getAttribute('rel')?.toLowerCase() === 'stylesheet') && matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)) {
-            result.push(link);
-        }
-    }
-    return result;
-}
-/**
- * Returns all `<link rel=stylesheet>` elements in `<head>` whose `href`
- * refers to `url`.
- */ function findChunkStylesheets(url) {
-    return findChunkLinks(url, true);
-}
 let BACKEND;
 /**
  * Maps chunk paths to the corresponding resolver.
  */ const chunkResolvers = new Map();
 (()=>{
     BACKEND = {
+        getExtraLoadedChunkPaths () {
+            if (typeof document === 'undefined') return [];
+            // Initial stylesheets can be inserted directly by the HTML before the
+            // runtime starts; they never go through the chunk loader.
+            const paths = [];
+            for (const link of document.querySelectorAll('link[rel="stylesheet"][href]')){
+                const href = link.getAttribute('href');
+                if (href && link.sheet && href.startsWith(RUNTIME_CHUNK_BASE_PATH) && isCss(href)) {
+                    paths.push(chunkUrlToPath(href));
+                }
+            }
+            return paths;
+        },
         async registerChunk (chunk, params) {
             // `chunk` is `undefined` for an inlined entry-only registration, which has no source chunk.
             let chunkPath;
@@ -2393,6 +2377,11 @@ let BACKEND;
                 promise,
                 resolve: ()=>{
                     resolver.resolved = true;
+                    // CSS chunks have no module factories and never call registerChunk.
+                    // Record them when the stylesheet is available instead.
+                    if (isCss(chunkUrl)) {
+                        registerLoadedChunk(chunkUrlToPath(chunkUrl));
+                    }
                     resolve();
                 },
                 reject: reject
@@ -2478,8 +2467,10 @@ let BACKEND;
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
         } else {
+            // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
+            const decodedChunkUrl = decodeURI(chunkUrl);
             if (isCss(chunkUrl)) {
-                const previousLinks = findChunkStylesheets(chunkUrl);
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
                 if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
@@ -2508,9 +2499,9 @@ let BACKEND;
                     document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
-                const previousScripts = findChunkScripts(chunkUrl);
+                const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
                 if (previousScripts.length > 0) {
-                    for (const script of previousScripts){
+                    for (const script of Array.from(previousScripts)){
                         script.addEventListener('error', ()=>{
                             // Drop the failed tag so a retry can re-add it cleanly.
                             script.remove();
@@ -2559,16 +2550,21 @@ let DEV_BACKEND;
             // Strip query string so we match links regardless of cache-busting
             // params (e.g. ?ts=) that may differ between HMR updates.
             const baseChunkUrl = chunkUrl.split('?')[0];
+            // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
+            const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
             if (isCss(chunkUrl)) {
-                for (const link of findChunkLinks(baseChunkUrl)){
+                unregisterLoadedChunk(chunkUrlToPath(chunkUrl));
+                const links = document.querySelectorAll(`link[href="${baseChunkUrl}"],link[href^="${baseChunkUrl}?"],link[href="${decodedBaseChunkUrl}"],link[href^="${decodedBaseChunkUrl}?"]`);
+                for (const link of Array.from(links)){
                     link.remove();
                 }
             } else if (isJs(chunkUrl)) {
                 // Unloading a JS chunk would have no effect, as it lives in the JS
                 // runtime once evaluated.
-                // However, we still want to remove the script tag from `<head>` to keep
+                // However, we still want to remove the script tag from the DOM to keep
                 // the HTML somewhat consistent from the user's perspective.
-                for (const script of findChunkScripts(baseChunkUrl)){
+                const scripts = document.querySelectorAll(`script[src="${baseChunkUrl}"],script[src^="${baseChunkUrl}?"],script[src="${decodedBaseChunkUrl}"],script[src^="${decodedBaseChunkUrl}?"]`);
+                for (const script of Array.from(scripts)){
                     script.remove();
                 }
             } else {
@@ -2584,7 +2580,8 @@ let DEV_BACKEND;
                 // Strip query string so we match links regardless of cache-busting
                 // params (e.g. ?ts=) that may differ between HMR updates.
                 const baseChunkUrl = chunkUrl.split('?')[0];
-                const previousLinks = findChunkStylesheets(baseChunkUrl);
+                const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`);
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
                 link.crossOrigin = CROSS_ORIGIN;
@@ -2614,9 +2611,9 @@ let DEV_BACKEND;
                     // First load the new CSS, then remove the old ones. This prevents visible
                     // flickering that would happen in-between removing the previous CSS and
                     // loading the new one.
-                    for (const previousLink of previousLinks)previousLink.remove();
-                    // CSS chunks do not register themselves, and as such must be marked as
-                    // loaded instantly.
+                    for (const previousLink of Array.from(previousLinks))previousLink.remove();
+                    // CSS chunks do not register themselves; record the reloaded stylesheet.
+                    registerLoadedChunk(chunkUrlToPath(chunkUrl));
                     resolve();
                 };
                 if (previousLinks.length === 0) {
@@ -2659,5 +2656,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=bdf2a5bb-33ac-1b9f-2ecf-28033b73cc7f
+//# debugId=0d0afa13-573e-ca83-5e2b-a015e0fe4f3b
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
