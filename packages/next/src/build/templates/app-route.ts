@@ -28,6 +28,7 @@ import {
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { sendResponse } from '../../server/send-response'
+import { isNullBodyStatus } from '../../server/web/http'
 import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
@@ -467,14 +468,15 @@ export async function handler(
         )
       }
 
+      const status = cacheEntry.value.status || 200
+      // The cached body is an empty buffer for null body statuses, which the
+      // Response constructor rejects.
+      const body = isNullBodyStatus(status) ? null : cacheEntry.value.body
       await sendResponse(
         nodeNextReq,
         nodeNextRes,
         // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'.
-        new Response(cacheEntry.value.body, {
-          headers,
-          status: cacheEntry.value.status || 200,
-        })
+        new Response(body, { headers, status })
       )
       return
     } catch (err) {

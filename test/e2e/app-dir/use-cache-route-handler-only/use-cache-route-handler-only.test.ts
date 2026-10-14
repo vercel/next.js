@@ -97,6 +97,28 @@ describe('use-cache-route-handler-only', () => {
     expect(getOutput()).toIncludeRepeated(escapeStringRegexp(generating), 1)
   })
 
+  if (isNextDeploy) {
+    // `next start` answers non-GET/HEAD requests for prerendered routes with a
+    // 405, but on Vercel they invoke the function, which regenerates the route
+    // through the prerender path.
+    it('should respond to auto-implemented OPTIONS requests', async () => {
+      const response = await next.fetch('/options-auto-implemented', {
+        method: 'OPTIONS',
+      })
+
+      expect(response.status).toBe(204)
+      expect(response.headers.get('allow')).toContain('GET')
+      expect(await response.text()).toBe('')
+    })
+  }
+
+  it('should prerender route handlers that respond with 204', async () => {
+    const response = await next.fetch('/no-content')
+
+    expect(response.status).toBe(204)
+    expect(await response.text()).toBe('')
+  })
+
   it('should be able to revalidate prerendered route handlers', async () => {
     const response1 = await next.fetch('/node')
     const { date1: date1a } = await response1.json()
