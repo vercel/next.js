@@ -688,6 +688,44 @@ struct AggregationUpdateJobGuard {
     _guard: Option<tracing::span::EnteredSpan>,
 }
 
+/// A FIFO queue that stores its front element inline, so a queue that only ever holds a single
+/// job doesn't allocate. That is the common case: every `connect_child` with activeness tracking
+/// runs a queue with just one `IncreaseActiveCount`.
+struct JobQueue<T> {
+    /// The front of the queue. `None` implies `rest` is empty.
+    front: Option<T>,
+    rest: VecDeque<T>,
+}
+
+impl<T> Default for JobQueue<T> {
+    fn default() -> Self {
+        Self {
+            front: None,
+            rest: VecDeque::new(),
+        }
+    }
+}
+
+impl<T> JobQueue<T> {
+    fn is_empty(&self) -> bool {
+        self.front.is_none()
+    }
+
+    fn push_back(&mut self, item: T) {
+        if self.front.is_none() {
+            self.front = Some(item);
+        } else {
+            self.rest.push_back(item);
+        }
+    }
+
+    fn pop_front(&mut self) -> Option<T> {
+        let item = self.front.take()?;
+        self.front = self.rest.pop_front();
+        Some(item)
+    }
+}
+
 /// A balancing job that is enqueued. See `balance_edge`.
 struct BalanceJob {
     upper_id: TaskId,
@@ -830,7 +868,7 @@ pub struct AggregationUpdateQueueStats {
 /// A queue for aggregation update jobs.
 #[derive(Default)]
 pub struct AggregationUpdateQueue {
-    jobs: VecDeque<AggregationUpdateJobItem>,
+    jobs: JobQueue<AggregationUpdateJobItem>,
     aggregation_number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
     done_aggregation_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
     find_and_schedule: FxRingSet<FindAndScheduleJob>,
@@ -848,7 +886,7 @@ impl AggregationUpdateQueue {
     /// Creates a new empty queue.
     pub fn new() -> Self {
         Self {
-            jobs: VecDeque::with_capacity(0),
+            jobs: JobQueue::default(),
             aggregation_number_updates: FxIndexMap::default(),
             done_aggregation_number_updates: FxHashMap::default(),
             find_and_schedule: FxRingSet::default(),
@@ -3523,5 +3561,29 @@ fn retry_loop(mut retry: u16, mut f: impl FnMut() -> ControlFlow<()>) -> Result<
         } else {
             time = Some(Instant::now());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::JobQueue;
+
+    #[test]
+    fn job_queue_is_fifo() {
+        let mut queue = JobQueue::default();
+        assert!(queue.is_empty());
+        queue.push_back(1);
+        assert!(!queue.is_empty());
+        // A single job stays inline.
+        assert_eq!(queue.rest.capacity(), 0);
+        queue.push_back(2);
+        queue.push_back(3);
+        assert_eq!(queue.pop_front(), Some(1));
+        queue.push_back(4);
+        assert_eq!(queue.pop_front(), Some(2));
+        assert_eq!(queue.pop_front(), Some(3));
+        assert_eq!(queue.pop_front(), Some(4));
+        assert!(queue.is_empty());
+        assert_eq!(queue.pop_front(), None);
     }
 }
