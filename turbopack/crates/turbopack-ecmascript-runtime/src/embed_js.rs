@@ -45,7 +45,7 @@ pub async fn embed_static_code(
 ///   `@turbopack/module-cache`).
 ///
 /// This import map is injected automatically by
-/// [`ModuleAssetContext::resolve_options`] so that every Turbopack-processed
+/// `ModuleAssetContext::resolve_options` so that every Turbopack-processed
 /// module can resolve these paths without per-consumer configuration.
 ///
 /// As more parts of the turbopack runtime are extracted into importable

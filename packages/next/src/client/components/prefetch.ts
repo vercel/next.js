@@ -1,7 +1,6 @@
 import type { RootRouteTree } from './segment-cache/cache'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { PrefetchOptions } from '../../shared/lib/app-router-context.shared-runtime'
-import { PrefetchKind } from './router-reducer/router-reducer-types'
 import { createPrefetchURL } from './app-router-utils'
 import { getCurrentAppRouterState } from './app-router-instance'
 import { isJavaScriptURLString } from '../lib/javascript-url'
@@ -34,18 +33,17 @@ export function prefetchRoute(href: string, options?: PrefetchOptions): void {
       'Internal Next.js error: Router action dispatched before initialization.'
     )
   }
-  const prefetchKind = options?.kind ?? PrefetchKind.AUTO
+  const prefetchKind = options?.kind ?? 'auto'
 
   // We don't currently offer a way to issue a runtime prefetch via `router.prefetch()`.
-  // This will be possible when we update its API to not take a PrefetchKind.
   let fetchStrategy: PrefetchTaskFetchStrategy
   switch (prefetchKind) {
-    case PrefetchKind.AUTO: {
+    case 'auto': {
       // We default to PPR. We'll discover whether or not the route supports it with the initial prefetch.
       fetchStrategy = FetchStrategy.PPR
       break
     }
-    case PrefetchKind.FULL: {
+    case 'full': {
       fetchStrategy = FetchStrategy.Full
       break
     }

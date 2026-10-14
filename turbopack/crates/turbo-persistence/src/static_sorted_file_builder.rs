@@ -2125,14 +2125,13 @@ mod tests {
         let raw = &data[..end];
         // Each block is prefixed by BLOCK_HEADER_SIZE bytes: 4B uncompressed size + 4B checksum.
         // An uncompressed size of 0 means the block is stored as-is.
-        let uncompressed_size = BE::read_u32(raw) as usize;
+        let uncompressed_size = BE::read_u32(raw);
         let body = &raw[BLOCK_HEADER_SIZE..];
         Ok(if uncompressed_size == 0 {
             body.to_vec()
         } else {
-            let mut out = vec![0u8; uncompressed_size];
-            lz4_flex::block::decompress_into(body, &mut out)?;
-            out
+            crate::compression::decompress_into_arc(Compression::Lz4, uncompressed_size, body)?
+                .to_vec()
         })
     }
 
