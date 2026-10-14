@@ -50,20 +50,23 @@ export type Packument = {
 export const NO_RELEASE_AGE_CHECK: ReleaseAgeCheck = { gates: [] }
 
 export function getReleaseAgeChecks(directory: string): ReleaseAgeChecks {
+  // Each manager is probed once, even when it both installs and runs npx/dlx.
+  const gates = new Map<PackageManager, ReleaseAgeGate | null>()
+  const read = (manager: PackageManager, cwd: string) => {
+    if (!gates.has(manager)) {
+      gates.set(manager, readGate(cwd, manager))
+    }
+    return gates.get(manager) ?? null
+  }
   const install = tryRead(() => {
     const { manager, root } = installer(directory)
     // Bun has no release-age gate.
-    return manager === 'bun'
-      ? null
-      : readGate({ directory: root, manager, operation: 'install' })
+    return manager === 'bun' ? null : read(manager, root)
   })
-  const runner = tryRead(() =>
-    readGate({
-      directory,
-      manager: runnerManager(directory),
-      operation: 'exec',
-    })
-  )
+  const runner = tryRead(() => {
+    const manager = runnerManager(directory)
+    return execGate(manager, read(manager, directory))
+  })
   const packuments = new Map<string, Promise<Packument>>()
   return {
     install: { gates: install ? [install] : [], packuments },
@@ -157,17 +160,13 @@ async function fetchPackument(name: string): Promise<Packument> {
   return value
 }
 
-function readGate({
-  directory,
-  manager,
-  operation,
-}: {
-  directory: string
+// The gate a manager applies when it installs.
+function readGate(
+  directory: string,
   manager: PackageManager
-  operation: 'install' | 'exec'
-}): ReleaseAgeGate | null {
+): ReleaseAgeGate | null {
   if (manager === 'npm') {
-    return npmGate(directory, operation)
+    return npmGate(directory)
   }
   if (manager === 'pnpm') {
     return pnpmGate(directory)
@@ -175,10 +174,15 @@ function readGate({
   return yarnGate(directory)
 }
 
-function npmGate(
-  directory: string,
-  operation: 'install' | 'exec'
+// npm exec resolves its initial manifest without install's exemptions.
+function execGate(
+  manager: PackageManager,
+  gate: ReleaseAgeGate | null
 ): ReleaseAgeGate | null {
+  return gate && manager === 'npm' ? { ...gate, exemptions: [] } : gate
+}
+
+function npmGate(directory: string): ReleaseAgeGate | null {
   // `min-release-age` arrived in npm 11.10.0. Older npm reports a configured
   // value through `config get` but ignores it while installing.
   const keys = semver.gte(managerVersion(directory, 'npm'), '11.10.0')
@@ -209,15 +213,11 @@ function npmGate(
   }
   return {
     cutoff,
-    // npm exec resolves its initial manifest without install's exemptions.
-    exemptions:
-      operation === 'exec'
-        ? []
-        : // npm matches exemptions by name only, so a rule naming a version is
-          // a name that never matches.
-          exemptions(config.get('min-release-age-exclude')?.split(','), {
-            versions: false,
-          }),
+    // npm matches exemptions by name only, so a rule naming a version is a
+    // name that never matches.
+    exemptions: exemptions(config.get('min-release-age-exclude')?.split(','), {
+      versions: false,
+    }),
   }
 }
 

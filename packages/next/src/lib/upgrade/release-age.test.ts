@@ -241,6 +241,27 @@ describe('upgrade release age', () => {
     })
   })
 
+  it('probes a manager once when it both installs and runs', () => {
+    jest.mocked(getPkgManager).mockReturnValue('npm')
+    jest.mocked(getNpxCommand).mockReturnValue('npx --yes')
+    probes({
+      'npm --version': '11.10.0',
+      'npm config get': [
+        'before=null',
+        'min-release-age=2',
+        'min-release-age-exclude=next',
+      ].join('\n'),
+    })
+    expect(getReleaseAgeChecks(app())).toMatchObject({
+      install: {
+        gates: [{ cutoff, exemptions: [{ name: 'next', versions: null }] }],
+      },
+      // npm exec resolves its first manifest without install's exemptions.
+      runner: { gates: [gate] },
+    })
+    expect(spawn.sync).toHaveBeenCalledTimes(2)
+  })
+
   it('reads the install and runner gates from their own managers', () => {
     jest.mocked(getPkgManager).mockReturnValue('pnpm')
     jest.mocked(getNpxCommand).mockReturnValue('npx --yes')
