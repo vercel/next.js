@@ -17,11 +17,8 @@ declare const __turbopack_chunk_relative_url__: (
 declare const __turbopack_chunk_base_path__: string
 declare const __turbopack_chunk_asset_suffix__: string
 
-// JS chunks already loaded in a worker runtime that is creating a nested worker.
-// The nested chunk group omits factories already available in its parent worker,
-// so the child re-imports those chunks (functions cannot cross worker realms).
-// A worker created by a page has a self-contained chunk group instead.
-declare const __turbopack_get_loaded_chunk_paths__: (() => string[]) | undefined
+// Paths of all chunks loaded in this runtime, including stylesheets in a page.
+declare const __turbopack_get_loaded_chunk_paths__: () => string[]
 
 declare const _TURBOPACK_WORKER_FORWARDED_GLOBALS_: string[]
 declare const _TURBOPACK_WORKER_BASE_PATH_: string | null
@@ -87,8 +84,7 @@ function createWorker(
   //     wins, so a nested worker gets the correctly-pruned chunk list.
   // They travel in their own params slot — first, since they load first.
   const preloadChunkPaths = (
-    typeof document === 'undefined' &&
-    typeof __turbopack_get_loaded_chunk_paths__ === 'function'
+    typeof importScripts !== 'undefined'
       ? __turbopack_get_loaded_chunk_paths__()
       : []
   ).filter((chunkPath) => !workerChunkSet.has(chunkPath))
