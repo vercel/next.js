@@ -188,21 +188,32 @@ describe('upgrade release age', () => {
       ).toBeNull()
     })
 
-    it('honors version exemptions and leaves patterns gated', () => {
-      expect(
-        installGate('pnpm', {
-          'pnpm --version': '12.9.1',
-          'pnpm config get minimumReleaseAge --json': '2880',
-          'pnpm config get minimumReleaseAgeExclude': JSON.stringify([
-            'next@16.5.0-canary.8 || 16.4.0',
-            '@next/*',
-            '!next',
-          ]),
-        })
-      ).toEqual({
-        cutoff,
-        exemptions: [{ name: 'next', versions: ['16.5.0-canary.8', '16.4.0'] }],
-      })
+    const excluding = (rules: string[]) =>
+      installGate('pnpm', {
+        'pnpm --version': '12.9.1',
+        'pnpm config get minimumReleaseAge --json': '2880',
+        'pnpm config get minimumReleaseAgeExclude': JSON.stringify(rules),
+      })?.exemptions
+
+    it('honors names, exact versions, and wildcards', () => {
+      // This repository's own exclusions name `next` and `@next/*`.
+      expect(excluding(['@next/*', 'next'])).toEqual([
+        { name: '@next/codemod', versions: null },
+        { name: 'next', versions: null },
+      ])
+      expect(excluding(['next@16.5.0-canary.8 || 16.4.0', 'next*'])).toEqual([
+        { name: 'next', versions: ['16.5.0-canary.8', '16.4.0'] },
+        { name: 'next', versions: null },
+      ])
+    })
+
+    it('leaves other patterns gated', () => {
+      // A wildcard never crosses a scope, which is stricter than pnpm.
+      expect(excluding(['*', '@next/codemod@^16.0.0', 'nex?'])).toEqual([
+        { name: 'next', versions: null },
+      ])
+      // A negation could withdraw any rule, so none is honored.
+      expect(excluding(['next', '@next/*', '!@next/codemod'])).toEqual([])
     })
   })
 

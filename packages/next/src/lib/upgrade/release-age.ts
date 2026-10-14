@@ -6,7 +6,8 @@ import semver from 'next/dist/compiled/semver'
 import { getNpxCommand } from '../helpers/get-npx-command'
 import { getPkgManager, type PackageManager } from '../helpers/get-pkg-manager'
 
-export type ReleaseAgePackage = 'next' | '@next/codemod'
+const PACKAGES = ['next', '@next/codemod'] as const
+export type ReleaseAgePackage = (typeof PACKAGES)[number]
 
 // A rule that lifts the gate for one package, for every version or for an
 // explicit list of versions.
@@ -213,11 +214,10 @@ function npmGate(directory: string): ReleaseAgeGate | null {
   }
   return {
     cutoff,
-    // npm matches exemptions by name only, so a rule naming a version is a
-    // name that never matches.
-    exemptions: exemptions(config.get('min-release-age-exclude')?.split(','), {
-      versions: false,
-    }),
+    exemptions: exemptions(
+      config.get('min-release-age-exclude')?.split(','),
+      'npm'
+    ),
   }
 }
 
@@ -252,7 +252,7 @@ function pnpmGate(directory: string): ReleaseAgeGate | null {
           '--json',
         ])
       ),
-      { versions: true }
+      'pnpm'
     ),
   }
 }
@@ -287,9 +287,7 @@ function yarnGate(directory: string): ReleaseAgeGate | null {
   }
   return {
     cutoff,
-    exemptions: exemptions(settings.get('npmPreapprovedPackages'), {
-      versions: true,
-    }),
+    exemptions: exemptions(settings.get('npmPreapprovedPackages'), 'yarn'),
   }
 }
 
@@ -405,10 +403,7 @@ function strictest(cutoffs: number[]): number | null {
   return known.length === 0 ? null : Math.min(...known)
 }
 
-function exemptions(
-  value: unknown,
-  { versions }: { versions: boolean }
-): Exemption[] {
+function exemptions(value: unknown, manager: PackageManager): Exemption[] {
   if (value === undefined || value === null) {
     return []
   }
@@ -420,25 +415,41 @@ function exemptions(
       'Invalid release-age exclusions in package manager configuration.'
     )
   }
-  return (value as string[]).flatMap((rule): Exemption[] => {
-    const trimmed = rule.trim()
-    // Only a plain name, or a name with explicit versions, is honored. Glob
-    // and range dialects differ per manager, and leaving them gated is the
-    // safe reading.
-    if (!trimmed || /[*!?+[(]/.test(trimmed)) {
+  const rules = (value as string[]).map((rule) => rule.trim()).filter(Boolean)
+  // A negation can withdraw any other rule, so honor none rather than replay
+  // the manager's ordering.
+  if (rules.some((rule) => rule.startsWith('!'))) {
+    return []
+  }
+  return rules.flatMap((rule): Exemption[] => {
+    // Names, exact versions, and pnpm/Yarn `*` wildcards are honored. Other
+    // glob and range syntax differs per manager, so it stays gated.
+    if (/[?+[({]/.test(rule) || (manager === 'npm' && rule.includes('*'))) {
       return []
     }
-    const separator = trimmed.indexOf('@', trimmed.startsWith('@') ? 1 : 0)
-    if (separator < 0) {
-      return [{ name: trimmed, versions: null }]
+    const separator = rule.indexOf('@', rule.startsWith('@') ? 1 : 0)
+    let versions: string[] | null = null
+    if (separator >= 0) {
+      const requested = rule
+        .slice(separator + 1)
+        .split('||')
+        .map((entry) => semver.valid(entry.trim()))
+      // npm matches names only, so a rule naming a version never matches.
+      if (manager === 'npm' || requested.some((entry) => entry === null)) {
+        return []
+      }
+      versions = requested as string[]
     }
-    const requested = trimmed
-      .slice(separator + 1)
-      .split('||')
-      .map((entry) => semver.valid(entry.trim()))
-    return versions && requested.every((entry) => entry !== null)
-      ? [{ name: trimmed.slice(0, separator), versions: requested as string[] }]
-      : []
+    // `*` stops at `/` as in Yarn, which is never looser than pnpm's.
+    const name = new RegExp(
+      `^${(separator < 0 ? rule : rule.slice(0, separator))
+        .split('*')
+        .map((part) => part.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&'))
+        .join('[^/]*')}$`
+    )
+    return PACKAGES.filter((packageName) => name.test(packageName)).map(
+      (packageName) => ({ name: packageName, versions })
+    )
   })
 }
 
