@@ -106,7 +106,7 @@ Pass `./src/app` in a `src/` project. A wrong path reports `0 ok` instead of fai
 
 `instant = false` does not clear synchronous IO build errors. Calls such as `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` still fail during prerendering.
 
-To produce a fresh value for each request, wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense) and call [`io()`](/docs/app/api-reference/functions/io) before reading it. During prerendering, `io()` suspends and the fallback becomes part of the static shell. During a request or in the browser, `io()` resolves immediately.
+Choose the fix that preserves the existing rendering behavior. If the value should be captured and reused, read it inside [`use cache`](/docs/app/api-reference/directives/use-cache). To keep producing it during request-time rendering, wrap the component in [`<Suspense>`](https://react.dev/reference/react/Suspense). The fallback becomes part of the static shell while the component renders for the request.
 
 ```tsx filename="app/page.tsx"
 import { Suspense } from 'react'
@@ -121,18 +121,18 @@ export default function Page() {
 }
 ```
 
-In a Server Component, call `await io()`:
+In a Server Component, call [`connection()`](/docs/app/api-reference/functions/connection) before reading the value. This waits for an actual request, preserving request-time server rendering:
 
 ```tsx filename="app/current-time.tsx"
-import { io } from 'next/cache'
+import { connection } from 'next/server'
 
 export async function CurrentTime() {
-  await io()
+  await connection()
   return <p>{new Date().toISOString()}</p>
 }
 ```
 
-In a Client Component, call `use(io())`:
+In a Client Component, call [`use(io())`](/docs/app/api-reference/functions/io). `connection()` is server-only. `io()` suspends during prerendering, then resolves during request-time rendering or in the browser:
 
 ```tsx filename="app/current-time.tsx"
 'use client'
