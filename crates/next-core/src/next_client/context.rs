@@ -15,7 +15,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkLoadRetry, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin,
-        MangleType, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        MangleType, MinifyType, SourceMapSourceType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -26,6 +26,7 @@ use turbopack_core::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
     resolve::{parse::Request, pattern::Pattern},
+    source_map::OptionSourceMapType,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
@@ -491,7 +492,7 @@ pub struct ClientChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<SourceMapsType>,
+    pub source_maps: Vc<OptionSourceMapType>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
@@ -671,7 +672,7 @@ pub struct ServiceWorkerChunkingContextOptions {
     pub output_root_to_root_path: RcStr,
     pub environment: Vc<Environment>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<SourceMapsType>,
+    pub source_maps: Vc<OptionSourceMapType>,
     pub no_mangling: Vc<bool>,
     pub hash_salt: ResolvedVc<RcStr>,
 }

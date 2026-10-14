@@ -17,13 +17,13 @@ use turbo_tasks_fs::{
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
     ident::Layer,
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceTypeCondition,
         UrlReferenceSubType,
     },
     resolve::options::{ImportMap, ImportMapping},
+    source_map::SourceMapType,
 };
 use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
@@ -337,7 +337,7 @@ impl ModuleOptions {
             url_rewrite_behavior: esm_url_rewrite_behavior,
             import_externals,
             ignore_dynamic_requests,
-            extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
+            extract_source_map: matches!(ecmascript_source_maps, Some(SourceMapType::Full)),
             keep_last_successful_parse,
             analyze_mode,
             enable_typeof_window_inlining,
@@ -507,7 +507,7 @@ impl ModuleOptions {
                                     webpack_loaders_options.mode.clone(),
                                     rule.rename_as.clone(),
                                     resolve_options_context,
-                                    matches!(ecmascript_source_maps, SourceMapsType::Full),
+                                    matches!(ecmascript_source_maps, Some(SourceMapType::Full)),
                                     config_tracing_module_context(*execution_context),
                                 )
                                 .to_resolved()
@@ -925,7 +925,7 @@ impl ModuleOptions {
                                 config_tracing_module_context(*execution_context),
                                 *execution_context,
                                 options.config_location,
-                                matches!(css_source_maps, SourceMapsType::Full),
+                                matches!(css_source_maps, Some(SourceMapType::Full)),
                             )
                             .to_resolved()
                             .await?,
