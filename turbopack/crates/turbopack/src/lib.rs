@@ -43,7 +43,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::SourceMapType,
+    source_map::SourceMapGenerationOptions,
     source_transform::SourceTransforms,
 };
 use turbopack_css::{CssModule, EcmascriptCssModule};
@@ -643,10 +643,10 @@ async fn process_default_internal(
             .resolve_options_context()
             .to_resolved()
             .await?;
-        let source_maps = matches!(
-            module_options_context.ecmascript.source_maps,
-            Some(SourceMapType::Full)
-        );
+        let generate_full_source_map = module_options_context
+            .ecmascript
+            .source_map_generation_options
+            .full;
 
         // Determine the import map for loader-runner
         let loader_runner_package = webpack_loaders_options.loader_runner_package;
@@ -687,7 +687,7 @@ async fn process_default_internal(
             webpack_loaders_options.mode.clone(),
             rename_as.clone(),
             *resolve_options_context,
-            source_maps,
+            generate_full_source_map,
             config_tracing_module_context(*execution_context),
         )
         .to_resolved()
@@ -915,11 +915,11 @@ pub async fn externals_tracing_module_context(
                 ),
                 // enable_types should not be enabled here. It gets set automatically when a TS file
                 // is encountered.
-                source_maps: None,
+                source_map_generation_options: SourceMapGenerationOptions::NONE,
                 ..Default::default()
             },
             css: CssOptionsContext {
-                source_maps: None,
+                source_map_generation_options: SourceMapGenerationOptions::NONE,
                 enable_raw_css: true,
                 ..Default::default()
             },

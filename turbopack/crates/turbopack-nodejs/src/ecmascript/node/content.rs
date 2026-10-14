@@ -6,7 +6,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
@@ -58,10 +58,13 @@ impl EcmascriptNodeChunkContent {
         use std::io::Write;
         let source_maps = *self
             .chunking_context
-            .reference_chunk_source_maps(*ResolvedVc::upcast(self.chunk))
+            .source_map_generation_options()
             .await?;
 
-        let mut code = CodeBuilder::new(true, *self.chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new(
+            source_maps,
+            *self.chunking_context.debug_ids_enabled().await?,
+        );
         let supports_arrow_functions = *self
             .chunking_context
             .environment()
@@ -102,8 +105,8 @@ impl EcmascriptNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }
 
@@ -115,7 +118,10 @@ impl VersionedContent for EcmascriptNodeChunkContent {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| *this.source_map)
+                    .to_rope_with_magic_comments(
+                        *this.chunking_context.emitted_source_map_type().await?,
+                        || *this.source_map,
+                    )
                     .await?,
             ))
             .cell(),
