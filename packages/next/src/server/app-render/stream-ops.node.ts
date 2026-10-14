@@ -15,6 +15,7 @@ import {
 } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
 import { PassThrough, Readable, Transform } from 'node:stream'
+import * as StreamConsumers from 'node:stream/consumers'
 import { isUtf8 } from 'node:buffer'
 
 import {
@@ -22,8 +23,6 @@ import {
   continueDynamicPrerender as webContinueDynamicPrerender,
   continueStaticFallbackPrerender as webContinueStaticFallbackPrerender,
   continueDynamicHTMLResume as webContinueDynamicHTMLResume,
-  streamToBuffer as webStreamToBuffer,
-  streamToString as webStreamToString,
   createDocumentClosingStream as webCreateDocumentClosingStream,
   createRuntimePrefetchTransformStream,
   CLOSE_TAG,
@@ -926,11 +925,11 @@ export function chainStreams(...streams: AnyStream[]): AnyStream {
 }
 
 export async function streamToBuffer(stream: AnyStream): Promise<Buffer> {
-  return webStreamToBuffer(nodeReadableToWebReadableStream(stream))
+  return StreamConsumers.buffer(stream)
 }
 
 export async function streamToString(stream: AnyStream): Promise<string> {
-  return webStreamToString(nodeReadableToWebReadableStream(stream))
+  return StreamConsumers.text(stream)
 }
 
 export function createWebInlinedDataStream(
