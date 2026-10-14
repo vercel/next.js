@@ -2,7 +2,7 @@ use anyhow::Result;
 use next_core::{
     next_config::NextConfig,
     next_manifests::ProxyMatcher,
-    segment_config::{NextSegmentConfig, NextSegmentRegion, NextSegmentRsc},
+    segment_config::{NextSegmentConfig, NextSegmentRegion},
     util::NextRuntime,
 };
 use serde::Serialize;
@@ -125,8 +125,6 @@ impl Asset for StaticInfoManifestAsset {
         struct Manifest<'a> {
             #[serde(rename = "type")]
             ty: &'a str,
-            #[serde(skip_serializing_if = "Option::is_none")]
-            rsc: Option<NextSegmentRsc>,
             #[serde(skip_serializing_if = "ManifestMiddleware::is_empty")]
             middleware: ManifestMiddleware,
             #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -158,7 +156,6 @@ impl Asset for StaticInfoManifestAsset {
         };
         let json = serde_json::to_string(&Manifest {
             ty: self.ty.as_str(),
-            rsc: config.rsc,
             middleware: ManifestMiddleware {
                 matchers: config.get_proxy_matchers(
                     has_i18n,
