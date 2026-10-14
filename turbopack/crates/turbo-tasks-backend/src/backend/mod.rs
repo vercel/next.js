@@ -66,8 +66,8 @@ use crate::{
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, LeafDistanceUpdateQueue,
             OutdatedEdge, TaskGuard, TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges,
-            connect_child, connect_children, get_aggregation_number, get_uppers, invalidate,
-            make_task_dirty_internal, prepare_new_children, update_cell,
+            compute_leaf_distance_update, connect_child, connect_children, get_aggregation_number,
+            get_uppers, invalidate, make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
         storage::{Storage, StorageOptions, encode_snapshot_item},
@@ -76,7 +76,7 @@ use crate::{
     backing_storage::SnapshotItem,
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
-        InProgressState, InProgressStateInner, OutputValue, TransientTask,
+        InProgressState, InProgressStateInner, LeafDistance, OutputValue, TransientTask,
     },
     error::{TaskError, TaskErrorItem},
     kv_backing_storage::TurboBackingStorage,
@@ -913,19 +913,39 @@ impl TurboTasksBackend {
                     dependent_task = ?reader
                 )
                 .entered();
-                let mut queue = LeafDistanceUpdateQueue::new();
+                // The reader's updated leaf distance together with its output dependents, which
+                // need to be updated after all locks are released.
+                let mut leaf_distance_propagation: Option<(LeafDistance, SmallVec<[TaskId; 4]>)> =
+                    None;
+                #[cfg(feature = "trace_leaf_distance_update")]
+                let mut leaf_distance_span = None;
                 let reader = reader.unwrap();
                 if task.add_output_dependent(reader) {
-                    // Ensure that dependent leaf distance is strictly monotonic increasing
+                    // Ensure that dependent leaf distance is strictly monotonic increasing.
+                    // The reader is already locked, so update its leaf distance in place. Only
+                    // its own output dependents (if any) need to be updated via the queue.
                     let leaf_distance = task.get_leaf_distance().copied().unwrap_or_default();
-                    let reader_leaf_distance =
-                        reader_task.get_leaf_distance().copied().unwrap_or_default();
-                    if reader_leaf_distance.distance <= leaf_distance.distance {
-                        queue.push(
-                            reader,
-                            leaf_distance.distance,
-                            leaf_distance.max_distance_in_buffer,
-                        );
+                    if let Some(new_reader_leaf_distance) = compute_leaf_distance_update(
+                        reader_task.get_leaf_distance().copied().unwrap_or_default(),
+                        leaf_distance.distance,
+                        leaf_distance.max_distance_in_buffer,
+                    ) {
+                        #[cfg(feature = "trace_leaf_distance_update")]
+                        {
+                            leaf_distance_span = Some(tracing::trace_span!(
+                                "update leaf distance (inline)",
+                                dependencies_distance = leaf_distance.distance,
+                                dependencies_max_distance_in_buffer =
+                                    leaf_distance.max_distance_in_buffer
+                            ));
+                        }
+                        reader_task.set_leaf_distance(new_reader_leaf_distance);
+                        let dependents: SmallVec<[TaskId; 4]> =
+                            reader_task.iter_output_dependent().collect();
+                        if !dependents.is_empty() {
+                            leaf_distance_propagation =
+                                Some((new_reader_leaf_distance, dependents));
+                        }
                     }
                 }
 
@@ -941,7 +961,13 @@ impl TurboTasksBackend {
                 }
                 drop(reader_task);
 
-                queue.execute(&mut ctx);
+                if let Some((reader_leaf_distance, dependents)) = leaf_distance_propagation {
+                    #[cfg(feature = "trace_leaf_distance_update")]
+                    let _guard = leaf_distance_span.map(|span| span.entered());
+                    let mut queue = LeafDistanceUpdateQueue::new();
+                    queue.push_dependents(dependents, reader_leaf_distance);
+                    queue.execute(&mut ctx);
+                }
             } else {
                 drop(task);
             }
