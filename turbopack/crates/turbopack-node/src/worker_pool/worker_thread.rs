@@ -4,9 +4,13 @@ use std::{
 };
 
 use bytes::Bytes;
+use futures::{
+    FutureExt,
+    future::{BoxFuture, Shared},
+};
 use napi::{
     Status,
-    bindgen_prelude::Unknown,
+    bindgen_prelude::{Promise, Unknown},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
@@ -30,8 +34,17 @@ type FatalThreadsafeFunction<T> = ThreadsafeFunction<
 
 static WORKER_CREATOR: OnceLock<FatalThreadsafeFunction<NapiWorkerCreation>> = OnceLock::new();
 
-static WORKER_TERMINATOR: OnceLock<FatalThreadsafeFunction<NapiWorkerTermination>> =
-    OnceLock::new();
+type WorkerTerminator = ThreadsafeFunction<
+    NapiWorkerTermination,
+    Promise<()>,
+    NapiWorkerTermination,
+    Status,
+    false,
+    true,
+>;
+static WORKER_TERMINATOR: OnceLock<WorkerTerminator> = OnceLock::new();
+type Termination = Shared<BoxFuture<'static, Result<(), String>>>;
+static PENDING_TERMINATIONS: Mutex<Vec<Termination>> = Mutex::new(Vec::new());
 
 static PENDING_CREATIONS: OnceLock<Mutex<VecDeque<oneshot::Sender<u32>>>> = OnceLock::new();
 
@@ -42,8 +55,8 @@ pub fn register_worker_scheduler(
     #[napi(ts_arg_type = "(arg: NapiWorkerCreation) => any")] creator: FatalThreadsafeFunction<
         NapiWorkerCreation,
     >,
-    #[napi(ts_arg_type = "(arg: NapiWorkerTermination) => any")]
-    terminator: FatalThreadsafeFunction<NapiWorkerTermination>,
+    #[napi(ts_arg_type = "(arg: NapiWorkerTermination) => Promise<void>")]
+    terminator: WorkerTerminator,
 ) -> napi::Result<()> {
     WORKER_CREATOR
         .set(creator)
@@ -97,14 +110,41 @@ pub fn worker_created(worker_id: u32) {
 
 pub fn terminate_worker(options: Arc<WorkerOptions>, worker_id: u32) {
     if let Some(terminator) = WORKER_TERMINATOR.get() {
-        terminator.call(
-            NapiWorkerTermination {
-                options: options.into(),
-                worker_id,
-            },
-            ThreadsafeFunctionCallMode::NonBlocking,
-        );
+        let operation = async move {
+            let promise = terminator
+                .call_async_catch(NapiWorkerTermination {
+                    options: options.into(),
+                    worker_id,
+                })
+                .await
+                .map_err(|error| error.to_string())?;
+            promise.await.map_err(|error| error.to_string())
+        }
+        .boxed()
+        .shared();
+        {
+            let mut pending = PENDING_TERMINATIONS.lock();
+            pending.retain(|operation| !matches!(operation.peek(), Some(Ok(()))));
+            pending.push(operation.clone());
+        }
+        tokio::spawn(async move {
+            let _ = operation.await;
+        });
     }
+}
+
+pub(crate) async fn wait_for_terminations() -> anyhow::Result<()> {
+    // Clone the futures so cancellation cannot lose an outstanding closure acknowledgement.
+    let pending = PENDING_TERMINATIONS.lock().clone();
+    let results = futures::future::join_all(pending.iter().cloned()).await;
+    PENDING_TERMINATIONS
+        .lock()
+        .retain(|operation| !pending.iter().any(|awaited| operation.ptr_eq(awaited)));
+    let errors: Vec<_> = results.into_iter().filter_map(Result::err).collect();
+    if !errors.is_empty() {
+        anyhow::bail!("Failed to terminate loader workers: {}", errors.join("; "));
+    }
+    Ok(())
 }
 
 #[napi(object)]

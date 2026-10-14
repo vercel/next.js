@@ -8,7 +8,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{ModuleAssetContext, transition::Transition};
-use turbopack_core::{file_source::FileSource, module::Module};
+use turbopack_core::{file_source::FileSource, module::Module, source::Source};
 use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs};
 
 use crate::{
@@ -31,6 +31,7 @@ pub struct AppPageLoaderTreeBuilder {
     loader_tree_code: String,
     /// next.config.js' basePath option to construct og metadata.
     base_path: Option<RcStr>,
+    sources: FxIndexMap<FileSystemPath, ResolvedVc<Box<dyn Source>>>,
 }
 
 impl AppPageLoaderTreeBuilder {
@@ -43,6 +44,7 @@ impl AppPageLoaderTreeBuilder {
             base: BaseLoaderTreeBuilder::new(module_asset_context, server_component_transition),
             loader_tree_code: String::new(),
             base_path,
+            sources: FxIndexMap::default(),
         }
     }
 
@@ -55,7 +57,12 @@ impl AppPageLoaderTreeBuilder {
         if let Some(path) = path {
             let tuple_code = self
                 .base
-                .create_module_tuple_code(module_type, path, depth)
+                .create_module_tuple_code(
+                    module_type,
+                    path.clone(),
+                    depth,
+                    self.sources.get(&path).copied(),
+                )
                 .await?;
 
             writeln!(
@@ -351,6 +358,7 @@ impl AppPageLoaderTreeBuilder {
         let temp_loader_tree_code = take(&mut self.loader_tree_code);
 
         let AppDirModules {
+            sources,
             page,
             default,
             error,
@@ -365,6 +373,9 @@ impl AppPageLoaderTreeBuilder {
             unauthorized,
             route: _,
         } = &modules;
+
+        self.sources
+            .extend(sources.iter().map(|(path, source)| (path.clone(), *source)));
 
         // Ensure global metadata being written only once at the root level
         // Otherwise child pages will have redundant metadata

@@ -1,0 +1,46 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "reference-rsc",
+      "environment": "rsc",
+      "mode": "development",
+      "include": ["conformance/unit-direct.case.mjs"]
+    },
+    {
+      "name": "reference-conformance",
+      "environment": "rsc",
+      "mode": "development",
+      "include": [
+        "conformance/unit.case.mjs",
+        "conformance/lifecycle.case.mjs",
+        "conformance/assertions.case.mjs"
+      ]
+    },
+    {
+      "name": "reference-render",
+      "environment": "rsc",
+      "mode": "development",
+      "include": ["conformance/render.case.mjs"]
+    },
+    {
+      "name": "reference-node",
+      "environment": "node",
+      "mode": "development",
+      "include": [
+        "conformance/unit.case.mjs",
+        "conformance/lifecycle.case.mjs",
+        "conformance/assertions.case.mjs"
+      ]
+    },
+    {
+      "name": "reference-browser",
+      "environment": "browser",
+      "mode": "development",
+      "include": ["conformance/browser.case.mjs"],
+      "testTimeout": 60000,
+      "hookTimeout": 15000,
+      "fileTimeout": 180000
+    }
+  ]
+}

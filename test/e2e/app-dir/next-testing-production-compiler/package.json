@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "name": "production-test-conditions",
+  "exports": {
+    "production": "./conditions/production.js",
+    "development": "./conditions/development.js",
+    "default": "./conditions/default.js"
+  }
+}

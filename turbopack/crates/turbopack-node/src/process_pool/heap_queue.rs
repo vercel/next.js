@@ -66,16 +66,18 @@ impl<T: Ord> HeapQueue<T> {
     }
 
     pub fn reduce_to_zero(self: &Arc<Self>, active_queues: &Mutex<Vec<Arc<Self>>>) {
-        // Drain the semaphore permits
+        drop(self.drain_available(active_queues));
+    }
+
+    pub fn drain_available(self: &Arc<Self>, active_queues: &Mutex<Vec<Arc<Self>>>) -> Vec<T> {
+        // Only take unclaimed permits; resources acquired by another project remain owned there.
         let n = self.semaphore.forget_permits(usize::MAX);
         if n == 0 {
-            return;
+            return Vec::new();
         }
         let mut heap = self.heap.lock();
         // We must only pop n items even if there are more since we only have n permits
-        for _ in 0..n {
-            heap.pop();
-        }
+        let drained = (0..n).map(|_| heap.pop().unwrap()).collect();
         if heap.is_empty() {
             // If the heap is empty, remove this queue from the active queues
             let mut queues = active_queues.lock();
@@ -83,5 +85,6 @@ impl<T: Ord> HeapQueue<T> {
                 queues.remove(pos);
             }
         }
+        drained
     }
 }

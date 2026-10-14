@@ -88,9 +88,12 @@ export declare function endpointServerChangedSubscribe(
   func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
-export declare function endpointWriteToDisk(endpoint: {
-  __napiType: 'Endpoint'
-}): Promise<TurbopackResult<NapiWrittenEndpoint>>
+export declare function endpointWriteToDisk(
+  endpoint: {
+    __napiType: 'Endpoint'
+  },
+  snapshotDirectory?: RcStr
+): Promise<TurbopackResult<NapiWrittenEndpoint>>
 
 export declare function expandNextJsTemplate(
   content: Buffer,
@@ -384,6 +387,8 @@ export interface NapiProject {
 }
 
 export interface NapiProjectOptions {
+  /** Private development-only fixture registration. */
+  browserFixtureHost?: string
   /**
    * An absolute root path (Unix or Windows path) from which all files must be nested under.
    * Trying to access a file outside this root will fail, so think of this as a chroot.
@@ -611,6 +616,16 @@ export declare function projectCompilationEventsSubscribe(
   func: (err: Error, value: CompilationEvent) => void,
   eventTypes?: Array<string> | undefined | null
 ): void
+
+export declare function projectTestEntrySetupVersion(): number
+
+export declare function projectTestEntry(
+  project: { __napiType: 'Project' },
+  file: RcStr,
+  id: RcStr,
+  environment: RcStr,
+  setupFiles?: Array<RcStr> | undefined | null
+): Promise<{ __napiType: 'Endpoint' }>
 
 export declare function projectEntrypoints(project: {
   __napiType: 'Project'
@@ -1049,7 +1064,7 @@ export declare function recvTaskMessageInWorker(
 
 export declare function registerWorkerScheduler(
   creator: (arg: NapiWorkerCreation) => any,
-  terminator: (arg: NapiWorkerTermination) => any
+  terminator: (arg: NapiWorkerTermination) => Promise<void>
 ): void
 
 export declare function sendTaskMessage(message: NapiTaskMessage): void

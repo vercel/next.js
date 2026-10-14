@@ -1,0 +1,6 @@
+{
+  "name": "next-test-primitives",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT"
+}

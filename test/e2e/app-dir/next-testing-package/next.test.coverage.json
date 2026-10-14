@@ -1,0 +1,13 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "coverage",
+      "environment": "node",
+      "mode": "development",
+      "include": ["line-coverage/*.case.*"],
+      "testTimeout": 60000,
+      "fileTimeout": 180000
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "maxWorkers": 2,
+  "projects": [
+    {
+      "name": "dev",
+      "include": ["units/*.case.mjs"],
+      "hookTimeout": 90000
+    },
+    {
+      "name": "prod",
+      "mode": "production",
+      "include": ["units/*.case.mjs"],
+      "hookTimeout": 90000
+    }
+  ]
+}

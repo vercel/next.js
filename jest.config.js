@@ -50,7 +50,12 @@ const customJestConfig = {
     '<rootDir>/production/supports-module-resolution-nodenext/pkg',
   ],
   modulePaths: ['<rootDir>/lib'],
-  transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
+  // Transform the emitted orchestrator so Jest can load its dynamic imports
+  // through its mocked module registry without requiring VM module support.
+  transformIgnorePatterns: [
+    '[/\\\\]next[/\\\\]dist[/\\\\](?!experimental[/\\\\]testing[/\\\\]orchestrator\\.js$)',
+    '/\\.next/',
+  ],
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },

@@ -1,0 +1,14 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "module-mocks",
+      "environment": "node",
+      "mode": "development",
+      "include": ["specs/setup-mock.js"],
+      "setupFiles": ["setup.js"],
+      "testTimeout": 10000,
+      "fileTimeout": 30000
+    }
+  ]
+}

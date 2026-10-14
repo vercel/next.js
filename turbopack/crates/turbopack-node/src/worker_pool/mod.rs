@@ -19,7 +19,7 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     AssetsForSourceMapping,
-    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
+    backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend, ShutdownPoolFuture},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
     pool_stats::{AcquiredPermits, PoolStatsSnapshot},
     worker_pool::{
@@ -203,6 +203,13 @@ impl NodeBackend for WorkerThreadsBackend {
     fn scale_zero(&self) -> Result<()> {
         WorkerThreadPool::scale_zero();
         Ok(())
+    }
+
+    fn shutdown(&self) -> ShutdownPoolFuture {
+        Box::pin(async {
+            WorkerThreadPool::scale_zero();
+            worker_thread::wait_for_terminations().await
+        })
     }
 }
 

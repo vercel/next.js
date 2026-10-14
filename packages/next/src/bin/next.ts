@@ -106,10 +106,14 @@ class NextRootCommand extends Command {
         }
       }
 
+      // Testing selects its own environment for each execution profile.
       // The upgrade harness may run both dev and production checks. Preserve
       // its caller's environment instead of forcing all child commands into
       // production mode merely because they were launched through this CLI.
-      if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+      if (
+        commandName !== 'test' &&
+        (commandName !== 'upgrade' || !event.getOptionValue('agent'))
+      ) {
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
         ;(process.env as any).NEXT_RUNTIME = 'nodejs'
       }
@@ -675,6 +679,47 @@ program
         ? { id: options.internalNudgeId, recipient: 'agent' }
         : null
     )
+  })
+
+program
+  .command('test')
+  .description(
+    'Run tests through the experimental Next-owned compiler and runtime.'
+  )
+  .argument('[directory]', 'The Next.js project directory.')
+  .option(
+    '--list',
+    'List selected test files and their requested Next profiles.'
+  )
+  .option('--run', 'Run selected tests once (the default).')
+  .option('--watch', 'Watch for changes (requires watch capability).')
+  .option(
+    '--update',
+    'Update snapshots in an explicitly requested one-shot run.'
+  )
+  .option('--capabilities', 'Print the supported test capabilities as JSON.')
+  .option('--coverage', 'Collect one-shot development Node line coverage.')
+  .option('--project <name>', 'Select a project from next.test.config.json.')
+  .option(
+    '--max-workers <count>',
+    'Maximum concurrent file workers (1–64; default 1). Browser files remain serial.'
+  )
+  .option(
+    '--shard <index/count>',
+    'Run a deterministic, one-based shard of the selected files.'
+  )
+  .option(
+    '--filter <substring...>',
+    'Select files containing any given substring.'
+  )
+  .action(async (directory, options) => {
+    try {
+      const { nextTestRunner } = await import('../cli/next-test-runner.js')
+      await nextTestRunner(directory, options)
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error))
+      process.exitCode = 1
+    }
   })
 
 program

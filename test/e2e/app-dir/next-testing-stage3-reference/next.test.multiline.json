@@ -1,0 +1,11 @@
+{
+  "compatibility": "vitest",
+  "projects": [
+    {
+      "name": "multiline-coverage",
+      "environment": "node",
+      "mode": "development",
+      "include": ["coverage/multiline.case.mjs"]
+    }
+  ]
+}

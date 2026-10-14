@@ -1,0 +1,89 @@
+{
+  "coordinator": "01a0a9ab-91b9-75c0-8598-4658b78268e6",
+  "projectId": "local-223fad83d575e72518eec96469831479",
+  "model": "gpt-6-astra",
+  "thinking": "medium",
+  "baseline": "/tmp/next-testing-stage3-baseline-v2.json",
+  "plan": "NEXT_TESTING_STAGE3_PLAN.md",
+  "buildSlot": "/tmp/next-testing-stage3-build-slot",
+  "firstHeavyWindow": "A3",
+  "status": "Stage three accepted and integrated: production Node/RSC/browser profiles, registered development component mounting, scoped Node line coverage, and clean packaged adoption.",
+  "tasks": [
+    {
+      "code": "A3",
+      "title": "Next testing stage 3: Production compilation",
+      "clientThreadId": "client-new-thread:137069ce-8280-4879-92e3-7c11443e9ca0",
+      "hostId": "local",
+      "status": "Accepted: production Node/RSC compiler, component fixture producer and exact27-input bf3a native independently verified and integrated.",
+      "threadId": "01a0ae2f-40e2-7600-a840-7101aae219b3",
+      "worktree": "/Users/timneutkens/.codex/worktrees/f714/next.js-2"
+    },
+    {
+      "code": "I3",
+      "title": "Next testing stage 3: Contracts and integration",
+      "clientThreadId": "client-new-thread:ce5a68fd-d1e8-4a48-a0fb-7e922cf735ca",
+      "hostId": "local",
+      "status": "Accepted: shared contracts, public capability inventory/CLI and orchestration integrated; exact scopes independently verified.",
+      "threadId": "01a0ae2f-40e2-7600-a840-70eb42350087",
+      "worktree": "/Users/timneutkens/.codex/worktrees/4ed3/next.js-2"
+    },
+    {
+      "code": "B3",
+      "title": "Next testing stage 3: Execution lifecycle",
+      "clientThreadId": "client-new-thread:103f4af4-864c-4d78-a55e-4e24c5f03d55",
+      "hostId": "local",
+      "status": "Accepted: production execution, worker coverage ownership, diagnostics, cancellation and cleanup verified through focused and actual integration checks.",
+      "threadId": "01a0ae2f-40e2-7600-a840-70cbc975c3c3",
+      "worktree": "/Users/timneutkens/.codex/worktrees/dd63/next.js-2"
+    },
+    {
+      "code": "E3",
+      "title": "Next testing stage 3: Rendering and fixture registration",
+      "clientThreadId": "client-new-thread:65371a52-0cbd-4107-bbb9-3a059ea089e1",
+      "hostId": "local",
+      "status": "Accepted: route-less production RSC rendering and registered server fixture semantics; real rendering, serialization and isolation checks pass.",
+      "threadId": "01a0ae2f-a4bc-7501-932b-26fe8b0b0f9b",
+      "worktree": "/Users/timneutkens/.codex/worktrees/23bf/next.js-2"
+    },
+    {
+      "code": "H3",
+      "title": "Next testing stage 3: Browser components and production e2e",
+      "clientThreadId": "client-new-thread:c39b4739-f028-4e29-a609-792ca0b08ef9",
+      "hostId": "local",
+      "status": "Accepted: production browser7/7 and development mounting5/5, plus clean external browser/mount phases and strict process/artifact evidence.",
+      "threadId": "01a0ae2f-a481-7af3-a3b6-fbe90ced4b6a",
+      "worktree": "/Users/timneutkens/.codex/worktrees/9ad5/next.js-2"
+    },
+    {
+      "code": "K3",
+      "title": "Next testing stage 3: Coverage and diagnostics",
+      "clientThreadId": "client-new-thread:33ba659a-a26a-4ec0-8add-d99e1fa8daf6",
+      "hostId": "local",
+      "status": "Accepted: mapped original-line Node coverage with independent multiline10/15 and retry9/15 oracles, public/external reports, rejection and lifecycle checks.",
+      "threadId": "01a0ae2f-a47b-7253-8c77-7821f779ae4a",
+      "worktree": "/Users/timneutkens/.codex/worktrees/d93e/next.js-2"
+    },
+    {
+      "code": "P3",
+      "title": "Next testing stage 3: Packaging and adoption",
+      "clientThreadId": "client-new-thread:93e902a4-2187-47ab-af07-37a2499e9a58",
+      "hostId": "local",
+      "status": "Accepted: all five clean external phases, installed declarations/bytes/native/runtime provenance, runnable guide and adoption record. Heavy slot released.",
+      "threadId": "01a0ae2f-a49e-7ff0-b149-ca6b6f81d4c0",
+      "worktree": "/Users/timneutkens/.codex/worktrees/f40c/next.js-2"
+    },
+    {
+      "code": "L3",
+      "title": "Next testing stage 3: Independent validation",
+      "clientThreadId": "client-new-thread:6a3017c6-053e-41b7-b99c-ff2dd1c2c422",
+      "hostId": "local",
+      "status": "Accepted: independent combined build/types/unit/integration/browser/coverage gates and all five external phases; canonical evidence and final source handoff integrated.",
+      "threadId": "01a0ae2f-b60c-72b3-91be-8dc5c1d57b7a",
+      "worktree": "/Users/timneutkens/.codex/worktrees/6bd1/next.js-2"
+    }
+  ],
+  "firstHeavyWindowStatus": "Released after A3 verified baseline frozen installation and 18/18 full bootstrap tasks.",
+  "buildQueue": "Complete; all owned heavy work finished and slot released.",
+  "completion": "complete",
+  "acceptedSnapshot": "/tmp/next-testing-stage3-accepted-final-v1.json"
+}

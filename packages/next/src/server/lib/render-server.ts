@@ -18,6 +18,8 @@ export type ServerInitResult = {
   closeUpgraded: () => void
   // The distDir from config, used by the parent process for telemetry/trace
   distDir: string
+  /** Actual configured URL prefix, when provided by the router server. */
+  basePath?: string
   // Experimental features from config, used for logging after server is ready
   experimentalFeatures: ConfiguredExperimentalFeature[]
   // Whether cache components is enabled

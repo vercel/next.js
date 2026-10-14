@@ -1,0 +1,11 @@
+{
+  "name": "next-testing-stage3-conditions",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "types": "./index.d.ts",
+    "production": "./production.js",
+    "development": "./development.js",
+    "default": "./fallback.js"
+  }
+}
