@@ -37,7 +37,7 @@ pub async fn get_app_page_entry(
     project_root: FileSystemPath,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
-    let config = parse_segment_config_from_loader_tree(loader_tree);
+    let config = parse_segment_config_from_loader_tree(loader_tree, page.clone());
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let module_asset_context = if is_edge {
         edge_context

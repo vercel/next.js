@@ -35,6 +35,7 @@ use turbopack_ecmascript::{
 
 use crate::{
     app_structure::AppPageLoaderTree,
+    next_app::AppPage,
     next_config::RouteHas,
     next_manifests::ProxyMatcher,
     util::{MiddlewareMatcherKind, NextRuntime},
@@ -1542,26 +1543,54 @@ async fn parse_route_matcher_from_js_value(
 
 /// A wrapper around [`parse_segment_config_from_source`] that merges route segment configuration
 /// information from all relevant files (page, layout, parallel routes, etc).
+/// Runtime and deployment configuration only inherit from the entry page and its ancestor layouts.
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<AppPageLoaderTree>,
+    page: AppPage,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = &*loader_tree.await?;
 
-    Ok(parse_segment_config_from_loader_tree_internal(loader_tree)
-        .await?
-        .cell())
+    Ok(
+        parse_segment_config_from_loader_tree_internal(loader_tree, &page)
+            .await?
+            .cell(),
+    )
 }
 
 async fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &AppPageLoaderTree,
+    page: &AppPage,
 ) -> Result<NextSegmentConfig> {
-    let mut config = NextSegmentConfig::default();
+    let modules = &loader_tree.modules;
+
+    let mut config = if let Some(module) = &modules.page {
+        let source = Vc::upcast(FileSource::new(module.clone()));
+        parse_segment_config_from_source(source, ParseSegmentMode::App)
+            .owned()
+            .await?
+    } else {
+        NextSegmentConfig::default()
+    };
+
+    let is_ancestor = page.0.starts_with(&loader_tree.page.0);
+    let is_entry_page = is_ancestor && loader_tree.page.0.len() + 1 == page.0.len();
+    if !is_entry_page {
+        // Sibling pages cannot choose the entry's runtime or deployment configuration.
+        config.runtime = None;
+        config.preferred_region = None;
+        config.max_duration = None;
+    }
 
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
-        .map(|loader_tree| Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)))
+        .map(|loader_tree| {
+            Box::pin(parse_segment_config_from_loader_tree_internal(
+                loader_tree,
+                page,
+            ))
+        })
         .join()
         .await;
 
@@ -1569,19 +1598,24 @@ async fn parse_segment_config_from_loader_tree_internal(
         config.apply_parallel_config(&tree?)?;
     }
 
-    let modules = &loader_tree.modules;
-    for path in [
-        modules.page.clone(),
-        modules.default.clone(),
-        modules.layout.clone(),
-    ]
-    .into_iter()
-    .flatten()
-    {
+    for (path, inherit_static_info) in [
+        (modules.default.as_ref(), false),
+        (modules.layout.as_ref(), is_ancestor),
+    ] {
+        let Some(path) = path else {
+            continue;
+        };
         let source = Vc::upcast(FileSource::new(path.clone()));
-        config.apply_parent_config(
-            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
-        );
+        let mut parent_config = parse_segment_config_from_source(source, ParseSegmentMode::App)
+            .owned()
+            .await?;
+        if !inherit_static_info {
+            // Match getStaticInfoIncludingLayouts: only ancestor layouts contribute these fields.
+            parent_config.runtime = None;
+            parent_config.preferred_region = None;
+            parent_config.max_duration = None;
+        }
+        config.apply_parent_config(&parent_config);
     }
 
     Ok(config)
