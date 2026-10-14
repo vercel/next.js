@@ -137,6 +137,12 @@ export async function initialize(opts: {
   minimalMode?: boolean
   hostname?: string
   keepAliveTimeout?: number
+  preloadedConfig?: {
+    config:
+      | import('../config-shared').NextConfigComplete
+      | import('../config-shared').NextConfigRuntime
+    experimentalFeatures: ConfiguredExperimentalFeature[]
+  }
   customServer?: boolean
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
@@ -151,19 +157,27 @@ export async function initialize(opts: {
   // Capture the bundler before loading the config
   const bundlerBeforeConfig = opts.dev ? getBundlerFromEnv() : undefined
 
-  let experimentalFeatures: ConfiguredExperimentalFeature[] = []
-  const config = await loadConfig(
-    opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-    opts.dir,
-    {
-      silent: false,
-      reportExperimentalFeatures(features) {
-        experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
-          a.localeCompare(b)
-        )
-      },
-    }
-  )
+  let experimentalFeatures: ConfiguredExperimentalFeature[] =
+    opts.preloadedConfig?.experimentalFeatures || []
+  const config =
+    opts.preloadedConfig?.config ||
+    (await loadConfig(
+      opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+      opts.dir,
+      {
+        silent: false,
+        reportExperimentalFeatures(features) {
+          experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
+            a.localeCompare(b)
+          )
+        },
+      }
+    ))
+  if (opts.dev && config.experimental.goServer) {
+    throw new Error(
+      'experimental.goServer currently supports next build and next start; next dev is not supported'
+    )
+  }
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
   }

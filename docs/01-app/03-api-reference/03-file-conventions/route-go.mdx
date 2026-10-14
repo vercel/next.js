@@ -3,7 +3,7 @@ title: route.go
 description: Build experimental Go API endpoints with native App Router Route Handlers.
 ---
 
-`route.go` defines a native Go Route Handler (API endpoint) in the App Router, served through the existing Next.js Node.js server.
+`route.go` defines a native Go Route Handler (API endpoint) in the App Router, served through the existing Next.js Node.js server by default. A production Go public server is also available through `experimental.goServer`.
 
 ```go filename="app/users/[id]/route.go" highlight={9}
 package main
@@ -80,6 +80,54 @@ Next.js selects the endpoint after its existing routing, rewrites and `proxy.ts`
 Turbopack tracks direct sources, sibling files, local imported packages, module metadata, and embedded assets. Edits rebuild through the Go compiler graph. Requests ensure current compilation before invoking a native process. Compiler failures produce errors instead of serving the previous successful executable; repairing the source allows later requests to recover.
 
 A compiled executable runs as a supervised process with pooled private loopback HTTP connections. Unchanged requests reuse it. A successful rebuild starts a replacement when the route is next invoked. Previously admitted requests can complete on the old process, with a 21-second retirement limit. Route removal and server shutdown retire workers. A child crash fails its active request; later requests restart the emitted executable. A startup failure remains failed for that executable generation until its source changes or the Next.js server restarts. A handler panic aborts its HTTP connection, resulting in an error response if response headers have not already been sent.
+
+## Go public server (production)
+
+Set `experimental.goServer: true` to build one application-specific Go executable
+containing the HTTP listener and all Go handlers. This also enables `goRoutes`.
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const config: NextConfig = {
+  experimental: { goServer: true },
+}
+
+export default config
+```
+
+Run `next build` with Turbopack, then `next start`. Go owns the public port and calls
+matched Go handlers directly in the same process. Requests for other routes,
+public assets and Next.js internals are forwarded to a private Node listener.
+JavaScript handlers, React rendering and Pages Router routes still run in Node.
+Static route priority prevents a dynamic Go route from intercepting a more
+specific JavaScript route or a public asset.
+
+Direct Go requests **bypass JavaScript `proxy.ts`, rewrites, redirects and custom
+headers**. These features apply to the Node fallback only. Node rewrites cannot
+invoke a Go handler; Go routes must be addressed through their direct public URL.
+The Go listener supports `basePath`, dynamic and catch-all parameters, and
+`trailingSlash` normalization. It does not implement the full Next.js router yet.
+
+This first frontend version supports production build/start only. `next dev`
+reports an unsupported-mode error when `goServer` is enabled. Use `goRoutes`
+without `goServer` for the existing development handler workflow. A `go.mod` at
+the application root is required for composing native packages. Handler sources
+remain `package main`; generated package overlays preserve local imports,
+`internal` visibility and embedded assets without editing source files. Go applies
+normal filename and build-tag selection to these imported handler packages.
+`zz_next_route_params.go` and `nextgenerated/` are reserved for generated inputs.
+
+Native handlers share one process and heap. A handler panic aborts that request's
+HTTP connection. Exiting the process terminates the public server, and Node shuts
+down as well. On normal shutdown, the public listener stops accepting requests,
+drains in-flight work for up to 20 seconds, then closes the Node fallback.
+
+The executable and its trace are emitted as `.next/server/go-server.json` and
+`.next/server/go-server.json.nft.json`. Copy the complete build output, preserving
+executable permissions, to relocate it to a host with the same OS and architecture.
+Production startup reads these descriptors once and does not invoke Go or inspect
+application source files on each request.
 
 ## Good to know
 

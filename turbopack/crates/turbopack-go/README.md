@@ -108,3 +108,16 @@ watch timeout regression adds roughly three minutes to the combined suite.
 See the [live integration tests](tests/live.rs), [process tests](src/process.rs),
 [CLI tests](../turbopack-cli/tests/go.rs), and
 [CI workflow](../../../.github/workflows/turbopack_go.yml) for verification coverage.
+
+### Composing virtual packages
+
+`go_bundle_with_overlay` compiles explicit main inputs importing virtual packages.
+Its byte-valued `GoOverlayFile` map also supports binary embedded assets. Use
+`GoOverlayFile::from_source` when an overlay is derived from an original input;
+the original filename and content fingerprint are tracked and validated, along
+with package directories and embed inventories. A stale source snapshot is
+rejected. Pure generated files use `GoOverlayFile::generated`. Only the explicit
+main filenames are command arguments; imported packages use Go's normal file
+selection rules. Virtual paths must be project relative and must not overwrite
+existing files. `go_module_path` resolves the module identity using the session's
+Go toolchain. Neither API writes application source or module metadata.
