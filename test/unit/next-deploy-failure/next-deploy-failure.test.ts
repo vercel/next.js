@@ -413,6 +413,9 @@ describe('deployment lifecycle', () => {
       const next = await instance()
       await next.start()
       expect(inspectCalls).toHaveLength(1)
+      expect(require('console').log).toHaveBeenCalledWith(
+        `Found build log markers for ${deploymentUrl} on attempt 1 after 0ms`
+      )
     })
 
     it('keeps polling with backoff until every marker is present', async () => {
@@ -427,6 +430,9 @@ describe('deployment lifecycle', () => {
       expect(next.buildId).toBe('build-id')
       expect(inspectCalls).toHaveLength(3)
       expect(clock.waits).toEqual([2_000, 4_000])
+      expect(require('console').log).toHaveBeenCalledWith(
+        `Found build log markers for ${deploymentUrl} on attempt 3 after 6000ms`
+      )
     })
 
     it('retries an inspect call that hangs or fails', async () => {

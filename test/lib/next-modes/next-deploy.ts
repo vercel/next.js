@@ -345,6 +345,9 @@ export class NextDeployInstance extends NextInstance {
       }
 
       if (failure === undefined && hasAllBuildLogMarkers(lastOutput)) {
+        require('console').log(
+          `Found build log markers for ${url} on attempt ${attempt} after ${Date.now() - pollStartedAt}ms`
+        )
         return lastOutput
       }
       if (hasBuildLogLines(lastOutput)) {
