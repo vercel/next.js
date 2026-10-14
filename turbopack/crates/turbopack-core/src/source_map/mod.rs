@@ -32,10 +32,12 @@ use crate::{
 };
 
 pub(crate) mod source_map_asset;
+mod source_maps;
 pub mod structured;
 pub mod utils;
 
 pub use source_map_asset::SourceMapAsset;
+pub use source_maps::SourceMaps;
 
 /// Represents an empty value in a u32 variable in the sourcemap crate.
 static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
@@ -53,16 +55,52 @@ pub enum SourceMapType {
 #[turbo_tasks::value(transparent)]
 pub struct OptionSourceMapType(Option<SourceMapType>);
 
+/// Which source maps should be generated. This is different than the source map type that is
+/// emitted to disk.
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Hash, DeterministicHash)]
+pub struct SourceMapGenerationOptions {
+    pub full: bool,
+    pub partial: bool,
+}
+
+impl SourceMapGenerationOptions {
+    pub const NONE: Self = Self {
+        full: false,
+        partial: false,
+    };
+
+    pub fn from_emitted(ty: Option<SourceMapType>) -> Self {
+        Self {
+            full: matches!(ty, Some(SourceMapType::Full)),
+            partial: matches!(ty, Some(SourceMapType::Partial)),
+        }
+    }
+
+    pub fn any(self) -> bool {
+        self.full || self.partial
+    }
+}
+
+impl Default for SourceMapGenerationOptions {
+    fn default() -> Self {
+        Self {
+            full: true,
+            partial: false,
+        }
+    }
+}
+
 /// Allows callers to generate source maps.
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent>;
+    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent>;
 
     /// Returns an individual section of the larger source map, if found.
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<FileContent> {
+    fn by_section(self: Vc<Self>, _section: RcStr, _ty: Vc<SourceMapType>) -> Vc<FileContent> {
         FileContent::NotFound.cell()
     }
 }
@@ -656,7 +694,7 @@ impl SourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+    fn generate_source_map(&self, _ty: Vc<SourceMapType>) -> Result<Vc<FileContent>> {
         Ok(FileContent::Content(File::from(self.to_rope()?)).cell())
     }
 }

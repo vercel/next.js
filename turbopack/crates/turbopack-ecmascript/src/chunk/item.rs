@@ -21,6 +21,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     source_map::{
+        SourceMapGenerationOptions, SourceMaps,
         structured::StructuredSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
@@ -49,7 +50,7 @@ pub enum RewriteSourcePath {
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<StructuredSourceMap>,
+    pub source_maps: SourceMaps<StructuredSourceMap>,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
@@ -93,7 +94,7 @@ impl EcmascriptChunkItemContent {
                 SourceMapSourceType::TurbopackUri => RewriteSourcePath::None,
             },
             inner_code: content.inner_code.clone(),
-            source_map: content.source_map.clone(),
+            source_maps: content.source_maps.clone(),
             additional_ids: content.additional_ids.clone(),
             options: if content.is_esm {
                 EcmascriptChunkItemOptions {
@@ -125,7 +126,13 @@ impl EcmascriptChunkItemContent {
 
 impl EcmascriptChunkItemContent {
     async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(
+            SourceMapGenerationOptions {
+                full: self.source_maps.full.is_some(),
+                partial: self.source_maps.partial.is_some(),
+            },
+            false,
+        );
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
@@ -168,17 +175,22 @@ impl EcmascriptChunkItemContent {
             code += " try {\n";
         }
 
-        let source_map = match (&self.rewrite_source_path, &self.source_map) {
-            (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
-                Some(absolute_fileify_source_map(map, path.clone()).await?)
-            }
-            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
-                Some(relative_fileify_source_map(map, path.clone(), relative_path.clone()).await?)
-            }
-            (_, map) => map.clone(),
-        };
-
-        code.push_source(&self.inner_code, source_map);
+        let source_maps = self
+            .source_maps
+            .clone()
+            .try_map_async(|map| async move {
+                match &self.rewrite_source_path {
+                    RewriteSourcePath::AbsoluteFilePath(path) => {
+                        absolute_fileify_source_map(&map, path.clone()).await
+                    }
+                    RewriteSourcePath::RelativeFilePath(path, relative_path) => {
+                        relative_fileify_source_map(&map, path.clone(), relative_path.clone()).await
+                    }
+                    RewriteSourcePath::None => Ok(map),
+                }
+            })
+            .await?;
+        code.push_source(&self.inner_code, source_maps);
 
         if let Some(opts) = &self.options.async_module {
             write!(

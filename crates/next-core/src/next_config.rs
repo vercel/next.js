@@ -190,17 +190,6 @@ pub struct NextConfig {
     // webpack: Option<serde_json::Value>,
 }
 
-#[turbo_tasks::value_impl]
-impl NextConfig {
-    #[turbo_tasks::function]
-    pub fn with_analyze_config(&self) -> Vc<Self> {
-        let mut new = self.clone();
-        new.experimental.turbopack_source_maps = Some(true);
-        new.experimental.turbopack_input_source_maps = Some(false);
-        new.cell()
-    }
-}
-
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
