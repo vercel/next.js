@@ -174,7 +174,7 @@
     "@next/swc": "workspace:*",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.61.0",
-    "@rspack/core": "1.6.7",
+    "@rspack/core": "2.0.4",
     "@storybook/addon-a11y": "8.6.0",
     "@storybook/addon-essentials": "8.6.0",
     "@storybook/addon-interactions": "8.6.0",

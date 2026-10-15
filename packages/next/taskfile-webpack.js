@@ -36,7 +36,15 @@ module.exports = function (task) {
         if (process.env.ANALYZE_STATS) {
           require('fs').writeFileSync(
             require('path').join(__dirname, options.name + '-stats.json'),
-            JSON.stringify(stats.toJson())
+            JSON.stringify(
+              stats.toJson({
+                modules: true,
+                assets: true,
+                chunks: true,
+                chunkGroups: true,
+                entrypoints: true,
+              })
+            )
           )
         }
 
