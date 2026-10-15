@@ -239,26 +239,21 @@ describe('segment-config-precedence', () => {
       runtime: 'nodejs',
       config: { regions: ['sfo1'], maxDuration: 0 },
     },
-    // TODO: Stop Turbopack inheriting route handler runtime and regions from layouts.
-    ...(!process.env.IS_TURBOPACK_TEST
-      ? [
-          {
-            route: '/config-handler/undefined',
-            runtime: 'nodejs',
-            config: undefined,
-          },
-          {
-            route: '/config-handler/implicit',
-            runtime: 'nodejs',
-            config: undefined,
-          },
-          {
-            route: '/config-handler/edge',
-            runtime: 'edge',
-            config: {},
-          },
-        ]
-      : []),
+    {
+      route: '/config-handler/undefined',
+      runtime: 'nodejs',
+      config: undefined,
+    },
+    {
+      route: '/config-handler/implicit',
+      runtime: 'nodejs',
+      config: undefined,
+    },
+    {
+      route: '/config-handler/edge',
+      runtime: 'edge',
+      config: {},
+    },
   ])(
     'uses route handler exports without inheriting page layouts: $route',
     async ({ route, runtime, config }) => {
