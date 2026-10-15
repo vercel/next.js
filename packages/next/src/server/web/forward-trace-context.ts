@@ -42,9 +42,12 @@ export function forwardTraceContextToRequest(
     return
   }
 
-  const traceHeaders = Object.entries(traceContext).filter(
-    (entry): entry is [string, string] => typeof entry[1] === 'string'
-  )
+  const traceHeaders: Array<[string, string]> = [
+    ['traceparent', traceContext.traceparent],
+  ]
+  if (traceContext.tracestate) {
+    traceHeaders.push(['tracestate', traceContext.tracestate])
+  }
 
   const userOverrides = responseHeaders.get(OVERRIDE_HEADERS)
   // An empty override list is ignored by hosts (no headers are replaced), so

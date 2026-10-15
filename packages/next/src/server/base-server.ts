@@ -918,10 +918,7 @@ export default abstract class Server<
               // the render in this trace.
               const traceContext = tracer.getTraceContextHeaders()
               if (traceContext) {
-                req.headers.traceparent = traceContext.traceparent
-                if (traceContext.tracestate) {
-                  req.headers.tracestate = traceContext.tracestate
-                }
+                Object.assign(req.headers, traceContext)
               }
             }
 
