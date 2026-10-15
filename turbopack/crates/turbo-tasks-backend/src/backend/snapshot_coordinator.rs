@@ -24,6 +24,7 @@
 
 use std::{
     cell::Cell,
+    marker::PhantomData,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     thread,
     time::{Duration, Instant},
@@ -130,7 +131,7 @@ impl SnapshotCoordinator {
     }
 
     /// The calling thread's stripe. Threads are numbered on first use, round-robin.
-    fn stripe(&self) -> usize {
+    fn stripe(&self) -> &AtomicUsize {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
         thread_local! {
             static INDEX: Cell<usize> = const { Cell::new(usize::MAX) };
@@ -144,7 +145,7 @@ impl SnapshotCoordinator {
             i
         });
         // the stripe count is a power of two
-        i & (self.stripes.len() - 1)
+        &self.stripes[i & (self.stripes.len() - 1)]
     }
 
     /// Active operations: the sum of the stripes, read one stripe at a time. With admission
@@ -168,20 +169,20 @@ impl SnapshotCoordinator {
         // `flags` below decides that admission is open. Otherwise a phase could sum the stripes
         // without seeing it, and this operation could see the running bit still clear. Both
         // sides must be `SeqCst`. (The decrement has no such obligation; see `OperationGuard`.)
-        self.stripes[stripe].fetch_add(1, Ordering::SeqCst);
+        stripe.fetch_add(1, Ordering::SeqCst);
         if (self.flags.load(Ordering::SeqCst) & SNAPSHOT_RUNNING_BIT) == 0 {
             return OperationGuard {
-                coord: self,
                 stripe,
+                _not_send: PhantomData,
             };
         }
         #[cold]
-        fn wait_for_admission(this: &SnapshotCoordinator, stripe: usize) {
+        fn wait_for_admission(this: &SnapshotCoordinator, stripe: &AtomicUsize) {
             loop {
                 // Back out our +1 before waiting: a phase holds the running bit, and the state
                 // mutex, for the whole of an attempt to close admission, and it can only
                 // succeed once the stripes sum to zero.
-                this.stripes[stripe].fetch_sub(1, Ordering::Release);
+                stripe.fetch_sub(1, Ordering::Release);
                 {
                     // Once we have the mutex, the attempt has either failed and reopened
                     // admission, or succeeded and requested a snapshot.
@@ -196,7 +197,7 @@ impl SnapshotCoordinator {
                 }
                 // Retry the handshake: another attempt may have started since we let go of the
                 // mutex.
-                this.stripes[stripe].fetch_add(1, Ordering::SeqCst);
+                stripe.fetch_add(1, Ordering::SeqCst);
                 if (this.flags.load(Ordering::SeqCst) & SNAPSHOT_RUNNING_BIT) == 0 {
                     return;
                 }
@@ -204,8 +205,8 @@ impl SnapshotCoordinator {
         }
         wait_for_admission(self, stripe);
         OperationGuard {
-            coord: self,
             stripe,
+            _not_send: PhantomData,
         }
     }
 
@@ -336,9 +337,14 @@ impl SnapshotCoordinator {
 }
 
 /// Guard returned by [`SnapshotCoordinator::begin_operation`]. Decrements its stripe on drop.
+///
+/// `!Send`, so an operation ends on the thread that began it and each stripe is only written by
+/// the threads that map to it. Moving a guard would still be correct here, since stripes are
+/// updated with atomic read-modify-writes, but nothing needs to, and it keeps the door open for
+/// counters that only their own thread writes.
 pub struct OperationGuard<'a> {
-    coord: &'a SnapshotCoordinator,
-    stripe: usize,
+    stripe: &'a AtomicUsize,
+    _not_send: PhantomData<*const ()>,
 }
 
 impl Drop for OperationGuard<'_> {
@@ -346,15 +352,11 @@ impl Drop for OperationGuard<'_> {
         // `Release` is enough: only the increment takes part in the store-load handshake with a
         // closing phase. A phase whose `SeqCst` sum reads this decrement acquires the
         // operation's writes.
-        let prev = self.coord.stripes[self.stripe].fetch_sub(1, Ordering::Release);
+        let prev = self.stripe.fetch_sub(1, Ordering::Release);
         // Underflow means a guard was dropped without a matching increment;
         // promoted from debug_assert because the alternative is silently
         // wrapping to usize::MAX and breaking every subsequent snapshot.
-        assert!(
-            prev > 0,
-            "OperationGuard::drop underflow: stripe {} was {prev:#x}",
-            self.stripe
-        );
+        assert!(prev > 0, "OperationGuard::drop underflow");
     }
 }
 
@@ -846,49 +848,44 @@ mod tests {
     }
 
     #[test]
-    fn stress_exclusion_with_guards_moved_across_threads() {
-        // More threads than stripes, guards often dropped on another thread, both kinds of
+    fn stress_exclusion_with_shared_stripes() {
+        // More threads than stripes, some holding their guard for a while, against both kinds of
         // phase. No operation may hold a guard while a phase is closed. Phases need moments
         // with no active operation, which a saturating load need not leave, so the operation
         // threads run a fixed amount of work; once they are done a phase must close. With the
         // slow-settle report an hour away, a missed drain hangs instead of being rescued.
-        run_with_timeout("guards across threads", Duration::from_secs(60), || {
+        run_with_timeout("shared stripes", Duration::from_secs(60), || {
             // two stripes and six operation threads: threads share stripes
             let coord = SnapshotCoordinator::new_with_stripes(Duration::from_secs(3600), 2);
             let closed = AtomicBool::new(false);
             let ops_done = AtomicUsize::new(0);
-            let phases = AtomicUsize::new(0);
             let snapshot_lock = Mutex::new(());
             const THREADS: usize = 6;
-            // bounded, so guards waiting to be dropped elsewhere stay few
-            let (tx, rx) = mpsc::sync_channel::<OperationGuard<'_>>(16);
             thread::scope(|scope| {
-                // drops guards begun on other threads, as soon as they arrive
-                scope.spawn(move || {
-                    for guard in rx {
-                        drop(guard)
-                    }
-                });
                 for t in 0..THREADS {
-                    let tx = tx.clone();
                     let (coord, closed, ops_done) = (&coord, &closed, &ops_done);
                     scope.spawn(move || {
                         for i in 0..20_000usize {
                             let guard = coord.begin_operation();
                             assert!(!closed.load(Ordering::SeqCst), "operation inside a phase");
                             if (i + t).is_multiple_of(5) {
-                                tx.send(guard).unwrap();
-                            } else {
-                                drop(guard);
+                                // hold the guard long enough for a phase to try closing
+                                for _ in 0..100 {
+                                    std::hint::spin_loop();
+                                }
+                                assert!(
+                                    !closed.load(Ordering::SeqCst),
+                                    "phase closed while an operation was active"
+                                );
                             }
+                            drop(guard);
                         }
                         ops_done.fetch_add(1, Ordering::SeqCst);
                     });
                 }
-                drop(tx);
                 for k in 0..2 {
-                    let (coord, closed, ops_done, phases, snapshot_lock) =
-                        (&coord, &closed, &ops_done, &phases, &snapshot_lock);
+                    let (coord, closed, ops_done, snapshot_lock) =
+                        (&coord, &closed, &ops_done, &snapshot_lock);
                     scope.spawn(move || {
                         let mut j = 0usize;
                         while ops_done.load(Ordering::SeqCst) < THREADS {
@@ -900,7 +897,6 @@ mod tests {
                             };
                             if let Some(phase) = phase {
                                 closed.store(true, Ordering::SeqCst);
-                                phases.fetch_add(1, Ordering::Relaxed);
                                 closed.store(false, Ordering::SeqCst);
                                 drop(phase);
                             }
@@ -913,6 +909,19 @@ mod tests {
             drop(coord.begin_snapshot(|_| {}));
             assert_eq!(coord.state_word(), 0);
         });
+    }
+
+    #[test]
+    fn operation_guard_is_not_send() {
+        // Resolves only if exactly one impl applies, i.e. if `OperationGuard` is not `Send`.
+        trait AmbiguousIfSend<A> {
+            fn check() {}
+        }
+        impl<T: ?Sized> AmbiguousIfSend<()> for T {}
+        #[allow(dead_code)]
+        struct Invalid;
+        impl<T: ?Sized + Send> AmbiguousIfSend<Invalid> for T {}
+        <OperationGuard<'static> as AmbiguousIfSend<_>>::check();
     }
 
     #[test]
