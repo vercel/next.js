@@ -1,5 +1,6 @@
 {
   "name": "external-url-asset",
+  "version": "1.0.0",
   "type": "module",
   "exports": {
     "./worker.mjs": "./worker.mjs"

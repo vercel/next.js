@@ -166,18 +166,6 @@ describe('app dir - external dependency', () => {
     })
   })
 
-  it('should emit a new URL() asset from a package in serverExternalPackages', async () => {
-    const browser = await next.browser('/url-asset')
-    let url = ''
-    await retry(async () => {
-      url = await browser.elementByCss('#url').text()
-      expect(url).toMatch(/worker.*\.mjs$/)
-    })
-    const res = await next.fetch(url)
-    expect(res.status).toBe(200)
-    expect(next.cliOutput).not.toContain("can't be external")
-  })
-
   describe('react in external esm packages', () => {
     it('should use the same react in client app', async () => {
       const html = await next.render('/esm/client')
