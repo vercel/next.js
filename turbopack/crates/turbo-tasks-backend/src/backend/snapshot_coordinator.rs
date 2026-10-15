@@ -32,6 +32,7 @@ use std::{
 use crossbeam_utils::CachePadded;
 use parking_lot::{Condvar, Mutex, MutexGuard};
 use tracing::info_span;
+use turbo_tasks::parallel::available_parallelism;
 
 /// Blocks admission while a snapshot is in flight.
 const SNAPSHOT_RUNNING_BIT: usize = 1 << (usize::BITS - 1);
@@ -105,7 +106,7 @@ impl SnapshotCoordinator {
         // Twice the parallelism: threads are numbered round-robin and keep being created (e.g.
         // by `block_in_place`), so once the numbering wraps, active threads land on stripes at
         // random. Spare stripes keep them mostly apart.
-        let stripes = (thread::available_parallelism().map_or(1, |n| n.get()) * 2)
+        let stripes = (available_parallelism().map_or(1, |n| n.get()) * 2)
             .next_power_of_two()
             .min(MAX_STRIPES);
         Self::new_with_stripes(slow_settle_report_timeout, stripes)
