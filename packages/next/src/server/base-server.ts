@@ -450,6 +450,11 @@ export default abstract class Server<
     return undefined
   }
 
+  /** Available only on the dev server with Turbopack HMR. */
+  protected getClientHmrVersion(): string | undefined {
+    return undefined
+  }
+
   protected abstract loadEnvConfig(params: {
     dev: boolean
     forceReload: boolean
@@ -903,8 +908,26 @@ export default abstract class Server<
               'http.target': req.url,
             },
           },
-          async (span) =>
-            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+          async (span) => {
+            if (getRequestMeta(req, 'middlewareInvoke')) {
+              // When middleware lets the request continue, the router server
+              // calls `handleRequest` twice: once to run middleware (this pass)
+              // and once to render. Publish this span's W3C trace context on
+              // the request, so the middleware span (including the Edge
+              // sandbox, which extracts it from the request headers) is a
+              // child of this span instead of starting a new trace. The
+              // middleware forwards its own span's context to the render pass
+              // via request-header overrides, which replace this value; it
+              // only stays when there is no middleware span to forward (e.g.
+              // OpenTelemetry isn't registered in the Edge runtime), keeping
+              // the render in this trace.
+              const traceContext = tracer.getTraceContextHeaders()
+              if (traceContext) {
+                Object.assign(req.headers, traceContext)
+              }
+            }
+
+            return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
               if (!span) return
 
               const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
@@ -963,6 +986,7 @@ export default abstract class Server<
                 span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
               }
             })
+          }
         )
       })
 
@@ -2394,6 +2418,12 @@ export default abstract class Server<
     }: RequestContext<ServerRequest, ServerResponse>,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
+    if (this.dev && getRequestMeta(req, 'initialHmrVersion') === undefined) {
+      // Snapshot before rendering/streaming HTML. Reading the live version at
+      // script insertion or socket connection can hide an intervening CSS edit.
+      addRequestMeta(req, 'initialHmrVersion', this.getClientHmrVersion())
+    }
+
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
       pathname = '/404'
     }

@@ -51,12 +51,13 @@ const writeJson = async (filePath, data) =>
   await fs.writeFile(path.join(cwd, 'pnpm-lock.yaml'), '')
 
   const rootPkgJsonPath = path.join(cwd, 'package.json')
+  const { packageManager } = await readJson(rootPkgJsonPath)
   await writeJson(rootPkgJsonPath, {
     name: 'nextjs-project',
     version: '0.0.0',
     private: true,
     workspaces: ['packages/*'],
     scripts: {},
-    packageManager: 'pnpm@10.33.0',
+    packageManager,
   })
 })()

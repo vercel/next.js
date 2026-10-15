@@ -47,7 +47,15 @@ function setupCollector(next: NextInstance, port: number) {
   }
 }
 
-function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
+function setup({
+  useDirectEntrypointHandler,
+  useNodeMiddleware,
+  withParentSpan = false,
+}: {
+  useDirectEntrypointHandler?: boolean
+  useNodeMiddleware?: boolean
+  withParentSpan?: boolean
+}) {
   const testSetup = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -66,8 +74,9 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
           startCommand: 'pnpm start-entrypoint',
           packageJson: {
             scripts: {
-              'start-entrypoint':
-                'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+              'start-entrypoint': withParentSpan
+                ? 'pnpm tsx custom-entrypoint-server.ts'
+                : 'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
             },
           },
           serverReadyPattern: /- Local:/,
@@ -2236,95 +2245,266 @@ describe.each(
       name: 'direct entrypoints',
       useDirectEntrypointHandler: true,
     },
-  ].filter(Boolean)
-)('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
-  describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
-    const {
-      next: { next, skipped },
-      getCollector,
-    } = setup({
-      useDirectEntrypointHandler,
-      useNodeMiddleware: runtime === 'nodejs',
+    isNextStart && {
+      name: 'direct entrypoints with parent span',
+      useDirectEntrypointHandler: true,
+      withParentSpan: true,
+    },
+  ].filter(Boolean) as {
+    name: string
+    useDirectEntrypointHandler: boolean
+    withParentSpan?: boolean
+  }[]
+)(
+  'opentelemetry - middleware $name',
+  ({ useDirectEntrypointHandler, withParentSpan = false }) => {
+    describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
+      const {
+        next: { next, skipped },
+        getCollector,
+      } = setup({
+        useDirectEntrypointHandler,
+        useNodeMiddleware: runtime === 'nodejs',
+        withParentSpan,
+      })
+
+      if (skipped) {
+        return
+      }
+
+      if (useDirectEntrypointHandler && runtime === 'edge') {
+        it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
+        return
+      }
+
+      const requests = [
+        { name: 'page', pathname: '/behind-middleware', render: true },
+        {
+          name: 'route handler',
+          pathname: '/behind-middleware/route-handler',
+          render: true,
+        },
+        // The direct entrypoint harness only serves paths that map to an
+        // entrypoint, so it can't serve rewrites or redirects.
+        ...(useDirectEntrypointHandler
+          ? []
+          : [
+              {
+                name: 'rewrite',
+                pathname: '/behind-middleware/rewrite',
+                render: true,
+              },
+              {
+                name: 'redirect',
+                pathname: '/behind-middleware/redirect',
+                render: false,
+              },
+            ]),
+      ]
+
+      const contexts = [
+        { name: 'root context', traceparent: false },
+        // The parent-span harness starts its own root span without extracting
+        // incoming headers, so incoming propagation is not applicable there.
+        ...(withParentSpan
+          ? []
+          : [{ name: 'incoming context propagation', traceparent: true }]),
+      ]
+
+      for (const ctx of contexts) {
+        ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+          ctx.name,
+          () => {
+            it.each(requests)(
+              'should keep the $name request in a single trace',
+              async ({ pathname, render }) => {
+                const id = Math.random().toString(36).slice(2)
+                // Span timestamps are epoch microseconds.
+                const startedAt = Date.now() * 1000
+                const res = await next.fetch(`${pathname}?id=${id}`, {
+                  redirect: 'manual',
+                  headers: ctx.traceparent
+                    ? {
+                        traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+                      }
+                    : {},
+                })
+                expect(res.status).toBe(render ? 200 : 307)
+
+                await expectSingleTrace(getCollector(), {
+                  id,
+                  startedAt,
+                  pathname,
+                  // The parent-span harness exports through its own provider,
+                  // which doesn't record the runtime.
+                  middlewareRuntime: withParentSpan ? undefined : runtime,
+                  render,
+                  traceparent: ctx.traceparent,
+                  shape: withParentSpan
+                    ? 'host-root'
+                    : useDirectEntrypointHandler
+                      ? 'middleware-root'
+                      : 'handle-request-root',
+                })
+              }
+            )
+          }
+        )
+      }
     })
+  }
+)
 
-    if (skipped) {
-      return
+// Root spans of one-time work that is not part of any request: server startup
+// (instrumentation registration, route module prewarming) and the lazy,
+// once-per-process route module preparation of direct entrypoints.
+const STARTUP_SPAN_TYPES = new Set([
+  'Instrumentation.loadModule',
+  'Instrumentation.register',
+  'LoadComponents.loadRouteModule',
+  'RouteModule.prepare',
+])
+
+/**
+ * Asserts that every span of the request tagged with `?id=<id>` belongs to a
+ * single trace, using the real trace IDs (unlike `expectTrace`, which
+ * normalizes them away). The middleware span's `http.target` is the pathname
+ * without the query, so it is matched by `pathname` (the collector is reset
+ * before every test).
+ */
+async function expectSingleTrace(
+  collector: Collector,
+  {
+    id,
+    startedAt,
+    pathname,
+    middlewareRuntime,
+    render,
+    traceparent,
+    shape,
+  }: {
+    id: string
+    startedAt: number
+    pathname: string
+    middlewareRuntime: string | undefined
+    render: boolean
+    traceparent: boolean
+    // Where the middleware span sits. In every shape, the render is a direct
+    // child of the middleware span.
+    // handle-request-root: next-server's middleware-invoke `handleRequest` is
+    //   the root and the middleware span's parent (self-hosted router server).
+    // middleware-root: the middleware span is the root (separately invoked
+    //   middleware without a host span, e.g. direct entrypoints).
+    // host-root: a span started by the host wraps everything.
+    shape: 'handle-request-root' | 'middleware-root' | 'host-root'
+  }
+) {
+  await retry(async () => {
+    // Include `next.bubble` spans: next-server's middleware-invoke
+    // `handleRequest` span is one of them and is the root of the trace.
+    const spans = collector.getAllSpans()
+    const byId = new Map(spans.map((span) => [span.id, span]))
+    const isAncestor = (ancestor: SavedSpan, span: SavedSpan) => {
+      let parentId = span.parentId
+      while (parentId) {
+        if (parentId === ancestor.id) return true
+        parentId = byId.get(parentId)?.parentId
+      }
+      return false
     }
 
-    if (useDirectEntrypointHandler && runtime === 'edge') {
-      it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
-      return
+    const requestSpans = spans.filter((span) =>
+      String(span.attributes?.['http.target'] ?? '').includes(`id=${id}`)
+    )
+    const middlewareSpans = spans.filter(
+      (span) =>
+        span.attributes?.['next.span_type'] === 'Middleware.execute' &&
+        span.attributes?.['http.target'] === pathname
+    )
+    expect(middlewareSpans).toHaveLength(1)
+    const [middlewareSpan] = middlewareSpans
+    expect(middlewareSpan.runtime).toBe(middlewareRuntime)
+    requestSpans.push(middlewareSpan)
+
+    const handleRequestSpans = requestSpans.filter(
+      (span) =>
+        span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
+    )
+    const renderSpan = handleRequestSpans.find(
+      (span) => span.attributes?.['next.route']
+    )
+    if (render) {
+      expect(renderSpan).toBeDefined()
+      // The render is always nested inside the middleware span.
+      expect(renderSpan!.parentId).toBe(middlewareSpan.id)
+    } else {
+      expect(renderSpan).toBeUndefined()
     }
 
-    for (const env of [
-      {
-        name: 'root context',
-        fetchInit: undefined,
-        span: {
-          traceId: '[trace-id]',
-          rootParentId: undefined,
-        },
-      },
-      {
-        name: 'incoming context propagation',
-        fetchInit: {
-          headers: {
-            traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
-          },
-        },
-        span: {
-          traceId: EXTERNAL.traceId,
-          rootParentId: EXTERNAL.spanId,
-        },
-      },
-    ]) {
-      ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
-        env.name,
-        () => {
-          it('should trace middleware', async () => {
-            await next.fetch('/behind-middleware', env.fetchInit)
-            let expected = [
-              {
-                runtime: runtime,
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'middleware GET',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.target': '/behind-middleware',
-                  'next.span_name': 'middleware GET',
-                  'next.span_type': 'Middleware.execute',
-                },
-                status: { code: 0 },
-                spans: [],
-              },
-              {
-                runtime: 'nodejs',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'GET /behind-middleware',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/behind-middleware',
-                  'http.status_code': 200,
-                  'http.target': '/behind-middleware',
-                  'next.route': '/behind-middleware',
-                  'next.span_name': 'GET /behind-middleware',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-              },
-            ]
-            if (runtime === 'nodejs') {
-              // TODO unclear why this is reversed for Node.js runtime
-              expected.reverse()
-            }
-            await expectTrace(getCollector(), expected)
-          })
-        }
+    const traceIds = new Set(requestSpans.map((span) => span.traceId))
+    expect([...traceIds]).toEqual([
+      traceparent ? EXTERNAL.traceId : middlewareSpan.traceId,
+    ])
+    // Every span started for this request (not only the correlated entry
+    // spans) must be in that trace, so detached child spans fail too. One-time
+    // work (`STARTUP_SPAN_TYPES`) runs in its own root traces and is not part
+    // of the request.
+    const rootOf = (span: SavedSpan) => {
+      let current = span
+      while (current.parentId && byId.has(current.parentId)) {
+        current = byId.get(current.parentId)!
+      }
+      return current
+    }
+    const spansSinceRequest = spans.filter(
+      (span) =>
+        (span.timestamp ?? 0) >= startedAt &&
+        !STARTUP_SPAN_TYPES.has(
+          String(rootOf(span).attributes?.['next.span_type'])
+        )
+    )
+    expect(
+      spansSinceRequest
+        .filter((span) => span.traceId !== middlewareSpan.traceId)
+        .map((span) => `${span.name}|${span.attributes?.['next.span_type']}`)
+    ).toEqual([])
+    // Every span of that trace must be reachable from a single root (or from
+    // the external parent when the request carried a traceparent).
+    const traceSpans = spans.filter(
+      (span) => span.traceId === middlewareSpan.traceId
+    )
+    const roots = traceSpans.filter(
+      (span) =>
+        !span.parentId ||
+        (traceparent && span.parentId === EXTERNAL.spanId) ||
+        !byId.has(span.parentId)
+    )
+
+    if (shape === 'handle-request-root') {
+      expect(roots).toHaveLength(1)
+      const [root] = roots
+      expect(root.attributes?.['next.span_type']).toBe(
+        'BaseServer.handleRequest'
       )
+      // The middleware-invoke pass keeps its existing name.
+      expect(root.name).toBe('GET')
+      expect(root.attributes?.['next.bubble']).toBe(true)
+      expect(root.parentId).toBe(traceparent ? EXTERNAL.spanId : undefined)
+      expect(middlewareSpan.parentId).toBe(root.id)
+    } else if (shape === 'middleware-root') {
+      if (traceparent) {
+        expect(middlewareSpan.parentId).toBe(EXTERNAL.spanId)
+      } else {
+        expect(roots).toEqual([middlewareSpan])
+      }
+    } else {
+      expect(roots).toHaveLength(1)
+      const [root] = roots
+      expect(root.attributes?.['next.span_type']).toBeUndefined()
+      expect(isAncestor(root, middlewareSpan)).toBe(true)
     }
   })
-})
+}
 
 describe.each(
   [

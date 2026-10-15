@@ -16,6 +16,7 @@ use crate::{
     },
     environment::{ChunkLoading, Environment},
     ident::AssetIdent,
+    json::RcJsonRawValue,
     module::Module,
     module_graph::{
         ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
@@ -119,7 +120,7 @@ pub struct ChunkGroupResult {
     pub referenced_assets: ResolvedVc<OutputAssets>,
     pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
-    pub chunk_group_bootstrap_params: Option<RcStr>,
+    pub chunk_group_bootstrap_params: Option<RcJsonRawValue>,
 }
 
 impl ChunkGroupResult {
