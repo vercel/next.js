@@ -166,10 +166,16 @@ function HistoryUpdater({
 }
 
 function copyNextJsInternalHistoryState(data: any) {
-  // Next.js stores its own keys on the history state, so it has to be an
-  // object. A primitive state (e.g. `''`) can't hold them and assigning to it
-  // throws in strict mode, so treat it like `null`.
-  if (data == null || typeof data !== 'object') data = {}
+  // Serializable primitives cannot hold the router's internal history keys.
+  if (
+    data == null ||
+    typeof data === 'string' ||
+    typeof data === 'number' ||
+    typeof data === 'boolean' ||
+    typeof data === 'bigint'
+  ) {
+    data = {}
+  }
   const currentState = window.history.state
   const __NA = currentState?.__NA
   if (__NA) {

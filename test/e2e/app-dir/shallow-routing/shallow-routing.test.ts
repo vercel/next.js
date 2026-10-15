@@ -424,6 +424,59 @@ describe('shallow-routing', () => {
     })
   })
 
+  describe.each(['pushState', 'replaceState'] as const)(
+    '%s state values',
+    (method) => {
+      it.each([
+        ['nonempty string', "'custom state'"],
+        ['zero', '0'],
+        ['number', '42'],
+        ['false', 'false'],
+        ['true', 'true'],
+        ['bigint', 'BigInt(42)'],
+      ])('should work with %s state', async (_kind, value) => {
+        const browser = await next.browser('/pushstate-string-url')
+        await browser.eval(
+          `window.history[${JSON.stringify(method)}](${value}, '', '?query=foo')`
+        )
+        await check(() => browser.elementByCss('#my-data').text(), 'foo')
+        expect(await browser.url()).toBe(
+          `${next.url}/pushstate-string-url?query=foo`
+        )
+        expect(await browser.eval('window.history.state.__NA')).toBe(true)
+        expect(
+          await browser.eval(
+            '!!window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE'
+          )
+        ).toBe(true)
+      })
+
+      it('should still reject function and symbol state', async () => {
+        const browser = await next.browser('/pushstate-string-url')
+        expect(
+          await browser.eval(`(() => {
+            try {
+              window.history.${method}(() => {}, '')
+              return 'accepted'
+            } catch (error) {
+              return error.name
+            }
+          })()`)
+        ).toBe('DataCloneError')
+        expect(
+          await browser.eval(`(() => {
+            try {
+              window.history.${method}(Symbol('state'), '')
+              return 'accepted'
+            } catch (error) {
+              return error.name
+            }
+          })()`)
+        ).toBe('TypeError')
+      })
+    }
+  )
+
   describe('back and forward', () => {
     describe('client-side navigation', () => {
       it('should support setting a different pathname reflected on usePathname and then still support navigating back and forward', async () => {
