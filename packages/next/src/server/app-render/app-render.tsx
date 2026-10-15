@@ -75,6 +75,7 @@ import {
 import type { AnyStream } from './stream-ops'
 import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
+import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
 import { stripInternalQueries } from '../internal-utils'
 import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
 import {
@@ -3642,6 +3643,10 @@ async function renderToStream(
   // For MPA navigations (page reload, direct URL entry), the request ID
   // header is not present, so we generate a random one.
   let bootstrapScriptContent: string | undefined
+  // The Turbopack chunk-group bootstrap is only set when the shared runtime is
+  // used. A Cache Components static shell doesn't include it (see
+  // `prerenderToStream`), so resuming one emits it with the request's nonce.
+  let turbopackBootstrapScriptContent: string | undefined
   if (process.env.__NEXT_DEV_SERVER) {
     bootstrapScriptContent = `self.__next_r=${JSON.stringify(
       requestId ?? crypto.randomUUID()
@@ -3657,11 +3662,12 @@ async function renderToStream(
     buildManifest.pagesChunkGroupBootstrapParams &&
     buildManifest.chunkLoadingGlobal
   ) {
-    bootstrapScriptContent = getTurbopackChunkGroupBootstrap(
+    turbopackBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
       buildManifest.pagesChunkGroupBootstrapParams,
       buildManifest.chunkLoadingGlobal,
       [page]
     )
+    bootstrapScriptContent = turbopackBootstrapScriptContent
   }
 
   // Instant Navigation Testing API: embed the cookie-guarded bootstrap so it
@@ -4150,10 +4156,14 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = createNodeInlinedDataStream(
-              reactServerResult.tee(),
-              nonce,
-              formState
+            const inlinedDataStream = withTurbopackBootstrapScript(
+              createNodeInlinedDataStream(
+                reactServerResult.tee(),
+                nonce,
+                formState
+              ),
+              turbopackBootstrapScriptContent,
+              nonce
             )
 
             // There's no async HTML rendering in this path.
@@ -4202,10 +4212,14 @@ async function renderToStream(
             return await continueDynamicHTMLResumeNode(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: createNodeInlinedDataStream(
-                reactServerResult.consume(),
-                nonce,
-                formState
+              inlinedDataStream: withTurbopackBootstrapScript(
+                createNodeInlinedDataStream(
+                  reactServerResult.consume(),
+                  nonce,
+                  formState
+                ),
+                turbopackBootstrapScriptContent,
+                nonce
               ),
               getServerInsertedHTML,
               getServerInsertedMetadata,
@@ -4285,10 +4299,14 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = createWebInlinedDataStream(
-              reactServerResult.tee(),
-              nonce,
-              formState
+            const inlinedDataStream = withTurbopackBootstrapScript(
+              createWebInlinedDataStream(
+                reactServerResult.tee(),
+                nonce,
+                formState
+              ),
+              turbopackBootstrapScriptContent,
+              nonce
             )
 
             // There's no async HTML rendering in this path.
@@ -4337,10 +4355,14 @@ async function renderToStream(
             return await continueDynamicHTMLResumeWeb(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: createWebInlinedDataStream(
-                reactServerResult.consume(),
-                nonce,
-                formState
+              inlinedDataStream: withTurbopackBootstrapScript(
+                createWebInlinedDataStream(
+                  reactServerResult.consume(),
+                  nonce,
+                  formState
+                ),
+                turbopackBootstrapScriptContent,
+                nonce
               ),
               getServerInsertedHTML,
               getServerInsertedMetadata,
@@ -8831,7 +8853,8 @@ async function continueStaticPrerenderWithInlinedData(
   renderFlightStream: typeof renderToWebFlightStream,
   clientModules: Parameters<typeof renderToWebFlightStream>[2],
   filterStackFrameForError: typeof filterStackFrame,
-  serverComponentsErrorHandler: (err: unknown) => string | undefined
+  serverComponentsErrorHandler: (err: unknown) => string | undefined,
+  turbopackBootstrapScriptContent: string | undefined
 ): Promise<AnyStream> {
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
@@ -8859,10 +8882,14 @@ async function continueStaticPrerenderWithInlinedData(
           onError: serverComponentsErrorHandler,
         })
       )
-    const inlinedDataStream = createInlinedDataStream(
-      emptyReactServerResult.consumeAsStream(),
-      nonce,
-      formState
+    const inlinedDataStream = withTurbopackBootstrapScript(
+      createInlinedDataStream(
+        emptyReactServerResult.consumeAsStream(),
+        nonce,
+        formState
+      ),
+      turbopackBootstrapScriptContent,
+      nonce
     )
     return continueStaticFallbackPrerender(htmlStream, {
       inlinedDataStream,
@@ -8872,10 +8899,14 @@ async function continueStaticPrerenderWithInlinedData(
     })
   }
 
-  const inlinedDataStream = createInlinedDataStream(
-    reactServerResult.consumeAsStream(),
-    nonce,
-    formState
+  const inlinedDataStream = withTurbopackBootstrapScript(
+    createInlinedDataStream(
+      reactServerResult.consumeAsStream(),
+      nonce,
+      formState
+    ),
+    turbopackBootstrapScriptContent,
+    nonce
   )
   return continueStaticPrerender(htmlStream, {
     inlinedDataStream,
@@ -8883,6 +8914,31 @@ async function continueStaticPrerenderWithInlinedData(
     getServerInsertedMetadata,
     deploymentId,
   })
+}
+
+/**
+ * Emits the Turbopack chunk-group bootstrap as an inline script ahead of the
+ * inlined Flight data. Cache Components prerenders leave it out of the static
+ * shell, which is prerendered without a request and so can't carry a CSP
+ * nonce. The shell then gets it from here: as part of the response when the
+ * shell is complete, or from the per-request resume (with the request's nonce)
+ * when the shell has postponed parts.
+ */
+function withTurbopackBootstrapScript(
+  inlinedDataStream: AnyStream,
+  turbopackBootstrapScriptContent: string | undefined,
+  nonce: string | undefined
+): AnyStream {
+  if (!turbopackBootstrapScriptContent) {
+    return inlinedDataStream
+  }
+  return chainStreams(
+    createTurbopackBootstrapScriptStream(
+      turbopackBootstrapScriptContent,
+      nonce
+    ),
+    inlinedDataStream
+  )
 }
 
 async function prerenderToStream(
@@ -8978,7 +9034,15 @@ async function prerenderToStream(
     page
   )
 
-  let bootstrapScriptContent =
+  // The Turbopack chunk-group bootstrap (only set with the shared runtime). The
+  // Cache Components prerenders below keep it out of the static shell: the
+  // shell is prerendered without a request, so an inline script in it can't
+  // carry the request's CSP nonce, and on Vercel the shell is served before any
+  // Next.js code runs, so it can't be added later either. Instead it's emitted
+  // after the shell: in the stored response when the shell is complete, or by
+  // the per-request resume (with the nonce) when the shell has postponed parts.
+  // See `withTurbopackBootstrapScript`.
+  const turbopackBootstrapScriptContent =
     buildManifest.pagesChunkGroupBootstrapParams &&
     buildManifest.chunkLoadingGlobal
       ? getTurbopackChunkGroupBootstrap(
@@ -8988,14 +9052,14 @@ async function prerenderToStream(
         )
       : undefined
 
+  let bootstrapScriptContent: string | undefined
+
   // Instant Navigation Testing API: when exposed, embed the cookie-guarded
   // bootstrap into the prerendered prelude so the cached static shell carries
   // it and it runs before the client bootstrap module reads
   // self.__next_instant_test.
   if (renderOpts.experimental.exposeTestingApi) {
-    bootstrapScriptContent =
-      (bootstrapScriptContent ? `${bootstrapScriptContent};` : '') +
-      (await getInstantTestBootstrapScriptContent())
+    bootstrapScriptContent = await getInstantTestBootstrapScriptContent()
   }
 
   // In development the static shell is served without a dynamic resume, so it
@@ -10155,7 +10219,8 @@ async function prerenderToStream(
         renderFlightStream,
         clientModules,
         filterStackFrame,
-        serverComponentsErrorHandler
+        serverComponentsErrorHandler,
+        turbopackBootstrapScriptContent
       )
 
       return {
@@ -10226,7 +10291,13 @@ async function prerenderToStream(
         {
           onError: htmlRendererErrorHandler,
           nonce,
-          bootstrapScriptContent,
+          // Without Cache Components the prerender is a complete document
+          // that's never resumed, so the Turbopack bootstrap stays inline.
+          bootstrapScriptContent: turbopackBootstrapScriptContent
+            ? bootstrapScriptContent
+              ? `${turbopackBootstrapScriptContent};${bootstrapScriptContent}`
+              : turbopackBootstrapScriptContent
+            : bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
         },
         { waitForAllReady: true }
@@ -10552,7 +10623,8 @@ async function prerenderToStream(
               />,
               {
                 nonce,
-                bootstrapScriptContent: errorBootstrapScriptContent,
+                // Like the regular prerender, the Turbopack bootstrap is left
+                // out of the shell; see `withTurbopackBootstrapScript`.
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
                 signal: errorClientReactController.signal,
@@ -10710,7 +10782,8 @@ async function prerenderToStream(
           renderFlightStream,
           clientModules,
           filterStackFrame,
-          serverComponentsErrorHandler
+          serverComponentsErrorHandler,
+          errorBootstrapScriptContent
         )
 
         errorServerResult.consume()
