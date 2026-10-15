@@ -118,6 +118,8 @@ type ActConfig =
   | 'no-requests'
   | null
 
+export type RouterAct = ReturnType<typeof createRouterAct>
+
 export function createRouterAct(
   page: Playwright.Page,
   options?: {
@@ -823,10 +825,14 @@ ${fulfilled.body}
           // Print a helpful error message.
 
           if (expectedResponses.length === 1) {
+            const includes = expectedResponses[0].includes
             error.message =
               'Expected a response containing the given string:\n\n' +
-              expectedResponses[0].includes +
+              includes +
               '\n'
+            ;(error as ActMissingResponseError).code =
+              MISSING_RESPONSE_ERROR_CODE
+            ;(error as ActMissingResponseError).includes = includes
           } else {
             const expectedSubstrings = expectedResponses.map(
               (item) => item.includes
@@ -887,4 +893,28 @@ ${fulfilled.body}
   }
 
   return act
+}
+
+const MISSING_RESPONSE_ERROR_CODE = 'MISSING_RESPONSE'
+type ActMissingResponseError = Error & {
+  code: typeof MISSING_RESPONSE_ERROR_CODE
+  includes: string
+}
+
+export function isActMissingResponseError(
+  thrown: unknown,
+  expected: string
+): thrown is ActMissingResponseError {
+  if (
+    thrown &&
+    typeof thrown === 'object' &&
+    'message' in thrown &&
+    typeof thrown.message === 'string' &&
+    'code' in thrown &&
+    thrown.code === MISSING_RESPONSE_ERROR_CODE
+  ) {
+    const error = thrown as ActMissingResponseError
+    return error.includes === expected
+  }
+  return false
 }

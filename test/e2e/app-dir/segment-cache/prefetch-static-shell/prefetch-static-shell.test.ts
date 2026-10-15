@@ -1,6 +1,10 @@
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from 'router-act'
+import {
+  createRouterAct,
+  isActMissingResponseError,
+  RouterAct,
+} from 'router-act'
 import { retry } from '../../../../lib/next-test-utils'
 
 const REPRODUCE_UNNECESSARY_RUNTIME_PREFETCH =
@@ -2449,24 +2453,6 @@ describe('static App Shell prefetch attempt', () => {
           // TODO(ensure-static): In deploy, we apparently serve an ISR fallback for RSC prefetches
           // even though the route is configured as blocking.
           // The client router should retry the request.
-
-          const isActMissingSlugError = (thrown: unknown) => {
-            if (
-              thrown &&
-              typeof thrown === 'object' &&
-              'message' in thrown &&
-              typeof thrown.message === 'string'
-            ) {
-              const error = thrown as Error
-              return (
-                error.message.includes(
-                  'Expected a response containing the given string'
-                ) && error.message.includes(`Slug: ${slug}`)
-              )
-            }
-            return false
-          }
-
           try {
             await act(async () => {
               await browser
@@ -2485,50 +2471,14 @@ describe('static App Shell prefetch attempt', () => {
             ])
           } catch (err) {
             // We might not get the slug in the initial request.
-            // TODO: nested with block: true?
-
-            if (!isActMissingSlugError(err)) {
+            if (isActMissingResponseError(err, `Slug: ${slug}`)) {
+              console.error(
+                'initial link reveal failed (likely an ISR fallback)',
+                err
+              )
+              await waitForSuccessfulISRFallbackRetry(act, `Slug: ${slug}`)
+            } else {
               throw err
-            }
-
-            console.error(
-              'initial link reveal failed (likely an ISR fallback)',
-              err
-            )
-            const interval = 2_000
-            const maxAttempts = 5
-            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-              try {
-                await act(async () => {
-                  await new Promise<void>((resolve) =>
-                    setTimeout(resolve, interval + 500)
-                  )
-                }, [
-                  // Static prefetch
-                  {
-                    includes: `Slug: ${slug}`,
-                    kind: 'static',
-                  },
-                  // No runtime requests (e.g. runtime follow-up due to ISR fallback)
-                  { includes: '', kind: 'runtime', block: 'reject' },
-                ])
-
-                // if act() succeeded, then we got a complete prerender, and can stop waiting
-                // for retries.
-                break
-              } catch (err) {
-                // act() threw.
-                if (!isActMissingSlugError(err)) {
-                  throw err
-                }
-                // The router did a retry, but got an ISR fallback again.
-                if (attempt < maxAttempts) {
-                  console.error(`Retry ${attempt} failed:`, err)
-                } else {
-                  console.error(`Retry ${attempt} failed, aborting`)
-                  throw err
-                }
-              }
             }
           }
         } else {
@@ -2559,3 +2509,50 @@ describe('static App Shell prefetch attempt', () => {
     })
   })
 })
+
+async function waitForSuccessfulISRFallbackRetry(
+  act: RouterAct,
+  concretePrerenderContent: string
+) {
+  const interval = 2_000
+  const maxAttempts = 5
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await act(async () => {
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, interval + 500)
+        )
+      }, [
+        // The retried request eventually yields a concrete prerender.
+        {
+          includes: concretePrerenderContent,
+          kind: 'static',
+        },
+        // NO Runtime prefetch to get the content
+        // or runtime requests of any kind
+        { includes: '', kind: 'runtime', block: 'reject' },
+      ])
+
+      // if act() succeeded, then we got a complete prerender, and can stop waiting
+      // for retries.
+      break
+    } catch (err) {
+      // act() threw. Check if it's because we still didn't get a slug in the response.
+      // This may happen if the concrete prerender hasn't finished yet.
+      if (isActMissingResponseError(err, concretePrerenderContent)) {
+        // The router did a retry, but got an ISR fallback again.
+        if (attempt < maxAttempts) {
+          console.error(`Retry ${attempt} failed:`, err)
+        } else {
+          throw new Error(
+            `Did not receive a concrete prerender after ${maxAttempts} attempts`,
+            { cause: err }
+          )
+        }
+      } else {
+        // All other errors get reported as-is.
+        throw err
+      }
+    }
+  }
+}
