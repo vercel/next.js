@@ -76,7 +76,7 @@ Turbopack uses the [`loader-runner`](https://github.com/webpack/loader-runner) l
 
 **File system and output:**
 
-- [`fs`](https://webpack.js.org/api/loaders/#thisfs) - Partial support: only `fs.readFile` is currently implemented.
+- [`fs`](https://webpack.js.org/api/loaders/#thisfs) - Partial support: asynchronous `fs.readFile` and `fs.stat` are implemented. Other methods, including synchronous filesystem methods, are not supported.
 - [`emitFile`](https://webpack.js.org/api/loaders/#thisemitfile) - No support
 
 **Utilities:**
