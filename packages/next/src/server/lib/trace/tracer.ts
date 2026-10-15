@@ -179,14 +179,6 @@ interface NextTracer {
   getTracePropagationData(): ClientTraceDataEntry[]
 
   /**
-   * Returns the W3C trace context (`traceparent` / `tracestate`) of the
-   * currently active context, as produced by the configured propagator.
-   * Returns `undefined` when OpenTelemetry is not enabled, no span context is
-   * active, or the propagator doesn't produce a `traceparent`.
-   */
-  getTraceContextHeaders(): TraceContextHeaders | undefined
-
-  /**
    * Executes a function with the given span set as the active span in the context.
    * This allows child spans created within the function to automatically parent to this span.
    */
@@ -217,11 +209,6 @@ const getSpanId = () => lastSpanId++
 export interface ClientTraceDataEntry {
   key: string
   value: string
-}
-
-export interface TraceContextHeaders {
-  traceparent: string
-  tracestate?: string
 }
 
 const clientTraceDataSetter: TextMapSetter<ClientTraceDataEntry[]> = {
@@ -273,25 +260,6 @@ class NextTracerImpl implements NextTracer {
     return entries
   }
 
-  public getTraceContextHeaders(): TraceContextHeaders | undefined {
-    const activeContext = context.active()
-    if (
-      !trace.getSpanContext(activeContext) ||
-      !this.isOpenTelemetryEnabled()
-    ) {
-      return undefined
-    }
-
-    const carrier: Record<string, string> = {}
-    propagation.inject(activeContext, carrier)
-
-    const { traceparent, tracestate } = carrier
-    if (!traceparent) {
-      return undefined
-    }
-    return tracestate ? { traceparent, tracestate } : { traceparent }
-  }
-
   public getActiveScopeSpan(): Span | undefined {
     const localSpanRecorder = getLocalSpanRecorder()
     const activeLocalSpan = localSpanRecorder?.getActiveLocalSpan()
@@ -307,6 +275,19 @@ class NextTracerImpl implements NextTracer {
       return activeSpan
     }
     return activeLocalSpan
+  }
+
+  /**
+   * Run `fn` with the active span cleared, so spans created inside become new
+   * roots (or parent to incoming propagated context). Used for in-process
+   * Node.js middleware so its span is a sibling of the request span, matching
+   * edge middleware which runs in a detached sandbox.
+   */
+  public runWithDetachedContext<T>(fn: () => T): T {
+    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isOpenTelemetryEnabled()) {
+      return fn()
+    }
+    return context.with(ROOT_CONTEXT, fn)
   }
 
   public withPropagatedContext<T, C>(
