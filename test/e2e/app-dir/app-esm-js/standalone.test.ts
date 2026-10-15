@@ -14,6 +14,8 @@ if (!(globalThis as any).isNextStart) {
 } else {
   describe('output: standalone with ESM app dir', () => {
     const { next, skipped } = nextTestSetup({
+      // Webpack and Rspack standalone tracing do not support the global virtual store.
+      pnpmGlobalVirtualStore: !!process.env.IS_TURBOPACK_TEST,
       files: {
         app: new FileRef(path.join(__dirname, 'app')),
         lib: new FileRef(path.join(__dirname, 'lib')),

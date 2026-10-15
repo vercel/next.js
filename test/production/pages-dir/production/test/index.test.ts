@@ -9,6 +9,7 @@ import {
   check,
   fetchViaHTTP,
   listClientChunks,
+  getAllNftFiles,
 } from 'next-test-utils'
 import {
   BUILD_MANIFEST,
@@ -280,10 +281,11 @@ describe('Production Usage', () => {
 
     for (const check of checks) {
       require('console').log('checking', check.page)
-      const { version, files } = await next.readJSON(
+      const nft = await next.readJSON(
         join('.next/server/pages/', check.page + '.js.nft.json')
       )
-      expect(version).toBe(1)
+      expect(nft.version).toBe(1)
+      const files = getAllNftFiles(nft)
       expect([...new Set(files)].length).toBe(files.length)
 
       expect(

@@ -7,6 +7,9 @@ describe('standalone mode - tracing-unparsable', () => {
     files: __dirname,
     dependencies,
     skipStart: true,
+    // asserts on `node_modules/foo` in the top-level `files` list, which excludes
+    // the virtual store
+    pnpmGlobalVirtualStore: false,
   })
 
   it('should not error when dynamic require includes non-JS files', async () => {
