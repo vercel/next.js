@@ -1,6 +1,6 @@
 Upgrade the Next.js app at <app-directory> in GitHub Actions.
 
-Read the app's instructions and determine its package manager, declared tool versions and package runner. Resolve the repository's default branch and work from it in this checkout. The workflow has prepared the tools and existing dependencies. Preserve the configured temporary caches and tool prefix when installing upgraded dependencies or additional tools. Do not change the manifest or lockfile merely for setup, or redirect a repository-managed Yarn cache.
+Read the app's instructions and determine its package manager, declared tool versions and package runner. Resolve the repository's default branch and work from it in this checkout. The workflow has prepared the tools and existing dependencies. Preserve the configured temporary caches when installing upgraded dependencies. The prepared tool prefix is read-only for the agent; run additional tools through the app's package runner instead of installing them globally. Do not change the manifest or lockfile merely for setup, or redirect a repository-managed Yarn cache.
 
 Use the app's package runner to execute `next@canary upgrade --agent`. Follow its complete instructions, including duplicate checks, upgrade policy, release-age policy, verification, commits and draft PR delivery. Use the current checkout rather than creating another worktree.
 

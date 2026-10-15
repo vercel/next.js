@@ -41,21 +41,25 @@ const prompt = readFileSync(join(actionDirectory, 'ci.md'), 'utf8').replaceAll(
 )
 const outputs = { directory, prompt }
 
-// Keep package downloads and tool installs writable during the upgrade.
-const temporary = mkdtempSync(
-  join(process.env.RUNNER_TEMP || tmpdir(), 'next-upgrade-action-')
+const temporary = realpathSync(
+  mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), 'next-upgrade-action-'))
 )
+// Only package caches are writable inside the Codex sandbox. Tools on PATH
+// and the Codex home stay outside it so the agent cannot replace executables
+// or configuration used by later steps.
+const caches = join(temporary, 'caches')
 const tools = join(temporary, 'tools')
+mkdirSync(caches)
 mkdirSync(join(tools, 'bin'), { recursive: true })
 const environment = {
-  npm_config_cache: join(temporary, 'npm'),
+  npm_config_cache: join(caches, 'npm'),
   npm_config_prefix: tools,
-  COREPACK_HOME: join(temporary, 'corepack'),
-  XDG_CACHE_HOME: join(temporary, 'cache'),
-  XDG_DATA_HOME: join(temporary, 'share'),
-  XDG_STATE_HOME: join(temporary, 'state'),
-  YARN_GLOBAL_FOLDER: join(temporary, 'yarn'),
-  BUN_INSTALL_CACHE_DIR: join(temporary, 'bun'),
+  COREPACK_HOME: join(caches, 'corepack'),
+  XDG_CACHE_HOME: join(caches, 'cache'),
+  XDG_DATA_HOME: join(caches, 'share'),
+  XDG_STATE_HOME: join(caches, 'state'),
+  YARN_GLOBAL_FOLDER: join(caches, 'yarn'),
+  BUN_INSTALL_CACHE_DIR: join(caches, 'bun'),
 }
 for (const [name, value] of Object.entries(environment)) {
   appendFileSync(process.env.GITHUB_ENV, `${name}=${value}\n`)
@@ -78,8 +82,7 @@ extends = ":workspace"
 ${JSON.stringify(workspace)} = true
 
 [permissions.next-upgrade.filesystem]
-${JSON.stringify(temporary)} = "write"
-${JSON.stringify(configuration)} = "read"
+${JSON.stringify(caches)} = "write"
 
 [permissions.next-upgrade.filesystem.":workspace_roots"]
 ".git" = "write"
