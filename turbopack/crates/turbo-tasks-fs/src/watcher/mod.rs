@@ -842,9 +842,9 @@ struct BatchedInvalidations {
     has_new_paths: bool,
     /// Whether to track newly created paths, i.e. whether we're in non-recursive watching mode.
     track_new_paths: bool,
-    /// The most recently updated entry in [`Self::paths`]. Never one that only has
+    /// The most recently invalidated entry in [`Self::paths`]. Never one that only has
     /// [`InvalidationFlags::NEW`].
-    last_updated_index: Option<usize>,
+    last_invalidated_index: Option<usize>,
     /// Whether events are coming from [`PollWatcher`] instead of [`RecommendedWatcher`], which
     /// changes how a file content change is reported. See [`Self::is_content_change`].
     polling: bool,
@@ -857,7 +857,7 @@ impl BatchedInvalidations {
             has_invalidations: false,
             has_new_paths: false,
             track_new_paths: matches!(recursive_mode, DiskWatcherRecursiveMode::NonRecursive),
-            last_updated_index: None,
+            last_invalidated_index: None,
             polling,
         }
     }
@@ -893,7 +893,7 @@ impl BatchedInvalidations {
         self.paths.clear();
         self.has_invalidations = false;
         self.has_new_paths = false;
-        self.last_updated_index = None;
+        self.last_invalidated_index = None;
     }
 
     /// Whether the batch contains newly created paths. Always false in recursive watching mode.
@@ -979,8 +979,8 @@ impl BatchedInvalidations {
         }
     }
 
-    fn last_updated_path(&self) -> Option<&Path> {
-        self.last_updated_index
+    fn last_invalidated_path(&self) -> Option<&Path> {
+        self.last_invalidated_index
             .and_then(|index| self.paths.get_index(index))
             .map(|(path, _)| &**path)
     }
@@ -1027,12 +1027,12 @@ impl BatchedInvalidations {
         };
 
         let paths = event.paths;
-        let mut last_updated_index = None;
+        let mut last_invalidated_index = None;
         match event.kind {
             EventKind::Modify(ModifyKind::Data(_)) => {
                 for path in paths {
                     if is_relevant(self, &path, None, false) {
-                        last_updated_index =
+                        last_invalidated_index =
                             Some(self.mark(Cow::Owned(path), InvalidationFlags::PATH));
                     }
                 }
@@ -1041,7 +1041,7 @@ impl BatchedInvalidations {
             EventKind::Modify(ModifyKind::Metadata(kind)) if self.is_content_change(kind) => {
                 for path in paths {
                     if is_relevant(self, &path, None, false) {
-                        last_updated_index =
+                        last_invalidated_index =
                             Some(self.mark(Cow::Owned(path), InvalidationFlags::PATH));
                     }
                 }
@@ -1053,7 +1053,7 @@ impl BatchedInvalidations {
                         continue;
                     }
                     self.mark_parent_dir(&path);
-                    last_updated_index = Some(self.mark(
+                    last_invalidated_index = Some(self.mark(
                         Cow::Owned(path),
                         InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
@@ -1066,7 +1066,7 @@ impl BatchedInvalidations {
                         continue;
                     }
                     self.mark_parent_dir(&path);
-                    last_updated_index = Some(self.mark(
+                    last_invalidated_index = Some(self.mark(
                         Cow::Owned(path),
                         InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
@@ -1080,14 +1080,14 @@ impl BatchedInvalidations {
 
                 if is_relevant(self, &source, source.parent(), true) {
                     self.mark_parent_dir(&source);
-                    last_updated_index =
+                    last_invalidated_index =
                         Some(self.mark(Cow::Owned(source), InvalidationFlags::PATH_AND_CHILDREN));
                 }
 
                 self.mark_new_path(&destination);
                 if is_relevant(self, &destination, destination.parent(), true) {
                     self.mark_parent_dir(&destination);
-                    last_updated_index = Some(self.mark(
+                    last_invalidated_index = Some(self.mark(
                         Cow::Owned(destination),
                         InvalidationFlags::PATH_AND_CHILDREN,
                     ));
@@ -1102,7 +1102,7 @@ impl BatchedInvalidations {
                         continue;
                     }
                     self.mark_parent_dir(&path);
-                    last_updated_index = Some(self.mark(
+                    last_invalidated_index = Some(self.mark(
                         Cow::Owned(path),
                         InvalidationFlags::PATH_AND_CHILDREN
                             | InvalidationFlags::PATH_AND_CHILDREN_DIR,
@@ -1113,8 +1113,8 @@ impl BatchedInvalidations {
             | EventKind::Access(_)
             | EventKind::Other => {}
         }
-        if let Some(index) = last_updated_index {
-            self.last_updated_index = Some(index);
+        if let Some(index) = last_invalidated_index {
+            self.last_invalidated_index = Some(index);
             true
         } else {
             false
@@ -1125,10 +1125,10 @@ impl BatchedInvalidations {
     fn add_error(&mut self, paths: Vec<PathBuf>, root_path: &Path) {
         let flags = InvalidationFlags::PATH_AND_CHILDREN | InvalidationFlags::PATH_AND_CHILDREN_DIR;
         if paths.is_empty() {
-            self.last_updated_index = Some(self.mark(Cow::Borrowed(root_path), flags));
+            self.last_invalidated_index = Some(self.mark(Cow::Borrowed(root_path), flags));
         } else {
             for path in paths {
-                self.last_updated_index = Some(self.mark(Cow::Owned(path), flags));
+                self.last_invalidated_index = Some(self.mark(Cow::Owned(path), flags));
             }
         }
     }
@@ -1307,7 +1307,7 @@ mod tests {
                     relevant,
                     "{kind:?} at {path}",
                 );
-                assert_eq!(batch.last_updated_path().is_some(), relevant);
+                assert_eq!(batch.last_invalidated_path().is_some(), relevant);
             }
             anyhow::Ok(())
         })
@@ -1341,7 +1341,7 @@ mod tests {
             assert!(!add(&mut batch, create, "a"));
             assert!(batch.has_new_paths());
             assert!(!batch.has_pending_invalidations());
-            assert_eq!(batch.last_updated_path(), None);
+            assert_eq!(batch.last_invalidated_path(), None);
             assert_eq!(batch.paths[Path::new("a")], InvalidationFlags::NEW);
 
             // neither a repeated creation, nor events on the path or its children become relevant
@@ -1350,7 +1350,7 @@ mod tests {
             assert!(!add(&mut batch, content, "a"));
             assert!(!add(&mut batch, create, "a/b"));
             assert!(!batch.has_pending_invalidations());
-            assert_eq!(batch.last_updated_path(), None);
+            assert_eq!(batch.last_invalidated_path(), None);
             assert_eq!(batch.paths[Path::new("a/b")], InvalidationFlags::NEW);
 
             // only restored paths keep the flag
@@ -1372,10 +1372,10 @@ mod tests {
             // are relevant
             assert!(add(&mut batch, content, "a"));
             assert!(add(&mut batch, create, "a/c"));
-            assert_eq!(batch.last_updated_path(), Some(Path::new("a/c")));
+            assert_eq!(batch.last_invalidated_path(), Some(Path::new("a/c")));
 
             batch.clear();
-            assert_eq!(batch.last_updated_path(), None);
+            assert_eq!(batch.last_invalidated_path(), None);
             assert!(!add(&mut batch, create, "a"));
             batch.clear();
             assert!(!batch.has_pending_invalidations());
@@ -1394,11 +1394,11 @@ mod tests {
     }
 
     /// Filtering and promoting new paths must preserve existing invalidation flags on the same
-    /// path, as well as the last updated path.
+    /// path, as well as the last invalidated path.
     #[test]
     fn new_flag_is_independent_of_invalidations() {
         let mut batch = BatchedInvalidations::new(DiskWatcherRecursiveMode::NonRecursive, false);
-        batch.last_updated_index =
+        batch.last_invalidated_index =
             Some(batch.mark(Cow::Borrowed(Path::new("a")), InvalidationFlags::PATH));
         batch.mark_new_path(Path::new("a"));
         batch.mark_new_path(Path::new("b"));
@@ -1418,7 +1418,7 @@ mod tests {
         assert_eq!(batch.paths[Path::new("a")], InvalidationFlags::PATH);
         assert!(batch.paths[Path::new("b")].is_empty());
         assert!(batch.has_pending_invalidations());
-        assert_eq!(batch.last_updated_path(), Some(Path::new("a")));
+        assert_eq!(batch.last_invalidated_path(), Some(Path::new("a")));
     }
 
     /// Polls [`tracked_read`] until it has executed more than `previous_runs` times, i.e. until the
