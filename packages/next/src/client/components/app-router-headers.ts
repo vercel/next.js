@@ -42,3 +42,4 @@ export const NEXT_HTML_REQUEST_ID_HEADER = 'x-nextjs-html-request-id' as const
 
 // TODO: Should this include nextjs in the name, like the others?
 export const NEXT_ACTION_REVALIDATED_HEADER = 'x-action-revalidated' as const
+export const NEXT_ACTION_DRAFT_MODE_HEADER = 'x-action-draft-mode' as const

@@ -45,6 +45,7 @@ The following methods and properties are available:
 - [`isEnabled`](#checking-if-draft-mode-is-enabled) is readable inside a [caching directive](/docs/app/api-reference/directives/use-cache) scope. Other runtime APIs like `cookies()` and `headers()` are not allowed inside caching directive scopes, even when Draft Mode is active.
 - Calling `enable()` or `disable()` inside a caching directive scope will throw an error.
 - When Draft Mode is enabled, all functions and components under a caching directive scope re-execute on every request and results are not saved to the cache. This ensures draft content is always fresh.
+- In the App Router, [`<Link>`](/docs/app/api-reference/components/link) and [`router.prefetch()`](/docs/app/api-reference/functions/use-router) do not prefetch routes while Draft Mode is enabled. Client-side navigation still works and fetches missing data when needed. The router learns the state from the initial page load and from Server Actions that call `enable()` or `disable()`; a Route Handler that toggles Draft Mode should redirect so the browser loads a new document.
 
 ## Examples
 
