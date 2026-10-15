@@ -61,7 +61,7 @@ pub struct SlowSettle {
     pub waited: Duration,
     /// Operations that were active when the snapshot was requested.
     pub active_at_start: usize,
-    /// Operations that are active now.
+    /// Operations that were active at the latest attempt to close admission.
     pub active_now: usize,
 }
 
@@ -211,30 +211,31 @@ impl SnapshotCoordinator {
     }
 
     /// Under the state mutex, with no phase in flight: close admission if no operation is
-    /// active (the running bit stays set and `true` is returned), else leave `flags` at `keep`.
+    /// active (the running bit stays set and `Ok` is returned), else leave `flags` at `keep` and
+    /// return how many operations were still active.
     ///
     /// With a nonzero `grace`, admission stays closed for up to that long while operations that
     /// are already active finish. Operations arriving meanwhile wait for the mutex without being
     /// counted. That can delay an active operation that depends on one of them, but only until
     /// the grace period ends, so it cannot deadlock.
-    fn try_close_admission(&self, keep: usize, grace: Duration) -> bool {
+    fn try_close_admission(&self, keep: usize, grace: Duration) -> Result<(), usize> {
         self.flags
             .store(keep | SNAPSHOT_RUNNING_BIT, Ordering::SeqCst);
         let deadline = Instant::now() + grace;
         loop {
-            if self.active_operations() == 0 {
+            let active = self.active_operations();
+            if active == 0 {
                 self.flags.store(SNAPSHOT_RUNNING_BIT, Ordering::SeqCst);
-                return true;
+                return Ok(());
             }
             if grace.is_zero() || Instant::now() >= deadline {
-                break;
+                // Operations are still active. Ones that saw the bit meanwhile are waiting for
+                // the mutex; they will find no snapshot requested and retry.
+                self.flags.store(keep, Ordering::SeqCst);
+                return Err(active);
             }
             std::hint::spin_loop();
         }
-        // Operations are still active. Ones that saw the bit meanwhile are waiting for the
-        // mutex; they will find no snapshot requested and retry.
-        self.flags.store(keep, Ordering::SeqCst);
-        false
     }
 
     /// Begin a snapshot. Wait for all admitted work to finish without preventing dependent
@@ -261,17 +262,21 @@ impl SnapshotCoordinator {
             (prev & (SNAPSHOT_WAITING_BIT | SNAPSHOT_RUNNING_BIT)) == 0,
             "begin_snapshot called while another snapshot was already in flight"
         );
-        let active_at_start = self.active_operations();
-        let _span =
-            info_span!("await operations settle", num_operations = active_at_start).entered();
         let wait_start = Instant::now();
         let mut next_report = wait_start + self.slow_settle_report_timeout;
-        // Fast path: nothing active, so no need to give up the Tokio worker.
-        if !self.try_close_admission(SNAPSHOT_WAITING_BIT, Duration::ZERO) {
+        // Fast path: nothing active, so no need to give up the Tokio worker. Otherwise the
+        // attempt's count, taken with the running bit set, is the number of operations we wait
+        // for; a sum taken with admission open is only a hint.
+        let first_attempt = self.try_close_admission(SNAPSHOT_WAITING_BIT, Duration::ZERO);
+        let active_at_start = first_attempt.err().unwrap_or(0);
+        let _span =
+            info_span!("await operations settle", num_operations = active_at_start).entered();
+        if first_attempt.is_err() {
             // This runs in a background Tokio task; release its worker so admitted work can
             // complete while we wait.
             tokio::task::block_in_place(|| {
                 let mut poll_interval = MIN_POLL_INTERVAL;
+                let mut active_now = active_at_start;
                 loop {
                     let now = Instant::now();
                     if now >= next_report {
@@ -279,7 +284,7 @@ impl SnapshotCoordinator {
                         let slow_settle = SlowSettle {
                             waited,
                             active_at_start,
-                            active_now: self.active_operations(),
+                            active_now,
                         };
                         // Don't hold the mutex while running caller code.
                         MutexGuard::unlocked(&mut state, || on_slow_settle(slow_settle));
@@ -293,8 +298,9 @@ impl SnapshotCoordinator {
                     // A single scan rarely finds zero when every thread keeps an operation open,
                     // so give in-flight operations a moment to finish. Admission is closed for
                     // at most 1/20 of the time we wait.
-                    if self.try_close_admission(SNAPSHOT_WAITING_BIT, poll_interval / 20) {
-                        break;
+                    match self.try_close_admission(SNAPSHOT_WAITING_BIT, poll_interval / 20) {
+                        Ok(()) => break,
+                        Err(active) => active_now = active,
                     }
                     poll_interval = (poll_interval * 2).min(MAX_POLL_INTERVAL);
                 }
@@ -325,9 +331,7 @@ impl SnapshotCoordinator {
         }
         // Without waiting there is no need to request a drain: either nothing is active and we
         // close admission immediately, or we give up and leave the flags clear.
-        if !self.try_close_admission(0, Duration::ZERO) {
-            return None;
-        }
+        self.try_close_admission(0, Duration::ZERO).ok()?;
         // Operations that see the bit before this is set block on the state mutex we hold, then
         // observe the flag.
         state.snapshot_requested = true;
