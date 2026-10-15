@@ -30,10 +30,11 @@ import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
-import { getTracer } from '../lib/trace/tracer'
+import { getTracer, type TraceContextHeaders } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
+import { forwardTraceContextToRequest } from './forward-trace-context'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
@@ -266,6 +267,11 @@ export async function adapter(
   })
   let response
   let cookiesFromResponse
+  // The middleware span's trace context to forward to the downstream request
+  // (see `forwardTraceContextToRequest`), and the request headers as the
+  // middleware received them.
+  let forwardedTraceContext: TraceContextHeaders | undefined
+  let forwardedRequestHeaders: Headers | undefined
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
@@ -293,6 +299,16 @@ export async function adapter(
           },
         },
         async () => {
+          // Forward the middleware span's own context, so the render is always
+          // nested inside the middleware span, whatever the middleware span is
+          // parented to (an incoming `traceparent`, a host span, next-server's
+          // `handleRequest` span, or nothing).
+          forwardedTraceContext = getTracer().getTraceContextHeaders()
+          if (forwardedTraceContext) {
+            // Snapshot before the handler can mutate `request.headers`.
+            forwardedRequestHeaders = new Headers(request.headers)
+          }
+
           try {
             const onUpdateCookies = (cookies: Array<string>) => {
               cookiesFromResponse = cookies
@@ -519,6 +535,18 @@ export async function adapter(
   }
 
   const finalResponse = response ? response : NextResponse.next()
+
+  if (forwardedRequestHeaders) {
+    // Nest the downstream request (render) inside the middleware span. Every
+    // host applies these request-header overrides to the render, including
+    // next-server's router server, so this works whether or not the host
+    // invokes the middleware separately from the render.
+    forwardTraceContextToRequest(
+      finalResponse.headers,
+      forwardedRequestHeaders,
+      forwardedTraceContext
+    )
+  }
 
   // Flight headers are not overridable / removable so they are applied at the end.
   const middlewareOverrideHeaders = finalResponse.headers.get(

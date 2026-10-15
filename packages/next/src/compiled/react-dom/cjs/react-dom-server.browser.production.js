@@ -6734,7 +6734,9 @@ function performWork(request$jscomp$1) {
             switchContext(task.context);
             var childrenLength = request$jscomp$0.children.length,
               chunkLength = request$jscomp$0.chunks.length,
-              startNode$jscomp$0 = task.node;
+              startNode$jscomp$0 = task.node,
+              startKeyPath = task.keyPath,
+              startChildIndex = task.childIndex;
             try {
               retryNode(request, task),
                 request$jscomp$0.lastPushedText &&
@@ -6765,6 +6767,8 @@ function performWork(request$jscomp$1) {
                 thrownValue === SuspenseException &&
                   (task.thenableState = getThenableStateAfterSuspending()),
                   (request.currentTask = prevTask$jscomp$0),
+                  (task.keyPath = startKeyPath),
+                  (task.childIndex = startChildIndex),
                   (request$jscomp$0 = request),
                   abortTask(task, request$jscomp$0),
                   task.abortSet.delete(task),
@@ -7619,12 +7623,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-b618bbb4-20261007" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-07dde64d-20261013" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-canary-b618bbb4-20261007"
+        "19.3.0-canary-07dde64d-20261013"
       )
     );
 }
@@ -7839,4 +7843,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-b618bbb4-20261007";
+exports.version = "19.3.0-canary-07dde64d-20261013";

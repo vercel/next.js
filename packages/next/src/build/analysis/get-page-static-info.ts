@@ -78,7 +78,6 @@ export type ProxyConfig = {
 }
 
 export interface SharedPageStaticInfo {
-  rsc?: RSCModuleType
   generateSitemaps?: boolean
   generateImageMetadata?: boolean
   middleware?: ProxyConfig
@@ -681,8 +680,6 @@ export async function getAppPageStaticInfo({
     directives,
   } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
 
-  const { type: rsc } = getRSCModuleInformation(content, true)
-
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
     for (const property of exports) {
@@ -788,7 +785,6 @@ export async function getAppPageStaticInfo({
 
   return {
     type: PAGE_TYPES.APP,
-    rsc,
     generateImageMetadata,
     generateSitemaps,
     config,
@@ -827,8 +823,6 @@ export async function getPagesPageStaticInfo({
   })
 
   const { exports } = checkExports(ast, PagesSegmentConfigSchemaKeys, page)
-
-  const { type: rsc } = getRSCModuleInformation(content, true)
 
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
@@ -901,7 +895,6 @@ export async function getPagesPageStaticInfo({
 
   return {
     type: PAGE_TYPES.PAGES,
-    rsc,
     config,
     middleware: parseMiddlewareConfig(page, exportedConfig.config, nextConfig),
     runtime: resolvedRuntime,
