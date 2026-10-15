@@ -1154,6 +1154,7 @@ impl AppEndpoint {
             self.page.clone(),
             self.app_project.project().project_path().owned().await?,
             self.app_project.project().next_config(),
+            self.app_project.project().mdx_transform_options(true),
         ))
     }
 
@@ -1172,7 +1173,11 @@ impl AppEndpoint {
 
             for layout in root_layouts.iter().rev() {
                 let source = Vc::upcast(FileSource::new(layout.clone()));
-                let layout_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
+                let layout_config = parse_segment_config_from_source(
+                    source,
+                    ParseSegmentMode::App,
+                    self.app_project.project().mdx_transform_options(true),
+                );
                 config.apply_parent_config(&*layout_config.await?);
             }
 
@@ -1187,6 +1192,7 @@ impl AppEndpoint {
             self.app_project.project().project_path().owned().await?,
             config,
             next_config,
+            self.app_project.project().mdx_transform_options(true),
         ))
     }
 
@@ -1204,6 +1210,7 @@ impl AppEndpoint {
             *self.app_project.project().next_mode().await?,
             metadata,
             next_config,
+            self.app_project.project().mdx_transform_options(true),
         ))
     }
 

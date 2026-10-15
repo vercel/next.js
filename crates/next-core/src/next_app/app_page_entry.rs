@@ -15,6 +15,7 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE};
+use turbopack_mdx::MdxTransformOptions;
 
 use crate::{
     app_page_loader_tree::AppPageLoaderTreeModule,
@@ -36,8 +37,9 @@ pub async fn get_app_page_entry(
     page: AppPage,
     project_root: FileSystemPath,
     next_config: Vc<NextConfig>,
+    mdx_options: Vc<MdxTransformOptions>,
 ) -> Result<Vc<AppEntry>> {
-    let config = parse_segment_config_from_loader_tree(loader_tree);
+    let config = parse_segment_config_from_loader_tree(loader_tree, mdx_options);
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
     let module_asset_context = if is_edge {
         edge_context

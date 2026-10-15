@@ -64,13 +64,15 @@ pub async fn get_app_metadata_route_entry(
     mode: NextMode,
     metadata: MetadataItem,
     next_config: Vc<NextConfig>,
+    mdx_options: Vc<turbopack::module_options::MdxTransformOptions>,
 ) -> Result<Vc<AppEntry>> {
     // Read original source's segment config before replacing source into
     // dynamic|static metadata route handler.
     let original_path = metadata.clone().into_path();
 
     let source = Vc::upcast(FileSource::new(original_path));
-    let segment_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
+    let segment_config =
+        parse_segment_config_from_source(source, ParseSegmentMode::App, mdx_options);
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
         // is_multi_dynamic is true when config.generateSitemaps or
@@ -109,6 +111,7 @@ pub async fn get_app_metadata_route_entry(
         project_root,
         Some(segment_config),
         next_config,
+        mdx_options,
     ))
 }
 

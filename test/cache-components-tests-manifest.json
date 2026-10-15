@@ -261,6 +261,7 @@
       "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts",
       "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts",
       "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts",
+      "test/e2e/app-dir/segment-config-mdx/segment-config-mdx.test.ts",
       "test/e2e/app-dir/server-actions-redirect-middleware-rewrite/server-actions-redirect-middleware-rewrite.test.ts",
       "test/e2e/app-dir/server-source-maps/server-source-maps-edge.test.ts",
       "test/e2e/app-dir/server-source-maps/server-source-maps.test.ts",

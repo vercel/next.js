@@ -41,6 +41,36 @@ use turbopack_wasm::source::WebAssemblySourceType;
 
 use crate::evaluate_context::{config_tracing_module_context, node_evaluate_asset_context};
 
+/// Combine MDX configuration with the JSX settings used by the module pipeline.
+#[turbo_tasks::function]
+pub async fn get_mdx_transform_options(
+    mdx_options: Option<ResolvedVc<MdxTransformOptions>>,
+    jsx_options: Option<ResolvedVc<JsxTransformOptions>>,
+) -> Result<Vc<MdxTransformOptions>> {
+    let (jsx_runtime, jsx_import_source, development) = if let Some(jsx_options) = jsx_options {
+        let jsx = jsx_options.await?;
+        (
+            jsx.runtime.clone(),
+            jsx.import_source.clone(),
+            jsx.development,
+        )
+    } else {
+        (None, None, false)
+    };
+    let mdx_options = mdx_options
+        .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
+        .await?;
+
+    Ok(MdxTransformOptions {
+        development: Some(development),
+        jsx: Some(false),
+        jsx_runtime,
+        jsx_import_source,
+        ..(*mdx_options).clone()
+    }
+    .cell())
+}
+
 #[turbo_tasks::function]
 pub(crate) fn package_import_map_from_import_mapping(
     package_name: RcStr,
@@ -542,30 +572,10 @@ impl ModuleOptions {
         rules.extend(module_rules.iter().cloned());
 
         if enable_mdx || enable_mdx_rs.is_some() {
-            let (jsx_runtime, jsx_import_source, development) = if let Some(enable_jsx) = enable_jsx
-            {
-                let jsx = enable_jsx.await?;
-                (
-                    jsx.runtime.clone(),
-                    jsx.import_source.clone(),
-                    jsx.development,
-                )
-            } else {
-                (None, None, false)
-            };
-
-            let mdx_options = &*enable_mdx_rs
-                .unwrap_or_else(|| MdxTransformOptions::default().resolved_cell())
-                .await?;
-
-            let mdx_transform_options = (MdxTransformOptions {
-                development: Some(development),
-                jsx: Some(false),
-                jsx_runtime,
-                jsx_import_source,
-                ..(mdx_options.clone())
-            })
-            .cell();
+            let mdx_transform_options = get_mdx_transform_options(
+                enable_mdx_rs.map(|options| *options),
+                enable_jsx.map(|options| *options),
+            );
 
             rules.push(ModuleRule::new(
                 RuleCondition::any(vec![

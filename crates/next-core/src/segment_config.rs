@@ -32,6 +32,7 @@ use turbopack_ecmascript::{
     },
     parse::{ParseResult, parse},
 };
+use turbopack_mdx::{MdxTransformOptions, MdxTransformedAsset};
 
 use crate::{
     app_structure::AppPageLoaderTree,
@@ -406,7 +407,8 @@ pub enum ParseSegmentMode {
     Proxy,
 }
 
-/// Parse the raw source code of a file to get the segment config local to that file.
+/// Parse a file's source code to get the segment config local to that file.
+/// MDX is compiled to JavaScript first; other loader transforms are not applied.
 ///
 /// See [the Next.js documentation for Route Segment
 /// Configs](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config).
@@ -471,24 +473,40 @@ pub enum ParseSegmentMode {
 pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
+    mdx_options: ResolvedVc<MdxTransformOptions>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let ident = source.ident().await?;
     let path = &ident.path;
 
-    // Don't try parsing if it's not a javascript file, otherwise it will emit an
+    // Don't try parsing unsupported source types, otherwise it will emit an
     // issue causing the build to "fail".
     if path.path.ends_with(".d.ts")
         || !(path.path.ends_with(".js")
+            || path.path.ends_with(".mjs")
             || path.path.ends_with(".jsx")
             || path.path.ends_with(".ts")
-            || path.path.ends_with(".tsx"))
+            || path.path.ends_with(".mts")
+            || path.path.ends_with(".tsx")
+            || path.path.ends_with(".mdx"))
     {
         return Ok(Default::default());
     }
 
+    // Runtime selection happens before loaders run. Use the cached MDX transform
+    // with the same options as the module graph, without choosing an asset context.
+    let source = if path.path.ends_with(".mdx") {
+        ResolvedVc::upcast(
+            MdxTransformedAsset::new(*source, *mdx_options)
+                .to_resolved()
+                .await?,
+        )
+    } else {
+        source
+    };
+
     let result = &*parse(
         *source,
-        if path.path.ends_with(".ts") {
+        if path.path.ends_with(".ts") || path.path.ends_with(".mts") {
             EcmascriptModuleAssetType::Typescript {
                 tsx: false,
                 analyze_types: false,
@@ -1545,23 +1563,32 @@ async fn parse_route_matcher_from_js_value(
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<AppPageLoaderTree>,
+    mdx_options: ResolvedVc<MdxTransformOptions>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = &*loader_tree.await?;
 
-    Ok(parse_segment_config_from_loader_tree_internal(loader_tree)
-        .await?
-        .cell())
+    Ok(
+        parse_segment_config_from_loader_tree_internal(loader_tree, mdx_options)
+            .await?
+            .cell(),
+    )
 }
 
 async fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &AppPageLoaderTree,
+    mdx_options: ResolvedVc<MdxTransformOptions>,
 ) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
 
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
-        .map(|loader_tree| Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)))
+        .map(|loader_tree| {
+            Box::pin(parse_segment_config_from_loader_tree_internal(
+                loader_tree,
+                mdx_options,
+            ))
+        })
         .join()
         .await;
 
@@ -1580,7 +1607,7 @@ async fn parse_segment_config_from_loader_tree_internal(
     {
         let source = Vc::upcast(FileSource::new(path.clone()));
         config.apply_parent_config(
-            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
+            &*parse_segment_config_from_source(source, ParseSegmentMode::App, *mdx_options).await?,
         );
     }
 

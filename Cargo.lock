@@ -4291,6 +4291,7 @@ dependencies = [
  "turbopack-ecmascript-plugins",
  "turbopack-ecmascript-runtime",
  "turbopack-image",
+ "turbopack-mdx",
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-resolve",
