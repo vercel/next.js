@@ -94,25 +94,25 @@ impl Asset for StaticInfoManifestAsset {
 
         #[derive(Serialize)]
         #[serde(untagged)]
-        enum ManifestRegion {
-            Single(String),
-            Multiple(Vec<String>),
+        enum ManifestRegion<'a> {
+            Single(&'a RcStr),
+            Multiple(&'a [RcStr]),
         }
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
-        struct ManifestMiddleware {
+        struct ManifestMiddleware<'a> {
             #[serde(skip_serializing_if = "Option::is_none")]
             pub matchers: Option<Vec<ProxyMatcher>>,
             #[serde(
                 rename = "unstable_allowDynamic",
                 skip_serializing_if = "Option::is_none"
             )]
-            pub unstable_allow_dynamic: Option<Vec<RcStr>>,
+            pub unstable_allow_dynamic: &'a Option<Vec<RcStr>>,
             #[serde(skip_serializing_if = "Option::is_none")]
-            pub regions: Option<ManifestRegion>,
+            pub regions: Option<ManifestRegion<'a>>,
         }
-        impl ManifestMiddleware {
+        impl ManifestMiddleware<'_> {
             fn is_empty(&self) -> bool {
                 self.matchers.is_none()
                     && self.unstable_allow_dynamic.is_none()
@@ -126,7 +126,7 @@ impl Asset for StaticInfoManifestAsset {
             #[serde(rename = "type")]
             ty: &'a str,
             #[serde(skip_serializing_if = "ManifestMiddleware::is_empty")]
-            middleware: ManifestMiddleware,
+            middleware: ManifestMiddleware<'a>,
             #[serde(skip_serializing_if = "std::ops::Not::not")]
             generate_sitemaps: bool,
             #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -134,7 +134,7 @@ impl Asset for StaticInfoManifestAsset {
             #[serde(skip_serializing_if = "Option::is_none")]
             runtime: Option<NextRuntime>,
             #[serde(skip_serializing_if = "Option::is_none")]
-            preferred_region: Option<ManifestRegion>,
+            preferred_region: Option<ManifestRegion<'a>>,
             #[serde(skip_serializing_if = "Option::is_none")]
             max_duration: Option<u32>,
         }
@@ -144,10 +144,8 @@ impl Asset for StaticInfoManifestAsset {
             .preferred_region
             .as_ref()
             .map(|region| match region {
-                NextSegmentRegion::Single(region) => ManifestRegion::Single(region.to_string()),
-                NextSegmentRegion::Multiple(regions) => {
-                    ManifestRegion::Multiple(regions.iter().map(ToString::to_string).collect())
-                }
+                NextSegmentRegion::Single(region) => ManifestRegion::Single(region),
+                NextSegmentRegion::Multiple(regions) => ManifestRegion::Multiple(regions),
             });
         let (regions, preferred_region) = if self.ty.as_str() == "app" {
             (None, region)
@@ -162,7 +160,7 @@ impl Asset for StaticInfoManifestAsset {
                     has_i18n_locales,
                     base_path.as_deref(),
                 ),
-                unstable_allow_dynamic: config.unstable_allow_dynamic.clone(),
+                unstable_allow_dynamic: &config.unstable_allow_dynamic,
                 regions,
             },
             runtime: config.entry.runtime,
