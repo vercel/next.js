@@ -38,15 +38,16 @@ pub async fn get_app_route_entry(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let segment_from_source = parse_segment_config_from_source(source, ParseSegmentMode::App);
+    // TODO this merging seems wrong/unnnecessary
     let config = if let Some(original_segment_config) = original_segment_config {
         let mut segment_config = segment_from_source.owned().await?;
-        segment_config.apply_parent_config(&*original_segment_config.await?);
+        segment_config.apply_parent_config(&*original_segment_config.await?, true);
         segment_config.cell()
     } else {
         segment_from_source
     };
 
-    let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
+    let is_edge = matches!(config.await?.entry.runtime, Some(NextRuntime::Edge));
     let module_asset_context = if is_edge {
         edge_context
     } else {
