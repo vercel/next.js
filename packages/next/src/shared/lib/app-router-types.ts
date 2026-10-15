@@ -462,8 +462,6 @@ export type InitialRSCPayload = {
    * Only present for static prerenders when Cache Components is enabled.
    */
   u?: Promise<boolean>
-  /** staticStageByteLength - Resolves when the static stage ends. */
-  l?: Promise<number>
   /**
    * shellByteLength - Resolves when the shell stage ends.
    * If it resolves to null, then the shell is the same as the main response.
@@ -532,8 +530,6 @@ type NavigationFlightResponseBase = {
    * Per-segment prefetch responses carry staleTime per node instead (see
    * TransportSegmentData). */
   s?: AsyncIterable<number>
-  /** staticStageByteLength - Resolves when the static stage ends. */
-  l?: Promise<number>
   /**
    * shellByteLength - Resolves when the shell stage ends.
    * If it resolves to null, then the shell is the same as the main response.
