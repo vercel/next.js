@@ -277,6 +277,14 @@ pub struct TurboTasksBackend {
     /// How long a GC root may go un-anchored before it ages out.
     gc_root_ttl: Duration,
 
+    /// GC roots that a pass has observed live (anchored) in this session. Never persisted.
+    ///
+    /// A persisted root that has not been observed live yet is from an earlier session and keeps
+    /// its TTL even while resident. One that has been observed live and is later released was let
+    /// go in this session, so a pass may collect it right away. See
+    /// `TurboTasksBackend::gc_roots_refresh_and_age_out`.
+    gc_live_roots: Mutex<FxHashSet<TaskId>>,
+
     /// How long a GC pass runs before it will honour an interrupt
     gc_min_progress: Duration,
 
@@ -377,6 +385,7 @@ impl TurboTasksBackend {
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
             gc_root_ttl,
+            gc_live_roots: Default::default(),
             gc_min_progress,
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
@@ -1409,12 +1418,30 @@ impl TurboTasksBackend {
         // but never modified don't need re-persisting since the on-disk version is still valid.
         // Captured tasks that were modified again before being persisted were already encoded by
         // `track_modification` (see `Storage::snapshots`), and are yielded without calling this.
+        // Roots in the map are protected by their TTL, so a collectible one is still persisted.
+        #[cfg(debug_assertions)]
+        let gc_protected_roots: FxHashSet<TaskId> = if !self.gc_enabled {
+            FxHashSet::default()
+        } else if let Some(roots) = &gc_roots_to_persist {
+            roots.iter().map(|(id, _)| *id).collect()
+        } else {
+            self.backing_storage
+                .roots()
+                .expect("reading gc roots should not fail")
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect()
+        };
         let process = |task_id: TaskId,
                        inner: &TaskStorage,
                        category: TaskDataCategory,
                        buffer: &mut TurboBincodeBuffer| {
+            #[cfg(debug_assertions)]
             debug_assert!(
-                !self.gc_enabled || inner.flags.deleted() || !inner.gc_collectible(),
+                !self.gc_enabled
+                    || inner.flags.deleted()
+                    || !inner.gc_collectible()
+                    || gc_protected_roots.contains(&task_id),
                 "tasks scheduled for persistent must not be collectible, this implies a missed \
                  task during GC"
             );

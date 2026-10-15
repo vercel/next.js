@@ -51,6 +51,11 @@ use crate::{
 /// The TTL counter is serving as a check for both new sessions and time.  To be aged out you get
 /// one session to start the clock and then eventually the timer expires.  This is intentionally
 /// course.
+///
+/// "Showing up" means being anchored again (pinned, or otherwise observed live by a pass), not
+/// merely being resident: restoring a task from disk (e.g. to propagate an invalidation through
+/// the aggregation graph) does not re-anchor it. Until a persisted root is anchored again in the
+/// current session it is protected from collection, and only goes once its TTL expires.
 pub(crate) const DEFAULT_GC_ROOT_TTL: Duration = Duration::from_secs(3 * 24 * 60 * 60);
 
 /// How long a GC root has gone without being observed live, as stored in the persisted roots map.
@@ -121,12 +126,10 @@ pub struct GcStats {
 }
 
 /// What one `TurboTasksBackend::gc_collect` pass produced, as opposed to the [`GcStats`] it
-/// reports. The two collections are consumed before `gc_collect` returns; `interrupted` outlives
-/// it, since the caller uses it to decide whether to abandon the persistence loop.
+/// reports. `deferred_balance_edges` is consumed before `gc_collect` returns; `interrupted`
+/// outlives it, since the caller uses it to decide whether to abandon the persistence loop.
 #[derive(Default)]
 pub struct GcPassResult {
-    /// Persisted roots that this pass collected, to be dropped from the roots map.
-    deleted_roots: Vec<TaskId>,
     /// Aggregation rebalance requests that were deferred from the main GC loop.
     deferred_balance_edges: FxHashSet<(TaskId, TaskId)>,
     /// The gc loop was interrupted by competing work.
@@ -159,14 +162,6 @@ impl GcStats {
 
 impl GcPassResult {
     fn merge(mut self, mut other: Self) -> Self {
-        // Order doesn't matter, so keep the larger allocation and append the smaller one into it.
-        // One or both sides are usually empty.
-        if other.deleted_roots.len() > self.deleted_roots.len() {
-            other.deleted_roots.append(&mut self.deleted_roots);
-            self.deleted_roots = other.deleted_roots;
-        } else {
-            self.deleted_roots.append(&mut other.deleted_roots);
-        }
         // merge into the larger set and keep that one
         if other.deferred_balance_edges.len() > self.deferred_balance_edges.len() {
             std::mem::swap(
@@ -249,6 +244,13 @@ impl TurboTasksBackend {
                     }
                     GcJob::Collect(task_id) => task_id,
                 };
+                // Entries still in the roots map are protected until they age out (aged-out ids
+                // were removed from the map above, so they do get collected). This covers both a
+                // shard-scan candidate and a cascade that just dropped the task's last persistent
+                // parent.
+                if roots.contains_key(&task_id) {
+                    return ControlFlow::Continue(());
+                }
                 let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
                 let mut ctx = ExecuteContext::new_for_gc(self, turbo_tasks, phase, &collector);
                 // `All` restores Data so `capture_all_edges` below can read the
@@ -272,11 +274,6 @@ impl TurboTasksBackend {
                 drop(task); // drop the lock so edge cleanup can run
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
-                // If we happened to delete a known root at this point record it so we can reconcile
-                // later.
-                if roots.contains_key(&task_id) {
-                    result.deleted_roots.push(task_id);
-                }
                 // Delete outgoing edges but don't update the aggregation graph yet.
                 // To avoid accidentally rebalancing on deleted tasks due to racing deletions,
                 // we defer all rebalancing to the end
@@ -288,11 +285,6 @@ impl TurboTasksBackend {
                 (stats.merge(other_stats), result.merge(other_result))
             },
         );
-
-        // Drop the entries for the roots this pass collected, recorded as they were deleted.
-        for id in &result.deleted_roots {
-            roots.remove(id);
-        }
 
         // Process the rebalance requests now that deletion work is done
         // Do this before computing roots so all uppers are settled
@@ -309,8 +301,12 @@ impl TurboTasksBackend {
         // We don't do this in the GC pass because a task detected as a root 'early' might become a
         // non-root later due to other operations (e.g. it might get promoted to a live aggregation
         // root).
-        for id in self.storage.gc_scan_roots() {
-            roots.insert(id, TtlCounter::MostRecent);
+        {
+            let mut live = self.gc_live_roots.lock();
+            for id in self.storage.gc_scan_roots() {
+                roots.insert(id, TtlCounter::MostRecent);
+                live.insert(id);
+            }
         }
 
         stats.gc_roots = roots.len();
@@ -325,43 +321,30 @@ impl TurboTasksBackend {
         (stats, result, roots_to_persist)
     }
 
-    /// Compute which persisted roots have expired their TTL
-    /// Also
-    /// - start the staleness clock for roots that are no longer resident
-    /// - drop roots that are resident (the GC pass will pass judgement)
+    /// Compute which persisted roots have expired their TTL, and decide which of the others the
+    /// pass must leave alone. An entry that stays in `map` is protected from collection for this
+    /// pass (see the check at the top of the `Collect` job in [`Self::gc_collect`]).
+    ///
+    /// For each entry:
+    /// - Pinned (a session-only reference holds it): it is live. Keep it as
+    ///   [`TtlCounter::MostRecent`]. This is decided here rather than left to `gc_scan_roots`,
+    ///   which cannot see a task whose `Meta` has been evicted.
+    /// - Resident, unpinned, and observed live earlier in this session: it was released in this
+    ///   session. Drop it from the map so the pass judges it like any other task.
+    /// - Otherwise -- not resident, or resident without having been anchored in this session (e.g.
+    ///   restored to propagate an invalidation): advance its TTL clock, starting it if needed, and
+    ///   keep it until it ages out. Residency alone says nothing about whether anything still wants
+    ///   the root.
     fn gc_roots_refresh_and_age_out(
         &self,
         map: &mut FxHashMap<TaskId, TtlCounter>,
         now: u64,
     ) -> Vec<TaskId> {
-        let ttl_ms = self.gc_root_ttl.as_millis() as u64;
-
-        let mut aged_out = Vec::new();
-        map.retain(|id, counter| {
-            if self.storage.with_task(*id, |_| ()).is_some() {
-                // Resident: `gc_scan_roots` decides. Drop it either way.
-                return false;
-            }
-            match *counter {
-                TtlCounter::MostRecent => {
-                    // It was recent in the last pass but not this one. Start the clock
-                    *counter = TtlCounter::FirstStale(now);
-                    true
-                }
-                TtlCounter::FirstStale(since) => {
-                    if now.saturating_sub(since) > ttl_ms {
-                        // Enqueue for collection, which restores it from disk and attempts the
-                        // delete. Dropped from the map: see the note above.
-                        aged_out.push(*id);
-                        false
-                    } else {
-                        true
-                    }
-                }
-            }
-        });
-
-        aged_out
+        let mut live = self.gc_live_roots.lock();
+        refresh_roots_map(map, &mut live, now, self.gc_root_ttl, |id| {
+            self.storage
+                .with_task(id, |task| task.gc_transient_ref_count() > 0)
+        })
     }
 
     pub(super) fn pin_task_for_gc(
@@ -429,5 +412,118 @@ impl TurboTasksBackend {
             panic!("gc_for_testing: failed to persist GC roots: {err:?}");
         }
         stats.collected
+    }
+}
+
+/// The pure core of [`TurboTasksBackend::gc_roots_refresh_and_age_out`].
+///
+/// `map` is the roots map loaded from storage at the start of the pass, and `live` is the
+/// session's history of roots observed live (see `TurboTasksBackend::gc_live_roots`).
+/// `residency(id)` is `None` when `id` is not resident, otherwise whether it is pinned.
+///
+/// History is pruned only once the loaded map no longer contains an entry. A pass can be
+/// interrupted after deciding to drop a released root, in which case that decision is never
+/// persisted and the next pass sees the old map again. Keeping the history until the map catches
+/// up makes that retry make the same decision instead of mistaking the released root for one
+/// from an earlier session.
+fn refresh_roots_map(
+    map: &mut FxHashMap<TaskId, TtlCounter>,
+    live: &mut FxHashSet<TaskId>,
+    now: u64,
+    ttl: Duration,
+    mut residency: impl FnMut(TaskId) -> Option<bool>,
+) -> Vec<TaskId> {
+    let ttl_ms = ttl.as_millis() as u64;
+    live.retain(|id| map.contains_key(id));
+
+    let mut aged_out = Vec::new();
+    map.retain(|id, counter| {
+        if let Some(pinned) = residency(*id) {
+            if pinned {
+                live.insert(*id);
+                *counter = TtlCounter::MostRecent;
+                return true;
+            }
+            if live.contains(id) {
+                return false;
+            }
+        }
+        match *counter {
+            TtlCounter::MostRecent => {
+                // It was recent in the last pass but not this one. Start the clock
+                *counter = TtlCounter::FirstStale(now);
+                true
+            }
+            TtlCounter::FirstStale(since) => {
+                if now.saturating_sub(since) > ttl_ms {
+                    // Enqueue for collection, which restores it from disk and attempts the delete.
+                    // Dropped from the map so the pass does not protect it.
+                    aged_out.push(*id);
+                    false
+                } else {
+                    true
+                }
+            }
+        }
+    });
+
+    aged_out
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use rustc_hash::{FxHashMap, FxHashSet};
+    use turbo_tasks::TaskId;
+
+    use super::{TtlCounter, refresh_roots_map};
+
+    fn task_id(id: u32) -> TaskId {
+        TaskId::try_from(id).unwrap()
+    }
+
+    #[test]
+    fn interrupted_refresh_keeps_released_root_history() {
+        let root = task_id(1);
+        let persisted = FxHashMap::from_iter([(root, TtlCounter::MostRecent)]);
+        let mut live = FxHashSet::default();
+
+        let mut first = persisted.clone();
+        refresh_roots_map(&mut first, &mut live, 10, Duration::from_secs(3600), |_| {
+            Some(true)
+        });
+        assert_eq!(first.get(&root), Some(&TtlCounter::MostRecent));
+
+        // The root is released. This refresh decides to drop it, but suppose the pass is
+        // interrupted before that decision is persisted.
+        let mut interrupted = persisted.clone();
+        refresh_roots_map(
+            &mut interrupted,
+            &mut live,
+            20,
+            Duration::from_secs(3600),
+            |_| Some(false),
+        );
+        assert!(!interrupted.contains_key(&root));
+
+        // The retry sees the old persisted map again. It must still treat the root as released in
+        // this session, not protect it as a root from an earlier session.
+        let mut retry = persisted.clone();
+        refresh_roots_map(&mut retry, &mut live, 30, Duration::from_secs(3600), |_| {
+            Some(false)
+        });
+        assert!(!retry.contains_key(&root));
+
+        // Once a completed pass persisted the drop, the history can go.
+        let mut after_drop = FxHashMap::default();
+        refresh_roots_map(
+            &mut after_drop,
+            &mut live,
+            40,
+            Duration::from_secs(3600),
+            |_| None,
+        );
+        assert!(live.is_empty());
     }
 }
