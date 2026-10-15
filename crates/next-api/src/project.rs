@@ -2359,7 +2359,7 @@ impl Project {
                 ParseSegmentMode::Base
             },
         );
-        let runtime = config.await?.runtime.unwrap_or(if is_proxy {
+        let runtime = config.await?.entry.runtime.unwrap_or(if is_proxy {
             NextRuntime::NodeJs
         } else {
             NextRuntime::Edge
