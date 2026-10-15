@@ -30,6 +30,7 @@ import type {
   RouteMatch as AppRenderRouteMatch,
 } from './route-modules/app-page/module'
 import { createDevRenderContext } from './route-modules/app-page/dev-render-context'
+import { getServerActionRequestMetadata } from './lib/server-action-request-meta'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -720,7 +721,8 @@ export default class NextNodeServer extends BaseServer<
               : this.deploymentId,
           },
           routeMatch,
-          parsedRequestHeaders
+          parsedRequestHeaders,
+          getServerActionRequestMetadata(req)
         )
         if ('error' in result) {
           throw result.error
