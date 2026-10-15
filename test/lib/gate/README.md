@@ -71,10 +71,21 @@ and costs real browser time, so tests of a new API should typically
 body is impossible: prefetching is off in dev, deploy has no local build
 output, the fixture can't build under the condition.
 
-Both forms work on `it`, `test`, `fit`, `describe`, and their `.only` variants.
-A gate on a `describe` applies to every test inside it. Several pragmas may stack
-on one call. (Build-skipping applies only to suites where `nextTestSetup` owns
-the build — not `skipStart` suites — and to `start`/`dev`, not deploy.)
+Both forms work on `it`, `test`, `fit`, `describe`, and their `.only` variants,
+plus `it.each`, `test.each`, `fit.each`, and `describe.each`. Test tables can be
+arrays or tagged templates; each row is gated independently:
+
+```ts
+// @gate !cacheComponents
+it.each(['/one', '/two'])('navigates to %s', async (path) => {
+  // body unchanged; receives the original row arguments
+})
+```
+
+A gate on a `describe` also reaches `it.each` and `test.each` inside it.
+Several pragmas may stack on one call. (Build-skipping applies only to suites
+where `nextTestSetup` owns the build — not `skipStart` suites — and to
+`start`/`dev`, not deploy.)
 
 ## Conditions
 
@@ -194,15 +205,16 @@ config. A string is also accepted and evaluated in the pragma expression
 language: `await gate('cacheComponents && !dev')`. Either way an undeclared
 name throws, like a pragma.
 
-`gate()` also works where a pragma cannot attach (`it.each`). Prefer it over
-branching on `process.env` for the same reason lazy conditions exist: the env
-var is not what the fixture actually resolved.
+Prefer `gate()` over branching on `process.env` for the same reason lazy
+conditions exist: the env var is not what the fixture actually resolved.
 
 ## How it works
 
 1. `pragma-transform.js` rewrites the pragma into
-   `_test_gate([{force,source}], 'it')(...)`. `describe.each` uses the analogous
-   `_test_gate_describe_each([{force,source}], table)(...)` helper. It is a
+   `_test_gate([{force,source}], 'it')(...)`. Parameterized tests use
+   `_test_gate_each([{force,source}], 'it')(table)(...)`; `describe.each` uses
+   the analogous `_test_gate_describe_each([{force,source}], table)(...)`
+   helper. It is a
    line-oriented regex, not an AST transform, so **only the call line changes**
    and every other line keeps its byte offsets — `toMatchInlineSnapshot()` is
    written back by line/column.
@@ -227,13 +239,11 @@ A suite with no lazy gate never resolves a config, so the cost is zero.
 ## Limitations
 
 - A pragma the transform would not pick up is a **hard error**, not a no-op:
-  blank line in between, `it.each` / `it.failing`, a pragma inside a JSDoc
+  blank line in between, `it.failing`, a pragma inside a JSDoc
   block. Reword prose comments that start with `@gate`. A pragma on a
   *skipped* test (`it.skip`, `xit`, …) gets a dedicated error — gating a skip
   is ambiguous, so either remove the skip and let the gate decide, or keep the
   plain skip and drop the pragma. (A skip *without* a pragma is left alone.)
-- A `describe`-level gate does not reach `it.each` tests (they bypass the
-  `it` wrapper) — branch inside the body with the runtime `gate()` instead.
 - A gated-false body that *stalls* rather than throwing wastes the full Jest
   timeout. Under a static gate (native `test.failing`) the timeout counts as
   the expected failure, so the test passes — slowly; under a lazy gate the

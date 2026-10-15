@@ -5,6 +5,7 @@ import {
   __testing,
   _test_gate,
   _test_gate_describe_each,
+  _test_gate_each,
   expectTestToFail,
 } from '../../lib/gate/runtime'
 import {
@@ -38,8 +39,8 @@ const runGated = (sources: string[], body: () => unknown) => {
 
 type FakeTestFn = jest.Mock & {
   skip: jest.Mock & { each: jest.Mock }
-  only: jest.Mock & { failing: jest.Mock }
-  failing: jest.Mock
+  only: jest.Mock & { failing: jest.Mock; each: jest.Mock }
+  failing: jest.Mock & { each: jest.Mock }
   each: jest.Mock
 }
 
@@ -47,8 +48,11 @@ const makeFakeTestFn = (): FakeTestFn => {
   const skip = Object.assign(jest.fn(), { each: jest.fn(() => jest.fn()) })
   return Object.assign(jest.fn(), {
     skip,
-    only: Object.assign(jest.fn(), { failing: jest.fn() }),
-    failing: jest.fn(),
+    only: Object.assign(jest.fn(), {
+      failing: jest.fn(),
+      each: jest.fn(() => jest.fn()),
+    }),
+    failing: Object.assign(jest.fn(), { each: jest.fn(() => jest.fn()) }),
     each: jest.fn(() => jest.fn()),
   }) as FakeTestFn
 }
@@ -520,6 +524,154 @@ describe('@gate runtime', () => {
     })
   })
 
+  describe('parameterized tests', () => {
+    it.each(['it', 'test', 'it.only', 'test.only'])(
+      'preserves arguments, context, and timeout for %s.each',
+      async (kind) => {
+        const context = { value: 1 }
+        const body = jest.fn(function (this: unknown, value) {
+          expect(this).toBe(context)
+          expect(value).toBe(1)
+        })
+        const table = [{ value: 1 }]
+        const fakes = withFakeTestGlobals(() => {
+          _test_gate_each([{ force: false, source: '!dev' }], kind)(table)(
+            'row $value',
+            body,
+            1234
+          )
+        })
+        const [key, modifier] = kind.split('.')
+        const fake = fakes[key as 'it' | 'test']
+        const each = modifier ? fake.only.each : fake.each
+        expect(each).toHaveBeenCalledWith(table)
+        const bound = each.mock.results[0].value
+        expect(bound).toHaveBeenCalledWith(
+          'row $value',
+          expect.any(Function),
+          1234
+        )
+        await bound.mock.calls[0][1].call(context, 1)
+        expect(body).toHaveBeenCalledWith(1)
+      }
+    )
+
+    it('skips every row through the native skip.each', () => {
+      const table = [[1], [2]]
+      const body = jest.fn()
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_each([{ force: true, source: 'dev' }], 'it')(table)(
+          'row %s',
+          body,
+          1234
+        )
+      })
+      expect(fakes.it.skip.each).toHaveBeenCalledWith(table)
+      expect(fakes.it.skip.each.mock.results[0].value).toHaveBeenCalledWith(
+        'row %s',
+        body,
+        1234
+      )
+      expect(fakes.it.each).not.toHaveBeenCalled()
+    })
+
+    it('uses failing.each for static inversion and forwards row arguments', async () => {
+      const table = [[1, 2]]
+      const body = jest.fn((a, b) => {
+        expect([a, b]).toEqual([1, 2])
+        throw new Error('expected failure')
+      })
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_each([{ force: false, source: 'dev' }], 'test')(table)(
+          'row %s',
+          body,
+          1234
+        )
+      })
+      expect(fakes.test.failing.each).toHaveBeenCalledWith(table)
+      const bound = fakes.test.failing.each.mock.results[0].value
+      expect(bound).toHaveBeenCalledWith('row %s', expect.any(Function), 1234)
+      await expect(bound.mock.calls[0][1](1, 2)).rejects.toThrow(
+        'expected failure'
+      )
+      expect(body).toHaveBeenCalledWith(1, 2)
+    })
+
+    it('inverts lazy gates per row and detects stale rows', async () => {
+      fixtureWith({ cacheComponents: false })
+      const body = jest.fn((value) => {
+        if (value === 1) throw new Error('expected failure')
+      })
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_each(
+          [{ force: false, source: 'cacheComponents' }],
+          'it'
+        )([1, 2])('row %s', body)
+      })
+      const bound = fakes.it.each.mock.results[0].value
+      const registered = bound.mock.calls[0][1]
+      await expect(registered(1)).resolves.toBeUndefined()
+      await expect(registered(2)).rejects.toThrow('The gate is stale')
+      expect(body.mock.calls).toEqual([[1], [2]])
+    })
+
+    it('force-passes every lazy-gated row without running the body', async () => {
+      fixtureWith({ cacheComponents: false })
+      const body = jest.fn((value) => value)
+      const fakes = withFakeTestGlobals(() => {
+        _test_gate_each(
+          [{ force: true, source: 'cacheComponents' }],
+          'it'
+        )([1, 2])('row %s', body)
+      })
+      const registered = fakes.it.each.mock.results[0].value.mock.calls[0][1]
+      await registered(1)
+      await registered(2)
+      expect(body).not.toHaveBeenCalled()
+    })
+
+    // @gate !dev
+    it.each([
+      [1, 2],
+      [3, 4],
+    ])('forwards tuple row %s, %s', (a, b) => {
+      expect(b).toBe(a + 1)
+    })
+
+    // @gate dev
+    test.each([{ value: 1 }, { value: 2 }])(
+      'inverts object row $value',
+      ({ value }) => {
+        expect(value).toBe(0)
+      }
+    )
+
+    // @gate dev
+    it.each`
+      value
+      ${1}
+      ${2}
+    `('inverts tagged row $value', ({ value }) => {
+      expect(value).toBe(0)
+    })
+
+    // @gate dev
+    describe('inherited gates', () => {
+      it.each([1, 2])('inverts inherited row %s', (value) => {
+        expect(value).toBe(0)
+      })
+
+      test.each([1, 2])('inverts inherited test row %s', (value) => {
+        expect(value).toBe(0)
+      })
+
+      // @gate !dev
+      test.each([[1, 2]])('combines direct and inherited gates %s', (a, b) => {
+        expect(a).toBe(b)
+      })
+    })
+  })
+
   // The tests above drive the runtime's internals directly. These two go
   // through the real pragma path — the transform rewrote them, and the `it` /
   // `describe` globals installed by `installGate()` registered them. This file
@@ -579,6 +731,10 @@ describe('@gate runtime', () => {
 
       it('force-passes without running its hooks or body', () => {
         throw new Error('body must not run')
+      })
+
+      it.each([1, 2])('force-passes inherited row %s', (_value) => {
+        throw new Error('parameterized body must not run')
       })
     })
 
