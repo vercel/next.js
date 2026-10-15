@@ -5,9 +5,14 @@ export function OpenInEditorButton(
   props: ButtonHTMLAttributes<HTMLButtonElement>
 ) {
   return (
-    <button type="button" {...props} className="open-in-editor-button">
+    <button
+      type="button"
+      {...props}
+      aria-label={props['aria-label'] ?? 'Open in Editor'}
+      className="open-in-editor-button"
+    >
       <CodeIcon aria-hidden="true" />
-      Open in Editor
+      <span className="open-in-editor-button-label">Open in Editor</span>
     </button>
   )
 }
@@ -48,6 +53,18 @@ export const OPEN_IN_EDITOR_BUTTON_STYLES = `
 
     &:active {
       background: var(--color-gray-alpha-200);
+    }
+  }
+
+  @media (max-width: 767px) {
+    .open-in-editor-button {
+      width: var(--size-28);
+      padding: 0;
+      gap: 0;
+    }
+
+    .open-in-editor-button-label {
+      display: none;
     }
   }
 `
