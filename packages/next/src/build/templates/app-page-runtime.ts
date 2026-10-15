@@ -102,7 +102,7 @@ import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbop
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
 import { createTurbopackBootstrapScriptStreamForPage } from '../../server/app-render/turbopack-bootstrap-script' with { 'turbopack-transition': 'next-server-utility' }
-import { getScriptNonceFromHeader } from '../../server/app-render/get-script-nonce-from-header' with { 'turbopack-transition': 'next-server-utility' }
+import { getScriptNonceFromHeaders } from '../../server/app-render/get-script-nonce-from-header' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
 
@@ -1977,15 +1977,10 @@ export function createAppPageEntrypoint({
         // such a shell is served without a resume, it has to be added.
         const pushTurbopackBootstrapScript = (result: RenderResult) => {
           if (!didPostpone) return
-          const csp =
-            req.headers['content-security-policy'] ||
-            req.headers['content-security-policy-report-only']
-          const nonce =
-            typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
           const bootstrapScript = createTurbopackBootstrapScriptStreamForPage(
             buildManifest,
             srcPage,
-            nonce
+            getScriptNonceFromHeaders(req.headers)
           )
           if (bootstrapScript) result.push(bootstrapScript)
         }

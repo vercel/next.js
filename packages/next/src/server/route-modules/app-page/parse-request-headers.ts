@@ -10,7 +10,7 @@ import {
   NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../../client/components/app-router-headers'
 import { isRSCRequestHeader } from '../../lib/is-rsc-request'
-import { getScriptNonceFromHeader } from '../../app-render/get-script-nonce-from-header'
+import { getScriptNonceFromHeaders } from '../../app-render/get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 
@@ -77,12 +77,7 @@ export function parseRequestHeaders(
   const isRouteTreePrefetchRequest =
     isRSCRequest && headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_tree'
 
-  const csp =
-    headers['content-security-policy'] ||
-    headers['content-security-policy-report-only']
-
-  const nonce =
-    typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
+  const nonce = getScriptNonceFromHeaders(headers)
 
   const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
     headers,

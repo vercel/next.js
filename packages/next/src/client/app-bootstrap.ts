@@ -5,8 +5,18 @@
  * - next/script with `beforeInteractive` strategy
  */
 
-import { getAssetPrefix } from './asset-prefix'
 import { setAttributesFromProps } from './set-attributes-from-props'
+
+if (process.env.__NEXT_DEV_SERVER) {
+  // Capture the asset prefix for the dev server's WebSocket while
+  // `document.currentScript` still is the entry script.
+  require('./dev/hot-reloader/app/asset-prefix') as typeof import('./dev/hot-reloader/app/asset-prefix')
+} else {
+  // Only the dev server needs the asset prefix. In production,
+  // `document.currentScript` isn't reliable: the Turbopack shared runtime can
+  // run this module from the inline chunk-group bootstrap script, e.g. when a
+  // resumed response emits that bootstrap after the runtime has loaded.
+}
 
 const version = process.env.__NEXT_VERSION
 
@@ -55,15 +65,7 @@ function loadScriptsInSequence(
     })
 }
 
-export function appBootstrap(hydrate: (assetPrefix: string) => void) {
-  // The asset prefix is only used by the dev server's WebSocket, so only read
-  // it there. It's read from `document.currentScript`, which is only reliable
-  // when this module runs as part of loading a script from `/_next/`. In
-  // production, the Turbopack shared runtime can instead run it from the
-  // inline chunk-group bootstrap script, e.g. when a resumed response emits
-  // that bootstrap after the runtime has loaded.
-  const assetPrefix = process.env.__NEXT_DEV_SERVER ? getAssetPrefix() : ''
-
+export function appBootstrap(hydrate: () => void) {
   loadScriptsInSequence((self as any).__next_s, () => {
     // If the static shell is being debugged, skip hydration if the
     // `__nextppronly` query is present. This is only enabled when the
@@ -82,6 +84,6 @@ export function appBootstrap(hydrate: (assetPrefix: string) => void) {
       }
     }
 
-    hydrate(assetPrefix)
+    hydrate()
   })
 }
