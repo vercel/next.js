@@ -1,3 +1,5 @@
+import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
+
 // TypeScript trick to simulate opaque types, like in Flow.
 type Opaque<K, T> = T & { __brand: K }
 
@@ -23,7 +25,14 @@ export function createCacheKey(
 ): RouteCacheKey {
   const originalUrl = new URL(originalHref)
   const cacheKey = {
-    pathname: originalUrl.pathname as NormalizedPathname,
+    // Collapse repeated slashes so the pathname can't be re-parsed as an
+    // authority (a `//host` prefix) when the request URL is reconstructed via
+    // `new URL(key.pathname + key.search, location.origin)`. The server
+    // canonicalizes repeated slashes the same way (via a 308 redirect), so
+    // this doesn't change which page is fetched.
+    pathname: normalizeRepeatedSlashes(
+      originalUrl.pathname
+    ) as NormalizedPathname,
     search: originalUrl.search as NormalizedSearch,
     nextUrl: nextUrl as NormalizedNextUrl | null,
   } as RouteCacheKey
