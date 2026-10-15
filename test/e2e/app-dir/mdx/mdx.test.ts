@@ -1,4 +1,51 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextStart } from 'e2e-utils'
+
+;(isNextStart ? describe : describe.skip)(
+  'mdx without-mdx-rs - invalid plugin error handling',
+  () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies: {
+        '@next/mdx': 'canary',
+        '@mdx-js/loader': '^2.2.1',
+        '@mdx-js/react': '^2.2.1',
+      },
+      env: {
+        WITH_MDX_RS: 'false',
+      },
+      skipStart: true,
+    })
+
+    beforeAll(async () => {
+      await next.patchFile(
+        'next.config.ts',
+        `
+import nextMDX from '@next/mdx'
+const withMDX = nextMDX({
+  options: {
+    remarkPlugins: ['non-existent-remark-plugin'],
+  },
+})
+const nextConfig = {
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
+}
+export default withMDX(nextConfig)
+`
+      )
+      try {
+        await next.start()
+      } catch {}
+    })
+
+    it('should report a build error when a plugin path fails to resolve', () => {
+      // Without the .catch() fix, the webpack callback was never called and
+      // the build would hang or throw an UnhandledPromiseRejection.
+      // With the fix, the error is forwarded to webpack and appears in cliOutput.
+      expect(next.cliOutput).toContain('non-existent-remark-plugin')
+      expect(next.cliOutput).not.toContain('UnhandledPromiseRejection')
+    })
+  }
+)
 
 for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
   describe(`mdx ${type}`, () => {
