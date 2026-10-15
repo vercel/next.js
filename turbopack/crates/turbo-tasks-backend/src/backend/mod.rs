@@ -154,8 +154,6 @@ pub struct BackendOptions {
     pub eviction_mode: EvictionMode,
 
     /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
-    ///
-    /// In Next.js this is driven by the `experimental.turbopackGc` config option.
     pub gc: Option<bool>,
 
     /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
