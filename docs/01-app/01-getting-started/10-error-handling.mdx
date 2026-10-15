@@ -217,12 +217,13 @@ export default function ErrorPage({
   error,
   retry,
 }: {
-  error: Error & { digest?: string }
+  error: unknown
   retry: () => void
 }) {
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error(error)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(message)
   }, [error])
 
   return (
@@ -249,7 +250,8 @@ import { useEffect } from 'react'
 export default function ErrorPage({ error, retry }) {
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error(error)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(message)
   }, [error])
 
   return (
@@ -267,6 +269,8 @@ export default function ErrorPage({ error, retry }) {
   )
 }
 ```
+
+The `error` prop is typed as `unknown` because JavaScript can throw any value. Narrow the value, for example with `error instanceof Error`, before reading properties such as `message`.
 
 Errors will bubble up to the nearest parent error boundary. This allows for granular error handling by placing `error.tsx` files at different levels in the [route hierarchy](/docs/app/getting-started/project-structure#component-hierarchy).
 
@@ -407,7 +411,7 @@ export default function GlobalError({
   error,
   retry,
 }: {
-  error: Error & { digest?: string }
+  error: unknown
   retry: () => void
 }) {
   return (

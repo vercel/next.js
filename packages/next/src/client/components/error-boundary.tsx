@@ -128,7 +128,6 @@ export class ErrorBoundaryHandler extends React.Component<
           {this.props.errorStyles}
           {this.props.errorScripts}
           <this.props.errorComponent
-            // TODO(NAR-804): Docs say this is an Error object, but we don't guarantee that
             error={thrownValue}
             reset={this.reset}
             retry={this.retry}

@@ -26,12 +26,13 @@ export default function Error({
   error,
   retry,
 }: {
-  error: Error & { digest?: string }
+  error: unknown
   retry: () => void
 }) {
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error(error)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(message)
   }, [error])
 
   return (
@@ -58,7 +59,8 @@ import { useEffect } from 'react'
 export default function Error({ error, retry }) {
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error(error)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(message)
   }, [error])
 
   return (
@@ -101,18 +103,21 @@ In the [component hierarchy](/docs/app/getting-started/project-structure#compone
 
 #### `error`
 
-An instance of an [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error) object forwarded to the `error.js` Client Component.
+The value thrown in the route segment. The `error` prop is typed as `unknown` because JavaScript can throw any value. Narrow the value, for example with `error instanceof Error`, before reading properties such as `message`.
 
-> **Good to know:** During development, the `Error` object forwarded to the client will be serialized and include the `message` of the original error for easier debugging. However, **this behavior is different in production** to avoid leaking potentially sensitive details included in the error to the client.
+- Values thrown in Client Components are forwarded without being serialized.
+- Errors from Server Components are serialized before being forwarded to the `error.js` Client Component. In development, the serialized [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error) includes the original error message. In production, it includes a generic message and a `digest` value to prevent leaking sensitive details.
 
 #### `error.message`
 
-- Errors forwarded from Client Components show the original `Error` message.
-- Errors forwarded from Server Components show a generic message with an identifier. This is to prevent leaking sensitive details. You can use the identifier, under `error.digest`, to match the corresponding server-side logs.
+When `error` is an `Error` instance, `error.message` contains the error message:
+
+- Errors thrown in Client Components contain the original message.
+- Errors from Server Components contain the original message in development. In production, they contain a generic message to prevent leaking sensitive details.
 
 #### `error.digest`
 
-An automatically generated hash of the error thrown. It can be used to match the corresponding error in server-side logs.
+Errors from Server Components include an automatically generated `digest` value. After narrowing `error` and verifying that `digest` is a string, you can use it to match the corresponding error in server-side logs.
 
 #### `retry`
 
@@ -127,7 +132,7 @@ export default function Error({
   error,
   retry,
 }: {
-  error: Error & { digest?: string }
+  error: unknown
   retry: () => void
 }) {
   return (
@@ -173,7 +178,7 @@ export default function GlobalError({
   error,
   retry,
 }: {
-  error: Error & { digest?: string }
+  error: unknown
   retry: () => void
 }) {
   return (
