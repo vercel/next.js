@@ -44,22 +44,18 @@ async fn compute_side_effect_free_module_info_single(
     let graph = graph.await?;
     let module_side_effects = graph
         .iter_reachable_nodes()?
-        .map(async |node| {
+        .map(async |(idx, node)| {
             Ok(match node {
-                SingleModuleGraphNode::Module {
-                    module,
-                    side_effects,
-                    ..
-                } => {
-                    // Read the eagerly-resolved `side_effects` from the node. This pass only runs
-                    // under `turbopack_remove_unused_imports`, and we build those graphs with
+                SingleModuleGraphNode::Module { module } => {
+                    // Read the eagerly-resolved `side_effects` from the graph. This pass only runs
+                    // when removing unused imports, and we build those graphs with
                     // `ModuleGraphOptions::include_side_effects`, so the value is always present;
-                    // bail otherwise. Tracked read: the producing task was resolved at graph
-                    // construction, so this is cheap while still depending on the value correctly.
-                    let side_effects = (*side_effects).context(
-                        "compute_side_effect_free_module_info requires the module graph to be \
-                         built with `ModuleGraphOptions::include_side_effects`",
-                    )?;
+                    // `node_side_effects` bails otherwise. Tracked read: the producing task was
+                    // resolved at graph construction, so this is cheap while still depending on
+                    // the value correctly.
+                    let side_effects = graph
+                        .node_side_effects(idx)?
+                        .context("Module nodes always have side effects when collected")?;
                     (*module, *side_effects.await?)
                 }
                 SingleModuleGraphNode::VisitedModule { idx: _, module } => (

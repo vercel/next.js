@@ -45,13 +45,13 @@ async fn compute_async_module_info_single(
     let graph = graph.read_strongly_consistent().await?;
     let self_async_modules = graph
         .iter_reachable_nodes()?
-        .map(async |node| {
+        .map(async |(idx, node)| {
             Ok(match node {
-                SingleModuleGraphNode::Module {
-                    module: node,
-                    is_self_async,
-                    ..
-                } => is_self_async.await?.then_some(*node),
+                SingleModuleGraphNode::Module { module: node } => graph
+                    .node_is_self_async(idx)
+                    .context("Module nodes always have is_self_async")?
+                    .await?
+                    .then_some(*node),
                 SingleModuleGraphNode::VisitedModule { idx: _, module } => {
                     // If a module is async in the parent then we need to mark reverse dependencies
                     // async in this graph as well.
