@@ -131,6 +131,37 @@ describe('unrecognized server actions', () => {
   describe.each(['nodejs', 'edge'])(
     'should error and log a warning when submitting a server action with an unrecognized ID - %s',
     (runtime) => {
+      it('renders a GET with an action header as a page request', async () => {
+        const response = await next.fetch(`/${runtime}/unrecognized-action`, {
+          headers: { 'next-action': '123' },
+        })
+
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain('form-simple-argument')
+      })
+
+      it.each([
+        { actionId: undefined, expectedStatus: 200 },
+        { actionId: '123', expectedStatus: 404 },
+      ])(
+        'preserves URL-encoded POST handling with action ID $actionId',
+        async ({ actionId, expectedStatus }) => {
+          const response = await next.fetch(`/${runtime}/unrecognized-action`, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/x-www-form-urlencoded',
+              ...(actionId ? { 'next-action': actionId } : {}),
+            },
+            body: 'foo=bar',
+          })
+
+          expect(response.status).toBe(expectedStatus)
+          if (expectedStatus === 200) {
+            expect(await response.text()).toContain('form-simple-argument')
+          }
+        }
+      )
+
       it.each([
         {
           description: 'a malformed ID',
