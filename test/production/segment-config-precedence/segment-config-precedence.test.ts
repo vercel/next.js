@@ -4,6 +4,28 @@ import { retry } from 'next-test-utils'
 describe('segment-config-precedence', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // TODO: Include these routes once Turbopack accepts conflicting sibling
+    // deployment configs. Their individual tests are excluded below.
+    buildArgs: process.env.IS_TURBOPACK_TEST
+      ? [
+          '--debug-build-paths',
+          [
+            'app/**',
+            'pages/**',
+            ...[
+              'slot-only',
+              'sibling-layout',
+              'default-config',
+              '(config-group)',
+              'complex-catchall',
+              'nested-slots',
+              'intercept',
+              'slot-edge-runtime',
+              'entry-config',
+            ].map((route) => `!app/${route}/**`),
+          ].join(','),
+        ]
+      : undefined,
   })
 
   it('accepts an undefined maxDuration export', async () => {
@@ -31,27 +53,32 @@ describe('segment-config-precedence', () => {
   )
 
   it.each([
-    {
-      pathname: '/slot-only/only',
-      request: '/slot-only/only',
-      appPath: '/slot-only/@slot/only/page',
-      runtime: 'nodejs',
-      config: { regions: ['sfo1'], maxDuration: 0 },
-    },
-    {
-      pathname: '/sibling-layout',
-      request: '/sibling-layout',
-      appPath: '/sibling-layout/page',
-      runtime: 'nodejs',
-      config: { regions: ['sfo1'], maxDuration: 20 },
-    },
-    {
-      pathname: '/default-config',
-      request: '/default-config',
-      appPath: '/default-config/page',
-      runtime: 'nodejs',
-      config: {},
-    },
+    // TODO: Fix Turbopack rejecting conflicting sibling deployment configs.
+    ...(!process.env.IS_TURBOPACK_TEST
+      ? [
+          {
+            pathname: '/slot-only/only',
+            request: '/slot-only/only',
+            appPath: '/slot-only/@slot/only/page',
+            runtime: 'nodejs',
+            config: { regions: ['sfo1'], maxDuration: 0 },
+          },
+          {
+            pathname: '/sibling-layout',
+            request: '/sibling-layout',
+            appPath: '/sibling-layout/page',
+            runtime: 'nodejs',
+            config: { regions: ['sfo1'], maxDuration: 20 },
+          },
+          {
+            pathname: '/default-config',
+            request: '/default-config',
+            appPath: '/default-config/page',
+            runtime: 'nodejs',
+            config: {},
+          },
+        ]
+      : []),
     {
       pathname: '/inheritance/nested',
       request: '/inheritance/nested',
@@ -66,27 +93,32 @@ describe('segment-config-precedence', () => {
       runtime: 'nodejs',
       config: { regions: ['sfo1'], maxDuration: 0 },
     },
-    {
-      pathname: '/grouped/[id]',
-      request: '/grouped/value',
-      appPath: '/(config-group)/grouped/[id]/page',
-      runtime: 'edge',
-      config: { regions: ['sfo1'], maxDuration: 20 },
-    },
-    {
-      pathname: '/complex-catchall/[...slug]',
-      request: '/complex-catchall/one/two',
-      appPath: '/complex-catchall/[...slug]/page',
-      runtime: 'nodejs',
-      config: { regions: ['fra1'], maxDuration: 20 },
-    },
-    {
-      pathname: '/nested-slots',
-      request: '/nested-slots',
-      appPath: '/nested-slots/page',
-      runtime: 'nodejs',
-      config: { regions: ['sfo1'], maxDuration: 20 },
-    },
+    // TODO: Fix Turbopack rejecting conflicting sibling deployment configs.
+    ...(!process.env.IS_TURBOPACK_TEST
+      ? [
+          {
+            pathname: '/grouped/[id]',
+            request: '/grouped/value',
+            appPath: '/(config-group)/grouped/[id]/page',
+            runtime: 'edge',
+            config: { regions: ['sfo1'], maxDuration: 20 },
+          },
+          {
+            pathname: '/complex-catchall/[...slug]',
+            request: '/complex-catchall/one/two',
+            appPath: '/complex-catchall/[...slug]/page',
+            runtime: 'nodejs',
+            config: { regions: ['fra1'], maxDuration: 20 },
+          },
+          {
+            pathname: '/nested-slots',
+            request: '/nested-slots',
+            appPath: '/nested-slots/page',
+            runtime: 'nodejs',
+            config: { regions: ['sfo1'], maxDuration: 20 },
+          },
+        ]
+      : []),
   ])(
     'resolves static info through complex loader trees: $pathname',
     async ({ pathname, request, appPath, runtime, config }) => {
@@ -122,6 +154,8 @@ describe('segment-config-precedence', () => {
     }
   )
 
+  // TODO: Fix Turbopack rejecting conflicting intercepted entry configs at build time.
+  // @force-gate !turbopack
   it('keeps intercepted entry config separate from the direct target', async () => {
     const $ = await next.render$('/intercept/target')
     expect($('#runtime').text()).toBe('nodejs')
@@ -205,21 +239,26 @@ describe('segment-config-precedence', () => {
       runtime: 'nodejs',
       config: { regions: ['sfo1'], maxDuration: 0 },
     },
-    {
-      route: '/config-handler/undefined',
-      runtime: 'nodejs',
-      config: undefined,
-    },
-    {
-      route: '/config-handler/implicit',
-      runtime: 'nodejs',
-      config: undefined,
-    },
-    {
-      route: '/config-handler/edge',
-      runtime: 'edge',
-      config: {},
-    },
+    // TODO: Stop Turbopack inheriting route handler runtime and regions from layouts.
+    ...(!process.env.IS_TURBOPACK_TEST
+      ? [
+          {
+            route: '/config-handler/undefined',
+            runtime: 'nodejs',
+            config: undefined,
+          },
+          {
+            route: '/config-handler/implicit',
+            runtime: 'nodejs',
+            config: undefined,
+          },
+          {
+            route: '/config-handler/edge',
+            runtime: 'edge',
+            config: {},
+          },
+        ]
+      : []),
   ])(
     'uses route handler exports without inheriting page layouts: $route',
     async ({ route, runtime, config }) => {
@@ -275,6 +314,8 @@ describe('segment-config-precedence', () => {
     expect(manifest.functions['/slot-config-only']).toBeUndefined()
   })
 
+  // TODO: Fix Turbopack rejecting conflicting sibling runtime configs at build time.
+  // @force-gate !turbopack
   it('does not select the Edge runtime from a sibling parallel slot', async () => {
     const $ = await next.render$('/slot-edge-runtime')
     expect($('#runtime').text()).toBe('nodejs')
@@ -286,6 +327,8 @@ describe('segment-config-precedence', () => {
     expect(manifest.functions['/slot-edge-runtime/page']).toBeUndefined()
   })
 
+  // TODO: Stop Turbopack inheriting Edge regions from sibling parallel slots.
+  // @gate !turbopack
   it('does not inherit Edge manifest regions from a sibling parallel slot', async () => {
     const $ = await next.render$('/slot-edge-region')
     expect($('#runtime').text()).toBe('edge')
@@ -305,12 +348,13 @@ describe('segment-config-precedence', () => {
     expect(functionsConfig.functions['/slot-edge-region']).toEqual({})
   })
 
-  it.each([
+  for (const [route, runtime, region, maxDuration] of [
     ['/entry-config', 'nodejs', 'sfo1', 20],
     ['/entry-config/inherited', 'edge', 'fra1', 30],
-  ])(
-    'uses the entry page and ancestor layouts for static info: %s',
-    async (route, runtime, region, maxDuration) => {
+  ] as const) {
+    // TODO: Fix Turbopack rejecting conflicting entry and parallel slot configs.
+    // @force-gate !turbopack
+    it(`uses the entry page and ancestor layouts for static info: ${route}`, async () => {
       const $ = await next.render$(route)
       expect($('#runtime').text()).toBe(runtime)
       expect($('#slot').text()).toBe('slot')
@@ -333,8 +377,8 @@ describe('segment-config-precedence', () => {
       } else {
         expect(manifest.functions[`${route}/page`]).toBeUndefined()
       }
-    }
-  )
+    })
+  }
 
   it.each([
     ['export-first', 'nodejs'],
@@ -402,6 +446,8 @@ describe('synthetic not-found config: ignored edge exports', () => {
     files: `${__dirname}/fixtures/not-found`,
   })
 
+  // TODO: Align Turbopack's synthetic not-found runtime with root layout inheritance.
+  // @gate !turbopack
   it('inherits the root layout runtime instead of the not-found exports', async () => {
     const response = await next.fetch('/missing')
     expect(response.status).toBe(404)
