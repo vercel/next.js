@@ -2,17 +2,13 @@
 
 // TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-import {
-  createFromReadableStream as createFromReadableStreamBrowser,
-  createFromFetch as createFromFetchBrowser,
-} from 'react-server-dom-webpack/client'
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
 
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { fetch } from '../segment-cache/fetch'
 import type {
   DynamicNavigationFlightResponse,
   FlightRouterState,
-  InitialRSCPayload,
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 
@@ -39,16 +35,10 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import {
-  stripIsPartialByte,
-  bufferPrefetchResponseBody,
-} from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
-const createFromFetch =
-  createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
 let createDebugChannel:
   | typeof import('../../dev/debug-channel').createDebugChannel
@@ -186,18 +176,25 @@ export async function fetchServerResponse(
       }
     }
 
-    // During a navigation, we decode the response using Flight's
-    // `createFromFetch` API, which accepts a `fetch` promise. Navigations
-    // only ever receive live-render responses (per-segment prefetch
-    // responses, which omit some fields, are decoded by the segment cache
-    // instead), so the decode is typed as the live-render variant.
-    const res = await createFetch<DynamicNavigationFlightResponse>(
-      url,
-      headers,
-      'auto',
-      true,
-      options.signal
-    )
+    const responsePromise = createFetch(url, headers, 'auto', options.signal)
+    // Start decoding before the response arrives, so React DevTools can show
+    // the latency from the client to the server. Navigations only ever receive
+    // live-render responses (per-segment prefetch responses, which omit some
+    // fields, are decoded by the segment cache instead), so the decode is typed
+    // as the live-render variant.
+    const flightResponsePromise =
+      decodeNavigationResponse<DynamicNavigationFlightResponse>(
+        responsePromise,
+        headers,
+        // Only an HMR refresh can be superseded. Gated to the dev server
+        // (where HMR runs) so the abort handling is eliminated from production
+        // and `--debug-prerender` bundles regardless of the flag.
+        process.env.__NEXT_DEV_SERVER &&
+          process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION
+          ? options.signal
+          : undefined
+      )
+    const res = await responsePromise
 
     // If the fetch succeeds while we're in the offline state, notify the
     // offline module so it can short-circuit the polling loop.
@@ -247,14 +244,7 @@ export async function fetchServerResponse(
       ).waitForWebpackRuntimeHotUpdate()
     }
 
-    // This request passed `true` to `shouldImmediatelyDecode`, so the Flight
-    // response promise is always initialized.
-    const flightResponsePromise = res.flightResponsePromise!
-
-    const [flightResponse, cacheData] = await Promise.all([
-      flightResponsePromise,
-      res.cacheData,
-    ])
+    const flightResponse = await flightResponsePromise
 
     if (
       (res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b) !==
@@ -289,8 +279,7 @@ export async function fetchServerResponse(
       // When absent (UnknownDynamicStaleTime), the client falls back to the
       // global DYNAMIC_STALETIME_MS. The value is in seconds.
       dynamicStaleTime: flightResponse.d ?? UnknownDynamicStaleTime,
-      isResponsePartial:
-        cacheData !== null ? cacheData.isResponsePartial : false,
+      isResponsePartial: res.isPartial,
       flightResponse,
       debugInfo: flightResponsePromise._debugInfo ?? null,
       revealAfter: flightResponse._revealAfter ?? null,
@@ -344,152 +333,43 @@ export async function fetchServerResponse(
 // the codebase. For example, there's some custom logic for manually following
 // redirects, so "redirected" in this type could be a composite of multiple
 // browser fetch calls; however, this fact should not leak to the caller.
-export type RSCResponse<T> = {
+export type RSCResponse = {
   ok: boolean
   redirected: boolean
   headers: Headers
   body: ReadableStream<Uint8Array> | null
   status: number
   url: string
-  flightResponsePromise: (Promise<T> & { _debugInfo?: Array<any> }) | null
-  cacheData: Promise<FetchResponseCacheData | null>
-}
-
-type FetchResponseCacheData = {
-  isResponsePartial: boolean
-  // A clone of the response body for shell extraction, derived from a `tee()`
-  // in `processFetch`.
-  shellBodyClone?: ReadableStream<Uint8Array>
+  // With Cache Components, whether the server marked the response as partial.
+  // Always false without Cache Components.
+  isPartial: boolean
 }
 
 /**
- * Strips the leading isPartial byte from an RSC navigation response and
- * clones the body for segment cache extraction.
- *
- * When cache components is enabled, the server prepends a single byte:
- * '~' (0x7e) for partial, '#' (0x23) for complete. This must be stripped
- * before Flight decoding because it's not valid RSC data. The body is
- * cloned before Flight can consume it so the clone is available for later use.
- *
- * When cache components is disabled, returns the original response with
- * cacheData: null.
+ * Decodes the first `byteLength` bytes of a response, given the response's
+ * bytes as `chunks`. Returns null if the decode fails or its root doesn't
+ * resolve before the next task. The caller can still use the full response.
  */
-export async function processFetch(response: Response): Promise<{
-  response: Response
-  cacheData: FetchResponseCacheData | null
-}> {
-  if (process.env.__NEXT_CACHE_COMPONENTS) {
-    if (!response.body) {
-      throw new InvariantError(
-        'Expected RSC navigation response to have a body'
-      )
-    }
-
-    const { stream, isPartial } = await stripIsPartialByte(response.body)
-
-    let responseStream: ReadableStream<Uint8Array>
-    let cacheData: FetchResponseCacheData
-
-    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-      // Two readers needed: the main Flight decoder and the shell-stage
-      // extractor.
-      // TODO: Tee only in the callers that read the clone. Navigations only
-      // need it for a complete prerender.
-      const [stream1, shellBodyClone] = stream.tee()
-      responseStream = stream1
-      cacheData = {
-        isResponsePartial: isPartial,
-        shellBodyClone,
-      }
-    } else {
-      responseStream = stream
-      cacheData = { isResponsePartial: isPartial }
-    }
-
-    const strippedResponse = new Response(responseStream, {
-      headers: response.headers,
-      status: response.status,
-      statusText: response.statusText,
-    })
-
-    // The Response constructor doesn't preserve `url` or `redirected` from
-    // the original. We need both: `url` for React DevTools and `redirected`
-    // for the redirect replay logic below.
-    Object.defineProperty(strippedResponse, 'url', { value: response.url })
-    Object.defineProperty(strippedResponse, 'redirected', {
-      value: response.redirected,
-    })
-
-    return { response: strippedResponse, cacheData }
-  }
-
-  return { response, cacheData: null }
-}
-
-/**
- * Resolves the shell stage of a prerender response:
- *
- * - `a === undefined` (server didn't emit shell stage info) or no shell body
- *   clone: no shell exists — returns null.
- * - `a` resolves to `null`: the shell IS the main response — returns
- *   `flightResponse` itself (callers compare by reference).
- * - `a` resolves to a number: the shell is a strict prefix of the response —
- *   returns a separate Flight decode of the byte prefix.
- */
-export async function resolveShellStageResponse<
-  T extends NavigationFlightResponse | InitialRSCPayload,
->(
-  cacheData: FetchResponseCacheData,
-  flightResponse: T,
-  headers: RequestHeaders | undefined
-): Promise<T | null> {
-  const { shellBodyClone } = cacheData
-
-  if (!shellBodyClone) {
-    return null
-  }
-
-  if (flightResponse.a === undefined) {
-    // The render wasn't staged — no shell exists.
-    shellBodyClone.cancel()
-    return null
-  }
-
-  const shellByteLength = await flightResponse.a
-  if (shellByteLength === 0) {
-    shellBodyClone.cancel()
-    return null
-  }
-  if (shellByteLength === null) {
-    // The shell IS the full response (no shell/full split). Return the full
-    // response itself — callers detect this case by reference equality —
-    // rather than collapsing it into null, which would lose the distinction
-    // from "no shell exists". This mirrors the convention of the per-segment
-    // prefetch fetch (see fetchAndWritePerSegmentPrefetchResponse in cache.ts).
-    shellBodyClone.cancel()
-    return flightResponse
-  }
-
-  return decodeStageUntilBoundary<T>(shellBodyClone, shellByteLength, headers)
-}
-
-/**
- * Truncates and buffers a Flight stream clone at the given byte boundary and
- * decodes the prefix as an optional Flight payload. Returns null if extraction
- * fails or the root does not resolve before the next task. The caller can still
- * use the full response.
- */
-async function decodeStageUntilBoundary<T>(
-  responseBodyClone: ReadableStream<Uint8Array>,
+export async function decodeResponsePrefix<T>(
+  chunks: Array<Uint8Array>,
   byteLength: number,
   headers: RequestHeaders | undefined
 ): Promise<T | null> {
   try {
-    const buffer = await bufferPrefetchResponseBody(
-      responseBodyClone,
-      byteLength
+    const buffer = new Uint8Array(byteLength)
+    let size = 0
+    for (const chunk of chunks) {
+      if (size >= byteLength) {
+        break
+      }
+      const part = chunk.subarray(0, byteLength - size)
+      buffer.set(part, size)
+      size += part.byteLength
+    }
+    const response = decodeBufferedResponse<T>(
+      buffer.subarray(0, size),
+      headers
     )
-    const response = decodeBufferedStage<T>(buffer, headers)
 
     // The caller already has the full response root, but this prefix may omit
     // rows that the root needs. Bound this optional extraction so it cannot
@@ -514,15 +394,13 @@ async function decodeStageUntilBoundary<T>(
 }
 
 /**
- * Decodes already-buffered Flight response bytes as a stage payload. A
- * "stage" is a prefix of the staged server render — see `RenderStage` in
- * packages/next/src/server/app-render/staged-rendering.ts. The
- * bytes are delivered to Flight as a single chunk so all rows are processed
- * synchronously in one call — required for the thenable-status reads that
- * scope a response's late-resolving metadata (vary params, isPartial, ...)
- * to this decode.
+ * Decodes Flight bytes that are already buffered, either a whole response or
+ * a prefix of one. We pass all the bytes to Flight as a single chunk so every
+ * row is processed synchronously. That way, a value that resolves late in the
+ * response (like vary params) can be read without awaiting, and a prefix
+ * reads it as still pending.
  */
-export function decodeBufferedStage<T>(
+export function decodeBufferedResponse<T>(
   buffer: Uint8Array,
   headers: RequestHeaders | undefined
 ): Promise<T> {
@@ -537,24 +415,29 @@ export function decodeBufferedStage<T>(
   })
 }
 
-// When an HMR refresh can be superseded, we decode its Flight response through
-// a wrapper stream we can close on abort. Closing the stream (rather than
-// letting the aborted fetch error it) makes React's Flight client mark
-// unresolved rows as halted: they suspend during render instead of rejecting,
-// so a superseded request never surfaces an error on an already-committed tree.
-// Because the stream is closed, there's also no unclosed-stream GC-root leak
-// (see #89610). The wrapper is created synchronously here so that the decode
-// starts at the same point `createFromNextFetch` would, preserving the
-// server-latency debug timing.
-function createHaltingFlightResponse<T>(
-  fetchPromise: Promise<Response>,
+// Decodes a navigation response through a stream that's created synchronously,
+// before the response arrives, and reads the response body once it does.
+// React's timer starts when the decode starts, so DevTools can show the latency
+// from the client to the server.
+//
+// When an HMR refresh can be superseded, it passes a signal, and the stream
+// closes on abort. Closing the stream (rather than letting the aborted fetch
+// error it) makes React's Flight client mark unresolved rows as halted: they
+// suspend during render instead of rejecting, so a superseded request never
+// surfaces an error on an already-committed tree. Because the stream is closed,
+// there's also no unclosed-stream GC-root leak (see #89610).
+function decodeNavigationResponse<T>(
+  responsePromise: Promise<RSCResponse>,
   headers: RequestHeaders,
-  signal: AbortSignal
+  signal: AbortSignal | undefined
 ): Promise<T> & { _debugInfo?: Array<any> } {
   let closed = false
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null
-  const wrapper = new ReadableStream<Uint8Array>({
+  const stream = new ReadableStream<Uint8Array>({
     start(controller) {
+      if (signal === undefined) {
+        return
+      }
       const onAbort = () => {
         closed = true
         try {
@@ -577,9 +460,9 @@ function createHaltingFlightResponse<T>(
         return
       }
       if (reader === null) {
-        let response: Response
+        let response: RSCResponse
         try {
-          response = await fetchPromise
+          response = await responsePromise
         } catch (err) {
           // We don't inspect `err`. If the request was superseded, `onAbort`
           // already ran synchronously (abort listeners fire during
@@ -630,37 +513,77 @@ function createHaltingFlightResponse<T>(
   })
 
   // React attaches `_debugInfo` to the returned promise at runtime.
-  return createFromNextReadableStream<T>(wrapper, headers, {
-    allowPartialStream: true,
+  return createFromNextReadableStream<T>(stream, headers, {
+    // Only a stream that closes on abort may end before the response does.
+    allowPartialStream: signal !== undefined,
   }) as Promise<T> & { _debugInfo?: Array<any> }
 }
 
-// Selects the Flight decode strategy: a halting wrapper for cancellable HMR
-// refreshes, otherwise the standard fetch-based decode. Gated to the dev server
-// (where HMR runs) so the wrapper is eliminated from production and
-// `--debug-prerender` bundles regardless of the flag.
-function decodeFlightResponse<T>(
-  fetchPromise: Promise<Response>,
-  headers: RequestHeaders,
-  signal: AbortSignal | undefined
-): Promise<T> & { _debugInfo?: Array<any> } {
-  if (
-    process.env.__NEXT_DEV_SERVER &&
-    process.env.__NEXT_SERVER_COMPONENTS_HMR_CANCELLATION &&
-    signal
-  ) {
-    return createHaltingFlightResponse<T>(fetchPromise, headers, signal)
+/**
+ * Strips the leading isPartial byte from an RSC response stream.
+ *
+ * The server prepends a single byte: '~' (0x7e) for partial, '#' (0x23) for
+ * complete. These bytes cannot appear as the first byte of a valid RSC Flight
+ * response (Flight rows start with a hex digit or ':').
+ *
+ * If the first byte is not a recognized marker, the stream is returned intact
+ * and `isPartial` is determined by the cachedNavigations experimental flag.
+ */
+export async function stripIsPartialByte(
+  stream: ReadableStream<Uint8Array>
+): Promise<{ stream: ReadableStream<Uint8Array>; isPartial: boolean }> {
+  // When there is no recognized marker byte, the fallback depends on whether
+  // Cached Navigations is enabled. When enabled, dynamic navigation responses
+  // don't have a marker but may contain dynamic holes, so they are treated as
+  // partial. When disabled, unmarked responses are treated as non-partial.
+  const defaultIsPartial = !!process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+
+  const reader = stream.getReader()
+  const { done, value } = await reader.read()
+
+  if (done || !value || value.byteLength === 0) {
+    return {
+      stream: new ReadableStream({ start: (c) => c.close() }),
+      isPartial: defaultIsPartial,
+    }
   }
-  return createFromNextFetch<T>(fetchPromise, headers)
+
+  const firstByte = value[0]
+  const hasMarker = firstByte === 0x23 || firstByte === 0x7e
+  const isPartial = hasMarker ? firstByte === 0x7e : defaultIsPartial
+
+  const remainder = hasMarker
+    ? value.byteLength > 1
+      ? value.subarray(1)
+      : null
+    : value
+
+  return {
+    isPartial,
+    stream: new ReadableStream<Uint8Array>({
+      start(controller) {
+        if (remainder) {
+          controller.enqueue(remainder)
+        }
+      },
+      async pull(controller) {
+        const result = await reader.read()
+        if (result.done) {
+          controller.close()
+        } else {
+          controller.enqueue(result.value)
+        }
+      },
+    }),
+  }
 }
 
-export async function createFetch<T>(
+export async function createFetch(
   url: URL,
   headers: RequestHeaders,
   fetchPriority: 'auto' | 'high' | 'low' | null,
-  shouldImmediatelyDecode: boolean,
   signal?: AbortSignal
-): Promise<RSCResponse<T>> {
+): Promise<RSCResponse> {
   // TODO: In output: "export" mode, the headers do nothing. Omit them (and the
   // cache busting search param) from the request so they're
   // maximally cacheable.
@@ -699,21 +622,7 @@ export async function createFetch<T>(
   // track them separately.
   let fetchUrl = new URL(url)
   await setCacheBustingSearchParam(fetchUrl, headers)
-  let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
-  let fetchPromise = processed.then(({ response }) => response)
-
-  // Immediately pass the fetch promise to the Flight client so that the debug
-  // info includes the latency from the client to the server. The internal timer
-  // in React starts as soon as `createFromFetch` is called.
-  //
-  // The only case where we don't do this is during a prefetch, because a
-  // top-level prefetch response never blocks a navigation; if it hasn't already
-  // been written into the cache by the time the navigation happens, the router
-  // will go straight to a dynamic request.
-  let flightResponsePromise = shouldImmediatelyDecode
-    ? decodeFlightResponse<T>(fetchPromise, headers, signal)
-    : null
-  let browserResponse = await fetchPromise
+  let browserResponse = await fetch(fetchUrl, fetchOptions)
 
   // If the server responds with a redirect (e.g. 307), and the redirected
   // location does not contain the cache busting search param set in the
@@ -769,12 +678,7 @@ export async function createFetch<T>(
       // TODO: We should abort the previous request.
       fetchUrl = new URL(responseUrl)
       await setCacheBustingSearchParam(fetchUrl, headers)
-      processed = fetch(fetchUrl, fetchOptions).then(processFetch)
-      fetchPromise = processed.then(({ response }) => response)
-      flightResponsePromise = shouldImmediatelyDecode
-        ? decodeFlightResponse<T>(fetchPromise, headers, signal)
-        : null
-      browserResponse = await fetchPromise
+      browserResponse = await fetch(fetchUrl, fetchOptions)
       // We just performed a manual redirect, so this is now true.
       redirected = true
     }
@@ -785,7 +689,23 @@ export async function createFetch<T>(
   const responseUrl = new URL(browserResponse.url, fetchUrl)
   responseUrl.searchParams.delete(NEXT_RSC_UNION_QUERY)
 
-  const rscResponse: RSCResponse<T> = {
+  // With Cache Components, the server prepends a byte that says whether the
+  // response is partial: '~' (0x7e) for partial, '#' (0x23) for complete. It
+  // isn't Flight data, so it's stripped before anyone reads the body.
+  let body: ReadableStream<Uint8Array> | null = browserResponse.body
+  let isPartial = false
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    if (!body) {
+      throw new InvariantError(
+        'Expected RSC navigation response to have a body'
+      )
+    }
+    const stripped = await stripIsPartialByte(body)
+    body = stripped.stream
+    isPartial = stripped.isPartial
+  }
+
+  const rscResponse: RSCResponse = {
     url: responseUrl.href,
 
     // This is true if any redirects occurred, either automatically by the
@@ -799,15 +719,10 @@ export async function createFetch<T>(
     // elsewhere in the codebase.
     ok: browserResponse.ok,
     headers: browserResponse.headers,
-    body: browserResponse.body,
     status: browserResponse.status,
 
-    // This is the exact promise returned by `createFromFetch`. It contains
-    // debug information that we need to transfer to any derived promises that
-    // are later rendered by React.
-    flightResponsePromise: flightResponsePromise,
-
-    cacheData: processed.then(({ cacheData }) => cacheData),
+    body,
+    isPartial,
   }
 
   return rscResponse
@@ -823,16 +738,5 @@ export function createFromNextReadableStream<T>(
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
     unstable_allowPartialStream: options?.allowPartialStream,
-  })
-}
-
-function createFromNextFetch<T>(
-  promiseForResponse: Promise<Response>,
-  requestHeaders: RequestHeaders
-): Promise<T> & { _debugInfo?: Array<any> } {
-  return createFromFetch(promiseForResponse, {
-    callServer,
-    findSourceMapURL,
-    debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
   })
 }
