@@ -66,6 +66,12 @@ thread_local = { workspace = true }
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 turbo-persistence = { workspace = true }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = ["Win32_System_Threading"] }
+
 [target.'cfg(target_family = "wasm")'.dependencies]
 turbo-persistence = { workspace = true, default-features = false }
 

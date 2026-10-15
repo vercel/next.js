@@ -9216,6 +9216,7 @@ dependencies = [
  "indexmap 2.14.0",
  "indoc",
  "jiff",
+ "libc",
  "lz4_flex",
  "parking_lot",
  "rand 0.10.1",
@@ -9239,6 +9240,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-malloc",
  "turbo-tasks-testing",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
