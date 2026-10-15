@@ -20,18 +20,14 @@ describe('segment cache - static shell vary params regression', () => {
   // which replaces every non-root param with Fallback. That's only correct
   // when the payload really is the param-independent shell.
   //
-  // When a route renders with no dynamic hole, the response has no shell/full
-  // split — the "shell" payload IS the concrete render for the params that
-  // were requested. Keying it at the wildcard path published one param's page
-  // as the answer for every other param value, and recorded it at the highest
-  // tier, so later navigations rendered the wrong page and skipped the network
-  // entirely.
+  // On an optional catch-all, the index (empty slug) is the case that hit
+  // this: prefetching /docs poisoned /docs/alpha and /docs/beta, so later
+  // navigations rendered the index page and skipped the network entirely.
   //
-  // On an optional catch-all, the index (empty slug) is the case that hits
-  // this: prefetching /docs poisoned /docs/alpha and /docs/beta.
-  //
-  // The fix makes the server-reported vary params authoritative, so the shell
-  // path is used exactly when the segment really is param-independent.
+  // The fix keys entries by the vary params the server reports, so we only
+  // use the shell path when the segment really doesn't depend on the params.
+  // The server also keeps the index's absent slug out of the shell, like any
+  // other param, so the shared shell has no slug-dependent content.
   it('does not serve the catch-all index page for a different slug', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
@@ -41,9 +37,8 @@ describe('segment cache - static shell vary params regression', () => {
     })
     const act = createRouterAct(page, { includeAppShellRequests: true })
 
-    // Prefetch the fully static index of the optional catch-all route. Its
-    // response has no shell/full split, so this is the write that used to land
-    // in the param-wildcard slot.
+    // Prefetch the fully static index of the optional catch-all route. This is
+    // the payload that used to be stored at the shell vary path.
     await act(
       async () => {
         await browser.elementByCss('input[data-link-accordion="/docs"]').click()
@@ -59,24 +54,26 @@ describe('segment cache - static shell vary params regression', () => {
       )
     }, 'no-requests')
 
-    // Now prefetch a different slug on the same route. Before the fix the
-    // index's page segment was sitting in the wildcard slot marked complete,
-    // so this fired no request at all for the page content and this
-    // expectation would time out.
+    // Now prefetch a different slug on the same route. The shared shell is
+    // already cached, and a shell link only needs the shell, so nothing is
+    // requested.
+    await act(async () => {
+      await browser
+        .elementByCss('input[data-link-accordion="/docs/alpha"]')
+        .click()
+    }, 'no-requests')
+
+    // The navigation fetches alpha's page. Before the fix, the index's page
+    // segment was stored at the shell vary path and marked complete, so this
+    // rendered the index page without a request.
     await act(
       async () => {
-        await browser
-          .elementByCss('input[data-link-accordion="/docs/alpha"]')
-          .click()
+        await browser.elementByCss('a[href="/docs/alpha"]').click()
       },
       { includes: 'Docs: alpha' }
     )
-
-    await act(async () => {
-      await browser.elementByCss('a[href="/docs/alpha"]').click()
-      expect(await browser.elementById('docs-page-alpha').text()).toBe(
-        'Docs: alpha'
-      )
-    }, 'no-requests')
+    expect(await browser.elementById('docs-page-alpha').text()).toBe(
+      'Docs: alpha'
+    )
   })
 })
