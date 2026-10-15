@@ -4,7 +4,7 @@ use std::{
     hash::{Hash, Hasher},
     iter::FusedIterator,
     ops::Deref,
-    sync::OnceLock,
+    sync::{Mutex, OnceLock},
 };
 
 use anyhow::{Context, Result, bail};
@@ -382,23 +382,18 @@ impl SingleModuleGraph {
         let root_nodes = entries
             .all_modules_with_is_traced()
             .map(|(e, is_traced)| {
-                SingleModuleGraphBuilderNode::new_module(
-                    emit_spans,
-                    options.include_ident_strings,
-                    options.include_side_effects,
-                    options.include_mergeable,
-                    e,
-                    is_traced,
-                )
+                SingleModuleGraphBuilderNode::new_module(emit_spans, e, is_traced)
             })
             .try_join()
             .await?;
 
+        let node_data = Mutex::new(FxHashMap::default());
         let children_nodes_iter = AdjacencyMap::new()
             .visit(
                 root_nodes,
                 SingleModuleGraphBuilder {
                     visited_modules,
+                    node_data: &node_data,
                     emit_spans,
                     options,
                 },
@@ -407,36 +402,9 @@ impl SingleModuleGraph {
             .completed()?;
         let node_count = children_nodes_iter.len();
 
-        // Materialize the breadth-first edges into an owned `Vec`. This drops the `AdjacencyMap`
-        // iterator (and lets us `.await` below without holding it across a suspension point — the
-        // build loop itself must stay synchronous, see the `node_data` read note below).
-        let edges = children_nodes_iter
-            .into_breadth_first_edges()
-            .collect::<Vec<_>>();
-
-        // Read each unique module's `node_data` cell exactly once, off the synchronous build loop.
-        // `new_module` resolved (but didn't read) the cell, distributing the data-dependency edges
-        // onto per-module tasks; reading here once per module (rather than once per incoming edge)
-        // lets us pass `final_read_hint` so the backend can drop the now-unneeded cell content.
-        let node_data = {
-            let mut seen = FxHashSet::default();
-            edges
-                .iter()
-                .filter_map(|(_, current)| match current {
-                    SingleModuleGraphBuilderNode::Module {
-                        module, node_data, ..
-                    } => seen.insert(*module).then_some((*module, *node_data)),
-                    SingleModuleGraphBuilderNode::VisitedModule { .. } => None,
-                })
-                .map(async |(module, node_data)| Ok((module, node_data.final_read_hint().await?)))
-                .try_join()
-                // `.instrument(...)` rather than an entered guard: an `Entered` span guard is
-                // `!Send` and would poison this future when held across the `.await`.
-                .instrument(tracing::info_span!("read module graph node data"))
-                .await?
-                .into_iter()
-                .collect::<FxHashMap<_, _>>()
-        };
+        let edges = children_nodes_iter.into_breadth_first_edges();
+        // The traversal resolved every module's node data in `edges()`.
+        let node_data = node_data.into_inner().unwrap();
 
         let mut graph: DiGraph<SingleModuleGraphNode, RefData> = DiGraph::with_capacity(
             node_count,
@@ -451,7 +419,8 @@ impl SingleModuleGraph {
         {
             let _span = tracing::info_span!("build module graph").entered();
             // Synchronous: no `.await` here (the loop holds the `tracing` span guard and many
-            // mutable locals across iterations; the per-module `node_data` was already read above).
+            // mutable locals across iterations; the per-module `node_data` was resolved during the
+            // traversal).
             for (parent, current) in edges {
                 let module = current.module();
                 // Find the current node, if it was already added.
@@ -2031,12 +2000,6 @@ enum SingleModuleGraphBuilderNode {
     /// A regular module
     Module {
         module: ResolvedVc<Box<dyn Module>>,
-        /// The module's resolved `module_graph_node_data` cell — *resolved* (pointer only, not
-        /// read) in `new_module`, so the per-module task owns the data-dependency edges. The cell
-        /// content is read exactly once, at dedup time in `new_inner` (with `final_read_hint`),
-        /// since `new_module` runs once per incoming edge. Excluded from `Hash`/`Eq` (see below)
-        /// since it is fully determined by `module`.
-        node_data: ResolvedVc<ModuleGraphNodeData>,
         /// The module's `ident().to_string()`, read (untracked) only when `emit_spans` so [`span`]
         /// can use it as the span name synchronously. Transient (never reaches the graph node) and
         /// excluded from `Hash`/`Eq`.
@@ -2105,10 +2068,7 @@ impl Hash for SingleModuleGraphBuilderNode {
     }
 }
 
-/// The eagerly-resolved per-module data stored on a [`SingleModuleGraphNode::Module`]. Computed by
-/// [`module_graph_node_data`] so the `to_resolved()` dependency edges are owned by a per-module
-/// task instead of the single graph-construction task.
-#[turbo_tasks::value]
+/// The eagerly-resolved per-module data stored on a [`SingleModuleGraphNode::Module`].
 struct ModuleGraphNodeData {
     ident: ResolvedVc<AssetIdent>,
     ident_string: Option<ResolvedVc<RcStr>>,
@@ -2117,24 +2077,45 @@ struct ModuleGraphNodeData {
     is_mergeable: Option<ResolvedVc<bool>>,
 }
 
-/// Resolves a module's graph-node data. Each `to_resolved()` (resolving the pointer chain,
-/// executing the producing task — the same work `references()` already triggers via `analyze()`,
-/// without reading the cell content) installs its dependency edge on *this* per-module task, which
-/// is cached and shared across graphs built with the same options. The graph builder *resolves*
-/// (but does not read) this cell in `new_module`, then reads it exactly once at dedup time in
-/// `new_inner` with `final_read_hint`, so the backend can drop the content afterward. The
-/// `include_*` flags are part of the task key but are constant within a graph build.
-#[turbo_tasks::function]
+/// Resolves a module's graph-node data. Each `to_resolved()` resolves the pointer chain (executing
+/// the producing task, without reading the cell content).
+///
+/// This is deliberately a plain `async fn` rather than a `#[turbo_tasks::function]`: the producing
+/// tasks become children of the graph-construction task instead of a new task per module. On a
+/// large app the extra edges added little to the construction task's batched connect, while a task
+/// per module costs a creation, an execution and a connect of its own.
+///
+/// All calls are issued before the first `.await`: calling a turbo-tasks function schedules its
+/// task, so they execute concurrently rather than one after another.
 async fn module_graph_node_data(
-    module: Vc<Box<dyn Module>>,
-    include_ident_strings: bool,
-    include_side_effects: bool,
-    include_mergeable: bool,
-) -> Result<Vc<ModuleGraphNodeData>> {
-    let ident = module.ident().to_resolved().await?;
+    module: ResolvedVc<Box<dyn Module>>,
+    ModuleGraphOptions {
+        include_ident_strings,
+        include_side_effects,
+        include_mergeable,
+        ..
+    }: ModuleGraphOptions,
+) -> Result<ModuleGraphNodeData> {
+    // Always collected: idents have many consumers (NFT, feature usage, module-id strategy, import
+    // tracer).
+    let ident = module.ident();
+    // Always collected: `async_module_info()` runs during chunking for every graph. Cheap to
+    // resolve (trait default `Vc::cell(false)`; ecma reads already-cached `references()`).
+    let is_self_async = module.is_self_async();
+    let side_effects = include_side_effects.then(|| module.side_effects());
+    // When collecting mergeability, store `Some` for *every* module so that `None` at the node
+    // level unambiguously means "graph not built with `include_mergeable`". Types that implement
+    // `MergeableModule` get their real `is_mergeable()`; others get a resolved `false` (the
+    // interned `false` cell, so this is cheap and deduped).
+    let is_mergeable = include_mergeable.then(|| {
+        match ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module) {
+            Some(mergeable) => mergeable.is_mergeable(),
+            None => Vc::<bool>::default(),
+        }
+    });
+
+    let ident = ident.to_resolved().await?;
     Ok(ModuleGraphNodeData {
-        // Always collected: idents have many consumers (NFT, feature usage, module-id strategy,
-        // import tracer).
         ident,
         // Only the module-id strategy needs the stringified ident, and only on the graphs that set
         // this bit. `ident_string()` is real work (recursive stringify), so it's gated.
@@ -2143,32 +2124,16 @@ async fn module_graph_node_data(
         } else {
             None
         },
-        // Always collected: `async_module_info()` runs during chunking for every graph. Cheap to
-        // resolve (trait default `Vc::cell(false)`; ecma reads already-cached `references()`).
-        is_self_async: module.is_self_async().to_resolved().await?,
-        side_effects: if include_side_effects {
-            Some(module.side_effects().to_resolved().await?)
-        } else {
-            None
+        is_self_async: is_self_async.to_resolved().await?,
+        side_effects: match side_effects {
+            Some(side_effects) => Some(side_effects.to_resolved().await?),
+            None => None,
         },
-        // When collecting mergeability, store `Some` for *every* module so that `None` at the node
-        // level unambiguously means "graph not built with `include_mergeable`". Types that
-        // implement `MergeableModule` get their real `is_mergeable()`; others get a
-        // resolved `false` (the interned `false` cell, so this is cheap and deduped).
-        is_mergeable: if include_mergeable {
-            Some(
-                match ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(
-                    module.to_resolved().await?,
-                ) {
-                    Some(mergeable) => mergeable.is_mergeable().to_resolved().await?,
-                    None => Vc::<bool>::default().to_resolved().await?,
-                },
-            )
-        } else {
-            None
+        is_mergeable: match is_mergeable {
+            Some(is_mergeable) => Some(is_mergeable.to_resolved().await?),
+            None => None,
         },
-    }
-    .cell())
+    })
 }
 
 impl SingleModuleGraphBuilderNode {
@@ -2181,30 +2146,11 @@ impl SingleModuleGraphBuilderNode {
 
     async fn new_module(
         emit_spans: bool,
-        include_ident_strings: bool,
-        include_side_effects: bool,
-        include_mergeable: bool,
         module: ResolvedVc<Box<dyn Module>>,
         is_traced: bool,
     ) -> Result<Self> {
-        // The per-module `to_resolved()` calls happen inside `module_graph_node_data`, a
-        // `#[turbo_tasks::function]` keyed on the module — so those data-dependency edges are owned
-        // by that per-module task (and shared/cached across graphs) rather than concentrated in the
-        // single graph-construction task. We only *resolve* the cell here (pointer only, no content
-        // read); it is read once at dedup time in `new_inner`. `new_module` runs once per incoming
-        // edge, so reading here would read the same cell once per importer — deferring the read to
-        // the single dedup point lets that read use `final_read_hint`.
-        let node_data = module_graph_node_data(
-            *module,
-            include_ident_strings,
-            include_side_effects,
-            include_mergeable,
-        )
-        .to_resolved()
-        .await?;
         Ok(Self::Module {
             module,
-            node_data,
             // The span name needs the ident string synchronously. Read it (untracked — its value is
             // non-load-bearing for correctness) only when spans are enabled. Stays on the builder
             // node; never reaches the graph node.
@@ -2223,6 +2169,10 @@ impl SingleModuleGraphBuilderNode {
 
 struct SingleModuleGraphBuilder<'a> {
     visited_modules: &'a FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+
+    /// Filled by `edges()`, which the traversal calls once per unique module, so each module's
+    /// node data is resolved exactly once and concurrently with the traversal.
+    node_data: &'a Mutex<FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleGraphNodeData>>,
 
     emit_spans: bool,
 
@@ -2254,21 +2204,24 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
             unreachable!()
         };
         let visited_modules = self.visited_modules;
+        let node_data = self.node_data;
         let emit_spans = self.emit_spans;
+        let options = self.options;
         let ModuleGraphOptions {
-            include_ident_strings,
-            include_side_effects,
-            include_mergeable,
             include_traced,
             include_binding_usage,
-        } = self.options;
+            ..
+        } = options;
         async move {
+            // Issued before resolving the node data so both run concurrently.
             let refs_cell = if !is_traced {
                 primary_chunkable_referenced_modules(*module, include_traced, include_binding_usage)
             } else {
                 // Currently we don't care about the binding usage of traced references
                 referenced_modules_and_affecting_sources(*module, false)
             };
+            let data = module_graph_node_data(module, options).await?;
+            node_data.lock().unwrap().insert(module, data);
             let refs = match refs_cell.await {
                 Ok(refs) => refs,
                 Err(e) => {
@@ -2309,9 +2262,6 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     } else {
                         SingleModuleGraphBuilderNode::new_module(
                             emit_spans,
-                            include_ident_strings,
-                            include_side_effects,
-                            include_mergeable,
                             target,
                             is_traced || ty.is_traced(),
                         )
