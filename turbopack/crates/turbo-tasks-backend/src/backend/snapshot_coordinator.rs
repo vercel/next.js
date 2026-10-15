@@ -161,6 +161,12 @@ impl SnapshotCoordinator {
     pub fn begin_operation(&self) -> OperationGuard<'_> {
         let stripe = self.stripe();
         // Fast path: no snapshot in flight, one atomic increment on this thread's stripe.
+        //
+        // Unlike `Arc::clone`, this increment can't be `Relaxed`: it is the store half of the
+        // store-load handshake with a closing phase, so it must be visible before the load of
+        // `flags` below decides that admission is open. Otherwise a phase could sum the stripes
+        // without seeing it, and this operation could see the running bit still clear. Both
+        // sides must be `SeqCst`. (The decrement has no such obligation; see `OperationGuard`.)
         self.stripes[stripe].fetch_add(1, Ordering::SeqCst);
         if (self.flags.load(Ordering::SeqCst) & SNAPSHOT_RUNNING_BIT) == 0 {
             return OperationGuard {
