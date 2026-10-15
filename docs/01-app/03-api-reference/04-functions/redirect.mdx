@@ -48,10 +48,12 @@ The `type` parameter has no effect when used in Server Components.
 
 ## Behavior
 
-- In Server Actions and Route Handlers, redirect should be called **outside** the `try` block when using `try/catch` statements.
+- Because `redirect` throws, call it **outside** the `try` block when using `try/catch` statements. A `try/catch` around the call suppresses the redirect. If you need to catch errors near the call, use [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) to let the interrupt through first.
 - If you prefer to return a 308 (Permanent) HTTP redirect instead of 307 (Temporary), you can use the [`permanentRedirect` function](/docs/app/api-reference/functions/permanentRedirect) instead.
-- `redirect` throws an error so it should be called **outside** the `try` block when using `try/catch` statements.
 - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](/docs/app/api-reference/functions/use-router) instead.
+- An error boundary of your own that wraps the calling component catches the redirect on a client-side navigation, and the fallback renders instead of the navigation happening. The initial server render is not affected. Keep your error boundaries outside components that redirect during rendering.
+- Calling `redirect` in [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) does not produce an HTTP redirect response. The route responds with a 200 and the redirect happens on the client. A redirect from the page component takes precedence over one from `generateMetadata`.
+- Redirecting to the route you are already on remounts the page segment, so client state in the page is reset. State in layouts above the page is preserved. A client-side navigation to the same route with different search params keeps the page mounted.
 - `redirect` also accepts absolute URLs and can be used to redirect to external links.
 - If you'd like to redirect before the render process, use [`next.config.js`](/docs/app/guides/redirecting#redirects-in-nextconfigjs) or [Proxy](/docs/app/guides/redirecting#nextresponseredirect-in-proxy).
 
