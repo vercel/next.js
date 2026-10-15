@@ -286,7 +286,7 @@ For example, you can have a dynamic route segment which loads MDX components fro
   height="849"
 />
 
-[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can be used to prerender the provided routes. By marking `dynamicParams` as `false`, accessing a route not defined in `generateStaticParams` will 404.
+[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can be used to prerender the provided routes. When Cache Components is disabled, setting `dynamicParams` to `false` returns a 404 for routes not defined in `generateStaticParams`.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 export default async function Page({
@@ -322,7 +322,10 @@ export function generateStaticParams() {
 export const dynamicParams = false
 ```
 
-> **Good to know**: Ensure you specify the `.mdx` file extension in your import. While it is not required to use [module path aliases](/docs/app/getting-started/installation#set-up-absolute-imports-and-module-path-aliases) (e.g., `@/content`), it does simplify your import path.
+> **Good to know**:
+>
+> - `dynamicParams` is not available when Cache Components is enabled. To return a 404 for a missing MDX page, call [`notFound()`](/docs/app/api-reference/functions/not-found) when the requested module does not exist.
+> - Ensure you specify the `.mdx` file extension in your import. While it is not required to use [module path aliases](/docs/app/getting-started/installation#set-up-absolute-imports-and-module-path-aliases) (e.g., `@/content`), it does simplify your import path.
 
 </AppOnly>
 
