@@ -57,33 +57,44 @@
               (currentView = new Uint8Array(4096)),
               (writtenBytes = 0));
           }
-      } else
-        0 !== chunk.byteLength &&
-          (4096 < chunk.byteLength
-            ? (0 < writtenBytes &&
-                (writeToDestination(
-                  destination,
-                  currentView.subarray(0, writtenBytes)
-                ),
-                (currentView = new Uint8Array(4096)),
-                (writtenBytes = 0)),
-              writeToDestination(destination, chunk))
-            : ((target = currentView.length - writtenBytes),
-              target < chunk.byteLength &&
-                (0 === target
-                  ? writeToDestination(destination, currentView)
-                  : (currentView.set(chunk.subarray(0, target), writtenBytes),
-                    (writtenBytes += target),
-                    writeToDestination(destination, currentView),
-                    (chunk = chunk.subarray(target))),
-                (currentView = new Uint8Array(4096)),
-                (writtenBytes = 0)),
-              currentView.set(chunk, writtenBytes),
-              (writtenBytes += chunk.byteLength),
-              4096 === writtenBytes &&
-                (writeToDestination(destination, currentView),
-                (currentView = new Uint8Array(4096)),
-                (writtenBytes = 0))));
+      } else if (0 === chunk.byteLength)
+        if (supportsArrayBufferDetached) {
+          if (chunk.buffer.detached)
+            throw Error(
+              "Cannot transport a detached buffer. This usually happens when trying to transport multiple buffer-spanning views on the same underyling buffer. Either reuse the exact same view by identity or copy the underlying buffer manually via `view.slice()`."
+            );
+        } else
+          didWarnAboutMissingArrayBufferDetached ||
+            (console.error(
+              "React encountered an empty buffer when writing in an environment that does not support ArrayBuffer.prototype.detached. This could be a security issue if the buffer was not actually empty. Please upgrade to a Node.js version that supports ArrayBuffer.prototype.detached."
+            ),
+            (didWarnAboutMissingArrayBufferDetached = !0));
+      else
+        4096 < chunk.byteLength
+          ? (0 < writtenBytes &&
+              (writeToDestination(
+                destination,
+                currentView.subarray(0, writtenBytes)
+              ),
+              (currentView = new Uint8Array(4096)),
+              (writtenBytes = 0)),
+            writeToDestination(destination, chunk))
+          : ((target = currentView.length - writtenBytes),
+            target < chunk.byteLength &&
+              (0 === target
+                ? writeToDestination(destination, currentView)
+                : (currentView.set(chunk.subarray(0, target), writtenBytes),
+                  (writtenBytes += target),
+                  writeToDestination(destination, currentView),
+                  (chunk = chunk.subarray(target))),
+              (currentView = new Uint8Array(4096)),
+              (writtenBytes = 0)),
+            currentView.set(chunk, writtenBytes),
+            (writtenBytes += chunk.byteLength),
+            4096 === writtenBytes &&
+              (writeToDestination(destination, currentView),
+              (currentView = new Uint8Array(4096)),
+              (writtenBytes = 0)));
     }
     function writeToDestination(destination, view) {
       destination = destination.write(view);
@@ -3475,13 +3486,35 @@
     }
     function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
       debug ? request.pendingDebugChunks++ : request.pendingChunks++;
-      typedArray = new Uint8Array(
-        typedArray.buffer,
-        typedArray.byteOffset,
-        typedArray.byteLength
-      );
-      var binaryLength = typedArray.byteLength;
-      id = id.toString(16) + ":" + tag + binaryLength.toString(16) + ",";
+      a: {
+        var view = new Uint8Array(
+          typedArray.buffer,
+          typedArray.byteOffset,
+          typedArray.byteLength
+        );
+        if (4096 < typedArray.byteLength) {
+          if (
+            0 !== typedArray.byteOffset ||
+            typedArray.byteLength !== typedArray.buffer.byteLength ||
+            typedArray.buffer.resizable
+          ) {
+            typedArray = view.slice();
+            break a;
+          }
+          if (!supportsArrayBufferDetached) {
+            didWarnAboutMissingArrayBufferDetached ||
+              (console.error(
+                "React copied a partial view into a fresh buffer as a safety precaution because the environment does not implement ArrayBuffer.prototype.detached. This negatively impacts performance. Please upgrade to a modern Node.js version."
+              ),
+              (didWarnAboutMissingArrayBufferDetached = !0));
+            typedArray = view.slice();
+            break a;
+          }
+        }
+        typedArray = view;
+      }
+      view = typedArray.byteLength;
+      id = id.toString(16) + ":" + tag + view.toString(16) + ",";
       debug
         ? request.completedDebugChunks.push(
             NEXT_TWO_CHUNKS_ARE_ATOMIC,
@@ -4747,13 +4780,38 @@
       if (hasOwnProperty.call(moduleExports, metadata[2]))
         return moduleExports[metadata[2]];
     }
-    function appendBackingEntry(backingStore, key, value) {
-      backingStore.data.append(key, value);
-      value = backingStore.keys;
-      null === value
-        ? ((backingStore.keys = Array.from(backingStore.data.keys())),
-          (backingStore.keyPointer = 0))
-        : value.push(key);
+    function appendBackingEntry(backingStore, value, key) {
+      var prefix = backingStore.prefix;
+      if (key.startsWith(prefix)) {
+        switch (key[prefix.length]) {
+          case "_":
+            prefix = backingStore.referencedEntries;
+            null === prefix && (prefix = backingStore.referencedEntries = []);
+            prefix.push([key, value]);
+            return;
+          case "S":
+            "string" === typeof value &&
+              ((prefix = backingStore.streamChunks),
+              null === prefix &&
+                (prefix = backingStore.streamChunks = new Map()),
+              (backingStore = prefix.get(key)),
+              void 0 === backingStore
+                ? prefix.set(key, [value])
+                : backingStore.push(value));
+            return;
+        }
+        "string" === typeof value
+          ? ((prefix = backingStore.stringChunks),
+            null === prefix && (prefix = backingStore.stringChunks = new Map()),
+            prefix.set(key, value))
+          : ((prefix = backingStore.blobs),
+            null === prefix && (prefix = backingStore.blobs = new Map()),
+            prefix.set(key, value));
+      }
+    }
+    function getBackingBlob(backingStore, key) {
+      backingStore = backingStore.blobs;
+      return null === backingStore ? void 0 : backingStore.get(key);
     }
     function ReactPromise(status, value, reason) {
       this.status = status;
@@ -5090,15 +5148,18 @@
     function getChunk(response, id) {
       var chunks = response._chunks,
         chunk = chunks.get(id);
-      chunk ||
-        ((chunk = response._formData.data.get(response._prefix + id)),
-        (chunk =
+      if (!chunk) {
+        chunk = response._prefix;
+        var stringChunks = response._formData.stringChunks;
+        chunk = null === stringChunks ? void 0 : stringChunks.get(chunk + id);
+        chunk =
           "string" === typeof chunk
             ? createResolvedModelChunk(response, chunk, id)
             : response._closed
               ? new ReactPromise("rejected", null, response._closedReason)
-              : new ReactPromise("pending", null, null)),
-        chunks.set(id, chunk));
+              : new ReactPromise("pending", null, null);
+        chunks.set(id, chunk);
+      }
       return chunk;
     }
     function fulfillReference(response, reference, value, arrayRoot) {
@@ -5366,7 +5427,7 @@
           Error("Already initialized typed array.")
         )
       );
-      reference = response._formData.data.get(key).arrayBuffer();
+      reference = getBackingBlob(response._formData, key).arrayBuffer();
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;
@@ -5410,15 +5471,17 @@
       var chunks = response._chunks;
       stream = new ReactPromise("fulfilled", stream, controller);
       chunks.set(id, stream);
-      response = response._formData.data.getAll(response._prefix + id);
-      for (id = 0; id < response.length; id++)
-        (chunks = response[id]),
-          "string" === typeof chunks &&
-            ("C" === chunks[0]
+      chunks = response._prefix;
+      response = response._formData.streamChunks;
+      id = null === response ? void 0 : response.get(chunks + "S" + id);
+      if (void 0 !== id)
+        for (response = 0; response < id.length; response++)
+          (chunks = id[response]),
+            "C" === chunks[0]
               ? controller.close(
                   "C" === chunks ? '"$undefined"' : chunks.slice(1)
                 )
-              : controller.enqueueModel(chunks));
+              : controller.enqueueModel(chunks);
     }
     function parseReadableStream(response, reference, type) {
       function enqueue(value) {
@@ -5583,7 +5646,14 @@
       });
       return iterator;
     }
-    function parseModelString(response, obj, key, value, reference, arrayRoot) {
+    function parseModelString(
+      response,
+      obj,
+      key$jscomp$0,
+      value,
+      reference,
+      arrayRoot
+    ) {
       if ("$" === value[0]) {
         switch (value[1]) {
           case "$":
@@ -5603,7 +5673,7 @@
                 response,
                 arrayRoot,
                 obj,
-                key,
+                key$jscomp$0,
                 null,
                 loadServerReference$1
               )
@@ -5625,41 +5695,44 @@
           case "Q":
             return (
               (arrayRoot = value.slice(2)),
-              getOutlinedModel(response, arrayRoot, obj, key, null, createMap)
+              getOutlinedModel(
+                response,
+                arrayRoot,
+                obj,
+                key$jscomp$0,
+                null,
+                createMap
+              )
             );
           case "W":
             return (
               (arrayRoot = value.slice(2)),
-              getOutlinedModel(response, arrayRoot, obj, key, null, createSet)
+              getOutlinedModel(
+                response,
+                arrayRoot,
+                obj,
+                key$jscomp$0,
+                null,
+                createSet
+              )
             );
           case "K":
-            key = value.slice(2);
-            obj = response._prefix + "_";
-            key = obj + key + "_";
-            arrayRoot = new FormData();
-            for (response = response._formData; ; ) {
-              value = response;
-              reference = value.keys;
-              null === reference &&
-                ((reference = value.keys = Array.from(value.data.keys())),
-                (value.keyPointer = 0));
-              value = reference[value.keyPointer];
-              if (void 0 === value) break;
-              if (value.startsWith(key)) {
-                reference = response.data.getAll(value);
-                for (
-                  var referencedFormDataKey = value.slice(key.length), i = 0;
-                  i < reference.length;
-                  i++
-                )
-                  arrayRoot.append(referencedFormDataKey, reference[i]);
-                reference = response;
-                reference.data.delete(value);
-                reference.keyPointer++;
-              } else if (value.startsWith(obj)) break;
-              else response.keyPointer++;
+            key$jscomp$0 = value.slice(2);
+            obj = response._formData;
+            response = response._prefix + "_" + key$jscomp$0 + "_";
+            key$jscomp$0 = new FormData();
+            arrayRoot = obj.referencedEntries;
+            if (null !== arrayRoot) {
+              for (value = obj.keyPointer; value < arrayRoot.length; ) {
+                reference = arrayRoot[value];
+                var key = reference[0];
+                if (!key.startsWith(response)) break;
+                key$jscomp$0.append(key.slice(response.length), reference[1]);
+                value++;
+              }
+              obj.keyPointer = value;
             }
-            return arrayRoot;
+            return key$jscomp$0;
           case "i":
             return (
               (arrayRoot = value.slice(2)),
@@ -5667,7 +5740,7 @@
                 response,
                 arrayRoot,
                 obj,
-                key,
+                key$jscomp$0,
                 null,
                 extractIterator
               )
@@ -5702,7 +5775,7 @@
               ArrayBuffer,
               1,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "O":
@@ -5712,7 +5785,7 @@
               Int8Array,
               1,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "o":
@@ -5722,7 +5795,7 @@
               Uint8Array,
               1,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "U":
@@ -5732,7 +5805,7 @@
               Uint8ClampedArray,
               1,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "S":
@@ -5742,7 +5815,7 @@
               Int16Array,
               2,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "s":
@@ -5752,7 +5825,7 @@
               Uint16Array,
               2,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "L":
@@ -5762,7 +5835,7 @@
               Int32Array,
               4,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "l":
@@ -5772,7 +5845,7 @@
               Uint32Array,
               4,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "G":
@@ -5782,7 +5855,7 @@
               Float32Array,
               4,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "g":
@@ -5792,7 +5865,7 @@
               Float64Array,
               8,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "M":
@@ -5802,7 +5875,7 @@
               BigInt64Array,
               8,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "m":
@@ -5812,7 +5885,7 @@
               BigUint64Array,
               8,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "V":
@@ -5822,12 +5895,15 @@
               DataView,
               1,
               obj,
-              key,
+              key$jscomp$0,
               arrayRoot
             );
           case "B":
             obj = parseInt(value.slice(2), 16);
-            response = response._formData.data.get(response._prefix + obj);
+            response = getBackingBlob(
+              response._formData,
+              response._prefix + obj
+            );
             if (!(response instanceof Blob))
               throw Error("Referenced Blob is not a Blob.");
             return response;
@@ -5845,7 +5921,7 @@
           response,
           value,
           obj,
-          key,
+          key$jscomp$0,
           arrayRoot,
           createModel
         );
@@ -5864,11 +5940,20 @@
             : new FormData(),
         arraySizeLimit =
           4 < arguments.length && void 0 !== arguments[4] ? arguments[4] : 1e6,
-        chunks = new Map();
+        chunks = new Map(),
+        backingStore = {
+          prefix: formFieldPrefix,
+          referencedEntries: null,
+          keyPointer: 0,
+          stringChunks: null,
+          streamChunks: null,
+          blobs: null
+        };
+      backingFormData.forEach(appendBackingEntry.bind(null, backingStore));
       return {
         _bundlerConfig: bundlerConfig,
         _prefix: formFieldPrefix,
-        _formData: { data: backingFormData, keyPointer: -1, keys: null },
+        _formData: backingStore,
         _chunks: chunks,
         _closed: !1,
         _closedReason: null,
@@ -5881,14 +5966,26 @@
       };
     }
     function resolveField(response, key, value) {
-      appendBackingEntry(response._formData, key, value);
       var prefix = response._prefix;
       if (key.startsWith(prefix)) {
         var chunks = response._chunks;
-        key = +key.slice(prefix.length);
-        (chunks = chunks.get(key)) &&
-          resolveModelChunk(response, chunks, value, key);
+        if ("S" === key[prefix.length]) {
+          if (
+            key.length > prefix.length + 1 &&
+            ((prefix = +key.slice(prefix.length + 1)),
+            (chunks = chunks.get(prefix)))
+          ) {
+            resolveModelChunk(response, chunks, value, prefix);
+            return;
+          }
+        } else if (
+          ((prefix = +key.slice(prefix.length)), (chunks = chunks.get(prefix)))
+        ) {
+          resolveModelChunk(response, chunks, value, prefix);
+          return;
+        }
       }
+      appendBackingEntry(response._formData, value, key);
     }
     function close(response) {
       reportGlobalError(response, Error("Connection closed."));
@@ -6097,6 +6194,12 @@
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
+      hasOwnProperty = Object.prototype.hasOwnProperty,
+      supportsArrayBufferDetached = hasOwnProperty.call(
+        ArrayBuffer.prototype,
+        "detached"
+      ),
+      didWarnAboutMissingArrayBufferDetached = !1,
       scheduleMicrotask = queueMicrotask,
       currentView = null,
       writtenBytes = 0,
@@ -6469,7 +6572,6 @@
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
-      hasOwnProperty = Object.prototype.hasOwnProperty,
       doNotLimit = new WeakSet();
     (function () {
       async_hooks
@@ -6835,7 +6937,7 @@
           _entry$value = _entry$value[1];
           "string" === typeof _entry$value
             ? resolveField(response, entry, _entry$value)
-            : appendBackingEntry(response._formData, entry, _entry$value);
+            : appendBackingEntry(response._formData, _entry$value, entry);
           iterator.next().then(progress, error);
         }
       }
@@ -6865,26 +6967,33 @@
           var current = head;
           if (!current.complete) return;
           try {
-            var response = response$jscomp$0,
-              key = current.name,
-              handle = current.file,
-              blob = new Blob(handle.chunks, { type: handle.mime }),
-              backingStore = response._formData;
-            response = key;
-            backingStore.data.append(response, blob, handle.filename);
-            var keys = backingStore.keys;
-            null === keys
-              ? ((backingStore.keys = Array.from(backingStore.data.keys())),
-                (backingStore.keyPointer = 0))
-              : keys.push(response);
+            var key = current.name,
+              JSCompiler_temp_const = response._formData;
+            var handle = current.file;
+            if ("function" === typeof File)
+              var JSCompiler_inline_result = new File(
+                handle.chunks,
+                handle.filename,
+                { type: handle.mime }
+              );
+            else {
+              var scratch = new FormData();
+              scratch.append(
+                "file",
+                new Blob(handle.chunks, { type: handle.mime }),
+                handle.filename
+              );
+              JSCompiler_inline_result = scratch.get("file");
+            }
+            appendBackingEntry(
+              JSCompiler_temp_const,
+              JSCompiler_inline_result,
+              key
+            );
             var queuedFields = current.queuedFields;
             if (null !== queuedFields)
-              for (response = 0; response < queuedFields.length; response += 2)
-                resolveField(
-                  response$jscomp$0,
-                  queuedFields[response],
-                  queuedFields[response + 1]
-                );
+              for (var i = 0; i < queuedFields.length; i += 2)
+                resolveField(response, queuedFields[i], queuedFields[i + 1]);
           } catch (error) {
             busboyStream.destroy(error);
             return;
@@ -6892,9 +7001,9 @@
           head = current.next;
         }
         tail = null;
-        bodyFinished && !closed && ((closed = !0), close(response$jscomp$0));
+        bodyFinished && !closed && ((closed = !0), close(response));
       }
-      var response$jscomp$0 = createResponse(
+      var response = createResponse(
           turbopackMap,
           "",
           options ? options.temporaryReferences : void 0,
@@ -6911,7 +7020,7 @@
             tail.queuedFields.push(name, value);
         else
           try {
-            resolveField(response$jscomp$0, name, value);
+            resolveField(response, name, value);
           } catch (error) {
             busboyStream.destroy(error);
           }
@@ -6957,14 +7066,14 @@
         flush();
         closed ||
           reportGlobalError(
-            response$jscomp$0,
+            response,
             Error("Reply finished with incomplete file part.")
           );
       });
       busboyStream.on("error", function (err) {
-        reportGlobalError(response$jscomp$0, err);
+        reportGlobalError(response, err);
       });
-      return getChunk(response$jscomp$0, 0);
+      return getChunk(response, 0);
     };
     exports.prerender = function (model, turbopackMap, options) {
       return new Promise(function (resolve, reject) {
