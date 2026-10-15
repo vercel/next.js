@@ -1,3 +1,4 @@
+import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { readFileSync } from 'fs'
 import { createServer, type Server } from 'http'
@@ -63,11 +64,23 @@ describe('next/font/google with an extensionless URL', () => {
       // Turbopack's font URLs are relative to the stylesheet, not the page.
       href = new URL(source, stylesheet.href || next.url).pathname
     } else {
-      const $ = await next.render$('/')
-      href = $('link[rel="preload"][as="font"]').attr('href')
-      expect($('link[rel="preload"][as="font"]').attr('type')).toBe(
-        'font/woff2'
-      )
+      const res = await next.fetch('/')
+      const $ = cheerio.load(await res.text())
+      const preloadLink = $('link[rel="preload"][as="font"]')
+      let type: string | undefined
+      if (preloadLink.length) {
+        href = preloadLink.attr('href')
+        type = preloadLink.attr('type')
+      } else {
+        // Prerenders (e.g. with Cache Components) can hoist preloads from the
+        // HTML into the `Link` response header instead.
+        const preloadHeader = (res.headers.get('link') ?? '')
+          .split(/,\s*(?=<)/)
+          .find((link) => /;\s*as="?font"?/.test(link))
+        href = /^<([^>]+)>/.exec(preloadHeader ?? '')?.[1]
+        type = /;\s*type="?([^";]+)"?/.exec(preloadHeader ?? '')?.[1]
+      }
+      expect(type).toBe('font/woff2')
       const stylesheets = await Promise.all(
         $('link[rel="stylesheet"]')
           .map((_, link) =>

@@ -41,7 +41,6 @@ use turbopack_node::{
 use crate::{
     embed_js::next_js_file_path,
     mode::NextMode,
-    next_app::metadata::split_extension,
     next_font::{
         font_fallback::FontFallback,
         google::{
@@ -404,16 +403,8 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             has_size_adjust: size_adjust,
         } = font_file_options_from_query_map(query)?;
 
-        // Keep query parameters in the hash: extensionless kit URLs can share
-        // a pathname but refer to different fonts. Preserve names for ordinary URLs.
-        let filename = if url.contains(['?', '#']) {
-            url.as_str()
-        } else {
-            split_extension(&url).0
-        };
-
         // remove dashes and dots as they might be used for the markers below.
-        let mut name = format!("{:016x}", hash_xxh3_hash64(filename.as_bytes()));
+        let mut name = format!("{:016x}", hash_xxh3_hash64(url.as_bytes()));
         if size_adjust {
             name.push_str("-s")
         }
