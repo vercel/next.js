@@ -1,4 +1,9 @@
-import { compareParams, ParamsChange } from './vary-path'
+import {
+  compareParams,
+  ParamsChange,
+  getSegmentVaryPathForRequest,
+  getStaticSegmentVaryPathForRequest,
+} from './vary-path'
 import type {
   FlightRouterState,
   CacheNode,
@@ -855,9 +860,9 @@ function pingRootRouteTree(
 
       // A task's fetch strategy gets set to `PPR` for any "auto" prefetch.
       // If it turned out that the route isn't PPR-enabled, we need to use `LoadingBoundary` instead.
-      // We don't need to do this for runtime prefetches, because those are only available in
-      // `cacheComponents`, where every route is PPR.
-      let fetchStrategy: FetchStrategy
+      let fetchStrategy:
+        | PrefetchTaskFetchStrategy
+        | FetchStrategy.LoadingBoundary
       if (tree.prefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) {
         // If Partial Prefetching is enabled anywhere on the target route,
         // ignore the fetch strategy and switch to unified strategy used by
@@ -1022,7 +1027,6 @@ function pingRootRouteTree(
           return PrefetchTaskExitStatus.Done
         }
         case FetchStrategy.Full:
-        case FetchStrategy.PPRRuntime:
         case FetchStrategy.LoadingBoundary: {
           if (task.phase === PrefetchPhase.Shell) {
             // Shell phase only does work on routes that use the PPR strategy
@@ -1172,51 +1176,46 @@ function shouldSegmentAttemptStaticRequest(
 }
 
 /**
- * The runtime counterpart of a pass's static walk strategy: the strategy the
- * batched runtime request uses if this walk deopts. Each phase has exactly one
- * — the Shell phase escalates to a shell-scoped runtime request
- * (RuntimeShell), the Speculative phase to a per-link concrete
- * runtime prefetch.
- */
-function getRuntimeStrategyForWalk(
-  staticWalkStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
-): FetchStrategy.RuntimeShell | FetchStrategy.PPRRuntime {
-  return staticWalkStrategy === FetchStrategy.StaticShell
-    ? FetchStrategy.RuntimeShell
-    : FetchStrategy.PPRRuntime
-}
-
-/**
  * Whether this phase's runtime request would return more content for a
- * fulfilled entry than the entry already holds.
+ * fulfilled entry than the entry already holds. The Shell phase escalates to
+ * a shell-scoped runtime request (RuntimeShell), the Speculative phase to a
+ * per-link concrete runtime prefetch (PPRRuntime).
  *
  * An entry records the tier its CONTENT achieved, not the one it was requested
  * at, and that tier spans both axes — so a static response that needed no
  * runtime data records the runtime counterpart of its own variant (see
  * `recordedFetchStrategy` in cache.ts). That makes this a pure tier
  * comparison: an entry at or above the phase's runtime tier has nothing to
- * gain from it.
+ * gain from it. Neither does a non-partial entry, whatever its tier.
  */
 function wouldRuntimeRequestProvideMore(
   entry: SegmentCacheEntry,
   staticWalkStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): boolean {
+  if (!entry.isPartial) {
+    return false
+  }
   return canNewFetchStrategyProvideMoreContent(
     entry.fetchStrategy,
-    getRuntimeStrategyForWalk(staticWalkStrategy)
+    staticWalkStrategy === FetchStrategy.StaticShell
+      ? FetchStrategy.RuntimeShell
+      : FetchStrategy.PPRRuntime
   )
 }
 
 /**
  * Whether a fulfilled shell-tier entry should take a static attempt (a
  * spawned revalidation at the walk's static tier) before its position deopts
- * to a runtime request. A shell-tier recorded entry (StaticShell or
- * RuntimeShell) is not evidence that a static attempt would be pointless —
- * unlike a concrete static (PPR) entry, where a static re-fetch would return
- * the same bytes — so when the segment's hint says a static attempt is
- * worthwhile (the build-time prerender accessed no runtime data), the
- * attempt is taken and its response's own verdict decides whether to
- * escalate afterward.
+ * to a runtime request. A RuntimeShell entry is not evidence that a static
+ * attempt would be pointless — unlike a concrete static (PPR) entry, where a
+ * static re-fetch would return the same bytes — so when the segment's hint
+ * says a static attempt is worthwhile (the build-time prerender accessed no
+ * runtime data), the attempt is taken and its response's own verdict decides
+ * whether to escalate afterward. A StaticShell entry is not eligible: its
+ * verdict says the shell read runtime data, so the later stages read it too
+ * and a static prefetch can't make the entry cache complete. Only a runtime
+ * request can, so it goes straight there. A non-partial entry is not eligible
+ * either: it has nothing more to fetch.
  *
  * Consults the revalidation slot so an attempt that already ran and settled
  * without healing the entry (a rejected attempt: server miss or network
@@ -1235,8 +1234,8 @@ function isShellEntryEligibleForStaticAttempt(
 ): boolean {
   if (
     !(
-      (entry.fetchStrategy === FetchStrategy.StaticShell ||
-        entry.fetchStrategy === FetchStrategy.RuntimeShell) &&
+      entry.isPartial &&
+      entry.fetchStrategy === FetchStrategy.RuntimeShell &&
       shouldSegmentAttemptStaticRequest(fetchStrategy, tree) &&
       // if the `fetchStrategy` is `FetchStrategy.PPR`, it might provide more content
       // (e.g. static params that this shell doesn't have)
@@ -1248,8 +1247,8 @@ function isShellEntryEligibleForStaticAttempt(
   const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
     now,
     map,
-    fetchStrategy,
-    tree
+    getSegmentVaryPathForRequest(fetchStrategy, tree),
+    getStaticSegmentVaryPathForRequest(fetchStrategy, tree)
   )
   return (
     revalidatingEntry.status === EntryStatus.Empty ||
@@ -1513,10 +1512,9 @@ function pingNewPartOfCacheComponentsTree(
  * The static hints and `needsRuntimeRequest` have no effect if runtime requests
  * are not allowed (i.e. outside of Partial Prefetching).
  *
- * Returns the segment's bundle accumulation when the walk should continue
- * into its children, and null when the walk stops at this segment: the link
- * needs no speculative prefetch, or the segment deopted and the batched
- * runtime request covers the whole subtree.
+ * Returns the segment's bundle if we should keep going into its children.
+ * Returns null if we stop at this segment, because it needs a runtime
+ * request, and that request covers the whole subtree.
  */
 function pingSegmentInCacheComponentsTree(
   now: number,
@@ -1528,14 +1526,6 @@ function pingSegmentInCacheComponentsTree(
   // it's derived.
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): { bundle: SegmentBundle | null; needsRuntimeRequest: boolean } | null {
-  // In PPF, links may skip speculative prefetching if they only need a shell.
-  if (
-    fetchStrategy === FetchStrategy.PPR &&
-    !needsSpeculativePrefetch(task.fetchStrategy, route.root.tree.prefetchHints)
-  ) {
-    return null
-  }
-
   // Constant for the whole pass; recomputed here only because the walk is
   // recursive and the check is cheap.
   const canUseRuntimeRequests = walkCanUseRuntimeRequests(fetchStrategy, route)
@@ -1601,10 +1591,7 @@ function diffRouteTreeAgainstCurrent(
   oldTree: RouteTree<CacheNode>,
   newTree: RouteTree<null>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
-  fetchStrategy:
-    | FetchStrategy.Full
-    | FetchStrategy.PPRRuntime
-    | FetchStrategy.LoadingBoundary
+  fetchStrategy: FetchStrategy.Full | FetchStrategy.LoadingBoundary
 ): FlightRouterState {
   // This is a single recursive traversal that does multiple things:
   // - Finds the segments that differ from the current route, comparing each
@@ -1662,10 +1649,7 @@ function diffSegmentAgainstCurrent(
   oldTree: RouteTree<CacheNode> | undefined,
   newTree: RouteTree<null>,
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry>,
-  fetchStrategy:
-    | FetchStrategy.Full
-    | FetchStrategy.PPRRuntime
-    | FetchStrategy.LoadingBoundary
+  fetchStrategy: FetchStrategy.Full | FetchStrategy.LoadingBoundary
 ): FlightRouterState {
   if (oldTree !== undefined && doesRouteStructureMatch(oldTree, newTree)) {
     // This segment is already part of the current route.
@@ -1718,19 +1702,6 @@ function diffSegmentAgainstCurrent(
       }
       // There's no loading boundary within this tree. Bail out.
       return convertRouteTreeToFlightRouterState(newTree)
-    }
-    case FetchStrategy.PPRRuntime: {
-      // This is a runtime prefetch. Fetch all cacheable data in the tree,
-      // not just the static PPR shell.
-      return pingRouteTreeAndIncludeDynamicData(
-        now,
-        task,
-        route,
-        newTree,
-        false,
-        spawnedEntries,
-        fetchStrategy
-      )
     }
     case FetchStrategy.Full: {
       // This is a "full" prefetch. Fetch all the data in the tree, both
@@ -1788,8 +1759,8 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   const segment = readOrCreateSegmentCacheEntry(
     now,
     task.segmentCacheMap,
-    task.fetchStrategy,
-    tree
+    getSegmentVaryPathForRequest(FetchStrategy.LoadingBoundary, tree),
+    getStaticSegmentVaryPathForRequest(FetchStrategy.LoadingBoundary, tree)
   )
   switch (segment.status) {
     case EntryStatus.Empty: {
@@ -1937,16 +1908,17 @@ function pingRouteTreeAndIncludeDynamicData(
   // explicit "refetch" marker so the server knows where to start rendering.
   // Once the server starts rendering along a path, it keeps rendering the
   // entire subtree.
+  // Note that `fetchStrategy` might be different from `task.fetchStrategy`,
+  // and we have to use the former here.
+  // We can have a task with `FetchStrategy.PPR` where some of its segments are configured to
+  // always use runtime prefetching (via `export const prefetch`), and those should check for
+  // entries that include search params.
+  const varyPath = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const segment = readOrCreateSegmentCacheEntry(
     now,
     task.segmentCacheMap,
-    // Note that `fetchStrategy` might be different from `task.fetchStrategy`,
-    // and we have to use the former here.
-    // We can have a task with `FetchStrategy.PPR` where some of its segments are configured to
-    // always use runtime prefetching (via `export const prefetch`), and those should check for
-    // entries that include search params.
-    fetchStrategy,
-    tree
+    varyPath,
+    varyPath
   )
 
   let spawnedSegment: PendingSegmentCacheEntry | null = null
@@ -2158,7 +2130,7 @@ function pingRuntimePrefetches(
  * produced the entry). The callers surface this signal to the per-segment
  * decision point in pingSegmentInCacheComponentsTree, which uses it during
  * a static attempt to decide whether to fall back to a runtime prefetch. One
- * exception withholds the signal: a shell-tier entry whose segment carries
+ * exception withholds the signal: a RuntimeShell entry whose segment carries
  * the static-attempt hint spawns a concrete static attempt first — see the
  * Fulfilled case.
  */
@@ -2224,8 +2196,8 @@ function pingSegmentBundle(
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
             task.segmentCacheMap,
-            fetchStrategy,
-            nodeTree
+            getSegmentVaryPathForRequest(fetchStrategy, nodeTree),
+            getStaticSegmentVaryPathForRequest(fetchStrategy, nodeTree)
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
             const pendingEntry = upgradeToPendingSegment(
@@ -2264,8 +2236,8 @@ function pingSegmentBundle(
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
             task.segmentCacheMap,
-            fetchStrategy,
-            nodeTree
+            getSegmentVaryPathForRequest(fetchStrategy, nodeTree),
+            getStaticSegmentVaryPathForRequest(fetchStrategy, nodeTree)
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
             const pendingEntry = upgradeToPendingSegment(
@@ -2374,8 +2346,8 @@ function pingSegmentBundle(
           const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(
             now,
             task.segmentCacheMap,
-            fetchStrategy,
-            nodeTree
+            getSegmentVaryPathForRequest(fetchStrategy, nodeTree),
+            getStaticSegmentVaryPathForRequest(fetchStrategy, nodeTree)
           )
           if (revalidatingEntry.status === EntryStatus.Empty) {
             const pendingEntry = upgradeToPendingSegment(
@@ -2471,8 +2443,8 @@ function accumulateSegmentBundle(
   const segment = readOrCreateSegmentCacheEntry(
     now,
     task.segmentCacheMap,
-    fetchStrategy,
-    tree
+    getSegmentVaryPathForRequest(fetchStrategy, tree),
+    getStaticSegmentVaryPathForRequest(fetchStrategy, tree)
   )
 
   if (
@@ -2526,8 +2498,8 @@ function accumulateSegmentBundle(
       entry: readOrCreateSegmentCacheEntry(
         now,
         task.segmentCacheMap,
-        fetchStrategy,
-        route.root.head
+        getSegmentVaryPathForRequest(fetchStrategy, route.root.head),
+        getStaticSegmentVaryPathForRequest(fetchStrategy, route.root.head)
       ),
       parent: parentBundle,
     }
@@ -2604,11 +2576,12 @@ function pingFullSegmentRevalidation(
     | FetchStrategy.PPRRuntime
     | FetchStrategy.RuntimeShell
 ): PendingSegmentCacheEntry | null {
+  const varyPath = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
     task.segmentCacheMap,
-    fetchStrategy,
-    tree
+    varyPath,
+    varyPath
   )
   if (revalidatingSegment.status === EntryStatus.Empty) {
     // During a Full/PPRRuntime prefetch, a single runtime request is made for
@@ -2637,8 +2610,7 @@ function pingFullSegmentRevalidation(
       const emptySegment = overwriteRevalidatingSegmentCacheEntry(
         now,
         task.segmentCacheMap,
-        fetchStrategy,
-        tree
+        varyPath
       )
       const pendingSegment = upgradeToPendingSegment(
         emptySegment,
