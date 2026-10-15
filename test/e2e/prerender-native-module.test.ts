@@ -1,6 +1,7 @@
 // run deploy tests: v1
 import path from 'path'
 import { isReact18, nextTestSetup, isNextStart } from 'e2e-utils'
+import { getAllNftFiles } from 'next-test-utils'
 
 const fixture = path.join(__dirname, 'prerender-native-module')
 
@@ -98,8 +99,9 @@ describe('prerender native module', () => {
         const contents = await next.readFile(
           path.join('.next/server/pages/', check.page + '.js.nft.json')
         )
-        const { version, files } = JSON.parse(contents)
-        expect(version).toBe(1)
+        const nft = JSON.parse(contents)
+        expect(nft.version).toBe(1)
+        const files = getAllNftFiles(nft)
 
         for (const test of check.tests) {
           expect(files).toEqual(

@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('standalone mode and optimizeCss', () => {
   const { next } = nextTestSetup({
+    // Webpack and Rspack standalone tracing do not support the global virtual store.
+    pnpmGlobalVirtualStore: !!process.env.IS_TURBOPACK_TEST,
     files: {
       'pages/index.js': `
         import styles from './index.module.css'

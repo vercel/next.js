@@ -448,12 +448,19 @@ export class NextDeployInstance extends NextInstance {
 
   private preparePnpmSettings(): void {
     const workspacePath = path.join(this.testDir, 'pnpm-workspace.yaml')
+    // Only Turbopack's adapter output supports packages outside of the project
+    // root. The non-adapter builder is deprecated.
+    const pnpmGlobalVirtualStore =
+      this.pnpmGlobalVirtualStore &&
+      process.env.NEXT_ENABLE_ADAPTER === '1' &&
+      !!process.env.IS_TURBOPACK_TEST
     const settings = {
       ...getPnpmSecuritySettings(),
       ...PNPM_TEST_DIR_SETTINGS,
       // Our preview tarballs reference other packages from the same commit by
       // URL. pnpm rejects those subdependencies even with explicit overrides.
       ...(process.env.NEXT_TEST_VERSION && { blockExoticSubdeps: false }),
+      enableGlobalVirtualStore: pnpmGlobalVirtualStore,
     }
     let workspace: string
     if (fs.existsSync(workspacePath)) {

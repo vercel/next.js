@@ -8,6 +8,8 @@ describe('turbopack-loader-file-dependencies', () => {
       'build-dependency-esm-package': 'file:./build-dependency-esm-package',
       'build-dependency-package': 'file:./build-dependency-package',
     },
+    // patches the installed `file:` dependencies
+    pnpmGlobalVirtualStore: false,
   })
 
   it('should update when the dependency file changes', async () => {
