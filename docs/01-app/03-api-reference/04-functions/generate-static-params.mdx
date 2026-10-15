@@ -376,6 +376,8 @@ See the [Route Handlers documentation](/docs/app/api-reference/file-conventions/
 
 To prevent unspecified paths from being prerendered at runtime, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and unspecified routes will 404 or match (in the case of [catch-all routes](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments)).
 
+> **Good to know**: With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), `dynamicParams` is not available. Call [`notFound()`](/docs/app/api-reference/functions/not-found) in the page for params that don't match real data.
+
 ### Multiple Dynamic Segments in a Route
 
 You can generate params for dynamic segments above the current layout or page, but **not below**. For example, given the `app/products/[category]/[product]` route:
