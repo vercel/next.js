@@ -701,14 +701,19 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 let occurrences = lists_reverse_indices
                     .get_mut(&m)
                     .context("every module should have occurrences")?;
-                for common_occurrence in &common_occurrences {
-                    let removed = occurrences.swap_remove(&ListOccurrence {
+                // All occurrences of `m` are the ones in the common sequence, so they are all
+                // replaced by the single new one. This holds because modules in one list share a
+                // merge bitmap, so they are contained in the same chunk groups, and a module that
+                // follows the popped module in every one of its lists has no other occurrences.
+                debug_assert_eq!(occurrences.len(), common_occurrences.len());
+                debug_assert!(common_occurrences.iter().all(|common_occurrence| {
+                    occurrences.contains(&ListOccurrence {
                         chunk_group: common_occurrence.chunk_group,
                         list: common_occurrence.list,
                         entry: common_occurrence.entry + i,
-                    });
-                    debug_assert!(removed);
-                }
+                    })
+                }));
+                occurrences.clear();
                 occurrences.insert(ListOccurrence {
                     chunk_group: LISTS_COMMON_IDX,
                     list: common_list_index,
@@ -728,7 +733,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 // Note that due to circular dependencies, there can be
                 // references that go against execution order (e.g. from "before" to
                 // "common").
-                {
+                // Without a "before" and an "after" list, no reference can cross between them, so
+                // there is nothing to expose.
+                if !(before_list.is_empty() && after_list.is_empty()) {
                     let before_list =
                         FxHashSet::from_iter(before_list.iter().map(|m| ResolvedVc::upcast(*m)));
                     let common_list =
