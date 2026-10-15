@@ -2083,9 +2083,9 @@ impl Project {
         let module_graph = self.whole_app_module_graphs().await?.full.await?;
 
         let matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static RcStr> = module_graph
-            .iter_nodes()
-            .map(async |node| {
-                let ident = module_graph.module_ident_resolved(node)?.await?;
+            .iter_modules_with_idents()
+            .map(async |(node, ident)| {
+                let ident = ident.await?;
                 let path = &ident.path.path;
                 for (feature, suffix) in FEATURE_MODULE_PATH_SUFFIXES {
                     if path.ends_with(suffix) {

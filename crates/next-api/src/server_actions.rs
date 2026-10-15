@@ -1038,15 +1038,17 @@ pub struct AllModuleActions(
 pub async fn map_server_actions(
     graph: OperationVc<ModuleGraphLayer>,
 ) -> Result<Vc<AllModuleActions>> {
-    let graph = graph.connect();
+    let graph = graph.connect().await?;
     let actions = graph
-        .await?
         .iter_reachable_nodes()?
-        .map(async |node| {
-            let SingleModuleGraphNode::Module { module, ident, .. } = node else {
+        .map(async |(idx, node)| {
+            let SingleModuleGraphNode::Module { module } = node else {
                 // VisitedModule nodes were handled in their owning graph.
                 return Ok(None);
             };
+            let ident = graph
+                .node_ident(idx)
+                .context("Module nodes always have an ident")?;
             // TODO: compare module contexts instead?
             let ident = ident.await?;
             let layer = match ident.layer.as_ref() {
