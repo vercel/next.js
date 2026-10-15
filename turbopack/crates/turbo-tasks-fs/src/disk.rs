@@ -25,8 +25,8 @@ use tokio::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CapturedEffect, Effect, EffectExt, EffectStateStorage, InvalidationReason, Invalidator,
-    NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc,
+    CapturedEffect, Completion, Effect, EffectExt, EffectStateStorage, InvalidationReason,
+    Invalidator, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc,
     debug::ValueDebugFormat, turbo_tasks_weak, turbobail,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
@@ -36,8 +36,9 @@ use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
 use crate::windows::{is_link_junction_point, to_verbatim_with_case_folded_disk};
 use crate::{
     AnyhowWrapper, DiskFileSystemMap, File, FileComparison, FileContent, FileMeta, FileSystem,
-    FileSystemPath, FileSystemPathOption, LinkContent, LinkTarget, PersistedFileContent,
-    RawDirectoryContent, RawDirectoryEntry, WriteLinkContent, WriteLinkTargetType,
+    FileSystemEntryType, FileSystemPath, FileSystemPathOption, LinkContent, LinkTarget,
+    PersistedFileContent, RawDirectoryContent, RawDirectoryEntry, RealPathErrorType,
+    WriteLinkContent, WriteLinkTargetType,
     canonicalized_path_cache::CanonicalizedPathWalkCache,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
@@ -227,6 +228,9 @@ pub(crate) struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     pub(crate) dir_invalidator_map: InvalidatorMap,
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[bincode(skip)]
+    pub(crate) metadata_invalidator_map: InvalidatorMap,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
@@ -300,16 +304,17 @@ impl DiskFileSystemInner {
     /// re-read the updated content. This is necessary because the file watcher may not be active
     /// (e.g., in tests or build-only scenarios).
     fn invalidate_from_write(&self, full_path: &Path) {
-        let mut invalidator_map = self.invalidator_map.lock().unwrap();
-        if let Some(invalidators) = invalidator_map.remove(full_path) {
-            let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
-                return;
-            };
-            let _guard = self.tokio_handle.enter();
-            let reason = Write {
-                path: full_path.to_string_lossy().into_owned(),
-            };
-            Invalidator::invalidate_all_with_reason(invalidators, &*turbo_tasks, reason);
+        for map in [&self.invalidator_map, &self.metadata_invalidator_map] {
+            if let Some(invalidators) = map.lock().unwrap().remove(full_path) {
+                let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+                    return;
+                };
+                let _guard = self.tokio_handle.enter();
+                let reason = Write {
+                    path: full_path.to_string_lossy().into_owned(),
+                };
+                Invalidator::invalidate_all_with_reason(invalidators, &*turbo_tasks, reason);
+            }
         }
     }
 
@@ -340,9 +345,11 @@ impl DiskFileSystemInner {
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
+        let metadata_invalidator_map = take(&mut *self.metadata_invalidator_map.lock().unwrap());
         let invalidators = invalidator_map
             .into_iter()
             .chain(dir_invalidator_map)
+            .chain(metadata_invalidator_map)
             .flat_map(|(_, invalidators)| invalidators.into_iter());
         Invalidator::invalidate_all(invalidators, &*turbo_tasks);
     }
@@ -362,16 +369,22 @@ impl DiskFileSystemInner {
 
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
+        let metadata_invalidator_map = take(&mut *self.metadata_invalidator_map.lock().unwrap());
         let path_invalidator_counts = || {
             invalidator_map
                 .values()
                 .chain(dir_invalidator_map.values())
+                .chain(metadata_invalidator_map.values())
                 .map(|path_invalidators| path_invalidators.len())
                 .filter(|&count| count > 0)
         };
         let mut invalidators = Vec::with_capacity(path_invalidator_counts().sum());
         let mut reasons = Vec::with_capacity(path_invalidator_counts().count());
-        for (path, path_invalidators) in invalidator_map.into_iter().chain(dir_invalidator_map) {
+        for (path, path_invalidators) in invalidator_map
+            .into_iter()
+            .chain(dir_invalidator_map)
+            .chain(metadata_invalidator_map)
+        {
             if path_invalidators.is_empty() {
                 continue;
             }
@@ -400,6 +413,7 @@ impl DiskFileSystemInner {
         let path_count = paths.size_hint().0;
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let mut dir_invalidator_map = self.dir_invalidator_map.lock().unwrap();
+        let mut metadata_invalidator_map = self.metadata_invalidator_map.lock().unwrap();
         let mut invalidators = Vec::with_capacity(path_count);
         let mut reasons = Vec::with_capacity(path_count);
         let mut add = |path: &Path, path_invalidators: FxHashSet<Invalidator>| {
@@ -428,16 +442,25 @@ impl DiskFileSystemInner {
             {
                 add(&invalidated_path, path_invalidators);
             }
+            for (invalidated_path, path_invalidators) in
+                metadata_invalidator_map.extract_path_with_children(&path)
+            {
+                add(&invalidated_path, path_invalidators);
+            }
         }
 
         for path in parent_dirs_to_invalidate {
             if let Some(path_invalidators) = dir_invalidator_map.remove(path.as_path()) {
                 add(&path, path_invalidators);
             }
+            if let Some(path_invalidators) = metadata_invalidator_map.remove(path.as_path()) {
+                add(&path, path_invalidators);
+            }
         }
 
         drop(invalidator_map);
         drop(dir_invalidator_map);
+        drop(metadata_invalidator_map);
 
         Invalidator::invalidate_all_with_reasons(invalidators, &*turbo_tasks, reasons);
     }
@@ -826,6 +849,58 @@ impl DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
+    /// Tracks changes relevant to an external stat call, including sizes and timestamps.
+    /// This registers dependencies; it does not return stat results. `metadata()` returns
+    /// `FileMeta`, which omits sizes and timestamps. Metadata-only changes must invalidate stat
+    /// calls without invalidating ordinary content reads.
+    #[turbo_tasks::function(fs, session_dependent)]
+    pub async fn track_metadata_changes(&self, fs_path: FileSystemPath) -> Result<Vc<Completion>> {
+        if self.inner.is_path_denied(&fs_path) {
+            turbobail!("Cannot track metadata from denied path: {fs_path}");
+        }
+        let full_path = Arc::new(self.to_sys_path_raw(&fs_path));
+        if let Some(invalidator) = turbo_tasks::get_invalidator() {
+            self.inner
+                .metadata_invalidator_map
+                .insert(full_path.clone(), invalidator);
+            // Resolve before watching the requested parent: it may be below a file or in a
+            // symlink loop. Resolution already tracks reachable ancestors and links.
+            match &fs_path.realpath_with_links().await?.path_result {
+                Ok(target) if *target != fs_path => {
+                    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(target.fs)
+                        .expect("DiskFileSystem symlinks resolve within disk filesystems");
+                    fs.track_metadata_changes(target.clone()).await?;
+                }
+                Ok(_) => {
+                    if !fs_path.is_root() {
+                        self.inner
+                            .watcher
+                            .ensure_watched_file(&full_path, self.inner.root_path())
+                            .await?;
+                    }
+                    if matches!(&*fs_path.get_type().await?, FileSystemEntryType::Directory) {
+                        self.inner
+                            .watcher
+                            .ensure_watched_dir(&full_path, self.inner.root_path())
+                            .await?;
+                    }
+                }
+                Err(error) => match error.kind() {
+                    RealPathErrorType::Invalid { .. } => {
+                        return Err(error.clone().into());
+                    }
+                    // Watch registration can succeed for missing paths and symlink loops. Node's
+                    // fs.stat reports ENOENT/ELOOP through the loader callback; failing here would
+                    // bypass that callback. Keep the watches so creation or repair invalidates it.
+                    RealPathErrorType::NotFound
+                    | RealPathErrorType::CycleDetected { .. }
+                    | RealPathErrorType::TooManySymlinks { .. } => {}
+                },
+            }
+        }
+        Ok(Completion::new())
+    }
+
     #[turbo_tasks::function]
     async fn new_internal(
         name: RcStr,
@@ -844,6 +919,7 @@ impl DiskFileSystem {
                 invalidation_lock: Default::default(),
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
+                metadata_invalidator_map: InvalidatorMap::new(),
                 read_semaphore: create_read_semaphore(),
                 write_semaphore: create_write_semaphore(),
                 watcher: DiskWatcher::new(watcher_config),

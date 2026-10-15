@@ -1,4 +1,7 @@
-use std::{mem::take, path::Path};
+use std::{
+    mem::take,
+    path::{Component, Path, PathBuf},
+};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -17,7 +20,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath,
+    DiskFileSystem, File, FileContent, FileSystemEntryType, FileSystemPath, RealPathErrorType,
     glob::{Glob, GlobOptions},
     json::parse_json_with_source_context,
     rope::Rope,
@@ -240,6 +243,62 @@ async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath>
         .try_from_sys_path_across_roots(fs, Path::new(path), cwd)
         .await?
         .with_context(|| format!("webpack loader path {path:?} is outside configured roots"))
+}
+
+/// Converts a raw system path without collapsing `..` before resolving preceding symlinks.
+/// Tracks those resolution dependencies even if resolution fails. `None` leaves Node to
+/// report the filesystem error through the loader's callback.
+async fn resolve_and_track_system_path(
+    cwd: &FileSystemPath,
+    file: &str,
+) -> Result<Option<FileSystemPath>> {
+    let mut sys_path = PathBuf::new();
+    for component in Path::new(file).components() {
+        if component == Component::ParentDir {
+            // Resolve and track the preceding symlinks before applying `..`. Lexical
+            // normalization could otherwise register the stat on a different file.
+            let path = loader_path(
+                cwd,
+                sys_path.to_str().context("stat path is not valid UTF-8")?,
+            )
+            .await?;
+            let path = match path.realpath().await? {
+                Ok(path) => path,
+                Err(error) if matches!(error.kind(), RealPathErrorType::Invalid { .. }) => {
+                    return Err(error.into());
+                }
+                // Keep the resolution dependencies, but let Node report ENOENT/ELOOP
+                // through the loader's callback.
+                Err(_) => return Ok(None),
+            };
+            if !matches!(*path.get_type().await?, FileSystemEntryType::Directory) {
+                // A file followed by `/..` produces ENOTDIR, not its parent directory.
+                return Ok(None);
+            }
+            sys_path = to_sys_path(path)
+                .await?
+                .context("resolved stat path is not on a disk filesystem")?;
+            sys_path.pop();
+        } else {
+            sys_path.push(component);
+        }
+    }
+    let path = loader_path(
+        cwd,
+        sys_path.to_str().context("stat path is not valid UTF-8")?,
+    )
+    .await?;
+    Ok(Some(path))
+}
+
+async fn register_loader_stat_dependencies(cwd: &FileSystemPath, file: &str) -> Result<()> {
+    let Some(path) = resolve_and_track_system_path(cwd, file).await? else {
+        return Ok(());
+    };
+    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs)
+        .expect("loader_path returns a path backed by DiskFileSystem");
+    fs.track_metadata_changes(path).await?;
+    Ok(())
 }
 
 // TODO: This creates a task that's keyed on the list of file paths, which might churn through tasks
@@ -667,6 +726,8 @@ pub enum RequestMessage {
     #[serde(rename_all = "camelCase")]
     TrackFileRead { file: RcStr },
     #[serde(rename_all = "camelCase")]
+    TrackFileStat { file: RcStr },
+    #[serde(rename_all = "camelCase")]
     ImportModule { lookup_path: RcStr, request: RcStr },
 }
 
@@ -690,6 +751,7 @@ pub enum ResponseMessage {
     },
     // Only used for tracking invalidations, no content is returned.
     TrackFileRead {},
+    TrackFileStat {},
     #[serde(rename_all = "camelCase")]
     ImportModule {
         entry_path: RcStr,
@@ -937,6 +999,12 @@ impl EvaluateContext for WebpackLoaderContext {
                 // await the read though to cover at least one class of race conditions.
                 let _ = &*loader_path(&self.cwd, &file).await?.read().await?;
                 Ok(ResponseMessage::TrackFileRead {})
+            }
+            RequestMessage::TrackFileStat { file } => {
+                register_loader_stat_dependencies(&self.cwd, &file)
+                    .await
+                    .with_context(|| format!("tracking webpack loader stat of {file}"))?;
+                Ok(ResponseMessage::TrackFileStat {})
             }
             RequestMessage::ImportModule {
                 lookup_path,
