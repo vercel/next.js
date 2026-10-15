@@ -3924,8 +3924,9 @@ export async function resolveStaleAt(
  * cache, so later navigations can be served from the cache. A response
  * carries at most one: an embedded runtime prefetch stream (`p`), from a live
  * render, or the response itself, when it's a complete prerender. Either way,
- * it's written like any other prefetch response. This flow owns no pending
- * entries, so every write is a detached upsert.
+ * the full payload and its shell (when it has one) are written like any other
+ * prefetch response. This flow owns no pending entries, so every write is a
+ * detached upsert.
  */
 export async function bufferAndWriteNavigationResponse(
   now: number,
@@ -3936,6 +3937,9 @@ export async function bufferAndWriteNavigationResponse(
   // and the initial payload infers it from `u`. Once the response says
   // directly whether it's a complete prerender, read that here instead.
   isResponsePartial: boolean,
+  // The response's bytes, when they were kept, so a shell can be cut from
+  // them. Null otherwise.
+  responseChunks: Array<Uint8Array> | null,
   baseTree: FlightRouterState,
   renderedSearch: string,
   // The map the work that spawned this response's request is bound to. See
@@ -3983,9 +3987,10 @@ export async function bufferAndWriteNavigationResponse(
     prefetchResponse = response
     isPartial = false
     staleAt = await resolveStaleAt(now, response.s)
-    // Only the full payload is written. Cutting a complete prerender's shell
-    // needs the response's bytes.
-    shellResponse = null
+    shellResponse =
+      responseChunks !== null
+        ? await resolveShellStageResponse(responseChunks, response, undefined)
+        : null
   } else {
     return
   }
