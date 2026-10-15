@@ -1,11 +1,27 @@
 import type { ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
+import { filterTypeScriptFiles } from './filterTypeScriptFiles'
+import { runTypeCheckCli } from './runTypeCheckCli'
+import * as typescriptCli from './runTypeScriptCli'
 
 const mockSpawn = jest.fn()
+
+jest.mock('./runTypeScriptCli', () => ({
+  __esModule: true,
+  ...jest.requireActual('./runTypeScriptCli'),
+}))
 
 jest.mock('next/dist/compiled/cross-spawn', () => ({
   __esModule: true,
@@ -356,5 +372,144 @@ describe('runTypeScriptCli', () => {
       stderr: 'avertissement 💡',
     })
     expectListenersRestored()
+  })
+})
+
+describe('filtered TypeScript CLI projects', () => {
+  let baseDir: string
+  let tsConfigPath: string
+  let configSpy: jest.SpyInstance
+  let runSpy: jest.SpyInstance
+  let projectPath: string
+
+  beforeEach(() => {
+    baseDir = mkdtempSync(path.join(tmpdir(), 'next-typescript-filter-'))
+    tsConfigPath = path.join(baseDir, 'config', 'tsconfig.build.json')
+    mkdirSync(path.dirname(tsConfigPath))
+    writeFileSync(tsConfigPath, '{ "extends": "./base.json" }')
+    configSpy = jest
+      .spyOn(typescriptCli, 'getTypeScriptConfigurationCli')
+      .mockResolvedValue({
+        compilerOptions: { incremental: true },
+        files: [
+          '../src/app/page.tsx',
+          '../src/app/excluded/page.tsx',
+          '../src/shared.ts',
+        ],
+        references: [{ path: './referenced' }],
+      })
+    runSpy = jest.spyOn(typescriptCli, 'runTypeScriptCli')
+  })
+
+  afterEach(() => {
+    configSpy.mockRestore()
+    runSpy.mockRestore()
+    rmSync(baseDir, { recursive: true, force: true })
+  })
+
+  function check() {
+    return runTypeCheckCli({
+      baseDir,
+      tsConfigPath,
+      tscPath: 'tsc',
+      cacheDir: path.join(baseDir, '.next/cache'),
+      dirs: { app: path.join(baseDir, 'src/app') },
+      debugBuildPaths: { app: [path.join(path.sep, 'page.tsx')] },
+    })
+  }
+
+  it('uses selected roots and cleans up without modifying the original config', async () => {
+    runSpy.mockImplementation(async ({ args }) => {
+      projectPath = args[1]
+      const config = JSON.parse(readFileSync(projectPath, 'utf8'))
+      expect(path.dirname(projectPath)).toBe(path.dirname(tsConfigPath))
+      expect(config.extends).toBe('./tsconfig.build.json')
+      expect(config.files).toEqual([
+        path.join(baseDir, 'src/app/page.tsx'),
+        path.join(baseDir, 'src/shared.ts'),
+      ])
+      expect(config.include).toEqual([])
+      expect(config.references).toEqual([{ path: './referenced' }])
+      return { exitCode: 0, signal: null, stdout: '', stderr: '' }
+    })
+    await expect(check()).resolves.toEqual({ incremental: true })
+    expect(runSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.arrayContaining([
+          '--tsBuildInfoFile',
+          path.join(baseDir, '.next/cache/.tsbuildinfo'),
+        ]),
+      })
+    )
+    expect(existsSync(projectPath)).toBe(false)
+    expect(readFileSync(tsConfigPath, 'utf8')).toBe(
+      '{ "extends": "./base.json" }'
+    )
+  })
+
+  it.each(['diagnostics', 'spawn failure'])(
+    'cleans up after %s',
+    async (failure) => {
+      runSpy.mockImplementation(async ({ args }) => {
+        projectPath = args[1]
+        expect(existsSync(projectPath)).toBe(true)
+        if (failure === 'spawn failure') throw new Error('spawn failed')
+        return { exitCode: 1, signal: null, stdout: '', stderr: '' }
+      })
+      await expect(check()).rejects.toThrow()
+      expect(existsSync(projectPath)).toBe(false)
+      expect(readdirSync(path.dirname(tsConfigPath))).toEqual([
+        'tsconfig.build.json',
+      ])
+    }
+  )
+
+  it('does not invoke tsc when all roots are excluded', async () => {
+    configSpy.mockResolvedValue({
+      compilerOptions: {},
+      files: ['../src/app/excluded/page.tsx'],
+    })
+    await expect(check()).resolves.toEqual({ incremental: false })
+    expect(runSpy).not.toHaveBeenCalled()
+    expect(readdirSync(path.dirname(tsConfigPath))).toEqual([
+      'tsconfig.build.json',
+    ])
+  })
+
+  it('uses the original project for unfiltered builds', async () => {
+    runSpy.mockResolvedValue({
+      exitCode: 0,
+      signal: null,
+      stdout: '',
+      stderr: '',
+    })
+    await runTypeCheckCli({ baseDir, tsConfigPath, tscPath: 'tsc' })
+    expect(runSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.arrayContaining(['--project', tsConfigPath]),
+      })
+    )
+    expect(readdirSync(path.dirname(tsConfigPath))).toEqual([
+      'tsconfig.build.json',
+    ])
+  })
+
+  it('distinguishes undefined and empty router selections and retains shared roots', () => {
+    const app = path.join(baseDir, 'app')
+    const pages = path.join(baseDir, 'pages')
+    const roots = [
+      path.join(app, 'page.tsx'),
+      path.join(pages, 'index.tsx'),
+      path.join(baseDir, 'app-other/shared.ts'),
+    ]
+    expect(filterTypeScriptFiles(roots, { app, pages }, { app: [] })).toEqual(
+      roots.slice(1)
+    )
+    expect(filterTypeScriptFiles(roots, { app, pages }, { pages: [] })).toEqual(
+      [roots[0], roots[2]]
+    )
+    expect(
+      filterTypeScriptFiles(roots, { app, pages }, { app: [], pages: [] })
+    ).toEqual([roots[2]])
   })
 })

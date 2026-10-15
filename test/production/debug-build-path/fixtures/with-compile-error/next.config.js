@@ -1,8 +1,4 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    useTypeScriptCli: false,
-  },
-}
+const nextConfig = {}
 
 module.exports = nextConfig

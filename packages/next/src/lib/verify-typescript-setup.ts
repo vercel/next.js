@@ -253,12 +253,6 @@ export async function verifyAndRunTypeScript({
     let result
     if (shouldRunTypeCheck) {
       if (useTypeScriptCli) {
-        if (debugBuildPaths) {
-          log.warn(
-            '`experimental.useTypeScriptCli` checks the complete TypeScript project; `--debug-build-paths` does not limit type checking.'
-          )
-        }
-
         const { runTypeCheckCli } =
           require('./typescript/runTypeCheckCli') as typeof import('./typescript/runTypeCheckCli')
         result = await runTypeCheckCli({
@@ -266,6 +260,8 @@ export async function verifyAndRunTypeScript({
           tsConfigPath: resolvedTsConfigPath,
           tscPath: typeScriptPath,
           cacheDir,
+          dirs: { app: appDir, pages: pagesDir },
+          debugBuildPaths,
           onFirstOutput: onFirstCliOutput,
         })
       } else {

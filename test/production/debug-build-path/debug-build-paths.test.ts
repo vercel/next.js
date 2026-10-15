@@ -321,7 +321,7 @@ describe('debug-build-paths', () => {
         })
         // Build should fail due to type error in with-type-error/page.tsx
         expect(buildResult.exitCode).toBe(1)
-        expect(buildResult.cliOutput).toContain('Type error')
+        expect(buildResult.cliOutput).toContain('error TS2322')
         expect(buildResult.cliOutput).toContain('with-type-error/page.tsx')
       })
     })

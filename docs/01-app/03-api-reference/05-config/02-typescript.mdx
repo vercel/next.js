@@ -36,7 +36,7 @@ Next.js uses the project-local `tsc` CLI by default, so no additional configurat
 > **Good to know**:
 >
 > - CLI type checking prints the native `tsc` diagnostics. It does not apply Next.js-specific code frames or rewrite errors for routes, pages, layouts, or route handlers.
-> - The CLI checks the complete project selected by your `tsconfig` file. This includes test files and `.next/dev/types` when they are included by that configuration. [`next build --debug-build-paths`](/docs/app/api-reference/cli/next#next-build-options) does not narrow the files that are type checked and produces a warning when used with this option.
+> - The CLI checks the complete project selected by your `tsconfig` file. This includes test files and `.next/dev/types` when they are included by that configuration. With [`next build --debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes), only selected files in the App and Pages Router directories are included as type-checking roots. Shared files outside those directories and dependencies imported by retained files are still checked.
 > - [`typescript.tsconfigPath`](#custom-tsconfig-path) continues to select the configuration passed to `tsc`. [`typescript.ignoreBuildErrors`](#disabling-typescript-errors-in-production) skips the type-checking step, including the CLI checker.
 > - `experimental.useTypeScriptCli` is experimental and its behavior may change.
 

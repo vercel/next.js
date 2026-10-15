@@ -27,15 +27,20 @@ describe('TypeScript CLI backend', () => {
     })
 
     let originalTsConfig: string
+    let originalPage: string
 
     beforeAll(async () => {
       originalTsConfig = await next.readFile('tsconfig.build.json')
+      originalPage = await next.readFile('app/page.tsx')
     })
 
     afterEach(async () => {
       await next.patchFile('next.config.js', defaultConfig)
       await next.patchFile('tsconfig.build.json', originalTsConfig)
       await next.deleteFile('src/type-error.ts').catch(() => {})
+      await next.deleteFile('app/with-type-error').catch(() => {})
+      await next.deleteFile('app/imported-error.ts').catch(() => {})
+      await next.patchFile('app/page.tsx', originalPage)
       await next
         .deleteFile('.next/dev/types/stale-type-error.test.ts')
         .catch(() => {})
@@ -100,23 +105,83 @@ describe('TypeScript CLI backend', () => {
       expect(result.cliOutput).toContain('Skipping validation of types')
     })
 
-    it('checks the complete project with --debug-build-paths', async () => {
+    it('checks dev types in unfiltered builds', async () => {
       await next.patchFile(
         '.next/dev/types/stale-type-error.test.ts',
         typeError
       )
 
+      const result = await next.build()
+
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain(
+        '.next/dev/types/stale-type-error.test.ts'
+      )
+      expect(result.cliOutput).toContain('error TS2322')
+    })
+
+    it('filters excluded routes without changing the custom tsconfig', async () => {
+      await next.patchFile(
+        'app/with-type-error/page.tsx',
+        typeError + '\nexport default function Page() { return null }\n'
+      )
+      const tsconfigBefore = JSON.parse(
+        await next.readFile('tsconfig.build.json')
+      )
+      const result = await next.build({
+        args: ['--debug-build-paths', 'app/page.tsx'],
+      })
+
+      expect(result.exitCode).toBe(0)
+      expect(result.cliOutput).not.toContain('does not limit type checking')
+      const tsconfigAfter = JSON.parse(
+        await next.readFile('tsconfig.build.json')
+      )
+      expect(tsconfigAfter.files).toBeUndefined()
+      expect(tsconfigAfter.include).toEqual(tsconfigBefore.include)
+      expect(tsconfigAfter.extends).toBe(tsconfigBefore.extends)
+      expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
+    })
+
+    it('reports errors in selected routes', async () => {
+      await next.patchFile(
+        'app/with-type-error/page.tsx',
+        typeError + '\nexport default function Page() { return null }\n'
+      )
+      const result = await next.build({
+        args: ['--debug-build-paths', 'app/with-type-error/page.tsx'],
+      })
+
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain('app/with-type-error/page.tsx')
+      expect(result.cliOutput).toContain('error TS2322')
+    })
+
+    it('checks imports even when they are excluded as roots', async () => {
+      await next.patchFile('app/imported-error.ts', typeError)
+      await next.patchFile(
+        'app/page.tsx',
+        `import { invalidValue } from './imported-error'
+export default function Page() { return <p>{invalidValue}</p> }
+`
+      )
       const result = await next.build({
         args: ['--debug-build-paths', 'app/page.tsx'],
       })
 
       expect(result.exitCode).toBe(1)
-      expect(result.cliOutput).toContain(
-        '`experimental.useTypeScriptCli` checks the complete TypeScript project; `--debug-build-paths` does not limit type checking.'
-      )
-      expect(result.cliOutput).toContain(
-        '.next/dev/types/stale-type-error.test.ts'
-      )
+      expect(result.cliOutput).toContain('app/imported-error.ts')
+      expect(result.cliOutput).toContain('error TS2322')
+    })
+
+    it('still checks shared files in filtered builds', async () => {
+      await next.patchFile('src/type-error.ts', typeError)
+      const result = await next.build({
+        args: ['--debug-build-paths', 'app/page.tsx'],
+      })
+
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain('src/type-error.ts')
       expect(result.cliOutput).toContain('error TS2322')
     })
   })
@@ -161,6 +226,19 @@ describe('TypeScript CLI backend', () => {
 
     it('uses the same project-local tsc entry point', async () => {
       const result = await next.build()
+
+      expect(result.exitCode).toBe(0)
+      expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
+    })
+
+    it('filters roots with TypeScript 6 and inherited paths', async () => {
+      await next.patchFile(
+        'app/with-type-error/page.tsx',
+        typeError + '\nexport default function Page() { return null }\n'
+      )
+      const result = await next.build({
+        args: ['--debug-build-paths', 'app/page.tsx'],
+      })
 
       expect(result.exitCode).toBe(0)
       expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)

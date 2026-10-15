@@ -238,7 +238,11 @@ export async function getTypeScriptConfigurationCli({
   baseDir: string
   tsConfigPath: string
   tscPath: string
-}): Promise<{ compilerOptions: Record<string, any> }> {
+}): Promise<{
+  compilerOptions: Record<string, any>
+  files?: string[]
+  references?: { path: string }[]
+}> {
   const result = await runTypeScriptCli({
     cwd: baseDir,
     tscPath,
