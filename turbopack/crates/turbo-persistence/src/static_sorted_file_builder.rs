@@ -1612,6 +1612,7 @@ mod tests {
             },
             Compression::Lz4,
             crate::mmap_access_mode(),
+            true,
         )
     }
 
@@ -2013,6 +2014,7 @@ mod tests {
             },
             Compression::Lz4,
             crate::mmap_access_mode(),
+            true,
         )?;
         let sst2 = StaticSortedFile::open(
             dir.path(),
@@ -2022,6 +2024,8 @@ mod tests {
             },
             Compression::Lz4,
             crate::mmap_access_mode(),
+            // Exercise opening without the random access advice too.
+            false,
         )?;
         let kc = make_cache();
         let vc = make_cache();

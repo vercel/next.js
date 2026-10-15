@@ -187,6 +187,8 @@ impl MetaEntry {
                 self.sst_data,
                 self.compression,
                 meta.access_mode,
+                // Warm (hot bottom) files keep the default readahead.
+                !(self.flags.bottom() && !self.flags.cold()),
             )
             .with_context(|| {
                 format!(

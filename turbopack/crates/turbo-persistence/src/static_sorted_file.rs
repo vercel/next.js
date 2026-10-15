@@ -444,11 +444,20 @@ impl StaticSortedFile {
     ///
     /// Only the index block is read here, and its CRC is verified. Key and value blocks stay
     /// lazy, read on demand.
+    ///
+    /// `random_access_advice` applies `MADV_RANDOM` to the whole mmap (disabling kernel
+    /// readahead). Pass `false` for warm files (hot bottom files) to keep the default readahead.
+    /// It has no effect for [`AccessMode::File`] or on non-unix platforms.
+    #[cfg_attr(
+        not(all(feature = "mmap", unix)),
+        allow(unused_variables, reason = "only used for mmap advice on unix")
+    )]
     pub fn open(
         db_path: &Path,
         meta: StaticSortedFileMetaData,
         compression: Compression,
         access_mode: AccessMode,
+        random_access_advice: bool,
     ) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
@@ -465,7 +474,9 @@ impl StaticSortedFile {
                 })?;
                 #[cfg(unix)]
                 {
-                    mmap.advise(memmap2::Advice::Random)?;
+                    if random_access_advice {
+                        mmap.advise(memmap2::Advice::Random)?;
+                    }
                     let offset = meta.block_offsets_start(mmap.len());
                     let _ =
                         mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);

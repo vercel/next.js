@@ -1308,6 +1308,7 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 sst_meta,
                 Compression::Lz4,
                 turbo_persistence::AccessMode::Mmap,
+                true,
             )
             .unwrap();
 

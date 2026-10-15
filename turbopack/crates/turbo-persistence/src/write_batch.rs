@@ -589,6 +589,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 },
                 self.family_configs[usize_from_u32(family)].compression,
                 crate::mmap_access_mode(),
+                true,
             )?;
             let cache2 = BlockCache::with(
                 10,

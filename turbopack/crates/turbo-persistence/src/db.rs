@@ -1387,7 +1387,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         // Free block caches and SST mmaps before compaction. The block caches
         // are not used during compaction (we iterate uncached), and any cached
-        // SST mmaps would use MADV_RANDOM which is wrong for sequential scans.
+        // SST mmaps would mostly use MADV_RANDOM which is wrong for sequential scans.
         // Clearing them upfront frees memory for the merge work.
         self.clear_cache();
 
