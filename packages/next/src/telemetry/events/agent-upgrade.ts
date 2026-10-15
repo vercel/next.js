@@ -96,3 +96,26 @@ export function eventAgentUpgradeAgentResult(fields: {
 }) {
   return event('NEXT_AGENT_UPGRADE_AGENT_RESULT', fields)
 }
+
+export type AgentUpgradeCIInstallResult =
+  | 'pr_created'
+  | 'files_written'
+  | 'cancelled'
+  | 'failed'
+  | 'blocked'
+
+export function eventAgentUpgradeCIInstallStarted(fields: {
+  installId: string
+  agentProduct: string | null
+}) {
+  return event('NEXT_AGENT_UPGRADE_CI_INSTALL_STARTED', fields)
+}
+
+// A real installation PR still counts when credentials need more work.
+export function eventAgentUpgradeCIInstallResult(fields: {
+  installId: string
+  result: AgentUpgradeCIInstallResult
+  harness: 'codex' | 'claude' | null
+}) {
+  return event('NEXT_AGENT_UPGRADE_CI_INSTALL_RESULT', fields)
+}

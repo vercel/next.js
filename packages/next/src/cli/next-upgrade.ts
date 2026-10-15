@@ -37,6 +37,7 @@ type NextUpgradeOptions = {
   revision: string
   verbose: boolean
   agent: boolean | string | undefined
+  ci?: boolean
 }
 
 const UUID_PATTERN =
@@ -179,6 +180,20 @@ export async function spawnNextUpgrade(
   options: NextUpgradeOptions,
   nudgeSource: { id: string; recipient: 'human' | 'agent' } | null
 ) {
+  if (options.ci) {
+    const { setupUpgradeCI } =
+      require('../lib/upgrade/setup-ci') as typeof import('../lib/upgrade/setup-ci')
+    try {
+      await setupUpgradeCI({ directory })
+    } catch (error) {
+      Log.error(
+        error instanceof Error ? error.message : 'Could not set up upgrade CI.'
+      )
+      process.exitCode = 1
+    }
+    return
+  }
+
   let baseDir = resolvePath(directory || '.')
 
   if (options.agent) {

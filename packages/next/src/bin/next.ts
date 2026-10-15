@@ -109,7 +109,10 @@ class NextRootCommand extends Command {
       // The upgrade harness may run both dev and production checks. Preserve
       // its caller's environment instead of forcing all child commands into
       // production mode merely because they were launched through this CLI.
-      if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+      if (
+        commandName !== 'upgrade' ||
+        (!event.getOptionValue('agent') && !event.getOptionValue('ci'))
+      ) {
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
         ;(process.env as any).NEXT_RUNTIME = 'nodejs'
       }
@@ -660,6 +663,12 @@ program
   .option('--verbose', 'Verbose output', false)
   .addOption(
     new Option(
+      '--ci',
+      'Set up agent upgrades in GitHub Actions. Cannot be combined with --agent or --revision.'
+    ).conflicts(['agent', 'revision'])
+  )
+  .addOption(
+    new Option(
       '--agent [type]',
       'Upgrade with an agent to security, latest, or experimental-future. Defaults to security.'
     ).conflicts('revision')
@@ -753,6 +762,17 @@ internal
   .action((runId: string, result: string) =>
     import('../cli/next-upgrade.js').then((mod) =>
       mod.reportAgentUpgradeAgentResult(runId, result)
+    )
+  )
+
+internal
+  .command('report-upgrade-ci', { hidden: true })
+  .argument('<install-id>', 'The CI installation UUID.')
+  .argument('<result>', 'The installation result.')
+  .argument('<harness>', 'The selected CI harness, or none.')
+  .action((installId: string, result: string, harness: string) =>
+    import('../lib/upgrade/setup-ci.js').then((mod) =>
+      mod.reportUpgradeCIResult({ installId, result, harness })
     )
   )
 
