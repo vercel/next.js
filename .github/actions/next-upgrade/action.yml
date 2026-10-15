@@ -1,0 +1,90 @@
+name: Next.js upgrade
+description: Run an agent-driven Next.js upgrade and open a draft PR.
+inputs:
+  harness:
+    description: Coding agent (codex or claude).
+    default: codex
+  directory:
+    description: App directory relative to the repository root.
+    default: '.'
+  node-version:
+    description: App Node.js version.
+    default: '22'
+  setup-command:
+    description: Shell commands to prepare app tools and install existing dependencies before the agent starts.
+    default: npm ci
+  api-key:
+    description: API key for the selected agent.
+  claude-code-oauth-token:
+    description: Claude Code OAuth token.
+  github-token:
+    description: GitHub token for duplicate checks and draft PR delivery.
+    default: ${{ github.token }}
+  github-app-id:
+    description: Optional GitHub App ID for draft PR delivery.
+  github-app-private-key:
+    description: Private key for the GitHub App.
+runs:
+  using: composite
+  steps:
+    - name: Mint GitHub App token
+      id: app-token
+      if: ${{ inputs.github-app-id != '' }}
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        app-id: ${{ inputs.github-app-id }}
+        private-key: ${{ inputs.github-app-private-key }}
+        permission-contents: write
+        permission-pull-requests: write
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        ref: ${{ github.event.repository.default_branch || github.ref_name }}
+        fetch-depth: 0
+        token: ${{ steps.app-token.outputs.token || inputs.github-token }}
+        persist-credentials: true
+    - name: Set up Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        package-manager-cache: false
+    - name: Prepare agent
+      id: prepare
+      shell: bash
+      env:
+        NEXT_UPGRADE_DIRECTORY: ${{ inputs.directory }}
+        NEXT_UPGRADE_HARNESS: ${{ inputs.harness }}
+        NEXT_UPGRADE_HAS_API_KEY: ${{ inputs.api-key != '' }}
+        NEXT_UPGRADE_HAS_OAUTH_TOKEN: ${{ inputs.claude-code-oauth-token != '' }}
+      run: node "$GITHUB_ACTION_PATH/prepare.mjs"
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{ steps.prepare.outputs.directory }}
+      env:
+        NEXT_UPGRADE_SETUP_COMMAND: ${{ inputs.setup-command }}
+      run: bash -e -o pipefail -c "$NEXT_UPGRADE_SETUP_COMMAND"
+    - name: Upgrade with Codex
+      if: ${{ inputs.harness == 'codex' }}
+      uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675 # v1
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token || inputs.github-token }}
+        __NEXT_AGENT_UPGRADE_SOURCE: github_action
+      with:
+        openai-api-key: ${{ inputs.api-key }}
+        codex-version: '0.162.1'
+        prompt-file: ${{ steps.prepare.outputs.prompt-file }}
+        working-directory: ${{ steps.prepare.outputs.directory }}
+        codex-home: ${{ steps.prepare.outputs.codex-home }}
+        permission-profile: next-upgrade
+        allow-bots: true
+    - name: Upgrade with Claude
+      if: ${{ inputs.harness == 'claude' }}
+      uses: anthropics/claude-code-action@34968b5981d5d170904281aa3df6f3c0d4a28855 # v1
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token || inputs.github-token }}
+        __NEXT_AGENT_UPGRADE_SOURCE: github_action
+      with:
+        anthropic_api_key: ${{ inputs.api-key }}
+        claude_code_oauth_token: ${{ inputs.claude-code-oauth-token }}
+        github_token: ${{ steps.app-token.outputs.token || inputs.github-token }}
+        prompt: ${{ steps.prepare.outputs.prompt }}
+        claude_args: '--allowedTools Bash,Read,Write,Edit,Glob,Grep'

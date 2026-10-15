@@ -8,6 +8,7 @@ export type AgentUpgradeOrigin =
   | 'human_nudge'
   | 'agent_manual'
   | 'agent_nudge'
+  | 'github_action'
 
 export type AgentUpgradeHandoffMethod =
   | 'existing_agent'

@@ -2,6 +2,10 @@ import { globalIgnores } from 'eslint/config'
 
 export default globalIgnores([
   '**/.*/**/*', // Default of ESLint legacy config
+  '!.github/',
+  '!.github/actions/',
+  '!.github/actions/next-upgrade/',
+  '!.github/actions/next-upgrade/**/*.mjs',
   '**/node_modules',
   '**/.next/**/*',
   '**/_next/**/*',
