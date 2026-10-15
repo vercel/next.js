@@ -51,10 +51,13 @@ export function loadManifest<T extends object>(
   if (handleMissing) {
     try {
       manifest = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
-    } catch (err) {
-      let result = undefined
-      cache.set(path, result)
-      return result
+    } catch (err: any) {
+      if (err && (err.code === 'ENOENT' || err.code === 'MODULE_NOT_FOUND')) {
+        let result = undefined
+        cache.set(path, result)
+        return result
+      }
+      throw err
     }
   } else {
     manifest = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
@@ -105,10 +108,13 @@ export function evalManifest<T extends object>(
   if (handleMissing) {
     try {
       content = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
-    } catch (err) {
-      let result = undefined
-      cache.set(path, result)
-      return result
+    } catch (err: any) {
+      if (err && (err.code === 'ENOENT' || err.code === 'MODULE_NOT_FOUND')) {
+        let result = undefined
+        cache.set(path, result)
+        return result
+      }
+      throw err
     }
   } else {
     content = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
