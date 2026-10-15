@@ -217,7 +217,7 @@ export default function ErrorPage({
   error,
   retry,
 }: {
-  error: Error & { digest?: string }
+  error: unknown
   retry: () => void
 }) {
   useEffect(() => {
@@ -407,7 +407,7 @@ export default function GlobalError({
   error,
   retry,
 }: {
-  error: Error & { digest?: string }
+  error: unknown
   retry: () => void
 }) {
   return (
