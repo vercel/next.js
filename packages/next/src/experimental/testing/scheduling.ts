@@ -1,8 +1,13 @@
 import type { DiscoveredTestProject } from './discovery'
-import { join } from 'path'
+import { join, posix } from 'path'
+import { createHash } from 'node:crypto'
+import { stat } from 'node:fs/promises'
 
 /** Keep a public invocation exclusive across compiler/server handoffs and modes. */
-export async function acquireTestRunLock(projectDir: string) {
+export async function acquireTestRunLock(
+  projectDir: string,
+  options: { recoverSnapshots?: boolean } = {}
+) {
   const { loadBindings } = await import('../../build/swc/index.js')
   const { Lockfile } = await import('../../build/lockfile.js')
   const bindings = await loadBindings()
@@ -14,7 +19,18 @@ export async function acquireTestRunLock(projectDir: string) {
       'Another next test invocation owns this application. Run concurrent CI shards in separate checkouts with separate output directories.'
     )
   }
-  return lock
+  try {
+    if (options.recoverSnapshots !== false) {
+      const { recoverSnapshotUpdates } = await import(
+        './assertions/snapshots.js'
+      )
+      await recoverSnapshotUpdates(projectDir)
+    }
+    return lock
+  } catch (error) {
+    await lock.unlock()
+    throw error
+  }
 }
 
 export interface TestShard {
@@ -54,21 +70,74 @@ export function parseTestShard(value: string): TestShard {
   return { index, count }
 }
 
-/** Sort stable profile/path identities after filtering, independent of config order. */
-export function shardTestProjects(
+/**
+ * Match the pinned fresh-run sequencer: stable physical-path hash partitions,
+ * then project-name/file-size ordering. The caller supplies its canonical root.
+ * Equal hashes preserve input order, including one source in multiple projects.
+ */
+export async function shardTestProjects(
   projects: DiscoveredTestProject[],
-  shard: TestShard
-): DiscoveredTestProject[] {
-  const ids = projects
-    .flatMap((project) => project.entries.map((entry) => entry.id))
-    .sort()
-  const selected = new Set(
-    ids.filter((_, index) => index % shard.count === shard.index - 1)
+  shard: TestShard,
+  projectDir: string
+): Promise<DiscoveredTestProject[]> {
+  const root = projectDir.replace(/\\/g, '/')
+  const files = projects.flatMap((project, projectIndex) =>
+    project.entries.map((entry) => {
+      const file = entry.file.replace(/\\/g, '/')
+      // The pinned path resolver recognizes canonical Windows drives even on
+      // another platform, normalizes their casing, and emits forward slashes.
+      const resolved = /^[A-Za-z]:\//.test(file)
+        ? `${file[0].toUpperCase()}:${posix.resolve('/', file.slice(2))}`
+        : posix.resolve(root, file)
+      return {
+        projectIndex,
+        entry,
+        hash: createHash('sha1')
+          .update(resolved.slice(root.length))
+          .digest('hex'),
+      }
+    })
   )
-  return projects.map((project) => ({
-    ...project,
-    entries: project.entries.filter((entry) => selected.has(entry.id)),
-  }))
+  const baseSize = Math.floor(files.length / shard.count)
+  const remainder = files.length % shard.count
+  const start =
+    baseSize * (shard.index - 1) + Math.min(shard.index - 1, remainder)
+  const end = start + baseSize + (shard.index <= remainder ? 1 : 0)
+  const selected = files
+    .sort((a, b) => (a.hash < b.hash ? -1 : a.hash > b.hash ? 1 : 0))
+    .slice(start, end)
+  const sizes = new Map<string, number>()
+  await Promise.all(
+    [...new Set(selected.map(({ entry }) => entry.file))].map(async (file) => {
+      try {
+        sizes.set(file, (await stat(file)).size)
+      } catch {
+        // As in the pinned sequencer, a missing size is scheduled first; its
+        // ordinary compiler/collection diagnostic must remain visible.
+      }
+    })
+  )
+  return projects
+    .map((project, projectIndex) => ({
+      ...project,
+      entries: selected
+        .filter((file) => file.projectIndex === projectIndex)
+        .map(({ entry }) => entry)
+        .sort((a, b) => {
+          const aSize = sizes.get(a.file)
+          const bSize = sizes.get(b.file)
+          if (aSize === undefined || bSize === undefined)
+            return aSize === undefined && bSize !== undefined
+              ? -1
+              : bSize === undefined && aSize !== undefined
+                ? 1
+                : 0
+          return bSize - aSize
+        }),
+    }))
+    .sort((a, b) =>
+      a.profile.id < b.profile.id ? -1 : a.profile.id > b.profile.id ? 1 : 0
+    )
 }
 
 /** Bound the complete file lease, including acquisition and awaited cleanup. */

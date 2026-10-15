@@ -1,41 +1,84 @@
-export interface FakeTimerOptions {
-  now?: number | Date
-  toFake?: readonly string[]
+import { TestFakeTimers } from './fake-timers'
+import { createTimerWaits } from './wait'
+import type { FakeTimerConfig } from '../../../compiled/next-test-primitives/timers'
+
+export type FakeTimerOptions = FakeTimerConfig
+
+/** Runtime-mutable fields of the pinned public configuration contract. */
+export interface RuntimeOptions {
+  allowOnly?: boolean
+  testTimeout?: number
+  hookTimeout?: number
+  clearMocks?: boolean
+  mockReset?: boolean
+  restoreMocks?: boolean
+  fakeTimers?: FakeTimerOptions
+  maxConcurrency?: number
+  expect?: {
+    poll?: { interval?: number; timeout?: number }
+    requireAssertions?: boolean
+  }
+  printConsoleTrace?: boolean
+  sequence?: { hooks?: 'stack' | 'list' | 'parallel' }
 }
 
-type TimerCallback = (...args: any[]) => void
-
-interface ScheduledTimer {
-  id: number
-  callback: TimerCallback
-  args: any[]
-  due: number
-  interval?: number
+/** Named return contract keeps fluent self references precise in declarations. */
+export interface AttemptUtilities
+  extends Pick<ReturnType<typeof createTimerWaits>, 'waitFor' | 'waitUntil'> {
+  dynamicImportSettled(): Promise<void>
+  setConfig(config: RuntimeOptions): void
+  resetConfig(): void
+  stubGlobal(name: string | symbol | number, value: unknown): AttemptUtilities
+  stubEnv(name: string, value: string | boolean | undefined): AttemptUtilities
+  unstubAllGlobals(): AttemptUtilities
+  unstubAllEnvs(): AttemptUtilities
+  useFakeTimers(options?: FakeTimerOptions): AttemptUtilities
+  useRealTimers(): AttemptUtilities
+  isFakeTimers(): boolean
+  clearAllTimers(): AttemptUtilities
+  getTimerCount(): number
+  getMockedSystemTime(): Date | null
+  getRealSystemTime(): number
+  setSystemTime(value?: number | string | Date): AttemptUtilities
+  advanceTimersByTime(ms: number): AttemptUtilities
+  advanceTimersByTimeAsync(ms: number): Promise<AttemptUtilities>
+  advanceTimersToNextTimer(steps?: number): AttemptUtilities
+  advanceTimersToNextTimerAsync(steps?: number): Promise<AttemptUtilities>
+  advanceTimersToNextFrame(): AttemptUtilities
+  runAllTicks(): AttemptUtilities
+  setTimerTickMode(
+    mode: 'manual' | 'nextTimerAsync' | 'interval',
+    interval?: number
+  ): AttemptUtilities
+  runOnlyPendingTimers(): AttemptUtilities
+  runOnlyPendingTimersAsync(): Promise<AttemptUtilities>
+  runAllTimers(): AttemptUtilities
+  runAllTimersAsync(): Promise<AttemptUtilities>
+  dispose(): void
 }
-
-const timerNames = [
-  'setTimeout',
-  'clearTimeout',
-  'setInterval',
-  'clearInterval',
-  'Date',
-] as const
 
 /** Attempt-owned utilities. Framework deadlines use separately captured timers. */
-export function createAttemptUtilities(assertActive: () => void) {
+export function createAttemptUtilities(
+  assertActive: () => void,
+  fakeTimerConfig?: FakeTimerOptions,
+  runtimeConfig?: RuntimeOptions,
+  waitForImports?: () => Promise<void>
+): AttemptUtilities {
   const globalDescriptors = new Map<
     PropertyKey,
     PropertyDescriptor | undefined
   >()
   const envValues = new Map<string, string | undefined>()
-  const timerDescriptors = new Map<
-    PropertyKey,
-    PropertyDescriptor | undefined
-  >()
-  const scheduled = new Map<number, ScheduledTimer>()
-  let clockInstalled = false
-  let now = Date.now()
-  let nextTimerId = 1
+  const defaults: FakeTimerOptions = {
+    loopLimit: 10000,
+    shouldClearNativeTimers: true,
+    ...fakeTimerConfig,
+  }
+  let originalConfig: RuntimeOptions | undefined
+  const mutableConfig = runtimeConfig ?? { fakeTimers: defaults }
+  let clock: TestFakeTimers | undefined
+  const getClock = () =>
+    (clock ??= new TestFakeTimers({ global: globalThis, config: defaults }))
 
   function rememberGlobal(name: PropertyKey) {
     if (!globalDescriptors.has(name)) {
@@ -82,151 +125,33 @@ export function createAttemptUtilities(assertActive: () => void) {
     envValues.clear()
   }
 
-  function validateTimerSelection(options?: FakeTimerOptions) {
-    const selected = options?.toFake ?? timerNames
-    for (const name of selected) {
-      if (!(timerNames as readonly string[]).includes(name)) {
-        throw new Error(
-          `Next test fake timers do not support faking ${JSON.stringify(name)}.`
-        )
-      }
-    }
-    return new Set(selected)
-  }
+  const waits = createTimerWaits(
+    {
+      isFakeTimers: () => getClock().isFakeTimers(),
+      advanceTimersByTime: (ms) => getClock().advanceTimersByTime(ms),
+    },
+    assertActive
+  )
 
-  function schedule(
-    callback: TimerCallback,
-    delay: number | undefined,
-    args: any[],
-    interval?: number
-  ) {
-    const id = nextTimerId++
-    const duration = Math.max(0, Number(delay) || 0)
-    scheduled.set(id, {
-      id,
-      callback,
-      args,
-      due: now + duration,
-      ...(interval === undefined ? {} : { interval: duration }),
-    })
-    return id
-  }
-
-  function nextTimer(limit = Infinity) {
-    let result: ScheduledTimer | undefined
-    for (const timer of scheduled.values()) {
-      if (timer.due > limit) continue
-      if (
-        !result ||
-        timer.due < result.due ||
-        (timer.due === result.due && timer.id < result.id)
-      ) {
-        result = timer
-      }
-    }
-    return result
-  }
-
-  function runUntil(limit: number, onlyPending = false) {
-    const pending = onlyPending ? new Set(scheduled.keys()) : undefined
-    let turns = 0
-    while (true) {
-      const timer = nextTimer(limit)
-      if (!timer || (pending && !pending.has(timer.id))) break
-      if (++turns > 100_000)
-        throw new Error('Aborting after running 100000 fake timers.')
-      now = timer.due
-      if (timer.interval === undefined) scheduled.delete(timer.id)
-      else timer.due += timer.interval || 1
-      timer.callback(...timer.args)
-      pending?.delete(timer.id)
-    }
-    now = limit
-  }
-
-  function install(options?: FakeTimerOptions) {
-    assertActive()
-    if (clockInstalled) return api
-    const selected = validateTimerSelection(options)
-    now =
-      options?.now instanceof Date
-        ? options.now.getTime()
-        : (options?.now ?? Date.now())
-    for (const name of timerNames) {
-      if (selected.has(name)) {
-        timerDescriptors.set(
-          name,
-          Object.getOwnPropertyDescriptor(globalThis, name)
-        )
-      }
-    }
-    if (selected.has('setTimeout')) {
-      globalThis.setTimeout = ((
-        callback: TimerCallback,
-        delay?: number,
-        ...args: any[]
-      ) => schedule(callback, delay, args)) as typeof setTimeout
-    }
-    if (selected.has('clearTimeout')) {
-      globalThis.clearTimeout = ((id: number) => {
-        scheduled.delete(Number(id))
-      }) as typeof clearTimeout
-    }
-    if (selected.has('setInterval')) {
-      globalThis.setInterval = ((
-        callback: TimerCallback,
-        delay?: number,
-        ...args: any[]
-      ) => schedule(callback, delay, args, delay)) as typeof setInterval
-    }
-    if (selected.has('clearInterval')) {
-      globalThis.clearInterval = ((id: number) => {
-        scheduled.delete(Number(id))
-      }) as typeof clearInterval
-    }
-    if (selected.has('Date')) {
-      const RealDate = Date
-      class FakeDate extends RealDate {
-        constructor(value?: string | number | Date) {
-          if (arguments.length === 0) super(now)
-          else
-            super(
-              value instanceof RealDate
-                ? value.getTime()
-                : (value as string | number)
-            )
-        }
-        static now() {
-          return now
-        }
-      }
-      Object.defineProperty(FakeDate, 'name', { value: 'Date' })
-      globalThis.Date = FakeDate as DateConstructor
-    }
-    clockInstalled = true
-    return api
-  }
-
-  function restoreTimers() {
-    if (!clockInstalled) return
-    for (const [name, descriptor] of timerDescriptors) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor)
-      else Reflect.deleteProperty(globalThis, name)
-    }
-    scheduled.clear()
-    timerDescriptors.clear()
-    clockInstalled = false
-  }
-
-  function requireClock() {
-    assertActive()
-    if (!clockInstalled)
-      throw new Error(
-        'Fake timers are not installed. Call vi.useFakeTimers() first.'
-      )
-  }
-
-  const api = {
+  const api: AttemptUtilities = {
+    async dynamicImportSettled(): Promise<void> {
+      assertActive()
+      if (!waitForImports)
+        throw new Error('Import settling requires the compiled test runtime')
+      await waitForImports()
+      assertActive()
+    },
+    setConfig(config: RuntimeOptions): void {
+      assertActive()
+      originalConfig ??= { ...mutableConfig }
+      Object.assign(mutableConfig, config)
+    },
+    resetConfig(): void {
+      assertActive()
+      if (originalConfig) Object.assign(mutableConfig, originalConfig)
+    },
+    waitFor: waits.waitFor,
+    waitUntil: waits.waitUntil,
     stubGlobal,
     stubEnv,
     unstubAllGlobals() {
@@ -239,98 +164,110 @@ export function createAttemptUtilities(assertActive: () => void) {
       restoreEnvs()
       return api
     },
-    useFakeTimers: install,
+    useFakeTimers(options?: FakeTimerOptions) {
+      assertActive()
+      getClock().configure({
+        ...(mutableConfig.fakeTimers ?? defaults),
+        ...options,
+      })
+      getClock().useFakeTimers()
+      return api
+    },
     useRealTimers() {
       assertActive()
-      restoreTimers()
+      getClock().useRealTimers()
       return api
     },
     isFakeTimers() {
       assertActive()
-      return clockInstalled
+      return getClock().isFakeTimers()
     },
     clearAllTimers() {
-      requireClock()
-      scheduled.clear()
+      assertActive()
+      getClock().clearAllTimers()
       return api
     },
     getTimerCount() {
-      requireClock()
-      return scheduled.size
+      assertActive()
+      return getClock().getTimerCount()
     },
     getMockedSystemTime() {
       assertActive()
-      return clockInstalled ? new Date(now) : null
+      return getClock().getMockedSystemTime()
     },
     getRealSystemTime() {
       assertActive()
-      const descriptor = timerDescriptors.get('Date')
-      const RealDate = descriptor?.value as DateConstructor | undefined
-      return RealDate ? RealDate.now() : Date.now()
+      return getClock().getRealSystemTime()
     },
-    setSystemTime(value: number | string | Date) {
-      requireClock()
-      now = value instanceof Date ? value.getTime() : new Date(value).getTime()
+    setSystemTime(value?: number | string | Date) {
+      assertActive()
+      getClock().setSystemTime(value)
       return api
     },
     advanceTimersByTime(ms: number) {
-      requireClock()
-      runUntil(now + ms)
+      assertActive()
+      getClock().advanceTimersByTime(ms)
       return api
     },
     async advanceTimersByTimeAsync(ms: number) {
-      api.advanceTimersByTime(ms)
-      await Promise.resolve()
+      assertActive()
+      await getClock().advanceTimersByTimeAsync(ms)
       return api
     },
-    advanceTimersToNextTimer() {
-      requireClock()
-      const timer = nextTimer()
-      if (timer) runUntil(timer.due)
+    advanceTimersToNextTimer(steps?: number) {
+      assertActive()
+      getClock().advanceTimersToNextTimer(steps)
       return api
     },
-    async advanceTimersToNextTimerAsync() {
-      api.advanceTimersToNextTimer()
-      await Promise.resolve()
+    async advanceTimersToNextTimerAsync(steps?: number) {
+      assertActive()
+      await getClock().advanceTimersToNextTimerAsync(steps)
+      return api
+    },
+    advanceTimersToNextFrame() {
+      assertActive()
+      getClock().advanceTimersToNextFrame()
+      return api
+    },
+    runAllTicks() {
+      assertActive()
+      getClock().runAllTicks()
+      return api
+    },
+    setTimerTickMode(
+      mode: 'manual' | 'nextTimerAsync' | 'interval',
+      interval?: number
+    ) {
+      assertActive()
+      getClock().setTimerTickMode(mode, interval)
       return api
     },
     runOnlyPendingTimers() {
-      requireClock()
-      const timers = [...scheduled.values()]
-      const limit = timers.length
-        ? Math.max(...timers.map((timer) => timer.due))
-        : now
-      runUntil(limit, true)
+      assertActive()
+      getClock().runOnlyPendingTimers()
       return api
     },
     async runOnlyPendingTimersAsync() {
-      api.runOnlyPendingTimers()
-      await Promise.resolve()
+      assertActive()
+      await getClock().runOnlyPendingTimersAsync()
       return api
     },
     runAllTimers() {
-      requireClock()
-      let turns = 0
-      while (scheduled.size) {
-        if (++turns > 100_000)
-          throw new Error('Aborting after running 100000 fake timers.')
-        const timer = nextTimer()!
-        runUntil(timer.due)
-      }
+      assertActive()
+      getClock().runAllTimers()
       return api
     },
     async runAllTimersAsync() {
-      api.runAllTimers()
-      await Promise.resolve()
+      assertActive()
+      await getClock().runAllTimersAsync()
       return api
     },
     dispose() {
-      restoreTimers()
+      waits.dispose()
+      clock?.dispose()
       restoreGlobals()
       restoreEnvs()
     },
   }
   return api
 }
-
-export type AttemptUtilities = ReturnType<typeof createAttemptUtilities>

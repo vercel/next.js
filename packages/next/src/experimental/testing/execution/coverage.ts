@@ -1,3 +1,4 @@
+import { assertMockCoverageArtifact } from '../coverage/mock-sources'
 import type {
   CompiledTestArtifact,
   ExecuteTestOptions,
@@ -21,11 +22,11 @@ export function assertCoverageRequest(
     artifact.kind !== 'node' ||
     artifact.profile.environment !== 'node' ||
     artifact.profile.mode !== 'development' ||
-    artifact.profile.route !== undefined ||
-    artifact.moduleMocking
+    artifact.profile.route !== undefined
   ) {
-    throw new Error('Coverage requires an unmocked development Node profile')
+    throw new Error('Coverage requires a development Node profile')
   }
+  assertMockCoverageArtifact(artifact)
   if (!artifact.coverage)
     throw new Error('Compiled artifact lacks coverage metadata')
   if (typeof options.onCoverage !== 'function') {

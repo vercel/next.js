@@ -32,7 +32,18 @@ export const testCapabilities = {
       'describe.each',
       'describe.for',
     ],
+    context: [
+      'task',
+      'expect',
+      'annotate',
+      'signal',
+      'regular-run bench diagnostic',
+    ],
+    metadata:
+      'Stable task/file/suite identity, live task failure state, retained retry/repeat errors, tag definitions/priority/inheritance, mutable task meta and source-mapped annotations with retained local or inline/URL attachments',
     testOptions: [
+      'tags',
+      'meta',
       'timeout',
       'retry',
       'repeats',
@@ -52,23 +63,30 @@ export const testCapabilities = {
     ],
     fixtures: {
       api: 'test.extend',
-      scopes: ['test', 'file'],
+      scopes: ['test', 'file', 'worker'],
+      workerLifetime:
+        'One isolated execution process owns the worker cache and cleanup after file fixtures. Cross-file isolate:false sharing is not implemented.',
       options: ['scope', 'auto'],
       overrides: 'test.override object syntax, scoped to the declaring suite',
       dependencies:
         'object-destructured names, aliases, and defaults; no rest, nested, or computed properties',
     },
     expectUtilities: [
+      'createExpect',
+      'context.expect',
       'expect.extend',
       'expect.soft',
       'expect.poll',
       'expect.addSnapshotSerializer',
       'expect.assertions',
       'expect.hasAssertions',
+      'augmentable Assertion and AsymmetricMatchersContaining',
     ],
     typeAssertions: ['assertType', 'expectTypeOf'],
     typeAssertionScope:
-      'Pinned expect-type primitives and TypeScript/editor assertions. Running compiler-backed type-test suites and typecheck configuration remains unimplemented.',
+      'Pinned expect-type primitives and TypeScript/editor assertions. One-shot tsc type-test files use the consumer TypeScript compiler in an owned process; original AST spans attribute diagnostics without evaluating callbacks. Focused type tasks, build, alternate checkers, watch/list/debug and full type-tooling conformance remain unqualified.',
+    inSourceTests:
+      'includeSource marker discovery and native exact-entry AST substitution share the active Vitest facade in fresh Node files. Ordinary app compilation defaults the marker to false for production removal. RSC, browser, cohorts and typed importMeta subpaths remain unqualified.',
     chaiAssertions:
       'assert (Chai 6 compatible static API; attempt/file scope access guards)',
     assertionModifiers: ['not', 'resolves', 'rejects'],
@@ -84,6 +102,8 @@ export const testCapabilities = {
       'toMatchFileSnapshot',
       'arrayContaining',
     ],
+    collectionAssertionScope:
+      'Ordinary setup/spec collection assertions share an explicit file collection scope; async assertions are drained before sealing it, while case counters start fresh.',
     matcherInventoryScope:
       'Conservative tested subset, not an exhaustive name enumeration of the pinned assertion primitive.',
     spies: [
@@ -99,7 +119,44 @@ export const testCapabilities = {
       'vi.useRealTimers',
       'vi.advanceTimersByTime',
       'vi.runAllTimers',
+      'vi.runAllTicks',
+      'vi.advanceTimersToNextFrame',
+      'vi.setTimerTickMode',
+      'vi.waitFor',
+      'vi.waitUntil',
+      'vi.setConfig',
+      'vi.resetConfig',
+      'vi.dynamicImportSettled',
     ],
+    setupSequence:
+      'List by default, or explicit parallel ordering, through actual compiler-owned setup module imports; configured serializers load first. Parallel setup requires native test-entry ABI 3.',
+    timerPrimitive:
+      'Standalone fake-timers 15.4.0 with the published Vitest 5.0.4 patch; Date-only and async clock operations, project fakeTimers config, and waits using captured real deadlines. Node child workers cannot fake nextTick.',
+    equalityTesters:
+      'expect.addEqualityTesters shares the pinned recursive/asymmetric matcher registry across expectation instances; file disposal removes owned registrations.',
+    runtimeUtilityConfig:
+      'File-owned shallow setConfig/resetConfig, mutable clock/reset/poll/assertion settings and declaration-time timeout capture. Concurrent case execution remains incomplete; hook groups support stack, list and bounded parallel ordering.',
+    importSettling:
+      'The emitted Node/RSC runtime tracks real chunk/external loads and asynchronous module evaluation. Repeated captured real turns include unreturned nested imports; cleanup cancels waits and restores loader descriptors.',
+    utilityLifetime:
+      'File-owned clocks, global/environment stubs and mocks; explicit restore or final realm disposal releases resources. Async scope guards remain attempt-owned.',
+    mockResetDefaults: {
+      clearMocks: true,
+      mockReset: false,
+      restoreMocks: false,
+      unstubGlobals: false,
+      unstubEnvs: false,
+      scope:
+        'Configured resets run before each retry/repeat, before user setup and fixtures.',
+    },
+    hookSequence: {
+      supported: ['stack', 'list', 'parallel'],
+      setupFiles: 'list by default; explicit parallel ordering',
+      maxConcurrency:
+        '5 by default; shared bounded hook/listener/cleanup budget',
+      boundaries: 'parent-before-child setup and child-before-parent teardown',
+      unsupported: ['concurrent case execution remains unimplemented'],
+    },
     snapshots: {
       default: 'create missing snapshots locally and in watch; read-only in CI',
       update:
@@ -109,31 +166,35 @@ export const testCapabilities = {
       inlineSourceRevision:
         'the parent requires the exact source hash captured across compilation and rejects concurrent edits',
       unchecked:
-        'skipped tests are retained; full all-mode selections prune obsolete entries, while partial selections preserve unchecked keys',
+        'skipped/unselected declared tests retain their keys; complete full or filtered all-mode execution prunes obsolete checked-owner/absent keys, including selected tests with no snapshots',
       obsolete:
-        'full read-only selections fail on obsolete snapshots; all-mode empty snapshot files are removed after parent authorization',
+        'complete full or filtered read-only execution fails on remaining obsolete keys; all-mode empty snapshot files are removed after parent authorization',
       publicationFailure:
         'restore published bytes on a later failure; preserve concurrent user edits and retain recovery backups if restoration is refused',
-      unsupported: ['complete filtered obsolete/pruning parity'],
+      unsupported: [
+        'complete custom environment/domain snapshot and crash-recovery matrix',
+      ],
     },
     unsupported: [
       'concurrent execution and shuffled suites',
       'aroundEach/aroundAll',
       'full Vitest task/result introspection',
-      'worker scope/rest-nested-computed dependency destructuring/builder fixture forms',
+      'cross-file worker fixture reuse with isolate:false; rest/nested/computed fixture dependencies',
       'untransformed vi.mock/vi.importActual/vi.hoisted',
     ],
     differences: [
-      'Next checks assertion counts after teardown/finished listeners; pinned Vitest checks counts before afterEach.',
+      'Assertion counts finalize before afterEach, fixture teardown and listeners; later assertions remain observed without changing the completed count check.',
       'Final assertion/spy disposal errors fail attempts but do not re-enter failure listeners.',
       'Failure listener receives supported TestContext, not full Vitest task/result inspection.',
       'Static factory mocks require compiler transformation and are limited to development Node specs.',
-      'Attempt-owned fake timers never replace runner deadlines, polling schedules, or parent process/resource deadlines.',
+      'File-owned fake timers never replace captured runner, polling, import-settling or parent process/resource deadlines.',
     ],
     scope:
       'Conservative verified authoring subset of the pinned Vitest reference.',
   },
   execution: {
+    defaultMode:
+      'Watch with interactive stdin outside CI and detected agent environments; one-shot for CI, agents, piped stdin, --run and explicitly one-shot operations.',
     modes: ['development', 'production'],
     environments: ['node', 'rsc', 'browser'],
     runtime: 'nodejs',
@@ -144,13 +205,24 @@ export const testCapabilities = {
     note: 'POSIX process ownership is required; independent native/runtime acceptance is recorded for darwin-arm64.',
   },
   features: {
+    debugging: {
+      supported: true,
+      scope:
+        'Explicit --inspect [host:]port opens the debugger in the actual isolated file worker. One-shot execution requires one active file worker; --no-file-parallelism selects that limit. Coordinator/compiler arguments are not inherited.',
+      unsupported: [
+        'watch debugging',
+        'coverage with debugging',
+        'inspectBrk',
+        'editor control protocol',
+      ],
+    },
     scheduling: {
       supported: true,
       maxWorkers: { default: 1, minimum: 1, maximum: 64 },
       scope:
         'One-shot bounded Node/RSC file workers; one compiler and one browser/server lease at a time.',
       sharding:
-        'One-based INDEX/COUNT; sorted project:path IDs after filtering, round-robin assignment; empty shards succeed.',
+        'One-based INDEX/COUNT; root-relative physical-path SHA-1 hashes after filtering, stable balanced contiguous partitions, then fresh-run project name and descending file size order. More shards than files require passWithNoTests; allowed empty assignments publish zero-test results.',
       mixedProfiles:
         'Development/production Node/RSC projects run in separate supervised processes, serially to preserve configured output ownership.',
       unsupported: [
@@ -161,7 +233,11 @@ export const testCapabilities = {
         'concurrent shards sharing application output',
       ],
     },
-    listing: { supported: true },
+    listing: {
+      supported: true,
+      scope:
+        'Plain --list shows selected files. Default --list --json parses declaration syntax through the native SWC parser without executing setup/specification modules; it retains literal/expression names, parameter placeholders, original UTF-16 locations, explicit project names and cross-file focus. --staticParse=false explicitly collects name/file facts through the Next compiler and owned worker without running hooks, fixture factories or test bodies. Static discovery does not yet apply custom application transforms or resolve re-exported declaration helpers; full transform/project/focus qualification remains release work.',
+    },
     orderedSetup: {
       supported: true,
       scope: 'Sequential compiled setup in the same isolated file collection.',
@@ -170,13 +246,19 @@ export const testCapabilities = {
       supported: true,
       api: 'vi.mock',
       scope:
-        'Development Node specs, including ordered compiled setup files; compiler-transformed top-level calls only.',
+        'Development Node specs with ordered compiled setup; compiler-transformed top-level spec registration only.',
       targets:
         'String-literal and type-safe literal import() project-local ESM targets with static exports, resolved through the actual Next compiler context.',
       factories:
         'Inline synchronous or asynchronous factories with statically known object export keys; partial spreads only from compiler-verified awaited importOriginal namespaces.',
       bindings:
-        'Explicit factory exports are fixed values; non-overridden exports inherited from importOriginal remain live ESM bindings. Static and dynamic consumers share one mocked namespace.',
+        'Factory object properties, including spread scalars, are captured values. Actual namespaces retain their live bindings and identity; static and dynamic mocked consumers share one compiler-owned namespace.',
+      helpers:
+        'Validated vi.hoisted declarations, literal vi.importActual and supplied importOriginal callbacks use compiler-owned source identities.',
+      automatic:
+        'Literal local ESM mocks without a factory use the pinned mockObject primitive; spy:true retains behavior and mock call state. Later actual imports retain their separate reference evaluation.',
+      manual:
+        'Regular project-local __mocks__ ESM files redirect through the normal graph, preserving live exports, TLA and direct namespace identity.',
       unsupported: [
         'RSC/browser/production mocks',
         'dynamic targets, queries, fragments, or import attributes',
@@ -186,8 +268,28 @@ export const testCapabilities = {
         'arbitrary/computed/accessor export shapes or arbitrary spreads',
         'dynamic imports inside factories; use supplied importOriginal',
         'BOM-prefixed mocked specs',
-        'captured spec-local bindings',
-        'automatic mocks, vi.importActual, vi.hoisted, or runtime registration',
+        'captured spec-local bindings outside validated hoisted declarations',
+        'static factories combined with runtime registration or module-cache resets; nonliteral actual imports',
+        'setup-file mock registration and direct returned namespace factories',
+        'manual files with mocking helpers or earlier hoisted dynamic imports',
+        'manual symlink/directory/external/CommonJS sources',
+      ],
+    },
+    runtimeFactoryMocks: {
+      supported: true,
+      api: 'vi.doMock/vi.doUnmock',
+      scope:
+        'Isolated development Node entries; direct imported vi/vitest calls with literal project-local leaf ESM targets and inline factories returning statically named object exports.',
+      behavior:
+        'Factories retain lexical closures and run lazily. Future direct dynamic imports use the registered namespace; re-registration and unregistration preserve already held namespaces. Actual module-cache reset preserves registrations and cached factory results.',
+      ownership:
+        'Native compiler identities select actual loader callbacks. Pending factory work remains visible to import settling and file disposal; closed asynchronous origins reject.',
+      unsupported: [
+        'static/hoisted mock mixtures, nonliteral requests, import attributes and foreign user importers',
+        'transitive user targets, CommonJS, external packages, queries, fragments and symlink resolution',
+        'computed/accessor/spread factory exports, then exports, prototype mutation and non-inline factories',
+        'setup, serializers, coverage, custom realms, in-source entries, inspectors and shared cohorts',
+        'RSC, browser and production profiles',
       ],
     },
     watch: {
@@ -229,30 +331,42 @@ export const testCapabilities = {
     },
     resultReports: {
       supported: true,
-      reporters: ['default', 'json', 'junit', 'blob'],
+      reporters: [
+        'default',
+        'verbose',
+        'dot',
+        'tap',
+        'tap-flat',
+        'github-actions',
+        'json',
+        'junit',
+        'blob',
+      ],
+      custom:
+        'One-shot file-backed JavaScript completion adapters run initialization, final task-tree callbacks and owned close callbacks in a supervised reporter process. Live/watch hooks, package/TypeScript adapters and advanced task/context APIs remain unimplemented.',
       scope:
-        'One-shot results, final retry outcomes, full attempt evidence, mapped errors, attributed output, attachments and snapshot summaries. Full reporter schema conformance, snapshot statistics, watch/custom reporter adapters and Vitest blob-format compatibility remain release blockers. --merge-reports merges disjoint versioned Next blobs without compilation.',
+        'Final retry outcomes, full attempt evidence, mapped errors, attributed output, attachments and snapshot summaries; fresh machine reports after cleaned development Node/RSC watch generations. --merge-reports merges disjoint versioned Next blobs or projects validated Vitest 5.0.4 final tasks to JSON without compilation or fabricated Next history. Foreign coverage/pending/other reporters, full schema/terminal conformance, snapshot statistics and advanced custom adapters remain release work.',
     },
     testNamePattern: {
       supported: true,
       scope:
-        'One-shot and initial watch selection using -t/--testNamePattern against full ancestor-qualified names. Name-filtered listing requires collection and remains unimplemented.',
+        'One-shot and initial watch selection using -t/--testNamePattern against full ancestor-qualified names; explicit --list --json --staticParse=false uses the same selection for collected name/file facts. Plain file listing does not accept name filters.',
     },
     typescriptConfig: {
-      supported: false,
-      reason:
-        'Use next.test.config.json; executable test configuration is not loaded.',
+      supported: true,
+      scope:
+        'Next, Vitest, and Vite test configs load in an isolated retained realm; compatible discovery, globals, setup/global setup and provided context are translated. Compiler overrides and unimplemented settings receive explicit errors.',
     },
     coverage: {
       supported: true,
       mode: 'development',
       environment: 'node',
       execution: 'opt-in one-shot',
-      reports: ['json', 'text'],
+      reports: ['json', 'text', 'lcov'],
       scope:
-        'Imported project sources in route-less Node tests, accumulated across files and retries, including failed attempts.',
+        'Route-less development Node tests accumulate real V8 hits across files and retries, including failed attempts. Bare --coverage retains mapped-line reports; explicit --coverage.* flags select standard JSON/LCOV for syntax-preserved JavaScript, source include/exclude, unimported zero-hit files, global percentage thresholds and reportOnFailure.',
       metric:
-        'Original source lines with non-whitespace mapped generated spans. Mapped delimiters can count; syntax eliminated from generated output is absent. This is not Istanbul line, branch, or function coverage parity.',
+        'Bare coverage counts original lines with mapped generated spans. Standard coverage maps retained generated AST/V8 ranges to original statement, function and branch declarations, then derives Istanbul line totals. TypeScript/JSX declaration recovery and full provider parity remain unqualified.',
       unsupported: [
         'production, RSC, and browser coverage',
         'route context',
@@ -260,8 +374,9 @@ export const testCapabilities = {
         'watch',
         'combining coverage with snapshot updates',
         'coverage-provider compatibility',
-        'branch or function coverage',
-        'thresholds and unimported-file expansion',
+        'TypeScript/JSX standard coverage',
+        'custom providers and project-configured coverage',
+        'non-JSON/LCOV standard reporters and advanced threshold modes',
       ],
     },
   },
@@ -270,10 +385,11 @@ export const testCapabilities = {
 export type TestCapability = keyof typeof testCapabilities.features
 
 export function requireTestCapability(capability: TestCapability): void {
-  const feature = testCapabilities.features[capability]
+  const feature: { readonly supported: boolean; readonly reason?: string } =
+    testCapabilities.features[capability]
   if (!feature.supported) {
     throw new Error(
-      `Unsupported test capability "${capability}": ${feature.reason}`
+      `Unsupported test capability "${capability}": ${feature.reason ?? 'This capability is not available.'}`
     )
   }
 }

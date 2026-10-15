@@ -1,4 +1,13 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import {
+  cp,
+  mkdtemp,
+  mkdir,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
+import { retry } from 'next-test-utils'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import 'next/dist/server/node-environment-baseline'
@@ -20,6 +29,7 @@ import {
   mergeResultReports,
 } from 'next/dist/experimental/testing/reporting/machine'
 import { createTestTerminal } from 'next/dist/experimental/testing/reporting/terminal'
+import { getFinalCaseResults } from 'next/dist/experimental/testing/reporting/final-cases'
 import { serializeDiagnostic } from 'next/dist/experimental/testing/reporting/diagnostics'
 import type {
   ResultEvent,
@@ -182,7 +192,11 @@ describe('Next test reporting', () => {
     }
     emit({ type: 'file-start', entry: browserEntry })
     for (const selected of [entry, browserEntry]) {
-      emit({ type: 'case-start', ...result(0, 'passed'), entryId: selected.id })
+      emit({
+        type: 'case-start',
+        ...result(0, 'passed'),
+        entryId: selected.id,
+      })
       for (const stream of ['stdout', 'stderr'] as const)
         emit({
           type: 'output',
@@ -1114,6 +1128,379 @@ describe('Next machine result reporters', () => {
     machine.dispose()
   })
 
+  it.each([
+    'rejection',
+    'case failure',
+    'cleanup failure',
+    'run error',
+    'cancelled',
+  ])('keeps task JSON separate from the command outcome for %s', (mode) => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({
+      type: 'case-end',
+      ...result(0, mode === 'case failure' ? 'failed' : 'passed'),
+    })
+    emit({
+      type: 'diagnostic',
+      entryId: entry.id,
+      diagnostic: {
+        ...serializeDiagnostic(new Error('real unhandled rejection'), {
+          phase: 'runtime',
+        }),
+        unhandled: 'rejection',
+      },
+    })
+    if (mode === 'cleanup failure' || mode === 'run error')
+      emit({
+        type: 'diagnostic',
+        ...(mode === 'cleanup failure' ? { entryId: entry.id } : {}),
+        diagnostic: serializeDiagnostic(new Error('separate failure'), {
+          phase: 'cleanup',
+        }),
+      })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      durationMs: 20,
+      status: mode === 'cancelled' ? 'cancelled' : 'failed',
+    })
+    emit({
+      type: 'run-end',
+      status: mode === 'cancelled' ? 'cancelled' : 'failed',
+      durationMs: 20,
+    })
+    const report = machine.getJson()
+    expect(report.success).toBe(mode === 'rejection')
+    expect(report.numPassedTests).toBe(mode === 'case failure' ? 0 : 1)
+    expect(report.numFailedTests).toBe(mode === 'case failure' ? 1 : 0)
+    expect(report.testResults[0].status).toBe(
+      mode === 'rejection' || mode === 'run error' ? 'passed' : 'failed'
+    )
+    expect(report.testResults[0].message).not.toContain(
+      'real unhandled rejection'
+    )
+    expect(report.next.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'diagnostic',
+          diagnostic: expect.objectContaining({
+            unhandled: 'rejection',
+            message: 'real unhandled rejection',
+          }),
+        }),
+        expect.objectContaining({
+          type: 'run-end',
+          status: mode === 'cancelled' ? 'cancelled' : 'failed',
+        }),
+      ])
+    )
+    machine.dispose()
+  })
+
+  it('uses source-file classnames and ancestor-qualified names for JUnit cases', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['junit'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({
+      type: 'case-end',
+      ...result(0, 'passed'),
+      testName: 'renders & reads',
+      ancestors: [{ id: 'suite', name: 'outer' }],
+    })
+    emit({
+      type: 'case-end',
+      ...result(0, 'skipped'),
+      caseId: 'unselected',
+      attempt: { id: 'unselected', retry: 0, repeat: 0 },
+      mode: 'skip',
+      durationMs: 0,
+    })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'passed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+    expect(machine.getJUnit()).toContain(
+      '<testcase classname="example.test.ts" name="outer &gt; renders &amp; reads"'
+    )
+    expect(machine.getJUnit()).toContain('name="renders" time="0"><skipped/>')
+    machine.dispose()
+  })
+
+  it('retains empty and cleanup-failing suite metadata without failing their passing cases', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'passed') })
+    for (const [suiteId, mode, status] of [
+      ['empty', 'run', 'failed'],
+      ['skipped', 'skip', 'skipped'],
+      ['todo', 'todo', 'skipped'],
+      [entry.id, 'run', 'failed'],
+    ]) {
+      emit({
+        type: 'suite-end',
+        entryId: entry.id,
+        suiteId,
+        name: suiteId,
+        mode,
+        status,
+        durationMs: 0,
+        ancestors: [],
+        errors: [],
+      })
+    }
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    expect(machine.getJson()).toMatchObject({
+      numTotalTestSuites: 4,
+      numFailedTestSuites: 2,
+      numPassedTestSuites: 1,
+      numPendingTestSuites: 1,
+      numPassedTests: 1,
+      numFailedTests: 0,
+    })
+    machine.dispose()
+  })
+
+  it('preserves complete bare JSON messages when failures have no saved stack', () => {
+    for (const thrown of [
+      null,
+      'first\nsecond',
+      { name: 'Fault', message: 'bare', stack: '' },
+    ]) {
+      const machine = createMachineReporter({
+        projectDir: '/project',
+        reporters: ['json'],
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry })
+      emit({
+        type: 'case-end',
+        ...result(0, 'failed'),
+        errors: [serializeDiagnostic(thrown, { phase: 'runtime' })],
+      })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'failed',
+        durationMs: 1,
+      })
+      emit({ type: 'run-end', status: 'failed', durationMs: 1 })
+      expect(
+        machine.getJson().testResults[0].assertionResults[0].failureMessages
+      ).toEqual([
+        typeof thrown === 'object' && thrown ? thrown.message : String(thrown),
+      ])
+      machine.dispose()
+    }
+  })
+
+  it('matches aggregate task failure messages while retaining the original diagnostic tree', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    const diagnostic = serializeDiagnostic(
+      new AggregateError([new Error('first'), new Error('second')], 'combined'),
+      { phase: 'runtime' }
+    )
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'failed'), errors: [diagnostic] })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    const report = machine.getJson()
+    expect(
+      report.testResults[0].assertionResults[0].failureMessages.map(
+        (message) => message.split('\n')[0]
+      )
+    ).toEqual(['Error: first', 'Error: second'])
+    expect(
+      report.next.events.find((event) => event.type === 'case-end')
+    ).toMatchObject({
+      errors: [
+        {
+          name: 'AggregateError',
+          message: 'combined',
+          errors: [{ message: 'first' }, { message: 'second' }],
+        },
+      ],
+    })
+    machine.dispose()
+  })
+
+  it('preserves a saved async assertion stack heading without changing the structured error name', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    const error = new Error('async mismatch')
+    error.name = 'AssertionError'
+    error.stack =
+      'Error: async mismatch\n    at original (/project/example.test.ts:12:3)'
+    const diagnostic = serializeDiagnostic(error, { phase: 'runtime' })
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'failed'), errors: [diagnostic] })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    const report = machine.getJson()
+    expect(
+      report.testResults[0].assertionResults[0].failureMessages[0].split(
+        '\n'
+      )[0]
+    ).toBe('Error: async mismatch')
+    expect(
+      report.next.events.find((event) => event.type === 'case-end')
+    ).toMatchObject({
+      errors: [{ name: 'AssertionError', stack: error.stack }],
+    })
+    machine.dispose()
+  })
+
+  it('a runtime skip overrides earlier repeat failures while retaining all error evidence', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    const first = result(0, 'failed')
+    const skipped = {
+      ...result(0, 'skipped', 1),
+      pending: true,
+      mode: 'skip' as const,
+      note: 'reason',
+      errors: first.errors,
+    }
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...first })
+    emit({ type: 'case-end', ...skipped })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'passed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+    const report = machine.getJson()
+    expect(report).toMatchObject({
+      success: true,
+      numPendingTests: 1,
+      numFailedTests: 0,
+    })
+    expect(report.testResults[0].assertionResults[0].failureMessages).toEqual(
+      []
+    )
+    expect(
+      report.next.events.filter((event) => event.type === 'case-end')
+    ).toMatchObject([
+      { status: 'failed', errors: [{ message: 'render failed' }] },
+      {
+        status: 'skipped',
+        pending: true,
+        note: 'reason',
+        errors: [{ message: 'render failed' }],
+      },
+    ])
+    expect(
+      getFinalCaseResults([first, skipped]).get(first.caseId)?.pending
+    ).toBe(true)
+    machine.dispose()
+  })
+
+  it('reports bailed declarations as unexecuted pending cases without hiding real cancellation', () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    emit({ type: 'run-start' })
+    emit({ type: 'file-start', entry })
+    emit({ type: 'case-end', ...result(0, 'failed') })
+    emit({
+      type: 'case-end',
+      ...result(0, 'cancelled'),
+      caseId: 'bailed',
+      mode: 'run',
+      bail: true,
+    })
+    emit({
+      type: 'case-end',
+      ...result(0, 'cancelled'),
+      caseId: 'cancelled',
+      mode: 'run',
+    })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    const report = machine.getJson()
+    expect(report).toMatchObject({
+      success: false,
+      numTotalTests: 3,
+      numFailedTests: 2,
+      numPendingTests: 0,
+      numPassedTests: 0,
+    })
+    expect(
+      report.testResults[0].assertionResults.map((test) => test.status)
+    ).toEqual(['failed', 'pending', 'failed'])
+    expect(report.testResults[0].assertionResults[1]).not.toHaveProperty(
+      'duration'
+    )
+    expect(
+      report.testResults[0].assertionResults[0].failureMessages[0]
+    ).toContain('render failed')
+    machine.dispose()
+  })
+
   it('refuses incomplete reports and propagates output failures', async () => {
     const machine = createMachineReporter({
       projectDir: '/project',
@@ -1141,7 +1528,7 @@ describe('Next machine result reporters', () => {
       'without duplicates'
     )
     expect(() => parseResultReporters(['custom'])).toThrow(
-      'Custom reporter adapters remain unimplemented'
+      'Package and advanced custom reporter adapters remain unimplemented'
     )
   })
 })
@@ -1174,6 +1561,28 @@ it('merges disjoint Next blobs while preserving failures and rejects duplicated 
           wrap({ type: 'run-start' }),
           wrap({ type: 'file-start', entry: selected }),
           wrap({ type: 'case-end', ...result(0, status), entryId: identity }),
+          wrap({
+            type: 'suite-end',
+            entryId: identity,
+            suiteId: `${identity}/empty`,
+            name: 'empty',
+            ancestors: [],
+            mode: 'skip',
+            status: 'skipped',
+            durationMs: 0,
+            errors: [],
+          }),
+          wrap({
+            type: 'suite-end',
+            entryId: identity,
+            suiteId: identity,
+            name: '',
+            ancestors: [],
+            mode: 'run',
+            status,
+            durationMs: 10,
+            errors: [],
+          }),
           wrap({ type: 'file-end', entryId: identity, status, durationMs: 10 }),
           wrap({ type: 'run-end', status, durationMs: 10 }),
         ],
@@ -1193,6 +1602,9 @@ it('merges disjoint Next blobs while preserving failures and rejects duplicated 
       numTotalTests: 2,
       numPassedTests: 1,
       numFailedTests: 1,
+      numTotalTestSuites: 4,
+      numPassedTestSuites: 3,
+      numFailedTestSuites: 1,
       success: false,
     })
     expect(merged.testResults[0].name).toBe(join(root, 'shard-0.test.ts'))
@@ -1213,7 +1625,216 @@ it('merges disjoint Next blobs while preserving failures and rejects duplicated 
   }
 })
 
+it('round-trips unstarted bail results without accepting an executed cancellation', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-bail-blob-'))
+  const input = join(root, 'blobs')
+  const outputFile = join(root, 'result.json')
+  await mkdir(input)
+  try {
+    const events = [
+      { type: 'run-start' },
+      { type: 'file-start', entry },
+      { type: 'case-start', ...result(0, 'failed') },
+      { type: 'case-end', ...result(0, 'failed') },
+      {
+        type: 'case-end',
+        ...result(0, 'cancelled'),
+        caseId: 'unstarted',
+        attempt: { id: 'unstarted', retry: 0, repeat: 0 },
+        mode: 'run',
+        bail: true,
+        durationMs: 0,
+      },
+      { type: 'file-end', entryId: entry.id, status: 'failed', durationMs: 3 },
+      { type: 'run-end', status: 'failed', durationMs: 3 },
+    ].map((event) => ({ ...envelope, ...event }))
+    await writeFile(
+      join(input, 'bail.json'),
+      JSON.stringify({
+        version: 1,
+        kind: 'next-test-results',
+        referenceVersion: '5.0.4',
+        projectDir: '/project',
+        events,
+      })
+    )
+    await expect(
+      mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).resolves.toBe('failed')
+    const report = JSON.parse(await readFile(outputFile, 'utf8'))
+    expect(report).toMatchObject({
+      numTotalTests: 2,
+      numFailedTests: 1,
+      numPendingTests: 0,
+    })
+    expect(
+      report.testResults[0].assertionResults.map((test: any) => test.status)
+    ).toEqual(['failed', 'pending'])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
 it.each([
+  [
+    'bail after case start',
+    (events: any[]) => {
+      Object.assign(events[2], {
+        status: 'cancelled',
+        mode: 'run',
+        bail: true,
+        durationMs: 0,
+        errors: [],
+      })
+      events.splice(2, 0, { ...events[2], type: 'case-start' })
+    },
+  ],
+  [
+    'bail after earlier attempt',
+    (events: any[]) => {
+      Object.assign(events[2], {
+        status: 'cancelled',
+        mode: 'run',
+        bail: true,
+        durationMs: 0,
+        errors: [],
+      })
+      events.splice(2, 0, {
+        ...events[2],
+        bail: undefined,
+        status: 'passed',
+        attempt: { id: 'earlier', retry: 0, repeat: 0 },
+      })
+    },
+  ],
+  [
+    'bail with retry identity',
+    (events: any[]) => {
+      Object.assign(events[2], {
+        status: 'cancelled',
+        mode: 'run',
+        bail: true,
+        durationMs: 0,
+        errors: [],
+        attempt: { id: 'retry', retry: 1, repeat: 0 },
+      })
+    },
+  ],
+  [
+    'invalid bail flag',
+    (events: any[]) => {
+      events[2].bail = 'yes'
+    },
+  ],
+  [
+    'bailed passing result',
+    (events: any[]) => {
+      events[2].bail = true
+    },
+  ],
+  [
+    'bailed failed result',
+    (events: any[]) => {
+      events[2].bail = true
+      events[2].status = 'cancelled'
+      events[2].mode = 'run'
+      events[2].errors = [
+        serializeDiagnostic(new Error('original failure'), {
+          phase: 'runtime',
+        }),
+      ]
+    },
+  ],
+  [
+    'invalid pending flag',
+    (events: any[]) => {
+      events[2].pending = 'yes'
+    },
+  ],
+  [
+    'pending passing result',
+    (events: any[]) => {
+      events[2].pending = true
+    },
+  ],
+  [
+    'invalid skip note',
+    (events: any[]) => {
+      events[2].note = {}
+    },
+  ],
+  [
+    'missing root suite',
+    (events: any[]) =>
+      events.splice(3, 0, {
+        ...events[2],
+        type: 'suite-end',
+        suiteId: 'child',
+        mode: 'run',
+        ancestors: [],
+      }),
+  ],
+  [
+    'missing suite ancestor',
+    (events: any[]) => {
+      const suite = {
+        ...events[2],
+        type: 'suite-end',
+        mode: 'run',
+        suiteId: events[1].entry.id,
+        ancestors: [],
+      }
+      events.splice(
+        3,
+        0,
+        {
+          ...suite,
+          suiteId: 'child',
+          ancestors: [{ id: 'missing', name: 'missing' }],
+        },
+        suite
+      )
+    },
+  ],
+  [
+    'duplicate suite',
+    (events: any[]) => {
+      const suite = {
+        ...events[2],
+        type: 'suite-end',
+        suiteId: 'suite',
+        mode: 'run',
+        ancestors: [],
+      }
+      events.splice(3, 0, suite, { ...suite })
+    },
+  ],
+  [
+    'invalid suite ancestors',
+    (events: any[]) =>
+      events.splice(3, 0, {
+        ...events[2],
+        type: 'suite-end',
+        suiteId: 'suite',
+        mode: 'run',
+        ancestors: [{}],
+      }),
+  ],
+  [
+    'suite after file completion',
+    (events: any[]) =>
+      events.splice(4, 0, {
+        ...events[2],
+        type: 'suite-end',
+        suiteId: 'suite',
+        mode: 'run',
+        ancestors: [],
+      }),
+  ],
   [
     'nested run-start',
     (events: any[]) => events.splice(2, 0, { ...events[0] }),
@@ -1317,3 +1938,1183 @@ it.each([
     }
   }
 )
+
+it('replaces failed retries while retaining failed or cancelled repeats independently per case', () => {
+  const cases = getFinalCaseResults([
+    result(0, 'failed'),
+    result(1, 'passed'),
+    result(0, 'passed', 1),
+    { ...result(0, 'failed'), caseId: 'failed repeat' },
+    { ...result(0, 'passed', 1), caseId: 'failed repeat' },
+    { ...result(0, 'cancelled'), caseId: 'cancelled repeat' },
+    { ...result(0, 'passed', 1), caseId: 'cancelled repeat' },
+  ])
+  expect([...cases].map(([caseId, test]) => [caseId, test.status])).toEqual([
+    ['case', 'passed'],
+    ['failed repeat', 'failed'],
+    ['cancelled repeat', 'cancelled'],
+  ])
+  expect(
+    getFinalCaseResults([result(1, 'passed'), result(0, 'failed')]).get('case')
+      ?.status
+  ).toBe('passed')
+})
+
+it('retains real annotation metadata through Next blob merging and rejects forged annotation ownership before publishing', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-annotation-reports-'))
+  const input = join(root, 'blobs')
+  const outputFile = join(root, 'merged.json')
+  await mkdir(input)
+  const wrap = (event: object) => ({ ...envelope, ...event })
+  const annotation = {
+    message: 'release evidence',
+    type: 'issue',
+    location: { file: entry.file, line: 4, column: 7 },
+    attachment: { body: 'AQID', bodyEncoding: 'base64' },
+  }
+  const completed = {
+    ...result(0, 'passed'),
+    mode: 'run',
+    meta: { ticket: 42 },
+    tags: ['release'],
+    annotations: [annotation],
+  }
+  const start = {
+    type: 'case-start',
+    entryId: entry.id,
+    caseId: completed.caseId,
+    attempt: completed.attempt,
+    name: completed.name,
+  }
+  const note = {
+    type: 'test-annotation',
+    entryId: entry.id,
+    caseId: completed.caseId,
+    attempt: completed.attempt,
+    annotation,
+  }
+  const blob = {
+    version: 1,
+    kind: 'next-test-results',
+    referenceVersion: '5.0.4',
+    projectDir: '/project',
+    events: [
+      wrap({ type: 'run-start' }),
+      wrap({ type: 'file-start', entry }),
+      wrap(start),
+      wrap(note),
+      wrap({ type: 'case-end', ...completed }),
+      wrap({
+        type: 'suite-end',
+        entryId: entry.id,
+        suiteId: entry.id,
+        name: '',
+        ancestors: [],
+        mode: 'run',
+        status: 'passed',
+        durationMs: 3,
+        errors: [],
+      }),
+      wrap({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'passed',
+        durationMs: 3,
+      }),
+      wrap({ type: 'run-end', status: 'passed', durationMs: 3 }),
+    ],
+  }
+  const shard = join(input, 'shard.json')
+  try {
+    await writeFile(shard, JSON.stringify(blob))
+    expect(
+      await mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).toBe('passed')
+    const merged = JSON.parse(await readFile(outputFile, 'utf8'))
+    expect(merged.testResults[0].assertionResults[0]).toMatchObject({
+      meta: { ticket: 42 },
+      tags: ['release'],
+    })
+    expect(
+      merged.next.events.find((event: any) => event.type === 'test-annotation')
+        .annotation
+    ).toEqual(annotation)
+    const validOutput = await readFile(outputFile, 'utf8')
+    for (const mutate of [
+      (events: any[]) => {
+        events[3].annotation.message = 42
+      },
+      (events: any[]) => {
+        events[3].annotation.location.line = 0
+      },
+      (events: any[]) => {
+        events[3].attempt.id = 'foreign'
+      },
+      (events: any[]) => {
+        events[3].caseId = 'foreign'
+      },
+      (events: any[]) => {
+        const [late] = events.splice(3, 1)
+        events.splice(4, 0, late)
+      },
+      (events: any[]) => {
+        events[4].meta = []
+      },
+      (events: any[]) => {
+        events[4].tags = [42]
+      },
+      (events: any[]) => {
+        events[4].annotations[0].type = 42
+      },
+    ]) {
+      const forged = JSON.parse(JSON.stringify(blob))
+      mutate(forged.events)
+      await writeFile(shard, JSON.stringify(forged))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow(/Invalid|inactive/)
+      expect(await readFile(outputFile, 'utf8')).toBe(validOutput)
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('does not replace the completed report when a generation is cancelled during atomic publication', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'next-watch-report-cancel-'))
+  const target = join(root, 'result.json')
+  const controller = new AbortController()
+  const reason = new Error('Superseded before publication')
+  const machine = createMachineReporter({
+    projectDir: root,
+    reporters: ['json'],
+    outputFile: 'result.json',
+  })
+  const originalWrite = writeFile
+  await originalWrite(target, 'previous completed generation')
+  const filesystem =
+    require('node:fs/promises') as typeof import('node:fs/promises')
+  const write = jest
+    .spyOn(filesystem, 'writeFile')
+    .mockImplementation(async (...args: Parameters<typeof writeFile>) => {
+      const value = await originalWrite(...args)
+      if (String(args[0]).endsWith('.tmp')) controller.abort(reason)
+      return value
+    })
+  try {
+    machine.onEvent({ ...envelope, type: 'run-start' })
+    machine.onEvent({
+      ...envelope,
+      type: 'run-end',
+      status: 'passed',
+      durationMs: 1,
+    })
+    await expect(machine.finish({ signal: controller.signal })).rejects.toBe(
+      reason
+    )
+    expect(await readFile(target, 'utf8')).toBe('previous completed generation')
+    expect(await filesystem.readdir(root)).toEqual(['result.json'])
+  } finally {
+    write.mockRestore()
+    machine.dispose()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+describe('pinned built-in result reporters', () => {
+  it('accepts built-ins alongside a machine reporter without replacing it', () => {
+    expect(
+      parseResultReporters([
+        'json',
+        'tap',
+        'tap-flat',
+        'verbose',
+        'dot',
+        'github-actions',
+      ])
+    ).toEqual(['json', 'tap', 'tap-flat', 'verbose', 'dot', 'github-actions'])
+  })
+
+  it('verbose renders fast passing declarations with their full file and suite identity', () => {
+    const { emit, output } = setup({ style: 'verbose' })
+    emit({
+      type: 'case-end',
+      ...result(0, 'passed'),
+      testName: 'renders',
+      ancestors: [{ id: 'suite', name: 'nested' }],
+    })
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'passed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+    expect(output()).toContain(
+      ' ✓ |node| example.test.ts > nested > renders 3ms\n'
+    )
+    expect(output()).not.toContain('example.test.ts (1 test)')
+    expect(output()).toContain('1 passed (1)')
+  })
+
+  it('dot uses final case glyphs and retains real failure diagnostics', () => {
+    const { emit, output } = setup({ style: 'dot' })
+    for (const [index, status] of [
+      'passed',
+      'failed',
+      'skipped',
+      'skipped',
+    ].entries()) {
+      emit({
+        type: 'case-end',
+        ...result(0, status as CaseResult['status']),
+        caseId: `case-${index}`,
+        mode: index === 3 ? 'todo' : index === 2 ? 'skip' : 'run',
+      })
+    }
+    emit({
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'failed',
+      durationMs: 3,
+    })
+    emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+    expect(output()).toContain('·x--\n')
+    expect(output()).toContain('render failed')
+    expect(output()).not.toContain('example.test.ts (4 tests')
+  })
+
+  it.each(['tap', 'tap-flat'] as const)(
+    '%s emits real nested results while preserving the separate JSON file and retries',
+    async (name) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-builtin-tap-'))
+      const write = jest.fn()
+      const machine = createMachineReporter({
+        projectDir: '/project',
+        reporters: ['json', name],
+        outputFile: join(root, 'result.json'),
+        write,
+      })
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      const failed = {
+        ...result(0, 'failed'),
+        caseId: `${entry.id}/0/0`,
+        testName: 'fails # literal',
+        ancestors: [{ id: `${entry.id}/0`, name: 'nested' }],
+      }
+      try {
+        emit({ type: 'run-start' })
+        emit({ type: 'file-start', entry })
+        emit({ type: 'case-end', ...failed })
+        emit({
+          type: 'case-end',
+          ...result(0, 'failed'),
+          caseId: `${entry.id}/1`,
+          testName: 'recovers',
+        })
+        emit({
+          type: 'case-end',
+          ...result(1, 'passed'),
+          caseId: `${entry.id}/1`,
+          testName: 'recovers',
+        })
+        emit({
+          type: 'suite-end',
+          entryId: entry.id,
+          suiteId: `${entry.id}/0`,
+          name: 'nested',
+          ancestors: [],
+          mode: 'run',
+          status: 'failed',
+          durationMs: 3,
+          errors: [],
+        })
+        emit({
+          type: 'file-end',
+          entryId: entry.id,
+          status: 'failed',
+          durationMs: 3,
+        })
+        emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+        await machine.finish()
+        const json = JSON.parse(
+          await readFile(join(root, 'result.json'), 'utf8')
+        )
+        expect(json).toMatchObject({
+          success: false,
+          numTotalTests: 2,
+          numPassedTests: 1,
+          numFailedTests: 1,
+        })
+        expect(
+          json.testResults[0].assertionResults[1].failureMessages[0]
+        ).toContain('render failed')
+        const text = write.mock.calls.flat().join('')
+        expect(text).toContain('TAP version 13\n')
+        expect(text).toContain('message: "render failed"')
+        expect(text).toContain('fails \\# literal')
+        expect(text).toContain('ok 2 - ')
+        if (name === 'tap-flat') {
+          expect(text).toContain('not ok 1 - example.test.ts > nested > fails')
+          expect(text).not.toContain(' {\n')
+        } else {
+          expect(text).toContain('not ok 1 - example.test.ts # time=3.00ms {\n')
+          expect(text).toContain('    not ok 1 - nested # time=3.00ms {\n')
+        }
+      } finally {
+        machine.dispose()
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('GitHub Actions escapes workflow commands and writes a result summary without swallowing failure evidence', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-builtin-github-'))
+    const previous = process.env.GITHUB_STEP_SUMMARY
+    process.env.GITHUB_STEP_SUMMARY = join(root, 'summary.md')
+    const write = jest.fn()
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['github-actions'],
+      write,
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    try {
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry })
+      emit({
+        type: 'case-end',
+        ...result(0, 'failed'),
+        errors: [
+          {
+            phase: 'runtime',
+            severity: 'error',
+            message: 'bad%\r\n::warning::injected',
+            location: { file: '/project/comma,name.ts', line: 2, column: 3 },
+          },
+        ],
+        annotations: [
+          {
+            type: 'review',
+            message: 'line one\nline two',
+            location: { file: '/project/test.ts', line: 4, column: 5 },
+          },
+        ],
+      })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'failed',
+        durationMs: 3,
+      })
+      emit({ type: 'run-end', status: 'failed', durationMs: 3 })
+      await machine.finish()
+      const text = write.mock.calls.flat().join('')
+      expect(text).toContain('::error file=/project/comma%2Cname.ts,')
+      expect(text).toContain('bad%25%0D%0A::warning::injected')
+      expect(text).toContain(
+        '::notice file=/project/test.ts,line=4,column=5,title=review::line one%0Aline two'
+      )
+      expect(await readFile(join(root, 'summary.md'), 'utf8')).toContain(
+        '| 0 | 1 | 0 |'
+      )
+    } finally {
+      if (previous === undefined) delete process.env.GITHUB_STEP_SUMMARY
+      else process.env.GITHUB_STEP_SUMMARY = previous
+      machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('does not publish a completed machine result after a built-in writer throws', async () => {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json', 'verbose'],
+      write: () => {
+        throw new Error('builtin writer failed')
+      },
+    })
+    try {
+      expect(() => machine.onEvent({ ...envelope, type: 'run-start' })).toThrow(
+        'builtin writer failed'
+      )
+      await expect(machine.finish()).rejects.toThrow(
+        'authoritative run cleanup'
+      )
+    } finally {
+      machine.dispose()
+    }
+  })
+})
+
+describe('owned custom completion reporters', () => {
+  async function custom(mode = 'normal', reporter = 'completion-reporter.mjs') {
+    const root = await mkdtemp(join(tmpdir(), 'next-custom-reporter-'))
+    await cp(join(__dirname, 'fixtures', reporter), join(root, reporter))
+    await writeFile(
+      join(root, 'reporter-options.json'),
+      JSON.stringify({ mode })
+    )
+    const machine = createMachineReporter({
+      projectDir: root,
+      reporters: parseResultReporters(['json', join(root, reporter)]),
+      outputFile: 'result.json',
+      write: jest.fn(),
+    })
+    const localEntry = {
+      ...entry,
+      id: 'release:contract.case.mjs',
+      file: join(root, 'contract.case.mjs'),
+      profile: { ...entry.profile, id: 'release' },
+    }
+    function complete() {
+      const emit = (event: object) =>
+        machine.onEvent({ ...envelope, ...event } as ResultEvent)
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry: localEntry })
+      const suiteId = `${localEntry.id}/0`
+      for (const [index, name] of ['passes', 'skipped', 'future'].entries()) {
+        const caseId = `${suiteId}/${index}`
+        emit({
+          type: 'case-end',
+          ...result(0, index === 0 ? 'passed' : 'skipped'),
+          entryId: localEntry.id,
+          caseId,
+          attempt: { id: `${caseId}/0/0`, retry: 0, repeat: 0 },
+          name,
+          testName: name,
+          mode: index === 0 ? 'run' : index === 1 ? 'skip' : 'todo',
+          ancestors: [{ id: suiteId, name: 'outer' }],
+        })
+      }
+      emit({
+        type: 'suite-end',
+        entryId: localEntry.id,
+        suiteId,
+        name: 'outer',
+        ancestors: [],
+        mode: 'run',
+        status: 'passed',
+        durationMs: 3,
+        errors: [],
+      })
+      emit({
+        type: 'file-end',
+        entryId: localEntry.id,
+        status: 'passed',
+        durationMs: 3,
+      })
+      emit({ type: 'run-end', status: 'passed', durationMs: 3 })
+    }
+    const trace = async () =>
+      (await readFile(join(root, 'trace.jsonl'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+    return { root, machine, complete, trace }
+  }
+
+  it('initializes before events, exposes real nested task identities and awaits async completion/close', async () => {
+    const c = await custom()
+    try {
+      expect(() => c.complete()).toThrow('initialize before execution events')
+      await c.machine.initialize()
+      const { pid } = JSON.parse(
+        await readFile(join(c.root, 'initialized.json'), 'utf8')
+      )
+      expect(pid).not.toBe(process.pid)
+      c.complete()
+      await c.machine.finish()
+      await c.machine.dispose()
+      expect(await c.trace()).toEqual([
+        { hook: 'init' },
+        {
+          hook: 'end',
+          reason: 'passed',
+          errors: [],
+          modules: [
+            {
+              type: 'module',
+              moduleId: '/contract.case.mjs',
+              state: 'passed',
+              ok: true,
+              size: 1,
+              tests: [
+                {
+                  type: 'test',
+                  name: 'passes',
+                  fullName: 'outer > passes',
+                  result: { state: 'passed' },
+                  sameModule: true,
+                  parentName: 'outer',
+                  annotations: [],
+                  meta: {},
+                  tags: [],
+                  mode: 'run',
+                },
+                {
+                  type: 'test',
+                  name: 'skipped',
+                  fullName: 'outer > skipped',
+                  result: { state: 'skipped' },
+                  sameModule: true,
+                  parentName: 'outer',
+                  annotations: [],
+                  meta: {},
+                  tags: [],
+                  mode: 'skip',
+                },
+                {
+                  type: 'test',
+                  name: 'future',
+                  fullName: 'outer > future',
+                  result: { state: 'skipped' },
+                  sameModule: true,
+                  parentName: 'outer',
+                  annotations: [],
+                  meta: {},
+                  tags: [],
+                  mode: 'todo',
+                },
+              ],
+            },
+          ],
+        },
+        { hook: 'close' },
+      ])
+      expect(() => process.kill(pid, 0)).toThrow(
+        expect.objectContaining({ code: 'ESRCH' })
+      )
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('loads a CommonJS default constructor and reports actual cases', async () => {
+    const c = await custom('normal', 'commonjs-reporter.cjs')
+    try {
+      await c.machine.initialize()
+      c.complete()
+      await c.machine.finish()
+      expect(
+        JSON.parse(await readFile(join(c.root, 'commonjs-result.json'), 'utf8'))
+      ).toEqual([
+        { name: 'passes', state: 'passed' },
+        { name: 'skipped', state: 'skipped' },
+        { name: 'future', state: 'skipped' },
+      ])
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps the passing JSON result while surfacing an async reporter publication failure', async () => {
+    const c = await custom('end')
+    try {
+      await c.machine.initialize()
+      c.complete()
+      await expect(c.machine.finish()).rejects.toThrow(
+        'reporter publication failed'
+      )
+      expect(
+        JSON.parse(await readFile(join(c.root, 'result.json'), 'utf8'))
+      ).toMatchObject({ success: true, numPassedTests: 1 })
+      await c.machine.dispose()
+      expect((await c.trace()).at(-1)).toEqual({ hook: 'close' })
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    ['constructor', 'reporter constructor failed'],
+    ['init', 'reporter init failed'],
+    ['unsupported', 'onTestCaseReady requires actual Next producer events'],
+    ['context', 'context.projects needs a broader Next tooling adapter'],
+  ])('reclaims the reporter realm after %s failure', async (mode, message) => {
+    const c = await custom(mode)
+    try {
+      await expect(c.machine.initialize()).rejects.toThrow(message)
+    } finally {
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('retains a real close callback failure after successful report publication', async () => {
+    const c = await custom('cleanup')
+    try {
+      await c.machine.initialize()
+      c.complete()
+      await c.machine.finish()
+      await expect(c.machine.dispose()).rejects.toThrow(
+        'reporter cleanup failed'
+      )
+    } finally {
+      await c.machine.dispose().catch(() => {})
+      await rm(c.root, { recursive: true, force: true })
+    }
+  })
+
+  it('cancels an uncooperative initialization and waits for its owned process to exit', async () => {
+    const c = await custom('hang')
+    const controller = new AbortController()
+    const reason = new Error('custom reporter startup cancelled')
+    try {
+      const initialized = c.machine.initialize({ signal: controller.signal })
+      // Attach the rejection observer before initiating cancellation.
+      const rejected = initialized.then(
+        () => undefined,
+        (error) => error
+      )
+      let pid = 0
+      await retry(async () => {
+        pid = JSON.parse(
+          await readFile(join(c.root, 'initialized.json'), 'utf8')
+        ).pid
+        expect(pid).toBeGreaterThan(0)
+      })
+      controller.abort(reason)
+      expect(await rejected).toBe(reason)
+      expect(() => process.kill(pid, 0)).toThrow(
+        expect.objectContaining({ code: 'ESRCH' })
+      )
+    } finally {
+      controller.abort(reason)
+      await c.machine.dispose()
+      await rm(c.root, { recursive: true, force: true })
+    }
+  }, 15000)
+})
+
+describe('producer specification and declaration ordering', () => {
+  function orderedRun(specificationOrder?: string[]) {
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+      write: jest.fn(),
+    })
+    const events: ResultEvent[] = []
+    const emit = (event: object) => {
+      const value = { ...envelope, ...event } as ResultEvent
+      events.push(value)
+      machine.onEvent(value)
+    }
+    // Two projects select the same physical path; their identities remain distinct.
+    const specifications = ['z', 'a'].flatMap((project) =>
+      ['b', 'c'].map((file) => ({
+        ...entry,
+        id: `${project}:${file}`,
+        file: `/project/${file}.case.mjs`,
+        profile: { ...entry.profile, id: project },
+      }))
+    )
+    emit({
+      type: 'run-start',
+      ...(specificationOrder ? { specificationOrder } : {}),
+    })
+    const declarations = [
+      '0',
+      '1',
+      ...Array.from({ length: 12 }, (_, index) => `2/${index}`),
+      ...Array.from({ length: 9 }, (_, index) => String(index + 3)),
+    ]
+    const execution = [...declarations].reverse()
+    for (const selected of [...specifications].reverse()) {
+      emit({ type: 'file-start', entry: selected })
+      for (const declaration of execution) {
+        const caseId = `${selected.id}/0/${declaration}`
+        emit({
+          type: 'case-end',
+          ...result(0, 'passed'),
+          entryId: selected.id,
+          caseId,
+          attempt: { id: `${caseId}/0/0`, retry: 0, repeat: 0 },
+          name: declaration,
+        })
+      }
+      emit({
+        type: 'file-end',
+        entryId: selected.id,
+        status: 'passed',
+        durationMs: 3,
+      })
+    }
+    emit({ type: 'run-end', status: 'passed', durationMs: 12 })
+    return { machine, events, declarations, execution, specifications }
+  }
+
+  it('retains original specification order and nested numeric declarations independently from seeded execution', async () => {
+    const order = ['z:b', 'z:c', 'a:b', 'a:c']
+    const c = orderedRun(order)
+    try {
+      const report = c.machine.getJson()
+      expect(report.testResults.map((file) => file.name)).toEqual(
+        c.specifications.map((selected) => selected.file)
+      )
+      for (const file of report.testResults)
+        expect(file.assertionResults.map((test) => test.title)).toEqual(
+          c.declarations
+        )
+      expect(report.next.events).toEqual(c.events)
+      expect(
+        report.next.events
+          .filter((event) => event.type === 'file-start')
+          .map((event) => event.entry.id)
+      ).toEqual([...order].reverse())
+      expect(
+        report.next.events
+          .filter(
+            (event): event is Extract<ResultEvent, { type: 'case-end' }> =>
+              event.type === 'case-end' && event.entryId === 'z:b'
+          )
+          .map((event) => event.name)
+      ).toEqual(c.execution)
+    } finally {
+      await c.machine.dispose()
+    }
+  })
+
+  it('preserves observed file order when no specification evidence is present', async () => {
+    const c = orderedRun()
+    try {
+      expect(c.machine.getJson().testResults.map((file) => file.name)).toEqual(
+        [...c.specifications].reverse().map((selected) => selected.file)
+      )
+    } finally {
+      await c.machine.dispose()
+    }
+  })
+
+  it('retains declaration/specification evidence through blob merging and rejects malformed ordering before publication', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-ordered-results-'))
+    const c = orderedRun(['z:b', 'z:c', 'a:b', 'a:c'])
+    const shard = join(root, 'shard.json')
+    const outputFile = join(root, 'result.json')
+    const blob = {
+      version: 1,
+      kind: 'next-test-results',
+      referenceVersion: '5.0.4',
+      projectDir: '/project',
+      events: c.events,
+    }
+    try {
+      await writeFile(shard, JSON.stringify(blob))
+      await mergeResultReports(root, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+      const validOutput = await readFile(outputFile, 'utf8')
+      const merged = JSON.parse(validOutput)
+      expect(merged.testResults.map((file) => file.name)).toEqual(
+        c.specifications.map((selected) =>
+          join(root, selected.file.slice('/project/'.length))
+        )
+      )
+      for (const file of merged.testResults)
+        expect(file.assertionResults.map((test) => test.title)).toEqual(
+          c.declarations
+        )
+      // Use a separate input folder so the published JSON is not read as a blob.
+      const input = join(root, 'input')
+      await mkdir(input)
+      for (const invalid of [
+        null,
+        'z:b',
+        ['z:b', 42],
+        ['z:b', 'z:b'],
+        ['z:b'],
+      ]) {
+        const forged = JSON.parse(JSON.stringify(blob))
+        forged.events[0].specificationOrder = invalid
+        await writeFile(join(input, 'shard.json'), JSON.stringify(forged))
+        await expect(
+          mergeResultReports(input, {
+            projectDir: root,
+            reporters: ['json'],
+            outputFile,
+          })
+        ).rejects.toThrow('Invalid specification order')
+        expect(await readFile(outputFile, 'utf8')).toBe(validOutput)
+      }
+    } finally {
+      await c.machine.dispose()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('pinned foreign final-task blob import', () => {
+  const fixtures = join(__dirname, 'fixtures', 'vitest-5.0.4')
+  const scenarios = [
+    'original-public-merge',
+    'nested-pass-fail-retry',
+    'collection-error',
+    'unhandled-error',
+  ]
+  it.each(scenarios)(
+    'projects the actual pristine %s blob without manufacturing Next events',
+    async (scenario) => {
+      const root = await mkdtemp(join(tmpdir(), 'next-foreign-blob-'))
+      const input = join(root, 'blobs')
+      await mkdir(input)
+      const outputFile = join(root, 'result.json')
+      try {
+        const wire = await readFile(join(fixtures, `${scenario}.blob`), 'utf8')
+        await writeFile(join(input, 'reference.blob'), wire)
+        const expected = JSON.parse(
+          await readFile(join(fixtures, `${scenario}.json`), 'utf8')
+        )
+        const errorOutput = jest
+          .spyOn(process.stderr, 'write')
+          .mockImplementation(() => true)
+        let status
+        try {
+          status = await mergeResultReports(input, {
+            projectDir: root,
+            reporters: ['json'],
+            outputFile,
+          })
+        } finally {
+          errorOutput.mockRestore()
+        }
+        expect(status).toBe(expected.expectedCode ? 'failed' : 'passed')
+        const imported = JSON.parse(await readFile(outputFile, 'utf8'))
+        expect(imported).not.toHaveProperty('next')
+        expect(imported.vitest).toMatchObject({
+          version: '5.0.4',
+          evidence: 'foreign-final-task-graph',
+          attemptHistory: 'unavailable',
+          runBoundaries: 'unavailable',
+          snapshotSummary: 'not-serialized',
+          environmentGraphs: 'opaque-not-restored',
+        })
+        expect(imported.vitest.blobs[0].flatted).toEqual(JSON.parse(wire))
+        const { vitest: _foreign, ...standard } = imported
+        // Merge-context wall time is new; file times continue to come from producer cases.
+        const expectedReport = {
+          ...expected.report,
+          startTime: imported.startTime,
+          testResults: expected.report.testResults.map((file) =>
+            file.assertionResults.every((test) => test.duration === undefined)
+              ? {
+                  ...file,
+                  startTime: imported.startTime,
+                  endTime: imported.startTime,
+                }
+              : file
+          ),
+        }
+        expect(standard).toEqual(expectedReport)
+        if (scenario === 'unhandled-error') {
+          expect(imported.success).toBe(true)
+          expect(imported.numPassedTests).toBe(1)
+        }
+        if (scenario === 'nested-pass-fail-retry') {
+          const retryResult = imported.testResults
+            .flatMap((file) => file.assertionResults)
+            .find((test) => test.title === 'retry')
+          expect(retryResult.status).toBe('passed')
+          expect(retryResult.failureMessages).toEqual([
+            expect.stringContaining('first retry failure'),
+          ])
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('rejects malformed, incomplete, overlapping and mixed foreign inputs before replacing an existing report', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-invalid-foreign-blob-'))
+    const input = join(root, 'blobs')
+    await mkdir(input)
+    const source = await readFile(
+      join(fixtures, 'original-public-merge.blob'),
+      'utf8'
+    )
+    const outputFile = join(root, 'result.json')
+    const mutate = (change: (table: any[], context: any) => void) => {
+      const table = JSON.parse(source)
+      const tuple = table[0]
+      const files = table[Number(tuple[1])]
+      const fileIndex = Number(files[0])
+      const file = table[fileIndex]
+      const tasks = table[Number(file.tasks)]
+      const testIndex = Number(tasks[0])
+      const test = table[testIndex]
+      const result = table[Number(test.result)]
+      const ref = (value: unknown) => String(table.push(value) - 1)
+      change(table, {
+        tuple,
+        file,
+        fileIndex,
+        tasks,
+        test,
+        testIndex,
+        result,
+        ref,
+      })
+      return JSON.stringify(table)
+    }
+    try {
+      await writeFile(outputFile, 'previous report')
+      for (const text of [
+        '[',
+        mutate((table, { tuple }) => {
+          tuple[1] = String(table.length + 10)
+        }),
+        mutate((table, { tuple, ref }) => {
+          tuple[0] = ref('9.0.0')
+        }),
+        mutate((_table, { file, ref }) => {
+          file.filepath = ref('/project/../escape.case.mjs')
+        }),
+        mutate((_table, { file, ref }) => {
+          file.filepath = ref('/project/contract.case.mjs\0hidden')
+        }),
+        mutate((_table, { file, ref }) => {
+          file.name = ref('../contract.case.mjs')
+        }),
+        mutate((_table, { file, testIndex }) => {
+          file.file = String(testIndex)
+        }),
+        mutate((_table, { tasks }) => {
+          tasks.push(tasks[0])
+        }),
+        mutate((_table, { test, fileIndex }) => {
+          test.suite = String(fileIndex)
+        }),
+        mutate((_table, { test }) => {
+          delete test.result
+        }),
+        mutate((_table, { result, ref }) => {
+          result.state = ref('run')
+        }),
+        mutate((_table, { result }) => {
+          result.duration = -1
+        }),
+        mutate((_table, { tuple, ref }) => {
+          tuple[3] = ref({})
+        }),
+      ]) {
+        await writeFile(join(input, 'reference.blob'), text)
+        await expect(
+          mergeResultReports(input, {
+            projectDir: root,
+            reporters: ['json'],
+            outputFile,
+          })
+        ).rejects.toThrow()
+        expect(await readFile(outputFile, 'utf8')).toBe('previous report')
+      }
+      await writeFile(join(input, 'reference.blob'), source)
+      await writeFile(join(input, 'duplicate.blob'), source)
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow(/overlapping|duplicate/)
+      await rm(join(input, 'duplicate.blob'))
+      const ambiguous = mutate((_table, { file, ref }) => {
+        file.name = ref('different.case.mjs')
+        file.filepath = ref('/project/different.case.mjs')
+      })
+      await writeFile(join(input, 'ambiguous.blob'), ambiguous)
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow('ambiguous native task identity')
+      await rm(join(input, 'ambiguous.blob'))
+      await writeFile(
+        join(input, 'next.json'),
+        JSON.stringify({ version: 1, kind: 'next-test-results' })
+      )
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow('cannot mix')
+      await rm(join(input, 'next.json'))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json', 'default'],
+          outputFile,
+        })
+      ).rejects.toThrow('requires the JSON reporter')
+      expect(await readFile(outputFile, 'utf8')).toBe('previous report')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('merges real disjoint blobs in producer start order rather than directory or specification order', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-combined-foreign-blob-'))
+    const input = join(root, 'blobs')
+    const outputFile = join(root, 'result.json')
+    await mkdir(input)
+    try {
+      await cp(
+        join(fixtures, 'nested-pass-fail-retry.blob'),
+        join(input, 'a.blob')
+      )
+      await cp(
+        join(fixtures, 'original-public-merge.blob'),
+        join(input, 'b.blob')
+      )
+      const expected = JSON.parse(
+        await readFile(join(fixtures, 'combined-real-blobs.json'), 'utf8')
+      )
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).resolves.toBe('failed')
+      const { vitest, ...standard } = JSON.parse(
+        await readFile(outputFile, 'utf8')
+      )
+      expect(vitest.blobs).toHaveLength(2)
+      expect(standard).toEqual({
+        ...expected.report,
+        startTime: standard.startTime,
+      })
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps serialized prototype names inert and refuses linked or nonfile inputs before publication', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'next-owned-foreign-blob-'))
+    const input = join(root, 'blobs')
+    const outputFile = join(root, 'result.json')
+    await mkdir(input)
+    try {
+      const source = await readFile(
+        join(fixtures, 'original-public-merge.blob'),
+        'utf8'
+      )
+      const table = JSON.parse(source)
+      const file = table[Number(table[Number(table[0][1])][0])]
+      const test = table[Number(table[Number(file.tasks)][0])]
+      Object.defineProperty(table[Number(test.meta)], '__proto__', {
+        enumerable: true,
+        value: String(table.push({ foreignPollution: true }) - 1),
+      })
+      await writeFile(join(input, 'reference.blob'), JSON.stringify(table))
+      await mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+      const previous = await readFile(outputFile, 'utf8')
+      const report = JSON.parse(previous)
+      expect(report.testResults[0].assertionResults[0].meta).toHaveProperty(
+        '__proto__.foreignPollution',
+        true
+      )
+      expect(({} as any).foreignPollution).toBeUndefined()
+      await rm(join(input, 'reference.blob'))
+      await writeFile(join(root, 'outside.blob'), source)
+      await symlink(
+        join(root, 'outside.blob'),
+        join(input, 'reference.blob'),
+        'file'
+      )
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow()
+      expect(await readFile(outputFile, 'utf8')).toBe(previous)
+      await rm(join(input, 'reference.blob'))
+      await writeFile(join(input, 'reference.blob'), source)
+      await mkdir(join(input, 'not-a-blob'))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow('bounded regular file')
+      expect(await readFile(outputFile, 'utf8')).toBe(previous)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  // Windows has no POSIX FIFO directory entries or mkfifo utility.
+  const describePosix = process.platform === 'win32' ? describe.skip : describe
+  describePosix('POSIX foreign input ownership', () => {
+    it('rejects a POSIX FIFO before reading while reclaiming the isolated probe process', async () => {
+      const root = await mkdtemp(join(tmpdir(), 'next-fifo-foreign-blob-'))
+      const input = join(root, 'blobs')
+      const outputFile = join(root, 'result.json')
+      await mkdir(input)
+      try {
+        await writeFile(outputFile, 'previous report')
+        execFileSync('mkfifo', [join(input, 'blocked.blob')])
+        const script = `
+          process.stdout.write(JSON.stringify({ pid: process.pid }) + '\\n');
+          require(process.argv[1]).tryMergeVitestBlobReports(
+            process.argv[2], ['blocked.blob'],
+            { projectDir: process.argv[4], reporters: ['json'], outputFile: process.argv[3] }
+          ).then(
+            () => { process.exitCode = 2 },
+            (error) => process.stdout.write(JSON.stringify({ message: error.message }) + '\\n')
+          );
+        `
+        const output = execFileSync(
+          process.execPath,
+          [
+            '-e',
+            script,
+            require.resolve(
+              'next/dist/experimental/testing/reporting/vitest-blob'
+            ),
+            input,
+            outputFile,
+            root,
+          ],
+          { encoding: 'utf8', timeout: 3000, killSignal: 'SIGKILL' }
+        )
+        const [processInfo, failure] = output
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line))
+        expect(failure.message).toContain('bounded regular file')
+        expect(() => process.kill(processInfo.pid, 0)).toThrow(
+          expect.objectContaining({ code: 'ESRCH' })
+        )
+        expect(await readFile(outputFile, 'utf8')).toBe('previous report')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
+  })
+})

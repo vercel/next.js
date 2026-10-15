@@ -866,3 +866,43 @@ describe('compiled request configuration', () => {
     }
   })
 })
+
+it.each(['auto', 'force-dynamic', 'force-static', 'error'] as const)(
+  'applies effective route dynamic=%s in the actual request WorkStore',
+  async (dynamic) => {
+    const routeConfig = {
+      dynamic,
+      dynamicParams: true,
+      revalidate: false as const,
+      fetchCache: 'only-no-store' as const,
+    }
+    await runWithRenderRequest(
+      {
+        ...inputs('route'),
+        url: { pathname: '/reference/sample', search: '' },
+        rootParams: { tenant: 'acme' },
+      },
+      { ...context(), page: '/reference/[slug]/page' },
+      async () => {
+        const store = workAsyncStorage.getStore()!
+        expect(store.page).toBe('/reference/[slug]/page')
+        expect(store.route).toBe('/reference/[slug]')
+        expect(store.forceDynamic).toBe(dynamic === 'force-dynamic')
+        expect(store.forceStatic).toBe(dynamic === 'force-static')
+        expect(store.dynamicShouldError).toBe(dynamic === 'error')
+        expect(store.fetchCache).toBe('only-no-store')
+        expect(workUnitAsyncStorage.getStore()).toMatchObject({
+          rootParams: { tenant: 'acme' },
+          url: { pathname: '/reference/sample', search: '' },
+        })
+        if (dynamic === 'error')
+          expect(() => headers()).toThrow('dynamic = "error"')
+        else
+          expect((await headers()).get('accept-language')).toBe(
+            dynamic === 'force-static' ? null : 'route'
+          )
+      },
+      routeConfig
+    )
+  }
+)

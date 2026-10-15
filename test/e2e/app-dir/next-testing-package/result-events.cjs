@@ -21,11 +21,12 @@ if (
       ],
     ])
     const load = Module._load
+    const compile = Module.prototype._compile
     const proxies = new WeakMap()
-    Module._load = function (request, parent, isMain) {
-      const value = load.apply(this, arguments)
-      const name = targets.get(Module._resolveFilename(request, parent, isMain))
-      if (!name) return value
+    const observed = new WeakSet()
+    function observe(value, filename) {
+      const name = targets.get(filename)
+      if (!name || observed.has(value)) return value
       if (!proxies.has(value)) {
         const run = value[name]
         const wrapped = function (...args) {
@@ -43,18 +44,28 @@ if (
           }
           return Reflect.apply(run, this, args)
         }
-        proxies.set(
-          value,
-          new Proxy(value, {
-            get(target, property, receiver) {
-              return property === name
-                ? wrapped
-                : Reflect.get(target, property, receiver)
-            },
-          })
-        )
+        const proxy = new Proxy(value, {
+          get(target, property, receiver) {
+            return property === name
+              ? wrapped
+              : Reflect.get(target, property, receiver)
+          },
+        })
+        proxies.set(value, proxy)
+        observed.add(proxy)
       }
       return proxies.get(value)
+    }
+    // Native import() of CommonJS bypasses Module._load. Install the same
+    // transparent observer before its namespace captures the module exports.
+    Module.prototype._compile = function (content, filename) {
+      const result = compile.apply(this, arguments)
+      this.exports = observe(this.exports, filename)
+      return result
+    }
+    Module._load = function (request, parent, isMain) {
+      const value = load.apply(this, arguments)
+      return observe(value, Module._resolveFilename(request, parent, isMain))
     }
   }
 }

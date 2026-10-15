@@ -129,61 +129,72 @@ check(
 check(
   'failure listeners follow teardown and finished listeners, retain errors and forbid recursive registration',
   async () => {
-    await fixture(async (path) => {
-      const file = initializeTestFile({ fileId: 'file', filePath: path })
-      const order: string[] = []
-      await file.collect(async () => {
-        beforeEach(({ onTestFailed }) => {
-          onTestFailed(() => {
-            order.push('setup failed listener')
+    for (const failedTeardown of [true, false])
+      await fixture(async (path) => {
+        const file = initializeTestFile({ fileId: 'file', filePath: path })
+        const order: string[] = []
+        await file.collect(async () => {
+          beforeEach(({ onTestFailed }) => {
+            onTestFailed(() => {
+              order.push('setup failed listener')
+            })
+            return () => {
+              order.push('returned cleanup')
+              throw new Error('returned cleanup error')
+            }
           })
-          return () => {
-            order.push('returned cleanup')
-            throw new Error('returned cleanup error')
-          }
+          afterEach(() => {
+            order.push('after each')
+            if (failedTeardown) throw new Error('after each error')
+          })
+          test('failure', (context) => {
+            onTestFinished(() => {
+              order.push('finished first')
+            })
+            onTestFinished(() => {
+              order.push('finished second')
+              throw new Error('finished error')
+            })
+            onTestFailed((received) => {
+              assert.equal(received, context)
+              order.push('failed first')
+              expect(1).toBe(1)
+              assert.throws(
+                () => onTestFinished(() => {}),
+                /inside a test listener/
+              )
+            })
+            onTestFailed(() => {
+              order.push('failed second')
+              throw new Error('failed listener error')
+            })
+            throw new Error('body error')
+          })
         })
-        afterEach(() => {
-          order.push('after each')
-          throw new Error('after each error')
-        })
-        test('failure', (context) => {
-          onTestFinished(() => {
-            order.push('finished first')
-          })
-          onTestFinished(() => {
-            order.push('finished second')
-            throw new Error('finished error')
-          })
-          onTestFailed((received) => {
-            assert.equal(received, context)
-            order.push('failed first')
-            expect(1).toBe(1)
-            assert.throws(
-              () => onTestFinished(() => {}),
-              /inside a test listener/
-            )
-          })
-          onTestFailed(() => {
-            order.push('failed second')
-            throw new Error('failed listener error')
-          })
-          throw new Error('body error')
-        })
+        const result = await file.run(options())
+        await file.dispose()
+        assert.equal(result.cases[0].status, 'failed')
+        assert.deepEqual(order, [
+          'after each',
+          ...(failedTeardown ? [] : ['returned cleanup']),
+          'finished second',
+          'finished first',
+          'failed second',
+          'failed first',
+          'setup failed listener',
+        ])
+        assert.deepEqual(
+          result.cases[0].errors.map(({ error }) => String(error)),
+          [
+            'Error: body error',
+            failedTeardown
+              ? 'Error: after each error'
+              : 'Error: returned cleanup error',
+            'Error: finished error',
+            'Error: failed listener error',
+          ]
+        )
       })
-      const result = await file.run(options())
-      await file.dispose()
-      assert.equal(result.cases[0].status, 'failed')
-      assert.deepEqual(order, [
-        'after each',
-        'returned cleanup',
-        'finished second',
-        'finished first',
-        'failed second',
-        'failed first',
-        'setup failed listener',
-      ])
-      assert.equal(result.cases[0].errors.length, 5)
-    })
   }
 )
 
@@ -288,7 +299,7 @@ check(
 )
 
 check(
-  'explicit partial updates preserve skipped and absent snapshots and only parent commit writes',
+  'explicit partial updates preserve skipped keys, prune absent keys and only parent commit writes',
   async () => {
     await fixture(async (path, snapshot) => {
       await writeFile(snapshot, initial())
@@ -317,7 +328,8 @@ check(
       const content = await readFile(snapshot, 'utf8')
       assert.match(content, /"new"/)
       assert.match(content, /"keep"/)
-      assert.match(content, /"also keep"/)
+      assert.doesNotMatch(content, /"also keep"/)
+      assert.doesNotMatch(content, /legacy key/)
       assert.deepEqual(file.takeSnapshotUpdates(), [])
     })
   }
@@ -522,6 +534,53 @@ check(
 )
 
 check(
+  'retained public registration cannot borrow a concurrently live attempt identity',
+  async () => {
+    await fixture(async (path) => {
+      const file = initializeTestFile({
+        fileId: 'concurrent-owner',
+        filePath: path,
+      })
+      let retained!: typeof onTestFailed
+      let release!: () => void
+      let captured!: () => void
+      const gate = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const ready = new Promise<void>((resolve) => {
+        captured = resolve
+      })
+      await file.collect(async () => {
+        test.concurrent('original', async (context) => {
+          retained = context.onTestFailed
+          captured()
+          await gate
+        })
+        test.concurrent('other', async () => {
+          await ready
+          assert.throws(
+            () => retained(() => {}),
+            /different Next test attempt.*run\/concurrent-owner\/0\/0\/0/
+          )
+          release()
+        })
+      })
+      const result = await file.run(options())
+      await file.dispose()
+      assert.deepEqual(
+        result.cases.map(({ status }) => status),
+        ['passed', 'passed']
+      )
+      assert.equal(result.errors.length, 1)
+      assert.match(
+        String(result.errors[0].error),
+        /run\/concurrent-owner\/0\/0\/0/
+      )
+    })
+  }
+)
+
+check(
   'explicit update prunes obsolete names after retries while preserving checked and skipped snapshots',
   async () => {
     await fixture(async (path, snapshot) => {
@@ -580,6 +639,71 @@ check(
         await readFile(snapshot, 'utf8'),
         '// user edit during test\n'
       )
+    })
+  }
+)
+
+check(
+  'an earlier failed repeat cannot authorize snapshot updates after a passing repeat',
+  async () => {
+    await fixture(async (path, snapshot) => {
+      const original = initial()
+      await writeFile(snapshot, original)
+      const file = initializeTestFile({
+        fileId: 'file',
+        filePath: path,
+        updateSnapshots: true,
+      })
+      try {
+        let attempts = 0
+        await file.collect(async () => {
+          test('selected', { repeats: 1 }, () => {
+            expect('replacement').toMatchSnapshot()
+            if (++attempts === 1) throw new Error('failed earlier repeat')
+          })
+        })
+        const result = await file.run(options())
+        await file.dispose()
+        assert.deepEqual(
+          result.cases.map((test) => test.status),
+          ['failed', 'passed']
+        )
+        assert.throws(() => file.takeSnapshotUpdates(), /successful execution/)
+        assert.equal(await readFile(snapshot, 'utf8'), original)
+      } finally {
+        await file.dispose()
+      }
+    })
+  }
+)
+
+check(
+  'a poisoned expected-failure timeout cannot authorize snapshot updates',
+  async () => {
+    await fixture(async (path, snapshot) => {
+      const original = initial()
+      await writeFile(snapshot, original)
+      const file = initializeTestFile({
+        fileId: 'file',
+        filePath: path,
+        updateSnapshots: true,
+      })
+      try {
+        await file.collect(async () => {
+          test.fails('selected', { timeout: 1 }, () => {
+            expect('replacement').toMatchSnapshot()
+            return new Promise(() => {})
+          })
+        })
+        const result = await file.run(options())
+        await file.dispose()
+        assert.equal(result.interrupted, true)
+        assert.equal(result.cases[0].status, 'passed')
+        assert.throws(() => file.takeSnapshotUpdates(), /successful execution/)
+        assert.equal(await readFile(snapshot, 'utf8'), original)
+      } finally {
+        await file.dispose()
+      }
     })
   }
 )

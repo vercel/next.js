@@ -1,14 +1,19 @@
 import { fork } from 'child_process'
+import { parseTestInspectAddress } from './inspector'
 
 /** Private transport for a single file's evaluated realm. Never pool this process. */
 export interface TestProcessOptions {
   cwd: string
   env: NodeJS.ProcessEnv
   input: unknown
+  /** Only explicit file-worker debugging may add an inspector argument. */
+  inspect?: string
   signal?: AbortSignal
   /** Omit only when a parent lease owns the lifetime and cancellation. */
   timeoutMs?: number
   shutdownGraceMs?: number
+  /** Parent-owned sessions may send further requests through the same lease. */
+  onReady?: (send: (message: unknown) => Promise<void>) => void
   onMessage: (message: unknown) => void
   onOutput?: (stream: 'stdout' | 'stderr', chunk: Buffer) => void
 }
@@ -32,6 +37,7 @@ export function runTestProcess(
   workerPath: string,
   options: TestProcessOptions
 ): Promise<TestProcessExit> {
+  const inspect = parseTestInspectAddress(options.inspect)
   const grace = options.shutdownGraceMs ?? 1000
   const timeouts =
     options.timeoutMs === undefined ? [grace] : [options.timeoutMs, grace]
@@ -56,7 +62,10 @@ export function runTestProcess(
       cwd: options.cwd,
       env: options.env,
       // Do not inherit the coordinator's inspector port or execution hooks.
-      execArgv: ['--enable-source-maps'],
+      execArgv: [
+        '--enable-source-maps',
+        ...(inspect ? [`--inspect=${inspect}`] : []),
+      ],
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
       serialization: 'advanced',
       // A separate group lets us reclaim ordinary descendants, including ones
@@ -161,6 +170,14 @@ export function runTestProcess(
       else resolve({ code, signal, reason })
     })
     try {
+      options.onReady?.(
+        (message) =>
+          new Promise<void>((sent, failed) => {
+            child.send(message as any, (error) =>
+              error ? failed(error) : sent()
+            )
+          })
+      )
       child.send({ type: 'run', input: options.input }, (error) => {
         // A failed spawn also closes IPC; that consequence must not obscure the
         // original spawn failure. Independent process/group errors are retained.

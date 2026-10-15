@@ -1,4 +1,7 @@
-import { readdir, realpath, stat } from 'fs/promises'
+import { readdir, readFile, realpath, stat } from 'fs/promises'
+import { createHash } from 'crypto'
+import { resolveFileEnvironment } from './environments/config'
+import { usesInSourceTestMarker } from './in-source'
 import path from 'path'
 import picomatch from 'next/dist/compiled/picomatch'
 import type { TestEntry } from './contracts'
@@ -41,6 +44,11 @@ export async function discoverTests(
   return Promise.all(
     projects.map(async (project) => {
       const include = picomatch(project.include)
+      const typecheck = project.typecheck?.enabled
+        ? project.typecheck
+        : undefined
+      const typeInclude = typecheck ? picomatch(typecheck.include) : undefined
+      const typeExclude = typecheck ? picomatch(typecheck.exclude) : undefined
       const exclude = picomatch(project.exclude)
       const setupFiles = await Promise.all(
         project.setupFiles.map(async (file) => {
@@ -86,27 +94,102 @@ export async function discoverTests(
           'Duplicate setup files are unsupported; compiled setup modules execute once per file. Use unique setup files.'
         )
       }
+      const sourceFiles = new Map<string, string>()
+      if (!typecheck?.only && project.includeSource?.length) {
+        const includeSource = picomatch(project.includeSource)
+        for (const file of files) {
+          const relative = relativePath(root, file)
+          if (
+            !setup.has(file) &&
+            !fixtureModules.has(file) &&
+            !exclude(relative) &&
+            includeSource(relative) &&
+            (!selection.files?.length ||
+              selection.files.some((filter) => relative.includes(filter)))
+          ) {
+            // Match the published discovery contract. Actual syntax is parsed
+            // and substituted by the native compiler, never by this marker scan.
+            const source = await readFile(file)
+            if (source.toString('utf8').includes('import.meta.vitest')) {
+              sourceFiles.set(
+                file,
+                createHash('sha256').update(source).digest('hex')
+              )
+            }
+          }
+        }
+      }
       return {
         ...project,
         setupFiles,
         ...(project.browserFixtures === undefined ? {} : { browserFixtures }),
-        entries: files
-          .filter((file) => {
-            const relative = relativePath(root, file)
-            return (
-              !setup.has(file) &&
-              !fixtureModules.has(file) &&
-              include(relative) &&
-              !exclude(relative) &&
-              (!selection.files?.length ||
-                selection.files.some((filter) => relative.includes(filter)))
-            )
-          })
-          .map((file) => ({
-            id: `${project.profile.id}:${relativePath(root, file)}`,
-            file,
-            profile: project.profile,
-          })),
+        entries: (
+          await Promise.all(
+            files
+              .filter((file) => {
+                const relative = relativePath(root, file)
+                return (
+                  !setup.has(file) &&
+                  !fixtureModules.has(file) &&
+                  !typecheck?.only &&
+                  (include(relative) || sourceFiles.has(file)) &&
+                  !exclude(relative) &&
+                  (!selection.files?.length ||
+                    selection.files.some((filter) => relative.includes(filter)))
+                )
+              })
+              .map(async (file): Promise<TestEntry> => {
+                const source = await readFile(file)
+                const selected = resolveFileEnvironment(
+                  source.toString('utf8'),
+                  project
+                )
+                return {
+                  id: `${project.profile.id}:${relativePath(root, file)}`,
+                  file,
+                  profile: selected.profile,
+                  ...(selected.executionEnvironment
+                    ? { executionEnvironment: selected.executionEnvironment }
+                    : {}),
+                  ...(sourceFiles.has(file) ||
+                  usesInSourceTestMarker(source.toString('utf8'), file)
+                    ? {
+                        inSource: true as const,
+                        inSourceHash:
+                          sourceFiles.get(file) ??
+                          createHash('sha256').update(source).digest('hex'),
+                      }
+                    : {}),
+                  environmentSourceHash: createHash('sha256')
+                    .update(source)
+                    .digest('hex'),
+                }
+              })
+          )
+        ).concat(
+          typecheck
+            ? files
+                .filter((file) => {
+                  const relative = relativePath(root, file)
+                  return (
+                    !setup.has(file) &&
+                    !fixtureModules.has(file) &&
+                    typeInclude!(relative) &&
+                    !typeExclude!(relative) &&
+                    (!selection.files?.length ||
+                      selection.files.some((filter) =>
+                        relative.includes(filter)
+                      ))
+                  )
+                })
+                .map((file) => ({
+                  id: `${project.profile.id}:typescript:${relativePath(root, file)}`,
+                  file,
+                  profile: project.profile,
+                  typecheck: true as const,
+                }))
+            : []
+        ),
       }
     })
   )

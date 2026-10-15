@@ -139,3 +139,30 @@ normal `pnpm new-test` invocation failed to fetch `@turbo/gen` in this worktree;
 the coordinator approved running `turbo/generators/config.ts` through installed
 `node-plop` with `node --import tsx`, normal templates/actions, and the repository
 as `destBasePath`. The retained suites' action results had zero failures.
+
+
+An explicit `browser: { enabled: true }` test-project setting selects actual
+Browser Mode client compilation and execution. Omitting it preserves the Node
+application-driver profile described above, including production component
+mounting. Executable `vitest/config` test settings normalize the same explicit
+setting; no Vitest controller or Vite server is loaded. An enabled client setting
+infers the browser environment when no environment was specified.
+
+The initial client lane supports one selected synchronous runnable case in a
+fresh page and one-shot development Turbopack compilation. Its public assertion
+and declaration authority is lexical; asynchronous callbacks cannot borrow the
+infrastructure's immutable page/attempt owner. Hooks, fixtures, retries, multiple
+selected cases, mocks, globals, setup files, custom serializers, production,
+watch, routes, and coverage remain rejected. Existing compiler settings continue
+to belong to `next.config`; custom asset prefixes and base paths remain outside
+this initial lane.
+
+A separate loopback HTTP owner serves only compiler-issued assets with exact
+output hashes. Standard Authorization, page capability, run/file/revision owner,
+ordered RPC, canonical selected source, and source-map contents bind client facts
+to the actual artifact. Snapshot reads are restricted to that source and its
+managed external snapshot. All writes remain staged until actual browser/page,
+connection, process and HTTP cleanup completes and original source/output bytes
+are revalidated. Cleanup uncertainty or late RPC facts veto publication. This
+bounded lane does not qualify general asynchronous Browser Mode ownership or
+other browsers.

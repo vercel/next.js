@@ -63,6 +63,16 @@ pub(crate) async fn fixture_routes(
     if !prefix.starts_with("__next_testing_") || !safe_segment(prefix) {
         bail!("Invalid private browser fixture route prefix");
     }
+    let production = app.project().next_mode().await?.is_production();
+    if production
+        && *app
+            .project()
+            .next_config()
+            .enable_cache_components()
+            .await?
+    {
+        bail!("Production browser fixtures do not yet support Cache Components");
+    }
     let root = app.project().project_path().owned().await?;
     let layout_path = root.join(".next-test-fixture-layout.tsx")?;
     // Standalone fixtures do not inherit app layouts. This boundary permits
@@ -112,11 +122,16 @@ pub(crate) async fn fixture_routes(
         let page_source = source(
             page_path.clone(),
             format!(
-                "import {{ createElement }} from 'react';\nimport * as Fixture from {};\nimport \
+                "{}import {{ createElement }} from 'react';\nimport * as Fixture from {};\nimport \
                  {{ renderRegisteredFixturePage }} from \
                  'next/dist/experimental/testing/rsc/registered-fixture';\nexport default \
                  function Page({{searchParams}}) {{ return \
                  renderRegisteredFixturePage(createElement, Fixture[{}], searchParams); }}\n",
+                if production {
+                    "export const dynamic = 'force-dynamic';\n"
+                } else {
+                    ""
+                },
                 StringifyJs(&format!("./{}", fixture.module)),
                 StringifyJs(&fixture.export_name),
             ),

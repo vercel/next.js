@@ -3,14 +3,22 @@ import {
   type AffectedSelection,
   type DependencyChange,
 } from './select-affected'
+import {
+  selectRegistryAdditions,
+  type WatchRegistrySnapshot,
+} from './registry-additions'
 
 export interface WatchDiscovery {
   entryIds: readonly string[]
   /** Includes configuration, setup order, profiles and discovered entry IDs. */
   discoveryRevision: string
+  /** Optional byte evidence for the separate matching-new-test policy. */
+  registry?: WatchRegistrySnapshot
 }
 
 export interface WatchInvalidation {
+  /** Exact filesystem paths; never interpreted as compiler dependencies. */
+  registryPaths?: readonly string[]
   /** Omit for filesystem notifications without compiler dependency evidence. */
   changes?: readonly DependencyChange[]
   invalidateAll?: boolean
@@ -34,6 +42,8 @@ export interface WatchSessionOptions<Discovery extends WatchDiscovery> {
   }>
   /** Configuration/compilation errors are recoverable on the next invalidation. */
   onError(error: unknown): void
+  /** A report owner must replace results when discovery becomes empty. */
+  runEmpty?: boolean
 }
 
 /** A superseded run is cancelled, but its cleanup is never detached. */
@@ -56,10 +66,13 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
   let generation = 0
   let pending = true
   let pendingChanges: DependencyChange[] = []
+  let pendingRegistryPaths: string[] = []
+  let unknownRegistryPaths = true
   let missingEvidence = true
   let invalidateAll = true
   let previousEntryIds: readonly string[] = []
   let previousDiscoveryRevision: string | undefined
+  let previousRegistry: WatchRegistrySnapshot | undefined
   let retryAll = true
   let active: AbortController | undefined
   let draining: Promise<void> | undefined
@@ -86,6 +99,11 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
     while (!closed && pending) {
       pending = false
       const changes = missingEvidence ? undefined : pendingChanges
+      const registryPaths = unknownRegistryPaths
+        ? undefined
+        : pendingRegistryPaths
+      pendingRegistryPaths = []
+      unknownRegistryPaths = false
       const globalInvalidation = invalidateAll || retryAll
       pendingChanges = []
       missingEvidence = false
@@ -96,26 +114,37 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
       try {
         const discovery = await options.discover(controller.signal)
         controller.signal.throwIfAborted()
-        const selection = selectAffectedTests({
-          entryIds: discovery.entryIds,
-          previousEntryIds,
-          discoveryRevision: discovery.discoveryRevision,
-          changes,
-          invalidateAll:
-            globalInvalidation ||
-            (previousDiscoveryRevision !== undefined &&
-              previousDiscoveryRevision !== discovery.discoveryRevision),
-        })
+        const registrySelection =
+          !globalInvalidation && changes === undefined
+            ? selectRegistryAdditions({
+                previous: previousRegistry,
+                current: discovery.registry,
+                changedPaths: registryPaths,
+              })
+            : undefined
+        const selection =
+          registrySelection ??
+          selectAffectedTests({
+            entryIds: discovery.entryIds,
+            previousEntryIds,
+            discoveryRevision: discovery.discoveryRevision,
+            changes,
+            invalidateAll:
+              globalInvalidation ||
+              (previousDiscoveryRevision !== undefined &&
+                previousDiscoveryRevision !== discovery.discoveryRevision),
+          })
         // Empty discovery is a valid watch state (e.g. the last test deleted).
         // Do not ask the one-shot runner to report "No test files selected".
-        const result = selection.entryIds.length
-          ? await options.run({
-              discovery,
-              selection,
-              signal: controller.signal,
-              generation: runGeneration,
-            })
-          : { status: 'passed' as const }
+        const result =
+          selection.entryIds.length || options.runEmpty
+            ? await options.run({
+                discovery,
+                selection,
+                signal: controller.signal,
+                generation: runGeneration,
+              })
+            : { status: 'passed' as const }
         if (result.unsafeCleanup) {
           cancel()
           return
@@ -125,6 +154,9 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
         if (!retryAll) {
           previousEntryIds = [...discovery.entryIds]
           previousDiscoveryRevision = discovery.discoveryRevision
+          previousRegistry = discovery.registry
+            ? structuredClone(discovery.registry)
+            : undefined
         }
       } catch (error) {
         // Failed or cancelled runs never certify a dependency baseline. A
@@ -156,6 +188,12 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
     if (closed) return
     pending = true
     invalidateAll ||= change.invalidateAll === true
+    if (change.registryPaths === undefined) {
+      unknownRegistryPaths = true
+      pendingRegistryPaths = []
+    } else if (!unknownRegistryPaths) {
+      pendingRegistryPaths.push(...change.registryPaths)
+    }
     if (change.changes === undefined) {
       missingEvidence = true
       pendingChanges = []
@@ -181,6 +219,7 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
     closed = true
     pending = false
     pendingChanges = []
+    pendingRegistryPaths = []
     active?.abort(options.signal?.reason ?? new Error('Watch session closed.'))
     options.signal?.removeEventListener('abort', cancel)
     if (!draining) resolveClosed()

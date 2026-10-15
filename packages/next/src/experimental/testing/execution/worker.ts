@@ -1,6 +1,9 @@
+import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import '../../../server/require-hook'
 import '../../../server/node-environment'
 
+import { readFile } from 'fs/promises'
+import { validateCompiledTestRoute } from '../rsc/route'
 import { isAbsolute, relative, resolve, sep } from 'path'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import type { ClientReferenceManifest } from '../../../build/webpack/plugins/flight-manifest-plugin'
@@ -10,18 +13,21 @@ import {
 } from '../../../server/load-manifest.external'
 import {
   mapSnapshotLocation,
+  mapTestAnnotationLocation,
   serializeSourceMappedDiagnostic as serializeDiagnostic,
 } from '../reporting/source-mapped-diagnostics'
 import type { ResultEvent, ResultStatus } from '../reporting/events'
+import { getFinalCaseResults } from '../reporting/final-cases'
 import type { RunnerFailure } from '../runner/lifecycle'
 import type { WorkerInput, WorkerMessage } from './protocol'
-import type { TestCoverageCompletion } from '../contracts'
+import type { TestCoverageCompletion, TestFileCollection } from '../contracts'
 import { setBundlerFindSourceMapImplementation } from '../../../server/patch-error-inspect'
 import { createArtifactSourceMapLookup } from './source-maps'
 import { createLateFailureSink } from './late-failures'
 import { browserOutputDirectory } from './browser-output'
 import { assertArtifactProfile } from './artifact-profile'
 import { assertCompiledSetup } from './setup'
+import { openTestEnvironment } from '../environments/runtime'
 
 type EventPayload<T = ResultEvent> = T extends ResultEvent
   ? Omit<T, 'version' | 'runId' | 'timestamp'>
@@ -30,6 +36,7 @@ type EventPayload<T = ResultEvent> = T extends ResultEvent
 const realDateNow = Date.now.bind(Date)
 const controller = new AbortController()
 let running = false
+let reportUnhandledRejection: ((reason: unknown) => void) | undefined
 
 function send(message: WorkerMessage): Promise<void> {
   return new Promise((resolveSend, reject) => {
@@ -70,26 +77,51 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     })
   const diagnostic = (
     error: unknown,
-    phase: 'collection' | 'runtime' | 'cleanup'
+    phase: 'collection' | 'runtime' | 'cleanup',
+    unhandled?: 'rejection'
   ) =>
     event({
       type: 'diagnostic',
       entryId: artifact.entryId,
       revision: artifact.revision,
-      diagnostic: serializeDiagnostic(error, { phase }),
+      diagnostic: {
+        ...serializeDiagnostic(error, { phase }),
+        ...(unhandled ? { unhandled } : {}),
+      },
     })
   const runnerFailure = (failure: RunnerFailure) =>
     serializeDiagnostic(failure.error, {
       phase: failure.phase === 'cleanup' ? 'cleanup' : 'runtime',
     })
-  const lateFailures = createLateFailureSink((error) =>
-    diagnostic(error, 'runtime')
+  const unhandledRejections = new Set<unknown>()
+  const lateFailures = createLateFailureSink<unknown>((error) =>
+    diagnostic(
+      error,
+      'runtime',
+      unhandledRejections.has(error) ? 'rejection' : undefined
+    )
   )
+  let collection: TestFileCollection | undefined
   let publishingResult = false
+  // Keep the process handler installed through cleanup and terminal IPC. A
+  // rejection fails the file without discarding already completed case facts.
+  reportUnhandledRejection = (reason) => {
+    unhandledRejections.add(reason)
+    if (publishingResult) process.exitCode = 1
+    lateFailures.report(reason)
+  }
   let status: ResultStatus = 'failed'
   let coverageCollector:
     | Awaited<ReturnType<typeof import('../coverage/collector').startCoverage>>
     | undefined
+  let customCollector:
+    | Awaited<
+        ReturnType<
+          typeof import('../coverage/custom-runtime').startCustomCoverage
+        >
+      >
+    | undefined
+  let customCoverage: CustomCoverageCompletion | undefined
   let coverage: TestCoverageCompletion | undefined
   let coverageComplete = true
   const unfinishedAttempts = new Set<string>()
@@ -102,24 +134,149 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
   let browserBinding:
     | ReturnType<typeof import('../browser').initializeBrowserTesting>
     | undefined
+  let environment: Awaited<ReturnType<typeof openTestEnvironment>> | undefined
   let phase: 'collection' | 'runtime' = 'collection'
+  let importBinding:
+    | ReturnType<typeof import('../runner/imports').createModuleImportTracker>
+    | undefined
+  let moduleCacheBinding:
+    | ReturnType<typeof import('../mocking/module-cache').initializeModuleCache>
+    | undefined
+  let dynamicMockBinding:
+    | ReturnType<
+        typeof import('../mocking/dynamic').initializeDynamicModuleMocking
+      >
+    | undefined
   let mockBinding:
     | ReturnType<typeof import('../mocking/runtime').initializeModuleMocking>
     | undefined
   try {
+    if (
+      options.collectOnly &&
+      (options.coverage ||
+        options.updateSnapshots ||
+        (options.snapshotUpdateMode !== undefined &&
+          options.snapshotUpdateMode !== 'none'))
+    )
+      throw new Error('Collection cannot request coverage or snapshot updates.')
+    if (
+      options.inspect &&
+      !(require('node:inspector') as typeof import('node:inspector')).url()
+    )
+      throw new Error('The requested test worker inspector did not start.')
+    if (artifact.kind === 'browser')
+      throw new Error(
+        'Client Browser Mode artifacts require the parent-owned client executor, never a Node worker.'
+      )
     assertArtifactProfile(artifact, options.entry)
+    if (options.customCoverage) {
+      const { assertCustomCoverageRequest } = await import(
+        '../coverage/custom-runtime.js'
+      )
+      assertCustomCoverageRequest(artifact, {
+        ...options,
+        onCustomCoverage: async () => {},
+      })
+    }
     assertCompiledSetup(artifact, options.setupFiles)
+    if (
+      options.entry.environmentSourceHash !== undefined &&
+      options.entry.environmentSourceHash !== artifact.sourceHash
+    ) {
+      throw new Error(
+        'Test environment pragmas changed after discovery; discover the file again.'
+      )
+    }
+    if (options.entry.executionEnvironment) {
+      if (
+        options.coverage &&
+        options.entry.executionEnvironment.name !== 'node'
+      )
+        throw new Error(
+          'Coverage for DOM and custom execution environments is not qualified.'
+        )
+      if (artifact.kind !== 'node' || artifact.profile.environment !== 'node')
+        throw new Error(
+          'DOM and custom execution environments require a Node compiler profile.'
+        )
+      environment = await openTestEnvironment(
+        options.projectDir,
+        options.entry.executionEnvironment,
+        (error) => lateFailures.report(error)
+      )
+    }
+    if (
+      JSON.stringify(artifact.snapshotSerializers ?? []) !==
+      JSON.stringify(options.snapshotSerializers ?? [])
+    )
+      throw new Error(
+        'Snapshot serializers do not match the compiled test inputs'
+      )
     if (
       artifact.moduleMocking &&
       (artifact.moduleMocking.version !== 1 ||
-        artifact.kind !== 'node' ||
-        artifact.profile.environment !== 'node' ||
-        artifact.profile.mode !== 'development')
+        !['node', 'rsc'].includes(artifact.profile.environment) ||
+        artifact.kind !== artifact.profile.environment ||
+        artifact.profile.mode !== 'development' ||
+        (options.coverage && artifact.moduleMocking.coverage?.version !== 1) ||
+        ('moduleCache' in artifact && artifact.moduleCache !== undefined) ||
+        (artifact.kind === 'rsc' &&
+          (artifact.profile.route !== undefined ||
+            options.setupFiles.length ||
+            options.snapshotSerializers?.length ||
+            options.entry.executionEnvironment ||
+            options.entry.inSource)))
     ) {
       throw new Error('Unsupported compiled module mocking profile or version')
     }
+    if (
+      artifact.kind === 'node' &&
+      artifact.moduleCache &&
+      (artifact.moduleCache.version !== 1 ||
+        artifact.profile.environment !== 'node' ||
+        artifact.profile.mode !== 'development' ||
+        artifact.moduleMocking ||
+        artifact.cohort ||
+        options.coverage ||
+        options.collectOnly ||
+        options.setupFiles.length ||
+        options.snapshotSerializers?.length ||
+        options.entry.inSource ||
+        options.entry.executionEnvironment)
+    )
+      throw new Error('Unsupported compiled module cache reset profile')
+    if ('dynamicModuleMocking' in artifact && artifact.dynamicModuleMocking) {
+      if (
+        artifact.kind !== 'node' ||
+        artifact.dynamicModuleMocking.version !== 1 ||
+        !artifact.moduleCache ||
+        artifact.moduleMocking ||
+        artifact.cohort ||
+        options.inspect
+      )
+        throw new Error(
+          'Unsupported native runtime module mock ownership profile'
+        )
+    }
     const paths = [artifact.entryPath]
     if (artifact.kind === 'rsc') {
+      if (artifact.profile.route !== undefined) {
+        validateCompiledTestRoute(artifact.route, artifact.profile)
+        if (!artifact.files.includes(artifact.route!.metadataPath))
+          throw new Error('Missing immutable RSC route sidecar')
+        const nativeRoute = JSON.parse(
+          await readFile(
+            artifactPath(artifact.rootDir, artifact.route!.metadataPath),
+            'utf8'
+          )
+        )
+        const { metadataPath: _, ...routeFacts } = artifact.route!
+        if (JSON.stringify(nativeRoute) !== JSON.stringify(routeFacts))
+          throw new Error('RSC route sidecar and artifact facts differ')
+      } else if (artifact.route)
+        throw new Error(
+          'Route-less RSC artifact contains unexpected route metadata'
+        )
       paths.push(
         artifact.manifests.clientReference,
         artifact.manifests.serverActions
@@ -137,6 +294,12 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     setBundlerFindSourceMapImplementation(
       createArtifactSourceMapLookup(artifact)
     )
+    if (options.customCoverage) {
+      const { startCustomCoverage } = await import(
+        '../coverage/custom-runtime.js'
+      )
+      customCollector = await startCustomCoverage(options.customCoverage)
+    }
     if (options.coverage) {
       // Start before even the emitted bootstrap is evaluated. One interval
       // retains setup, hooks and every retry, including superseded failures.
@@ -149,8 +312,17 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       artifactPath(artifact.rootDir, artifact.entryPath)
     ) as {
       testRunner: typeof import('../runner')
-      loadSetupModules?(): Promise<void>
+      initializeModuleImportTracking?(): NonNullable<typeof importBinding>
+      loadSetupModules?(sequence?: 'list' | 'parallel'): Promise<void>
       loadTestModule(): Promise<unknown>
+      initializeModuleCache?(
+        retire: NonNullable<typeof importBinding>['retireModules']
+      ): NonNullable<typeof moduleCacheBinding>
+      initializeDynamicModuleMocking?(
+        options: Parameters<
+          typeof import('../mocking/dynamic').initializeDynamicModuleMocking
+        >[2]
+      ): NonNullable<typeof dynamicMockBinding>
       browserTesting?: typeof import('../browser')
       mockTesting?: typeof import('../mocking/runtime')
     }
@@ -195,7 +367,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
         )
       }
       rscEntry.setManifestsSingleton({
-        page: artifact.manifestPage,
+        page: artifact.route?.page ?? artifact.manifestPage,
         clientReferenceManifest: manifest,
         serverActionsManifest: loadManifest<ActionManifest>(
           artifactPath(artifact.rootDir, artifact.manifests.serverActions)
@@ -220,6 +392,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
           requestContext: artifact.requestContext,
           profile: artifact.profile,
           manifestPage: artifact.manifestPage,
+          route: artifact.route,
           getActiveAttempt: entry.testRunner.getActiveAttempt,
           cacheScope,
           previewPropsPath: optionalManifestPath(
@@ -232,12 +405,29 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       }
     }
     controller.signal.throwIfAborted()
+    importBinding = entry.initializeModuleImportTracking?.()
     file = entry.testRunner.initializeTestFile({
       fileId: artifact.entryId,
       filePath: options.entry.file,
+      collectOnly: options.collectOnly,
       updateSnapshots: options.updateSnapshots,
       snapshotUpdateMode: options.snapshotUpdateMode,
       mapSnapshotLocation,
+      tags: options.tags,
+      strictTags: options.strictTags,
+      globals: options.globals,
+      fakeTimers: options.fakeTimers,
+      waitForImports: importBinding?.waitForImports,
+      clearMocks: options.clearMocks,
+      mockReset: options.mockReset,
+      restoreMocks: options.restoreMocks,
+      unstubGlobals: options.unstubGlobals,
+      unstubEnvs: options.unstubEnvs,
+      retry: options.retry,
+      testTimeout: options.testTimeout,
+      hookTimeout: options.hookTimeout,
+      sequence: options.sequence,
+      provide: options.provide,
     })
     if (
       options.updateSnapshots &&
@@ -246,6 +436,28 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       throw new Error(
         'Compiled test runner does not support staged snapshot updates'
       )
+    }
+    if (artifact.kind === 'node' && artifact.moduleCache) {
+      if (!entry.initializeModuleCache || !importBinding?.retireModules)
+        throw new Error(
+          'Compiled module cache owner is missing its native manifest or import tracker'
+        )
+      moduleCacheBinding = entry.initializeModuleCache(
+        importBinding.retireModules
+      )
+    }
+    if (artifact.kind === 'node' && artifact.dynamicModuleMocking) {
+      if (!entry.initializeDynamicModuleMocking || !importBinding?.trackImport)
+        throw new Error(
+          'Compiled runtime module mocks are missing their native manifest or import tracker'
+        )
+      dynamicMockBinding = entry.initializeDynamicModuleMocking({
+        trackImport: importBinding.trackImport,
+        onLateFailure(error) {
+          lateFailures.report(error)
+          if (publishingResult) process.exitCode = 1
+        },
+      })
     }
     if (artifact.moduleMocking) {
       mockBinding = entry.mockTesting!.initializeModuleMocking({
@@ -256,7 +468,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       })
     }
     rscBinding = initializeRsc?.()
-    if (artifact.profile.environment === 'browser') {
+    if (artifact.profile.environment === 'browser' && !options.collectOnly) {
       const browserOptions = options.browser
       if (!browserOptions || !entry.browserTesting) {
         throw new Error(
@@ -319,89 +531,143 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       // Both loaders belong to the emitted runtime. Setup hooks, matchers and
       // module state must reach the very same collector as the spec.
       controller.signal.throwIfAborted()
-      await entry.loadSetupModules?.()
+      await entry.loadSetupModules?.(options.sequence?.setupFiles ?? 'list')
       controller.signal.throwIfAborted()
       await entry.loadTestModule()
     })
     controller.signal.throwIfAborted()
-    phase = 'runtime'
-    const result = await file.run({
-      runId: options.runId,
-      signal: controller.signal,
-      testTimeout: options.testTimeout,
-      hookTimeout: options.hookTimeout,
-      testNamePattern: options.testNamePattern,
-      onLateFailure(error) {
-        if (lateFailures.has(error)) return
-        // A callback arriving while the terminal message is in flight must still
-        // make the parent reject a stale successful result at process close.
-        if (publishingResult) process.exitCode = 1
-        lateFailures.report(error)
-      },
-      onCaseStart(context) {
-        unfinishedAttempts.add(context.id)
-        return event({
-          type: 'case-start',
-          entryId: artifact.entryId,
-          caseId: context.testId,
-          attempt: {
-            id: context.id,
-            retry: context.retry,
-            repeat: context.repeat,
-          },
-          name: context.name,
-          testName: context.testName,
-          ancestors: context.ancestors,
-          mode: context.mode,
-          revision: artifact.revision,
-        })
-      },
-      onCaseEnd(caseResult) {
-        unfinishedAttempts.delete(caseResult.attempt.id)
-        if (
-          caseResult.status === 'cancelled' ||
-          caseResult.errors.some(
-            (error) =>
-              error.phase === 'cleanup' ||
-              error.phase === 'afterEach' ||
-              error.phase === 'runtime'
-          )
-        )
-          coverageComplete = false
-        return event({
-          type: 'case-end',
-          ...caseResult,
-          revision: artifact.revision,
-          errors: caseResult.errors.map(runnerFailure),
-        })
-      },
-    })
-    if (options.coverage && result.interrupted !== false)
-      coverageComplete = false
-    for (const failure of result.errors) {
-      if (
-        failure.phase === 'cleanup' ||
-        failure.phase === 'afterAll' ||
-        failure.phase === 'runtime'
-      )
-        coverageComplete = false
-      if (lateFailures.has(failure.error)) continue
-      await event({
-        type: 'diagnostic',
+    if (options.collectOnly) {
+      collection = {
+        version: 1,
         entryId: artifact.entryId,
         revision: artifact.revision,
-        diagnostic: runnerFailure(failure),
+        cases: file.getCollectedCases({
+          testNamePattern: options.testNamePattern,
+          allowOnly: options.allowOnly,
+        }),
+      }
+      status = 'passed'
+    } else {
+      phase = 'runtime'
+      const result = await file.run({
+        runId: options.runId,
+        signal: controller.signal,
+        projectName: options.entry.profile.id,
+        projectDir: options.projectDir,
+        attachmentsDir: options.attachmentsDir,
+        getAnnotationLocation: (error) =>
+          mapTestAnnotationLocation(error, options.entry.file),
+        onAnnotation(context, annotation) {
+          return event({
+            type: 'test-annotation',
+            entryId: artifact.entryId,
+            caseId: context.testId,
+            attempt: {
+              id: context.id,
+              retry: context.retry,
+              repeat: context.repeat,
+            },
+            revision: artifact.revision,
+            annotation,
+          })
+        },
+        testTimeout: options.testTimeout,
+        hookTimeout: options.hookTimeout,
+        sequence: options.sequence,
+        maxConcurrency: options.maxConcurrency,
+        retry: options.retry,
+        bail: options.bail,
+        allowOnly: options.allowOnly,
+        passWithNoTests: options.passWithNoTests,
+        testNamePattern: options.testNamePattern,
+        onLateFailure(error) {
+          if (lateFailures.has(error)) return
+          // A callback arriving while the terminal message is in flight must still
+          // make the parent reject a stale successful result at process close.
+          if (publishingResult) process.exitCode = 1
+          lateFailures.report(error)
+        },
+        onSuiteEnd(suiteResult) {
+          return event({
+            type: 'suite-end',
+            ...suiteResult,
+            revision: artifact.revision,
+            errors: suiteResult.errors.map(runnerFailure),
+          })
+        },
+        onCaseStart(context) {
+          unfinishedAttempts.add(context.id)
+          return event({
+            type: 'case-start',
+            entryId: artifact.entryId,
+            caseId: context.testId,
+            attempt: {
+              id: context.id,
+              retry: context.retry,
+              repeat: context.repeat,
+            },
+            name: context.name,
+            testName: context.testName,
+            ancestors: context.ancestors,
+            mode: context.mode,
+            revision: artifact.revision,
+          })
+        },
+        onCaseEnd(caseResult) {
+          unfinishedAttempts.delete(caseResult.attempt.id)
+          if (
+            caseResult.status === 'cancelled' ||
+            caseResult.errors.some(
+              (error) =>
+                error.phase === 'cleanup' ||
+                error.phase === 'afterEach' ||
+                error.phase === 'runtime'
+            )
+          )
+            coverageComplete = false
+          return event({
+            type: 'case-end',
+            ...caseResult,
+            revision: artifact.revision,
+            errors: caseResult.errors.map(runnerFailure),
+          })
+        },
       })
+      if (
+        (options.coverage || options.customCoverage) &&
+        result.interrupted !== false
+      )
+        coverageComplete = false
+      for (const failure of result.errors) {
+        if (
+          failure.phase === 'cleanup' ||
+          failure.phase === 'afterAll' ||
+          failure.phase === 'runtime'
+        )
+          coverageComplete = false
+        if (lateFailures.has(failure.error)) continue
+        await event({
+          type: 'diagnostic',
+          entryId: artifact.entryId,
+          revision: artifact.revision,
+          diagnostic: runnerFailure(failure),
+        })
+      }
+      // A successful retry replaces its failure; an earlier failed repeat still
+      // fails the file and must veto snapshot publication.
+      const finalCases = getFinalCaseResults(result.cases)
+      status =
+        result.errors.length ||
+        [...finalCases.values()].some((item) => item.status === 'failed')
+          ? 'failed'
+          : result.interrupted ||
+              [...finalCases.values()].some(
+                (item) => item.status === 'cancelled'
+              )
+            ? 'cancelled'
+            : 'passed'
+      if (controller.signal.aborted) status = 'cancelled'
     }
-    // Earlier failed retries remain events; only the final attempt determines
-    // the file outcome.
-    const finalCases = new Map(result.cases.map((item) => [item.caseId, item]))
-    status =
-      result.errors.length ||
-      [...finalCases.values()].some((item) => item.status === 'failed')
-        ? 'failed'
-        : 'passed'
-    if (controller.signal.aborted) status = 'cancelled'
   } catch (error) {
     coverageComplete = false
     if (controller.signal.aborted) status = 'cancelled'
@@ -451,6 +717,34 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       // Factories and original-module callbacks share the file realm. Keep the
       // registry alive through all file/request/browser teardown, then seal it.
       await mockBinding?.dispose()
+    } catch (error) {
+      coverageComplete = false
+      status = 'failed'
+      await diagnostic(error, 'cleanup')
+    }
+    try {
+      dynamicMockBinding?.dispose()
+    } catch (error) {
+      coverageComplete = false
+      status = 'failed'
+      await diagnostic(error, 'cleanup')
+    }
+    try {
+      moduleCacheBinding?.dispose()
+    } catch (error) {
+      coverageComplete = false
+      status = 'failed'
+      await diagnostic(error, 'cleanup')
+    }
+    try {
+      importBinding?.dispose()
+    } catch (error) {
+      coverageComplete = false
+      status = 'failed'
+      await diagnostic(error, 'cleanup')
+    }
+    try {
+      await environment?.dispose()
     } catch (error) {
       coverageComplete = false
       status = 'failed'
@@ -515,6 +809,58 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       }
     }
   }
+  if (options.customCoverage) {
+    const identity = {
+      version: 1 as const,
+      kind: 'custom' as const,
+      runId: options.runId,
+      entryId: artifact.entryId,
+      revision: artifact.revision,
+      provider: options.customCoverage.provider,
+    }
+    let captured = false
+    try {
+      if (!customCollector)
+        throw new Error('Custom coverage collection did not start')
+      const payload = await customCollector.take()
+      await customCollector.dispose()
+      await lateFailures.flush()
+      captured = true
+      if (
+        !coverageComplete ||
+        controller.signal.aborted ||
+        lateFailures.failed ||
+        unfinishedAttempts.size
+      )
+        throw new Error(
+          'Custom coverage is incomplete after interruption or failed cleanup'
+        )
+      customCoverage = { ...identity, complete: true, payload }
+    } catch (error) {
+      status =
+        captured && controller.signal.aborted && status !== 'failed'
+          ? 'cancelled'
+          : 'failed'
+      if (!captured) await diagnostic(error, 'runtime')
+      customCoverage = {
+        ...identity,
+        complete: false,
+        error: serializeDiagnostic(error, { phase: 'runtime' }),
+      }
+    } finally {
+      try {
+        await customCollector?.dispose()
+      } catch (error) {
+        status = 'failed'
+        await diagnostic(error, 'cleanup')
+        customCoverage = {
+          ...identity,
+          complete: false,
+          error: serializeDiagnostic(error, { phase: 'cleanup' }),
+        }
+      }
+    }
+  }
   publishingResult = true
   // Serialize staged bytes only. The parent owns the authoritative exit/cleanup
   // decision and commits after this realm has exited successfully.
@@ -531,6 +877,10 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     },
     ...(snapshotUpdates === undefined ? {} : { snapshotUpdates }),
     ...(coverage === undefined ? {} : { coverage }),
+    ...(customCoverage === undefined ? {} : { customCoverage }),
+    ...(collection && status === 'passed' && !controller.signal.aborted
+      ? { collection }
+      : {}),
   })
   await lateFailures.flush()
 }
@@ -552,6 +902,9 @@ process.on('message', (message: { type: string; input?: WorkerInput }) => {
 process.once('disconnect', () => process.exit(1))
 
 process.on('unhandledRejection', (error) => {
-  console.error(error)
-  process.exit(1)
+  if (reportUnhandledRejection) reportUnhandledRejection(error)
+  else {
+    console.error(error)
+    process.exit(1)
+  }
 })

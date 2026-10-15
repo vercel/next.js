@@ -21,21 +21,25 @@ async function build() {
   } finally {
     await bundle.close()
   }
-  const diffBundle = await rollup({
-    input: join(__dirname, 'diff/index.d.ts'),
-    plugins: [dts({ respectExternal: true })],
-    onwarn(warning, warn) {
-      if (warning.code === 'UNRESOLVED_IMPORT') throw new Error(warning.message)
-      warn(warning)
-    },
-  })
-  try {
-    await diffBundle.write({
-      file: join(output, 'diff/index.d.ts'),
-      format: 'es',
+  for (const entry of ['browser', 'diff', 'error', 'timers']) {
+    const diffBundle = await rollup({
+      input: join(__dirname, entry, 'index.d.ts'),
+      plugins: [dts({ respectExternal: true })],
+      external: entry === 'browser' ? ['chai'] : undefined,
+      onwarn(warning, warn) {
+        if (warning.code === 'UNRESOLVED_IMPORT')
+          throw new Error(warning.message)
+        warn(warning)
+      },
     })
-  } finally {
-    await diffBundle.close()
+    try {
+      await diffBundle.write({
+        file: join(output, entry, 'index.d.ts'),
+        format: 'es',
+      })
+    } finally {
+      await diffBundle.close()
+    }
   }
 
   const declarationPath = join(output, 'index.d.ts')
@@ -43,6 +47,13 @@ async function build() {
     declarationPath,
     (await readFile(declarationPath, 'utf8'))
       .replaceAll("from 'chai'", "from './chai'")
+      .replaceAll(/\bChai\b/g, 'NextTestChai')
+  )
+  const browserDeclarationPath = join(output, 'browser/index.d.ts')
+  await writeFile(
+    browserDeclarationPath,
+    (await readFile(browserDeclarationPath, 'utf8'))
+      .replaceAll("from 'chai'", "from '../chai'")
       .replaceAll(/\bChai\b/g, 'NextTestChai')
   )
   const chaiManifest = createRequire(
@@ -122,10 +133,38 @@ async function build() {
     for (const dependency of Object.keys(pkg.dependencies ?? {}))
       await collect(dependency, manifest)
   }
-  for (const name of ['@vitest/expect', '@vitest/spy', '@vitest/snapshot'])
+  for (const name of [
+    '@vitest/expect',
+    '@vitest/spy',
+    '@vitest/snapshot',
+    '@vitest/mocker',
+  ])
     await collect(name, __filename)
   await writeFile(
     join(output, 'LICENSE'),
+    [...licenses]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, license]) => `${name}\n\n${license}`)
+      .join('\n\n')
+  )
+  await collect('expect-type', __filename)
+  await collect('@vitest/utils', __filename)
+  await writeFile(
+    join(output, 'browser/LICENSE'),
+    [...licenses]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, license]) => `${name}\n\n${license}`)
+      .join('\n\n')
+  )
+  licenses.clear()
+  await collect('@sinonjs/fake-timers', __filename)
+  await collect('@types/sinonjs__fake-timers', __filename)
+  licenses.set(
+    'Jest/Vitest timer and wait adapters',
+    await readFile(join(__dirname, 'timers/ADAPTER_LICENSE'), 'utf8')
+  )
+  await writeFile(
+    join(output, 'timers/LICENSE'),
     [...licenses]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([name, license]) => `${name}\n\n${license}`)

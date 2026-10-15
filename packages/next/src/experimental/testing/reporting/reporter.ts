@@ -31,6 +31,7 @@ import { stripVTControlCharacters } from 'node:util'
 import { createTestTerminal, type TestTerminal } from './terminal'
 import type {
   CaseResult,
+  SuiteResult,
   FileResult,
   ResultCounts,
   ResultEvent,
@@ -42,6 +43,7 @@ import type {
 } from './events'
 
 export interface TestReporterOptions {
+  style?: 'default' | 'verbose' | 'dot'
   write: (text: string) => void
   writeError?: (text: string) => void
   projectDir?: string
@@ -165,6 +167,7 @@ export function createTestReporter(options: TestReporterOptions) {
   >()
   const files = new Map<string, FileResult>()
   const cases = new Map<string, CaseResult>()
+  const suites = new Map<string, SuiteResult>()
   const repeats = new Map<string, CaseResult>()
   const attempts = new Map<string, CaseResult>()
   const caseNames = new Map<string, string>()
@@ -200,6 +203,16 @@ export function createTestReporter(options: TestReporterOptions) {
       statusColor(status),
       status === 'passed' ? '✓' : status === 'failed' ? (file ? '❯' : '×') : '↓'
     )
+  const dots = (tests: readonly CaseResult[]) =>
+    tests
+      .filter((test) => !test.bail)
+      .map((test) =>
+        paint(
+          test.status === 'passed' ? 32 : test.status === 'skipped' ? 90 : 31,
+          test.status === 'passed' ? '·' : test.status === 'skipped' ? '-' : 'x'
+        )
+      )
+      .join('')
 
   function caseKey(event: { entryId: string; caseId: string }) {
     return JSON.stringify([event.entryId, event.caseId])
@@ -274,8 +287,44 @@ export function createTestReporter(options: TestReporterOptions) {
     const tests = [...cases.values()].filter(
       (test) => test.entryId === result.entryId
     )
+    if (options.style === 'dot') {
+      if (!options.isTTY) write(dots(tests))
+      return
+    }
+    if (options.style === 'verbose') {
+      for (const test of tests) {
+        const name = [
+          ...(test.ancestors?.map((suite) => suite.name) ?? []),
+          test.testName ?? test.name,
+        ].join(' > ')
+        const status = test.bail
+          ? paint(90, '·')
+          : test.mode === 'todo'
+            ? paint(90, '□')
+            : symbol(test.status)
+        const duration =
+          test.mode === 'skip' || test.mode === 'todo' || test.bail
+            ? ''
+            : ` ${Math.round(test.durationMs)}ms`
+        const retry = test.attempt.retry
+          ? ` (retry x${test.attempt.retry})`
+          : ''
+        const repeat = test.attempt.repeat
+          ? ` (repeat x${test.attempt.repeat})`
+          : ''
+        write(
+          ` ${status} ${fileLabel(result.entryId)} > ${name}${duration}${paint(33, retry + repeat)}\n`
+        )
+        if (test.status === 'failed')
+          for (const error of test.errors)
+            write(`${paint(31, `   → ${error.message}`)}\n`)
+      }
+      return
+    }
     const state = counts()
-    for (const test of tests) state[test.status]++
+    for (const test of tests) {
+      if (!test.bail) state[test.status]++
+    }
     const todo = tests.filter(
       (test) => test.status === 'skipped' && test.mode === 'todo'
     ).length
@@ -321,12 +370,13 @@ export function createTestReporter(options: TestReporterOptions) {
       const repeat = test.attempt.repeat
         ? ` (repeat x${test.attempt.repeat})`
         : ''
-      const testSymbol =
-        test.mode === 'todo' && test.status === 'skipped'
+      const testSymbol = test.bail
+        ? paint(90, '·')
+        : test.mode === 'todo' && test.status === 'skipped'
           ? paint(90, '□')
           : symbol(test.status)
       const duration =
-        test.status === 'skipped'
+        test.status === 'skipped' || test.bail
           ? ''
           : ` ${paint(test.durationMs > 300 ? 33 : 32, `${Math.round(test.durationMs)}ms`)}`
       write(
@@ -397,9 +447,11 @@ export function createTestReporter(options: TestReporterOptions) {
     const attemptCounts = counts()
     let errors = diagnosticErrors
     for (const result of files.values()) fileCounts[result.status]++
-    for (const result of cases.values()) caseCounts[result.status]++
+    for (const result of cases.values()) {
+      if (!result.bail) caseCounts[result.status]++
+    }
     for (const result of attempts.values()) {
-      attemptCounts[result.status]++
+      if (!result.bail) attemptCounts[result.status]++
       errors += result.errors.filter(
         (error) => error.severity === 'error'
       ).length
@@ -444,13 +496,21 @@ export function createTestReporter(options: TestReporterOptions) {
     const summary = getSummary()
     const active = [...entries.keys()].filter((id) => !files.has(id))
     const lines: string[] = ['']
-    for (const id of active.slice(0, 3)) {
-      lines.push(` ❯ ${fileLabel(id)} [running]`)
-      const test = [...activeCases.values()].find((item) => item.entryId === id)
-      if (test) lines.push(`   › ${test.name}`)
+    if (options.style === 'dot') {
+      lines.push(
+        `${dots([...cases.values()])}${paint(33, '*'.repeat(activeCases.size))}`
+      )
+    } else {
+      for (const id of active.slice(0, 3)) {
+        lines.push(` ❯ ${fileLabel(id)} [running]`)
+        const test = [...activeCases.values()].find(
+          (item) => item.entryId === id
+        )
+        if (test) lines.push(`   › ${test.name}`)
+      }
+      if (active.length > 3)
+        lines.push(` … ${active.length - 3} more files running`)
     }
-    if (active.length > 3)
-      lines.push(` … ${active.length - 3} more files running`)
     const liveState = (state: ResultCounts, total: number) => {
       const parts = (['failed', 'passed', 'skipped', 'cancelled'] as const)
         .filter((status) => state[status] || status === 'passed')
@@ -540,8 +600,18 @@ export function createTestReporter(options: TestReporterOptions) {
           const latest = finalRepeats.reduce((selected, result) =>
             result.attempt.repeat > selected.attempt.repeat ? result : selected
           )
-          cases.set(caseKey(event), failed ?? cancelled ?? latest)
+          cases.set(
+            caseKey(event),
+            event.pending ? event : (failed ?? cancelled ?? latest)
+          )
         }
+        break
+      }
+      case 'suite-end': {
+        const key = JSON.stringify([event.entryId, event.suiteId])
+        if (suites.has(key))
+          throw new Error(`Duplicate suite result: ${event.suiteId}`)
+        suites.set(key, event)
         break
       }
       case 'file-end':
@@ -563,6 +633,13 @@ export function createTestReporter(options: TestReporterOptions) {
           `${paint(90, `${event.stream} | ${context(event)}`)}\n${event.text}${event.text.endsWith('\n') ? '' : '\n'}\n`
         )
         break
+      case 'test-annotation': {
+        if (event.annotation.attachment) attachments++
+        write(
+          `${paint(90, `annotation | ${context(event)} [${event.annotation.type}]`)}\n${event.annotation.message}\n${event.annotation.attachment?.path ? `${event.annotation.attachment.path}\n` : ''}\n`
+        )
+        break
+      }
       case 'attachment': {
         attachments++
         const attempt = event.attempt
@@ -577,6 +654,10 @@ export function createTestReporter(options: TestReporterOptions) {
         ended = event
         dispose()
         const summary = getSummary()
+        if (options.style === 'dot') {
+          if (options.isTTY) write(dots([...cases.values()]))
+          write('\n')
+        }
         printFailures()
         if (summary.status === 'cancelled')
           write(`${badge('CANCELLED', 41, color)} Test run cancelled.\n`)
@@ -655,6 +736,7 @@ export function createTestReporter(options: TestReporterOptions) {
         entries: [...entries.values()],
         files: [...files.values()],
         cases: [...cases.values()],
+        suites: [...suites.values()],
       }),
     /** Includes every retry's errors, output and artifact paths in arrival order. */
     getEvents: (): ResultEvent[] => structuredClone(events),

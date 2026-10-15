@@ -5,13 +5,15 @@ type Owner =
   | { kind: 'attempt'; context: AttemptContext }
   | { kind: 'hook'; context: SuiteHookContext }
   | {
-      kind: 'collection' | 'file-fixtures'
+      kind: 'collection' | 'file-fixtures' | 'worker-fixtures'
       context: { id: string; name: string }
     }
 
 type Scope = Owner & {
   closed: boolean
+  ancestors: readonly Scope[]
   onLateFailure(error: Error): void
+  onUnhandledFailure?: (reason: unknown) => void
 }
 
 // This module is only consumed by the supported Node testing runtime.
@@ -19,9 +21,17 @@ const storage = new AsyncLocalStorage<Scope>()
 
 export function createAsyncScope(
   owner: Owner,
-  onLateFailure: (error: Error) => void
+  onLateFailure: (error: Error) => void,
+  onUnhandledFailure?: (reason: unknown) => void
 ) {
-  const scope: Scope = { ...owner, closed: false, onLateFailure }
+  const parent = storage.getStore()
+  const scope: Scope = {
+    ...owner,
+    closed: false,
+    ancestors: parent ? [parent, ...parent.ancestors] : [],
+    onLateFailure,
+    onUnhandledFailure: onUnhandledFailure ?? parent?.onUnhandledFailure,
+  }
   return {
     run<T>(fn: () => T): T {
       return storage.run(scope, fn)
@@ -56,4 +66,36 @@ export function getOriginatingAttempt(): AttemptContext | undefined {
 export function getOriginatingHook(): SuiteHookContext | undefined {
   const scope = current()
   return scope?.kind === 'hook' ? scope.context : undefined
+}
+
+export function getOriginatingCollection():
+  | { id: string; name: string }
+  | undefined {
+  const scope = current()
+  return scope?.kind === 'collection' ? scope.context : undefined
+}
+
+/** Actual asynchronous parents, rather than names or declaration-path guesses. */
+export function getOriginatingScopeAncestors(): readonly string[] {
+  return current()?.ancestors.map((scope) => scope.context.id) ?? []
+}
+
+/** Raw origin lookup for process rejection routing; closed owners still own failures. */
+export function getOriginatingUnhandledFailureSink() {
+  return storage.getStore()?.onUnhandledFailure
+}
+
+/** Bind future compiler work to the exact scope that started it. */
+export function captureAsyncScope() {
+  const scope = storage.getStore()
+  current()
+  return {
+    run<T>(fn: () => T): T {
+      const invoke = () => {
+        current()
+        return fn()
+      }
+      return scope ? storage.run(scope, invoke) : storage.exit(invoke)
+    },
+  }
 }

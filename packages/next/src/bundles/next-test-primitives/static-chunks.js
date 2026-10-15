@@ -1,8 +1,7 @@
 const { readdir, readFile, writeFile } = require('node:fs/promises')
 const { join } = require('node:path')
 
-async function rewriteChunks() {
-  const directory = join(__dirname, '../../compiled/next-test-primitives')
+async function rewriteChunks(directory) {
   const chunks = (await readdir(directory))
     .filter((file) => /^\d+\.index\.js$/.test(file))
     .sort()
@@ -31,7 +30,11 @@ async function rewriteChunks() {
   )
 }
 
-rewriteChunks().catch((error) => {
+Promise.all(
+  ['.', 'browser'].map((entry) =>
+    rewriteChunks(join(__dirname, '../../compiled/next-test-primitives', entry))
+  )
+).catch((error) => {
   console.error(error)
   process.exitCode = 1
 })

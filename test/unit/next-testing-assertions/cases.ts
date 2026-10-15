@@ -624,6 +624,81 @@ describe('Next-owned assertion primitives', () => {
     await scope!.finalize()
   })
 
+  it('automocks deep object references, arrays, getters and symbols without changing originals', async () => {
+    begin()
+    const symbol = Symbol('method')
+    const fn = () => 42
+    const cycle: { self?: unknown } = {}
+    cycle.self = cycle
+    const original = {
+      nested: { fn },
+      alias: fn,
+      array: [1, 2],
+      cycle,
+      [symbol]: () => 'symbol',
+      get accessor() {
+        throw new Error('An automock must not evaluate this accessor')
+      },
+    }
+    const mocked = runtime.spies.mockObject(original)
+    assert.notEqual(mocked, original)
+    assert.equal(runtime.spies.isMockFunction(mocked.nested.fn), true)
+    assert.equal(mocked.nested.fn, mocked.alias)
+    assert.equal(mocked.nested.fn(), undefined)
+    assert.equal(mocked[symbol](), undefined)
+    assert.deepEqual(mocked.array, [])
+    assert.equal(mocked.cycle.self, mocked.cycle)
+    assert.equal(mocked.accessor, undefined)
+    assert.equal(original.nested.fn(), 42)
+    assert.deepEqual(original.array, [1, 2])
+    await scope!.finalize()
+  })
+
+  it('spies deeply while preserving class behavior and owning generated mock mutators', async () => {
+    begin()
+    class Value {
+      constructor(readonly value: number) {}
+      read() {
+        return this.value
+      }
+    }
+    const original = { Value, nested: { fn: () => 42 }, values: [() => 7] }
+    const mocked = runtime.spies.mockObject(original, { spy: true })
+    assert.equal(mocked.nested.fn(), 42)
+    assert.equal(mocked.values[0](), 7)
+    const value = new mocked.Value(3)
+    assert.equal(value.read(), 3)
+    assert.equal(runtime.spies.isMockFunction(value.read), true)
+    runtime.expect(mocked.nested.fn).toHaveBeenCalledOnce()
+    const mutate = mocked.nested.fn.mockReturnValue
+    await scope!.finalize()
+    await scope!.dispose()
+    scope = undefined
+    assert.throws(() => mutate(99))
+    assert.equal(original.nested.fn(), 42)
+  })
+
+  it('guards Chai should assertions and restores the file-owned prototype descriptor', async () => {
+    const previous = Object.getOwnPropertyDescriptor(Object.prototype, 'should')
+    begin()
+    const helpers = runtime.should()
+    helpers.equal(42, 42)
+    helpers.not.equal(42, 43)
+    const assertion = (42 as any).should
+    assertion.equal(42)
+    assert.throws(() => assertion.equal(43))
+    await scope!.finalize()
+    assert.throws(() => assertion.equal(42))
+    await scope!.dispose()
+    scope = undefined
+    active = undefined
+    await runtime.finishFile()
+    assert.deepEqual(
+      Object.getOwnPropertyDescriptor(Object.prototype, 'should'),
+      previous
+    )
+  })
+
   it('restores object spies and rejects calls outside the active attempt', async () => {
     const object = { method: () => 'original' }
     assert.throws(() => runtime.expect(1), /active Next test attempt/)

@@ -1,42 +1,112 @@
+import type {
+  TaskMeta,
+  Test,
+  TestAnnotation,
+  TestAttachment,
+  TestTag,
+  TestTagDefinition,
+  Suite,
+} from './tasks'
+import type { TestExpect } from '../assertions'
+import type { ProvidedContext } from '../vitest'
+import type { TestError } from '../../../compiled/next-test-primitives'
 import {
   configureFixtureCallback,
+  normalizeFixtureArguments,
+  resolveFixtureDefinitions,
   extendFixtures,
   validateFixtureDefinitions,
 } from './fixtures'
-import type { FixtureDefinition, FixtureDefinitions } from './fixtures'
+import type {
+  FixtureDefinitions,
+  FixtureOptions,
+  BuilderFixtureFn,
+} from './fixtures'
 import { assertScopeActive } from './async-context'
-import { formatWithOptions, inspect } from 'node:util'
-import { AsyncLocalStorage } from 'node:async_hooks'
+import {
+  formatWithOptions,
+  inspect,
+  createDeclarationStorage,
+} from './collector-platform'
+import { shuffleTests, type TestSequenceOptions } from './sequence'
 
 export type TestMode = 'run' | 'skip' | 'todo' | 'only'
 export type HookName = 'beforeAll' | 'afterAll' | 'beforeEach' | 'afterEach'
+export type AroundHookName = 'aroundEach' | 'aroundAll'
 export type Cleanup = () => void | Promise<void>
 
 export interface TestContext {
+  inject<Key extends keyof ProvidedContext & string>(
+    key: Key
+  ): ProvidedContext[Key]
+  readonly task: Readonly<Test>
+  readonly expect: TestExpect
+  annotate(
+    message: string,
+    type?: string,
+    attachment?: TestAttachment
+  ): Promise<TestAnnotation>
+  annotate(
+    message: string,
+    attachment?: TestAttachment
+  ): Promise<TestAnnotation>
+  bench(name: string, fn: () => unknown, options?: object): never
+  skip(note?: string): never
+  skip(condition: boolean, note?: string): void
   readonly signal: AbortSignal
   onTestFinished(handler: TestBody, timeout?: number): void
   onTestFailed(handler: TestBody, timeout?: number): void
 }
 
 export type TestBody = (context: TestContext) => unknown | Promise<unknown>
+export type AroundEachBody<T extends object = {}> = (
+  runTest: () => Promise<void>,
+  context: TestContext & T,
+  suite: Readonly<Suite>
+) => unknown | Promise<unknown>
+export type AroundAllBody<T extends object = {}> = (
+  runSuite: () => Promise<void>,
+  context: T,
+  suite: Readonly<Suite>
+) => unknown | Promise<unknown>
+export type AroundHook = {
+  fn: AroundEachBody | AroundAllBody
+  fixtures: FixtureDefinitions
+  timeout?: number
+}
 export type Hook = {
   fn: TestBody
   timeout?: number
+  fixtures?: FixtureDefinitions
 }
 
 export interface TestOptions {
-  retry?: number
+  tags?: TestTag | TestTag[]
+  meta?: Partial<TaskMeta>
+  retry?:
+    | number
+    | {
+        count?: number
+        delay?: number
+        condition?: RegExp | ((error: TestError) => boolean)
+      }
   timeout?: number
   repeats?: number
   fails?: boolean
-  concurrent?: false
+  concurrent?: boolean
   skip?: boolean
   only?: boolean
   todo?: boolean
 }
 
+export interface SuiteOptions extends TestOptions {
+  shuffle?: boolean
+}
+
 export interface TestCase {
   type: 'test'
+  meta: TaskMeta
+  tags: string[]
   id: string
   name: string
   mode: TestMode
@@ -48,21 +118,24 @@ export interface TestCase {
 
 export interface TestSuite {
   type: 'suite'
+  meta: TaskMeta
+  tags: string[]
   id: string
   name: string
   mode: TestMode
   suite?: TestSuite
   children: (TestCase | TestSuite)[]
   hooks: Record<HookName, Hook[]>
-  options: TestOptions
+  around: Record<AroundHookName, AroundHook[]>
+  options: SuiteOptions
   fixtureOverrides: Map<FixtureDefinitions, FixtureDefinitions>
 }
 
 type Name = string | Function
 type EachCallback<T extends readonly unknown[]> = (...items: T) => unknown
-type EachDeclaration<T extends readonly unknown[]> = {
+type EachDeclaration<T extends readonly unknown[], Options = TestOptions> = {
   (name: Name, fn: EachCallback<T>, timeout?: number): void
-  (name: Name, options: TestOptions, fn: EachCallback<T>): void
+  (name: Name, options: Options, fn: EachCallback<T>): void
 }
 type ForDeclaration<T, C extends object> = {
   (name: Name, fn: (item: T, context: TestContext & C) => unknown): void
@@ -77,7 +150,111 @@ export function unsupported(api: string): never {
   throw new Error(`Next testing does not support ${api} yet.`)
 }
 
+type ScopeValues<T> = [Exclude<T, undefined>] extends [never]
+  ? {}
+  : Exclude<T, undefined>
+type ScopeMarker<T, K extends PropertyKey> = K extends keyof T
+  ? Extract<NonNullable<T[K]>, object>
+  : {}
+type WorkerBuilderContext<T> = ScopeMarker<T, '$__worker'>
+type FileBuilderContext<T> = WorkerBuilderContext<T> & ScopeMarker<T, '$__file'>
+type FileFixtureContext<T> = '$__file' extends keyof T
+  ? FileBuilderContext<T>
+  : '$__worker' extends keyof T
+    ? FileBuilderContext<T>
+    : T
+type AddBuilderFixture<
+  T,
+  K extends string,
+  V,
+  S extends 'test' | 'file' | 'worker',
+> = Omit<T, K | '$__file' | '$__test' | '$__worker'> &
+  Record<K, V> & {
+    readonly $__worker?: ScopeMarker<T, '$__worker'> &
+      (S extends 'worker' ? Record<K, V> : {})
+    readonly $__file?: ScopeMarker<T, '$__file'> &
+      (S extends 'file' ? Record<K, V> : {})
+    readonly $__test?: ScopeMarker<T, '$__test'> &
+      (S extends 'test' ? Record<K, V> : {})
+  }
+interface ScopedFixturesDefinition {
+  $test?: Record<string, unknown>
+  $file?: Record<string, unknown>
+  $worker?: Record<string, unknown>
+}
+type ScopedFixtureValues<E extends ScopedFixturesDefinition> = ScopeValues<
+  E['$test']
+> &
+  ScopeValues<E['$file']> &
+  ScopeValues<E['$worker']>
+type FixtureFactory<V, C> = (
+  context: C,
+  use: (value: V) => Promise<void>
+) => Promise<void>
+// The reverse callable check preserves the pinned constructor and branded-value cases.
+type FixtureValue<E, K extends keyof E, C> = ((
+  ...args: any[]
+) => any) extends E[K]
+  ? E[K] extends any
+    ? FixtureFactory<E[K], C>
+    : never
+  : E[K] | (E[K] extends any ? FixtureFactory<E[K], C> : never)
+type ObjectFixtureContext<E, T, K extends keyof E> = TestContext &
+  Omit<E, K> &
+  Omit<T, Exclude<keyof E, K>>
+type ObjectFixtures<E extends object, T extends object> = {
+  [K in keyof E]:
+    | FixtureValue<E, K, ObjectFixtureContext<E, T, K>>
+    | [FixtureValue<E, K, ObjectFixtureContext<E, T, K>>, FixtureOptions]
+}
+type ScopedFixtures<E extends ScopedFixturesDefinition, T extends object> = {
+  [K in keyof NonNullable<E['$test']>]:
+    | NonNullable<E['$test']>[K]
+    | FixtureFactory<
+        NonNullable<E['$test']>[K],
+        TestContext & T & ScopedFixtureValues<E>
+      >
+    | [
+        FixtureFactory<
+          NonNullable<E['$test']>[K],
+          TestContext & T & ScopedFixtureValues<E>
+        >,
+        FixtureOptions & { scope?: 'test' },
+      ]
+} & {
+  [K in keyof NonNullable<E['$file']>]: [
+    FixtureFactory<
+      NonNullable<E['$file']>[K],
+      T & ScopeValues<E['$file']> & ScopeValues<E['$worker']>
+    >,
+    FixtureOptions & { scope: 'file' },
+  ]
+} & {
+  [K in keyof NonNullable<E['$worker']>]: [
+    FixtureFactory<NonNullable<E['$worker']>[K], T & ScopeValues<E['$worker']>>,
+    FixtureOptions & { scope: 'worker' },
+  ]
+}
+
 export interface TestDeclaration<T extends object = {}> {
+  beforeEach(
+    fn: (context: TestContext & T, suite: Readonly<Suite>) => unknown,
+    timeout?: number
+  ): void
+  afterEach(
+    fn: (context: TestContext & T, suite: Readonly<Suite>) => unknown,
+    timeout?: number
+  ): void
+  beforeAll(
+    fn: (context: FileFixtureContext<T>, suite: Readonly<Suite>) => unknown,
+    timeout?: number
+  ): void
+  afterAll(
+    fn: (context: FileFixtureContext<T>, suite: Readonly<Suite>) => unknown,
+    timeout?: number
+  ): void
+  aroundEach(fn: AroundEachBody<T>, timeout?: number): void
+  aroundAll(fn: AroundAllBody<FileFixtureContext<T>>, timeout?: number): void
   (
     name: Name,
     fn: (context: TestContext & T) => unknown,
@@ -92,76 +269,168 @@ export interface TestDeclaration<T extends object = {}> {
   readonly skip: TestDeclaration<T>
   readonly only: TestDeclaration<T>
   readonly todo: TestDeclaration<T>
+  readonly concurrent: TestDeclaration<T>
   readonly fails: TestDeclaration<T>
   each<C extends readonly unknown[]>(cases: readonly C[]): EachDeclaration<C>
   each<C>(cases: readonly C[]): EachDeclaration<[C]>
   for<C>(cases: readonly C[]): ForDeclaration<C, T>
   skipIf(condition: unknown): TestDeclaration<T>
   runIf(condition: unknown): TestDeclaration<T>
-  extend<E extends object>(fixtures: {
-    [K in keyof E]:
-      | E[K]
-      | ((
-          context: TestContext & T & E,
-          use: (value: E[K]) => Promise<void>
-        ) => Promise<void>)
-      | [
-          (
-            | E[K]
-            | ((
-                context: TestContext & T & E,
-                use: (value: E[K]) => Promise<void>
-              ) => Promise<void>)
-          ),
-          { scope?: 'test' | 'file'; auto?: boolean },
-        ]
-  }): TestDeclaration<T & E>
-  override(
-    fixtures: Partial<{
-      [K in keyof T]:
-        | T[K]
-        | ((
-            context: TestContext & T,
-            use: (value: T[K]) => Promise<void>
-          ) => Promise<void>)
-        | [
-            (
-              | T[K]
-              | ((
-                  context: TestContext & T,
-                  use: (value: T[K]) => Promise<void>
-                ) => Promise<void>)
-            ),
-            { scope?: 'test' | 'file'; auto?: boolean },
-          ]
-    }>
+  extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
+    name: K,
+    fn: BuilderFixtureFn<V, TestContext & T>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>>
+  extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
+    name: K,
+    options: FixtureOptions & { scope: 'worker' },
+    fn: BuilderFixtureFn<V, WorkerBuilderContext<T>>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'worker'>>
+  extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
+    name: K,
+    options: FixtureOptions & { scope: 'file' },
+    fn: BuilderFixtureFn<V, FileBuilderContext<T>>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'file'>>
+  extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
+    name: K,
+    options: FixtureOptions & { scope?: 'test' },
+    fn: BuilderFixtureFn<V, TestContext & T>
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>>
+  extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
+    name: K,
+    value: V extends (...args: any[]) => any ? never : V
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>>
+  extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
+    name: K,
+    options: FixtureOptions & { scope: 'worker' },
+    value: V extends (...args: any[]) => any ? never : V
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'worker'>>
+  extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
+    name: K,
+    options: FixtureOptions & { scope: 'file' },
+    value: V extends (...args: any[]) => any ? never : V
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'file'>>
+  extend<K extends string, V extends K extends keyof T ? T[K] : unknown>(
+    name: K,
+    options: FixtureOptions & { scope?: 'test' },
+    value: V extends (...args: any[]) => any ? never : V
+  ): TestDeclaration<AddBuilderFixture<T, K, V, 'test'>>
+  extend<E extends object = object>(
+    fixtures: ObjectFixtures<E, T>
+  ): TestDeclaration<Omit<T, keyof E> & E>
+  extend<E extends ScopedFixturesDefinition>(
+    fixtures: ScopedFixtures<E, T>
+  ): TestDeclaration<T & ScopedFixtureValues<E>>
+  override<K extends keyof T>(
+    name: K,
+    fn: BuilderFixtureFn<T[K], TestContext & T>
   ): TestDeclaration<T>
+  override<K extends keyof T>(
+    name: K,
+    options: FixtureOptions,
+    fn: BuilderFixtureFn<T[K], TestContext & T>
+  ): TestDeclaration<T>
+  override<K extends keyof T>(
+    name: K,
+    value: T[K] extends (...args: any[]) => any ? never : T[K]
+  ): TestDeclaration<T>
+  override<K extends keyof T>(
+    name: K,
+    options: FixtureOptions,
+    value: T[K] extends (...args: any[]) => any ? never : T[K]
+  ): TestDeclaration<T>
+  override(fixtures: Partial<ObjectFixtures<T, T>>): TestDeclaration<T>
 }
 
 export interface SuiteDeclaration {
   (name: Name, fn: () => unknown, timeout?: number): void
-  (name: Name, options: TestOptions, fn: () => unknown): void
+  (name: Name, options: SuiteOptions, fn: () => unknown): void
   (name: Name): void
   readonly skip: SuiteDeclaration
   readonly only: SuiteDeclaration
   readonly todo: SuiteDeclaration
-  each<C extends readonly unknown[]>(cases: readonly C[]): EachDeclaration<C>
-  each<C>(cases: readonly C[]): EachDeclaration<[C]>
-  for<C>(cases: readonly C[]): EachDeclaration<[C]>
+  readonly concurrent: SuiteDeclaration
+  readonly shuffle: SuiteDeclaration
+  each<C extends readonly unknown[]>(
+    cases: readonly C[]
+  ): EachDeclaration<C, SuiteOptions>
+  each<C>(cases: readonly C[]): EachDeclaration<[C], SuiteOptions>
+  for<C>(cases: readonly C[]): EachDeclaration<[C], SuiteOptions>
   skipIf(condition: unknown): SuiteDeclaration
   runIf(condition: unknown): SuiteDeclaration
 }
 
-function validateOptions(options: TestOptions) {
+export function validateOptions(
+  options: TestOptions | SuiteOptions,
+  suiteOptions = false
+) {
   for (const key of Object.keys(options)) {
+    if (key === 'tags') {
+      if (options.tags === undefined) continue
+      const tags = Array.isArray(options.tags) ? options.tags : [options.tags]
+      if (tags.some((tag) => typeof tag !== 'string'))
+        throw new TypeError('Test tags must be strings.')
+      continue
+    }
+    if (key === 'meta') {
+      if (
+        options.meta !== undefined &&
+        (!options.meta ||
+          typeof options.meta !== 'object' ||
+          Array.isArray(options.meta))
+      )
+        throw new TypeError('Test meta must be an object.')
+      continue
+    }
+    if (key === 'shuffle' && suiteOptions) {
+      if (typeof (options as SuiteOptions).shuffle !== 'boolean')
+        throw new TypeError('Suite shuffle must be a boolean.')
+      continue
+    }
     if (key === 'concurrent') {
-      if (options.concurrent !== false)
-        unsupported('concurrent tests and suites')
+      if (typeof options.concurrent !== 'boolean')
+        throw new TypeError('Test concurrent must be a boolean.')
       continue
     }
     if (key === 'fails' || key === 'skip' || key === 'only' || key === 'todo') {
       if (typeof options[key] !== 'boolean')
         throw new TypeError(`Test ${key} must be a boolean.`)
+      continue
+    }
+    if (key === 'retry' && options.retry === undefined) continue
+    if (key === 'retry' && typeof options.retry === 'object') {
+      if (!options.retry || Array.isArray(options.retry))
+        throw new TypeError('Test retry must be a number or an options object.')
+      for (const field of Object.keys(options.retry)) {
+        if (field === 'condition') {
+          const condition = options.retry.condition
+          if (
+            condition !== undefined &&
+            !(condition instanceof RegExp) &&
+            typeof condition !== 'function'
+          )
+            throw new TypeError(
+              'Test retry.condition must be a RegExp or a function.'
+            )
+          continue
+        }
+        if (field !== 'count' && field !== 'delay')
+          unsupported(`test retry option "${field}"`)
+        const value = options.retry[field]
+        if (
+          value !== undefined &&
+          (typeof value !== 'number' ||
+            !(field === 'count'
+              ? Number.isSafeInteger(value)
+              : Number.isFinite(value)) ||
+            value < 0)
+        ) {
+          const kind =
+            field === 'count'
+              ? 'non-negative safe integer'
+              : 'finite non-negative number'
+          throw new TypeError(`Test retry.${field} must be a ${kind}.`)
+        }
+      }
       continue
     }
     if (key !== 'retry' && key !== 'timeout' && key !== 'repeats')
@@ -182,16 +451,28 @@ function suite(
   name: string,
   mode: TestMode,
   parent?: TestSuite,
-  options: TestOptions = {}
+  options: SuiteOptions = {}
 ): TestSuite {
   return {
     type: 'suite',
+    meta: options.meta ?? Object.create(null),
+    tags: [
+      ...new Set([
+        ...(parent?.tags ?? []),
+        ...(options.tags === undefined
+          ? []
+          : Array.isArray(options.tags)
+            ? options.tags
+            : [options.tags]),
+      ]),
+    ],
     id,
     name,
     mode,
     suite: parent,
     children: [],
     hooks: { beforeAll: [], afterAll: [], beforeEach: [], afterEach: [] },
+    around: { aroundEach: [], aroundAll: [] },
     options,
     fixtureOverrides: new Map(),
   }
@@ -259,10 +540,43 @@ function templateCases(strings: readonly string[], values: readonly unknown[]) {
   return cases
 }
 
+/** Runtime-only dispatch target for cached declarations in one compiler cohort. */
+export interface CollectorDispatch {
+  root: TestSuite
+  createDeclaration(
+    kind: 'test' | 'suite',
+    mode: TestMode,
+    fixtures?: FixtureDefinitions,
+    options?: SuiteOptions
+  ): any
+  createHook(
+    name: HookName,
+    fixtures?: FixtureDefinitions
+  ): (fn: TestBody, timeout?: number) => void
+  createAround(
+    name: AroundHookName,
+    fixtures?: FixtureDefinitions
+  ): (fn: AroundEachBody | AroundAllBody, timeout?: number) => void
+}
+
 /** One collector per evaluated file. No loader or Vitest runtime is started here. */
-export function createCollector(fileId: string) {
-  const root = suite(fileId, '', 'run')
-  const suiteStorage = new AsyncLocalStorage<TestSuite>()
+export function createCollector(
+  fileId: string,
+  config: {
+    tags?: readonly TestTagDefinition[]
+    strictTags?: boolean
+    sequence?: TestSequenceOptions
+    getRuntimeConfig?: () => import('../assertions/utilities').RuntimeOptions
+    getActiveCollector?: () => CollectorDispatch | undefined
+    isCollectingScope?: () => boolean
+  } = {}
+) {
+  const root = suite(fileId, '', 'run', undefined, {
+    ...(shuffleTests(config.sequence?.shuffle) === undefined
+      ? {}
+      : { shuffle: shuffleTests(config.sequence?.shuffle) }),
+  })
+  const suiteStorage = createDeclarationStorage<TestSuite>()
   const pending: Promise<PromiseSettledResult<unknown>>[] = []
   let closed = false
 
@@ -271,20 +585,27 @@ export function createCollector(fileId: string) {
   function assertCollecting() {
     assertScopeActive()
     if (closed) throw new Error('Test collection has already closed.')
+    if (config.isCollectingScope && !config.isCollectingScope())
+      throw new Error(
+        'Test declarations require their active file collection scope.'
+      )
   }
 
   function declaration(
     kind: 'test' | 'suite',
     mode: TestMode,
     fixtures: FixtureDefinitions = {},
-    declarationOptions: TestOptions = {}
+    declarationOptions: SuiteOptions = {}
   ): any {
+    const redirected = () => {
+      assertScopeActive()
+      const active = config.getActiveCollector?.()
+      return active && active.root !== root
+        ? active.createDeclaration(kind, mode, fixtures, declarationOptions)
+        : undefined
+    }
     function fixturesFor(start: TestSuite) {
-      for (let node: TestSuite | undefined = start; node; node = node.suite) {
-        const override = node.fixtureOverrides.get(fixtures)
-        if (override) return override
-      }
-      return fixtures
+      return resolveFixtureDefinitions(fixtures, start)
     }
     const declare = (
       name: Name,
@@ -292,13 +613,21 @@ export function createCollector(fileId: string) {
       body?: TestBody | number,
       ...extra: unknown[]
     ) => {
+      const active = redirected()
+      if (active)
+        return Reflect.apply(active, undefined, [
+          name,
+          optionsOrFn,
+          body,
+          ...extra,
+        ])
       assertCollecting()
       const current = currentSuite()
       if (extra.length) unsupported('additional declaration arguments')
       name = formatName(name)
       const id = `${current.id}/${current.children.length}`
       if (kind === 'suite') {
-        let options: TestOptions = {}
+        let options: SuiteOptions = {}
         let fn: Function | undefined
         if (typeof optionsOrFn === 'function') {
           if (body !== undefined && typeof body !== 'number')
@@ -308,12 +637,33 @@ export function createCollector(fileId: string) {
         } else {
           if (body !== undefined && typeof body !== 'function')
             throw new TypeError('Suite callback must be a function.')
-          options = (optionsOrFn as TestOptions | undefined) ?? {}
+          options = (optionsOrFn as SuiteOptions | undefined) ?? {}
           fn = typeof body === 'function' ? body : undefined
         }
-        validateOptions(options)
+        validateOptions(options, true)
         options = { ...declarationOptions, ...options }
-        const inheritedOptions = { ...current.options, ...options }
+        // Chain modifiers override an explicit opposing option in 5.0.4.
+        for (const key of ['concurrent', 'shuffle'] as const)
+          if (declarationOptions[key] !== undefined)
+            options[key] = declarationOptions[key]
+        const inheritedOptions = {
+          ...current.options,
+          ...options,
+          meta: Object.assign(
+            Object.create(null),
+            current === root ? undefined : current.meta,
+            options.meta
+          ),
+        }
+        if (config.strictTags) {
+          for (const tag of options.tags === undefined
+            ? []
+            : Array.isArray(options.tags)
+              ? options.tags
+              : [options.tags])
+            if (!config.tags?.some((definition) => definition.name === tag))
+              throw new Error(`Unknown test tag "${tag}".`)
+        }
         const optionMode = options.only
           ? 'only'
           : options.skip
@@ -362,8 +712,58 @@ export function createCollector(fileId: string) {
           options = optionsOrFn ?? {}
           fn = typeof body === 'function' ? body : undefined
         }
-        options = { ...current.options, ...declarationOptions, ...options }
+        const ownOptions = { ...declarationOptions, ...options }
+        if (declarationOptions.concurrent !== undefined)
+          ownOptions.concurrent = declarationOptions.concurrent
+        const tags = [
+          ...new Set([
+            ...current.tags,
+            ...(ownOptions.tags === undefined
+              ? []
+              : Array.isArray(ownOptions.tags)
+                ? ownOptions.tags
+                : [ownOptions.tags]),
+          ]),
+        ]
+        const definitions = tags
+          .flatMap((tag) => {
+            const definition = config.tags?.find((entry) => entry.name === tag)
+            if (!definition && config.strictTags)
+              throw new Error(`Unknown test tag "${tag}".`)
+            return definition ? [definition] : []
+          })
+          .sort((a, b) => (b.priority ?? Infinity) - (a.priority ?? Infinity))
+        const tagOptions: TestOptions = {}
+        const tagMeta = Object.create(null)
+        for (const {
+          name: _name,
+          description: _description,
+          priority: _priority,
+          meta,
+          ...definition
+        } of definitions) {
+          Object.assign(tagOptions, definition)
+          Object.assign(tagMeta, meta)
+        }
+        const { shuffle: _shuffle, ...suiteOptions } = current.options
+        options = {
+          ...(config.sequence?.concurrent === undefined
+            ? {}
+            : { concurrent: config.sequence.concurrent }),
+          ...(config.getRuntimeConfig?.().testTimeout === undefined
+            ? {}
+            : { timeout: config.getRuntimeConfig?.().testTimeout }),
+          ...suiteOptions,
+          ...tagOptions,
+          ...ownOptions,
+        }
         validateOptions(options)
+        const meta = Object.assign(
+          Object.create(null),
+          tagMeta,
+          current === root ? undefined : current.meta,
+          ownOptions.meta
+        )
         const optionMode = options.only
           ? 'only'
           : options.skip
@@ -373,26 +773,45 @@ export function createCollector(fileId: string) {
               : mode
         current.children.push({
           type: 'test',
+          meta,
+          tags,
           id,
           name,
           mode: !fn && optionMode === 'run' ? 'todo' : optionMode,
           suite: current,
           options: { ...options },
-          fixtures: fixturesFor(current),
+          fixtures,
           fn,
         })
       }
     }
     return new Proxy(declare, {
       get(target, key, receiver) {
+        if (kind === 'test' && (key === 'beforeAll' || key === 'afterAll'))
+          return hook(key, fixtures)
+        if (kind === 'test' && (key === 'beforeEach' || key === 'afterEach'))
+          return hook(key)
+        if (kind === 'test' && (key === 'aroundEach' || key === 'aroundAll'))
+          return around(key, fixtures)
         assertScopeActive()
         if (key === 'extend' && kind === 'test')
-          return (extra: Record<string, FixtureDefinition>) => {
-            assertScopeActive()
+          return (...args: [unknown, unknown?, unknown?]) => {
+            const active = redirected()
+            if (active) return active.extend(...args)
+            const [fixturesOrName, optionsOrValue, value] = args
+            assertCollecting()
             const current = currentSuite()
-            if (!extra || typeof extra !== 'object' || Array.isArray(extra))
-              throw new TypeError('test.extend requires a fixture object.')
-            const extended = extendFixtures(fixtures, extra)
+            const extra = normalizeFixtureArguments(
+              'test.extend',
+              fixturesOrName,
+              optionsOrValue,
+              value,
+              args.length >= 3
+            )
+            const extended = extendFixtures(
+              resolveFixtureDefinitions(fixtures, root),
+              extra
+            )
             validateFixtureDefinitions(
               extended,
               Object.keys(extra),
@@ -401,17 +820,25 @@ export function createCollector(fileId: string) {
             return declaration(kind, mode, extended, declarationOptions)
           }
         if (key === 'override' && kind === 'test')
-          return (extra: Record<string, FixtureDefinition>) => {
+          return (...args: [unknown, unknown?, unknown?]) => {
+            const active = redirected()
+            if (active) return active.override(...args)
+            const [fixturesOrName, optionsOrValue, value] = args
             assertCollecting()
             const current = currentSuite()
-            if (!extra || typeof extra !== 'object' || Array.isArray(extra))
-              throw new TypeError('test.override requires a fixture object.')
+            const extra = normalizeFixtureArguments(
+              'test.override',
+              fixturesOrName,
+              optionsOrValue,
+              value,
+              args.length >= 3
+            )
             const inherited = fixturesFor(current)
             for (const name of Object.keys(extra)) {
               if (!(name in inherited))
                 throw new Error(`Cannot override unknown fixture "${name}".`)
             }
-            const overridden = extendFixtures(inherited, extra)
+            const overridden = extendFixtures(inherited, extra, true)
             validateFixtureDefinitions(
               overridden,
               Object.keys(extra),
@@ -475,6 +902,16 @@ export function createCollector(fileId: string) {
             fixtures,
             declarationOptions
           )
+        if (key === 'shuffle' && kind === 'suite')
+          return declaration(kind, mode, fixtures, {
+            ...declarationOptions,
+            shuffle: true,
+          })
+        if (key === 'concurrent')
+          return declaration(kind, mode, fixtures, {
+            ...declarationOptions,
+            concurrent: true,
+          })
         if (key === 'fails' && kind === 'test')
           return declaration(kind, mode, fixtures, {
             ...declarationOptions,
@@ -509,16 +946,46 @@ export function createCollector(fileId: string) {
 
   const test: TestDeclaration = declaration('test', 'run')
   const describe: SuiteDeclaration = declaration('suite', 'run')
-  const hook = (name: HookName) => (fn: TestBody, timeout?: number) => {
-    assertCollecting()
-    if (typeof fn !== 'function')
-      throw new TypeError(`${name} requires a callback.`)
-    if (timeout !== undefined) validateOptions({ timeout })
-    currentSuite().hooks[name].push({ fn, timeout })
-  }
+  const hook =
+    (name: HookName, fixtures?: FixtureDefinitions) =>
+    (fn: TestBody, timeout?: number) => {
+      assertScopeActive()
+      const active = config.getActiveCollector?.()
+      if (active && active.root !== root)
+        return active.createHook(name, fixtures)(fn, timeout)
+      assertCollecting()
+      if (typeof fn !== 'function')
+        throw new TypeError(`${name} requires a callback.`)
+      if (timeout !== undefined) validateOptions({ timeout })
+      currentSuite().hooks[name].push({
+        fn,
+        fixtures,
+        timeout: timeout ?? config.getRuntimeConfig?.().hookTimeout,
+      })
+    }
+  const around =
+    (name: AroundHookName, fixtures: FixtureDefinitions = {}) =>
+    (fn: AroundHook['fn'], timeout?: number) => {
+      assertScopeActive()
+      const active = config.getActiveCollector?.()
+      if (active && active.root !== root)
+        return active.createAround(name, fixtures)(fn, timeout)
+      assertCollecting()
+      if (typeof fn !== 'function')
+        throw new TypeError(`${name} requires a callback.`)
+      if (timeout !== undefined) validateOptions({ timeout })
+      currentSuite().around[name].push({
+        fn,
+        fixtures,
+        timeout: timeout ?? config.getRuntimeConfig?.().hookTimeout,
+      })
+    }
 
   return {
     root,
+    createDeclaration: declaration,
+    createHook: hook,
+    createAround: around,
     api: {
       test,
       it: test,
@@ -528,6 +995,8 @@ export function createCollector(fileId: string) {
       afterAll: hook('afterAll'),
       beforeEach: hook('beforeEach'),
       afterEach: hook('afterEach'),
+      aroundEach: around('aroundEach'),
+      aroundAll: around('aroundAll'),
     },
     async settle() {
       const errors: unknown[] = []
@@ -549,7 +1018,6 @@ export function createCollector(fileId: string) {
 }
 
 export function hasFocusedTests(node: TestSuite | TestCase): boolean {
-  if (node.mode === 'skip' || node.mode === 'todo') return false
   return (
     node.mode === 'only' ||
     (node.type === 'suite' && node.children.some(hasFocusedTests))
@@ -560,28 +1028,73 @@ export function selectedCases(
   root: TestSuite
 ): Map<TestCase, 'run' | 'skip' | 'todo'> {
   const cases = new Map<TestCase, 'run' | 'skip' | 'todo'>()
-  const focused = hasFocusedTests(root)
-  function visit(
-    node: TestSuite | TestCase,
-    inherited: TestMode,
-    only: boolean
-  ) {
-    const mode =
-      inherited === 'skip' || inherited === 'todo' ? inherited : node.mode
-    only ||= mode === 'only'
+  const containsOnly = new Map<TestSuite, boolean>()
+  function collectFocus(node: TestSuite | TestCase): boolean {
+    let childrenOnly = false
     if (node.type === 'suite') {
-      node.children.forEach((child) => visit(child, mode, only))
-    } else {
-      cases.set(
-        node,
-        mode === 'todo'
-          ? 'todo'
-          : mode === 'skip' || (focused && !only)
-            ? 'skip'
-            : 'run'
-      )
+      for (const child of node.children)
+        if (collectFocus(child)) childrenOnly = true
+      containsOnly.set(node, childrenOnly)
+    }
+    // Collection records focus even beneath skipped and todo suites.
+    return node.mode === 'only' || childrenOnly
+  }
+  const focused = collectFocus(root)
+  function visit(
+    node: TestSuite,
+    inherited: 'run' | 'skip' | 'todo',
+    parentIsOnly: boolean
+  ) {
+    const suiteIsOnly = parentIsOnly || node.mode === 'only'
+    const childrenOnly = focused && containsOnly.get(node)
+    for (const child of node.children) {
+      // Descendant focus narrows an enclosing describe.only to those branches.
+      const included = childrenOnly
+        ? child.mode === 'only' ||
+          (child.type === 'suite' && containsOnly.get(child))
+        : suiteIsOnly || child.mode === 'only'
+      const mode =
+        inherited !== 'run'
+          ? inherited
+          : child.mode === 'todo'
+            ? 'todo'
+            : child.mode === 'skip' || (focused && !included)
+              ? 'skip'
+              : 'run'
+      if (child.type === 'suite') visit(child, mode, !!included)
+      else cases.set(child, mode)
     }
   }
-  visit(root, 'run', false)
+  visit(
+    root,
+    root.mode === 'skip' || root.mode === 'todo' ? root.mode : 'run',
+    false
+  )
+  return cases
+}
+
+/** Declaration-order facts, after real setup/spec and asynchronous collection. */
+export function collectTestCases(
+  root: TestSuite,
+  options: { testNamePattern?: string | RegExp; allowOnly?: boolean } = {}
+): { id: string; name: string }[] {
+  if (options.allowOnly === false && hasFocusedTests(root))
+    throw new Error(
+      'Collected listing with focus and allowOnly:false is not implemented.'
+    )
+  const pattern =
+    options.testNamePattern === undefined
+      ? undefined
+      : new RegExp(options.testNamePattern)
+  const cases: { id: string; name: string }[] = []
+  for (const [test, mode] of selectedCases(root)) {
+    if (mode !== 'run') continue
+    const names = [test.name]
+    for (let parent = test.suite; parent !== root; parent = parent.suite!)
+      names.unshift(parent.name)
+    const name = names.join(' > ')
+    if (pattern && !name.match(pattern)) continue
+    cases.push({ id: test.id, name })
+  }
   return cases
 }

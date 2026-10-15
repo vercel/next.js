@@ -1,4 +1,7 @@
 const assert = require('node:assert/strict')
+const { execFile } = require('node:child_process')
+const { promisify } = require('node:util')
+const exec = promisify(execFile)
 const { readFile, writeFile, readdir } = require('node:fs/promises')
 const { readFileSync } = require('node:fs')
 const { dirname, join } = require('node:path')
@@ -39,6 +42,7 @@ async function main() {
   )
   let output = ''
   let mutation = Promise.resolve()
+  let mutationFailure
   let mutated = false
   let killed = false
   let completedSecond = false
@@ -91,6 +95,31 @@ async function main() {
     if (match[1] === 'first' && !mutated) {
       mutated = true
       mutation = (async () => {
+        if (requestedMode === 'public-node') {
+          // An idle watch still owns journal recovery and snapshot publication.
+          // Another public invocation must fail before it can acquire those bytes.
+          await assert.rejects(
+            exec(
+              process.execPath,
+              [
+                require.resolve('next/dist/bin/next'),
+                'test',
+                projectDir,
+                '--run',
+              ],
+              {
+                cwd: projectDir,
+                env: process.env,
+                timeout: 10000,
+              }
+            ),
+            (error) =>
+              error.code === 1 &&
+              /Another next test invocation owns this application/.test(
+                error.stderr
+              )
+          )
+        }
         await writeFile(
           configPath,
           originalConfig.replaceAll('first', 'second')
@@ -100,7 +129,10 @@ async function main() {
           'NEXT_TEST_WATCH_VALUE=second\n'
         )
         await writeFile(setupPath, originalSetup.replaceAll('first', 'second'))
-      })().catch((error) => controller.abort(error))
+      })().catch((error) => {
+        mutationFailure = error
+        controller.abort(error)
+      })
     } else if (match[1] === 'second') {
       completedSecond = true
       controller.abort(new Error('Verified fresh configuration and setup'))
@@ -170,6 +202,7 @@ async function main() {
       },
     })
     await mutation
+    if (mutationFailure) throw mutationFailure
     if (mode === 'reload') {
       assert.equal(result.status, 'cancelled')
       assert.equal(completedSecond, true, output)

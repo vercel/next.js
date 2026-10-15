@@ -7,6 +7,13 @@ process.on('message', ({ type, input }) => {
     process.send({ cleaned: true }, () => process.exit(0))
     return
   }
+  if (input === 'inspector') {
+    process.send(
+      { inspector: require('node:inspector').url() || null, pid: process.pid },
+      () => process.exit(0)
+    )
+    return
+  }
   if (input === 'cwd') {
     process.send({ value: readFileSync('relative-data.txt', 'utf8') }, () =>
       process.exit(0)

@@ -1,17 +1,22 @@
+import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import { randomUUID } from 'node:crypto'
 import type {
   CompiledTestArtifact,
+  CompiledTestCohort,
+  ExecuteTestCohort,
   ExecuteTest,
   ExecuteTestOptions,
   TestCoverageCompletion,
+  TestExecutionResult,
 } from '../contracts'
-import type {
-  FileResult,
-  ResultEvent,
-  SerializedDiagnostic,
-} from '../reporting/events'
+import type { ResultEvent, SerializedDiagnostic } from '../reporting/events'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { executeWithEnvironment } from './execute'
+import {
+  executeCohortWithEnvironment,
+  CohortExecutionClosedError,
+  isCohortExecutionClosedError,
+} from './execute-cohort'
 import {
   resolveSnapshotUpdateMode,
   type SnapshotUpdate,
@@ -20,7 +25,7 @@ import { parseMaxWorkers } from '../scheduling'
 
 type SerializableOptions = Omit<
   ExecuteTestOptions,
-  'signal' | 'onEvent' | 'onCoverage' | 'onSnapshotUpdates'
+  'signal' | 'onEvent' | 'onCoverage' | 'onCustomCoverage' | 'onSnapshotUpdates'
 >
 
 export type ExecutionBrokerRequest =
@@ -33,9 +38,24 @@ export type ExecutionBrokerRequest =
       /** Private IPC only: never log, fingerprint, or report this object. */
       env: NodeJS.ProcessEnv
     }
+  | {
+      type: 'execution-broker-request'
+      id: string
+      action: 'execute-cohort'
+      cohort: CompiledTestCohort
+      options: readonly SerializableOptions[]
+      /** Private IPC only, including resolved compiler configuration effects. */
+      env: NodeJS.ProcessEnv
+    }
   | { type: 'execution-broker-request'; id: string; action: 'cancel' }
 
 export type ExecutionBrokerResponse =
+  | {
+      type: 'execution-broker-response'
+      id: string
+      action: 'custom-coverage'
+      completion: CustomCoverageCompletion
+    }
   | {
       type: 'execution-broker-response'
       id: string
@@ -52,13 +72,22 @@ export type ExecutionBrokerResponse =
       type: 'execution-broker-response'
       id: string
       action: 'result'
-      result: FileResult
+      result: TestExecutionResult
+    }
+  | {
+      type: 'execution-broker-response'
+      id: string
+      action: 'cohort-result'
+      results: readonly TestExecutionResult[]
     }
   | {
       type: 'execution-broker-response'
       id: string
       action: 'error'
       error: SerializedDiagnostic
+      /** Issued by the parent owner; never accepted from a child request. */
+      ownershipClosed?: true
+      cancelled?: true
     }
 
 /** The watch parent owns every detached file worker, including after child crash. */
@@ -67,6 +96,8 @@ export function createExecutionBrokerHost(options: {
   send(message: ExecutionBrokerResponse): Promise<void>
   /** One-shot supervisors only. Watch still rejects coverage. */
   allowCoverage?: boolean
+  /** One-shot isolated-profile supervisors only; ordinary watch rejects cohorts. */
+  allowCohorts?: boolean
   maxWorkers?: number
   /** Explicit parent authorization; plans are committed after generation cleanup. */
   onSnapshotUpdates?: (
@@ -136,7 +167,7 @@ export function createExecutionBrokerHost(options: {
           ?.controller.abort(new Error('Test file cancelled'))
         return true
       }
-      if (message.action !== 'execute') {
+      if (message.action !== 'execute' && message.action !== 'execute-cohort') {
         throw new Error('Invalid execution broker request action')
       }
       if (closed || transportFailure || cleanupFailures.length > 0) {
@@ -163,8 +194,57 @@ export function createExecutionBrokerHost(options: {
       request.task = (async () => {
         let executing = false
         try {
+          if (message.action === 'execute-cohort') {
+            if (!options.allowCohorts)
+              throw new Error(
+                'Watch execution does not support shared worker cohorts'
+              )
+            if (
+              !Array.isArray(message.options) ||
+              !message.options.length ||
+              message.options.some(
+                (execution) =>
+                  execution.customCoverage ||
+                  execution.coverage ||
+                  execution.browser ||
+                  (resolveSnapshotUpdateMode(execution) !== 'none' &&
+                    !options.onSnapshotUpdates)
+              )
+            )
+              throw new Error(
+                'Unsupported shared cohort execution or unauthorized snapshot updates'
+              )
+            executing = true
+            const results = await executeCohortWithEnvironment(
+              message.cohort,
+              message.options.map((execution) => ({
+                ...execution,
+                signal: request.controller.signal,
+                onEvent(event) {
+                  void publish({
+                    type: 'execution-broker-response',
+                    id: message.id,
+                    action: 'event',
+                    event,
+                  }).catch(() => {})
+                },
+              })),
+              { ...message.env },
+              options.onSnapshotUpdates
+            )
+            executing = false
+            request.leased = false
+            await publish({
+              type: 'execution-broker-response',
+              id: message.id,
+              action: 'cohort-result',
+              results,
+            })
+            return
+          }
           if (
-            (message.options.coverage && !options.allowCoverage) ||
+            ((message.options.coverage || message.options.customCoverage) &&
+              !options.allowCoverage) ||
             (resolveSnapshotUpdateMode(message.options) !== 'none' &&
               !options.onSnapshotUpdates) ||
             message.options.browser ||
@@ -188,6 +268,17 @@ export function createExecutionBrokerHost(options: {
                   event,
                 }).catch(() => {})
               },
+              ...(message.options.customCoverage && options.allowCoverage
+                ? {
+                    onCustomCoverage: (completion: CustomCoverageCompletion) =>
+                      publish({
+                        type: 'execution-broker-response',
+                        id: message.id,
+                        action: 'custom-coverage',
+                        completion,
+                      }),
+                  }
+                : {}),
               ...(message.options.coverage && options.allowCoverage
                 ? {
                     onCoverage: (completion: TestCoverageCompletion) =>
@@ -223,13 +314,23 @@ export function createExecutionBrokerHost(options: {
         } catch (error) {
           // An execute rejection can mean a process-group/cache cleanup failed.
           // Reporting it to the child must not later certify ownership closure.
-          if (executing) cleanupFailures.push(error)
+          const certified =
+            message.action === 'execute-cohort' &&
+            isCohortExecutionClosedError(error)
+          if (executing && !certified) cleanupFailures.push(error)
+          if (certified) request.leased = false
           if (!closed && !transportFailure) {
             await publish({
               type: 'execution-broker-response',
               id: message.id,
               action: 'error',
               error: serializeDiagnostic(error, { phase: 'runtime' }),
+              ...(certified
+                ? {
+                    ownershipClosed: true as const,
+                    ...(error.cancelled ? { cancelled: true as const } : {}),
+                  }
+                : {}),
             })
           }
         } finally {
@@ -287,17 +388,27 @@ function remoteError(diagnostic: SerializedDiagnostic): Error {
 export function createExecutionBrokerClient(options: {
   send(message: ExecutionBrokerRequest): Promise<void>
   allowCoverage?: boolean
+  allowCohorts?: boolean
 }) {
-  interface Pending {
-    resolve(result: FileResult): void
+  interface PendingBase {
     reject(error: unknown): void
     onEvent(event: ResultEvent): void
     signal: AbortSignal
     onAbort(): void
     failure?: { error: unknown }
     onCoverage?: ExecuteTestOptions['onCoverage']
+    onCustomCoverage?: ExecuteTestOptions['onCustomCoverage']
     coverage: Promise<void>
   }
+  type Pending = PendingBase &
+    (
+      | { kind: 'file'; resolve(result: TestExecutionResult): void }
+      | {
+          kind: 'cohort'
+          entryIds: readonly string[]
+          resolve(result: readonly TestExecutionResult[]): void
+        }
+    )
   const pending = new Map<string, Pending>()
   let disconnected: Error | undefined
 
@@ -314,7 +425,10 @@ export function createExecutionBrokerClient(options: {
     if (disconnected) return Promise.reject(disconnected)
     if (
       !options.allowCoverage &&
-      (executionOptions.coverage || executionOptions.onCoverage)
+      (executionOptions.coverage ||
+        executionOptions.onCoverage ||
+        executionOptions.customCoverage ||
+        executionOptions.onCustomCoverage)
     ) {
       return Promise.reject(
         new Error('Watch execution does not support coverage')
@@ -325,9 +439,11 @@ export function createExecutionBrokerClient(options: {
       signal,
       onEvent,
       onCoverage: _onCoverage,
+      onCustomCoverage: _onCustomCoverage,
+      onSnapshotUpdates: _onSnapshotUpdates,
       ...serializable
     } = executionOptions
-    return new Promise<FileResult>((resolve, reject) => {
+    return new Promise<TestExecutionResult>((resolve, reject) => {
       let sent = Promise.resolve()
       let cancellationSent = false
       function cancel() {
@@ -346,12 +462,14 @@ export function createExecutionBrokerClient(options: {
         void sent.catch((error) => disconnect(asError(error)))
       }
       const request: Pending = {
+        kind: 'file',
         resolve,
         reject,
         onEvent,
         signal,
         onAbort: cancel,
         onCoverage: executionOptions.onCoverage,
+        onCustomCoverage: executionOptions.onCustomCoverage,
         coverage: Promise.resolve(),
       }
       pending.set(id, request)
@@ -372,8 +490,104 @@ export function createExecutionBrokerClient(options: {
     })
   }
 
+  const executeCohort: ExecuteTestCohort = (cohort, executionOptions) => {
+    if (disconnected) return Promise.reject(disconnected)
+    if (!options.allowCohorts)
+      return Promise.reject(
+        new Error('Watch execution does not support shared worker cohorts')
+      )
+    const first = executionOptions[0]
+    if (
+      !first ||
+      executionOptions.length !== cohort.artifacts.length ||
+      executionOptions.some(
+        (value) =>
+          value.signal !== first.signal ||
+          value.runId !== first.runId ||
+          value.projectDir !== first.projectDir ||
+          value.coverage ||
+          value.customCoverage ||
+          value.onCustomCoverage ||
+          value.onCoverage
+      )
+    )
+      return Promise.reject(
+        new Error(
+          'Shared worker cohorts require matching execution options without coverage'
+        )
+      )
+    const id = randomUUID()
+    const serializable = executionOptions.map(
+      ({
+        signal: _signal,
+        onEvent: _onEvent,
+        onCoverage: _onCoverage,
+        onCustomCoverage: _onCustomCoverage,
+        onSnapshotUpdates: _onSnapshotUpdates,
+        ...value
+      }) => value
+    )
+    const byEntry = new Map(
+      executionOptions.map((value) => [value.entry.id, value])
+    )
+    return new Promise<readonly TestExecutionResult[]>((resolve, reject) => {
+      let sent = Promise.resolve()
+      let cancellationSent = false
+      function cancel() {
+        if (cancellationSent) return
+        cancellationSent = true
+        sent = sent.then(() => {
+          if (disconnected) throw disconnected
+          return options.send({
+            type: 'execution-broker-request',
+            action: 'cancel',
+            id,
+          })
+        })
+        void sent.catch((error) => disconnect(asError(error)))
+      }
+      const request: Pending = {
+        kind: 'cohort',
+        entryIds: executionOptions.map((value) => value.entry.id),
+        resolve,
+        reject,
+        signal: first.signal,
+        onAbort: cancel,
+        coverage: Promise.resolve(),
+        onEvent(event) {
+          const entryId =
+            event.type === 'file-start'
+              ? event.entry.id
+              : 'entryId' in event
+                ? event.entryId
+                : undefined
+          const owner = entryId ? byEntry.get(entryId) : first
+          if (!owner)
+            throw new Error('Unknown shared cohort broker event owner')
+          owner.onEvent(event)
+        },
+      }
+      pending.set(id, request)
+      sent = Promise.resolve().then(() => {
+        if (disconnected) throw disconnected
+        return options.send({
+          type: 'execution-broker-request',
+          id,
+          action: 'execute-cohort',
+          cohort,
+          options: serializable,
+          env: { ...process.env },
+        })
+      })
+      void sent.catch((error) => disconnect(asError(error)))
+      first.signal.addEventListener('abort', cancel, { once: true })
+      if (first.signal.aborted) cancel()
+    })
+  }
+
   return {
     execute,
+    executeCohort,
     disconnect,
     handle(value: unknown): boolean {
       if (
@@ -390,6 +604,19 @@ export function createExecutionBrokerClient(options: {
       }
       const request = pending.get(message.id)
       if (!request) return true
+      if (message.action === 'custom-coverage') {
+        request.coverage = request.coverage
+          .then(async () => {
+            if (!options.allowCoverage || !request.onCustomCoverage)
+              throw new Error('Unexpected broker custom coverage completion')
+            await request.onCustomCoverage(message.completion)
+          })
+          .catch((error) => {
+            request.failure ??= { error }
+            request.onAbort()
+          })
+        return true
+      }
       if (message.action === 'coverage') {
         request.coverage = request.coverage
           .then(async () => {
@@ -412,14 +639,26 @@ export function createExecutionBrokerClient(options: {
         }
         return true
       }
-      if (message.action !== 'result' && message.action !== 'error') {
+      if (
+        message.action !== 'result' &&
+        message.action !== 'cohort-result' &&
+        message.action !== 'error'
+      ) {
         throw new Error('Invalid execution broker response action')
       }
       void request.coverage.then(() => {
         pending.delete(message.id)
         request.signal.removeEventListener('abort', request.onAbort)
         if (message.action === 'error') {
-          const error = remoteError(message.error)
+          const remote = remoteError(message.error)
+          const cancelled = message.cancelled === true && request.signal.aborted
+          const error =
+            request.kind === 'cohort' && message.ownershipClosed === true
+              ? new CohortExecutionClosedError(
+                  cancelled ? request.signal.reason : remote,
+                  cancelled
+                )
+              : remote
           request.reject(
             request.failure
               ? new AggregateError(
@@ -430,8 +669,23 @@ export function createExecutionBrokerClient(options: {
           )
         } else if (request.failure) {
           request.reject(request.failure.error)
-        } else {
+        } else if (message.action === 'result' && request.kind === 'file') {
           request.resolve(message.result)
+        } else if (
+          message.action === 'cohort-result' &&
+          request.kind === 'cohort'
+        ) {
+          if (
+            !Array.isArray(message.results) ||
+            message.results.length !== request.entryIds.length ||
+            message.results.some(
+              (result, index) => result.entryId !== request.entryIds[index]
+            )
+          )
+            request.reject(new Error('Mismatched shared cohort broker results'))
+          else request.resolve(message.results)
+        } else {
+          request.reject(new Error('Mismatched execution broker result kind'))
         }
       })
       return true

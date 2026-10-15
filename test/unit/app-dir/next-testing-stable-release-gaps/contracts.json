@@ -1,0 +1,1381 @@
+[
+  {
+    "id": "public-config-import",
+    "surface": "1 imports"
+  },
+  {
+    "id": "optional-globals",
+    "surface": "1 imports",
+    "vitest": {
+      "globals": true
+    },
+    "nextProject": {
+      "globals": true
+    }
+  },
+  {
+    "id": "workspace-helper-state",
+    "surface": "1 imports"
+  },
+  {
+    "id": "context-expect",
+    "surface": "2 lifecycle"
+  },
+  {
+    "id": "context-task",
+    "surface": "2 lifecycle"
+  },
+  {
+    "id": "context-annotation",
+    "surface": "2 lifecycle"
+  },
+  {
+    "id": "context-signal-lifetime",
+    "surface": "2 lifecycle"
+  },
+  {
+    "id": "around-each",
+    "surface": "2 lifecycle"
+  },
+  {
+    "id": "around-all",
+    "surface": "2 lifecycle"
+  },
+  {
+    "id": "concurrent-isolation",
+    "surface": "2 lifecycle"
+  },
+  {
+    "id": "sequential-inside-concurrent",
+    "surface": "2 lifecycle"
+  },
+  {
+    "id": "shuffled-suite",
+    "surface": "2 lifecycle",
+    "vitest": {
+      "sequence": {
+        "seed": 8127
+      }
+    },
+    "nextProject": {
+      "sequence": {
+        "seed": 8127
+      }
+    }
+  },
+  {
+    "id": "worker-fixture",
+    "surface": "2 fixtures"
+  },
+  {
+    "id": "builder-fixture",
+    "surface": "2 fixtures"
+  },
+  {
+    "id": "scoped-fixture-hooks",
+    "surface": "2 fixtures"
+  },
+  {
+    "id": "fixture-builder-override",
+    "surface": "2 fixtures"
+  },
+  {
+    "id": "timeout-next-case",
+    "surface": "2 lifecycle",
+    "expectedCode": 1
+  },
+  {
+    "id": "context-benchmark",
+    "surface": "2 metadata"
+  },
+  {
+    "id": "create-expect",
+    "surface": "3 assertions"
+  },
+  {
+    "id": "chai-should",
+    "surface": "3 assertions"
+  },
+  {
+    "id": "mock-object",
+    "surface": "3 utilities"
+  },
+  {
+    "id": "fake-microtasks",
+    "surface": "3 utilities"
+  },
+  {
+    "id": "fake-animation-frame",
+    "surface": "3 utilities",
+    "vitest": {
+      "environment": "jsdom"
+    },
+    "nextProject": {
+      "environment": "jsdom"
+    }
+  },
+  {
+    "id": "async-timer-microtasks",
+    "surface": "3 utilities"
+  },
+  {
+    "id": "wait-for-fake-clock",
+    "surface": "3 utilities"
+  },
+  {
+    "id": "mock-reset-option",
+    "surface": "3 lifetime",
+    "vitest": {
+      "clearMocks": true
+    },
+    "nextProject": {
+      "clearMocks": true
+    }
+  },
+  {
+    "id": "compiled-env-stub",
+    "surface": "3 compilation boundary"
+  },
+  {
+    "id": "hoisted-helper",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "import-actual",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "dynamic-do-mock",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "automatic-module-mock",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "manual-module-mock",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "module-spy-mode",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "module-reset",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "external-esm-target",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "partial-factory-cycle",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "mock-setup-order",
+    "surface": "4 mocks",
+    "vitest": {
+      "setupFiles": ["./setup.mjs"]
+    },
+    "nextProject": {
+      "setupFiles": ["./setup.mjs"]
+    }
+  },
+  {
+    "id": "jsdom-options",
+    "surface": "6 environments",
+    "vitest": {
+      "environment": "jsdom",
+      "environmentOptions": {
+        "jsdom": {
+          "url": "https://release.example/fixture"
+        }
+      }
+    },
+    "nextProject": {
+      "environment": "jsdom",
+      "environmentOptions": {
+        "jsdom": {
+          "url": "https://release.example/fixture"
+        }
+      }
+    }
+  },
+  {
+    "id": "happy-dom-options",
+    "surface": "6 environments",
+    "vitest": {
+      "environment": "happy-dom",
+      "environmentOptions": {
+        "happyDOM": {
+          "url": "https://release.example/fixture"
+        }
+      }
+    },
+    "nextProject": {
+      "environment": "happy-dom",
+      "environmentOptions": {
+        "happyDOM": {
+          "url": "https://release.example/fixture"
+        }
+      }
+    }
+  },
+  {
+    "id": "per-file-environment",
+    "surface": "6 environments"
+  },
+  {
+    "id": "testing-library-react",
+    "surface": "6 ecosystem",
+    "vitest": {
+      "environment": "jsdom"
+    },
+    "nextProject": {
+      "environment": "jsdom"
+    }
+  },
+  {
+    "id": "custom-environment",
+    "surface": "6 environments",
+    "vitest": {
+      "environment": "./environment.mjs"
+    },
+    "nextProject": {
+      "environment": "./environment.mjs"
+    }
+  },
+  {
+    "id": "browser-execution",
+    "surface": "6 Browser Mode",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "browser-react-render",
+    "surface": "6 Browser Mode",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "provided-context",
+    "surface": "7 config",
+    "vitest": {
+      "provide": {
+        "releaseValue": 42
+      }
+    },
+    "nextProject": {
+      "provide": {
+        "releaseValue": 42
+      }
+    }
+  },
+  {
+    "id": "global-setup",
+    "surface": "7 config",
+    "vitest": {
+      "globalSetup": ["./global-setup.mjs"]
+    },
+    "nextProject": {
+      "globalSetup": ["./global-setup.mjs"]
+    }
+  },
+  {
+    "id": "executable-next-config",
+    "surface": "7 config",
+    "nextConfigFile": "next.test.config.mjs"
+  },
+  {
+    "id": "vitest-config-migration",
+    "surface": "7 migration",
+    "nextConfigFile": "vitest.config.mjs",
+    "vitest": {
+      "globals": true
+    }
+  },
+  {
+    "id": "config-setup-order",
+    "surface": "7 config",
+    "vitest": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "sequence": {
+        "setupFiles": "list"
+      }
+    },
+    "nextProject": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "sequence": {
+        "setupFiles": "list"
+      }
+    }
+  },
+  {
+    "id": "cli-bail",
+    "surface": "8 CLI",
+    "args": ["--bail=1"],
+    "expectedCode": 1
+  },
+  {
+    "id": "cli-retry",
+    "surface": "8 CLI",
+    "args": ["--retry=1"]
+  },
+  {
+    "id": "cli-timeout",
+    "surface": "8 CLI",
+    "args": ["--testTimeout=25"],
+    "expectedCode": 1
+  },
+  {
+    "id": "cli-forbid-only-ci",
+    "surface": "8 CLI",
+    "ci": true,
+    "expectedCode": 1
+  },
+  {
+    "id": "cli-allow-empty",
+    "surface": "8 CLI",
+    "args": ["--testNamePattern=does-not-exist", "--passWithNoTests"]
+  },
+  {
+    "id": "cli-projects",
+    "surface": "8 projects",
+    "vitest": {
+      "projects": [
+        {
+          "test": {
+            "name": "first",
+            "include": ["*.case.mjs"],
+            "provide": {
+              "project": "first"
+            }
+          }
+        },
+        {
+          "test": {
+            "name": "second",
+            "include": ["*.case.mjs"],
+            "provide": {
+              "project": "second"
+            }
+          }
+        }
+      ]
+    },
+    "nextConfig": {
+      "projects": [
+        {
+          "name": "first",
+          "include": ["*.case.mjs"],
+          "provide": {
+            "project": "first"
+          }
+        },
+        {
+          "name": "second",
+          "include": ["*.case.mjs"],
+          "provide": {
+            "project": "second"
+          }
+        }
+      ]
+    },
+    "args": ["--project=second"]
+  },
+  {
+    "id": "cli-related",
+    "surface": "8 selection",
+    "command": "related",
+    "args": ["subject.mjs", "--run"]
+  },
+  {
+    "id": "custom-reporter",
+    "surface": "10 reports",
+    "customReporter": true
+  },
+  {
+    "id": "reporter-crash",
+    "surface": "10 reports",
+    "customReporter": true,
+    "expectedCode": 1
+  },
+  {
+    "id": "standard-coverage",
+    "surface": "9 coverage",
+    "coverage": true
+  },
+  {
+    "id": "coverage-threshold",
+    "surface": "9 coverage",
+    "coverage": true,
+    "threshold": true,
+    "expectedCode": 1
+  },
+  {
+    "id": "filtered-snapshot-pruning",
+    "surface": "5 snapshots",
+    "args": ["--update", "--testNamePattern=^selected$"],
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"]
+  },
+  {
+    "id": "snapshot-serializer-config",
+    "surface": "5 snapshots",
+    "vitest": {
+      "snapshotSerializers": ["./serializer.mjs"]
+    },
+    "nextProject": {
+      "snapshotSerializers": ["./serializer.mjs"]
+    },
+    "args": ["--update"],
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"]
+  },
+  {
+    "id": "tags-and-meta",
+    "surface": "2 metadata",
+    "vitest": {
+      "tags": [
+        {
+          "name": "release",
+          "meta": {
+            "fromTag": 1
+          }
+        }
+      ]
+    },
+    "nextProject": {
+      "tags": [
+        {
+          "name": "release",
+          "meta": {
+            "fromTag": 1
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "cjs-implementation-esm-import",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "rsc-module-mocks",
+    "surface": "4 profiles",
+    "nextProject": {
+      "environment": "rsc"
+    }
+  },
+  {
+    "id": "browser-module-mocks",
+    "surface": "4 profiles",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "snapshot-name-format",
+    "surface": "5 snapshots",
+    "args": ["--update"],
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"]
+  },
+  {
+    "id": "mock-global-restore-option",
+    "surface": "3 lifetime",
+    "vitest": {
+      "unstubGlobals": true
+    },
+    "nextProject": {
+      "unstubGlobals": true
+    }
+  },
+  {
+    "id": "snapshot-parallel-files",
+    "surface": "5 snapshots",
+    "args": ["--update"],
+    "nextConfig": {
+      "maxWorkers": 2,
+      "projects": [
+        {
+          "name": "release",
+          "include": ["*.case.mjs"]
+        }
+      ]
+    },
+    "compareFiles": [
+      "__snapshots__/contract.case.mjs.snap",
+      "__snapshots__/second.case.mjs.snap"
+    ]
+  },
+  {
+    "id": "cli-shard-first",
+    "surface": "8 sharding",
+    "args": ["--shard=1/2"]
+  },
+  {
+    "id": "cli-shard-second",
+    "surface": "8 sharding",
+    "args": ["--shard=2/2"]
+  },
+  {
+    "id": "compiler-backed-typecheck",
+    "surface": "1 type testing",
+    "vitest": {
+      "typecheck": {
+        "enabled": true,
+        "include": ["*.test-d.ts"]
+      }
+    },
+    "args": ["--typecheck"],
+    "expectedCode": 1
+  },
+  {
+    "id": "in-source-tests",
+    "surface": "1 in-source",
+    "vitest": {
+      "includeSource": ["*.source.mjs"]
+    },
+    "nextProject": {
+      "includeSource": ["*.source.mjs"]
+    }
+  },
+  {
+    "id": "hook-list-order",
+    "surface": "2 lifecycle",
+    "vitest": {
+      "sequence": {
+        "hooks": "list"
+      }
+    },
+    "nextProject": {
+      "sequence": {
+        "hooks": "list"
+      }
+    }
+  },
+  {
+    "id": "alias-partial-mock",
+    "surface": "4 mocks",
+    "packageImports": {
+      "#release-subject": "./subject.mjs"
+    }
+  },
+  {
+    "id": "json-metadata",
+    "surface": "10 reports",
+    "compareJsonMetadata": true
+  },
+  {
+    "id": "cli-changed",
+    "surface": "8 selection",
+    "args": ["--changed=HEAD"],
+    "gitChange": "subject.mjs"
+  },
+  {
+    "id": "debug-individual-test",
+    "surface": "10 debugging",
+    "args": [
+      "--inspect=127.0.0.1:0",
+      "--no-file-parallelism",
+      "--testNamePattern=^debug selected original test$"
+    ]
+  },
+  {
+    "id": "editor-api-discovery",
+    "surface": "10 editor API",
+    "args": ["--api=0"]
+  },
+  {
+    "id": "compiler-option-mapping",
+    "surface": "7 migration diagnostics",
+    "vitestAlias": true,
+    "nextConfigFile": "vitest.config.mjs"
+  },
+  {
+    "id": "failure-listener-context",
+    "surface": "2 lifecycle"
+  },
+  {
+    "id": "unawaited-passing-assertion",
+    "surface": "3 assertions",
+    "expectedCode": 1,
+    "compareFailureMessages": true
+  },
+  {
+    "id": "worker-lifetime-across-files",
+    "surface": "2 fixtures",
+    "vitest": {
+      "maxWorkers": 1,
+      "isolate": false
+    },
+    "nextConfig": {
+      "maxWorkers": 1,
+      "projects": [
+        {
+          "name": "release",
+          "include": ["*.case.mjs"],
+          "isolate": false
+        }
+      ]
+    }
+  },
+  {
+    "id": "reporter-tap",
+    "surface": "10 built-in reporters",
+    "args": ["--reporter=tap"]
+  },
+  {
+    "id": "reporter-tap-flat",
+    "surface": "10 built-in reporters",
+    "args": ["--reporter=tap-flat"]
+  },
+  {
+    "id": "reporter-verbose",
+    "surface": "10 built-in reporters",
+    "args": ["--reporter=verbose"]
+  },
+  {
+    "id": "reporter-dot",
+    "surface": "10 built-in reporters",
+    "args": ["--reporter=dot"]
+  },
+  {
+    "id": "reporter-github-actions",
+    "surface": "10 built-in reporters",
+    "args": ["--reporter=github-actions"]
+  },
+  {
+    "id": "edge-runtime",
+    "surface": "6 Edge environment",
+    "vitest": {
+      "environment": "edge-runtime"
+    },
+    "nextProject": {
+      "environment": "edge-runtime"
+    }
+  },
+  {
+    "id": "custom-coverage-provider",
+    "surface": "9 custom provider",
+    "customCoverage": true,
+    "vitest": {
+      "coverage": {
+        "enabled": true,
+        "provider": "custom",
+        "customProviderModule": "./coverage-provider.mjs"
+      }
+    },
+    "nextProject": {
+      "coverage": {
+        "enabled": true,
+        "provider": "custom",
+        "customProviderModule": "./coverage-provider.mjs"
+      }
+    }
+  },
+  {
+    "id": "inlined-env-stub-boundary",
+    "surface": "3 compilation boundary",
+    "environmentVariables": {
+      "NEXT_PUBLIC_RELEASE_STUB": "compiled"
+    },
+    "nextApplicationConfig": {
+      "env": {
+        "NEXT_PUBLIC_RELEASE_STUB": "compiled"
+      }
+    }
+  },
+  {
+    "id": "config-factory-mjs",
+    "surface": "7 config factory",
+    "fixtureConfigFile": "vitest.config.mjs"
+  },
+  {
+    "id": "config-factory-ts",
+    "surface": "7 config factory",
+    "fixtureConfigFile": "vitest.config.ts"
+  },
+  {
+    "id": "config-factory-mts",
+    "surface": "7 config factory",
+    "fixtureConfigFile": "vitest.config.mts"
+  },
+  {
+    "id": "config-factory-cjs",
+    "surface": "7 config factory",
+    "fixtureConfigFile": "vitest.config.cjs"
+  },
+  {
+    "id": "config-factory-cts",
+    "surface": "7 config factory",
+    "fixtureConfigFile": "vitest.config.cts"
+  },
+  {
+    "id": "config-top-level-await",
+    "surface": "7 config async",
+    "fixtureConfigFile": "vitest.config.mjs"
+  },
+  {
+    "id": "config-service-lifetime",
+    "surface": "7 config lifetime",
+    "fixtureConfigFile": "vitest.config.mjs"
+  },
+  {
+    "id": "config-merge-helper",
+    "surface": "1 config helpers"
+  },
+  {
+    "id": "provided-structured-values",
+    "surface": "7 provided context",
+    "fixtureConfigFile": "vitest.config.mjs"
+  },
+  {
+    "id": "global-setup-teardown-order",
+    "surface": "7 global setup",
+    "vitest": {
+      "globalSetup": ["./setup-a.mjs", "./setup-b.mjs"]
+    },
+    "nextProject": {
+      "globalSetup": ["./setup-a.mjs", "./setup-b.mjs"]
+    },
+    "compareFiles": ["lifecycle.txt"],
+    "expectedFiles": {
+      "lifecycle.txt": "setup-a\nsetup-b\nbody\nteardown-b\nteardown-a\n"
+    }
+  },
+  {
+    "id": "global-setup-teardown-failure",
+    "surface": "7 global setup failure",
+    "vitest": {
+      "globalSetup": ["./setup.mjs"]
+    },
+    "nextProject": {
+      "globalSetup": ["./setup.mjs"]
+    },
+    "expectedCode": 1
+  },
+  {
+    "id": "default-global-lifetime",
+    "surface": "3 default lifetime"
+  },
+  {
+    "id": "default-env-lifetime",
+    "surface": "3 default lifetime"
+  },
+  {
+    "id": "default-timer-lifetime",
+    "surface": "3 default lifetime"
+  },
+  {
+    "id": "reset-option-mockReset",
+    "surface": "3 reset option",
+    "vitest": {
+      "mockReset": true
+    },
+    "nextProject": {
+      "mockReset": true
+    }
+  },
+  {
+    "id": "reset-option-restoreMocks",
+    "surface": "3 reset option",
+    "vitest": {
+      "restoreMocks": true
+    },
+    "nextProject": {
+      "restoreMocks": true
+    }
+  },
+  {
+    "id": "reset-option-unstubEnvs",
+    "surface": "3 reset option",
+    "vitest": {
+      "unstubEnvs": true
+    },
+    "nextProject": {
+      "unstubEnvs": true
+    }
+  },
+  {
+    "id": "mock-clear-retry-repeat",
+    "surface": "3 reset interactions"
+  },
+  {
+    "id": "async-suite-rejection",
+    "surface": "2 async collection failure",
+    "expectedCode": 1
+  },
+  {
+    "id": "context-retry-repeat-identity",
+    "surface": "2 context identity"
+  },
+  {
+    "id": "mock-cross-file-isolation",
+    "surface": "4 file isolation",
+    "nextConfig": {
+      "maxWorkers": 2,
+      "projects": [
+        {
+          "name": "release",
+          "include": ["*.case.mjs"]
+        }
+      ]
+    }
+  },
+  {
+    "id": "production-module-mock",
+    "surface": "4 production profile",
+    "mode": "production",
+    "nextProject": {
+      "mode": "production"
+    }
+  },
+  {
+    "id": "snapshot-retry-numbering",
+    "surface": "5 snapshot retry",
+    "args": ["--update"],
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"]
+  },
+  {
+    "id": "snapshot-error-property-matchers",
+    "surface": "5 snapshot errors",
+    "args": ["--update"],
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"]
+  },
+  {
+    "id": "timer-pending-async",
+    "surface": "3 clock async"
+  },
+  {
+    "id": "timer-next-async",
+    "surface": "3 clock async"
+  },
+  {
+    "id": "wait-until-fake-clock",
+    "surface": "3 utility waitUntil"
+  },
+  {
+    "id": "date-without-fake-timers",
+    "surface": "3 clock date"
+  },
+  {
+    "id": "default-spy-lifetime",
+    "surface": "3 default lifetime"
+  },
+  {
+    "id": "fixture-teardown-failure",
+    "surface": "2 fixture failure",
+    "expectedCode": 1
+  },
+  {
+    "id": "setup-failure-cleanup-order",
+    "surface": "2 hook failure",
+    "expectedCode": 1
+  },
+  {
+    "id": "late-unhandled-rejection",
+    "surface": "10 error reporting",
+    "expectedCode": 1
+  },
+  {
+    "id": "vi-chain-identity",
+    "surface": "3 utility identity"
+  },
+  {
+    "id": "config-clearMocks-false",
+    "surface": "3 reset configuration",
+    "vitest": {
+      "clearMocks": false
+    },
+    "nextProject": {
+      "clearMocks": false
+    }
+  },
+  {
+    "id": "fake-frame-node",
+    "surface": "3 frame utilities"
+  },
+  {
+    "id": "fake-timer-loop-config",
+    "surface": "7 timer configuration",
+    "vitest": {
+      "fakeTimers": {
+        "loopLimit": 3
+      }
+    },
+    "nextProject": {
+      "fakeTimers": {
+        "loopLimit": 3
+      }
+    }
+  },
+  {
+    "id": "snapshot-error-inline-promises",
+    "surface": "5 error snapshots",
+    "args": ["--update"],
+    "compareFiles": [
+      "contract.case.mjs",
+      "__snapshots__/contract.case.mjs.snap"
+    ]
+  },
+  {
+    "id": "filtered-snapshot-absent-keys",
+    "surface": "5 selected/absent snapshot pruning",
+    "args": ["--update", "--testNamePattern=^selected$"],
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"]
+  },
+  {
+    "id": "snapshot-serializer-package",
+    "surface": "5 serializer package imports",
+    "packageImports": {
+      "#snapshot-serializer": "./package-serializer.mjs"
+    },
+    "vitest": {
+      "snapshotSerializers": ["#snapshot-serializer"]
+    },
+    "nextProject": {
+      "snapshotSerializers": ["#snapshot-serializer"]
+    },
+    "args": ["--update"],
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"]
+  },
+  {
+    "id": "filtered-snapshot-no-calls",
+    "surface": "5 filtered pruning without snapshots",
+    "args": ["--update", "--testNamePattern=^selected$"],
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"]
+  },
+  {
+    "id": "filtered-snapshot-readonly-obsolete",
+    "surface": "5 filtered readonly obsolete",
+    "args": ["--testNamePattern=^selected$"],
+    "expectedCode": 0,
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"]
+  },
+  {
+    "id": "runtime-config-reset",
+    "surface": "3 runtime utility configuration"
+  },
+  {
+    "id": "dynamic-import-settled",
+    "surface": "3 dynamic import utility"
+  },
+  {
+    "id": "custom-equality-testers",
+    "surface": "3 ecosystem equality extensions"
+  },
+  {
+    "id": "spy-temporary-implementation",
+    "surface": "3 spy implementation semantics"
+  },
+  {
+    "id": "parallel-hook-order",
+    "surface": "2 parallel hooks",
+    "vitest": {
+      "sequence": {
+        "hooks": "parallel"
+      }
+    },
+    "nextProject": {
+      "sequence": {
+        "hooks": "parallel"
+      }
+    }
+  },
+  {
+    "id": "parallel-setup-files",
+    "surface": "7 parallel setup ordering",
+    "vitest": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "sequence": {
+        "setupFiles": "parallel"
+      }
+    },
+    "nextProject": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "sequence": {
+        "setupFiles": "parallel"
+      }
+    }
+  },
+  {
+    "id": "external-project-configs",
+    "surface": "7 external project factories and isolation",
+    "fixtureConfigFile": "vitest.config.mjs",
+    "unorderedCases": true
+  },
+  {
+    "id": "glob-project-configs",
+    "surface": "7 external project factories and isolation",
+    "fixtureConfigFile": "vitest.config.mjs",
+    "unorderedCases": true
+  },
+  {
+    "id": "config-discovery-exclusion",
+    "surface": "7 discovery and exclusions",
+    "vitest": {
+      "exclude": ["excluded.case.mjs"]
+    },
+    "nextProject": {
+      "exclude": ["excluded.case.mjs"]
+    }
+  },
+  {
+    "id": "config-cli-retry-precedence",
+    "surface": "7 configuration CLI precedence",
+    "fixtureConfigFile": "vitest.config.mjs",
+    "args": ["--retry=0"],
+    "expectedCode": 1
+  },
+  {
+    "id": "serializer-precedence",
+    "surface": "5 serializer precedence",
+    "vitest": {
+      "snapshotSerializers": ["./first.mjs", "./second.mjs"]
+    },
+    "nextProject": {
+      "snapshotSerializers": ["./first.mjs", "./second.mjs"]
+    },
+    "args": ["--update"],
+    "compareFiles": ["__snapshots__/contract.case.mjs.snap"],
+    "expectedFiles": {
+      "__snapshots__/contract.case.mjs.snap": "// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html\n\nexports[`latest registered serializer wins 1`] = `SECOND_SERIALIZER`;\n"
+    }
+  },
+  {
+    "id": "serializer-file-isolation",
+    "surface": "5 serializer file ownership",
+    "args": ["--update"],
+    "compareFiles": [
+      "__snapshots__/contract.case.mjs.snap",
+      "__snapshots__/second.case.mjs.snap"
+    ],
+    "vitest": {
+      "maxWorkers": 1
+    },
+    "nextConfig": {
+      "maxWorkers": 1,
+      "projects": [
+        {
+          "name": "release",
+          "include": ["*.case.mjs"]
+        }
+      ]
+    }
+  },
+  {
+    "id": "file-snapshot-read-update",
+    "surface": "5 file snapshot updates",
+    "args": ["--update"],
+    "compareFiles": ["actual.txt"],
+    "expectedFiles": {
+      "actual.txt": "new file snapshot\nline two"
+    }
+  },
+  {
+    "id": "empty-module-results",
+    "surface": "10 empty module report",
+    "args": ["--passWithNoTests"],
+    "expectedCode": 0
+  },
+  {
+    "id": "error-cause-report",
+    "surface": "10 source diagnostics",
+    "expectedCode": 1,
+    "diagnosticIncludes": [
+      "outer original cause",
+      "inner original cause",
+      "contract.case.mjs"
+    ]
+  },
+  {
+    "id": "coverage-retry",
+    "surface": "9 coverage interactions",
+    "coverage": true
+  },
+  {
+    "id": "coverage-failure",
+    "surface": "9 coverage interactions",
+    "coverage": true,
+    "expectedCode": 1,
+    "coverageOptions": {
+      "reportOnFailure": true
+    }
+  },
+  {
+    "id": "coverage-module-mock",
+    "surface": "9 coverage interactions",
+    "coverage": true
+  },
+  {
+    "id": "coverage-production",
+    "surface": "9 coverage interactions",
+    "coverage": true,
+    "mode": "production",
+    "nextProject": {
+      "mode": "production"
+    }
+  },
+  {
+    "id": "coverage-browser",
+    "surface": "9 coverage interactions",
+    "coverage": true,
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "compiler-plugin-transform",
+    "surface": "7 compiler transform migration",
+    "fixtureConfigFile": "vitest.config.mjs"
+  },
+  {
+    "id": "snapshot-production-profile",
+    "surface": "5 compiled snapshot profiles",
+    "args": ["--update"],
+    "compareFiles": [
+      "contract.case.mjs",
+      "__snapshots__/contract.case.mjs.snap"
+    ],
+    "mode": "production",
+    "nextProject": {
+      "mode": "production"
+    }
+  },
+  {
+    "id": "snapshot-browser-profile",
+    "surface": "5 compiled snapshot profiles",
+    "args": ["--update"],
+    "compareFiles": [
+      "contract.case.mjs",
+      "__snapshots__/contract.case.mjs.snap"
+    ],
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "dynamic-import-settled-tla",
+    "surface": "3 delayed compiler imports"
+  },
+  {
+    "id": "setup-default-list",
+    "surface": "7 default list setup profiles",
+    "vitest": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"]
+    },
+    "nextProject": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"]
+    }
+  },
+  {
+    "id": "setup-list-node-production",
+    "surface": "7 default list setup profiles",
+    "vitest": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"]
+    },
+    "nextProject": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "mode": "production"
+    },
+    "mode": "production"
+  },
+  {
+    "id": "setup-list-rsc-production",
+    "surface": "7 default list setup profiles",
+    "vitest": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"]
+    },
+    "nextProject": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "mode": "production",
+      "environment": "rsc"
+    },
+    "mode": "production"
+  },
+  {
+    "id": "parallel-hooks-max-one",
+    "surface": "2 hook concurrency budget",
+    "vitest": {
+      "maxConcurrency": 1,
+      "sequence": {
+        "hooks": "parallel"
+      }
+    },
+    "nextProject": {
+      "maxConcurrency": 1,
+      "sequence": {
+        "hooks": "parallel"
+      }
+    }
+  },
+  {
+    "id": "parallel-all-hook-phases",
+    "surface": "2 all parallel hook phases",
+    "vitest": {
+      "sequence": {
+        "hooks": "parallel"
+      }
+    },
+    "nextProject": {
+      "sequence": {
+        "hooks": "parallel"
+      }
+    }
+  },
+  {
+    "id": "parallel-setup-rsc-development",
+    "surface": "7 parallel RSC setup profiles",
+    "vitest": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "sequence": {
+        "setupFiles": "parallel"
+      }
+    },
+    "nextProject": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "sequence": {
+        "setupFiles": "parallel"
+      },
+      "environment": "rsc",
+      "mode": "development"
+    },
+    "mode": "development"
+  },
+  {
+    "id": "parallel-setup-rsc-production",
+    "surface": "7 parallel RSC setup profiles",
+    "vitest": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "sequence": {
+        "setupFiles": "parallel"
+      }
+    },
+    "nextProject": {
+      "setupFiles": ["./setup-a.mjs", "./setup-b.mjs"],
+      "sequence": {
+        "setupFiles": "parallel"
+      },
+      "environment": "rsc",
+      "mode": "production"
+    },
+    "mode": "production"
+  },
+  {
+    "id": "setup-cjs-promise-node-production",
+    "surface": "7 setup module evaluation",
+    "vitest": {
+      "setupFiles": ["./setup.cjs"]
+    },
+    "nextProject": {
+      "setupFiles": ["./setup.cjs"],
+      "environment": "node",
+      "mode": "production"
+    },
+    "mode": "production"
+  },
+  {
+    "id": "setup-cjs-promise-rsc-production",
+    "surface": "7 setup module evaluation",
+    "vitest": {
+      "setupFiles": ["./setup.cjs"]
+    },
+    "nextProject": {
+      "setupFiles": ["./setup.cjs"],
+      "environment": "rsc",
+      "mode": "production"
+    },
+    "mode": "production"
+  },
+  {
+    "id": "globals-around-hooks",
+    "surface": "2 global around hooks",
+    "vitest": {
+      "globals": true
+    },
+    "nextProject": {
+      "globals": true
+    }
+  },
+  {
+    "id": "import-actual-only",
+    "surface": "4 compiler actual imports"
+  },
+  {
+    "id": "import-actual-tla-identity",
+    "surface": "4 compiler actual imports"
+  },
+  {
+    "id": "hoisted-aliased-destructured-spy",
+    "surface": "4 compiler hoisted helpers"
+  },
+  {
+    "id": "import-actual-partial-factory",
+    "surface": "4 compiler actual imports"
+  },
+  {
+    "id": "automatic-module-clone",
+    "surface": "4 compiler automatic module mocks"
+  },
+  {
+    "id": "automatic-module-import-target",
+    "surface": "4 compiler automatic module mocks"
+  },
+  {
+    "id": "automatic-module-default-options",
+    "surface": "4 compiler automatic module mocks"
+  },
+  {
+    "id": "automatic-module-false-spy-options",
+    "surface": "4 compiler automatic module mocks"
+  },
+  {
+    "id": "module-spy-deep-state",
+    "surface": "4 compiler module spies"
+  },
+  {
+    "id": "module-spy-import-target",
+    "surface": "4 compiler module spies"
+  },
+  {
+    "id": "module-spy-manual-neighbor",
+    "surface": "4 compiler module spies"
+  },
+  {
+    "id": "module-spy-package-alias",
+    "surface": "4 compiler module spies",
+    "packageImports": {
+      "#release-subject": "./subject.mjs"
+    }
+  },
+  {
+    "id": "manual-module-live-namespace",
+    "surface": "4 compiler manual module redirects"
+  },
+  {
+    "id": "manual-module-import-target",
+    "surface": "4 compiler manual module redirects"
+  },
+  {
+    "id": "manual-module-package-alias",
+    "surface": "4 compiler manual module redirects",
+    "packageImports": {
+      "#release-subject": "./subject.mjs"
+    }
+  },
+  {
+    "id": "manual-module-last-factory",
+    "surface": "4 compiler manual module redirects"
+  },
+  {
+    "id": "manual-module-last-redirect",
+    "surface": "4 compiler manual module redirects"
+  }
+]

@@ -1,0 +1,242 @@
+{
+  "target": "5.0.4",
+  "verifiedNewContracts": 32,
+  "passed": 6,
+  "failed": 26,
+  "invalidReferenceFixtures": 0,
+  "originalProbesNotSelected": 118,
+  "jestResult": "/private/tmp/next-testing-new-gap-final-results.json",
+  "evidenceDirectory": "/private/tmp/next-testing-new-gap-final-evidence",
+  "buildLog": "/private/tmp/next-testing-config-session-core-build-fixed.log",
+  "validation": {
+    "rootTypes": "passed",
+    "eslint": "passed",
+    "prettier": "passed"
+  },
+  "contracts": [
+    {
+      "id": "config-factory-mjs",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (config-factory-mjs): expected exit 0, received 1"
+    },
+    {
+      "id": "config-factory-ts",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (config-factory-ts): expected exit 0, received 1"
+    },
+    {
+      "id": "config-factory-mts",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (config-factory-mts): expected exit 0, received 1"
+    },
+    {
+      "id": "config-factory-cjs",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (config-factory-cjs): expected exit 0, received 1"
+    },
+    {
+      "id": "config-factory-cts",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (config-factory-cts): expected exit 0, received 1"
+    },
+    {
+      "id": "config-top-level-await",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (config-top-level-await): expected exit 0, received 1"
+    },
+    {
+      "id": "config-service-lifetime",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (config-service-lifetime): expected exit 0, received 1"
+    },
+    {
+      "id": "config-merge-helper",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (config-merge-helper): expected exit 0, received 1"
+    },
+    {
+      "id": "provided-structured-values",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (provided-structured-values): expected exit 0, received 1"
+    },
+    {
+      "id": "global-setup-teardown-order",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (global-setup-teardown-order): expected exit 0, received 1"
+    },
+    {
+      "id": "global-setup-teardown-failure",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (global-setup-teardown-failure): expected exit 1, received 1"
+    },
+    {
+      "id": "default-global-lifetime",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (default-global-lifetime): expected exit 0, received 1"
+    },
+    {
+      "id": "default-env-lifetime",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (default-env-lifetime): expected exit 0, received 1"
+    },
+    {
+      "id": "default-timer-lifetime",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (default-timer-lifetime): expected exit 0, received 1"
+    },
+    {
+      "id": "reset-option-mockReset",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (reset-option-mockReset): expected exit 0, received 1"
+    },
+    {
+      "id": "reset-option-restoreMocks",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (reset-option-restoreMocks): expected exit 0, received 1"
+    },
+    {
+      "id": "reset-option-unstubEnvs",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (reset-option-unstubEnvs): expected exit 0, received 1"
+    },
+    {
+      "id": "mock-clear-retry-repeat",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (mock-clear-retry-repeat): expected exit 0, received 1"
+    },
+    {
+      "id": "async-suite-rejection",
+      "status": "passed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "failureStage": null
+    },
+    {
+      "id": "context-retry-repeat-identity",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (context-retry-repeat-identity): expected exit 0, received 1"
+    },
+    {
+      "id": "mock-cross-file-isolation",
+      "status": "passed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "failureStage": null
+    },
+    {
+      "id": "production-module-mock",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (production-module-mock): expected exit 0, received 1"
+    },
+    {
+      "id": "snapshot-retry-numbering",
+      "status": "passed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "failureStage": null
+    },
+    {
+      "id": "snapshot-error-property-matchers",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (snapshot-error-property-matchers): expected exit 0, received 1"
+    },
+    {
+      "id": "timer-pending-async",
+      "status": "passed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "failureStage": null
+    },
+    {
+      "id": "timer-next-async",
+      "status": "passed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "failureStage": null
+    },
+    {
+      "id": "wait-until-fake-clock",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (wait-until-fake-clock): expected exit 0, received 1"
+    },
+    {
+      "id": "date-without-fake-timers",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (date-without-fake-timers): expected exit 0, received 1"
+    },
+    {
+      "id": "default-spy-lifetime",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "failureStage": "Error: NEXT RELEASE GAP (default-spy-lifetime): expected exit 0, received 1"
+    },
+    {
+      "id": "fixture-teardown-failure",
+      "status": "passed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "failureStage": null
+    },
+    {
+      "id": "setup-failure-cleanup-order",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "failureStage": "Error: expect(received).toEqual(expected) // deep equality"
+    },
+    {
+      "id": "late-unhandled-rejection",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "failureStage": "Error: expect(received).toEqual(expected) // deep equality"
+    }
+  ]
+}

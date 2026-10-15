@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_core::{
+    AppPageLoaderTreeModule,
     app_structure::{
         AppPageLoaderTree, CollectedRootParams, Entrypoint as AppEntrypoint,
         Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, collect_root_params,
@@ -134,6 +135,8 @@ impl AppProject {
         file: RcStr,
         id: RcStr,
         setup_paths: Vec<FileSystemPath>,
+        snapshot_serializers: Vec<RcStr>,
+        route: Option<RcStr>,
     ) -> Result<Vc<Box<dyn Endpoint>>> {
         if id.is_empty()
             || !id
@@ -151,10 +154,24 @@ impl AppProject {
         {
             bail!("Test entry file must be a normalized project-relative path");
         }
+        let route = if let Some(route) = route {
+            Some(
+                crate::testing_route::resolve_route(self.app_entrypoints(), route)
+                    .to_resolved()
+                    .await?,
+            )
+        } else {
+            None
+        };
         let path = self.project().project_path().owned().await?.join(&file)?;
         Ok(Vc::upcast(
             AppEndpoint {
-                ty: AppEndpointType::Test { path, setup_paths },
+                ty: AppEndpointType::Test {
+                    path,
+                    setup_paths,
+                    snapshot_serializers,
+                    route,
+                },
                 app_project: self,
                 page: AppPage::parse(&format!("/__next_test__/{id}/page"))?,
             }
@@ -1222,6 +1239,8 @@ enum AppEndpointType {
     Test {
         path: FileSystemPath,
         setup_paths: Vec<FileSystemPath>,
+        snapshot_serializers: Vec<RcStr>,
+        route: Option<ResolvedVc<crate::testing_route::TestRoute>>,
     },
     Page {
         ty: AppPageEndpointType,
@@ -1250,13 +1269,32 @@ impl AppEndpoint {
         &self,
         path: FileSystemPath,
         setup_paths: Vec<FileSystemPath>,
+        snapshot_serializers: Vec<RcStr>,
+        route: Option<ResolvedVc<crate::testing_route::TestRoute>>,
     ) -> Result<Vc<AppEntry>> {
-        let context = self.app_project.test_module_context();
+        let context = self.app_project.test_module_context().to_resolved().await?;
+        let id = self.page.to_string();
+        let id = id
+            .strip_prefix("/__next_test__/")
+            .and_then(|id| id.strip_suffix("/page"))
+            .context("Invalid synthetic test manifest page")?;
+        let prepared = crate::testing::prepare_test_module(
+            self.app_project.project().to_resolved().await?,
+            &path,
+            &id.into(),
+            context,
+        )
+        .await?;
+        if prepared.module_reset {
+            bail!("RSC module cache resets are not supported yet");
+        }
+        let registration = prepared.registration;
+        let context = *prepared.context;
         // Use the same boundary marker as page/layout modules. Client references
         // must retain both their SSR and browser transitions even for server tests.
         let module = NextServerComponentTransition::new()
             .process(
-                Vc::upcast(FileSource::new(path)),
+                *prepared.source,
                 context,
                 ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
             )
@@ -1264,7 +1302,54 @@ impl AppEndpoint {
             .to_resolved()
             .await?;
         let mut internal_assets = fxindexmap! { rcstr!("INNER_TEST_MODULE") => module };
+        let mut route_imports = String::new();
+        let mut route_code = String::from("export const routeTree = undefined;");
+        if let Some(route) = route {
+            let route = route.await?;
+            let tree = AppPageLoaderTreeModule::build(
+                *route.loader_tree,
+                context.to_resolved().await?,
+                ResolvedVc::upcast(NextServerComponentTransition::new().to_resolved().await?),
+                self.app_project
+                    .project()
+                    .next_config()
+                    .base_path()
+                    .owned()
+                    .await?,
+            )
+            .await?;
+            internal_assets.extend(tree.inner_assets);
+            route_imports = tree
+                .imports
+                .iter()
+                .map(|value| value.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            route_code = format!("export const routeTree = {};", tree.loader_tree_code);
+        }
+        let route_code = format!("{route_imports}\n{route_code}");
         let mut setup_loads = String::new();
+        let mut setup_callbacks = String::new();
+        if !snapshot_serializers.is_empty() {
+            let source = crate::testing::snapshot_serializer_source(
+                self.app_project.project().project_path().owned().await?,
+                &snapshot_serializers,
+            )
+            .await?;
+            let module = NextServerComponentTransition::new()
+                .process(
+                    *source,
+                    context,
+                    ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            internal_assets.insert(rcstr!("INNER_TEST_SERIALIZERS"), module);
+            setup_loads.push_str(
+                "await require(/*turbopackChunkingType: shared*/ 'INNER_TEST_SERIALIZERS');\n",
+            );
+        }
         for (index, path) in setup_paths.iter().enumerate() {
             let name = format!("INNER_TEST_SETUP_{index}");
             let module = NextServerComponentTransition::new()
@@ -1276,11 +1361,38 @@ impl AppEndpoint {
                 .module()
                 .to_resolved()
                 .await?;
-            internal_assets.insert(name.clone().into(), module);
-            setup_loads.push_str(&format!(
-                "await require(/*turbopackChunkingType: shared*/ '{name}');\n"
+            let source = crate::testing::setup_module_source(path.clone()).await?;
+            let wrapper = context
+                .process(
+                    *source,
+                    ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+                        rcstr!("INNER_TEST_SETUP_SUBJECT") => module
+                    })),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            internal_assets.insert(name.clone().into(), wrapper);
+            setup_callbacks.push_str(&format!(
+                "async () => require(/*turbopackChunkingType: shared*/ '{name}'),\n"
             ));
         }
+        setup_loads.push_str(&format!(
+            "const setupLoaders = [{setup_callbacks}];\nif (setupFilesSequence === 'parallel') \
+             {{\nawait Promise.all(setupLoaders.map(load => load()));\n}} else {{ for (const load \
+             of setupLoaders) await load(); }}\n"
+        ));
+        let mock_runtime = if let Some(registration) = registration {
+            internal_assets.insert(rcstr!("INNER_TEST_MOCKS"), registration);
+            "export const mockTesting = require('next/dist/experimental/testing/mocking/runtime');"
+        } else {
+            ""
+        };
+        let mock_load = if registration.is_some() {
+            "await require(/*turbopackChunkingType: shared*/ 'INNER_TEST_MOCKS');"
+        } else {
+            ""
+        };
         let source = load_next_js_template(
             "app-test.js",
             self.app_project.project().project_path().owned().await?,
@@ -1293,12 +1405,16 @@ impl AppEndpoint {
                      \"turbopack-transition\": \"next-ssr\" };",
                 ),
                 ("__next_test_setup__", setup_loads.as_str()),
+                ("__next_test_route__", route_code.as_str()),
+                ("__next_test_mock_runtime__", mock_runtime),
+                ("__next_test_mock_load__", mock_load),
                 ("__next_app_require__", &*TURBOPACK_REQUIRE.bound()),
                 ("__next_app_load_chunk__", &*TURBOPACK_LOAD.bound()),
             ],
             [],
         )
         .await?;
+        let source = crate::testing::test_entry_source(source).await?;
         let entry = context
             .process(
                 source,
@@ -1311,7 +1427,11 @@ impl AppEndpoint {
             pathname: AppPath::from(self.page.clone()).to_string().into(),
             original_name: self.page.to_string().into(),
             rsc_entry: entry,
-            config: NextSegmentConfig::default().resolved_cell(),
+            config: if let Some(route) = route {
+                route.await?.config
+            } else {
+                NextSegmentConfig::default().resolved_cell()
+            },
         }
         .cell())
     }
@@ -1384,9 +1504,17 @@ impl AppEndpoint {
 
         let next_config = self.await?.app_project.project().next_config();
         let app_entry = match &this.ty {
-            AppEndpointType::Test { path, setup_paths } => {
-                self.test_entry(path.clone(), setup_paths.clone())
-            }
+            AppEndpointType::Test {
+                path,
+                setup_paths,
+                snapshot_serializers,
+                route,
+            } => self.test_entry(
+                path.clone(),
+                setup_paths.clone(),
+                snapshot_serializers.clone(),
+                route.map(|route| *route),
+            ),
             AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(**loader_tree),
             AppEndpointType::Route { path, root_layouts } => {
                 self.app_route_entry(path.clone(), **root_layouts, next_config)
@@ -2405,6 +2533,49 @@ impl Endpoint for AppEndpoint {
                     algorithm,
                 );
                 output_assets.concat_asset(sri_manifest)
+            } else {
+                output_assets
+            };
+
+            let output_assets = if let AppEndpointType::Test {
+                path,
+                route: Some(route),
+                ..
+            } = &this.ty
+            {
+                let id = this.page.to_string();
+                let id = id
+                    .strip_prefix("/__next_test__/")
+                    .and_then(|id| id.strip_suffix("/page"))
+                    .context("Invalid synthetic test manifest page")?;
+                let metadata = crate::testing_route::metadata_asset(
+                    **route,
+                    project.project_path().owned().await?,
+                    path.clone(),
+                    node_root.join(&format!("server/next-test/{id}.route.json"))?,
+                    project.next_config().base_path().owned().await?,
+                );
+                output_assets.concat_asset(Vc::upcast(metadata))
+            } else {
+                output_assets
+            };
+
+            let output_assets = if let AppEndpointType::Test { path, .. } = &this.ty {
+                let id = this.page.to_string();
+                let id = id
+                    .strip_prefix("/__next_test__/")
+                    .and_then(|id| id.strip_suffix("/page"))
+                    .context("Invalid synthetic test manifest page")?;
+                if let Some(metadata) = crate::testing::rsc_mock_metadata(
+                    path,
+                    node_root.join(&format!("server/next-test/{id}.metadata.json"))?,
+                )
+                .await?
+                {
+                    output_assets.concat_asset(Vc::upcast(metadata))
+                } else {
+                    output_assets
+                }
             } else {
                 output_assets
             };

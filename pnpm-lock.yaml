@@ -32,6 +32,9 @@ patchedDependencies:
   '@rspack/core@1.6.7':
     hash: 4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d
     path: patches/@rspack__core@1.6.7.patch
+  '@sinonjs/fake-timers@15.4.0':
+    hash: 8fb375421f30746697394082b6fcf4a218fe07a8db36474ac335c48aff32c0cb
+    path: patches/@sinonjs__fake-timers@15.4.0.patch
   '@types/node@20.17.7':
     hash: fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab
     path: patches/@types__node@20.17.7.patch
@@ -172,6 +175,9 @@ importers:
       '@rspack/core':
         specifier: 1.6.7
         version: 1.6.7(patch_hash=4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d)(@swc/helpers@0.5.23)
+      '@sinonjs/fake-timers':
+        specifier: 15.4.0
+        version: 15.4.0(patch_hash=8fb375421f30746697394082b6fcf4a218fe07a8db36474ac335c48aff32c0cb)
       '@slack/web-api':
         specifier: 7.9.1
         version: 7.9.1
@@ -238,6 +244,9 @@ importers:
       '@types/shell-quote':
         specifier: 1.7.1
         version: 1.7.1
+      '@types/sinonjs__fake-timers':
+        specifier: 8.1.5
+        version: 8.1.5
       '@types/string-hash':
         specifier: 1.1.1
         version: 1.1.1
@@ -1431,6 +1440,9 @@ importers:
       '@vitest/expect':
         specifier: 5.0.4
         version: 5.0.4
+      '@vitest/mocker':
+        specifier: 5.0.4
+        version: 5.0.4(msw@2.3.0(typescript@6.0.2))(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2))
       '@vitest/snapshot':
         specifier: 5.0.4
         version: 5.0.4(patch_hash=19f1ffbdd220454bc8cc8fbb5f8081f9f66dca16f710a6b8a7e92dd86051b39a)
@@ -1452,6 +1464,9 @@ importers:
       assert:
         specifier: 2.0.0
         version: 2.0.0
+      ast-v8-to-istanbul:
+        specifier: 1.0.7
+        version: 1.0.7
       async-retry:
         specifier: 1.2.3
         version: 1.2.3
@@ -4240,9 +4255,6 @@ packages:
   '@jridgewell/sourcemap-codec@1.4.14':
     resolution: {integrity: sha512-XPSJHWmi394fuUuzDnGz1wiKqWfo1yXecHQMRf2l6hztTO+nPru658AyDngaBe7isIxEkRsPR3FZh+s7iVa4Uw==}
 
-  '@jridgewell/sourcemap-codec@1.5.0':
-    resolution: {integrity: sha512-gv3ZRaISU3fjPAgNsriBRqGWQL6quFx04YMPW/zD8XMLsU32mhCCbfbO6KZFLjvYpCZ8zyDEgqsgf+PwPaM7GQ==}
-
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
 
@@ -6278,9 +6290,15 @@ packages:
   '@sinonjs/commons@3.0.0':
     resolution: {integrity: sha512-jXBtWAF4vmdNmZgD5FoKsVLv3rPgDnLgPbU84LIJ3otV44vJlDRokVng5v8NFJdCf/da9legHcKaRuZs4L7faA==}
 
+  '@sinonjs/commons@3.0.1':
+    resolution: {integrity: sha512-K3mCHKQ9sVh8o1C9cxkwxaOmXoAMlDxC1mYyHrjqOWEcBjYr76t96zL2zlj5dUGZ3HSw240X1qgH3Mjf1yJWpQ==}
+
   '@sinonjs/fake-timers@10.2.0':
     resolution: {integrity: sha512-OPwQlEdg40HAj5KNF8WW6q2KG4Z+cBCZb3m4ninfTZKaBmbIJodviQsDBoYMPHkOyJJMHnOJo5j2+LKDOhOACg==}
     deprecated: Use version 10.1.0. Version 10.2.0 has potential breaking issues
+
+  '@sinonjs/fake-timers@15.4.0':
+    resolution: {integrity: sha512-DsG+8/LscQIQg68J6Ef3dv10u6nVyetYn923s3/sus5eaGfTo1of5WMZSLf0UJc9KDuKPilPH0UDJCjvNbDNCA==}
 
   '@slack/logger@4.0.0':
     resolution: {integrity: sha512-Wz7QYfPAlG/DR+DfABddUZeNgoeY7d1J39OCR2jR+v7VBsB8ezulDK5szTnDDPDwLH5IWhLvXIHlCFZV7MSKgA==}
@@ -7157,6 +7175,9 @@ packages:
   '@types/shell-quote@1.7.1':
     resolution: {integrity: sha512-SWZ2Nom1pkyXCDohRSrkSKvDh8QOG9RfAsrt5/NsPQC4UQJ55eG0qClA40I+Gkez4KTQ0uDUT8ELRXThf3J5jw==}
 
+  '@types/sinonjs__fake-timers@8.1.5':
+    resolution: {integrity: sha512-mQkU2jY8jJEF7YHjHvsQO8+3ughTL1mcnn96igfhONmR+fUPSKIkefQYpSe8bsly2Ep7oQbn/6VG5/9/0qcArQ==}
+
   '@types/sockjs@0.3.36':
     resolution: {integrity: sha512-MK9V6NzAS1+Ud7JV9lJLFqW85VbC9dq3LmwZCuBe4wBDgKC0Kj/jd8Xl+nSviU+Qc3+m7umHHyHg//2KSa0a0Q==}
 
@@ -7996,6 +8017,9 @@ packages:
   ast-types@0.16.1:
     resolution: {integrity: sha512-6t10qk83GOG8p0vKmaCr8eiilZwO171AvbROMtvvNiwrTly62t+7XkA8RdIIVbpMhCASAsxgAzdRSwh6nw/5Dg==}
     engines: {node: '>=4'}
+
+  ast-v8-to-istanbul@1.0.7:
+    resolution: {integrity: sha512-kFL68AG6ajd8fg248zwM9GQrUWEp79gsmjum34OEXjs4yHuUMZfYKwOLW9GMmB4oNvVrj+EAGxsP7ye2UR9UlA==}
 
   astral-regex@2.0.0:
     resolution: {integrity: sha512-Z7tMw1ytTXt5jqMcOP+OQteU1VuNK9Y02uuJtKQ1Sv69jXQKKg5cibLwGJow8yzZP+eAc18EmLGPal0bp36rvQ==}
@@ -20695,7 +20719,7 @@ snapshots:
     dependencies:
       '@jridgewell/set-array': 1.1.1
       '@jridgewell/sourcemap-codec': 1.4.14
-      '@jridgewell/trace-mapping': 0.3.17
+      '@jridgewell/trace-mapping': 0.3.31
 
   '@jridgewell/gen-mapping@0.3.3':
     dependencies:
@@ -20706,7 +20730,7 @@ snapshots:
   '@jridgewell/gen-mapping@0.3.8':
     dependencies:
       '@jridgewell/set-array': 1.2.1
-      '@jridgewell/sourcemap-codec': 1.5.0
+      '@jridgewell/sourcemap-codec': 1.6.0
       '@jridgewell/trace-mapping': 0.3.31
 
   '@jridgewell/remapping@2.3.5':
@@ -20727,8 +20751,6 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.4.14': {}
 
-  '@jridgewell/sourcemap-codec@1.5.0': {}
-
   '@jridgewell/sourcemap-codec@1.6.0': {}
 
   '@jridgewell/trace-mapping@0.3.17':
@@ -20739,7 +20761,7 @@ snapshots:
   '@jridgewell/trace-mapping@0.3.25':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.0
-      '@jridgewell/sourcemap-codec': 1.5.0
+      '@jridgewell/sourcemap-codec': 1.6.0
 
   '@jridgewell/trace-mapping@0.3.31':
     dependencies:
@@ -22566,9 +22588,17 @@ snapshots:
     dependencies:
       type-detect: 4.0.8
 
+  '@sinonjs/commons@3.0.1':
+    dependencies:
+      type-detect: 4.0.8
+
   '@sinonjs/fake-timers@10.2.0':
     dependencies:
       '@sinonjs/commons': 3.0.0
+
+  '@sinonjs/fake-timers@15.4.0(patch_hash=8fb375421f30746697394082b6fcf4a218fe07a8db36474ac335c48aff32c0cb)':
+    dependencies:
+      '@sinonjs/commons': 3.0.1
 
   '@slack/logger@4.0.0':
     dependencies:
@@ -23594,6 +23624,8 @@ snapshots:
 
   '@types/shell-quote@1.7.1': {}
 
+  '@types/sinonjs__fake-timers@8.1.5': {}
+
   '@types/sockjs@0.3.36':
     dependencies:
       '@types/node': 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
@@ -24059,6 +24091,16 @@ snapshots:
       '@vitest/utils': 5.0.4
       chai: 6.3.0
       tinyrainbow: 3.2.0
+
+  '@vitest/mocker@5.0.4(msw@2.3.0(typescript@6.0.2))(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2))':
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      '@vitest/spy': 5.0.4
+      estree-walker: 3.0.3
+      magic-string: 1.4.3
+    optionalDependencies:
+      msw: 2.3.0(typescript@6.0.2)
+      vite: 8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2)
 
   '@vitest/mocker@5.0.4(vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(jiti@2.6.1)(sass@1.54.0)(terser@5.39.0)(tsx@4.19.2))':
     dependencies:
@@ -24584,6 +24626,12 @@ snapshots:
   ast-types@0.16.1:
     dependencies:
       tslib: 2.8.1
+
+  ast-v8-to-istanbul@1.0.7:
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      estree-walker: 3.0.3
+      js-tokens: 10.0.0
 
   astral-regex@2.0.0: {}
 
@@ -30160,8 +30208,7 @@ snapshots:
       '@sideway/formula': 3.0.1
       '@sideway/pinpoint': 2.0.0
 
-  js-tokens@10.0.0:
-    optional: true
+  js-tokens@10.0.0: {}
 
   js-tokens@4.0.0: {}
 
@@ -36627,6 +36674,23 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.2
+
+  vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(esbuild@0.25.9)(jiti@2.6.1)(sass@1.77.8)(terser@5.27.0)(tsx@4.19.2):
+    dependencies:
+      lightningcss: 1.33.0
+      picomatch: 4.0.7
+      postcss: 8.5.23
+      rolldown: 1.2.13
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
+      esbuild: 0.25.9
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      sass: 1.77.8
+      terser: 5.27.0
+      tsx: 4.19.2
+    optional: true
 
   vite@8.3.4(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(jiti@2.6.1)(sass@1.54.0)(terser@5.39.0)(tsx@4.19.2):
     dependencies:

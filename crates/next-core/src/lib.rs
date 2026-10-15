@@ -40,6 +40,7 @@ mod transform_options;
 pub mod url_node;
 pub mod util;
 
+pub use app_page_loader_tree::AppPageLoaderTreeModule;
 pub use emit::{emit_all_assets, emit_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_chunking_context_with_client_assets,

@@ -13,10 +13,20 @@ export function validateTestProfile(profile: TestProfile): void {
     !['development', 'production'].includes(profile.mode) ||
     profile.runtime !== 'nodejs' ||
     profile.bundler !== 'turbopack' ||
-    profile.route !== undefined
+    (profile.browserClient !== undefined &&
+      (profile.browserClient !== true ||
+        profile.environment !== 'browser' ||
+        profile.mode !== 'development' ||
+        profile.route !== undefined)) ||
+    (profile.route !== undefined &&
+      (profile.environment !== 'rsc' ||
+        profile.mode !== 'development' ||
+        !profile.route.startsWith('/') ||
+        profile.route.includes('?') ||
+        profile.route.includes('#')))
   ) {
     throw new Error(
-      'The test compiler currently supports route-less development or production Node, App RSC, and Node browser-driver entries with Turbopack only'
+      'The test compiler supports route-less development or production entries and one-shot development Node RSC AppProject routes with Turbopack only'
     )
   }
 }

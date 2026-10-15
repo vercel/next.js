@@ -956,9 +956,6 @@ impl ProjectContainer {
             browser_fixture_host = options.browser_fixture_host.clone();
         }
 
-        if browser_fixture_host.is_some() && !dev {
-            bail!("Registered browser fixtures support development compilation only");
-        }
         let root_path = ResolvedVc::cell(root_path_str);
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
@@ -2438,6 +2435,12 @@ impl Project {
             config,
             runtime,
         )))
+    }
+
+    /// Explicit Browser Mode uses real client resolution without a Node process binding.
+    #[turbo_tasks::function]
+    pub(crate) async fn client_test_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        Ok(crate::testing_client::context(*self.to_resolved().await?))
     }
 
     /// A non-RSC Node module context for explicit unit and browser-driver specs.

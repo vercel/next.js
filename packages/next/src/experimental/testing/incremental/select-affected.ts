@@ -27,6 +27,7 @@ export interface AffectedSelection {
     | 'stale-discovery'
     | 'unknown-entry'
     | 'compiler-dependencies'
+    | 'test-registry-addition'
 }
 
 /**

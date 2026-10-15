@@ -1,10 +1,18 @@
-import { createHash } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
+import { readdir } from 'node:fs/promises'
+import { resolve } from 'path'
+import { serialize } from 'node:v8'
 import type { SnapshotUpdateMode } from './assertions/snapshots'
+import { snapshotWatchRegistry } from './incremental/registry-additions'
 import {
   createWatchKeyboard,
   type WatchCommand,
 } from './incremental/watch-keyboard'
-import { loadTestConfig } from './config'
+import {
+  applyTestConfigOverrides,
+  openTestConfiguration,
+  type TestConfigOverrides,
+} from './config'
 import { discoverTests, type DiscoveredTestProject } from './discovery'
 import {
   createWatchSession,
@@ -16,6 +24,7 @@ import {
 } from './incremental/watch-files'
 import { runWatchProcess, WatchOwnershipError } from './watch-process'
 import type { ResultEvent } from './reporting/events'
+import { createMachineReporter, type ResultReporter } from './reporting/machine'
 import {
   formatWatchStatus,
   type TestReporterOptions,
@@ -26,7 +35,8 @@ interface Discovery extends WatchDiscovery {
   directories: WatchDirectories
   updateSnapshots?: boolean
   snapshotUpdateMode?: SnapshotUpdateMode
-  testNamePattern?: string
+  testNamePattern?: string | RegExp
+  maxWorkers: number
 }
 
 /** Fresh compilation/execution per generation; the scheduler owns no output writer. */
@@ -37,10 +47,20 @@ export async function watchTests(
     output?: NodeJS.WriteStream
     project?: string
     files?: string[]
-    testNamePattern?: string
+    testNamePattern?: string | RegExp
+    maxWorkers?: number
+    resultReporters?: readonly ResultReporter[]
+    outputFile?: string
+    writeReport?(text: string): void
+    resultPresentation?: Omit<
+      TestReporterOptions,
+      'write' | 'projectDir' | 'style'
+    >
     snapshotUpdateMode?: SnapshotUpdateMode
+    configOverrides?: TestConfigOverrides
     signal: AbortSignal
     write(text: string): void
+    writeError?(text: string): void
     reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
     /** Observe the parent-sealed results, including authoritative cleanup failures. */
     onEvent?: (event: ResultEvent) => void
@@ -53,6 +73,10 @@ export async function watchTests(
   let selectedProject = options.project
   let selectedFiles = options.files
   let testNamePattern = options.testNamePattern
+  let clearConfiguredNamePattern = false
+  const machineEnabled =
+    options.resultReporters?.some((name) => name !== 'default') ?? false
+  const human = options.resultReporters?.includes('default') ?? true
   let updateSnapshots = false
   let running = true
   let committingSnapshots = false
@@ -70,9 +94,19 @@ export async function watchTests(
   let watcher: Awaited<ReturnType<typeof watchTestFiles>> | undefined
   let session: ReturnType<typeof createWatchSession<Discovery>> | undefined
 
+  let configuration:
+    | Awaited<ReturnType<typeof openTestConfiguration>>
+    | undefined
+
   async function discover(signal: AbortSignal): Promise<Discovery> {
     signal.throwIfAborted()
-    const config = await loadTestConfig(projectDir)
+    await configuration?.dispose()
+    configuration = undefined
+    configuration = await openTestConfiguration(projectDir, signal)
+    const config = applyTestConfigOverrides(
+      configuration.config,
+      options.configOverrides ?? {}
+    )
     const projects = await discoverTests(projectDir, config, {
       project: selectedProject,
       files: selectedFiles,
@@ -125,6 +159,16 @@ export async function watchTests(
     if (metadata.operation !== 'metadata')
       throw new Error('Invalid watch metadata result.')
     const directories = metadata.directories
+    directories.outputDirectories = [
+      ...directories.outputDirectories,
+      resolve(projectDir, '.next-test-snapshot-journals'),
+    ]
+    if (machineEnabled && options.outputFile) {
+      directories.outputFiles = [
+        ...(directories.outputFiles ?? []),
+        resolve(projectDir, options.outputFile),
+      ]
+    }
     signal.throwIfAborted()
     try {
       await watcher?.update(directories)
@@ -140,22 +184,66 @@ export async function watchTests(
       }
       throw error
     }
+    const configurationRevision = createHash('sha256')
+      .update(
+        serialize({
+          config,
+          rootProject: configuration.watchRootProject,
+          projects: projects.map(
+            ({ entries: _entries, ...project }) => project
+          ),
+          directories,
+          selectedProject,
+          selectedFiles,
+          testNamePattern,
+          clearConfiguredNamePattern,
+          maxWorkers: options.maxWorkers,
+        })
+      )
+      .digest('hex')
+    const configurationSources = (await readdir(projectDir))
+      .filter(
+        (file) =>
+          /^(?:next(?:\.test)?|vitest|vite)\.config\./.test(file) ||
+          /^(?:(?:ts|js)config\.json|package\.json|\.env(?:\..*)?)$/.test(file)
+      )
+      .map((file) => resolve(projectDir, file))
+    const registry = await snapshotWatchRegistry({
+      configurationRevision,
+      entries: projects.flatMap((project) => project.entries),
+      inputs: [
+        ...configurationSources,
+        ...configuration.watchInputs,
+        ...projects.flatMap((project) => [
+          ...project.setupFiles,
+          ...(project.snapshotSerializers ?? []).map((file) =>
+            resolve(projectDir, file)
+          ),
+          ...(project.globalSetup ?? []).map((file) =>
+            resolve(projectDir, file)
+          ),
+        ]),
+      ],
+      signal,
+    })
     return {
       projects,
+      registry,
+      maxWorkers: options.maxWorkers ?? config.maxWorkers,
       directories,
       entryIds: projects.flatMap((project) =>
         project.entries.map((entry) => entry.id)
       ),
       // Only test configuration and identities; never resolved Next env/config values.
       discoveryRevision: createHash('sha256')
-        .update(JSON.stringify(projects))
+        .update(serialize(projects))
         .digest('hex'),
     }
   }
 
   function report(error: unknown) {
     latestStatus = 'failed'
-    ;(options.reporter?.writeError ?? options.write)(
+    ;(options.writeError ?? options.reporter?.writeError ?? options.write)(
       `Test watch error: ${error instanceof Error ? error.message : 'Unknown failure'}\n`
     )
     if (!controller.signal.aborted) {
@@ -179,6 +267,7 @@ export async function watchTests(
         break
       case 'name':
         testNamePattern = command.value || undefined
+        clearConfiguredNamePattern = !command.value
         if (!command.value) selectedFiles = undefined
         failedOnly = false
         break
@@ -191,6 +280,7 @@ export async function watchTests(
         return
       case 'all':
         testNamePattern = undefined
+        clearConfiguredNamePattern = true
         selectedFiles = undefined
         failedOnly = false
         break
@@ -238,10 +328,14 @@ export async function watchTests(
     const initial = await discover(controller.signal)
     watcher = await watchTestFiles({
       ...initial.directories,
-      // Filesystem notifications never establish complete compiler dependencies.
-      onChange: () => {
+      // Paths can establish the matching-new-test policy after byte validation;
+      // they never establish complete compiler dependencies for source changes.
+      onChange: (change) => {
         if (committingSnapshots) changedDuringCommit = true
-        else session?.invalidate()
+        else
+          session?.invalidate({
+            registryPaths: change.removed.length ? undefined : change.changed,
+          })
       },
       onError(error) {
         fatal = true
@@ -255,6 +349,7 @@ export async function watchTests(
     })
     session = createWatchSession<Discovery>({
       signal: controller.signal,
+      runEmpty: machineEnabled,
       async discover(signal) {
         const updateThisRun = updateSnapshots
         updateSnapshots = false
@@ -273,7 +368,14 @@ export async function watchTests(
             snapshotUpdateMode: updateThisRun
               ? 'all'
               : (options.snapshotUpdateMode ?? 'none'),
-            testNamePattern,
+            testNamePattern:
+              testNamePattern ??
+              (clearConfiguredNamePattern &&
+              discovery.projects.some(
+                (project) => project.testNamePattern !== undefined
+              )
+                ? ''
+                : undefined),
           }
         } finally {
           running = false
@@ -295,7 +397,67 @@ export async function watchTests(
           ...project,
           entries: project.entries.filter((entry) => selected.has(entry.id)),
         }))
+        const machine = machineEnabled
+          ? createMachineReporter({
+              projectDir,
+              reporters: options.resultReporters!,
+              outputFile: options.outputFile,
+              write: options.writeReport ?? options.write,
+              writeError: options.writeError,
+              presentation: {
+                ...(options.resultPresentation ?? options.reporter),
+                watch: true,
+                rerun: hasRun,
+              },
+            })
+          : undefined
+        let terminalRun = false
+        let publicationStarted = false
+        let reporterFailed = false
+        const fileOutcomes = new Map<
+          string,
+          'passed' | 'failed' | 'skipped' | 'cancelled'
+        >()
+        const onEvent = (event: ResultEvent) => {
+          try {
+            machine?.onEvent(event)
+            if (event.type === 'file-end') {
+              fileOutcomes.set(event.entryId, event.status)
+            }
+            options.onEvent?.(event)
+            if (event.type === 'run-end') terminalRun = true
+          } catch (error) {
+            reporterFailed = true
+            throw error
+          }
+        }
         try {
+          if (!selection.entryIds.length) {
+            const status = projects.every(
+              (project) => project.passWithNoTests === true
+            )
+              ? ('passed' as const)
+              : ('failed' as const)
+            const envelope = {
+              version: 1 as const,
+              runId: randomUUID(),
+              timestamp: Date.now(),
+            }
+            onEvent({
+              ...envelope,
+              type: 'run-start',
+              snapshotUpdateMode: discovery.snapshotUpdateMode,
+            })
+            onEvent({ ...envelope, type: 'run-end', status, durationMs: 0 })
+            publicationStarted = true
+            await machine?.finish({ signal })
+            latestStatus = status
+            return { status }
+          }
+          await configuration?.setup(
+            projects.filter((project) => project.entries.length)
+          )
+          signal.throwIfAborted()
           const rerun = hasRun
           hasRun = true
           const response = await runWatchProcess(
@@ -304,8 +466,12 @@ export async function watchTests(
               projectDir,
               projects,
               testNamePattern: discovery.testNamePattern,
+              maxWorkers: discovery.maxWorkers,
               updateSnapshots: discovery.updateSnapshots,
               snapshotUpdateMode: discovery.snapshotUpdateMode,
+              passWithNoTests: projects.every(
+                (project) => project.passWithNoTests === true
+              ),
             },
             {
               signal,
@@ -317,16 +483,9 @@ export async function watchTests(
                 // Native watcher notifications can arrive after the last write.
               },
               write: options.write,
+              report: human,
               reporter: { ...options.reporter, rerun },
-              onEvent(event) {
-                if (event.type === 'file-end') {
-                  if (event.status === 'failed')
-                    failedEntries.add(event.entryId)
-                  else if (event.status === 'passed')
-                    failedEntries.delete(event.entryId)
-                }
-                options.onEvent?.(event)
-              },
+              onEvent,
             }
           )
           if (response.operation !== 'run')
@@ -335,6 +494,13 @@ export async function watchTests(
           if (result.unsafeCleanup) fatal = true
           if (result.status === 'running') {
             throw new Error('Test run returned without a terminal result.')
+          }
+          signal.throwIfAborted()
+          publicationStarted = true
+          await machine?.finish({ signal })
+          for (const [entryId, status] of fileOutcomes) {
+            if (status === 'failed') failedEntries.add(entryId)
+            else if (status === 'passed') failedEntries.delete(entryId)
           }
           if (
             !signal.aborted &&
@@ -353,12 +519,37 @@ export async function watchTests(
           return { status: result.status, unsafeCleanup: result.unsafeCleanup }
         } catch (error) {
           if (signal.aborted && error === signal.reason) throw error
+          let failure = error
+          // A parent-sealed cleanup failure replaces the previous result too.
+          // Superseded generations and incomplete evidence never publish.
+          if (
+            !publicationStarted &&
+            terminalRun &&
+            !reporterFailed &&
+            !signal.aborted
+          ) {
+            try {
+              publicationStarted = true
+              await machine?.finish({ signal })
+            } catch (publicationError) {
+              failure = new AggregateError(
+                [error, publicationError],
+                'Test execution and watch report publication failed.'
+              )
+            }
+          }
           // Ordinary test/compile failures are results. Unexpected process exit
           // or reporter failure cannot certify output ownership for another run.
           fatal = true
-          controller.abort(error)
-          throw error
+          controller.abort(failure)
+          try {
+            report(failure)
+          } catch (reporterError) {
+            failures.push(failure, reporterError)
+          }
+          throw failure
         } finally {
+          await machine?.dispose()
           running = false
           committingSnapshots = false
           if (keyboardCancelled && !controller.signal.aborted) {
@@ -393,6 +584,11 @@ export async function watchTests(
     } catch (error) {
       failures.push(error)
     } finally {
+      try {
+        await configuration?.dispose()
+      } catch (error) {
+        failures.push(error)
+      }
       options.signal.removeEventListener('abort', cancel)
     }
   }

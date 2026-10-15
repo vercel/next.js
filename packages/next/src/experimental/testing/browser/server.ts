@@ -1,3 +1,4 @@
+import { browserFixtureManifestFiles } from '../../../build/swc/browser-fixtures'
 import { randomUUID } from 'node:crypto'
 import type { BrowserFixtureHost, RegisteredBrowserFixture } from '../contracts'
 import { appendFileSync } from 'node:fs'
@@ -65,9 +66,6 @@ export async function createApplicationServer(options: {
     throw new Error(
       'Next testing application servers require experimental.lockDistDir to be enabled in the resolved application configuration'
     )
-  }
-  if (options.browserFixtures?.length && options.mode !== 'development') {
-    throw new Error('Browser component mounting supports development only')
   }
   const browserFixtureHost: BrowserFixtureHost | undefined = options
     .browserFixtures?.length
@@ -172,7 +170,15 @@ export async function createApplicationServer(options: {
               !message.manifests ||
               typeof message.manifests !== 'object' ||
               Object.keys(message.manifests).sort().join(',') !==
-                'BUILD_ID,prerender-manifest.json,required-server-files.json,routes-manifest.json' ||
+                [
+                  'BUILD_ID',
+                  'prerender-manifest.json',
+                  'required-server-files.json',
+                  'routes-manifest.json',
+                  ...browserFixtureManifestFiles(browserFixtureHost),
+                ]
+                  .sort()
+                  .join(',') ||
               Object.values(message.manifests).some(
                 (hash) =>
                   typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)
@@ -180,6 +186,23 @@ export async function createApplicationServer(options: {
             )
               throw new Error(
                 'Invalid Next application-build readiness message'
+              )
+            if (browserFixtureHost) {
+              const expectedHost = {
+                routePrefix: browserFixtureHost.routePrefix,
+                fixtureIds: browserFixtureHost.fixtures.map(({ id }) => id),
+              }
+              if (
+                !('componentHost' in message) ||
+                JSON.stringify(message.componentHost) !==
+                  JSON.stringify(expectedHost)
+              )
+                throw new Error(
+                  'Production browser fixture build omitted matching compiled registration'
+                )
+            } else if ('componentHost' in message)
+              throw new Error(
+                'Ordinary production build advertised unexpected browser fixtures'
               )
             build = {
               buildId: message.buildId,

@@ -6,6 +6,9 @@ import { createCompiledFileCache } from '../request/compiled-file-cache'
 import { createCompiledRequestResources } from '../request/compiled-request'
 import { createRequestLifecycle } from '../request/request-lifecycle'
 import { runWithRenderRequest } from '../request/request-context'
+import { resolveCompiledRouteRequest, validateCompiledTestRoute } from './route'
+import type { CompiledRscTestArtifact } from '../contracts'
+import { createServerParamsForServerSegment } from '../../../server/request/params'
 import { renderServerComponent } from './render'
 import {
   renderWithRequestLifecycle,
@@ -31,6 +34,7 @@ export interface RscTestingBindings {
   requestContext?: CompiledTestRequestContext
   profile: TestProfile
   manifestPage: string
+  route?: CompiledRscTestArtifact['route']
   cacheScope?: { type: 'file'; directory: string }
   previewPropsPath?: string
   prerenderManifestPath?: string
@@ -99,12 +103,18 @@ async function render<Props extends {}>(
     profile.environment !== 'rsc' ||
     profile.runtime !== 'nodejs' ||
     profile.bundler !== 'turbopack' ||
-    profile.route !== undefined
+    (profile.route !== undefined && profile.mode !== 'development')
   ) {
     throw new Error(
       'RSC rendering currently supports only route-less Turbopack Node RSC subtrees.'
     )
   }
+  if (profile.route !== undefined)
+    validateCompiledTestRoute(bindings.route, profile)
+  else if (bindings.route)
+    throw new Error(
+      'Route-less RSC profiles cannot accept AppProject route metadata.'
+    )
   if (!bindings.requestContext) {
     throw new Error('RSC rendering requires compiled requestContext metadata.')
   }
@@ -130,6 +140,15 @@ async function render<Props extends {}>(
   attempt.signal.throwIfAborted()
   const url = new URL(options.url)
   const headers = options.headers ?? {}
+  const routeRequest = bindings.route
+    ? await resolveCompiledRouteRequest(
+        bindings.route,
+        url,
+        (props as { params?: unknown }).params,
+        options.rootParams,
+        attempt.signal
+      )
+    : undefined
   const fileCache = (state.fileCache ??= createCompiledFileCache(
     bindings.requestContext,
     {
@@ -154,10 +173,10 @@ async function render<Props extends {}>(
     const resources = await createCompiledRequestResources(
       bindings.requestContext,
       {
-        page: bindings.manifestPage,
+        page: bindings.route?.page ?? bindings.manifestPage,
         url,
         headers,
-        rootParams: options.rootParams ?? {},
+        rootParams: routeRequest?.rootParams ?? options.rootParams ?? {},
         incrementalCache: fileCache.createIncrementalCache(headers),
         lifecycle,
       }
@@ -180,13 +199,23 @@ async function render<Props extends {}>(
               bindings.ComponentMod,
               bindings.clientReferenceManifest,
               Component,
-              props,
+              routeRequest
+                ? {
+                    ...props,
+                    params: createServerParamsForServerSegment(
+                      routeRequest.params,
+                      null,
+                      null
+                    ),
+                  }
+                : props,
               { signal: attempt.signal }
             )
         )
         model = bindings.ConsumerMod.decodeFlight(handle.stream)
         return handle
-      }
+      },
+      bindings.route?.config
     )
     const [decoded, outcome] = await Promise.all([model, request.completed])
     // A decoded root can resolve even when a nested client prop failed Flight

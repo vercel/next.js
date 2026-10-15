@@ -2,6 +2,7 @@
 // One bundle keeps the matcher and spy registries shared without a Vitest runtime.
 export * from '@vitest/expect'
 export * as spies from '@vitest/spy'
+export { mockObject } from '@vitest/mocker'
 export {
   SnapshotClient,
   addSerializer,

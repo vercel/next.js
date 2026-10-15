@@ -8,7 +8,12 @@ import {
   watchTestFiles,
   type FileChange,
 } from 'next/dist/experimental/testing/incremental/watch-files'
-import { mkdtemp, mkdir, writeFile, rm } from 'fs/promises'
+import {
+  selectRegistryAdditions,
+  snapshotWatchRegistry,
+  type WatchRegistrySnapshot,
+} from 'next/dist/experimental/testing/incremental/registry-additions'
+import { mkdtemp, mkdir, writeFile, rm, symlink } from 'fs/promises'
 import { tmpdir } from 'os'
 import path from 'path'
 import { retry } from 'next-test-utils'
@@ -121,7 +126,10 @@ describe('serialized test watch session', () => {
   it('widens for changed config or setup generation despite complete evidence', async () => {
     const h = harness()
     await h.session.waitForIdle()
-    h.setDiscovery({ entryIds: ['node', 'rsc'], discoveryRevision: 'config-2' })
+    h.setDiscovery({
+      entryIds: ['node', 'rsc'],
+      discoveryRevision: 'config-2',
+    })
     const evidence = complete(['node'])
     evidence.changes[0].discoveryRevision = 'config-2'
     h.session.invalidate(evidence)
@@ -671,6 +679,320 @@ describe('test input filesystem watcher', () => {
       expect(changes).toHaveLength(count)
     } finally {
       await watcher.close()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+
+it('excludes exact machine-report outputs and owned temporary files while observing neighboring source files', async () => {
+  const root = await mkdtemp(path.join(tmpdir(), 'next-watch-report-outputs-'))
+  const report = path.join(root, 'result.json')
+  const temporary = `${report}.12345678-1234-1234-1234-123456789abc.tmp`
+  const neighbor = `${report}.source.ts`
+  const changes: FileChange[] = []
+  const watcher = await watchTestFiles({
+    directories: [root],
+    outputDirectories: [],
+    outputFiles: [report],
+    onChange: (change) => changes.push(change),
+    onError: (error) => {
+      throw error
+    },
+  })
+  try {
+    await writeFile(report, '{}')
+    await writeFile(temporary, '{}')
+    await writeFile(neighbor, 'export const value=1')
+    await retry(async () => {
+      expect(changes.flatMap((change) => change.changed)).toContain(neighbor)
+    })
+    expect(changes.flatMap((change) => change.changed)).not.toContain(report)
+    expect(changes.flatMap((change) => change.changed)).not.toContain(temporary)
+  } finally {
+    await watcher.close()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+describe('matching-new-test registry policy', () => {
+  const projectRoot = path.join(tmpdir(), 'next-test-registry-policy')
+  const baseline: WatchRegistrySnapshot = {
+    configurationRevision: 'effective-config-profile-and-selection',
+    entries: [
+      {
+        id: 'node',
+        file: path.join(projectRoot, 'node.test.ts'),
+        sourceHash: 'node-bytes',
+      },
+      {
+        id: 'rsc',
+        file: path.join(projectRoot, 'rsc.test.ts'),
+        sourceHash: 'rsc-bytes',
+      },
+    ],
+    inputs: [
+      { file: path.join(projectRoot, 'setup.ts'), sourceHash: 'setup-bytes' },
+      {
+        file: path.join(projectRoot, 'next.test.config.json'),
+        sourceHash: 'config-bytes',
+      },
+    ],
+  }
+  const newEntry = {
+    id: 'new',
+    file: path.join(projectRoot, 'new.test.ts'),
+    sourceHash: 'new-bytes',
+  }
+  function appended() {
+    return {
+      ...structuredClone(baseline),
+      entries: [...structuredClone(baseline.entries), { ...newEntry }],
+    }
+  }
+  function start() {
+    const h = harness()
+    h.setDiscovery({
+      entryIds: baseline.entries.map((entry) => entry.id),
+      discoveryRevision: 'old-registry',
+      registry: structuredClone(baseline),
+    })
+    return h
+  }
+  function discovery(registry: WatchRegistrySnapshot | undefined) {
+    return {
+      entryIds: ['node', 'rsc', 'new'],
+      discoveryRevision: 'new-registry',
+      registry,
+    }
+  }
+
+  it('uses a separate registry reason and runs only the new matching file', async () => {
+    const h = start()
+    try {
+      await h.session.waitForIdle()
+      h.setDiscovery(discovery(appended()))
+      h.session.invalidate({ registryPaths: [newEntry.file] })
+      await h.session.waitForIdle()
+      expect(h.runs[1].selection).toEqual({
+        entryIds: ['new'],
+        reason: 'test-registry-addition',
+      })
+    } finally {
+      await h.session.close()
+    }
+  })
+
+  it('coalesces exact new paths and preserves discovered declaration identities', async () => {
+    const h = start()
+    try {
+      await h.session.waitForIdle()
+      const registry = appended()
+      registry.entries.push({
+        ...newEntry,
+        id: 'other',
+        file: path.join(projectRoot, 'other.test.ts'),
+      })
+      h.setDiscovery({
+        ...discovery(registry),
+        entryIds: ['node', 'rsc', 'new', 'other'],
+      })
+      h.session.invalidate({ registryPaths: [newEntry.file] })
+      h.session.invalidate({
+        registryPaths: [path.join(projectRoot, 'other.test.ts'), newEntry.file],
+      })
+      await h.session.waitForIdle()
+      expect(h.runs[1].selection.entryIds).toEqual(['new', 'other'])
+      expect(h.runs[1].selection.reason).toBe('test-registry-addition')
+    } finally {
+      await h.session.close()
+    }
+  })
+
+  it.each([
+    ['unknown parent scope', [projectRoot]],
+    [
+      'mixed source change',
+      [newEntry.file, path.join(projectRoot, 'subject.ts')],
+    ],
+    [
+      'existing test notification',
+      [newEntry.file, path.join(projectRoot, 'node.test.ts')],
+    ],
+    ['relative path', ['new.test.ts']],
+    ['empty path evidence', []],
+  ])('widens for %s', async (_name, registryPaths: string[]) => {
+    const h = start()
+    try {
+      await h.session.waitForIdle()
+      h.setDiscovery(discovery(appended()))
+      h.session.invalidate({ registryPaths })
+      await h.session.waitForIdle()
+      expect(h.runs[1].selection.entryIds).toEqual(['node', 'rsc', 'new'])
+      expect(h.runs[1].selection.reason).not.toBe('test-registry-addition')
+    } finally {
+      await h.session.close()
+    }
+  })
+
+  it.each([
+    [
+      'effective configuration',
+      (value: WatchRegistrySnapshot) => {
+        value.configurationRevision = 'different'
+      },
+    ],
+    [
+      'setup source bytes',
+      (value: WatchRegistrySnapshot) => {
+        value.inputs[0].sourceHash = 'changed'
+      },
+    ],
+    [
+      'config source bytes with the same effective value',
+      (value: WatchRegistrySnapshot) => {
+        value.inputs[1].sourceHash = 'changed'
+      },
+    ],
+    [
+      'existing test source bytes',
+      (value: WatchRegistrySnapshot) => {
+        value.entries[0].sourceHash = 'changed'
+      },
+    ],
+    [
+      'deleted entry',
+      (value: WatchRegistrySnapshot) => {
+        value.entries.splice(0, 1)
+      },
+    ],
+    [
+      'different input identities',
+      (value: WatchRegistrySnapshot) => {
+        value.inputs[0].file = path.join(projectRoot, 'other-setup.ts')
+      },
+    ],
+  ])(
+    'widens when %s changed despite a new-file-only notification',
+    async (_name, mutate: (value: WatchRegistrySnapshot) => void) => {
+      const h = start()
+      try {
+        await h.session.waitForIdle()
+        const registry = appended()
+        mutate(registry)
+        h.setDiscovery(discovery(registry))
+        h.session.invalidate({ registryPaths: [newEntry.file] })
+        await h.session.waitForIdle()
+        expect(h.runs[1].selection.entryIds).toEqual(['node', 'rsc', 'new'])
+        expect(h.runs[1].selection.reason).not.toBe('test-registry-addition')
+      } finally {
+        await h.session.close()
+      }
+    }
+  )
+
+  it('does not hide missing or incomplete compiler evidence behind a registry event', async () => {
+    const h = start()
+    try {
+      await h.session.waitForIdle()
+      h.setDiscovery(discovery(appended()))
+      h.session.invalidate({ registryPaths: [newEntry.file] })
+      h.session.invalidate()
+      await h.session.waitForIdle()
+      expect(h.runs[1].selection.entryIds).toEqual(['node', 'rsc', 'new'])
+      h.session.invalidate({
+        ...complete(['new']),
+        registryPaths: [newEntry.file],
+        changes: [{ ...complete(['new']).changes[0], complete: false }],
+      })
+      await h.session.waitForIdle()
+      expect(h.runs[2].selection.entryIds).toEqual(['node', 'rsc', 'new'])
+      expect(h.runs[2].selection.reason).toBe('incomplete-dependencies')
+    } finally {
+      await h.session.close()
+    }
+  })
+
+  it('cannot certify a failed baseline or absent byte evidence', async () => {
+    const h = start()
+    try {
+      h.run.mockImplementationOnce(async (input) => {
+        h.runs.push(input)
+        return { status: 'failed' }
+      })
+      await h.session.waitForIdle()
+      h.setDiscovery(discovery(appended()))
+      h.session.invalidate({ registryPaths: [newEntry.file] })
+      await h.session.waitForIdle()
+      expect(h.runs[1].selection.entryIds).toEqual(['node', 'rsc', 'new'])
+      h.setDiscovery(discovery(undefined))
+      h.session.invalidate({ registryPaths: [newEntry.file] })
+      await h.session.waitForIdle()
+      expect(h.runs[2].selection.reason).not.toBe('test-registry-addition')
+    } finally {
+      await h.session.close()
+    }
+  })
+
+  it('hashes the actual existing entry and setup bytes before narrowing', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'next-test-registry-'))
+    const existing = path.join(root, 'existing.test.ts')
+    const added = path.join(root, 'new.test.ts')
+    const setup = path.join(root, 'setup.ts')
+    try {
+      await Promise.all([
+        writeFile(existing, 'existing'),
+        writeFile(setup, 'setup'),
+      ])
+      const options = {
+        configurationRevision: 'same',
+        entries: [{ id: 'existing', file: existing }],
+        inputs: [setup],
+      }
+      const previous = await snapshotWatchRegistry(options)
+      await writeFile(added, 'added')
+      const currentOptions = {
+        ...options,
+        entries: [...options.entries, { id: 'added', file: added }],
+      }
+      const current = await snapshotWatchRegistry(currentOptions)
+      expect(
+        selectRegistryAdditions({ previous, current, changedPaths: [added] })
+      ).toEqual({ entryIds: ['added'], reason: 'test-registry-addition' })
+      await writeFile(setup, 'changed')
+      expect(
+        selectRegistryAdditions({
+          previous,
+          current: await snapshotWatchRegistry(currentOptions),
+          changedPaths: [added],
+        })
+      ).toBeUndefined()
+      await rm(setup)
+      expect(await snapshotWatchRegistry(currentOptions)).toBeUndefined()
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses symlink inputs and preserves cancellation', async () => {
+    const root = await mkdtemp(path.join(tmpdir(), 'next-test-registry-link-'))
+    try {
+      const file = path.join(root, 'entry.test.ts')
+      const link = path.join(root, 'link.test.ts')
+      await writeFile(file, 'entry')
+      await symlink(file, link)
+      const options = {
+        configurationRevision: 'same',
+        entries: [{ id: 'entry', file: link }],
+        inputs: [],
+      }
+      expect(await snapshotWatchRegistry(options)).toBeUndefined()
+      const controller = new AbortController()
+      const reason = new Error('registry cancelled')
+      controller.abort(reason)
+      await expect(
+        snapshotWatchRegistry({ ...options, signal: controller.signal })
+      ).rejects.toBe(reason)
+    } finally {
       await rm(root, { recursive: true, force: true })
     }
   })

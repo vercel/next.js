@@ -114,12 +114,35 @@ export async function ncc_next_test_primitives(task) {
     .source('src/bundles/next-test-primitives/package.json')
     .target('src/compiled/next-test-primitives')
   await task
+    .source('src/bundles/next-test-primitives/browser/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-primitives/browser')
+  await task
+    .source('src/bundles/next-test-primitives/browser/package.json')
+    .target('src/compiled/next-test-primitives/browser')
+  await task
     .source('src/bundles/next-test-primitives/diff/index.js')
     .ncc({ license: 'LICENSE', target: 'es2020' })
     .target('src/compiled/next-test-primitives/diff')
   await task
     .source('src/bundles/next-test-primitives/diff/package.json')
     .target('src/compiled/next-test-primitives/diff')
+
+  await task
+    .source('src/bundles/next-test-primitives/error/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-primitives/error')
+  await task
+    .source('src/bundles/next-test-primitives/error/package.json')
+    .target('src/compiled/next-test-primitives/error')
+
+  await task
+    .source('src/bundles/next-test-primitives/timers/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-primitives/timers')
+  await task
+    .source('src/bundles/next-test-primitives/timers/package.json')
+    .target('src/compiled/next-test-primitives/timers')
 
   await execa('node', ['src/bundles/next-test-primitives/static-chunks.js'], {
     cwd: __dirname,
@@ -129,6 +152,17 @@ export async function ncc_next_test_primitives(task) {
     cwd: __dirname,
     stdio: 'inherit',
   })
+}
+
+export async function ncc_next_test_coverage(task) {
+  await task.clear('src/compiled/next-test-coverage')
+  await task
+    .source('src/bundles/next-test-coverage/index.js')
+    .ncc({ license: 'LICENSE', target: 'es2020' })
+    .target('src/compiled/next-test-coverage')
+  await task
+    .source('src/bundles/next-test-coverage/{package.json,index.d.ts}')
+    .target('src/compiled/next-test-coverage')
 }
 
 export async function ncc_node_html_parser(task, opts) {

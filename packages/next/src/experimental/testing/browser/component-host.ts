@@ -44,9 +44,7 @@ export function createComponentMount(options: {
     options.signal.throwIfAborted()
     const { host } = options
     if (!host)
-      throw new Error(
-        'Browser component mounting requires registered development fixtures'
-      )
+      throw new Error('Browser component mounting requires registered fixtures')
     if (!host.fixtureIds.includes(id))
       throw new Error(`Unknown registered browser fixture: ${id}`)
     if (mounting)

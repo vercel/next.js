@@ -6,8 +6,18 @@ import {
 } from 'next/dist/experimental/testing/execution/broker'
 import type {
   CompiledTestArtifact,
+  CompiledTestCohort,
   ExecuteTestOptions,
 } from 'next/dist/experimental/testing/contracts'
+import { executeCohortWithEnvironment } from 'next/dist/experimental/testing/execution/execute-cohort'
+
+jest.mock('next/dist/experimental/testing/execution/execute-cohort', () => ({
+  ...jest.requireActual(
+    'next/dist/experimental/testing/execution/execute-cohort'
+  ),
+  executeCohortWithEnvironment: jest.fn(),
+}))
+
 import { promises as fs } from 'fs'
 import { basename } from 'path'
 
@@ -57,15 +67,17 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-function transport(allowCoverage = false) {
+function transport(allowCoverage = false, allowCohorts = false) {
   const sent: ExecutionBrokerRequest[] = []
   const launched = deferred<ExecutionBrokerRequest>()
   const cancelled = deferred<void>()
   const client = createExecutionBrokerClient({
     allowCoverage,
+    allowCohorts,
     async send(message) {
       sent.push(message)
-      if (message.action === 'execute') launched.resolve(message)
+      if (message.action === 'execute' || message.action === 'execute-cohort')
+        launched.resolve(message)
       else cancelled.resolve()
     },
   })
@@ -467,3 +479,466 @@ it.each([false, true])(
     }
   }
 )
+
+describe('shared cohort broker', () => {
+  const secondEntry = {
+    ...entry,
+    id: 'unit:second',
+    file: '/project/second.ts',
+  }
+  const cohort: CompiledTestCohort = {
+    version: 1,
+    artifacts: [
+      { ...artifact, kind: 'node' },
+      { ...artifact, kind: 'node', entryId: secondEntry.id },
+    ],
+  }
+  const executionOptions = (): ExecuteTestOptions[] => [
+    options,
+    { ...options, entry: secondEntry },
+  ]
+  const results = [result, { ...result, entryId: secondEntry.id }]
+  const request = (
+    id: string,
+    extra: Partial<ExecuteTestOptions> = {}
+  ): ExecutionBrokerRequest => ({
+    type: 'execution-broker-request',
+    action: 'execute-cohort',
+    id,
+    cohort,
+    options: executionOptions().map((value) => ({ ...value, ...extra })),
+    env: { ...process.env },
+  })
+  afterEach(() => {
+    jest.mocked(executeCohortWithEnvironment).mockReset()
+  })
+
+  it('sends one aggregate private request with every callback stripped and per-file event dispatch', async () => {
+    const channel = transport(false, true)
+    const first = jest.fn(),
+      second = jest.fn()
+    const completion = channel.client.executeCohort(cohort, [
+      { ...options, onEvent: first, onSnapshotUpdates: async () => {} },
+      {
+        ...options,
+        entry: secondEntry,
+        onEvent: second,
+        onSnapshotUpdates: async () => {},
+      },
+    ])
+    const launched = await channel.launched
+    if (launched.action !== 'execute-cohort')
+      throw new Error('Expected aggregate request')
+    expect(launched.cohort).toBe(cohort)
+    expect(launched.env).not.toBe(process.env)
+    expect(() => structuredClone(launched)).not.toThrow()
+    for (const value of launched.options)
+      for (const name of [
+        'signal',
+        'onEvent',
+        'onCoverage',
+        'onSnapshotUpdates',
+      ])
+        expect(value).not.toHaveProperty(name)
+    const observed = {
+      ...event,
+      type: 'file-start' as const,
+      entry: secondEntry,
+      revision: 'revision',
+    }
+    channel.client.handle({
+      type: 'execution-broker-response',
+      action: 'event',
+      id: launched.id,
+      event: observed,
+    })
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledWith(observed)
+    channel.client.handle({
+      type: 'execution-broker-response',
+      action: 'cohort-result',
+      id: launched.id,
+      results,
+    })
+    expect(await completion).toEqual(results)
+    expect(channel.sent.map((value) => value.action)).toEqual([
+      'execute-cohort',
+    ])
+  })
+
+  it('strips a single-file snapshot callback before serialization too', async () => {
+    const channel = transport()
+    const completion = channel.client.execute(artifact, {
+      ...options,
+      onSnapshotUpdates: async () => {},
+    })
+    const launched = await channel.launched
+    expect(() => structuredClone(launched)).not.toThrow()
+    if (launched.action !== 'execute')
+      throw new Error('Expected isolated request')
+    expect(launched.options).not.toHaveProperty('onSnapshotUpdates')
+    channel.client.handle({
+      type: 'execution-broker-response',
+      action: 'result',
+      id: launched.id,
+      result,
+    })
+    await completion
+  })
+
+  it('rejects ordinary watch clients and mismatched aggregate options before sending', async () => {
+    const watch = transport()
+    await expect(
+      watch.client.executeCohort(cohort, executionOptions())
+    ).rejects.toThrow('Watch execution')
+    expect(watch.sent).toEqual([])
+    const oneShot = transport(false, true)
+    await expect(
+      oneShot.client.executeCohort(cohort, [
+        options,
+        {
+          ...options,
+          entry: secondEntry,
+          signal: new AbortController().signal,
+        },
+      ])
+    ).rejects.toThrow('matching execution')
+    expect(oneShot.sent).toEqual([])
+  })
+
+  it('retains the entire artifact cohort until cancellation has an authoritative aggregate response', async () => {
+    const channel = transport(false, true),
+      controller = new AbortController()
+    let settled = false
+    const completion = channel.client.executeCohort(
+      cohort,
+      executionOptions().map((value) => ({
+        ...value,
+        signal: controller.signal,
+      }))
+    )
+    void completion.then(() => {
+      settled = true
+    })
+    const launched = await channel.launched
+    controller.abort()
+    await channel.cancelled
+    expect(settled).toBe(false)
+    expect(channel.sent.map((value) => value.action)).toEqual([
+      'execute-cohort',
+      'cancel',
+    ])
+    channel.client.handle({
+      type: 'execution-broker-response',
+      action: 'cohort-result',
+      id: launched.id,
+      results: results.map((value) => ({ ...value, status: 'cancelled' })),
+    })
+    expect((await completion).map((value) => value.status)).toEqual([
+      'cancelled',
+      'cancelled',
+    ])
+  })
+
+  it('keeps reporter failure while waiting for aggregate cleanup and rejects every cohort result', async () => {
+    const channel = transport(false, true),
+      failure = new Error('aggregate reporter failed')
+    let settled = false
+    const completion = channel.client.executeCohort(
+      cohort,
+      executionOptions().map((value) => ({
+        ...value,
+        onEvent() {
+          throw failure
+        },
+      }))
+    )
+    const rejected = completion.catch((error) => {
+      settled = true
+      return error
+    })
+    const launched = await channel.launched
+    channel.client.handle({
+      type: 'execution-broker-response',
+      action: 'event',
+      id: launched.id,
+      event,
+    })
+    await channel.cancelled
+    expect(settled).toBe(false)
+    channel.client.handle({
+      type: 'execution-broker-response',
+      action: 'cohort-result',
+      id: launched.id,
+      results,
+    })
+    expect(await rejected).toBe(failure)
+  })
+
+  it('rejects omitted or reordered aggregate results after parent completion', async () => {
+    const channel = transport(false, true)
+    const completion = channel.client.executeCohort(cohort, executionOptions())
+    const rejected = completion.catch((error) => error),
+      launched = await channel.launched
+    channel.client.handle({
+      type: 'execution-broker-response',
+      action: 'cohort-result',
+      id: launched.id,
+      results: [...results].reverse(),
+    })
+    expect(await rejected).toMatchObject({
+      message: expect.stringContaining('Mismatched shared cohort'),
+    })
+  })
+
+  it('disconnects all aggregate calls and prevents a queued launch after synchronous disconnect', async () => {
+    const channel = transport(false, true),
+      failure = new Error('compiler disconnected')
+    const completion = channel.client
+      .executeCohort(cohort, executionOptions())
+      .catch((error) => error)
+    channel.client.disconnect(failure)
+    expect(await completion).toBe(failure)
+    expect(channel.sent).toEqual([])
+    await expect(
+      channel.client.executeCohort(cohort, executionOptions())
+    ).rejects.toBe(failure)
+  })
+
+  it('rejects shared execution on a normal watch host before starting any worker', async () => {
+    const delivered = deferred<void>(),
+      messages: ExecutionBrokerResponse[] = []
+    const host = createExecutionBrokerHost({
+      signal: options.signal,
+      async send(message) {
+        messages.push(message)
+        delivered.resolve()
+      },
+    })
+    host.handle(request('watch'))
+    await delivered.promise
+    await host.close()
+    expect(executeCohortWithEnvironment).not.toHaveBeenCalled()
+    expect(messages).toEqual([
+      expect.objectContaining({
+        action: 'error',
+        error: expect.objectContaining({
+          message: expect.stringContaining('Watch execution'),
+        }),
+      }),
+    ])
+    expect(host.ownershipClosed).toBe(true)
+  })
+
+  it('owns one aggregate slot and awaits actual aggregate cleanup after cancellation or compiler closure', async () => {
+    const started = deferred<void>(),
+      aborted = deferred<void>(),
+      cleanup = deferred<void>()
+    let settled = false
+    jest
+      .mocked(executeCohortWithEnvironment)
+      .mockImplementation(async (_, values) => {
+        expect(values[0].signal).toBe(values[1].signal)
+        values[0].signal.addEventListener('abort', () => aborted.resolve(), {
+          once: true,
+        })
+        started.resolve()
+        await cleanup.promise
+        return results.map((value) => ({ ...value, status: 'cancelled' }))
+      })
+    const messages: ExecutionBrokerResponse[] = []
+    const host = createExecutionBrokerHost({
+      signal: options.signal,
+      allowCohorts: true,
+      maxWorkers: 1,
+      async send(message) {
+        messages.push(message)
+      },
+    })
+    host.handle(request('aggregate'))
+    await started.promise
+    expect(() => host.handle(request('second-aggregate'))).toThrow(
+      'file-worker limit'
+    )
+    host.handle({
+      type: 'execution-broker-request',
+      action: 'cancel',
+      id: 'aggregate',
+    })
+    await aborted.promise
+    const closing = host.close().then(() => {
+      settled = true
+    })
+    expect(settled).toBe(false)
+    expect(host.ownershipClosed).toBe(false)
+    cleanup.resolve()
+    await closing
+    expect(host.ownershipClosed).toBe(true)
+    expect(messages.some((message) => message.action === 'cohort-result')).toBe(
+      false
+    )
+  })
+
+  it('defers each file snapshot through the authorized parent callback before the aggregate result', async () => {
+    const delivered = deferred<void>(),
+      snapshots = deferred<void>(),
+      callbackEntered = deferred<void>()
+    const messages: ExecutionBrokerResponse[] = [],
+      updates = [
+        {
+          path: '/project/file.ts.snap',
+          content: 'staged',
+          previousContent: null,
+        },
+      ]
+    jest
+      .mocked(executeCohortWithEnvironment)
+      .mockImplementation(async (_, values, env, defer) => {
+        expect(env).not.toBe(process.env)
+        expect(values[0].onSnapshotUpdates).toBeUndefined()
+        await defer!(entry.id, entry.file, updates, 'source-hash')
+        return results
+      })
+    const onSnapshotUpdates = jest.fn(async () => {
+      callbackEntered.resolve()
+      await snapshots.promise
+    })
+    const host = createExecutionBrokerHost({
+      signal: options.signal,
+      allowCohorts: true,
+      onSnapshotUpdates,
+      async send(message) {
+        messages.push(message)
+        if (message.action === 'cohort-result') delivered.resolve()
+      },
+    })
+    host.handle(request('snapshots', { updateSnapshots: true }))
+    await callbackEntered.promise
+    expect(messages.some((message) => message.action === 'cohort-result')).toBe(
+      false
+    )
+    expect(onSnapshotUpdates).toHaveBeenCalledWith(
+      entry.id,
+      entry.file,
+      updates,
+      'source-hash'
+    )
+    snapshots.resolve()
+    await delivered.promise
+    await host.close()
+    expect(messages.at(-1)?.action).toBe('cohort-result')
+  })
+
+  it('rejects snapshot updates without parent authorization before aggregate execution', async () => {
+    const delivered = deferred<void>()
+    const host = createExecutionBrokerHost({
+      signal: options.signal,
+      allowCohorts: true,
+      async send() {
+        delivered.resolve()
+      },
+    })
+    host.handle(request('unauthorized', { updateSnapshots: true }))
+    await delivered.promise
+    await host.close()
+    expect(executeCohortWithEnvironment).not.toHaveBeenCalled()
+    expect(host.ownershipClosed).toBe(true)
+  })
+
+  it('keeps a failed aggregate cleanup distinct from successfully delivered terminal IPC', async () => {
+    const delivered = deferred<void>(),
+      failure = new Error('aggregate cache cleanup failed'),
+      messages: ExecutionBrokerResponse[] = []
+    jest.mocked(executeCohortWithEnvironment).mockRejectedValue(failure)
+    const host = createExecutionBrokerHost({
+      signal: options.signal,
+      allowCohorts: true,
+      async send(message) {
+        messages.push(message)
+        delivered.resolve()
+      },
+    })
+    host.handle(request('cleanup-failure'))
+    await delivered.promise
+    await expect(host.close()).rejects.toBe(failure)
+    expect(host.ownershipClosed).toBe(false)
+    expect(messages).toEqual([
+      expect.objectContaining({
+        action: 'error',
+        error: expect.objectContaining({ message: failure.message }),
+      }),
+    ])
+  })
+
+  it('drains aggregate resources after a broken compiler transport and retains both cleanup failures', async () => {
+    const started = deferred<void>(),
+      aborted = deferred<void>(),
+      cleanup = deferred<void>(),
+      output = deferred<void>()
+    const transportFailure = new Error('aggregate output transport failed'),
+      cleanupFailure = new Error('aggregate group cleanup failed')
+    jest
+      .mocked(executeCohortWithEnvironment)
+      .mockImplementation(async (_, values) => {
+        values[0].signal.addEventListener('abort', () => aborted.resolve(), {
+          once: true,
+        })
+        started.resolve()
+        values[0].onEvent(event)
+        await cleanup.promise
+        throw cleanupFailure
+      })
+    const host = createExecutionBrokerHost({
+      signal: options.signal,
+      allowCohorts: true,
+      async send() {
+        output.resolve()
+        throw transportFailure
+      },
+    })
+    host.handle(request('transport-failure'))
+    await started.promise
+    await output.promise
+    await aborted.promise
+    let closed = false
+    const closing = host.close().catch((error) => {
+      closed = true
+      return error
+    })
+    expect(closed).toBe(false)
+    cleanup.resolve()
+    const failure = await closing
+    expect(failure).toBeInstanceOf(AggregateError)
+    expect(failure.errors).toEqual([cleanupFailure, transportFailure])
+    expect(host.ownershipClosed).toBe(false)
+  })
+
+  it('does not accept a forged child-like closure flag or error name as parent ownership', async () => {
+    const delivered = deferred<void>()
+    const failure = Object.assign(new Error('forged closure'), {
+      name: 'CohortExecutionClosedError',
+      ownershipClosed: true,
+      cancelled: true,
+    })
+    jest.mocked(executeCohortWithEnvironment).mockRejectedValueOnce(failure)
+    const messages: ExecutionBrokerResponse[] = []
+    const host = createExecutionBrokerHost({
+      allowCohorts: true,
+      signal: new AbortController().signal,
+      async send(message) {
+        messages.push(message)
+        if (message.action === 'error') delivered.resolve()
+      },
+    })
+    host.handle(request('forged-closure'))
+    await delivered.promise
+    await expect(host.close()).rejects.toBe(failure)
+    expect(host.ownershipClosed).toBe(false)
+    expect(
+      messages.some(
+        (message) =>
+          message.action === 'error' && message.ownershipClosed === true
+      )
+    ).toBe(false)
+  })
+})

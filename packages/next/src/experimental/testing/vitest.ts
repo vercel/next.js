@@ -1,10 +1,42 @@
-import { getTestApi, getActiveAttempt, getAssertionRuntime } from './runner'
+import { doMock, doUnmock } from './mocking/dynamic'
+import { resetModules } from './mocking/module-cache'
+import {
+  getTestApi,
+  getActiveAttempt,
+  getAssertionRuntime,
+  getProvidedValue,
+} from './runner'
 import type { TestExpect } from './assertions'
 export type { TestContext, TestBody } from './runner/collector'
+export type {
+  Test,
+  Suite,
+  File,
+  Task,
+  TaskPopulated,
+  TaskResult,
+  TaskMeta,
+  TestTags,
+  TestTagDefinition,
+  TestAnnotation,
+  TestAttachment,
+  TestArtifactBase,
+  TestArtifactLocation,
+  TestAnnotationLocation,
+} from './runner/tasks'
+export type TestAPI = TestDeclaration
+export interface ProvidedContext {}
+export function inject<Key extends keyof ProvidedContext & string>(
+  key: Key
+): ProvidedContext[Key] {
+  return getProvidedValue(key) as ProvidedContext[Key]
+}
 export type {
   Matchers,
   TestExpect,
   TestAssertion,
+  Assertion,
+  AsymmetricMatchersContaining,
   MatcherState,
   MatchersObject,
   Mock,
@@ -15,6 +47,8 @@ import {
   type TestDeclaration,
   type SuiteDeclaration,
   type TestBody,
+  type AroundEachBody,
+  type AroundAllBody,
 } from './runner/collector'
 
 // Resolve on use: setup helpers and the spec must share the emitted runner instance.
@@ -49,6 +83,19 @@ export function onTestFinished(handler: TestBody, timeout?: number) {
   context.onTestFinished(handler, timeout)
 }
 
+export function createExpect(task?: {
+  id: string
+  fullTestName?: string
+}): TestExpect {
+  return getAssertionRuntime().createExpect(task)
+}
+
+export function should(): ReturnType<
+  ReturnType<typeof getAssertionRuntime>['should']
+> {
+  return getAssertionRuntime().should()
+}
+
 const expectMethods = new Map<PropertyKey, Function>()
 export const expect: TestExpect = new Proxy(
   function (actual: unknown, message?: string) {
@@ -81,23 +128,52 @@ export const expect: TestExpect = new Proxy(
 
 type SpyApi = Pick<
   ReturnType<typeof getAssertionRuntime>['spies'],
-  | 'fn'
-  | 'spyOn'
-  | 'isMockFunction'
-  | 'clearAllMocks'
-  | 'resetAllMocks'
-  | 'restoreAllMocks'
->
-type UtilityApi = Omit<
-  ReturnType<typeof getAssertionRuntime>['utilities'],
-  'dispose'
->
+  'fn' | 'spyOn' | 'isMockFunction' | 'mockObject'
+> & {
+  clearAllMocks(): VitestUtils
+  resetAllMocks(): VitestUtils
+  restoreAllMocks(): VitestUtils
+}
+type BackendUtilities = ReturnType<typeof getAssertionRuntime>['utilities']
+type UtilityApi = Pick<BackendUtilities, 'waitFor' | 'waitUntil'> & {
+  [Key in keyof Omit<
+    BackendUtilities,
+    'dispose'
+  >]: BackendUtilities[Key] extends (...args: infer Args) => infer Result
+    ? (
+        ...args: Args
+      ) => Result extends BackendUtilities
+        ? VitestUtils
+        : Result extends Promise<BackendUtilities>
+          ? Promise<VitestUtils>
+          : Result
+    : BackendUtilities[Key]
+}
+export type VitestUtils = SpyApi & UtilityApi & StaticMockApi
 type StaticMockApi = {
+  hoisted<T>(factory: () => T): T
+  /** Compiler-owned literal request: resolved in the original spec's Next graph. */
+  importActual<T = Record<string, unknown>>(path: string): Promise<T>
+  /** Literal runtime registration stays at its original lexical call site. */
+  doMock<T extends object = Record<string, unknown>>(
+    path: string,
+    factory: (
+      importOriginal: () => Promise<T>
+    ) => Partial<T> | Promise<Partial<T>>
+  ): { [Symbol.dispose]?: () => void }
+  doUnmock(path: string): void
+  /** Clear compiler-owned actual module evaluations for future imports. */
+  resetModules(): VitestUtils
   /**
    * Compiler-only: requires a literal path (or literal import()) and an inline
-   * factory with statically named exports. Untransformed calls throw; graph
+   * factory with statically named exports, or no factory for automocking.
+   * Untransformed calls throw; graph
    * support is capability-gated.
    */
+  mock<T extends object = Record<string, unknown>>(
+    path: string | Promise<T>,
+    options?: { spy?: boolean }
+  ): void
   mock<T extends object = Record<string, unknown>>(
     path: string | Promise<T>,
     factory: (
@@ -109,13 +185,19 @@ type StaticMockApi = {
 }
 const spyMethods = new Set([
   'fn',
+  'mockObject',
   'spyOn',
   'isMockFunction',
   'clearAllMocks',
   'resetAllMocks',
   'restoreAllMocks',
 ])
+export type { RuntimeOptions } from './assertions/utilities'
+
 const utilityMethods = new Set([
+  'dynamicImportSettled',
+  'setConfig',
+  'resetConfig',
   'stubGlobal',
   'stubEnv',
   'unstubAllGlobals',
@@ -136,20 +218,55 @@ const utilityMethods = new Set([
   'runOnlyPendingTimersAsync',
   'runAllTimers',
   'runAllTimersAsync',
+  'runAllTicks',
+  'waitFor',
+  'waitUntil',
+  'advanceTimersToNextFrame',
+  'setTimerTickMode',
 ])
+function hoisted<T>(factory: () => T): T {
+  if (typeof factory !== 'function') {
+    throw new TypeError(
+      `"vi.hoisted" factory value must be function, received "${typeof factory}"`
+    )
+  }
+  return factory()
+}
 const spyCalls = new Map<string, Function>()
-export const vi = new Proxy({} as SpyApi & UtilityApi & StaticMockApi, {
+export const vi: VitestUtils = new Proxy({} as VitestUtils, {
   get(_target, key) {
+    // Promise-returning utilities resolve to this ordinary, non-thenable facade.
+    if (key === 'then') return undefined
+    if (key === 'hoisted') return hoisted
+    if (key === 'doMock') return doMock
+    if (key === 'doUnmock') return doUnmock
+    if (key === 'resetModules')
+      return () => {
+        getAssertionRuntime()
+        resetModules()
+        return vi
+      }
+    if (key === 'importActual') {
+      throw new Error(
+        'vi.importActual requires a direct literal request in a supported Next-compiled test entry.'
+      )
+    }
     if (typeof key === 'string' && spyMethods.has(key)) {
       getAssertionRuntime()
       let method = spyCalls.get(key)
       if (!method) {
-        method = (...args: unknown[]) =>
-          Reflect.apply(
+        method = (...args: unknown[]) => {
+          const result = Reflect.apply(
             Reflect.get(getAssertionRuntime().spies, key),
             undefined,
             args
           )
+          return key === 'clearAllMocks' ||
+            key === 'resetAllMocks' ||
+            key === 'restoreAllMocks'
+            ? vi
+            : result
+        }
         spyCalls.set(key, method)
       }
       return method
@@ -158,12 +275,28 @@ export const vi = new Proxy({} as SpyApi & UtilityApi & StaticMockApi, {
       getAssertionRuntime()
       let method = spyCalls.get(key)
       if (!method) {
-        method = (...args: unknown[]) =>
-          Reflect.apply(
+        method = (...args: unknown[]) => {
+          const result = Reflect.apply(
             Reflect.get(getAssertionRuntime().utilities, key),
             undefined,
             args
           )
+          if (
+            key === 'dynamicImportSettled' ||
+            key === 'setConfig' ||
+            key === 'resetConfig' ||
+            key === 'waitFor' ||
+            key === 'waitUntil' ||
+            key === 'isFakeTimers' ||
+            key === 'getTimerCount' ||
+            key === 'getMockedSystemTime' ||
+            key === 'getRealSystemTime'
+          )
+            return result
+          return key.endsWith('Async')
+            ? Promise.resolve(result).then(() => vi)
+            : vi
+        }
         spyCalls.set(key, method)
       }
       return method
@@ -172,8 +305,10 @@ export const vi = new Proxy({} as SpyApi & UtilityApi & StaticMockApi, {
   },
 })
 export const vitest = vi
-export const aroundEach = () => unsupported('aroundEach')
-export const aroundAll = () => unsupported('aroundAll')
+export const aroundEach = (fn: AroundEachBody, timeout?: number) =>
+  getTestApi().aroundEach(fn, timeout)
+export const aroundAll = (fn: AroundAllBody, timeout?: number) =>
+  getTestApi().aroundAll(fn, timeout)
 export function onTestFailed(handler: TestBody, timeout?: number) {
   const context = getActiveAttempt()
   if (!context) throw new Error('onTestFailed requires an active test.')
@@ -208,3 +343,5 @@ export const assert: ReturnType<typeof getAssertionRuntime>['assert'] =
       },
     }
   )
+
+export type { TestError } from '../../compiled/next-test-primitives'

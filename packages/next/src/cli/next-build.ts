@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import type { BrowserFixtureHost } from '../experimental/testing/contracts'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
 import { italic } from '../lib/picocolors'
@@ -54,14 +55,18 @@ export type NextBuildOptions = {
   internalTrace?: string | boolean
 }
 
-const nextBuild = async (options: NextBuildOptions, directory?: string) => {
+const nextBuild = async (
+  options: NextBuildOptions,
+  directory?: string,
+  testing?: { browserFixtureHost: BrowserFixtureHost }
+) => {
   process.title = `next-build (v${process.env.__NEXT_VERSION})`
 
   // To show the upgrade menu without pausing the build, run the build in a
   // child and keep the menu here.
   if (process.env.NEXT_PRIVATE_UPGRADE_BUILD_CHILD === '1') {
     blockOnOutputWrites()
-  } else if (await shouldBuildInChild()) {
+  } else if (!testing && (await shouldBuildInChild())) {
     return buildInChild()
   }
 
@@ -164,7 +169,8 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     experimentalBuildMode,
     traceUploadUrl,
     debugBuildPathsPatterns,
-    enabledFeatures
+    enabledFeatures,
+    testing?.browserFixtureHost
   )
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {

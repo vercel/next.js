@@ -24,6 +24,7 @@ use turbopack_core::{
 pub(crate) struct MockGraphTarget {
     pub path: FileSystemPath,
     pub original_request: RcStr,
+    pub additional_original_requests: Vec<RcStr>,
     pub wrapper_source: ResolvedVc<Box<dyn Source>>,
 }
 
@@ -109,7 +110,11 @@ impl AfterResolvePlugin for MockResolvePlugin {
             // ImportMap::Direct still passes through after-resolve plugins.
             // Bypass this one compiler-issued edge, not the original module's
             // context: ordinary imports from the original remain substituted.
-            if original_request.as_ref() == Some(&target.original_request) {
+            if original_request.as_ref() == Some(&target.original_request)
+                || original_request
+                    .as_ref()
+                    .is_some_and(|request| target.additional_original_requests.contains(request))
+            {
                 return Ok(Vc::cell(None));
             }
             return Ok(Vc::cell(Some(
@@ -123,17 +128,53 @@ impl AfterResolvePlugin for MockResolvePlugin {
 pub(crate) struct MockRegistrationSource<'a> {
     pub key: &'a str,
     pub factory_source: &'a str,
+    pub original_factory_source: Option<&'a str>,
     pub factory_start: usize,
+    pub original_request: &'a str,
+    pub automatic: bool,
+    pub spy: bool,
+}
+
+pub(crate) struct MockHoistedSource<'a> {
+    pub source: &'a str,
+    pub original_source: &'a str,
+    pub start: usize,
+    pub bindings: &'a [String],
+}
+pub(crate) struct MockActualSource<'a> {
+    pub local: &'a str,
     pub original_request: &'a str,
 }
 
 /// Load this module before the stripped spec. Dynamic original imports must
 /// remain deferred until a factory invokes its supplied importOriginal helper.
+#[cfg(test)]
 pub(crate) fn mock_registration_source(
     runtime_request: &str,
     original_path: &str,
     original_source: &str,
     declarations: &[MockRegistrationSource<'_>],
+) -> Result<String> {
+    mock_registration_source_with_helpers(
+        runtime_request,
+        original_path,
+        original_source,
+        declarations,
+        &[],
+        &[],
+        &[],
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn mock_registration_source_with_helpers(
+    runtime_request: &str,
+    original_path: &str,
+    original_source: &str,
+    declarations: &[MockRegistrationSource<'_>],
+    hoisted: &[MockHoistedSource<'_>],
+    actual_imports: &[MockActualSource<'_>],
+    api_bindings: &[(String, String)],
 ) -> Result<String> {
     let mut source = String::new();
     let mut generated = SourcePosition::default();
@@ -149,54 +190,127 @@ pub(crate) fn mock_registration_source(
             serde_json::to_string(runtime_request)?,
         ),
     );
-    for declaration in declarations {
-        let end = declaration
-            .factory_start
-            .checked_add(declaration.factory_source.len())
-            .context("Mock factory source offset overflow")?;
-        if original_source.get(declaration.factory_start..end) != Some(declaration.factory_source) {
-            bail!("Mock factory source does not match its original source coordinates");
-        }
+    let mut automatic_api = "__next_automatic_mock_api".to_owned();
+    while original_source.contains(&automatic_api) {
+        automatic_api.push('_');
+    }
+    if declarations.iter().any(|declaration| declaration.automatic) {
+        append_unmapped(
+            &mut source,
+            &mut generated,
+            &mut map,
+            &format!("import {{ vi as {automatic_api} }} from 'vitest';\n"),
+        );
+    }
+    if !hoisted.is_empty() {
+        let names = api_bindings
+            .iter()
+            .map(|(imported, local)| format!("{imported} as {local}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        append_unmapped(
+            &mut source,
+            &mut generated,
+            &mut map,
+            &format!("import {{ {names} }} from 'vitest';\n"),
+        );
+    }
+    for import in actual_imports {
         append_unmapped(
             &mut source,
             &mut generated,
             &mut map,
             &format!(
-                "registerModuleMock({}, (",
-                serde_json::to_string(declaration.key)?,
+                "export const {} = () => import({});\n",
+                import.local,
+                serde_json::to_string(import.original_request)?
             ),
         );
-        let mut original = SourcePosition::default();
-        for character in original_source[..declaration.factory_start].chars() {
-            original.advance(character);
-        }
-        for character in declaration.factory_source.chars() {
-            if !matches!(character, '\r' | '\n') {
-                for unit in 0..character.len_utf16() as u32 {
-                    map.add_raw(
-                        generated.line,
-                        generated.column + unit,
-                        original.line,
-                        original.column + unit,
-                        Some(source_id),
-                        None,
-                        false,
-                    );
-                }
+    }
+    let mut events = declarations
+        .iter()
+        .enumerate()
+        .map(|(index, declaration)| (declaration.factory_start, false, index))
+        .chain(
+            hoisted
+                .iter()
+                .enumerate()
+                .map(|(index, declaration)| (declaration.start, true, index)),
+        )
+        .collect::<Vec<_>>();
+    events.sort_by_key(|event| event.0);
+    for (_, is_hoisted, index) in events {
+        if is_hoisted {
+            let declaration = &hoisted[index];
+            append_mapped(
+                &mut source,
+                &mut generated,
+                &mut map,
+                source_id,
+                original_source,
+                declaration.start,
+                declaration.original_source,
+                declaration.source,
+            )?;
+            append_unmapped(&mut source, &mut generated, &mut map, "\n");
+            if !declaration.bindings.is_empty() {
+                append_unmapped(
+                    &mut source,
+                    &mut generated,
+                    &mut map,
+                    &format!("export {{ {} }};\n", declaration.bindings.join(", ")),
+                );
             }
-            source.push(character);
-            generated.advance(character);
-            original.advance(character);
+        } else {
+            let declaration = &declarations[index];
+            append_unmapped(
+                &mut source,
+                &mut generated,
+                &mut map,
+                &format!(
+                    "registerModuleMock({}, (",
+                    serde_json::to_string(declaration.key)?
+                ),
+            );
+            if declaration.automatic {
+                let options = if declaration.spy {
+                    ", { spy: true }"
+                } else {
+                    ""
+                };
+                append_unmapped(
+                    &mut source,
+                    &mut generated,
+                    &mut map,
+                    &format!(
+                        "async (__next_original) => {automatic_api}.mockObject(await \
+                         __next_original(){options})"
+                    ),
+                );
+            } else {
+                append_mapped(
+                    &mut source,
+                    &mut generated,
+                    &mut map,
+                    source_id,
+                    original_source,
+                    declaration.factory_start,
+                    declaration
+                        .original_factory_source
+                        .unwrap_or(declaration.factory_source),
+                    declaration.factory_source,
+                )?;
+            }
+            append_unmapped(
+                &mut source,
+                &mut generated,
+                &mut map,
+                &format!(
+                    "), () => import({}));\n",
+                    serde_json::to_string(declaration.original_request)?
+                ),
+            );
         }
-        append_unmapped(
-            &mut source,
-            &mut generated,
-            &mut map,
-            &format!(
-                "), () => import({}));\n",
-                serde_json::to_string(declaration.original_request)?,
-            ),
-        );
     }
     let mut encoded_map = Vec::new();
     map.into_sourcemap().to_writer(&mut encoded_map)?;
@@ -204,6 +318,56 @@ pub(crate) fn mock_registration_source(
     source.push_str(&BASE64.encode(&encoded_map));
     source.push('\n');
     Ok(source)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_mapped(
+    source: &mut String,
+    generated: &mut SourcePosition,
+    map: &mut SourceMapBuilder,
+    source_id: u32,
+    original_source: &str,
+    start: usize,
+    original_text: &str,
+    transformed_text: &str,
+) -> Result<()> {
+    let end = start
+        .checked_add(original_text.len())
+        .context("Mock source offset overflow")?;
+    if original_source.get(start..end) != Some(original_text) {
+        bail!("Mock factory source does not match its original source coordinates");
+    }
+    let widths = |text: &str| {
+        text.split(['\r', '\n'])
+            .map(|line| line.encode_utf16().count())
+            .collect::<Vec<_>>()
+    };
+    if widths(original_text) != widths(transformed_text) {
+        bail!("Transformed mock source does not preserve original source coordinates");
+    }
+    let mut original = SourcePosition::default();
+    for character in original_source[..start].chars() {
+        original.advance(character);
+    }
+    for character in transformed_text.chars() {
+        if !matches!(character, '\r' | '\n') {
+            for unit in 0..character.len_utf16() as u32 {
+                map.add_raw(
+                    generated.line,
+                    generated.column + unit,
+                    original.line,
+                    original.column + unit,
+                    Some(source_id),
+                    None,
+                    false,
+                );
+            }
+        }
+        source.push(character);
+        generated.advance(character);
+        original.advance(character);
+    }
+    Ok(())
 }
 
 /// Match SWC source coordinates: CR/LF line breaks and UTF-16 columns. A CRLF
@@ -251,10 +415,21 @@ fn append_unmapped(
 
 /// Keep the author's complete source content even though mock declarations
 /// have been masked. The analyzer preserves UTF-16 positions in the spec.
+#[cfg(test)]
 pub(crate) fn mock_spec_source(
     original_path: &str,
     original_source: &str,
     stripped_source: &str,
+) -> Result<String> {
+    mock_spec_source_with_imports(original_path, original_source, stripped_source, "", &[])
+}
+
+pub(crate) fn mock_spec_source_with_imports(
+    original_path: &str,
+    original_source: &str,
+    stripped_source: &str,
+    registration_request: &str,
+    bindings: &[String],
 ) -> Result<String> {
     let widths = |source: &str| {
         source
@@ -285,10 +460,23 @@ pub(crate) fn mock_spec_source(
         }
         position.advance(character);
     }
+    let mut transformed = stripped_source.to_owned();
+    if !bindings.is_empty() {
+        append_unmapped(
+            &mut transformed,
+            &mut position,
+            &mut map,
+            &format!(
+                "\nimport {{ {} }} from {};\n",
+                bindings.join(", "),
+                serde_json::to_string(registration_request)?
+            ),
+        );
+    }
     let mut encoded_map = Vec::new();
     map.into_sourcemap().to_writer(&mut encoded_map)?;
     Ok(format!(
-        "{stripped_source}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n",
+        "{transformed}\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}\n",
         BASE64.encode(&encoded_map)
     ))
 }
@@ -336,6 +524,120 @@ mod tests {
     };
 
     #[test]
+    fn emits_mapped_helpers_before_factories_and_imports_their_shared_bindings() {
+        use crate::{
+            testing_mock_graph::{
+                MockActualSource, MockHoistedSource, mock_registration_source_with_helpers,
+                mock_spec_source_with_imports,
+            },
+            testing_mock_source::extract_static_mocks,
+        };
+        let original = "import{vi}from'vitest';const state=await \
+                        vi.hoisted(async()=>({value:42}));vi.mock('./dep',async()=>({...await \
+                        vi.importActual('./dep'),value:state.value}));";
+        let plan = extract_static_mocks(original, "spec.mjs").unwrap();
+        let declaration = &plan.declarations[0];
+        let hoisted = &plan.hoisted[0];
+        let actual = &plan.actual_imports[0];
+        let registration = mock_registration_source_with_helpers(
+            "runtime",
+            "spec.mjs",
+            original,
+            &[MockRegistrationSource {
+                key: "dep",
+                factory_source: &declaration.factory_source,
+                original_factory_source: Some(&declaration.original_factory_source),
+                automatic: declaration.automatic,
+                spy: declaration.spy,
+                factory_start: declaration.factory_start,
+                original_request: "original:dep",
+            }],
+            &[MockHoistedSource {
+                source: &hoisted.source,
+                original_source: &hoisted.original_source,
+                start: hoisted.start,
+                bindings: &hoisted.bindings,
+            }],
+            &[MockActualSource {
+                local: &actual.local,
+                original_request: "original:dep",
+            }],
+            &plan.api_bindings,
+        )
+        .unwrap();
+        assert!(registration.contains("import { vi as vi } from 'vitest'"));
+        assert!(
+            registration.find("export const _a0").unwrap()
+                < registration.find("const state=").unwrap()
+        );
+        assert!(
+            registration.find("const state=").unwrap()
+                < registration.find("registerModuleMock(\"dep\"").unwrap()
+        );
+        assert!(registration.contains("export { state }"));
+        let spec = mock_spec_source_with_imports(
+            "spec.mjs",
+            original,
+            &plan.source,
+            "registration",
+            &["state".into(), actual.local.clone()],
+        )
+        .unwrap();
+        assert!(spec.contains("import { state, _a0 } from \"registration\""));
+        assert!(spec.contains("sourceMappingURL=data:"));
+    }
+
+    #[test]
+    fn emits_automatic_factories_with_a_private_collision_free_api_binding() {
+        let original = "import{vi}from'vitest';const __next_automatic_mock_api=1;vi.mock('./dep');";
+        let generated = mock_registration_source(
+            "next/mock-runtime",
+            "spec.mjs",
+            original,
+            &[MockRegistrationSource {
+                key: "dep",
+                factory_source: "",
+                original_factory_source: Some(""),
+                factory_start: original.find("vi.mock").unwrap(),
+                original_request: "original:dep",
+                automatic: true,
+                spy: false,
+            }],
+        )
+        .unwrap();
+        assert!(generated.contains("import { vi as __next_automatic_mock_api_ } from 'vitest'"));
+        assert!(generated.contains(
+            "async (__next_original) => __next_automatic_mock_api_.mockObject(await \
+             __next_original())"
+        ));
+        assert!(generated.contains("() => import(\"original:dep\")"));
+        assert!(!generated.contains("import *"));
+    }
+
+    #[test]
+    fn emits_spy_factories_using_the_tracked_primitive_and_lazy_original_edge() {
+        let original = "import{vi}from'vitest';vi.mock('./dep',{spy:true});";
+        let generated = mock_registration_source(
+            "next/mock-runtime",
+            "spec.mjs",
+            original,
+            &[MockRegistrationSource {
+                key: "dep",
+                factory_source: "",
+                original_factory_source: Some(""),
+                factory_start: original.find("vi.mock").unwrap(),
+                original_request: "original:dep",
+                automatic: true,
+                spy: true,
+            }],
+        )
+        .unwrap();
+        assert!(generated.contains(".mockObject(await __next_original(), { spy: true })"));
+        assert!(generated.contains("() => import(\"original:dep\")"));
+        assert!(!generated.contains("import *"));
+    }
+
+    #[test]
     fn preserves_live_original_bindings_beside_fixed_mock_exports() {
         let generated = mock_wrapper_source(
             "next/mock-runtime",
@@ -353,6 +655,45 @@ mod tests {
     }
 
     #[test]
+    fn preserves_native_file_uri_for_spec_and_moved_factory_maps() {
+        let identity = "file:///compiler/project/spec%20file.mjs";
+        let factory = "() => ({value: 42})";
+        let original = format!("vi.mock('./dep', {factory});");
+        let registration = mock_registration_source(
+            "runtime",
+            identity,
+            &original,
+            &[MockRegistrationSource {
+                key: "dep",
+                factory_source: factory,
+                original_factory_source: None,
+                automatic: false,
+                spy: false,
+                factory_start: "vi.mock('./dep', ".len(),
+                original_request: "original:dep",
+            }],
+        )
+        .unwrap();
+        let spec = mock_spec_source(identity, &original, &" ".repeat(original.len())).unwrap();
+        for generated in [registration, spec] {
+            let encoded = generated.split("base64,").last().unwrap().trim();
+            let map = swc_sourcemap::SourceMap::from_slice(
+                &data_encoding::BASE64.decode(encoded.as_bytes()).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(
+                map.get_source(0).map(|value| value.as_str()),
+                Some(identity)
+            );
+            assert_eq!(
+                map.get_source_contents(0).map(|value| value.as_str()),
+                Some(original.as_str())
+            );
+            assert!(map.get_source_root().is_none());
+        }
+    }
+
+    #[test]
     fn maps_unicode_columns_on_the_same_line() {
         let factory = "() => { const emoji = '😀'; throw new Error('boom') }";
         let prefix = "vi.mock('😀', ";
@@ -364,6 +705,9 @@ mod tests {
             &[MockRegistrationSource {
                 key: "dep",
                 factory_source: factory,
+                original_factory_source: None,
+                automatic: false,
+                spy: false,
                 factory_start: prefix.len(),
                 original_request: "original:dep",
             }],
@@ -421,6 +765,9 @@ mod tests {
             &[MockRegistrationSource {
                 key: "node:dep",
                 factory_source: factory,
+                original_factory_source: None,
+                automatic: false,
+                spy: false,
                 factory_start: original.find(factory).unwrap(),
                 original_request: "original:dep",
             }],
@@ -468,6 +815,9 @@ mod tests {
                 &[MockRegistrationSource {
                     key: "dep",
                     factory_source: "() => ({value: 1})",
+                    original_factory_source: None,
+                    automatic: false,
+                    spy: false,
                     factory_start: 0,
                     original_request: "original:dep",
                 }]

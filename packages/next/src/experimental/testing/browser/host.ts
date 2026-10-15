@@ -61,6 +61,10 @@ export async function createBrowserHost(options: {
 export async function connectBrowserHost(options: {
   projectDir: string
   wsEndpoint: string
+  timeout?: number
 }): Promise<Browser> {
-  return loadPlaywright(options.projectDir).chromium.connect(options.wsEndpoint)
+  return loadPlaywright(options.projectDir).chromium.connect(
+    options.wsEndpoint,
+    { timeout: options.timeout }
+  )
 }

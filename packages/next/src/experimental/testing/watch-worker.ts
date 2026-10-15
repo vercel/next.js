@@ -20,13 +20,50 @@ let broker:
   | ReturnType<typeof import('./execution/broker').createExecutionBrokerClient>
   | undefined
 
+function allocateArtifact(
+  parentDir: string
+): Promise<{ stagingDir: string; rootDir: string }> {
+  return new Promise((resolve, reject) => {
+    const id = randomUUID()
+    allocations.set(id, { resolve, reject })
+    if (!process.connected) {
+      allocations.delete(id)
+      reject(new Error('Test planner coordinator disconnected.'))
+      return
+    }
+    process.send!(
+      { type: 'artifact-allocation-request', id, parentDir },
+      (error: Error | null) => {
+        if (error) {
+          allocations.delete(id)
+          reject(error)
+        }
+      }
+    )
+  })
+}
+
 async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
+  if (request.operation === 'plan') {
+    const { planSourceSelection } = await import(
+      './incremental/source-planner.js'
+    )
+    const plan = await planSourceSelection(
+      request.projectDir,
+      request.projects,
+      request.certifiedTestConfig,
+      controller.signal,
+      allocateArtifact
+    )
+    return { operation: 'plan', plan }
+  }
   if (request.operation === 'run') {
     const { createExecutionBrokerClient } = await import(
       './execution/broker.js'
     )
     broker = createExecutionBrokerClient({
       allowCoverage: request.isolatedProfile === true,
+      allowCohorts: request.isolatedProfile === true,
       send: (message) =>
         new Promise<void>((sent, failed) => {
           if (!process.connected)
@@ -39,12 +76,21 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
     const { runTests } = await import('./orchestrator.js')
     const result = await runTests(request.projectDir, request.projects, {
       signal: controller.signal,
+      collectOnly: request.collectOnly,
+      inspect: request.inspect,
       testNamePattern: request.testNamePattern,
+      passWithNoTests: request.passWithNoTests,
+      bailFailures: request.bailFailures,
       updateSnapshots: request.updateSnapshots,
       snapshotUpdateMode: request.snapshotUpdateMode,
       maxWorkers: request.maxWorkers,
       coverage: request.coverage,
+      standardCoverageOptions: request.standardCoverageOptions,
+      customCoverageRequests: request.customCoverageRequests,
       execute: broker.execute,
+      ...(request.isolatedProfile === true
+        ? { executeCohort: broker.executeCohort }
+        : {}),
       allocateArtifact: (parentDir) =>
         new Promise((resolve, reject) => {
           const id = randomUUID()

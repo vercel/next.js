@@ -30,6 +30,8 @@ pids
 # coverage
 .nyc_output
 coverage
+!packages/next/src/experimental/testing/coverage/
+!packages/next/src/experimental/testing/coverage/**
 
 # test output
 test/**/out/*

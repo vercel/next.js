@@ -402,7 +402,8 @@ describe('Next-managed browser resources', () => {
         body: '<div data-next-test-root data-next-test-hydrated="true">fixture</div>',
       })
     )
-    await resource.mount('fixture')
+    expect(resource.component.mount).toBe(resource.mount)
+    await resource.component.mount('fixture')
     const disposal = cleanups[0]()
     const result = disposal.then(
       () => undefined,

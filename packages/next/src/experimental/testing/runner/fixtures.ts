@@ -1,21 +1,36 @@
-import { unsupported, type Cleanup } from './collector'
+import { unsupported, type Cleanup, type TestSuite } from './collector'
 
 type FixtureFactory = (
   context: Record<string, unknown>,
   use: (value: unknown) => Promise<void>
 ) => Promise<void>
+export interface FixtureOptions {
+  scope?: 'test' | 'file' | 'worker'
+  auto?: boolean
+}
+export type BuilderFixtureFn<T, Context> = (
+  context: Context,
+  fixture: { onCleanup(cleanup: Cleanup): void }
+) => T | Promise<T>
+
 export type FixtureDefinition =
   | unknown
-  | [unknown, { scope?: 'test' | 'file'; auto?: boolean }]
+  | [unknown, { scope?: 'test' | 'file' | 'worker'; auto?: boolean }]
 export interface FixtureRegistration {
   name: string
   definition: FixtureDefinition
   parent?: FixtureRegistration
 }
 export type FixtureDefinitions = Record<string, FixtureRegistration>
+const fixtureDefinitionOrder = new WeakMap<FixtureDefinitions, number>()
+const fixtureDefinitionOwners = new WeakMap<
+  FixtureDefinitions,
+  FixtureDefinitions
+>()
+let nextFixtureDefinitionOrder = 0
 type Fixture = {
   value: unknown
-  scope: 'test' | 'file'
+  scope: 'test' | 'file' | 'worker'
   auto: boolean
   registration: FixtureRegistration
 }
@@ -33,11 +48,75 @@ export function configureFixtureCallback(
   fixtureCallbackMetadata.set(fn, { original, argument })
 }
 
+export function resolveFixtureDefinitions(
+  definitions: FixtureDefinitions,
+  suite: TestSuite
+): FixtureDefinitions {
+  for (
+    let current: TestSuite | undefined = suite;
+    current;
+    current = current.suite
+  ) {
+    const overridden = current.fixtureOverrides.get(definitions)
+    if (overridden) return overridden
+  }
+  return definitions
+}
+
+export function normalizeFixtureArguments(
+  api: 'test.extend' | 'test.override',
+  fixturesOrName: unknown,
+  optionsOrValue?: unknown,
+  maybeValue?: unknown,
+  hasOptions = maybeValue !== undefined
+): Record<string, FixtureDefinition> {
+  if (typeof fixturesOrName !== 'string') {
+    if (
+      !fixturesOrName ||
+      typeof fixturesOrName !== 'object' ||
+      Array.isArray(fixturesOrName)
+    )
+      throw new TypeError(`${api} requires a fixture object.`)
+    return fixturesOrName as Record<string, FixtureDefinition>
+  }
+  let options: FixtureOptions | undefined
+  let value: unknown
+  if (hasOptions) {
+    options = optionsOrValue as FixtureOptions
+    value = maybeValue
+  } else value = optionsOrValue
+  if (typeof value === 'function') {
+    const builder = value as BuilderFixtureFn<unknown, Record<string, unknown>>
+    const factory: FixtureFactory = async (context, provide) => {
+      let cleanup: Cleanup | undefined
+      const onCleanup = (fn: Cleanup) => {
+        if (cleanup !== undefined)
+          throw new Error(
+            'onCleanup can only be called once per fixture. Define separate fixtures if you need multiple cleanup functions.'
+          )
+        cleanup = fn
+      }
+      await provide(await builder(context, { onCleanup }))
+      if (cleanup) await cleanup()
+    }
+    configureFixtureCallback(factory, builder, 0)
+    value = factory
+  }
+  return { [fixturesOrName]: options ? [value, options] : value }
+}
+
 export function extendFixtures(
   base: FixtureDefinitions,
-  extra: Record<string, FixtureDefinition>
+  extra: Record<string, FixtureDefinition>,
+  inheritOwner = false
 ): FixtureDefinitions {
   const definitions = { ...base }
+  if (inheritOwner)
+    fixtureDefinitionOwners.set(
+      definitions,
+      fixtureDefinitionOwners.get(base) ?? base
+    )
+  else fixtureDefinitionOrder.set(definitions, nextFixtureDefinitionOrder++)
   for (const [name, definition] of Object.entries(extra)) {
     definitions[name] = {
       name,
@@ -136,21 +215,22 @@ function normalize(registration: FixtureRegistration): Fixture {
     if (
       options.scope !== undefined &&
       options.scope !== 'test' &&
-      options.scope !== 'file'
+      options.scope !== 'file' &&
+      options.scope !== 'worker'
     )
       unsupported(`fixture scope "${options.scope}"`)
-    if (parent && options.scope !== undefined && options.scope !== parent.scope)
+    if (parent && (options.scope ?? 'test') !== parent.scope)
       throw new Error(
         `The "${registration.name}" fixture was already registered with a "${parent.scope}" scope.`
       )
-    if (parent && options.auto !== undefined && options.auto !== parent.auto)
+    if (parent && (options.auto ?? false) !== parent.auto)
       throw new Error(
         `The "${registration.name}" fixture was already registered as { auto: ${parent.auto} }.`
       )
     return {
       value,
-      scope: options.scope ?? parent?.scope ?? 'test',
-      auto: options.auto ?? parent?.auto ?? false,
+      scope: options.scope ?? 'test',
+      auto: options.auto ?? false,
       registration,
     }
   }
@@ -172,8 +252,73 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
+/** One execution-worker owner, separate from every file and attempt cache. */
+export function createFixtureWorker(
+  runWorkerFixture: <T>(fn: () => T) => T = (fn) => fn()
+) {
+  const cache = new Map<
+    FixtureDefinitions,
+    Map<FixtureRegistration, Promise<unknown>>
+  >()
+  const cleanups = new Map<FixtureDefinitions, Cleanup[]>()
+  let state: 'active' | 'closing' | 'closed' = 'active'
+  let disposal: Promise<void> | undefined
+  return {
+    cache,
+    cleanups,
+    run<T>(fn: () => T): T {
+      if (state !== 'active')
+        throw new Error('Worker fixture owner has already closed.')
+      return runWorkerFixture(fn)
+    },
+    dispose(): Promise<void> {
+      if (disposal) return disposal
+      state = 'closing'
+      disposal = (async () => {
+        let errors: unknown[] = []
+        try {
+          errors = (
+            await runWorkerFixture(() =>
+              Promise.all(
+                [...cleanups]
+                  .sort(
+                    ([left], [right]) =>
+                      (fixtureDefinitionOrder.get(left) ?? 0) -
+                      (fixtureDefinitionOrder.get(right) ?? 0)
+                  )
+                  .map(async ([, callbacks]) => {
+                    const failures: unknown[] = []
+                    while (callbacks.length) {
+                      try {
+                        await callbacks.pop()!()
+                      } catch (error) {
+                        failures.push(error)
+                      }
+                    }
+                    return failures
+                  })
+              )
+            )
+          ).flat()
+        } finally {
+          cache.clear()
+          cleanups.clear()
+          state = 'closed'
+        }
+        if (errors.length === 1) throw errors[0]
+        if (errors.length)
+          throw new AggregateError(errors, 'Worker fixture disposal failed')
+      })()
+      return disposal
+    },
+  }
+}
+
+export type FixtureWorker = ReturnType<typeof createFixtureWorker>
+
 export function createFixtureFile(
-  runFileFixture: <T>(fn: () => T) => T = (fn) => fn()
+  runFileFixture: <T>(fn: () => T) => T,
+  worker: FixtureWorker
 ) {
   const fileCache = new Map<
     FixtureDefinitions,
@@ -182,23 +327,33 @@ export function createFixtureFile(
   const fileCleanups: Cleanup[] = []
   return {
     cleanups: fileCleanups,
-    attempt(definitions: FixtureDefinitions, context: Record<string, unknown>) {
+    attempt(
+      definitions: FixtureDefinitions,
+      context: Record<string, unknown>,
+      suiteHook?: string,
+      reuseContext = false
+    ) {
       const testCache = new Map<FixtureRegistration, Promise<unknown>>()
       const cleanups: Cleanup[] = []
-      let scopedCache = fileCache.get(definitions)
-      if (!scopedCache) fileCache.set(definitions, (scopedCache = new Map()))
+      const owner = fixtureDefinitionOwners.get(definitions) ?? definitions
+      let workerCleanups = worker.cleanups.get(owner)
+      if (!workerCleanups) worker.cleanups.set(owner, (workerCleanups = []))
+      let workerCache = worker.cache.get(owner)
+      if (!workerCache) worker.cache.set(owner, (workerCache = new Map()))
+      let scopedCache = fileCache.get(owner)
+      if (!scopedCache) fileCache.set(owner, (scopedCache = new Map()))
 
       async function resolve(
         name: string,
         path: FixtureRegistration[],
-        parentScope?: 'test' | 'file',
+        parentScope?: 'test' | 'file' | 'worker',
         registration = definitions[name]
       ): Promise<unknown> {
         if (!registration) {
           if (Object.prototype.hasOwnProperty.call(context, name)) {
-            if (parentScope === 'file')
+            if (parentScope === 'file' || parentScope === 'worker')
               throw new Error(
-                `File fixture cannot access attempt context "${name}".`
+                `${parentScope === 'worker' ? 'Worker' : 'File'} fixture cannot access attempt context "${name}".`
               )
             return context[name]
           }
@@ -212,11 +367,24 @@ export function createFixtureFile(
             ].join(' -> ')}`
           )
         const fixture = normalize(registration)
+        if (suiteHook && fixture.scope === 'test')
+          throw new Error(
+            `Test-scoped fixtures cannot be used inside ${suiteHook} hook. The "${name}" fixture is test-scoped. Use { scope: 'file' } or { scope: 'worker' } fixtures instead.`
+          )
         if (parentScope === 'file' && fixture.scope === 'test')
           throw new Error(
             `File fixture cannot depend on test fixture "${name}".`
           )
-        const cache = fixture.scope === 'file' ? scopedCache! : testCache
+        if (parentScope === 'worker' && fixture.scope !== 'worker')
+          throw new Error(
+            `Worker fixture cannot depend on ${fixture.scope} fixture "${name}".`
+          )
+        const cache =
+          fixture.scope === 'worker'
+            ? workerCache!
+            : fixture.scope === 'file'
+              ? scopedCache!
+              : testCache
         if (cache.has(registration)) return cache.get(registration)!
         const pending = (async () => {
           if (typeof fixture.value !== 'function') return fixture.value
@@ -236,6 +404,10 @@ export function createFixtureFile(
           const ready = deferred<unknown>()
           const release = deferred<void>()
           let used = false
+          const cleanup = async () => {
+            release.resolve()
+            await task
+          }
           const setup = () =>
             (fixture.value as FixtureFactory)(deps, async (value) => {
               if (used)
@@ -243,23 +415,31 @@ export function createFixtureFile(
                   `Fixture "${name}" called use() more than once.`
                 )
               used = true
+              ;(fixture.scope === 'worker'
+                ? workerCleanups!
+                : fixture.scope === 'file'
+                  ? fileCleanups
+                  : cleanups
+              ).push(cleanup)
               ready.resolve(value)
               await release.promise
             })
           const task = Promise.resolve().then(() =>
-            fixture.scope === 'file' ? runFileFixture(setup) : setup()
+            fixture.scope === 'worker'
+              ? worker.run(setup)
+              : fixture.scope === 'file'
+                ? runFileFixture(setup)
+                : setup()
           )
           task.then(() => {
             if (!used)
               ready.reject(new Error(`Fixture "${name}" did not call use().`))
           }, ready.reject)
-          const cleanup = async () => {
-            release.resolve()
-            await task
-          }
-          ;(fixture.scope === 'file' ? fileCleanups : cleanups).push(cleanup)
           return ready.promise
-        })()
+        })().catch((error) => {
+          if (cache.get(registration) === pending) cache.delete(registration)
+          throw error
+        })
         cache.set(registration, pending)
         return pending
       }
@@ -267,12 +447,47 @@ export function createFixtureFile(
       return {
         cleanups,
         async invoke(fn: Function) {
-          const values = { ...context }
+          const values = reuseContext
+            ? context
+            : (Object.defineProperties(
+                {},
+                Object.fromEntries(
+                  Object.entries(Object.getOwnPropertyDescriptors(context)).map(
+                    ([name, descriptor]) => [
+                      name,
+                      { ...descriptor, configurable: true },
+                    ]
+                  )
+                )
+              ) as Record<string, unknown>)
           for (const name of Object.keys(definitions))
-            if (normalize(definitions[name]).auto)
-              values[name] = await resolve(name, [])
-          for (const name of dependencies(fn))
-            values[name] = await resolve(name, [])
+            if (
+              normalize(definitions[name]).auto &&
+              (!suiteHook || normalize(definitions[name]).scope !== 'test')
+            )
+              Object.defineProperty(values, name, {
+                configurable: true,
+                enumerable: true,
+                writable: true,
+                value: await resolve(name, []),
+              })
+          for (const name of dependencies(fn)) {
+            // Resolve context accessors only when requested. Merely cloning the
+            // context must not switch runner assertion counts to a local expect.
+            const value = await resolve(name, [])
+            if (
+              reuseContext &&
+              !definitions[name] &&
+              Object.prototype.hasOwnProperty.call(context, name)
+            )
+              continue
+            Object.defineProperty(values, name, {
+              configurable: true,
+              enumerable: true,
+              writable: true,
+              value,
+            })
+          }
           return fn(values)
         },
       }

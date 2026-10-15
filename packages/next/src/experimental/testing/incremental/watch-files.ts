@@ -6,6 +6,8 @@ export interface WatchDirectories {
   directories: readonly string[]
   /** Actual resolved output roots, never a guessed default distDir. */
   outputDirectories: readonly string[]
+  /** Files published atomically with owned <file>.<UUID>.tmp siblings. */
+  outputFiles?: readonly string[]
   /** Compiler-owned temporary snapshots adjacent to the configured output. */
   artifactDirectories?: readonly {
     parentDirectory: string
@@ -51,6 +53,7 @@ export async function watchTestFiles(
 ) {
   let directories: string[] = []
   let outputs: string[] = []
+  let outputFiles: string[] = []
   let artifacts: NonNullable<WatchDirectories['artifactDirectories']> = []
   const subscriptions = new Map<string, Subscription>()
   const stopping = new Set<Promise<void>>()
@@ -63,6 +66,14 @@ export async function watchTestFiles(
   function ignored(absolute: string) {
     return (
       outputs.some((output) => contains(output, absolute)) ||
+      outputFiles.some(
+        (output) =>
+          absolute === output ||
+          (absolute.startsWith(`${output}.`) &&
+            /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.tmp$/i.test(
+              absolute.slice(output.length + 1)
+            ))
+      ) ||
       artifacts.some(({ parentDirectory, basenamePrefixes }) => {
         if (!contains(parentDirectory, absolute)) return false
         const basename = path
@@ -206,6 +217,7 @@ export async function watchTestFiles(
       (root) => !roots.some((other) => other !== root && contains(other, root))
     )
     const nextOutputs = next.outputDirectories.map((p) => path.resolve(p))
+    const nextOutputFiles = (next.outputFiles ?? []).map((p) => path.resolve(p))
     const nextArtifacts = (next.artifactDirectories ?? []).map((artifact) => ({
       parentDirectory: path.resolve(artifact.parentDirectory),
       basenamePrefixes: [...artifact.basenamePrefixes],
@@ -224,6 +236,7 @@ export async function watchTestFiles(
       }
       directories = nextDirectories
       outputs = nextOutputs
+      outputFiles = nextOutputFiles
       artifacts = nextArtifacts
       // Acquire replacements before releasing old roots: no subscription gap.
       for (const root of directories) {

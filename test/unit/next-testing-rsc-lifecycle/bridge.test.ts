@@ -136,22 +136,22 @@ it('rejects render calls outside a test attempt', async () => {
   }
 })
 
-it.each([{ environment: 'node' as const }, { route: '/reference' }])(
-  'rejects unsupported profile %j before rendering',
-  async (profile) => {
-    const input = bindings()
-    Object.assign(input.profile, profile)
-    const runtime = initializeRscTesting(input)
-    try {
-      await expect(rsc.render(Component, {}, options)).rejects.toThrow(
-        'only route-less Turbopack Node RSC subtrees'
-      )
-      expect(input.ConsumerMod.decodeFlight).not.toHaveBeenCalled()
-    } finally {
-      await runtime.dispose()
-    }
+it.each([
+  { environment: 'node' as const },
+  { mode: 'production' as const, route: '/reference' },
+])('rejects unsupported profile %j before rendering', async (profile) => {
+  const input = bindings()
+  Object.assign(input.profile, profile)
+  const runtime = initializeRscTesting(input)
+  try {
+    await expect(rsc.render(Component, {}, options)).rejects.toThrow(
+      'only route-less Turbopack Node RSC subtrees'
+    )
+    expect(input.ConsumerMod.decodeFlight).not.toHaveBeenCalled()
+  } finally {
+    await runtime.dispose()
   }
-)
+})
 
 it('requires explicit file cache sharing and real manifest resources', async () => {
   const input = bindings()
@@ -345,4 +345,129 @@ describe('registered App Page transport', () => {
       expect(fixture).not.toHaveBeenCalled()
     }
   )
+})
+
+describe('native AppProject request coherence', () => {
+  const { validateCompiledTestRoute, resolveCompiledRouteRequest } =
+    require('next/dist/experimental/testing/rsc/route') as typeof import('next/dist/experimental/testing/rsc/route')
+  const route = {
+    version: 1 as const,
+    pathname: '/[tenant]/reference/[...slug]',
+    page: '/[tenant]/reference/[...slug]/page',
+    runtime: 'nodejs' as const,
+    basePath: '/base',
+    rootParamNames: ['tenant'],
+    config: {
+      dynamic: 'auto' as const,
+      dynamicParams: true,
+      fetchCache: 'auto' as const,
+      revalidate: false as const,
+    },
+    entry: { file: 'subject.test.ts', sha256: 'a'.repeat(64) },
+    sources: [{ file: 'app/[tenant]/layout.jsx', sha256: 'b'.repeat(64) }],
+  }
+  const selected = { ...bindings().profile, route: route.pathname }
+  it('derives decoded params and actual loader-tree root params with the normal route matcher', async () => {
+    expect(() => validateCompiledTestRoute(route, selected)).not.toThrow()
+    await expect(
+      resolveCompiledRouteRequest(
+        route,
+        new URL('http://localhost/base/acme/reference/a%20b/c'),
+        Promise.resolve({ tenant: 'acme', slug: ['a b', 'c'] }),
+        { tenant: 'acme' },
+        new AbortController().signal
+      )
+    ).resolves.toEqual({
+      params: { tenant: 'acme', slug: ['a b', 'c'] },
+      rootParams: { tenant: 'acme' },
+    })
+  })
+  it.each([
+    ['file:///base/acme/reference/x', undefined, undefined, 'HTTP or HTTPS'],
+    [
+      'http://localhost/other/acme/reference/x',
+      undefined,
+      undefined,
+      'URL does not match',
+    ],
+    [
+      'http://localhost/base/acme/other/x',
+      undefined,
+      undefined,
+      'URL does not match',
+    ],
+    [
+      'http://localhost/base/acme/reference/x',
+      { tenant: 'other', slug: ['x'] },
+      undefined,
+      'params do not match',
+    ],
+    [
+      'http://localhost/base/acme/reference/x',
+      { tenant: 'acme', slug: ['x'], extra: 'x' },
+      undefined,
+      'params do not match',
+    ],
+    [
+      'http://localhost/base/acme/reference/x',
+      undefined,
+      { tenant: 'other' },
+      'rootParams do not match',
+    ],
+    [
+      'http://localhost/base/acme/reference/x',
+      undefined,
+      { tenant: 'acme', slug: ['x'] },
+      'rootParams do not match',
+    ],
+  ])(
+    'rejects incoherent request %s before rendering',
+    async (url, params, rootParams, message) => {
+      await expect(
+        resolveCompiledRouteRequest(
+          route,
+          new URL(url as string),
+          params,
+          rootParams as Record<string, string> | undefined,
+          new AbortController().signal
+        )
+      ).rejects.toThrow(message as string)
+    }
+  )
+  it('cancels an unresolved supplied params promise', async () => {
+    const controller = new AbortController()
+    const result = resolveCompiledRouteRequest(
+      route,
+      new URL('http://localhost/base/acme/reference/x'),
+      new Promise(() => {}),
+      undefined,
+      controller.signal
+    )
+    controller.abort(new Error('owned attempt cancelled'))
+    await expect(result).rejects.toThrow('owned attempt cancelled')
+  })
+  it.each([
+    { runtime: 'edge' },
+    { pathname: '/other' },
+    { page: '/wrong/page' },
+    { rootParamNames: ['missing'] },
+    { config: { ...route.config, dynamic: 'invented' } },
+    { sources: [] },
+  ])('rejects incoherent native metadata %j', (changes) => {
+    expect(() =>
+      validateCompiledTestRoute({ ...route, ...changes }, selected)
+    ).toThrow()
+  })
+  it('requires route facts even when a route string is configured', async () => {
+    const input = bindings()
+    input.profile.route = '/reference/[slug]'
+    const runtime = initializeRscTesting(input)
+    try {
+      await expect(rsc.render(Component, {}, options)).rejects.toThrow(
+        'matching native AppProject route metadata'
+      )
+    } finally {
+      await runtime.dispose()
+    }
+  })
 })

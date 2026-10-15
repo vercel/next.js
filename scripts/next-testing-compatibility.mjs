@@ -42,6 +42,8 @@ const implemented = new Set([
   'describe',
   'suite',
   'expect',
+  'createExpect',
+  'inject',
   'vi',
   'vitest',
   'beforeAll',

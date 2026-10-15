@@ -1,4 +1,8 @@
-import { fork } from 'child_process'
+import type { CustomCoverageRequest } from './coverage/custom-types'
+import { assertCustomCoverageFacts } from './coverage/custom-facts'
+import { fork, execFile } from 'child_process'
+import type { StandardCoverageOptions } from './coverage/types'
+import { promisify } from 'node:util'
 import { randomUUID } from 'crypto'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { join, isAbsolute } from 'path'
@@ -12,6 +16,7 @@ import {
   type TestReporterOptions,
 } from './reporting/reporter'
 import { serializeDiagnostic } from './reporting/diagnostics'
+import { assertTestFileCollections } from './execution/collection'
 import {
   commitSnapshotUpdates,
   combineSnapshotUpdatePlans,
@@ -21,21 +26,37 @@ import {
 } from './assertions/snapshots'
 
 export type WatchProcessRequest =
+  | {
+      operation: 'plan'
+      projectDir: string
+      projects: DiscoveredTestProject[]
+      certifiedTestConfig: boolean
+    }
   | { operation: 'metadata'; projectDir: string; profiles: TestProfile[] }
   | {
       operation: 'run'
+      collectOnly?: boolean
+      inspect?: string
       projectDir: string
       projects: DiscoveredTestProject[]
-      testNamePattern?: string
+      testNamePattern?: string | RegExp
+      passWithNoTests?: boolean
+      bailFailures?: number
       updateSnapshots?: boolean
       snapshotUpdateMode?: SnapshotUpdateMode
       maxWorkers?: number
       coverage?: boolean
+      standardCoverageOptions?: StandardCoverageOptions
+      customCoverageRequests?: Record<string, CustomCoverageRequest>
       /** One-shot mixed-profile orchestration; never inherit another mode. */
       isolatedProfile?: boolean
     }
 
 export type WatchProcessResult =
+  | {
+      operation: 'plan'
+      plan: import('./incremental/source-selection').SourceSelectionPlan
+    }
   | { operation: 'metadata'; directories: WatchDirectories }
   | { operation: 'run'; result: Awaited<ReturnType<typeof runTests>> }
 
@@ -68,20 +89,51 @@ export class WatchOwnershipError extends Error {
   }
 }
 
-async function closeGenerationGroup(pid: number) {
-  const signal = (value: NodeJS.Signals | 0) => {
+const execFileAsync = promisify(execFile)
+
+/** Confirm an ambiguous kernel probe against process membership, never permissions. */
+async function generationGroupHasMembers(pid: number): Promise<boolean> {
+  const { stdout } = await execFileAsync('ps', ['-axo', 'pgid=,pid='], {
+    timeout: 1000,
+    maxBuffer: 8 * 1024 * 1024,
+  })
+  let found = false
+  for (const line of stdout.trim().split('\n')) {
+    const fields = /^\s*(\d+)\s+(\d+)\s*$/.exec(line)
+    if (!fields)
+      throw new Error('Cannot verify watch process group membership.')
+    if (Number(fields[1]) === pid) found = true
+  }
+  return found
+}
+
+export async function closeGenerationGroup(pid: number) {
+  const signal = async (value: NodeJS.Signals | 0) => {
     try {
       process.kill(-pid, value)
       return true
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false
+      if (value === 0 && (error as NodeJS.ErrnoException).code === 'EPERM') {
+        // Darwin can report EPERM for the just-disappeared group. A live group
+        // or a failed membership observation must still fail ownership release.
+        try {
+          if (!(await generationGroupHasMembers(pid))) return false
+        } catch (membershipError) {
+          throw new AggregateError(
+            [error, membershipError],
+            'Cannot verify watch process group cleanup.'
+          )
+        }
+      }
       throw error
     }
   }
-  if (!signal('SIGTERM')) return
+  if (!(await signal('SIGTERM'))) return
   const started = Date.now()
-  while (signal(0)) {
-    if (Date.now() - started > 1000) signal('SIGKILL')
+  let killed = false
+  while (await signal(0)) {
+    if (!killed && Date.now() - started > 1000) killed = await signal('SIGKILL')
     if (Date.now() - started > 5000) {
       throw new Error('Watch generation process group did not close.')
     }
@@ -131,18 +183,26 @@ export async function runWatchProcess(
       cwd: request.projectDir,
       env: {
         ...process.env,
-        ...(request.operation === 'run' && request.isolatedProfile
-          ? { NODE_ENV: request.projects[0].profile.mode }
+        ...((request.operation === 'run' && request.isolatedProfile) ||
+        request.operation === 'plan'
+          ? {
+              NODE_ENV:
+                request.operation === 'plan'
+                  ? 'development'
+                  : request.projects[0].profile.mode,
+            }
           : {}),
       },
       execArgv: [],
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+      serialization: 'advanced',
     })
     let message: WatchProcessMessage | undefined
     let failure: unknown
     let failed = false
     let ownership: Promise<void> | undefined
+    let planningTimer: NodeJS.Timeout | undefined
     let abortTimer: NodeJS.Timeout | undefined
     let outputTimer: NodeJS.Timeout | undefined
     let terminalTimer: NodeJS.Timeout | undefined
@@ -181,6 +241,14 @@ export async function runWatchProcess(
     const began = performance.now()
     let runId: string | undefined
     let runEnd: Extract<ResultEvent, { type: 'run-end' }> | undefined
+    const selectedFiles = new Set(
+      request.operation === 'run'
+        ? request.projects.flatMap((project) =>
+            project.entries.map((entry) => entry.id)
+          )
+        : []
+    )
+    const collectionRevisions = new Map<string, string>()
     const startedFiles = new Set<string>()
     const endedFiles = new Set<string>()
     const fail = (error: unknown) => {
@@ -190,6 +258,8 @@ export async function runWatchProcess(
     const broker = brokerModule?.createExecutionBrokerHost({
       signal: options.signal,
       maxWorkers: request.operation === 'run' ? request.maxWorkers : undefined,
+      allowCohorts:
+        request.operation === 'run' && request.isolatedProfile === true,
       allowCoverage:
         request.operation === 'run' && request.isolatedProfile === true,
       onSnapshotUpdates:
@@ -313,7 +383,32 @@ export async function runWatchProcess(
             if (!reporter)
               throw new Error('Metadata process sent execution events.')
             if (event.type === 'run-start') runId = event.runId
-            if (event.type === 'file-start') startedFiles.add(event.entry.id)
+            if (event.type === 'file-start') {
+              startedFiles.add(event.entry.id)
+              if (
+                request.operation === 'run' &&
+                (request.collectOnly ||
+                  request.standardCoverageOptions ||
+                  request.customCoverageRequests)
+              ) {
+                if (!selectedFiles.has(event.entry.id))
+                  throw new Error('Unrequested collection file-start.')
+                if (typeof event.revision === 'string')
+                  collectionRevisions.set(event.entry.id, event.revision)
+              }
+            }
+            if (
+              request.operation === 'run' &&
+              request.collectOnly &&
+              [
+                'case-start',
+                'case-end',
+                'suite-end',
+                'test-annotation',
+                'snapshot-summary',
+              ].includes(event.type)
+            )
+              throw new Error('Collection process returned execution facts.')
             if (event.type === 'file-end') endedFiles.add(event.entryId)
             if (event.type === 'run-end') {
               if (runEnd)
@@ -334,7 +429,7 @@ export async function runWatchProcess(
             }
             try {
               if (
-                request.operation !== 'run' ||
+                (request.operation !== 'run' && request.operation !== 'plan') ||
                 ownership ||
                 !isAbsolute(value.parentDir)
               )
@@ -401,6 +496,7 @@ export async function runWatchProcess(
       }, 1000)
     })
     child.once('close', async (code, signal) => {
+      if (planningTimer) clearTimeout(planningTimer)
       if (abortTimer) clearTimeout(abortTimer)
       if (outputTimer) clearTimeout(outputTimer)
       if (terminalTimer) clearTimeout(terminalTimer)
@@ -425,6 +521,75 @@ export async function runWatchProcess(
         )
           fail(new Error('Watch process returned an invalid result.'))
       }
+      if (
+        !failed &&
+        message?.type === 'result' &&
+        message.value.operation === 'run' &&
+        request.operation === 'run'
+      ) {
+        try {
+          if (request.customCoverageRequests) {
+            if (!request.isolatedProfile || message.value.result.unsafeCleanup)
+              throw new Error(
+                'Custom coverage requires clean one-shot supervision.'
+              )
+            if (
+              options.signal.aborted &&
+              message.value.result.status === 'cancelled'
+            ) {
+              // closeOwnership has certified the generation and file readers.
+              // Cancellation publishes no provider payload, including a partial
+              // set collected before another selected file was interrupted.
+              delete message.value.result.customCoverage
+            } else {
+              assertCustomCoverageFacts(
+                message.value.result.customCoverage,
+                request.projectDir,
+                request.projects,
+                request.customCoverageRequests,
+                collectionRevisions,
+                runId
+              )
+            }
+          } else if (message.value.result.customCoverage !== undefined)
+            throw new Error('Unsolicited custom coverage facts.')
+          if (request.standardCoverageOptions) {
+            if (message.value.result.unsafeCleanup)
+              throw new Error('Standard coverage generation cleanup failed.')
+            const { assertStandardCoverageFacts } = await import(
+              './coverage/report-standard.js'
+            )
+            await assertStandardCoverageFacts(
+              message.value.result.standardCoverage,
+              request.projectDir,
+              selectedFiles,
+              collectionRevisions
+            )
+          } else if (message.value.result.standardCoverage !== undefined) {
+            throw new Error(
+              'Watch process returned unsolicited standard coverage facts.'
+            )
+          }
+          const collections = message.value.result.collections
+          if (!request.collectOnly) {
+            if (collections !== undefined)
+              throw new Error(
+                'Watch process returned unsolicited collection facts.'
+              )
+          } else if (collections !== undefined) {
+            assertTestFileCollections(
+              collections,
+              selectedFiles,
+              collectionRevisions,
+              message.value.result.status === 'passed'
+            )
+          } else if (message.value.result.status === 'passed') {
+            throw new Error('Watch process omitted collection facts.')
+          }
+        } catch (error) {
+          fail(error)
+        }
+      }
       // A snapshot shortcut is a single explicit transaction. Provisional file
       // success is insufficient: the compiler generation and every owned reader
       // must have exited cleanly before the parent writes any staged bytes.
@@ -444,6 +609,7 @@ export async function runWatchProcess(
           options.onSnapshotCommitStart?.()
           for (const { file, updates, sourceHash } of plans) {
             await commitSnapshotUpdates(file, updates, {
+              projectDir: request.projectDir,
               signal: options.signal,
               sourceHash,
             })
@@ -509,6 +675,15 @@ export async function runWatchProcess(
           if (message?.type === 'result' && message.value.operation === 'run')
             message.value.result = {
               ...reporter.getSummary(),
+              ...(message.value.result.collections
+                ? { collections: message.value.result.collections }
+                : {}),
+              ...(message.value.result.standardCoverage
+                ? { standardCoverage: message.value.result.standardCoverage }
+                : {}),
+              ...(message.value.result.customCoverage
+                ? { customCoverage: message.value.result.customCoverage }
+                : {}),
               unsafeCleanup: message.value.result.unsafeCleanup,
             }
         } catch (error) {
@@ -521,6 +696,13 @@ export async function runWatchProcess(
       else if (message?.type === 'result') resolve(message.value)
       else reject(new Error('Watch process returned no result.'))
     })
+    if (request.operation === 'plan')
+      planningTimer = setTimeout(() => {
+        fail(
+          new Error('Test source dependency planning exceeded its deadline.')
+        )
+        cancel()
+      }, 60_000)
     options.signal.addEventListener('abort', cancel, { once: true })
     child.send({ type: 'start', request }, (error) => {
       if (error) fail(error)

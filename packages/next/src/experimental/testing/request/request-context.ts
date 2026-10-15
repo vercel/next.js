@@ -1,3 +1,4 @@
+import type { CompiledTestRoute } from '../contracts'
 import {
   createRequestStore,
   type RequestStoreInputs,
@@ -26,7 +27,8 @@ import { workUnitAsyncStorage } from '../../../server/app-render/work-unit-async
 export function runWithRenderRequest<T>(
   inputs: Omit<RequestStoreInputs, 'phase'>,
   workContext: WorkStoreContext,
-  render: () => T
+  render: () => T,
+  routeConfig?: CompiledTestRoute['config']
 ): T {
   // createWorkStore captures the current async context for runInCleanSnapshot.
   // Capturing an existing request would restore that request during cache work.
@@ -38,6 +40,13 @@ export function runWithRenderRequest<T>(
 
   const requestStore = createRequestStore({ ...inputs, phase: 'render' })
   const workStore = createWorkStore(workContext)
+  if (routeConfig) {
+    // Match create-component-tree's effective segment flags in the real store.
+    workStore.forceDynamic = routeConfig.dynamic === 'force-dynamic'
+    workStore.forceStatic = routeConfig.dynamic === 'force-static'
+    workStore.dynamicShouldError = routeConfig.dynamic === 'error'
+    workStore.fetchCache = routeConfig.fetchCache
+  }
 
   return workAsyncStorage.run(workStore, () =>
     workUnitAsyncStorage.run(requestStore, render)

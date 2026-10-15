@@ -331,6 +331,19 @@ export interface Project {
     id: string
     environment: 'rsc' | 'node' | 'browser'
     setupFiles?: readonly string[]
+    setupFilesSequence?: 'list' | 'parallel'
+    inSource?: boolean
+    /** Preserve mutable user env reads in an explicit development Node graph. */
+    runtimeEnv?: boolean
+    /** Compile source dependency evidence without evaluating test modules. */
+    dependencyPlan?: boolean
+    /** Native client test realm; omitted for ordinary Node browser drivers. */
+    browserClient?: boolean
+    /** Actual AppProject route; requires native route capability negotiation. */
+    route?: string
+    snapshotSerializers?: readonly string[]
+    /** Explicit ordered project-relative files sharing one immutable compiler graph. */
+    cohortFiles?: readonly string[]
   }): Promise<Endpoint>
 
   update(options: Partial<ProjectOptions>): Promise<void>
@@ -544,7 +557,10 @@ export interface DefineEnv {
 }
 
 export type RustifiedEnv = { name: string; value: string }[]
-export type RustifiedOptionalEnv = { name: string; value: string | undefined }[]
+export type RustifiedOptionalEnv = {
+  name: string
+  value: string | undefined
+}[]
 
 export interface GlobalEntrypoints {
   app: Endpoint | undefined

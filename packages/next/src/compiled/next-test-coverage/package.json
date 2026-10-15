@@ -1,0 +1,6 @@
+{
+  "name": "next-test-coverage",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT"
+}

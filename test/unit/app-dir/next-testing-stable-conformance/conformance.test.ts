@@ -40,6 +40,7 @@ interface Report {
       failureMessages: string[]
     }[]
     message: string
+    status: 'passed' | 'failed'
   }[]
 }
 
@@ -48,7 +49,9 @@ async function invoke(
   root: string,
   filter: string,
   update = false,
-  ci = false
+  ci = false,
+  testNamePattern?: string,
+  nodeEnv: 'development' | 'production' = 'development'
 ) {
   const args =
     runner === 'next'
@@ -79,11 +82,13 @@ async function invoke(
         ]
   if (runner === 'vitest') args.push('--reporter=default')
   if (update) args.push('--update')
+  if (testNamePattern !== undefined)
+    args.push('--testNamePattern', testNamePattern)
   const result = await exec(process.execPath, args, {
     cwd: root,
     env: {
       ...process.env,
-      NODE_ENV: 'development',
+      NODE_ENV: nodeEnv,
       NEXT_TELEMETRY_DISABLED: '1',
       FORCE_COLOR: '0',
       CI: ci ? '1' : undefined,
@@ -107,7 +112,20 @@ async function invoke(
     filter !== 'collection.case'
   ) {
     throw new Error(
-      report.testResults.map((file) => file.message).join('\n') || result.stderr
+      report.testResults.map((file) => file.message).join('\n') ||
+        (
+          report as Report & {
+            next?: {
+              events?: { type: string; diagnostic?: { message: string } }[]
+            }
+          }
+        ).next?.events
+          ?.filter((event) => event.type === 'diagnostic')
+          .map((event) => event.diagnostic?.message)
+          .join('\n') ||
+        result.stderr ||
+        result.stdout ||
+        `Next collected no cases (exit ${result.code})`
     )
   }
   return { ...result, report }
@@ -251,6 +269,366 @@ describe('Vitest 5.0.4 public CLI conformance', () => {
     // Vitest's JSON reporter sends console output to stderr.
     expect(trace(nextOutput)).toEqual(trace(expected.stdout + expected.stderr))
   }, 120000)
+
+  it('matches module collection failure without executing already declared bodies', async () => {
+    const expected = await invoke('vitest', roots.vitest, 'collection.case')
+    const actual = await invoke('next', roots.next, 'collection.case')
+    expect(expected.code).toBe(1)
+    expect(actual.code).toBe(expected.code)
+    expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+    expect(actual.report.numTotalTests).toBe(0)
+    expect(actual.report.testResults[0].message).toContain('collection failure')
+    expect(actual.report.testResults[0].message.split('\n')[0]).toBe(
+      'Error: collection failure'
+    )
+  }, 120000)
+
+  it('counts empty, skipped, todo and hook-failing suites using execution metadata', async () => {
+    const expected = await invoke('vitest', roots.vitest, 'suite-metadata.case')
+    const actual = await invoke('next', roots.next, 'suite-metadata.case')
+    expect(expected.code).toBe(1)
+    expect(actual.code).toBe(expected.code)
+    expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+    const counts = (report: Report) => ({
+      total: report.numTotalTestSuites,
+      passed: report.numPassedTestSuites,
+      failed: report.numFailedTestSuites,
+      pending: report.numPendingTestSuites,
+    })
+    expect(counts(expected.report)).toEqual({
+      total: 7,
+      passed: 3,
+      failed: 3,
+      pending: 1,
+    })
+    expect(counts(actual.report)).toEqual(counts(expected.report))
+    expect(actual.report.testResults[0].message).toContain(
+      'No test found in suite empty'
+    )
+    expect(actual.report.testResults[0].message).toContain(
+      'nested cleanup failure'
+    )
+  }, 120000)
+
+  it.each([
+    '^root passes$',
+    '^hook failure > nested passes$',
+    'no matching cases',
+  ])(
+    'matches filtered suite and todo outcomes for %s',
+    async (pattern) => {
+      const expected = await invoke(
+        'vitest',
+        roots.vitest,
+        'suite-metadata.case',
+        false,
+        false,
+        pattern
+      )
+      const actual = await invoke(
+        'next',
+        roots.next,
+        'suite-metadata.case',
+        false,
+        false,
+        pattern
+      )
+      expect(actual.code).toBe(expected.code)
+      expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+      for (const field of [
+        'numTotalTestSuites',
+        'numPassedTestSuites',
+        'numFailedTestSuites',
+        'numPendingTestSuites',
+      ] as const) {
+        expect(actual.report[field]).toEqual(expected.report[field])
+      }
+      expect(actual.report.numTodoTests).toBe(0)
+    },
+    120000
+  )
+
+  it('checks body assertion counts before teardown and finished listeners, retaining retries and original failures', async () => {
+    const expected = await invoke(
+      'vitest',
+      roots.vitest,
+      'assertion-counts.case'
+    )
+    const actual = await invoke('next', roots.next, 'assertion-counts.case')
+    expect(expected.code).toBe(1)
+    expect(actual.code).toBe(expected.code)
+    expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+    expect(actual.report).toMatchObject({
+      numTotalTests: 11,
+      numPassedTests: 5,
+      numFailedTests: 6,
+    })
+    const nextReport = actual.report as Report & {
+      next: { events: { type: string; text?: string }[] }
+    }
+    const output = nextReport.next.events
+      .filter((event) => event.type === 'output')
+      .map((event) => event.text)
+      .join('')
+    const trace = (text: string) =>
+      JSON.parse(text.match(/COUNT_TRACE=(\[[^\n]*\])/)![1])
+    expect(trace(output)).toEqual(trace(expected.stdout + expected.stderr))
+  }, 120000)
+
+  it('matches independent and lazy local expectation counters, retry state and fixture access', async () => {
+    const expected = await invoke('vitest', roots.vitest, 'local-expect.case')
+    const actual = await invoke('next', roots.next, 'local-expect.case')
+    expect(expected.code).toBe(1)
+    expect(actual.code).toBe(expected.code)
+    expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+    expect(actual.report).toMatchObject({
+      numTotalTests: 11,
+      numPassedTests: 5,
+      numFailedTests: 6,
+    })
+    const nextReport = actual.report as Report & {
+      next: { events: { type: string; text?: string }[] }
+    }
+    const output = nextReport.next.events
+      .filter((event) => event.type === 'output')
+      .map((event) => event.text)
+      .join('')
+    const trace = (text: string) =>
+      JSON.parse(text.match(/LOCAL_EXPECT_TRACE=(\[[^\n]*\])/)![1])
+    expect(trace(output)).toEqual(trace(expected.stdout + expected.stderr))
+  }, 120000)
+
+  it('matches task identity, result history, tag metadata, annotations and signal lifetime', async () => {
+    const tags = [
+      { name: 'low', priority: 20, meta: { fromLow: true, overlap: 'low' } },
+      { name: 'high', priority: 1, meta: { fromHigh: true, overlap: 'high' } },
+      { name: 'disabled', skip: true },
+    ]
+    const nextConfig = join(roots.next, 'next.test.config.json')
+    const vitestConfig = join(roots.vitest, 'vitest.config.mjs')
+    const previousNext = await readFile(nextConfig, 'utf8')
+    const previousVitest = await readFile(vitestConfig, 'utf8')
+    const config = JSON.parse(previousNext)
+    for (const project of config.projects)
+      Object.assign(project, { tags, strictTags: true })
+    await writeFile(nextConfig, JSON.stringify(config))
+    await writeFile(
+      vitestConfig,
+      `export default {test:{include:['*.case.mjs'],tags:${JSON.stringify(tags)},strictTags:true}}`
+    )
+    try {
+      const expected = await invoke('vitest', roots.vitest, 'task-context.case')
+      const actual = await invoke('next', roots.next, 'task-context.case')
+      expect(expected.report.numTotalTests).toBe(11)
+      expect(expected.code).toBe(1)
+      expect(actual.code).toBe(expected.code)
+      expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+      const nextReport = actual.report as Report & {
+        next: {
+          events: {
+            type: string
+            text?: string
+            annotation?: { message: string; location?: { file: string } }
+          }[]
+        }
+      }
+      const output = nextReport.next.events
+        .filter((event) => event.type === 'output')
+        .map((event) => event.text)
+        .join('')
+      const trace = (text: string) =>
+        JSON.parse(text.match(/TASK_CONTEXT_TRACE=(\[[^\n]*\])/)![1])
+      expect(trace(output)).toEqual(trace(expected.stdout + expected.stderr))
+      const metadata = (report: Report) =>
+        report.testResults
+          .flatMap((file) => file.assertionResults)
+          .map((result) => ({
+            ...result,
+            fullName: undefined,
+            duration: undefined,
+            failureMessages: undefined,
+          }))
+      expect(metadata(actual.report)).toEqual(metadata(expected.report))
+      const notes = nextReport.next.events.filter(
+        (event) => event.type === 'test-annotation'
+      )
+      expect(notes.map((event) => event.annotation?.message)).toEqual([
+        'notice',
+        'text',
+        'binary',
+        'file note',
+        'remote',
+        'unawaited',
+      ])
+      expect(
+        notes.every(
+          (event) =>
+            event.annotation?.location?.file ===
+            join(roots.next, 'task-context.case.mjs')
+        )
+      ).toBe(true)
+    } finally {
+      await writeFile(nextConfig, previousNext)
+      await writeFile(vitestConfig, previousVitest)
+    }
+  }, 120000)
+
+  it('inverts expected failures before retry selection and retains exact fixture/listener/repeat ordering', async () => {
+    const expected = await invoke(
+      'vitest',
+      roots.vitest,
+      'expected-failure-retry.case'
+    )
+    const actual = await invoke(
+      'next',
+      roots.next,
+      'expected-failure-retry.case'
+    )
+    expect(expected.code).toBe(1)
+    expect(actual.code).toBe(expected.code)
+    expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+    expect(actual.report).toMatchObject({
+      numTotalTests: 4,
+      numPassedTests: 3,
+      numFailedTests: 1,
+    })
+    const nextReport = actual.report as Report & {
+      next: { events: { type: string; text?: string }[] }
+    }
+    const output = nextReport.next.events
+      .filter((event) => event.type === 'output')
+      .map((event) => event.text)
+      .join('')
+    const trace = (text: string) =>
+      JSON.parse(text.match(/FAILS_TRACE=(\[[^\n]*\])/)![1])
+    expect(trace(output)).toEqual(trace(expected.stdout + expected.stderr))
+  }, 120000)
+
+  it('matches structured retries, conditions, delay, inheritance and published predicate removal', async () => {
+    const expected = await invoke(
+      'vitest',
+      roots.vitest,
+      'structured-retry.case'
+    )
+    const actual = await invoke('next', roots.next, 'structured-retry.case')
+    expect(expected.code).toBe(1)
+    expect(actual.code).toBe(expected.code)
+    expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+    expect(actual.report).toMatchObject({
+      numTotalTests: 25,
+      numPassedTests: 16,
+      numFailedTests: 8,
+      numPendingTests: 1,
+    })
+    const output = (
+      actual.report as Report & {
+        next: { events: { type: string; text?: string }[] }
+      }
+    ).next.events
+      .filter((event) => event.type === 'output')
+      .map((event) => event.text)
+      .join('')
+    const trace = (text: string) =>
+      JSON.parse(text.match(/RETRY_TRACE=(\[[^\n]*\])/)![1])
+    expect(trace(output)).toEqual(trace(expected.stdout + expected.stderr))
+    expect(trace(output)).toContain('delay elapsed:true')
+    for (const title of [
+      'multiline primitive message',
+      'named failure without stack',
+    ]) {
+      const messages = (report: Report) =>
+        report.testResults[0].assertionResults.find(
+          (test) => test.title === title
+        )!.failureMessages
+      expect(messages(actual.report)).toEqual(messages(expected.report))
+    }
+  }, 120000)
+
+  it('retains a failed earlier repeat in the final file result', async () => {
+    const expected = await invoke('vitest', roots.vitest, 'failed-repeat.case')
+    const actual = await invoke('next', roots.next, 'failed-repeat.case')
+    expect(expected.code).toBe(1)
+    expect(actual.code).toBe(expected.code)
+    expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+    expect(actual.report.testResults[0].status).toBe(
+      expected.report.testResults[0].status
+    )
+  }, 120000)
+
+  it.each(['development', 'production'] as const)(
+    'matches runtime skip bodies, hooks, fixtures, caught signals, retries and repeats in %s',
+    async (mode) => {
+      const configFile = join(roots.next, 'next.test.config.json')
+      const config = await readFile(configFile, 'utf8')
+      try {
+        const selected = JSON.parse(config)
+        selected.projects[0].mode = mode
+        await writeFile(configFile, JSON.stringify(selected))
+        const expected = await invoke(
+          'vitest',
+          roots.vitest,
+          'runtime-skip.case',
+          false,
+          false,
+          undefined,
+          mode
+        )
+        const actual = await invoke(
+          'next',
+          roots.next,
+          'runtime-skip.case',
+          false,
+          false,
+          undefined,
+          mode
+        )
+        expect(expected.code).toBe(0)
+        expect(actual.code).toBe(expected.code)
+        expect(outcomes(actual.report)).toEqual(outcomes(expected.report))
+        expect(actual.report).toMatchObject({
+          numTotalTests: 16,
+          numPassedTests: 1,
+          numPendingTests: 15,
+          numFailedTests: 0,
+        })
+        const nextReport = actual.report as Report & {
+          next: {
+            events: {
+              type: string
+              text?: string
+              pending?: boolean
+              note?: string
+              errors?: unknown[]
+            }[]
+          }
+        }
+        const output = nextReport.next.events
+          .filter((event) => event.type === 'output')
+          .map((event) => event.text)
+          .join('')
+        const trace = (text: string) =>
+          JSON.parse(text.match(/SKIP_TRACE=(\[[^\n]*\])/)![1])
+        expect(trace(output)).toEqual(trace(expected.stdout + expected.stderr))
+        expect(
+          nextReport.next.events.some(
+            (event) =>
+              event.type === 'case-end' &&
+              event.pending &&
+              event.note === 'reason'
+          )
+        ).toBe(true)
+        expect(
+          nextReport.next.events.some(
+            (event) =>
+              event.type === 'case-end' && event.pending && event.errors?.length
+          )
+        ).toBe(true)
+      } finally {
+        await writeFile(configFile, config)
+      }
+    },
+    120000
+  )
 
   it('runs unchanged Chai and runtime type assertions without another controller', async () => {
     const expected = await invoke('vitest', roots.vitest, 'assertions.case')

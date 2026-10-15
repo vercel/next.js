@@ -1,6 +1,8 @@
 /** File-level diagnostics outlive C's sealed case results. */
-export function createLateFailureSink(report: (error: Error) => Promise<void>) {
-  const errors = new Set<Error>()
+export function createLateFailureSink<T = Error>(
+  report: (error: T) => Promise<void>
+) {
+  const errors = new Set<T>()
   const pending: Promise<void>[] = []
   const reportingErrors: unknown[] = []
   return {
@@ -8,9 +10,9 @@ export function createLateFailureSink(report: (error: Error) => Promise<void>) {
       return errors.size > 0
     },
     has(error: unknown) {
-      return errors.has(error as Error)
+      return errors.has(error as T)
     },
-    report(error: Error) {
+    report(error: T) {
       if (errors.has(error)) return
       // Mark failure synchronously, even if the test catches the thrown error.
       errors.add(error)

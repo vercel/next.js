@@ -1,4 +1,6 @@
 import path from 'path'
+import type { BrowserFixtureHost } from '../../experimental/testing/contracts'
+import { serializeBrowserFixtureHost } from './browser-fixtures'
 import { createDefineEnv } from './index'
 import { normalizePath } from '../../lib/normalize-path'
 import { getSupportedBrowsers } from '../get-supported-browsers'
@@ -16,6 +18,7 @@ export function createProductionProjectOptions({
   rewrites,
   clientRouterFilters,
   noMangling = false,
+  browserFixtureHost,
 }: {
   dir: string
   distDir: string
@@ -28,6 +31,7 @@ export function createProductionProjectOptions({
     typeof createDefineEnv
   >[0]['clientRouterFilters']
   noMangling?: boolean
+  browserFixtureHost?: BrowserFixtureHost
 }): Omit<ProjectOptions, 'debugBuildPaths'> {
   const dev = false
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
@@ -41,6 +45,9 @@ export function createProductionProjectOptions({
     rewrites.fallback.length > 0
   return {
     rootPath,
+    browserFixtureHost: browserFixtureHost
+      ? serializeBrowserFixtureHost(dir, browserFixtureHost)
+      : undefined,
     projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
     distDir,
     nextConfig: config,

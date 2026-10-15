@@ -1,3 +1,4 @@
+import type { TestArtifactLocation } from '../runner/tasks'
 /*!
  * The source-excerpt formatting is adapted from Vitest.
  * https://github.com/vitest-dev/vitest/blob/0780a8e5b7967a4168173599e9c74fb79aab2483/packages/vitest/src/node/printError.ts
@@ -126,6 +127,35 @@ export const mapSnapshotLocation: NonNullable<
   }
   return {
     method: frame.methodName ?? stack.method,
+    file: frame.file.startsWith('file:')
+      ? fileURLToPath(frame.file)
+      : resolve(frame.file),
+    line: frame.line1,
+    column: frame.column1,
+  }
+}
+
+/** Annotation locations refer to the same immutable user-source revision as errors. */
+export function mapTestAnnotationLocation(
+  error: Error,
+  testPath: string
+): TestArtifactLocation | undefined {
+  if (!error.stack) return
+  const frame = getSourceMappedStackFrames(error.stack).find((candidate) => {
+    if (
+      !candidate.original ||
+      !candidate.file ||
+      !candidate.line1 ||
+      !candidate.column1
+    )
+      return false
+    const file = candidate.file.startsWith('file:')
+      ? fileURLToPath(candidate.file)
+      : resolve(candidate.file)
+    return file === resolve(testPath)
+  })
+  if (!frame?.file || !frame.line1 || !frame.column1) return
+  return {
     file: frame.file.startsWith('file:')
       ? fileURLToPath(frame.file)
       : resolve(frame.file),

@@ -32,6 +32,7 @@ export async function createBrowserFixture(options: {
   BrowserAttempt & {
     instant<T>(fn: () => Promise<T>): Promise<T>
     mount: ReturnType<typeof createComponentMount>['mount']
+    component: Pick<ReturnType<typeof createComponentMount>, 'mount'>
   }
 > {
   options.attempt.signal.throwIfAborted()
@@ -95,6 +96,7 @@ export async function createBrowserFixture(options: {
     return {
       ...resource,
       mount: component.mount,
+      component: { mount: component.mount },
       instant: (fn) => instant(page, fn, { baseURL: options.baseURL }),
     }
   } catch (error) {

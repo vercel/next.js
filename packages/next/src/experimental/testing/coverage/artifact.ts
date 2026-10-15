@@ -1,9 +1,10 @@
+import { validateMockCoverageSources } from './mock-sources'
 import { createHash } from 'crypto'
 import { readFile, realpath } from 'fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'path'
 import { fileURLToPath } from 'url'
 import { decodeCoverageMap } from './maps'
-import type { CoverageArtifactMetadata } from './types'
+import type { CoverageArtifactMetadata, MockCoverageSources } from './types'
 
 export function coverageHash(value: string | Buffer): string {
   return createHash('sha256').update(value).digest('hex')
@@ -38,7 +39,18 @@ export async function buildCoverageMetadata(options: {
   sourceRootDir: string
   entryFile: string
   setupFiles: readonly string[]
+  syntheticSources?: MockCoverageSources
 }): Promise<CoverageArtifactMetadata> {
+  if (options.syntheticSources)
+    validateMockCoverageSources(options.syntheticSources)
+  const declaredSynthetic = new Map(
+    options.syntheticSources?.sources.map((source) => [
+      source.source,
+      source.sha256,
+    ])
+  )
+  const syntheticSources: Record<string, { sha256: string }> =
+    Object.create(null)
   const project = await realpath(options.projectDir)
   const projectAliases = [project, resolve(options.projectDir)]
   const sourceRoot = await realpath(options.sourceRootDir)
@@ -85,7 +97,22 @@ export async function buildCoverageMetadata(options: {
           throw new Error(`Unsupported coverage source identity: ${identity}`)
         }
         let source: CoverageArtifactMetadata['sources'][string] = null
-        if (
+        if (declaredSynthetic.has(identity)) {
+          const sha256 = declaredSynthetic.get(identity)!
+          if (
+            !file ||
+            !projectAliases.some((root) => within(root, file!)) ||
+            file.split(sep).includes('node_modules') ||
+            typeof content !== 'string' ||
+            coverageHash(content) !== sha256
+          )
+            throw new Error(
+              `Native generated coverage source mismatch: ${identity}`
+            )
+          // Only exact compiler-issued proxy bytes may disappear from the
+          // original-source denominator. The emitted script/map remain hashed.
+          syntheticSources[identity] = { sha256 }
+        } else if (
           file &&
           projectAliases.some((root) => within(root, file!)) &&
           !file.split(sep).includes('node_modules') &&
@@ -120,5 +147,10 @@ export async function buildCoverageMetadata(options: {
     }
     scripts.push(script)
   }
-  return { version: 1, scripts, sources }
+  return {
+    version: 1,
+    scripts,
+    sources,
+    ...(options.syntheticSources ? { syntheticSources } : {}),
+  }
 }

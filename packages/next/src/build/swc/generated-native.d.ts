@@ -705,8 +705,31 @@ export declare function projectTestEntry(
   file: RcStr,
   id: RcStr,
   environment: RcStr,
-  setupFiles?: Array<RcStr> | undefined | null
+  setupFiles?: Array<RcStr> | undefined | null,
+  snapshotSerializers?: Array<RcStr> | undefined | null,
+  cohortFiles?: Array<RcStr> | undefined | null,
+  runtimeEnv?: boolean | undefined | null,
+  route?: RcStr | undefined | null,
+  dependencyPlan?: boolean | undefined | null,
+  browserClient?: boolean | undefined | null
 ): Promise<{ __napiType: 'Endpoint' }>
+
+/** Shared immutable Node cohort ABI; older bindings ignore appended arguments. */
+export declare function projectTestEntryCohortVersion(): number
+
+/** Real AppProject route/loader-tree binding for development RSC test entries. */
+export declare function projectTestEntryRouteVersion(): number
+
+/** Private virtual App Page fixtures in normal production builds. */
+export declare function projectBrowserFixtureProductionVersion(): number
+
+/** Native AST substitution for the current explicit Node test entry only. */
+export declare function projectTestEntryInSourceVersion(): number
+
+/** Runtime-mutable user environment in explicit development Node tests. */
+export declare function projectTestEntryRuntimeEnvVersion(): number
+export declare function projectTestEntryDependenciesVersion(): number
+export declare function projectTestEntryBrowserClientVersion(): number
 
 /** Explicit feature negotiation: older bindings ignore additional NAPI arguments. */
 export declare function projectTestEntrySetupVersion(): number

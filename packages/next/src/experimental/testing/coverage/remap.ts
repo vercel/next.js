@@ -1,3 +1,7 @@
+import {
+  assertMockCoverageArtifact,
+  assertNativeMockCoverageBytes,
+} from './mock-sources'
 import type { CompiledTestArtifact } from '../contracts'
 import { coverageHash, readArtifactFile } from './artifact'
 import { decodeCoverageMap } from './maps'
@@ -135,12 +139,18 @@ export async function remapCoverage(
   if (
     capture.version !== 1 ||
     artifact.coverage?.version !== 1 ||
-    artifact.moduleMocking ||
     artifact.profile.environment !== 'node' ||
     artifact.profile.mode !== 'development'
   ) {
     throw new Error('Unsupported coverage capture or artifact')
   }
+  assertMockCoverageArtifact(artifact)
+  const native = artifact.moduleMocking?.coverage?.nativeMetadata
+  if (native)
+    assertNativeMockCoverageBytes(
+      artifact,
+      await readArtifactFile(artifact.rootDir, native.path)
+    )
   const metadata = artifact.coverage
   const files = new Map<
     string,
@@ -205,7 +215,26 @@ export async function remapCoverage(
       if (!Object.hasOwn(metadata.sources, mapping.source))
         throw new Error(`Unknown coverage source: ${mapping.source}`)
       const source = metadata.sources[mapping.source]
-      if (source === null) continue
+      if (source === null) {
+        const synthetic = metadata.syntheticSources?.[mapping.source]
+        if (synthetic) {
+          const content = map.sources.get(mapping.source)
+          if (
+            typeof content !== 'string' ||
+            coverageHash(content) !== synthetic.sha256
+          )
+            throw new Error(
+              `Native generated coverage source changed: ${mapping.source}`
+            )
+          offset(
+            starts(content),
+            content,
+            mapping.originalLine!,
+            mapping.originalColumn!
+          )
+        }
+        continue
+      }
       const content = map.sources.get(mapping.source)
       if (
         typeof content !== 'string' ||

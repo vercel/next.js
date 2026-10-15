@@ -1,13 +1,22 @@
+import {
+  assertCustomCoverageRequest,
+  assertCustomCoverageCompletion,
+  captureCustomCoverageClosure,
+} from '../coverage/custom-runtime'
+import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import type {
   CompiledTestArtifact,
   ExecuteTest,
   ExecuteTestOptions,
   TestCoverageCompletion,
+  TestFileCollection,
+  TestExecutionResult,
 } from '../contracts'
 import type { FileResult } from '../reporting/events'
 import type { WorkerInput, WorkerMessage } from './protocol'
 import { serializeDiagnostic } from '../reporting/diagnostics'
 import { runTestProcess } from './process'
+import { assertTestFileCollection } from './collection'
 import { assertArtifactProfile } from './artifact-profile'
 import { withFileCacheDirectory } from './file-cache'
 import {
@@ -33,21 +42,44 @@ export async function executeWithEnvironment(
     file: string,
     updates: SnapshotUpdate[]
   ) => Promise<void>
-): Promise<FileResult> {
+): Promise<TestExecutionResult> {
   const started = performance.now()
+  if (
+    options.collectOnly &&
+    (options.coverage || resolveSnapshotUpdateMode(options) !== 'none')
+  )
+    throw new Error('Collection cannot request coverage or snapshot updates.')
   const snapshotUpdateMode = resolveSnapshotUpdateMode(options)
   options = {
     ...options,
     snapshotUpdateMode,
     updateSnapshots: snapshotUpdateMode !== 'none',
   }
-  const { onEvent, onCoverage, onSnapshotUpdates, signal, ...workerOptions } =
-    options
+  if (artifact.kind === 'browser') {
+    if (deferSnapshotUpdates)
+      throw new Error('Browser Mode cannot execute in the Node broker worker.')
+    return (await import('../client/execute.js')).executeClient(
+      artifact,
+      options
+    )
+  }
+  const {
+    onEvent,
+    onCoverage,
+    onCustomCoverage,
+    onSnapshotUpdates,
+    signal,
+    ...workerOptions
+  } = options
   if (options.coverage && snapshotUpdateMode === 'all') {
     throw new Error('Coverage and snapshot updates cannot run together')
   }
   assertCoverageRequest(artifact, options)
+  assertCustomCoverageRequest(artifact, options)
   assertArtifactProfile(artifact, options.entry)
+  const assertCustomClosure = options.customCoverage
+    ? await captureCustomCoverageClosure(artifact, options.entry)
+    : undefined
   const attempts = createCoverageAttemptTracker()
   const envelope = () => ({
     version: 1 as const,
@@ -65,22 +97,19 @@ export async function executeWithEnvironment(
     new RegExp(options.testNamePattern)
   }
   if (
+    !options.collectOnly &&
     (artifact.profile.environment === 'browser') !==
-    (options.browser !== undefined)
+      (options.browser !== undefined)
   ) {
     throw new Error(
       'Browser profiles require matching parent-owned browser and server leases'
     )
   }
-  if (
-    options.browser?.componentHost &&
-    artifact.profile.mode !== 'development'
-  ) {
-    throw new Error('Browser component mounting requires a development profile')
-  }
+  let collection: TestFileCollection | undefined
   let result: FileResult | undefined
   let snapshotUpdates: SnapshotUpdate[] | undefined
   let coverage: TestCoverageCompletion | undefined
+  let customCoverage: CustomCoverageCompletion | undefined
   const exit = await withFileCacheDirectory(async (directory) => {
     const input: WorkerInput = {
       artifact,
@@ -96,6 +125,7 @@ export async function executeWithEnvironment(
           artifact.profile.mode === 'development' ? 'true' : '',
       },
       input,
+      inspect: options.inspect,
       signal,
       timeoutMs: options.fileTimeout,
       onMessage(value) {
@@ -112,7 +142,14 @@ export async function executeWithEnvironment(
             message.event.revision !== artifact.revision
           )
             throw new Error('Mismatched test worker event')
-          if (options.coverage) attempts.observe(message.event)
+          if (
+            options.collectOnly &&
+            message.event.type !== 'diagnostic' &&
+            message.event.type !== 'output'
+          )
+            throw new Error('Collection worker returned execution facts.')
+          if (options.coverage || options.customCoverage)
+            attempts.observe(message.event)
           onEvent(message.event)
         } else if (message.type === 'complete' && !result) {
           if (
@@ -124,6 +161,17 @@ export async function executeWithEnvironment(
             message.result.durationMs < 0
           )
             throw new Error('Invalid test worker result')
+          if (message.customCoverage !== undefined) {
+            if (!options.customCoverage)
+              throw new Error('Unsolicited custom coverage completion')
+            assertCustomCoverageCompletion(
+              message.customCoverage,
+              artifact,
+              options.runId,
+              options.customCoverage
+            )
+            customCoverage = message.customCoverage
+          }
           if (message.coverage !== undefined) {
             if (!options.coverage)
               throw new Error('Test worker returned unsolicited coverage')
@@ -136,6 +184,20 @@ export async function executeWithEnvironment(
           ) {
             throw new Error('Test worker returned unsolicited snapshot updates')
           }
+          if (message.collection !== undefined) {
+            if (!options.collectOnly)
+              throw new Error(
+                'Test worker returned unsolicited collection facts.'
+              )
+            assertTestFileCollection(message.collection, artifact)
+            collection = message.collection
+          }
+          if (
+            options.collectOnly &&
+            message.result.status === 'passed' &&
+            !collection
+          )
+            throw new Error('Test worker completed without collection facts.')
           result = message.result
           snapshotUpdates = message.snapshotUpdates
         } else throw new Error('Invalid test worker message')
@@ -195,6 +257,7 @@ export async function executeWithEnvironment(
         await defer(options.entry.file, snapshotUpdates)
       } else {
         await commitSnapshotUpdates(options.entry.file, snapshotUpdates, {
+          projectDir: options.projectDir,
           signal,
           sourceHash: artifact.sourceHash,
         })
@@ -216,16 +279,33 @@ export async function executeWithEnvironment(
   }
   // Collection IPC is provisional until the worker, process group and cache
   // lease have closed. The awaited consumer remaps before A releases its maps.
-  if (options.coverage && exit.reason !== 'cancelled' && !signal.aborted) {
+  if (
+    (options.coverage || options.customCoverage) &&
+    exit.reason !== 'cancelled' &&
+    !signal.aborted
+  ) {
     try {
       if (exit.reason !== 'exit' || exit.code !== 0 || signal.aborted) {
         throw new Error('Test coverage is incomplete after worker interruption')
       }
-      assertCoverageCompletion(coverage, artifact, options.runId)
       if (!attempts.complete)
         throw new Error('Test coverage has incomplete attempts or cleanup')
-      if (!coverage.complete) throw new Error(coverage.error.message)
-      await onCoverage!(coverage)
+      if (options.customCoverage) {
+        await assertCustomClosure!()
+        assertCustomCoverageCompletion(
+          customCoverage,
+          artifact,
+          options.runId,
+          options.customCoverage
+        )
+        if (!customCoverage.complete)
+          throw new Error(customCoverage.error.message)
+        await onCustomCoverage!(customCoverage)
+      } else {
+        assertCoverageCompletion(coverage, artifact, options.runId)
+        if (!coverage.complete) throw new Error(coverage.error.message)
+        await onCoverage!(coverage)
+      }
       signal.throwIfAborted()
     } catch (error) {
       if (
@@ -248,5 +328,12 @@ export async function executeWithEnvironment(
   }
   const finalResult = { ...result!, durationMs: performance.now() - started }
   onEvent({ ...envelope(), type: 'file-end', ...finalResult })
-  return finalResult
+  return collection &&
+    options.collectOnly &&
+    finalResult.status === 'passed' &&
+    exit.reason === 'exit' &&
+    exit.code === 0 &&
+    !signal.aborted
+    ? { ...finalResult, collection }
+    : finalResult
 }

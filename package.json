@@ -140,6 +140,7 @@
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",
     "@rspack/core": "1.6.7",
+    "@sinonjs/fake-timers": "15.4.0",
     "@slack/web-api": "7.9.1",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.11.24",
@@ -162,6 +163,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@types/shell-quote": "1.7.1",
+    "@types/sinonjs__fake-timers": "8.1.5",
     "@types/string-hash": "1.1.1",
     "@types/trusted-types": "2.0.3",
     "@types/yargs": "16.0.11",
@@ -355,7 +357,8 @@
       "@types/node@20.17.7": "patches/@types__node@20.17.7.patch",
       "@vercel/agent-eval@2.2.1": "patches/@vercel__agent-eval@2.2.1.patch",
       "@vercel/og@1.0.1": "patches/@vercel__og@1.0.1.patch",
-      "@vitest/snapshot@5.0.4": "patches/@vitest__snapshot@5.0.4.patch"
+      "@vitest/snapshot@5.0.4": "patches/@vitest__snapshot@5.0.4.patch",
+      "@sinonjs/fake-timers@15.4.0": "patches/@sinonjs__fake-timers@15.4.0.patch"
     }
   }
 }

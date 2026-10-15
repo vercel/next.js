@@ -1,5 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/package.json'
+declare module 'next/dist/compiled/acorn' {
+  export * from 'acorn'
+}
 declare module 'next/dist/compiled/postcss-value-parser'
 declare module 'next/dist/compiled/icss-utils'
 declare module 'next/dist/compiled/postcss-modules-values'
@@ -583,6 +586,9 @@ declare module 'next/dist/compiled/@next/font/dist/google' {
 }
 declare module 'next/dist/compiled/@next/font/dist/local' {
   export * from '@next/font/local'
+}
+declare module 'next/dist/compiled/babel/parser' {
+  export * from '@babel/parser'
 }
 declare module 'next/dist/compiled/babel/traverse' {
   import traverse from '@babel/traverse'

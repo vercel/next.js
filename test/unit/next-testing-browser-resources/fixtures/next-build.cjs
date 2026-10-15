@@ -1,7 +1,7 @@
 // Protocol fixture only; real application compilation is a separate e2e gate.
 const { mkdir, readFile, writeFile } = require('node:fs/promises')
 const { join } = require('node:path')
-exports.nextBuild = async (options, dir) => {
+exports.nextBuild = async (options, dir, testing) => {
   if (process.env.NODE_ENV !== 'production' || process.env.__NEXT_DEV_SERVER) {
     throw new Error('Incorrect production build environment')
   }
@@ -34,4 +34,41 @@ exports.nextBuild = async (options, dir) => {
   )
   await writeFile(join(dist, 'routes-manifest.json'), '{}')
   await writeFile(join(dist, 'prerender-manifest.json'), '{}')
+  if (testing?.browserFixtureHost) {
+    const host = testing.browserFixtureHost
+    await writeFile(
+      join(dir, 'compiled-fixture-registration.json'),
+      JSON.stringify(host)
+    )
+    const appPaths = {},
+      appRoutes = {}
+    for (const fixture of host.fixtures) {
+      const pathname = `${host.routePrefix}/${fixture.id}`,
+        page = `${pathname}/page`
+      appPaths[page] =
+        scenario === 'fixture-wrong-route'
+          ? 'app/wrong/page.js'
+          : `app${page}.js`
+      appRoutes[page] = pathname
+      await mkdir(join(dist, 'server/app', pathname), { recursive: true })
+      if (scenario !== 'fixture-missing-manifest') {
+        await writeFile(
+          join(dist, `server/app${page}_client-reference-manifest.js`),
+          '// protocol client manifest'
+        )
+        await writeFile(
+          join(dist, `server/app${page}.js.nft.json`),
+          JSON.stringify({ version: 1, files: ['../protocol.js'] })
+        )
+      }
+    }
+    await writeFile(
+      join(dist, 'server/app-paths-manifest.json'),
+      JSON.stringify(appPaths)
+    )
+    await writeFile(
+      join(dist, 'app-path-routes-manifest.json'),
+      JSON.stringify(appRoutes)
+    )
+  }
 }

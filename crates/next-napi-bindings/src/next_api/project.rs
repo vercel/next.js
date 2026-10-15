@@ -1844,6 +1844,48 @@ async fn output_assets_operation(
 /// Explicit feature negotiation: older bindings ignore additional NAPI arguments.
 #[napi]
 pub fn project_test_entry_setup_version() -> u32 {
+    3
+}
+
+/// Native AST substitution for the current explicit Node test entry only.
+#[napi]
+pub fn project_test_entry_in_source_version() -> u32 {
+    1
+}
+
+/// Runtime-mutable user environment in explicit development Node tests.
+#[napi]
+pub fn project_test_entry_runtime_env_version() -> u32 {
+    1
+}
+
+/// Shared immutable Node cohort ABI; older bindings ignore appended arguments.
+#[napi]
+pub fn project_test_entry_cohort_version() -> u32 {
+    1
+}
+
+/// Explicit private App Page fixtures in a normal production build.
+#[napi]
+pub fn project_browser_fixture_production_version() -> u32 {
+    1
+}
+
+/// Real AppProject route/loader-tree metadata for explicit development RSC entries.
+#[napi]
+pub fn project_test_entry_route_version() -> u32 {
+    1
+}
+
+/// Compiler-owned module and affecting-source identities for selection planning.
+#[napi]
+pub fn project_test_entry_dependencies_version() -> u32 {
+    1
+}
+
+/// Actual compiler-created browser test realm, distinct from Node browser drivers.
+#[napi]
+pub fn project_test_entry_browser_client_version() -> u32 {
     1
 }
 
@@ -1855,6 +1897,12 @@ pub async fn project_test_entry(
     id: RcStr,
     environment: RcStr,
     setup_files: Option<Vec<RcStr>>,
+    snapshot_serializers: Option<Vec<RcStr>>,
+    cohort_files: Option<Vec<RcStr>>,
+    runtime_env: Option<bool>,
+    route: Option<RcStr>,
+    dependency_plan: Option<bool>,
+    browser_client: Option<bool>,
 ) -> napi::Result<External<ExternalEndpoint>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
@@ -1867,6 +1915,12 @@ pub async fn project_test_entry(
                 id,
                 environment,
                 setup_files.unwrap_or_default(),
+                snapshot_serializers.unwrap_or_default(),
+                cohort_files.unwrap_or_default(),
+                runtime_env.unwrap_or(false),
+                route,
+                dependency_plan.unwrap_or(false),
+                browser_client.unwrap_or(false),
             );
             // Resolve now so invalid profiles/paths fail before an endpoint is exposed.
             endpoint.read_strongly_consistent().await?;

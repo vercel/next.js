@@ -1,0 +1,408 @@
+{
+  "reference": {
+    "version": "5.0.4",
+    "revision": "6a11cf66f99fa610b7364363d5ca42b66d994f40",
+    "integrity": "sha512-z0WxZRV2Sg48wF0FSgMq3TFG8JS38/Qr96vZVZdX6+Em9raQTvnXQvdTFJe2m3rfyJnEHeHQ/snceIdi8D1pVg==",
+    "pristine": true
+  },
+  "newContracts": {
+    "total": 23,
+    "passed": 7,
+    "failed": 16,
+    "invalidReferences": 0
+  },
+  "fullSuite": {
+    "total": 182,
+    "passed": 84,
+    "failed": 98,
+    "skipped": 0,
+    "invalidReferences": 0,
+    "resultsPath": "/private/tmp/next-testing-uncovered-full-results.json",
+    "logPath": "/private/tmp/next-testing-uncovered-full.log"
+  },
+  "checks": {
+    "rootTypeScript": "passed",
+    "eslintHarnessAndAllAddedModules": "passed",
+    "prettier": "passed"
+  },
+  "coverageReferenceValidation": {
+    "coverage-retry": {
+      "sourceFiles": ["subject.mjs", "unimported.mjs"],
+      "subject": {
+        "statements": {
+          "0": 2,
+          "1": 1,
+          "2": 1,
+          "3": 0
+        },
+        "functions": {
+          "0": 2,
+          "1": 0
+        },
+        "branches": {
+          "0": [1, 1]
+        }
+      },
+      "unimportedStatements": {
+        "0": 0,
+        "1": 0
+      },
+      "lcovBranchRecords": true
+    },
+    "coverage-failure": {
+      "sourceFiles": ["subject.mjs", "unimported.mjs"],
+      "subject": {
+        "statements": {
+          "0": 1,
+          "1": 1,
+          "2": 0,
+          "3": 0
+        },
+        "functions": {
+          "0": 1,
+          "1": 0
+        },
+        "branches": {
+          "0": [1, 0]
+        }
+      },
+      "unimportedStatements": {
+        "0": 0,
+        "1": 0
+      },
+      "lcovBranchRecords": true
+    },
+    "coverage-module-mock": {
+      "sourceFiles": ["subject.mjs", "unimported.mjs"],
+      "subject": {
+        "statements": {
+          "0": 0,
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "functions": {
+          "0": 0,
+          "1": 0
+        },
+        "branches": {
+          "0": [0, 0]
+        }
+      },
+      "unimportedStatements": {
+        "0": 0,
+        "1": 0
+      },
+      "lcovBranchRecords": true
+    },
+    "coverage-production": {
+      "sourceFiles": ["subject.mjs", "unimported.mjs"],
+      "subject": {
+        "statements": {
+          "0": 2,
+          "1": 1,
+          "2": 1,
+          "3": 0
+        },
+        "functions": {
+          "0": 2,
+          "1": 0
+        },
+        "branches": {
+          "0": [1, 1]
+        }
+      },
+      "unimportedStatements": {
+        "0": 0,
+        "1": 0
+      },
+      "lcovBranchRecords": true
+    },
+    "coverage-browser": {
+      "sourceFiles": ["subject.mjs", "unimported.mjs"],
+      "subject": {
+        "statements": {
+          "0": 2,
+          "1": 1,
+          "2": 1,
+          "3": 0
+        },
+        "functions": {
+          "0": 2,
+          "1": 0
+        },
+        "branches": {
+          "0": [1, 1]
+        }
+      },
+      "unimportedStatements": {
+        "0": 0,
+        "1": 0
+      },
+      "lcovBranchRecords": true
+    }
+  },
+  "results": [
+    {
+      "id": "runtime-config-reset",
+      "surface": "3 runtime utility configuration",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 2,
+      "nextCases": 2,
+      "nextFailureStage": "runtime vi.setConfig adapter",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/runtime-config-reset.json"
+    },
+    {
+      "id": "dynamic-import-settled",
+      "surface": "3 dynamic import utility",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": 1,
+      "nextFailureStage": "runtime vi.dynamicImportSettled adapter",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/dynamic-import-settled.json"
+    },
+    {
+      "id": "custom-equality-testers",
+      "surface": "3 ecosystem equality extensions",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": 0,
+      "nextFailureStage": "expect.addEqualityTesters during module collection",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/custom-equality-testers.json"
+    },
+    {
+      "id": "spy-temporary-implementation",
+      "surface": "3 spy implementation semantics",
+      "status": "passed",
+      "referenceExitCode": 0,
+      "nextExitCode": 0,
+      "referenceCases": 1,
+      "nextCases": 1,
+      "nextFailureStage": null,
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/spy-temporary-implementation.json"
+    },
+    {
+      "id": "parallel-hook-order",
+      "surface": "2 parallel hooks",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": null,
+      "nextFailureStage": "sequence.hooks=parallel configuration",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/parallel-hook-order.json"
+    },
+    {
+      "id": "parallel-setup-files",
+      "surface": "7 parallel setup ordering",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": null,
+      "nextFailureStage": "sequence.setupFiles=parallel configuration",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/parallel-setup-files.json"
+    },
+    {
+      "id": "external-project-configs",
+      "surface": "7 external project factories and isolation",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 2,
+      "nextCases": null,
+      "nextFailureStage": "external string project configuration loading",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/external-project-configs.json"
+    },
+    {
+      "id": "glob-project-configs",
+      "surface": "7 external project factories and isolation",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 2,
+      "nextCases": null,
+      "nextFailureStage": "glob string project configuration loading",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/glob-project-configs.json"
+    },
+    {
+      "id": "config-discovery-exclusion",
+      "surface": "7 discovery and exclusions",
+      "status": "passed",
+      "referenceExitCode": 0,
+      "nextExitCode": 0,
+      "referenceCases": 1,
+      "nextCases": 1,
+      "nextFailureStage": null,
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/config-discovery-exclusion.json"
+    },
+    {
+      "id": "config-cli-retry-precedence",
+      "surface": "7 configuration CLI precedence",
+      "status": "failed",
+      "referenceExitCode": 1,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": null,
+      "nextFailureStage": "--retry CLI option",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/config-cli-retry-precedence.json"
+    },
+    {
+      "id": "serializer-precedence",
+      "surface": "5 serializer precedence",
+      "status": "passed",
+      "referenceExitCode": 0,
+      "nextExitCode": 0,
+      "referenceCases": 1,
+      "nextCases": 1,
+      "nextFailureStage": null,
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/serializer-precedence.json"
+    },
+    {
+      "id": "serializer-file-isolation",
+      "surface": "5 serializer file ownership",
+      "status": "passed",
+      "referenceExitCode": 0,
+      "nextExitCode": 0,
+      "referenceCases": 2,
+      "nextCases": 2,
+      "nextFailureStage": null,
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/serializer-file-isolation.json"
+    },
+    {
+      "id": "file-snapshot-read-update",
+      "surface": "5 file snapshot updates",
+      "status": "passed",
+      "referenceExitCode": 0,
+      "nextExitCode": 0,
+      "referenceCases": 1,
+      "nextCases": 1,
+      "nextFailureStage": null,
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/file-snapshot-read-update.json"
+    },
+    {
+      "id": "empty-module-results",
+      "surface": "10 empty module report",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 0,
+      "nextCases": null,
+      "nextFailureStage": "--passWithNoTests CLI option",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/empty-module-results.json"
+    },
+    {
+      "id": "error-cause-report",
+      "surface": "10 source diagnostics",
+      "status": "passed",
+      "referenceExitCode": 1,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": 1,
+      "nextFailureStage": null,
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/error-cause-report.json"
+    },
+    {
+      "id": "coverage-retry",
+      "surface": "9 coverage interactions",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": null,
+      "nextFailureStage": "standard coverage CLI options",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/coverage-retry.json"
+    },
+    {
+      "id": "coverage-failure",
+      "surface": "9 coverage interactions",
+      "status": "failed",
+      "referenceExitCode": 1,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": null,
+      "nextFailureStage": "standard coverage CLI options",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/coverage-failure.json"
+    },
+    {
+      "id": "coverage-module-mock",
+      "surface": "9 coverage interactions",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": null,
+      "nextFailureStage": "standard coverage CLI options",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/coverage-module-mock.json"
+    },
+    {
+      "id": "coverage-production",
+      "surface": "9 coverage interactions",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": null,
+      "nextFailureStage": "standard coverage CLI options",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/coverage-production.json"
+    },
+    {
+      "id": "coverage-browser",
+      "surface": "9 coverage interactions",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": null,
+      "nextFailureStage": "standard coverage CLI options",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/coverage-browser.json"
+    },
+    {
+      "id": "compiler-plugin-transform",
+      "surface": "7 compiler transform migration",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": null,
+      "nextFailureStage": "function-valued compiler plugin configuration transport before mapping",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/compiler-plugin-transform.json"
+    },
+    {
+      "id": "snapshot-production-profile",
+      "surface": "5 compiled snapshot profiles",
+      "status": "passed",
+      "referenceExitCode": 0,
+      "nextExitCode": 0,
+      "referenceCases": 1,
+      "nextCases": 1,
+      "nextFailureStage": null,
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/snapshot-production-profile.json"
+    },
+    {
+      "id": "snapshot-browser-profile",
+      "surface": "5 compiled snapshot profiles",
+      "status": "failed",
+      "referenceExitCode": 0,
+      "nextExitCode": 1,
+      "referenceCases": 1,
+      "nextCases": 0,
+      "nextFailureStage": "browser test environment",
+      "evidencePath": "/private/tmp/next-testing-uncovered-full-evidence/snapshot-browser-profile.json"
+    }
+  ],
+  "qualificationLimits": [
+    "Per-contract missing prerequisites block later semantics; failures do not prove those later semantics were reached.",
+    "This finite synthetic corpus is not exhaustive overload or cross-feature qualification.",
+    "Downstream repositories, OS/Node/architecture/package-manager/engine runners, sustained resource tracking, maintenance/canary/rollback and stable range decisions remain external gates.",
+    "Next isolated route/layout/cache/action/prerender and editor control APIs require explicit contracts before additional fixtures can target them.",
+    "Performance targets remain deferred by the user."
+  ],
+  "stableReady": false
+}

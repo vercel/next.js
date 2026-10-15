@@ -1,3 +1,7 @@
+import {
+  assertMockCoverageArtifact,
+  assertNativeMockCoverageBytes,
+} from './mock-sources'
 import { Session } from 'inspector'
 import { realpath } from 'fs/promises'
 import { isAbsolute, resolve } from 'path'
@@ -19,13 +23,19 @@ export async function startCoverage(artifact: CoverageArtifact): Promise<{
     artifact.profile.environment !== 'node' ||
     artifact.profile.mode !== 'development' ||
     artifact.profile.route ||
-    artifact.moduleMocking ||
     artifact.coverage?.version !== 1
   ) {
     throw new Error(
-      'Line coverage requires an unmocked development Node coverage artifact'
+      'Line coverage requires a development Node coverage artifact'
     )
   }
+  assertMockCoverageArtifact(artifact)
+  const native = artifact.moduleMocking?.coverage?.nativeMetadata
+  if (native)
+    assertNativeMockCoverageBytes(
+      artifact,
+      await readArtifactFile(artifact.rootDir, native.path)
+    )
   const root = await realpath(artifact.rootDir)
   const declared = new Map(
     artifact.coverage.scripts.map((script) => [

@@ -9,13 +9,16 @@ vi.mock(import('../live-target'), async (importOriginal) => {
   return { ...first, label: 'mock' }
 })
 
-test('keeps inherited exports live and preserves the mocked namespace identity', async () => {
+test('copies spread exports and preserves the actual and mocked namespace identities', async () => {
   expect(count).toBe(0)
   expect(mocked.count).toBe(0)
   expect(label).toBe('mock')
   expect(mocked.label).toBe('mock')
   increment()
-  expect(count).toBe(1)
-  expect(mocked.count).toBe(1)
+  expect(count).toBe(0)
+  expect(mocked.count).toBe(0)
+  const actual = await vi.importActual('../live-target')
+  expect(actual.count).toBe(1)
+  expect(await vi.importActual('../live-target')).toBe(actual)
   expect(await import('../live-target')).toBe(mocked)
 })

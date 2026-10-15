@@ -1751,11 +1751,46 @@ declare function recordAsyncExpect(_test: any, promise: Promise<any>, assertion:
 /** wrap assertion function to support `expect.soft` and provide assertion name as `_name` */
 declare function wrapAssertion(utils: NextTestChai.ChaiUtils, name: string, fn: (this: NextTestChai.AssertionStatic & Assertion, ...args: any[]) => void | PromiseLike<void>): (this: NextTestChai.AssertionStatic & Assertion, ...args: any[]) => void | PromiseLike<void>;
 
+type Key = string | symbol;
+type CreateMockInstanceProcedure = (options?: {
+	prototypeMembers?: (string | symbol)[];
+	name?: string | symbol;
+	originalImplementation?: (...args: any[]) => any;
+	keepMembersImplementation?: boolean;
+}) => any;
+interface MockObjectOptions {
+	type: "automock" | "autospy";
+	globalConstructors: GlobalConstructors;
+	createMockInstance: CreateMockInstanceProcedure;
+}
+declare function mockObject(options: MockObjectOptions, object: Record<Key, any>, mockExports?: Record<Key, any>): Record<Key, any>;
+interface GlobalConstructors {
+	Object: ObjectConstructor;
+	Function: FunctionConstructor;
+	RegExp: RegExpConstructor;
+	Array: ArrayConstructor;
+	Map: MapConstructor;
+}
+
 interface ParsedStack {
 	method: string;
 	file: string;
 	line: number;
 	column: number;
+}
+interface SerializedError {
+	message: string;
+	stacks?: ParsedStack[];
+	stack?: string;
+	name?: string;
+	cause?: SerializedError;
+	[key: string]: unknown;
+}
+interface TestError extends SerializedError {
+	cause?: TestError;
+	diff?: string;
+	actual?: string;
+	expected?: string;
 }
 
 interface DomainMatchResult {
@@ -3858,5 +3893,5 @@ type _ExpectTypeOf = {
  */
 declare const expectTypeOf: _ExpectTypeOf;
 
-export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, NodeSnapshotEnvironment, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, customMatchers, equals, expectTypeOf, fnNameFor, generateToBeMessage, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, hasAsymmetric, hasProperty, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, pluralize, recordAsyncExpect, setState, sparseArrayEquality, index_d as spies, stripSnapshotIndentation, subsetEquality, typeEquality, wrapAssertion };
-export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectTypeOf, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, Mock, MockInstance, PromisifyAssertion, RawMatcherFn, SnapshotResult, SnapshotStateOptions, SyncExpectationResult, Tester, TesterContext };
+export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, NodeSnapshotEnvironment, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, customMatchers, equals, expectTypeOf, fnNameFor, generateToBeMessage, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, hasAsymmetric, hasProperty, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, mockObject, pluralize, recordAsyncExpect, setState, sparseArrayEquality, index_d as spies, stripSnapshotIndentation, subsetEquality, typeEquality, wrapAssertion };
+export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectTypeOf, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, MaybeMockedDeep, Mock, MockInstance, PromisifyAssertion, RawMatcherFn, SnapshotResult, SnapshotStateOptions, SyncExpectationResult, TestError, Tester, TesterContext };

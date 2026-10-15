@@ -1,0 +1,112 @@
+import { createHash } from 'node:crypto'
+import { lstat, readFile, realpath } from 'node:fs/promises'
+import { isAbsolute, join, relative, sep } from 'node:path'
+import {
+  SourceMapConsumer,
+  type RawSourceMap,
+} from 'next/dist/compiled/source-map'
+import type { CompiledBrowserClientTestArtifact } from '../contracts'
+import { assertClientPath } from '../compiler/client'
+
+/** Every read revalidates the immutable complete native output closure. */
+export async function createClientAssetReader(
+  artifact: CompiledBrowserClientTestArtifact
+) {
+  const root = await realpath(artifact.rootDir),
+    files = new Set(artifact.files),
+    hashes = new Map<string, string>()
+  if (
+    artifact.client.version !== 1 ||
+    artifact.client.outputs.length !== files.size ||
+    files.size !== artifact.files.length
+  )
+    throw new Error('Invalid Browser Mode output closure.')
+  for (const output of artifact.client.outputs) {
+    assertClientPath(output.path)
+    if (
+      !files.has(output.path) ||
+      hashes.has(output.path) ||
+      !/^[a-f0-9]{64}$/.test(output.sha256)
+    )
+      throw new Error('Invalid Browser Mode output identity.')
+    hashes.set(output.path, output.sha256)
+  }
+  for (const file of [...artifact.client.scripts, ...artifact.client.styles])
+    if (!files.has(file))
+      throw new Error('Browser bootstrap escaped its output closure.')
+  async function read(file: string) {
+    assertClientPath(file)
+    if (!files.has(file))
+      throw new Error('Browser asset is outside the compiler-issued allowlist.')
+    const path = join(root, file),
+      canonical = await realpath(path),
+      child = relative(root, canonical)
+    if (
+      !child ||
+      child === '..' ||
+      child.startsWith(`..${sep}`) ||
+      isAbsolute(child) ||
+      !(await lstat(path)).isFile()
+    )
+      throw new Error('Browser output escaped its immutable regular-file root.')
+    const bytes = await readFile(path)
+    if (
+      createHash('sha256').update(bytes).digest('hex') !== hashes.get(file) ||
+      (await realpath(path)) !== canonical
+    )
+      throw new Error('Browser output changed after native compilation.')
+    return bytes
+  }
+  async function verify() {
+    for (const file of files) await read(file)
+  }
+  await verify()
+  return {
+    read,
+    verify,
+    async sourceMaps(origin: string) {
+      const maps: { url: string; map: unknown; originalSources: string[] }[] =
+        []
+      const originals = new Set<string>()
+      let total = 0
+      for (const file of files) {
+        if (!file.endsWith('.js.map') || !files.has(file.slice(0, -4))) continue
+        const raw = await read(file)
+        total += raw.length
+        if (total > 64 * 1024 * 1024)
+          throw new Error(
+            'Browser source-map closure exceeded the bounded client profile.'
+          )
+        const map = JSON.parse(raw.toString('utf8')),
+          consumer = new SourceMapConsumer(map as RawSourceMap)
+        const sources = new Set<string>()
+        consumer.eachMapping((mapping) => {
+          if (mapping.source) sources.add(mapping.source)
+        })
+        const selected = [...sources].filter((source) => {
+          const text = consumer.sourceContentFor(source, true)
+          return (
+            text !== null &&
+            createHash('sha256').update(text).digest('hex') ===
+              artifact.sourceHash
+          )
+        })
+        for (const source of selected) originals.add(source)
+        if (selected.length)
+          maps.push({
+            url: new URL(
+              `/_next/${file.slice(0, -4).split('/').map(encodeURIComponent).join('/')}`,
+              origin
+            ).href,
+            map,
+            originalSources: selected,
+          })
+      }
+      if (originals.size > 1)
+        throw new Error(
+          'Ambiguous original source identities in Browser Mode maps.'
+        )
+      return maps
+    },
+  }
+}

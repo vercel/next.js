@@ -435,6 +435,12 @@ export function getDefineEnv({
     }
   }
 
+  // In-source tests are active only in explicit test entries. Ordinary app
+  // compilations must remove their guarded bodies before tracing test imports.
+  // Preserve an author's existing explicit compiler define during migration.
+  if (!Object.prototype.hasOwnProperty.call(defineEnv, 'import.meta.vitest'))
+    defineEnv['import.meta.vitest'] = false
+
   const serializedDefineEnv = serializeDefineEnv(defineEnv)
 
   // we delay inlining these values until after the build

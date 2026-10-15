@@ -1,12 +1,34 @@
+import {
+  openCustomCoverageSession,
+  type CustomCoverageSession,
+} from '../experimental/testing/coverage/custom-session'
+import { assertCustomCoverageFacts } from '../experimental/testing/coverage/custom-facts'
+import type {
+  CustomCoverageFact,
+  CustomCoverageRequest,
+} from '../experimental/testing/coverage/custom-types'
 import { realpath } from 'fs/promises'
+import { parseStandardCoverageOptions } from '../experimental/testing/coverage/options'
+import type {
+  StandardCoverageOptions,
+  StandardFileCoverage,
+} from '../experimental/testing/coverage/types'
 import {
   createMachineReporter,
   parseResultReporters,
   mergeResultReports,
+  isMachineResultReporter,
+  isCustomResultReporter,
 } from '../experimental/testing/reporting/machine'
 import path from 'path'
-import { loadTestConfig } from '../experimental/testing/config'
+import {
+  applyTestConfigOverrides,
+  openTestConfiguration,
+  type TestConfigOverrides,
+} from '../experimental/testing/config'
 import { discoverTests } from '../experimental/testing/discovery'
+import { configDefaults } from '../experimental/testing/config-api'
+import { parseTestInspectAddress } from '../experimental/testing/execution/inspector'
 import {
   acquireTestRunLock,
   parseMaxWorkers,
@@ -21,38 +43,133 @@ import {
 
 export interface NextTestRunnerOptions {
   list?: boolean
+  json?: boolean
+  staticParse?: boolean | string
   run?: boolean
   watch?: boolean
   update?: boolean
   capabilities?: boolean
+  api?: true | string
   coverage?: boolean
+  typecheck?: boolean
+  'typecheck.only'?: boolean
+  'coverage.reporter'?: string[]
+  'coverage.include'?: string[]
+  'coverage.exclude'?: string[]
+  'coverage.reportsDirectory'?: string
+  'coverage.reportOnFailure'?: boolean | string
+  'coverage.thresholds.statements'?: string
+  'coverage.thresholds.functions'?: string
+  'coverage.thresholds.branches'?: string
+  'coverage.thresholds.lines'?: string
+  inspect?: string | boolean
+  fileParallelism?: boolean
   project?: string
   filter?: string[]
+  related?: string[]
+  changed?: true | string
   testNamePattern?: string
   maxWorkers?: string
   shard?: string
   reporter?: string[]
   outputFile?: string
   mergeReports?: string
+  retry?: string
+  bail?: string
+  testTimeout?: string
+  hookTimeout?: string
+  allowOnly?: boolean
+  passWithNoTests?: boolean
+}
+
+function executionOverrides(
+  options: NextTestRunnerOptions
+): TestConfigOverrides {
+  const overrides: TestConfigOverrides = {
+    allowOnly: options.allowOnly,
+    passWithNoTests:
+      options.passWithNoTests ?? (options.related ? true : undefined),
+    typecheck: options['typecheck.only']
+      ? { enabled: true, only: true }
+      : options.typecheck === undefined
+        ? undefined
+        : { enabled: options.typecheck },
+  }
+  for (const key of ['retry', 'bail', 'testTimeout', 'hookTimeout'] as const) {
+    const value = options[key]
+    if (value === undefined) continue
+    const number = /^\d+$/.test(value) ? Number(value) : NaN
+    if (!Number.isSafeInteger(number) || number < 0 || number > 2 ** 31 - 1)
+      throw new Error(
+        `--${key} must be a nonnegative integer no greater than 2147483647.`
+      )
+    overrides[key] = number
+  }
+  return overrides
 }
 
 export async function nextTestRunner(
   directory: string | undefined,
   options: NextTestRunnerOptions
 ): Promise<void> {
+  const standardCoverageOptions = parseStandardCoverageOptions(
+    options as unknown as Record<string, unknown>
+  )
+  if (standardCoverageOptions) options = { ...options, coverage: true }
+  const inspect = parseTestInspectAddress(options.inspect)
+  const isTTY =
+    process.stdout.isTTY === true &&
+    !process.env.CI &&
+    process.env.TERM !== 'dumb'
+  if (
+    options.watch === undefined &&
+    !options.related &&
+    !options.changed &&
+    options.api === undefined &&
+    configDefaults.watch &&
+    !options.run &&
+    !options.list &&
+    !options.update &&
+    !options.coverage &&
+    !options.typecheck &&
+    !options['typecheck.only'] &&
+    !options.capabilities &&
+    !options.mergeReports &&
+    !inspect
+  )
+    options = { ...options, watch: true }
+  if (
+    inspect &&
+    (options.list || options.watch || options.coverage || options.mergeReports)
+  )
+    throw new Error(
+      '--inspect currently requires a one-shot execution without coverage.'
+    )
+  const overrides = executionOverrides(options)
+  const hasExecutionOverrides = Object.values(overrides).some(
+    (value) => value !== undefined
+  )
   if (options.capabilities) {
     if (
       options.list ||
+      options.json ||
+      options.staticParse !== undefined ||
       options.run ||
       options.watch ||
       options.update ||
       options.coverage ||
+      inspect !== undefined ||
+      options.fileParallelism === false ||
       options.maxWorkers !== undefined ||
       options.shard !== undefined ||
+      options.api !== undefined ||
+      options.related !== undefined ||
+      options.changed !== undefined ||
       options.testNamePattern !== undefined ||
       options.reporter !== undefined ||
       options.outputFile !== undefined ||
-      options.mergeReports !== undefined
+      options.mergeReports !== undefined ||
+      hasExecutionOverrides
     ) {
       throw new Error(
         '--capabilities cannot be combined with execution or listing options.'
@@ -61,6 +178,21 @@ export async function nextTestRunner(
     console.log(JSON.stringify(testCapabilities, null, 2))
     return
   }
+  if ((options.related || options.changed) && (options.watch || options.list))
+    throw new Error(
+      '--related and --changed currently require a one-shot execution.'
+    )
+  if (
+    options.api !== undefined &&
+    (options.watch || options.list || options.mergeReports)
+  )
+    throw new Error(
+      '--api currently requires a one-shot execution without listing or report merging.'
+    )
+  if (options.json && !options.list)
+    throw new Error('--json requires --list for collected test names.')
+  if (options.staticParse !== undefined && !(options.list && options.json))
+    throw new Error('--staticParse requires --list --json.')
   if (options.coverage && options.update) {
     throw new Error('--coverage cannot be combined with --update.')
   }
@@ -80,7 +212,7 @@ export async function nextTestRunner(
   }
   if (options.watch) requireTestCapability('watch')
   if (options.update) requireTestCapability('snapshotUpdate')
-  if (options.list && options.testNamePattern !== undefined) {
+  if (options.list && !options.json && options.testNamePattern !== undefined) {
     throw new Error(
       '--list currently lists files only; testNamePattern requires test collection.'
     )
@@ -95,20 +227,19 @@ export async function nextTestRunner(
     }
   }
   const reporters = parseResultReporters(options.reporter)
-  if (
-    (options.watch || options.list) &&
-    reporters.some((name) => name !== 'default')
-  ) {
+  if (options.watch && reporters.some(isCustomResultReporter))
     throw new Error(
-      'Machine reporters currently require a one-shot run; watch and collection reports remain unimplemented.'
+      'Custom reporter watch lifecycle adapters remain unimplemented; completion adapters require a one-shot run.'
     )
+  if (options.list && reporters.some((name) => name !== 'default')) {
+    throw new Error('Machine collection reports remain unimplemented.')
   }
-  if (options.outputFile && !reporters.some((name) => name !== 'default')) {
+  if (options.outputFile && !reporters.some(isMachineResultReporter)) {
     throw new Error('--outputFile requires a machine reporter.')
   }
   if (
     options.outputFile &&
-    reporters.filter((name) => name !== 'default').length !== 1
+    reporters.filter(isMachineResultReporter).length !== 1
   ) {
     throw new Error('--outputFile requires exactly one machine reporter.')
   }
@@ -123,7 +254,11 @@ export async function nextTestRunner(
       options.filter ||
       options.testNamePattern ||
       options.maxWorkers ||
-      options.shard
+      options.shard ||
+      options.related ||
+      options.changed ||
+      options.api !== undefined ||
+      hasExecutionOverrides
     ) {
       throw new Error(
         '--merge-reports cannot be combined with test execution or selection options.'
@@ -138,154 +273,589 @@ export async function nextTestRunner(
       status === 'passed' ? 0 : status === 'cancelled' ? 130 : 1
     return
   }
-  const config = await loadTestConfig(projectDir)
-  const maxWorkers = parseMaxWorkers(options.maxWorkers ?? config.maxWorkers)
-  const shard =
-    options.shard === undefined ? undefined : parseTestShard(options.shard)
-  if (options.watch && (maxWorkers !== 1 || shard)) {
-    throw new Error(
-      'Parallel file execution and sharding require a one-shot run; watch scheduling is unsupported.'
-    )
-  }
-  let projects = await discoverTests(projectDir, config, {
-    project: options.project,
-    files: options.filter,
-  })
-  if (!projects.some((project) => project.entries.length) && !options.watch) {
-    throw new Error('No test files matched the selected projects and filters.')
-  }
-  if (shard) projects = shardTestProjects(projects, shard)
-  const entries = projects.flatMap((project) => project.entries)
-  if (options.list) {
-    for (const entry of entries) {
-      const { profile } = entry
-      console.log(
-        `${entry.id} [${profile.environment}, ${profile.mode}, ${profile.runtime}, ${profile.bundler}]`
-      )
-    }
-    console.log(`${entries.length} test file(s) selected.`)
-    return
-  }
-  if (shard && entries.length === 0) {
-    console.log(`Shard ${shard.index}/${shard.count}: no test files assigned.`)
-    return
-  }
-  for (const project of projects) {
-    if (!project.entries.length || project.profile.mode !== 'production')
-      continue
-    requireTestCapability('production')
-    if (project.profile.route !== undefined) {
-      throw new Error(
-        'Production test execution supports route-less profiles only; route and layout context is unsupported.'
-      )
-    }
-    if (
-      !(
-        testCapabilities.features.production.environments as readonly string[]
-      ).includes(project.profile.environment)
-    ) {
-      throw new Error(
-        'Unsupported production test environment. Supported environments are Node, RSC, and browser drivers.'
-      )
-    }
-  }
-  const machine = createMachineReporter({
-    projectDir,
-    reporters,
-    outputFile: options.outputFile,
-  })
-  const human = reporters.includes('default')
+  let discoveryApi:
+    | Awaited<
+        ReturnType<
+          typeof import('../experimental/testing/editor-api').openTestDiscoveryApi
+        >
+      >
+    | undefined
+  const apiPort =
+    options.api === undefined
+      ? undefined
+      : (
+          await import('../experimental/testing/editor-api.js')
+        ).parseEditorApiPort(options.api)
+  const customSessions = new Map<string, CustomCoverageSession>()
+  const projectsForCustomCoverage = new Map<string, string[]>()
+  let pendingCustomCoverage:
+    | {
+        facts: CustomCoverageFact[]
+        status: 'passed' | 'failed'
+        allTestsRun: boolean
+      }
+    | undefined
+  let customExecutionStarted = false
+  let customWritersClosed = false
+  let cleanedExecution = false
+  let pendingCoverage:
+    | {
+        facts: StandardFileCoverage[]
+        expected: Set<string>
+        excludedFiles: string[]
+        config: StandardCoverageOptions
+        status: 'passed' | 'failed' | 'cancelled'
+      }
+    | undefined
   const controller = new AbortController()
-  const isTTY =
-    process.stdout.isTTY === true &&
-    !process.env.CI &&
-    process.env.TERM !== 'dumb'
-  const terminal = createTestTerminal({
-    write: (text) => process.stdout.write(text),
-    writeError: (text) => process.stderr.write(text),
-    isTTY,
-    columns: () => process.stdout.columns,
-    rows: () => process.stdout.rows,
-  })
-  let reporterFailure: unknown
-  const forceColor = process.env.FORCE_COLOR
-  const reporter = {
-    version: process.env.__NEXT_VERSION ?? 'unknown',
-    writeError: (text: string) => {
-      if (human) terminal.write(text, 'stderr')
-    },
-    terminal: human ? terminal : undefined,
-    isTTY: human && isTTY,
-    columns: process.stdout.columns,
-    onError(error: unknown) {
-      reporterFailure = error
-      controller.abort(error)
-    },
-    color:
-      forceColor !== undefined
-        ? forceColor !== '0'
-        : process.env.NO_COLOR === undefined &&
-          process.env.NODE_DISABLE_COLORS === undefined &&
-          !process.env.CI &&
-          process.stdout.isTTY === true &&
-          process.env.TERM !== 'dumb',
-  }
   const cancel = () => controller.abort(new Error('Test run interrupted.'))
   process.once('SIGINT', cancel)
   process.once('SIGTERM', cancel)
-  let runLock: Awaited<ReturnType<typeof acquireTestRunLock>> | undefined
+  let configuration:
+    | Awaited<ReturnType<typeof openTestConfiguration>>
+    | undefined
   try {
-    if (options.watch) {
-      const { watchTests } = await import(
-        '../experimental/testing/watch-orchestrator.js'
+    configuration = await openTestConfiguration(projectDir, controller.signal)
+    const parsedConfig = applyTestConfigOverrides(
+      configuration.config,
+      overrides
+    )
+    const config =
+      options.changed && !options.related
+        ? {
+            ...parsedConfig,
+            projects: parsedConfig.projects.map((project) =>
+              project.passWithNoTests === undefined
+                ? { ...project, passWithNoTests: true }
+                : project
+            ),
+          }
+        : parsedConfig
+    if (
+      config.projects.some((project) => project.typecheck?.enabled) &&
+      (options.watch || options.list || options.inspect || options.coverage)
+    ) {
+      throw new Error(
+        'Type-test checking currently requires a one-shot execution without --watch, --list, --inspect, or --coverage.'
       )
-      const result = await watchTests(projectDir, {
-        input: isTTY ? process.stdin : undefined,
-        output: process.stdout,
-        project: options.project,
-        files: options.filter,
-        testNamePattern: options.testNamePattern,
-        snapshotUpdateMode: process.env.CI ? 'none' : 'new',
-        signal: controller.signal,
-        write: (text) => terminal.write(text),
-        reporter,
-      })
-      if (reporterFailure) throw reporterFailure
-      process.exitCode =
-        result.status === 'cancelled' ? 130 : result.status === 'failed' ? 1 : 0
+    }
+    const maxWorkers =
+      options.fileParallelism === false
+        ? 1
+        : parseMaxWorkers(options.maxWorkers ?? config.maxWorkers)
+    if (inspect && maxWorkers !== 1)
+      throw new Error(
+        '--inspect requires --no-file-parallelism or --max-workers=1.'
+      )
+    const shard =
+      options.shard === undefined ? undefined : parseTestShard(options.shard)
+    if (options.watch && shard) {
+      throw new Error(
+        'Sharding requires a one-shot run; watch sharding is unsupported.'
+      )
+    }
+    let projects = await discoverTests(projectDir, config, {
+      project: options.project,
+      files: options.filter,
+    })
+    if (options.related || options.changed) {
+      const { findChangedTestSources, selectSourceRelatedProjects } =
+        await import('../experimental/testing/incremental/source-selection.js')
+      const related = options.related
+        ? options.related.map((file) => path.resolve(projectDir, file))
+        : await findChangedTestSources(projectDir, options.changed!)
+      if (!related.length)
+        projects = projects.map((project) => ({ ...project, entries: [] }))
+      else {
+        const { runWatchProcess } = await import(
+          '../experimental/testing/watch-process.js'
+        )
+        const result = await runWatchProcess(
+          {
+            operation: 'plan',
+            projectDir,
+            projects,
+            certifiedTestConfig: configuration.watchInputs.every((file) =>
+              file.endsWith('.json')
+            ),
+          },
+          {
+            signal: controller.signal,
+            write: (text) => process.stderr.write(text),
+          }
+        )
+        if (result.operation !== 'plan')
+          throw new Error('Invalid test dependency planner response')
+        projects = await selectSourceRelatedProjects(
+          projects,
+          related,
+          result.plan
+        )
+      }
+    }
+    if (
+      !options.related &&
+      !options.changed &&
+      !projects.some((project) => project.entries.length) &&
+      !options.watch &&
+      !(options.list && options.json) &&
+      !projects.every((project) => project.passWithNoTests === true)
+    ) {
+      throw new Error(
+        'No test files matched the selected projects and filters.'
+      )
+    }
+    const specificationOrder = projects.flatMap((project) =>
+      project.entries.map((entry) => entry.id)
+    )
+    if (shard) {
+      const fileCount = projects.reduce(
+        (total, project) => total + project.entries.length,
+        0
+      )
+      if (
+        shard.count > fileCount &&
+        !projects.every((project) => project.passWithNoTests === true)
+      ) {
+        throw new Error(
+          `--shard count must not exceed the number of test files. Resolved ${fileCount} test files for --shard=${shard.index}/${shard.count}; use --passWithNoTests to permit empty assignments.`
+        )
+      }
+      projects = await shardTestProjects(projects, shard, projectDir)
+    }
+    const entries = projects.flatMap((project) => project.entries)
+    const customProjects = projects.filter(
+      (project) => project.customCoverage && project.entries.length
+    )
+    if (
+      customProjects.length &&
+      (maxWorkers !== 1 ||
+        options.watch ||
+        options.list ||
+        options.inspect ||
+        options.coverage ||
+        options.update ||
+        projects.some((project) => project.typecheck?.enabled) ||
+        customProjects.some(
+          (project) =>
+            project.isolate === false ||
+            project.executionEnvironment ||
+            project.profile.environment !== 'node' ||
+            project.profile.mode !== 'development' ||
+            project.profile.route ||
+            project.entries.some((entry) => entry.executionEnvironment)
+        ))
+    )
+      throw new Error(
+        'Custom coverage currently requires one-shot isolated development Node execution without V8, DOM, type tests, debugging or snapshot updates.'
+      )
+    if (
+      projects.some(
+        (project) =>
+          project.isolate === false && (options.watch || project.entries.length)
+      ) &&
+      (options.watch ||
+        options.list ||
+        inspect ||
+        options.coverage ||
+        maxWorkers !== 1)
+    )
+      throw new Error(
+        'isolate:false currently requires a one-shot serial execution without watch, listing, debugging or coverage.'
+      )
+    if (options.list && !options.json) {
+      for (const entry of entries) {
+        const { profile } = entry
+        console.log(
+          `${entry.id} [${profile.environment}, ${profile.mode}, ${profile.runtime}, ${profile.bundler}]`
+        )
+      }
+      console.log(`${entries.length} test file(s) selected.`)
       return
     }
-    runLock = await acquireTestRunLock(projectDir)
-    controller.signal.throwIfAborted()
-    const { runTests } = await import('../experimental/testing/orchestrator.js')
-    const summary = await runTests(projectDir, projects, {
-      signal: controller.signal,
-      write: (text) => {
-        if (human) terminal.write(text)
-      },
-      reporter,
-      onEvent: machine.onEvent,
-      updateSnapshots: options.update ?? false,
-      snapshotUpdateMode: options.update
-        ? 'all'
-        : process.env.CI
-          ? 'none'
-          : 'new',
-      testNamePattern: options.testNamePattern,
-      coverage: options.coverage ?? false,
-      maxWorkers,
-      isolateProjects: true,
-    })
-    if (reporterFailure) throw reporterFailure
-    await machine.finish()
-    if (summary.status !== 'passed') {
-      process.exitCode = summary.status === 'cancelled' ? 130 : 1
+    if (
+      options.list &&
+      options.json &&
+      options.staticParse !== false &&
+      options.staticParse !== 'false'
+    ) {
+      const { collectStaticTestCases } = await import(
+        '../experimental/testing/static-collection.js'
+      )
+      const listed = await collectStaticTestCases(projects, {
+        signal: controller.signal,
+        testNamePattern: options.testNamePattern,
+      })
+      // Configuration owns a process even though static discovery does not run
+      // its global setup or evaluate setup/specification modules. Publish only
+      // after that owner has closed successfully.
+      await configuration.dispose()
+      configuration = undefined
+      controller.signal.throwIfAborted()
+      for (const error of listed.errors) console.error(error)
+      if (listed.errors.length) {
+        process.exitCode = 1
+        return
+      }
+      console.log(JSON.stringify(listed.cases, null, 2))
+      return
     }
+    for (const project of projects) {
+      if (!project.entries.length || project.profile.mode !== 'production')
+        continue
+      requireTestCapability('production')
+      if (project.profile.route !== undefined) {
+        throw new Error(
+          'Production test execution supports route-less profiles only; route and layout context is unsupported.'
+        )
+      }
+      if (
+        !(
+          testCapabilities.features.production.environments as readonly string[]
+        ).includes(project.profile.environment)
+      ) {
+        throw new Error(
+          'Unsupported production test environment. Supported environments are Node, RSC, and browser drivers.'
+        )
+      }
+    }
+    if (options.list && options.json) {
+      let summary: Awaited<
+        ReturnType<
+          typeof import('../experimental/testing/orchestrator').runTests
+        >
+      >
+      const messages: string[] = []
+      const lock = await acquireTestRunLock(projectDir, {
+        recoverSnapshots: false,
+      })
+      try {
+        await configuration.setup(
+          projects.filter((project) => project.entries.length)
+        )
+        const { runTests } = await import(
+          '../experimental/testing/orchestrator.js'
+        )
+        summary = await runTests(projectDir, projects, {
+          collectOnly: true,
+          signal: controller.signal,
+          write: () => {},
+          reporter: { writeError: () => {} },
+          onEvent(event) {
+            if (event.type === 'diagnostic')
+              messages.push(event.diagnostic.stack ?? event.diagnostic.message)
+          },
+          snapshotUpdateMode: 'none',
+          testNamePattern: options.testNamePattern,
+          maxWorkers,
+          isolateProjects: true,
+          passWithNoTests: true,
+        })
+      } finally {
+        try {
+          await configuration.dispose()
+          configuration = undefined
+        } finally {
+          await lock.unlock()
+        }
+      }
+      if (
+        summary.status !== 'passed' ||
+        summary.unsafeCleanup ||
+        controller.signal.aborted
+      ) {
+        for (const message of messages) console.error(message)
+        process.exitCode = summary.status === 'cancelled' ? 130 : 1
+        return
+      }
+      if (!summary.collections) throw new Error('Missing collected test facts.')
+      const collections = new Map(
+        summary.collections.map((collection) => [
+          collection.entryId,
+          collection,
+        ])
+      )
+      if (
+        collections.size !== entries.length ||
+        summary.collections.length !== entries.length
+      )
+        throw new Error('Collection did not complete every selected test file.')
+      const listed = entries.flatMap((entry) => {
+        const collection = collections.get(entry.id)
+        if (!collection) throw new Error('Missing selected test collection.')
+        return collection.cases.map((test) => ({
+          name: test.name,
+          file: entry.file,
+        }))
+      })
+      console.log(JSON.stringify(listed, null, 2))
+      return
+    }
+    const human = reporters.includes('default')
+    const terminal = createTestTerminal({
+      write: (text) => process.stdout.write(text),
+      writeError: (text) => process.stderr.write(text),
+      isTTY,
+      columns: () => process.stdout.columns,
+      rows: () => process.stdout.rows,
+    })
+    let reporterFailure: unknown
+    const forceColor = process.env.FORCE_COLOR
+    const reporter = {
+      version: process.env.__NEXT_VERSION ?? 'unknown',
+      writeError: (text: string) => {
+        if (human) terminal.write(text, 'stderr')
+      },
+      terminal: human ? terminal : undefined,
+      isTTY: human && isTTY,
+      columns: process.stdout.columns,
+      onError(error: unknown) {
+        reporterFailure = error
+        controller.abort(error)
+      },
+      color:
+        forceColor !== undefined
+          ? forceColor !== '0'
+          : process.env.NO_COLOR === undefined &&
+            process.env.NODE_DISABLE_COLORS === undefined &&
+            !process.env.CI &&
+            process.stdout.isTTY === true &&
+            process.env.TERM !== 'dumb',
+    }
+    const machine = createMachineReporter({
+      projectDir,
+      reporters,
+      outputFile: options.outputFile,
+      presentation: { ...reporter, isTTY, terminal },
+      write: (text) => terminal.write(text),
+      writeError: (text) => terminal.write(text, 'stderr'),
+    })
+    let runLock: Awaited<ReturnType<typeof acquireTestRunLock>> | undefined
+    try {
+      // One owner covers the full watch lifetime, including journal recovery
+      // before the first generation and every parent-side snapshot commit.
+      runLock = await acquireTestRunLock(projectDir)
+      if (options.watch) {
+        const { watchTests } = await import(
+          '../experimental/testing/watch-orchestrator.js'
+        )
+        const result = await watchTests(projectDir, {
+          input: isTTY ? process.stdin : undefined,
+          output: process.stdout,
+          project: options.project,
+          files: options.filter,
+          testNamePattern: options.testNamePattern,
+          maxWorkers: options.maxWorkers === undefined ? undefined : maxWorkers,
+          resultReporters: reporters,
+          outputFile: options.outputFile,
+          writeReport: (text) => process.stdout.write(text),
+          resultPresentation: { ...reporter, isTTY, terminal },
+          writeError: (text) => process.stderr.write(text),
+          snapshotUpdateMode: process.env.CI ? 'none' : 'new',
+          configOverrides: overrides,
+          signal: controller.signal,
+          write: (text) => {
+            if (human) terminal.write(text)
+          },
+          reporter,
+        })
+        if (reporterFailure) throw reporterFailure
+        process.exitCode =
+          result.status === 'cancelled'
+            ? 130
+            : result.status === 'failed'
+              ? 1
+              : 0
+        return
+      }
+      controller.signal.throwIfAborted()
+      if (apiPort !== undefined) {
+        const { openTestDiscoveryApi } = await import(
+          '../experimental/testing/editor-api.js'
+        )
+        discoveryApi = await openTestDiscoveryApi(projectDir, entries, apiPort)
+        process.stderr.write(
+          'Next test discovery API: ' + discoveryApi.url + '\n'
+        )
+      }
+      controller.signal.throwIfAborted()
+      await machine.initialize({ signal: controller.signal })
+      controller.signal.throwIfAborted()
+      await configuration.setup(
+        projects.filter((project) => project.entries.length)
+      )
+      controller.signal.throwIfAborted()
+      const customCoverageRequests: Record<string, CustomCoverageRequest> = {}
+      for (const project of customProjects) {
+        const session = await openCustomCoverageSession({
+          projectDir,
+          config: project.customCoverage!,
+          signal: controller.signal,
+          onOutput(stream, chunk) {
+            ;(stream === 'stdout' ? process.stdout : process.stderr).write(
+              chunk
+            )
+          },
+        })
+        customSessions.set(project.profile.id, session)
+        projectsForCustomCoverage.set(
+          project.profile.id,
+          project.entries.map((entry) => entry.id)
+        )
+        customCoverageRequests[project.profile.id] = session.request
+      }
+      const { runTests } = await import(
+        '../experimental/testing/orchestrator.js'
+      )
+      customExecutionStarted = customProjects.length > 0
+      const summary = await runTests(projectDir, projects, {
+        signal: controller.signal,
+        write: (text) => {
+          if (human) terminal.write(text)
+        },
+        reporter,
+        onEvent(event) {
+          discoveryApi?.onEvent(event)
+          machine.onEvent(event)
+        },
+        specificationOrder: specificationOrder.filter((id) =>
+          entries.some((entry) => entry.id === id)
+        ),
+        updateSnapshots: options.update ?? false,
+        snapshotUpdateMode: options.update
+          ? 'all'
+          : process.env.CI
+            ? 'none'
+            : 'new',
+        testNamePattern: options.testNamePattern,
+        coverage: options.coverage ?? false,
+        standardCoverageOptions,
+        ...(customProjects.length ? { customCoverageRequests } : {}),
+        inspect,
+        maxWorkers,
+        isolateProjects: true,
+        passWithNoTests: projects.every(
+          (project) => project.passWithNoTests === true
+        ),
+      })
+      customWritersClosed = !summary.unsafeCleanup
+      await discoveryApi?.dispose()
+      discoveryApi = undefined
+      if (reporterFailure) throw reporterFailure
+      await machine.finish()
+      if (customProjects.length && summary.status !== 'cancelled') {
+        if (summary.unsafeCleanup || summary.status === 'running')
+          throw new Error(
+            'Custom coverage did not complete after clean execution.'
+          )
+        const facts = assertCustomCoverageFacts(
+          summary.customCoverage,
+          projectDir,
+          projects,
+          customCoverageRequests
+        )
+        pendingCustomCoverage = {
+          facts,
+          status: summary.status,
+          allTestsRun:
+            !options.filter?.length &&
+            !options.testNamePattern &&
+            !shard &&
+            !projects.some((project) => project.testNamePattern),
+        }
+      }
+      if (standardCoverageOptions && summary.status !== 'cancelled') {
+        if (summary.status === 'running')
+          throw new Error('Standard coverage requires a terminal run result.')
+        if (summary.unsafeCleanup || !summary.standardCoverage)
+          throw new Error(
+            'Standard coverage did not complete after clean execution.'
+          )
+        pendingCoverage = {
+          facts: summary.standardCoverage,
+          expected: new Set(entries.map((entry) => entry.id)),
+          excludedFiles: projects.flatMap((project) => [
+            ...project.setupFiles,
+            ...project.entries.map((entry) => entry.file),
+          ]),
+          config: standardCoverageOptions,
+          status: summary.status,
+        }
+      }
+      if (summary.status !== 'passed') {
+        process.exitCode = summary.status === 'cancelled' ? 130 : 1
+      }
+    } finally {
+      try {
+        await discoveryApi?.dispose()
+      } finally {
+        try {
+          terminal.dispose()
+        } finally {
+          try {
+            await machine.dispose()
+          } finally {
+            await runLock?.unlock()
+          }
+        }
+      }
+    }
+    cleanedExecution = true
   } finally {
-    process.removeListener('SIGINT', cancel)
-    process.removeListener('SIGTERM', cancel)
-    terminal.dispose()
-    machine.dispose()
-    await runLock?.unlock()
+    try {
+      await configuration?.dispose()
+      if (cleanedExecution && pendingCustomCoverage) {
+        controller.signal.throwIfAborted()
+        for (const [id, session] of customSessions) {
+          const entriesForProject = new Set(projectsForCustomCoverage.get(id))
+          await session.finish(
+            pendingCustomCoverage.facts.filter((fact) =>
+              entriesForProject.has(fact.completion.entryId)
+            ),
+            pendingCustomCoverage.status,
+            pendingCustomCoverage.allTestsRun
+          )
+        }
+      }
+      if (cleanedExecution && pendingCoverage) {
+        try {
+          const { publishStandardCoverage } = await import(
+            '../experimental/testing/coverage/report-standard.js'
+          )
+          const result = await publishStandardCoverage({
+            projectDir,
+            ...pendingCoverage,
+            signal: controller.signal,
+          })
+          if (result.thresholdErrors.length) {
+            for (const message of result.thresholdErrors) console.error(message)
+            process.exitCode = 1
+          }
+        } catch (error) {
+          if (controller.signal.aborted) process.exitCode = 130
+          else throw error
+        }
+      }
+    } finally {
+      try {
+        const failures = []
+        for (const session of customSessions.values()) {
+          try {
+            await session.dispose({
+              retainPayloads:
+                customExecutionStarted &&
+                (!cleanedExecution || !customWritersClosed),
+            })
+          } catch (error) {
+            failures.push(error)
+          }
+        }
+        if (failures.length)
+          throw new AggregateError(failures, 'Custom coverage cleanup failed.')
+      } finally {
+        process.removeListener('SIGINT', cancel)
+        process.removeListener('SIGTERM', cancel)
+      }
+    }
   }
 }

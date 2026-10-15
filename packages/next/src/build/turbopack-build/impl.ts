@@ -73,6 +73,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     rewrites,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
     noMangling,
+    browserFixtureHost: NextBuildContext.browserFixtureHost,
   })
 
   if (config.experimental.turbopackSeedCacheFromWorktree) {

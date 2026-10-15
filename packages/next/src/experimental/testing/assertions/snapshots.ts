@@ -1,5 +1,13 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import {
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rmdir,
+  unlink,
+  writeFile,
+} from 'node:fs/promises'
 import {
   basename,
   dirname,
@@ -9,34 +17,16 @@ import {
   resolve,
   sep,
 } from 'node:path'
-import type { SnapshotStateOptions } from '../../../compiled/next-test-primitives'
-
-export type SnapshotUpdateMode = 'none' | 'new' | 'all'
-
-export function resolveSnapshotUpdateMode(options: {
-  updateSnapshots?: boolean
-  snapshotUpdateMode?: SnapshotUpdateMode
-}): SnapshotUpdateMode {
-  const mode =
-    options.snapshotUpdateMode ?? (options.updateSnapshots ? 'all' : 'none')
-  if (mode !== 'none' && mode !== 'new' && mode !== 'all')
-    throw new TypeError('Invalid snapshot update mode.')
-  return mode
-}
-
-/** Bytes cross IPC; executable snapshot environments never do. */
-export interface SnapshotUpdate {
-  path: string
-  /** Null deletes the managed external snapshot file after parent authorization. */
-  content: string | null
-  previousContent: string | null
-}
-
-export interface SnapshotUpdatePlan {
-  file: string
-  sourceHash?: string
-  updates: readonly SnapshotUpdate[]
-}
+import type { SnapshotUpdate, SnapshotUpdatePlan } from './snapshot-common'
+export {
+  resolveSnapshotUpdateMode,
+  stageSnapshotUpdates,
+} from './snapshot-common'
+export type {
+  SnapshotUpdateMode,
+  SnapshotUpdate,
+  SnapshotUpdatePlan,
+} from './snapshot-common'
 
 /** Validate overlapping profile plans before any of the parent-owned writes. */
 export function combineSnapshotUpdatePlans(
@@ -81,67 +71,6 @@ export function combineSnapshotUpdatePlans(
   }))
 }
 
-export function stageSnapshotUpdates(
-  environment: SnapshotStateOptions['snapshotEnvironment'],
-  enabled: boolean
-): {
-  environment: SnapshotStateOptions['snapshotEnvironment']
-  take(): SnapshotUpdate[]
-} {
-  const previous = new Map<string, string | null>()
-  const updates = new Map<string, SnapshotUpdate>()
-  return {
-    environment: new Proxy(environment, {
-      get(target, property) {
-        if (property === 'readSnapshotFile') {
-          return async (path: string) => {
-            const content = await target.readSnapshotFile(path)
-            // The primitive rereads while saving. Only its initial read is the
-            // version our generated snapshot content was based on.
-            if (!previous.has(path)) previous.set(path, content)
-            return content
-          }
-        }
-        if (property === 'saveSnapshotFile') {
-          return async (path: string, content: string) => {
-            if (!enabled) return
-            if (!previous.has(path))
-              throw new Error(
-                'Snapshot update requires its original file bytes.'
-              )
-            if (content !== previous.get(path)) {
-              updates.set(path, {
-                path,
-                content,
-                previousContent: previous.get(path)!,
-              })
-            }
-          }
-        }
-        if (property === 'removeSnapshotFile') {
-          return async (path: string) => {
-            if (!enabled) return
-            if (!previous.has(path))
-              throw new Error(
-                'Snapshot deletion requires its original file bytes.'
-              )
-            const previousContent = previous.get(path)!
-            if (previousContent !== null)
-              updates.set(path, { path, content: null, previousContent })
-          }
-        }
-        const value = Reflect.get(target, property)
-        return typeof value === 'function' ? value.bind(target) : value
-      },
-    }),
-    take() {
-      const result = [...updates.values()]
-      updates.clear()
-      return result
-    },
-  }
-}
-
 async function read(path: string) {
   try {
     return await readFile(path, 'utf8')
@@ -151,13 +80,11 @@ async function read(path: string) {
   }
 }
 
-/** Called by the execution parent only after successful exit and cleanup. */
-export async function commitSnapshotUpdates(
+function validateSnapshotUpdates(
   testPath: string,
   updates: readonly SnapshotUpdate[],
-  options: { signal?: AbortSignal; sourceHash?: string } = {}
+  sourceHash?: string
 ) {
-  options.signal?.throwIfAborted()
   // Matches the pinned NodeSnapshotEnvironment default. Keep this parent helper
   // independent of the combined assertion/spy bundle and its global registries.
   const expectedPath = join(
@@ -189,10 +116,10 @@ export async function commitSnapshotUpdates(
     seen.add(target)
     if (target === testPath) {
       if (
-        !options.sourceHash ||
+        !sourceHash ||
         update.previousContent === null ||
         createHash('sha256').update(update.previousContent).digest('hex') !==
-          options.sourceHash
+          sourceHash
       ) {
         throw new Error(
           'Inline snapshot source does not match the compiled test revision.'
@@ -206,41 +133,189 @@ export async function commitSnapshotUpdates(
         'Raw snapshots cannot target the managed snapshot directory.'
       )
     }
-    if ((await read(target)) !== update.previousContent)
+  }
+}
+
+const journalDirectoryName = '.next-test-snapshot-journals'
+const journalName = /^[0-9a-f-]{36}\.json$/
+
+function contains(directory: string, path: string) {
+  const rel = relative(directory, path)
+  return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
+}
+
+function transactionItems(updates: readonly SnapshotUpdate[], id: string) {
+  return updates.map((update) => ({
+    update,
+    temporary: update.content === null ? undefined : `${update.path}.${id}.tmp`,
+    recovery: `${update.path}.${id}.recovery`,
+    backup:
+      update.previousContent === null
+        ? undefined
+        : `${update.path}.${id}.backup`,
+  }))
+}
+
+async function removeOwnedFiles(items: ReturnType<typeof transactionItems>) {
+  for (const item of items) {
+    for (const path of [item.temporary, item.backup, item.recovery]) {
+      if (!path) continue
+      await unlink(path).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== 'ENOENT') throw error
+      })
+    }
+  }
+}
+
+async function restoreSnapshot(
+  item: ReturnType<typeof transactionItems>[number]
+) {
+  const { update, recovery } = item
+  const current = await read(update.path)
+  if (current === update.previousContent) return
+  if (current !== update.content)
+    throw new Error(
+      `Snapshot recovery preserved a concurrent edit: ${update.path}`
+    )
+  if (update.previousContent === null) {
+    await unlink(update.path)
+    return
+  }
+  const prepared = await read(recovery)
+  if (prepared !== null && prepared !== update.previousContent)
+    throw new Error(`Snapshot recovery file changed: ${recovery}`)
+  if (prepared === null)
+    await writeFile(recovery, update.previousContent, {
+      encoding: 'utf8',
+      flag: 'wx',
+      flush: true,
+    })
+  if ((await read(update.path)) !== current)
+    throw new Error(
+      `Snapshot recovery preserved a concurrent edit: ${update.path}`
+    )
+  await rename(recovery, update.path)
+}
+
+async function removeJournalDirectory(directory: string) {
+  await rmdir(directory).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== 'ENOENT' && error.code !== 'ENOTEMPTY') throw error
+  })
+}
+
+/** Recover an interrupted publication before compilation, under the public run lock. */
+export async function recoverSnapshotUpdates(projectDir: string) {
+  const directory = join(projectDir, journalDirectoryName)
+  let names: string[]
+  try {
+    names = await readdir(directory)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw error
+  }
+  for (const name of names.sort()) {
+    if (name.endsWith('.prepare') && journalName.test(name.slice(0, -8))) {
+      // No target changes occur until this prepared record is renamed.
+      await unlink(join(directory, name))
+      continue
+    }
+    if (!journalName.test(name)) continue
+    const path = join(directory, name)
+    const journal = JSON.parse(await readFile(path, 'utf8'))
+    if (
+      !journal ||
+      typeof journal !== 'object' ||
+      journal.version !== 1 ||
+      typeof journal.testPath !== 'string' ||
+      resolve(journal.testPath) !== journal.testPath ||
+      !contains(resolve(projectDir), journal.testPath)
+    )
+      throw new Error('Invalid snapshot recovery journal.')
+    validateSnapshotUpdates(
+      journal.testPath,
+      journal.updates,
+      journal.sourceHash
+    )
+    const items = transactionItems(journal.updates, name.slice(0, -5))
+    const failures: unknown[] = []
+    for (const item of [...items].reverse()) {
+      try {
+        await restoreSnapshot(item)
+      } catch (error) {
+        failures.push(error)
+      }
+    }
+    if (failures.length)
+      throw new AggregateError(
+        failures,
+        'Snapshot recovery requires resolving a concurrent edit; journal retained.'
+      )
+    await removeOwnedFiles(items)
+    await unlink(path)
+  }
+  await removeJournalDirectory(directory)
+}
+
+/** Called by the execution parent only after successful exit and cleanup. */
+export async function commitSnapshotUpdates(
+  testPath: string,
+  updates: readonly SnapshotUpdate[],
+  options: {
+    signal?: AbortSignal
+    sourceHash?: string
+    projectDir?: string
+  } = {}
+) {
+  options.signal?.throwIfAborted()
+  validateSnapshotUpdates(testPath, updates, options.sourceHash)
+  if (!updates.length) return
+  for (const update of updates) {
+    if ((await read(update.path)) !== update.previousContent)
       throw new Error(
         'Snapshot file changed during the test run; update refused.'
       )
   }
-  const staged: {
-    update: SnapshotUpdate
-    temporary?: string
-    backup?: string
-    preserveBackup?: boolean
-  }[] = []
+  const id = randomUUID()
+  const directory = join(
+    options.projectDir ?? dirname(testPath),
+    journalDirectoryName
+  )
+  const journalPath = join(directory, `${id}.json`)
+  const preparation = `${journalPath}.prepare`
+  const staged = transactionItems(updates, id)
   const published: (typeof staged)[number][] = []
+  let journalExists = false
   try {
-    for (const update of updates) {
+    await mkdir(directory, { recursive: true })
+    await writeFile(
+      preparation,
+      JSON.stringify({
+        version: 1,
+        testPath,
+        sourceHash: options.sourceHash,
+        updates,
+      }),
+      { encoding: 'utf8', flag: 'wx', flush: true }
+    )
+    await rename(preparation, journalPath)
+    journalExists = true
+    for (const item of staged) {
       options.signal?.throwIfAborted()
+      const { update } = item
       await mkdir(dirname(update.path), { recursive: true })
-      const item: (typeof staged)[number] = { update }
-      staged.push(item)
-      if (update.content !== null) {
-        item.temporary = `${update.path}.${randomUUID()}.tmp`
-        await writeFile(item.temporary, update.content, {
+      if (item.temporary)
+        await writeFile(item.temporary, update.content!, {
           encoding: 'utf8',
           flag: 'wx',
+          flush: true,
         })
-      }
-      if (update.previousContent !== null) {
-        item.backup = `${update.path}.${randomUUID()}.backup`
-        await writeFile(item.backup, update.previousContent, {
+      if (item.backup)
+        await writeFile(item.backup, update.previousContent!, {
           encoding: 'utf8',
           flag: 'wx',
+          flush: true,
         })
-      }
     }
-    // Validate the whole write set again before the first replacement. This
-    // preserves concurrent user edits and coordinates external/inline/raw bytes.
     for (const update of updates) {
       if ((await read(update.path)) !== update.previousContent)
         throw new Error(
@@ -259,22 +334,24 @@ export async function commitSnapshotUpdates(
       else await rename(item.temporary!, update.path)
       published.push(item)
     }
+    options.signal?.throwIfAborted()
+    await removeOwnedFiles(staged)
+    options.signal?.throwIfAborted()
+    await unlink(journalPath)
+    journalExists = false
   } catch (error) {
     const failures: unknown[] = [error]
     for (const item of published.reverse()) {
       try {
-        const { update } = item
-        // Never restore over a user's edit made after our publication.
-        if ((await read(update.path)) !== update.content)
-          throw new Error(
-            `Snapshot rollback refused a concurrent edit: ${update.path}`
-          )
-        if (item.backup) await rename(item.backup, update.path)
-        else await unlink(update.path)
+        await restoreSnapshot(item)
       } catch (rollbackError) {
-        item.preserveBackup = true
         failures.push(rollbackError)
       }
+    }
+    if (failures.length === 1 && journalExists) {
+      await removeOwnedFiles(staged)
+      await unlink(journalPath)
+      journalExists = false
     }
     if (failures.length === 1) throw error
     throw new AggregateError(
@@ -282,16 +359,12 @@ export async function commitSnapshotUpdates(
       'Snapshot publication failed; recovery backups were retained.'
     )
   } finally {
-    for (const item of staged) {
-      for (const path of [
-        item.temporary,
-        item.preserveBackup ? undefined : item.backup,
-      ]) {
-        if (!path) continue
-        await unlink(path).catch((error: NodeJS.ErrnoException) => {
-          if (error.code !== 'ENOENT') throw error
-        })
-      }
+    await unlink(preparation).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== 'ENOENT') throw error
+    })
+    if (!journalExists) {
+      await removeOwnedFiles(staged)
+      if (!options.projectDir) await removeJournalDirectory(directory)
     }
   }
 }

@@ -1,0 +1,797 @@
+{
+  "reference": {
+    "version": "5.0.4",
+    "revision": "6a11cf66f99fa610b7364363d5ca42b66d994f40",
+    "integrity": "sha512-z0WxZRV2Sg48wF0FSgMq3TFG8JS38/Qr96vZVZdX6+Em9raQTvnXQvdTFJe2m3rfyJnEHeHQ/snceIdi8D1pVg=="
+  },
+  "observedAt": "2026-10-14",
+  "host": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "node": "v26.1.0",
+    "browser": "Chromium 156",
+    "driver": "Playwright 1.64.0"
+  },
+  "tests": 118,
+  "red": 106,
+  "green": 12,
+  "skipped": 0,
+  "invalidReferences": [],
+  "note": "Red probes are not independent implementation-bug counts. Several later semantics are blocked by the same unsupported public prerequisite; see README mapping and raw per-probe evidence.",
+  "evidenceDirectory": "/private/tmp/next-testing-stable-release-gap-evidence-complete",
+  "resultLog": "/private/tmp/next-testing-stable-release-gaps-complete.log",
+  "probes": [
+    {
+      "name": "1 imports: public-config-import",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "1 imports: optional-globals",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "1 imports: workspace-helper-state",
+      "status": "passed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "stage": "verified control"
+    },
+    {
+      "name": "2 lifecycle: context-expect",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "2 lifecycle: context-task",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "2 lifecycle: context-annotation",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "2 lifecycle: context-signal-lifetime",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "2 lifecycle: around-each",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "2 lifecycle: around-all",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "2 lifecycle: concurrent-isolation",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "2 lifecycle: sequential-inside-concurrent",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "2 lifecycle: shuffled-suite",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "2 fixtures: worker-fixture",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "2 fixtures: builder-fixture",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "2 fixtures: scoped-fixture-hooks",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "2 fixtures: fixture-builder-override",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "2 lifecycle: timeout-next-case",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "2 metadata: context-benchmark",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "3 assertions: create-expect",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "3 assertions: chai-should",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "3 utilities: mock-object",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "3 utilities: fake-microtasks",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "3 utilities: fake-animation-frame",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "3 utilities: async-timer-microtasks",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "3 utilities: wait-for-fake-clock",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "3 lifetime: mock-reset-option",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "3 compilation boundary: compiled-env-stub",
+      "status": "passed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "stage": "verified control"
+    },
+    {
+      "name": "4 mocks: hoisted-helper",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 mocks: import-actual",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 mocks: dynamic-do-mock",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 mocks: automatic-module-mock",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 mocks: manual-module-mock",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 mocks: module-spy-mode",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 mocks: module-reset",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 mocks: external-esm-target",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 mocks: partial-factory-cycle",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 mocks: mock-setup-order",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "6 environments: jsdom-options",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "6 environments: happy-dom-options",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "6 environments: per-file-environment",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "6 ecosystem: testing-library-react",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "6 environments: custom-environment",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "6 Browser Mode: browser-execution",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "6 Browser Mode: browser-react-render",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "7 config: provided-context",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "7 config: global-setup",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "7 config: executable-next-config",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "7 migration: vitest-config-migration",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "7 config: config-setup-order",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "8 CLI: cli-bail",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "8 CLI: cli-retry",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "8 CLI: cli-timeout",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "8 CLI: cli-forbid-only-ci",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 0,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "8 CLI: cli-allow-empty",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "8 projects: cli-projects",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "8 selection: cli-related",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "10 reports: custom-reporter",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "10 reports: reporter-crash",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "9 coverage: standard-coverage",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "9 coverage: coverage-threshold",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "5 snapshots: filtered-snapshot-pruning",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "stage": "snapshot byte comparison"
+    },
+    {
+      "name": "5 snapshots: snapshot-serializer-config",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "2 metadata: tags-and-meta",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "4 mocks: cjs-implementation-esm-import",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 profiles: rsc-module-mocks",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "4 profiles: browser-module-mocks",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "5 snapshots: snapshot-name-format",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "snapshot byte comparison"
+    },
+    {
+      "name": "3 lifetime: mock-global-restore-option",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "5 snapshots: snapshot-parallel-files",
+      "status": "passed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "stage": "verified control"
+    },
+    {
+      "name": "8 sharding: cli-shard-first",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "stage": "shard selection"
+    },
+    {
+      "name": "8 sharding: cli-shard-second",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "stage": "shard selection"
+    },
+    {
+      "name": "1 type testing: compiler-backed-typecheck",
+      "status": "failed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "1 in-source: in-source-tests",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "2 lifecycle: hook-list-order",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "4 mocks: alias-partial-mock",
+      "status": "passed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "stage": "verified control"
+    },
+    {
+      "name": "10 reports: json-metadata",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 0,
+      "stage": "report metadata schema"
+    },
+    {
+      "name": "8 selection: cli-changed",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "10 debugging: debug-individual-test",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "10 editor API: editor-api-discovery",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "CLI argument parsing"
+    },
+    {
+      "name": "7 migration diagnostics: compiler-option-mapping",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "2 lifecycle: failure-listener-context",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "3 assertions: unawaited-passing-assertion",
+      "status": "passed",
+      "referenceExit": 1,
+      "nextExit": 1,
+      "stage": "verified control"
+    },
+    {
+      "name": "2 fixtures: worker-lifetime-across-files",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "10 built-in reporters: reporter-tap",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "10 built-in reporters: reporter-tap-flat",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "10 built-in reporters: reporter-verbose",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "10 built-in reporters: reporter-dot",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "10 built-in reporters: reporter-github-actions",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "compiler or collection boundary"
+    },
+    {
+      "name": "6 Edge environment: edge-runtime",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "9 custom provider: custom-coverage-provider",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "configuration loader"
+    },
+    {
+      "name": "3 compilation boundary: inlined-env-stub-boundary",
+      "status": "failed",
+      "referenceExit": 0,
+      "nextExit": 1,
+      "stage": "runtime or result mismatch"
+    },
+    {
+      "name": "1 types: fixture-overloads",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "1 types: context-public-types",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "1 types: matcher-augmentation",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "8 CLI: lists collected case names through the public command",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "8 watch: source changes preserve fresh results and cleanup",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "8 watch: setup changes preserve fresh results and cleanup",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "8 watch: addition changes preserve fresh results and cleanup",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "8 watch: deletion changes preserve fresh results and cleanup",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "8 watch: rapid changes preserve fresh results and cleanup",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "8 watch: config changes preserve fresh results and cleanup",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "8 watch: snapshot changes preserve fresh results and cleanup",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "10 reports: consumes a real Vitest blob through the public merge command",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "5/12 publication: restart recovers a coherent snapshot revision after parent crash (user edit: false)",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "5/12 publication: restart recovers a coherent snapshot revision after parent crash (user edit: true)",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "11 Next fidelity: a real dynamic route and request context remain renderable in the route-aware RSC profile",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "11 production: registered client components mount and hydrate as in a normal production application",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "12 reliability: repeated public runs release worker PIDs, run locks and owned compiler artifacts",
+      "status": "passed",
+      "stage": "verified control"
+    },
+    {
+      "name": "10 JUnit: existing parsers see equivalent testcase attributes and failure/skipped outcomes",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "12 cancellation: body phase retains snapshots and releases its worker/lock",
+      "status": "passed",
+      "stage": "verified control"
+    },
+    {
+      "name": "12 cancellation: beforeEach phase retains snapshots and releases its worker/lock",
+      "status": "passed",
+      "stage": "verified control"
+    },
+    {
+      "name": "12 cancellation: fixture phase retains snapshots and releases its worker/lock",
+      "status": "passed",
+      "stage": "verified control"
+    },
+    {
+      "name": "12 cancellation: finished phase retains snapshots and releases its worker/lock",
+      "status": "passed",
+      "stage": "verified control"
+    },
+    {
+      "name": "8 PTY: interactive default behavior matches the pinned CLI",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "8 PTY: interactive help behavior matches the pinned CLI",
+      "status": "passed",
+      "stage": "verified control"
+    },
+    {
+      "name": "8 PTY: interactive filter behavior matches the pinned CLI",
+      "status": "passed",
+      "stage": "verified control"
+    },
+    {
+      "name": "6/8 watch: browser execution reruns the actual affected tests",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    },
+    {
+      "name": "6/8 watch: parallel execution reruns the actual affected tests",
+      "status": "failed",
+      "stage": "dedicated acceptance assertion; see named evidence"
+    }
+  ]
+}

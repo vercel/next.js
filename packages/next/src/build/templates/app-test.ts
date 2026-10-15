@@ -38,14 +38,29 @@ export function initializeRuntime() {
   )
 }
 
+// The route tree is built by the same native AppProject as ordinary pages.
+// INJECT_RAW:__next_test_route__
+
+// INJECT_RAW:__next_test_mock_runtime__
+
 // The worker installs the collector and manifests before evaluating the spec.
-export function loadTestModule() {
+export async function loadTestModule() {
+  // INJECT_RAW:__next_test_mock_load__
   // The compiler replaces this internal asset; it has no source-level TS module.
   // eslint-disable-next-line @next/internal/typechecked-require
   return require(/*turbopackChunkingType: shared*/ 'VAR_TEST_MODULE')
 }
 
 // These imports are compiled in the spec context and evaluated after collection starts.
-export async function loadSetupModules(): Promise<void> {
+export async function loadSetupModules(
+  setupFilesSequence: 'list' | 'parallel' = 'list'
+): Promise<void> {
+  void setupFilesSequence // Referenced by the compiler-injected setup loaders.
   // INJECT_RAW:__next_test_setup__
+}
+
+// Observe the same compiler runtime that evaluates this file's user modules.
+declare const __turbopack_context__: import('../../experimental/testing/runner/imports').TurbopackImportContext
+export function initializeModuleImportTracking() {
+  return testRunner.createModuleImportTracker(__turbopack_context__)
 }

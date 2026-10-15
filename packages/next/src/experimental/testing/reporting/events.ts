@@ -1,3 +1,4 @@
+import type { TaskMeta, TestAnnotation } from '../runner/tasks'
 import type { TestEntry } from '../contracts'
 import type { SnapshotUpdateMode } from '../assertions/snapshots'
 
@@ -17,6 +18,8 @@ export interface SerializedDiagnostic {
     | 'cleanup'
     | 'reporter'
   severity: 'error' | 'warning'
+  /** An actual process rejection, separate from a case or suite failure. */
+  unhandled?: 'rejection'
   message: string
   name?: string
   stack?: string
@@ -68,7 +71,25 @@ export interface CaseResult extends ResultScope {
   testName?: string
   ancestors?: { id: string; name: string }[]
   mode?: 'run' | 'skip' | 'todo'
+  meta?: TaskMeta
+  tags?: string[]
+  annotations?: TestAnnotation[]
+  pending?: boolean
+  /** Declared but never started because the run reached its bail threshold. */
+  bail?: boolean
+  note?: string
   location?: SourceLocation
+  status: ResultStatus
+  durationMs: number
+  errors: SerializedDiagnostic[]
+}
+
+export interface SuiteResult {
+  entryId: string
+  suiteId: string
+  name: string
+  ancestors: { id: string; name: string }[]
+  mode: 'run' | 'skip' | 'todo'
   status: ResultStatus
   durationMs: number
   errors: SerializedDiagnostic[]
@@ -81,7 +102,12 @@ export interface FileResult {
 }
 
 type EventPayload =
-  | { type: 'run-start'; snapshotUpdateMode?: SnapshotUpdateMode }
+  | {
+      type: 'run-start'
+      snapshotUpdateMode?: SnapshotUpdateMode
+      /** Original selected specifications, before execution sequencing. */
+      specificationOrder?: string[]
+    }
   | { type: 'file-start'; entry: TestEntry; revision?: string }
   | ({ type: 'case-start' } & Pick<
       CaseResult,
@@ -96,6 +122,11 @@ type EventPayload =
       | 'revision'
     >)
   | ({ type: 'case-end' } & CaseResult)
+  | ({ type: 'test-annotation'; annotation: TestAnnotation } & ResultScope & {
+        caseId: string
+        attempt: AttemptIdentity
+      })
+  | ({ type: 'suite-end' } & SuiteResult & { revision?: string })
   | ({ type: 'file-end' } & FileResult)
   | ({
       type: 'snapshot-summary'

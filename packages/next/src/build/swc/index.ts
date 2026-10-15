@@ -1,3 +1,6 @@
+import { requireBrowserClientCapability } from './browser-client'
+import { requireProductionFixtureCapability } from './browser-fixtures'
+import { requireTestRouteCapability } from './test-route'
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
@@ -703,33 +706,112 @@ function bindingToApi(
       id,
       environment,
       setupFiles = [],
+      setupFilesSequence = 'list',
+      inSource = false,
+      runtimeEnv = false,
+      dependencyPlan = false,
+      browserClient = false,
+      route,
+      snapshotSerializers = [],
+      cohortFiles = [],
     }: {
       file: string
       id: string
       environment: 'rsc' | 'node' | 'browser'
       setupFiles?: readonly string[]
+      setupFilesSequence?: 'list' | 'parallel'
+      inSource?: boolean
+      runtimeEnv?: boolean
+      dependencyPlan?: boolean
+      browserClient?: boolean
+      route?: string
+      snapshotSerializers?: readonly string[]
+      cohortFiles?: readonly string[]
     }): Promise<Endpoint> {
+      requireBrowserClientCapability(binding, browserClient)
+      if (
+        dependencyPlan &&
+        (typeof binding.projectTestEntryDependenciesVersion !== 'function' ||
+          binding.projectTestEntryDependenciesVersion() < 1)
+      ) {
+        throw new Error(
+          'Test dependency planning requires native source graph capability version 1'
+        )
+      }
       if (typeof binding.projectTestEntry !== 'function') {
         throw new Error(
           'The installed Turbopack binding does not support test entries'
         )
       }
+      if (runtimeEnv) {
+        const version =
+          typeof binding.projectTestEntryRuntimeEnvVersion === 'function'
+            ? binding.projectTestEntryRuntimeEnvVersion()
+            : 0
+        if (!Number.isInteger(version) || version < 1)
+          throw new Error(
+            'The installed Turbopack binding does not support mutable Node test environment bindings'
+          )
+      }
+      requireTestRouteCapability(binding, route)
+      if (
+        inSource &&
+        (typeof binding.projectTestEntryInSourceVersion !== 'function' ||
+          binding.projectTestEntryInSourceVersion() < 1)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support native in-source test entries'
+        )
       if (
         setupFiles.length > 0 &&
         (typeof binding.projectTestEntrySetupVersion !== 'function' ||
-          binding.projectTestEntrySetupVersion() !== 1)
+          binding.projectTestEntrySetupVersion() < 1)
       ) {
         throw new Error(
           'The installed Turbopack binding does not support compiled test setup files'
         )
       }
+      if (
+        snapshotSerializers.length &&
+        (typeof binding.projectTestEntrySetupVersion !== 'function' ||
+          binding.projectTestEntrySetupVersion() < 2)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support compiled snapshot serializer modules'
+        )
+      if (
+        setupFiles.length &&
+        setupFilesSequence === 'parallel' &&
+        (typeof binding.projectTestEntrySetupVersion !== 'function' ||
+          binding.projectTestEntrySetupVersion() < 3)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support parallel test setup loading'
+        )
+      if (
+        cohortFiles.length &&
+        (typeof binding.projectTestEntryCohortVersion !== 'function' ||
+          binding.projectTestEntryCohortVersion() < 1)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support shared immutable test cohorts'
+        )
       return new EndpointImpl(
         await binding.projectTestEntry(
           this._nativeProject,
           file,
           id,
           environment,
-          [...setupFiles]
+          [...setupFiles],
+          [...snapshotSerializers],
+          [...cohortFiles],
+          runtimeEnv,
+          route,
+          ...(browserClient
+            ? ([dependencyPlan, true] as const)
+            : dependencyPlan
+              ? ([true] as const)
+              : ([] as const))
         )
       )
     }
@@ -1349,6 +1431,10 @@ function bindingToApi(
     turboEngineOptions,
     callbacks?: import('./types').TurbopackProjectCallbacks
   ) {
+    requireProductionFixtureCapability(
+      binding,
+      Boolean(options.browserFixtureHost) && !options.dev
+    )
     const { value, issues } = await binding.projectNew(
       await rustifyProjectOptions(options),
       turboEngineOptions,

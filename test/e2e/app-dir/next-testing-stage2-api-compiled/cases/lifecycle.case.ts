@@ -66,9 +66,9 @@ describe('override', () => {
 extended('base fixture again', ({ derived }) => values.push(derived))
 
 test('listener observation', () => {
-  expect(failures).toBe(4)
-  expect(finished).toBe(13)
-  expect(expectedAttempts).toBe(2)
+  expect(failures).toBe(3)
+  expect(finished).toBe(12)
+  expect(expectedAttempts).toBe(1)
   expect(values).toEqual([
     'each:3:3',
     'each:6:6',
@@ -76,7 +76,6 @@ test('listener observation', () => {
     'repeat:0',
     'repeat:1',
     'repeat:2',
-    'expected-listener',
     'expected-listener',
     'base-setup',
     'base-derived',

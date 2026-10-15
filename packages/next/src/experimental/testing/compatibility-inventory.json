@@ -3817,7 +3817,7 @@
     {
       "api": "vitest:createExpect",
       "surface": "runtime export",
-      "implemented": false,
+      "implemented": true,
       "overloads": [
         "(test?: Test<object> | TaskPopulated | undefined): ExpectStatic"
       ],
@@ -4090,7 +4090,7 @@
     {
       "api": "vitest:inject",
       "surface": "runtime export",
-      "implemented": false,
+      "implemented": true,
       "overloads": [
         "<T extends keyof ProvidedContext & string>(key: T): ProvidedContext[T]"
       ],

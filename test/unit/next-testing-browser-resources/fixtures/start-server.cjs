@@ -19,6 +19,11 @@ process.on('message', (message) => {
     )
   )
     throw new Error('Logical route was externally prefixed')
+  if (
+    scenario.startsWith('production-fixture') &&
+    message.nextWorkerOptions.browserFixtureHost
+  )
+    throw new Error('Production server received dynamic fixture registration')
   writeFileSync(join(dir, 'server.pid'), String(process.pid))
   const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
     stdio: 'inherit',
@@ -41,7 +46,10 @@ process.on('message', (message) => {
       nextServerReady: true,
       port: String(server.address().port),
       distDir: scenario === 'wrong-output' ? '.other' : '.next',
-      basePath: scenario === 'base-path' ? '/docs' : '',
+      basePath:
+        scenario === 'base-path' || scenario === 'production-fixture-base-path'
+          ? '/docs'
+          : '',
     })
   })
   if (scenario !== 'shutdown-signal') {

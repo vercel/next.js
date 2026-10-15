@@ -134,6 +134,7 @@ class NextRootCommand extends Command {
       if (
         commandName !== 'dev' &&
         commandName !== 'start' &&
+        commandName !== 'test' &&
         event.getOptionValue('inspect') === true
       ) {
         console.error(
@@ -691,14 +692,99 @@ program
     '--list',
     'List selected test files and their requested Next profiles.'
   )
-  .option('--run', 'Run selected tests once (the default).')
+  .option(
+    '--json',
+    'With --list, print collected test names and files as JSON.'
+  )
+  .option(
+    '--staticParse <boolean>',
+    'With --list --json, parse declarations statically by default; false explicitly evaluates setup and test modules for collection.'
+  )
+  .option(
+    '--run',
+    'Run selected tests once instead of watching an interactive terminal.'
+  )
   .option('--watch', 'Watch for changes (requires watch capability).')
   .option(
     '--update',
     'Update snapshots in an explicitly requested one-shot run.'
   )
+  .option(
+    '--api [port]',
+    'Open a loopback, read-only discovery API for a one-shot run (0 selects a free port).'
+  )
   .option('--capabilities', 'Print the supported test capabilities as JSON.')
   .option('--coverage', 'Collect one-shot development Node line coverage.')
+  .option(
+    '--coverage.reporter <name>',
+    'Standard coverage reporter: json or lcov.',
+    (value: string, previous?: string[]) => [...(previous ?? []), value]
+  )
+  .option(
+    '--coverage.include <glob>',
+    'Include original JavaScript sources in standard coverage.',
+    (value: string, previous?: string[]) => [...(previous ?? []), value]
+  )
+  .option(
+    '--coverage.exclude <glob>',
+    'Exclude original sources from standard coverage.',
+    (value: string, previous?: string[]) => [...(previous ?? []), value]
+  )
+  .option(
+    '--coverage.reportsDirectory <path>',
+    'Dedicated standard coverage report directory inside the project.'
+  )
+  .option(
+    '--coverage.reportOnFailure [boolean]',
+    'Publish complete standard coverage after failed test execution.'
+  )
+  .option(
+    '--coverage.thresholds.statements <percent>',
+    'Global standard statement coverage threshold.'
+  )
+  .option(
+    '--coverage.thresholds.functions <percent>',
+    'Global standard function coverage threshold.'
+  )
+  .option(
+    '--coverage.thresholds.branches <percent>',
+    'Global standard branch coverage threshold.'
+  )
+  .option(
+    '--coverage.thresholds.lines <percent>',
+    'Global standard line coverage threshold.'
+  )
+  .option(
+    '--typecheck',
+    'Check type-test files with the project TypeScript compiler.'
+  )
+  .option('--no-typecheck', 'Disable configured type-test checking.')
+  .option(
+    '--typecheck.only',
+    'Check type-test files without running runtime tests.'
+  )
+  .option(
+    '--inspect [address]',
+    'Inspect the actual test worker at [host:]port (default 127.0.0.1:9229).'
+  )
+  .option('--no-file-parallelism', 'Run one file worker at a time.')
+  .option('--retry <count>', 'Retry a failing test up to this many times.')
+  .option('--bail <count>', 'Stop starting tests after this many failed tests.')
+  .option(
+    '--testTimeout <milliseconds>',
+    'Default test timeout; 0 disables it.'
+  )
+  .option(
+    '--hookTimeout <milliseconds>',
+    'Default hook timeout; 0 disables it.'
+  )
+  .option(
+    '--allowOnly',
+    'Allow focused tests and suites (defaults to false in CI).'
+  )
+  .option('--no-allowOnly', 'Fail focused tests and suites.')
+  .option('--passWithNoTests', 'Succeed when no test files or tests are found.')
+  .option('--no-passWithNoTests', 'Fail when no test files or tests are found.')
   .option('--project <name>', 'Select a project from next.test.config.json.')
   .option(
     '--max-workers <count>',
@@ -707,6 +793,14 @@ program
   .option(
     '--shard <index/count>',
     'Run a deterministic, one-based shard of the selected files.'
+  )
+  .option(
+    '--related <file...>',
+    'Run tests depending on the given source files.'
+  )
+  .option(
+    '--changed [since]',
+    'Run tests affected by Git changes since an optional revision.'
   )
   .option(
     '--filter <substring...>',
@@ -718,7 +812,8 @@ program
   )
   .option(
     '--reporter <name...>',
-    'Result reporter: default, json, junit, or blob.'
+    'Result reporter: default, verbose, dot, tap, tap-flat, github-actions, json, junit, or blob.',
+    (value: string, previous?: string[]) => [...(previous ?? []), value]
   )
   .option('--outputFile <path>', 'Write a machine result report to this file.')
   .option(

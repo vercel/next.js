@@ -35,6 +35,11 @@ process.on('message', async (message) => {
     delete serverEnv.NEXT_PHASE
     delete serverEnv.__NEXT_DEV_SERVER
     const { nextBuild } = requireFromProject('next/dist/cli/next-build')
+    const {
+      browserFixturePages,
+      browserFixtureManifestFiles,
+    } = require('../../../build/swc/browser-fixtures')
+    const fixturePages = browserFixturePages(input.browserFixtureHost)
     await nextBuild(
       {
         turbopack: true,
@@ -42,7 +47,10 @@ process.on('message', async (message) => {
         experimentalDebugMemoryUsage: false,
         experimentalBuildMode: 'default',
       },
-      input.projectDir
+      input.projectDir,
+      input.browserFixtureHost
+        ? { browserFixtureHost: input.browserFixtureHost }
+        : undefined
     )
     if (stopping) return
     const distDir = await realpath(resolve(input.projectDir, input.distDir))
@@ -51,6 +59,7 @@ process.on('message', async (message) => {
       'required-server-files.json',
       'routes-manifest.json',
       'prerender-manifest.json',
+      ...browserFixtureManifestFiles(input.browserFixtureHost),
     ]
     const contents = await Promise.all(
       files.map((file) => readFile(join(distDir, file)))
@@ -67,9 +76,34 @@ process.on('message', async (message) => {
         'Production application build does not satisfy its server lease'
       )
     }
+    if (fixturePages.length) {
+      const appPaths = JSON.parse(
+        await readFile(join(distDir, 'server/app-paths-manifest.json'), 'utf8')
+      )
+      const appRoutes = JSON.parse(
+        await readFile(join(distDir, 'app-path-routes-manifest.json'), 'utf8')
+      )
+      for (const { pathname, originalName } of fixturePages) {
+        if (
+          appPaths[originalName] !== `app${originalName}.js` ||
+          appRoutes[originalName] !== pathname
+        )
+          throw new Error(
+            'Production browser fixture was not emitted as its registered App Page'
+          )
+      }
+    }
     process.send?.({
       nextApplicationBuild: true,
       buildId,
+      ...(input.browserFixtureHost
+        ? {
+            componentHost: {
+              routePrefix: input.browserFixtureHost.routePrefix,
+              fixtureIds: input.browserFixtureHost.fixtures.map(({ id }) => id),
+            },
+          }
+        : {}),
       testingApiEnabled:
         config.experimental?.exposeTestingApiInProductionBuild === true,
       manifests: Object.fromEntries(

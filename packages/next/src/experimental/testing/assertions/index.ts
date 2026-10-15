@@ -1,9 +1,11 @@
 /// <reference lib="es2021.promise" />
+import { VitestSnapshotEnvironment } from './snapshot-environment'
+import { assertAssertionScope } from './assertion-platform'
 import {
   resolveSnapshotUpdateMode,
   stageSnapshotUpdates,
   type SnapshotUpdateMode,
-} from './snapshots'
+} from './snapshot-common'
 import { createAttemptUtilities, type AttemptUtilities } from './utilities'
 import {
   ASYMMETRIC_MATCHERS_OBJECT,
@@ -20,28 +22,32 @@ import {
   setState,
   recordAsyncExpect,
   subsetEquality,
-  type Assertion,
+  type Assertion as PrimitiveAssertion,
+  type AsymmetricMatchersContaining as PrimitiveAsymmetricMatchersContaining,
   type ExpectStatic,
   type MockInstance,
+  type MaybeMockedDeep,
+  mockObject as automockObject,
   spies,
   SnapshotClient,
-  NodeSnapshotEnvironment,
   addSerializer,
+  addCustomEqualityTesters,
+  getCustomEqualityTesters,
   getSerializers,
   stripSnapshotIndentation,
   type SnapshotStateOptions,
 } from '../../../compiled/next-test-primitives'
 
-class VitestSnapshotEnvironment extends NodeSnapshotEnvironment {
-  getHeader() {
-    return `// Vitest Snapshot v${this.getVersion()}, https://vitest.dev/guide/snapshot.html`
-  }
-}
-
 const realSetTimeout = globalThis.setTimeout.bind(globalThis)
 const realDateNow = Date.now.bind(Date)
+import { assertAssertionLifecycleScope } from './assertion-platform'
 
-export type { Mock, MockInstance } from '../../../compiled/next-test-primitives'
+export type {
+  Mock,
+  MockInstance,
+  Tester,
+  TesterContext,
+} from '../../../compiled/next-test-primitives'
 export type {
   MatcherState,
   MatchersObject,
@@ -53,21 +59,47 @@ export interface AssertionAttempt {
   testId: string
   name: string
   signal?: AbortSignal
+  onAssertionFailure?(error: unknown): void
+}
+
+export interface AssertionCollection {
+  id: string
+  name: string
 }
 
 export interface AssertionHook {
   id: string
   name: string
-  hook: 'beforeAll' | 'afterAll' | 'cleanup'
+  hook: 'beforeAll' | 'afterAll' | 'aroundAll' | 'cleanup'
 }
 
 // Declaration merging supplies user-defined matcher methods through the facade.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export interface Matchers<R = void, T = unknown> {}
 
-export interface TestAssertion<T = unknown>
-  extends Assertion<void, T>,
-    Matchers<void, T> {
+export interface Assertion<R extends void | Promise<void> = void, T = unknown>
+  extends PrimitiveAssertion<R, T>,
+    Matchers<R, T> {
+  not: Assertion<R, T>
+  resolves: Assertion<Promise<void>, T>
+  rejects: Assertion<Promise<void>, T>
+  toMatchSnapshot(propertiesOrMessage?: object | string, message?: string): R
+  toMatchInlineSnapshot(
+    propertiesOrSnapshot?: object | string,
+    snapshotOrMessage?: string,
+    message?: string
+  ): R
+  toMatchFileSnapshot(filepath: string, message?: string): Promise<void>
+  toThrowErrorMatchingSnapshot(
+    propertiesOrMessage?: object | string,
+    message?: string
+  ): R
+  toThrowErrorMatchingInlineSnapshot(snapshot?: string, message?: string): R
+}
+export interface AsymmetricMatchersContaining
+  extends PrimitiveAsymmetricMatchersContaining {}
+
+export interface TestAssertion<T = unknown> extends Assertion<void, T> {
   toMatchSnapshot(propertiesOrMessage?: object | string, message?: string): void
   toMatchInlineSnapshot(
     propertiesOrSnapshot?: object | string,
@@ -77,7 +109,7 @@ export interface TestAssertion<T = unknown>
   toMatchFileSnapshot(filepath: string, message?: string): Promise<void>
 }
 
-export interface TestExpect extends ExpectStatic {
+export interface TestExpect extends ExpectStatic, AsymmetricMatchersContaining {
   <T>(actual: T, message?: string): TestAssertion<T>
   soft<T>(actual: T, message?: string): TestAssertion<T>
   poll<T>(
@@ -85,6 +117,9 @@ export interface TestExpect extends ExpectStatic {
     options?: { interval?: number; timeout?: number; message?: string }
   ): TestAssertion<Awaited<T>> & PromiseLike<void>
   addSnapshotSerializer(plugin: Parameters<typeof addSerializer>[0]): void
+  addEqualityTesters(
+    testers: Parameters<typeof addCustomEqualityTesters>[0]
+  ): void
   assertions(count: number): void
   hasAssertions(): void
 }
@@ -102,12 +137,24 @@ let authorizedMockMutation = 0
 
 /**
  * One instance per execution realm/file. No Vitest worker or runner is loaded.
- * C serializes attempts in the realm and owns all timeout/cancellation decisions.
+ * C schedules attempts in the realm and owns all timeout/cancellation decisions.
  */
 export async function createAssertionRuntime(options: {
   testPath: string
+  collectOnly?: boolean
+  resourceLifetime?: 'attempt' | 'file'
+  fakeTimers?: import('./utilities').FakeTimerOptions
+  runtimeConfig?: import('./utilities').RuntimeOptions
+  waitForImports?: () => Promise<void>
+  clearMocks?: boolean
+  mockReset?: boolean
+  restoreMocks?: boolean
+  unstubGlobals?: boolean
+  unstubEnvs?: boolean
   getCurrentAttempt: () => AssertionAttempt | undefined
   getCurrentHook?: () => AssertionHook | undefined
+  getCurrentCollection?: () => AssertionCollection | undefined
+  getCurrentScopeAncestors?: () => readonly string[]
   snapshotOptions?: SnapshotStateOptions
   updateSnapshots?: boolean
   snapshotUpdateMode?: SnapshotUpdateMode
@@ -138,43 +185,46 @@ export async function createAssertionRuntime(options: {
       stagedSnapshots.environment.processStackTrace =
         options.mapSnapshotLocation
     }
-    await snapshots.setup(options.testPath, {
-      ...snapshotOptions,
-      snapshotEnvironment: stagedSnapshots.environment,
-    })
+    if (!options.collectOnly)
+      await snapshots.setup(options.testPath, {
+        ...snapshotOptions,
+        snapshotEnvironment: stagedSnapshots.environment,
+      })
   } catch (error) {
     runtimeActive = false
     throw error
   }
 
-  let active:
-    | {
-        context: AssertionAttempt | AssertionHook
-        kind: 'attempt' | 'hook'
-        task: AssertionTask
-        finalized: boolean
-        mocks: Set<{ mock: MockInstance; restore: boolean }>
-        serializers: Set<Parameters<typeof addSerializer>[0]>
-        utilities: AttemptUtilities
-      }
-    | undefined
+  type AssertionScope = {
+    context: AssertionAttempt | AssertionHook | AssertionCollection
+    kind: 'attempt' | 'hook' | 'collection'
+    ancestors: readonly string[]
+    task: AssertionTask
+    finalized: boolean
+    mocks: Set<{ mock: MockInstance; restore: boolean }>
+    serializers: Set<Parameters<typeof addSerializer>[0]>
+    utilities: AttemptUtilities
+  }
+  const scopes = new Map<string, AssertionScope>()
+  function originatingScope() {
+    // Read all origin accessors so C still attributes closed asynchronous work
+    // to its original owner, even after this runtime or another scope finishes.
+    const attempt = options.getCurrentAttempt()
+    const hook = options.getCurrentHook?.()
+    const collection = options.getCurrentCollection?.()
+    const origin = attempt ?? hook ?? collection
+    return origin ? scopes.get(origin.id) : undefined
+  }
   const snapshotTests = new Set<string>()
+  const suspendedScopes = new Set<AssertionScope>()
   let snapshotSelection: { partial: boolean; complete: boolean } | undefined
   let snapshotResult: Awaited<ReturnType<SnapshotClient['finish']>> | undefined
   let disposed = false
   function current() {
     // Consult origin accessors even after disposal: C records late work here,
     // including when user code retained a direct assertion/spy function.
-    const originatingAttempt = options.getCurrentAttempt()
-    const originatingHook = options.getCurrentHook?.()
-    if (
-      disposed ||
-      !active ||
-      active.finalized ||
-      (active.kind === 'attempt'
-        ? originatingAttempt?.id
-        : originatingHook?.id) !== active.context.id
-    ) {
+    const active = originatingScope()
+    if (disposed || !active || active.finalized) {
       throw new Error(
         'expect() requires an active Next test attempt or suite hook'
       )
@@ -183,22 +233,55 @@ export async function createAssertionRuntime(options: {
   }
 
   function requireScopeAccess() {
-    if (active) current()
+    if (scopes.size) current()
     else {
       const originatingAttempt = options.getCurrentAttempt()
       const originatingHook = options.getCurrentHook?.()
-      if (disposed || originatingAttempt || originatingHook) {
+      if (
+        disposed ||
+        originatingAttempt ||
+        originatingHook ||
+        options.getCurrentCollection?.()
+      ) {
         throw new Error('Cannot access a disposed assertion scope')
       }
     }
   }
 
-  function guardAssertion(
-    assertion: object,
-    scope: NonNullable<typeof active>
-  ) {
+  const runtimeConfig = options.runtimeConfig ?? {
+    fakeTimers: {
+      loopLimit: 10000,
+      shouldClearNativeTimers: true,
+      ...options.fakeTimers,
+    },
+    clearMocks: options.clearMocks,
+    mockReset: options.mockReset,
+    restoreMocks: options.restoreMocks,
+  }
+  const equalityTesters: Parameters<typeof addCustomEqualityTesters>[0] = []
+  const fileOwned = options.resourceLifetime === 'file'
+  const fileUtilities = fileOwned
+    ? createAttemptUtilities(
+        requireScopeAccess,
+        options.fakeTimers,
+        runtimeConfig,
+        options.waitForImports
+      )
+    : undefined
+
+  const collectionUtilities =
+    fileUtilities ??
+    createAttemptUtilities(
+      requireScopeAccess,
+      options.fakeTimers,
+      runtimeConfig,
+      options.waitForImports
+    )
+
+  function guardAssertion(assertion: object, scope: AssertionScope) {
     const proxies = new WeakMap<object, object>()
     function check() {
+      assertAssertionScope()
       if (current() !== scope) {
         throw new Error(
           'Assertion was created in a different Next assertion scope'
@@ -217,7 +300,12 @@ export async function createAssertionRuntime(options: {
           check()
           const result = Reflect.get(target, property, target)
           if (typeof result === 'function')
-            return wrap(result, target, property === 'toMatchInlineSnapshot')
+            return wrap(
+              result,
+              target,
+              property === 'toMatchInlineSnapshot' ||
+                property === 'toThrowErrorMatchingInlineSnapshot'
+            )
           if (result instanceof chai.Assertion) return wrap(result)
           return result
         },
@@ -251,223 +339,289 @@ export async function createAssertionRuntime(options: {
     return wrap(assertion)
   }
 
-  const expect = ((value: unknown, message?: string) => {
-    const scope = current()
-    const { task } = scope
-    const state = getState(expect)
-    state.assertionCalls++
-    const assertion = chai.expect(value, message)
-    // The standalone matcher library uses this small bookkeeping object for
-    // async assertions. It does not register or execute a Vitest test.
-    chai.util.flag(assertion, 'vitest-test', task)
-    return guardAssertion(assertion, scope)
-  }) as TestExpect
-  Object.assign(expect, chai.expect)
-  const globals = globalThis as typeof globalThis & Record<symbol, unknown>
-  Object.assign(expect, globals[ASYMMETRIC_MATCHERS_OBJECT])
-  expect.soft = ((value: unknown, message?: string) =>
-    (expect(value, message) as any).withContext({
-      soft: true,
-    })) as TestExpect['soft']
-  expect.poll = ((
-    callback: (options: { signal: AbortSignal }) => unknown | Promise<unknown>,
-    pollOptions: { interval?: number; timeout?: number; message?: string } = {}
-  ) => {
-    const scope = current()
-    if (typeof callback !== 'function')
-      throw new TypeError('expect.poll() requires a callback')
-    const interval = pollOptions.interval ?? 50
-    const timeout = pollOptions.timeout ?? 1000
-    if (!Number.isFinite(interval) || interval < 0)
-      throw new TypeError(
-        'expect.poll() interval must be a non-negative number'
-      )
-    if (!Number.isFinite(timeout) || timeout < 0)
-      throw new TypeError('expect.poll() timeout must be a non-negative number')
-    const assertion = expect(null, pollOptions.message)
-    chai.util.flag(assertion, 'poll', true)
-    const unsupported = new Set([
-      'resolves',
-      'rejects',
-      'toMatchSnapshot',
-      'toMatchInlineSnapshot',
-      'toMatchFileSnapshot',
-      'toThrow',
-      'toThrowError',
-      'throws',
-      'throw',
-      'Throw',
-    ])
-    let awaited = false
-    let running: Promise<void> | undefined
-    const callsite = new Error('expect.poll() assertion failed')
-    const proxy = new Proxy(assertion as object, {
-      get(target, property, receiver) {
-        const value = Reflect.get(target, property, receiver)
-        if (value instanceof chai.Assertion) return proxy
-        if (typeof value !== 'function') return value
-        if (
-          property === 'then' ||
-          property === 'catch' ||
-          property === 'finally'
+  const localExpectations = new Map<string, TestExpect>()
+  function createExpect(test?: {
+    id: string
+    fullTestName?: string
+  }): TestExpect {
+    requireScopeAccess()
+    function expectationScope() {
+      const scope = current()
+      if (
+        test &&
+        (scope.kind !== 'attempt' ||
+          !('testId' in scope.context) ||
+          scope.context.testId !== test.id)
+      ) {
+        throw new Error('Expectation belongs to a different Next test.')
+      }
+      return scope
+    }
+    function requireExpectationAccess() {
+      requireScopeAccess()
+      if (test && scopes.size) expectationScope()
+    }
+    const expect = ((value: unknown, message?: string) => {
+      const scope = expectationScope()
+      const { task } = scope
+      const state = getState(expect)
+      state.assertionCalls++
+      const assertion = chai.expect(value, message)
+      // The standalone matcher library uses this small bookkeeping object for
+      // async assertions. It does not register or execute a Vitest test.
+      chai.util.flag(assertion, 'vitest-test', task)
+      return guardAssertion(assertion, scope)
+    }) as TestExpect
+    Object.assign(expect, chai.expect)
+    const globals = globalThis as typeof globalThis & Record<symbol, unknown>
+    Object.assign(expect, globals[ASYMMETRIC_MATCHERS_OBJECT])
+    expect.soft = ((value: unknown, message?: string) =>
+      (expect(value, message) as any).withContext({
+        soft: true,
+      })) as TestExpect['soft']
+    expect.poll = ((
+      callback: (options: {
+        signal: AbortSignal
+      }) => unknown | Promise<unknown>,
+      pollOptions: {
+        interval?: number
+        timeout?: number
+        message?: string
+      } = {}
+    ) => {
+      const scope = expectationScope()
+      if (typeof callback !== 'function')
+        throw new TypeError('expect.poll() requires a callback')
+      const interval =
+        pollOptions.interval ?? runtimeConfig.expect?.poll?.interval ?? 50
+      const timeout =
+        pollOptions.timeout ?? runtimeConfig.expect?.poll?.timeout ?? 1000
+      if (!Number.isFinite(interval) || interval < 0)
+        throw new TypeError(
+          'expect.poll() interval must be a non-negative number'
         )
-          return undefined
-        if (typeof property === 'string' && unsupported.has(property)) {
-          throw new SyntaxError(
-            `expect.poll() is not supported in combination with .${property}().`
+      if (!Number.isFinite(timeout) || timeout < 0)
+        throw new TypeError(
+          'expect.poll() timeout must be a non-negative number'
+        )
+      const assertion = expect(null, pollOptions.message)
+      chai.util.flag(assertion, 'poll', true)
+      const unsupported = new Set([
+        'resolves',
+        'rejects',
+        'toMatchSnapshot',
+        'toMatchInlineSnapshot',
+        'toMatchFileSnapshot',
+        'toThrowErrorMatchingSnapshot',
+        'toThrowErrorMatchingInlineSnapshot',
+        'toThrow',
+        'toThrowError',
+        'throws',
+        'throw',
+        'Throw',
+      ])
+      let awaited = false
+      let running: Promise<void> | undefined
+      const callsite = new Error('expect.poll() assertion failed')
+      const proxy = new Proxy(assertion as object, {
+        get(target, property, receiver) {
+          const value = Reflect.get(target, property, receiver)
+          if (value instanceof chai.Assertion) return proxy
+          if (typeof value !== 'function') return value
+          if (
+            property === 'then' ||
+            property === 'catch' ||
+            property === 'finally'
           )
-        }
-        return (...args: unknown[]) => {
-          const run = async () => {
-            const started = realDateNow()
-            let lastError: unknown
-            do {
-              current()
-              const signal =
-                'signal' in scope.context ? scope.context.signal : undefined
-              signal?.throwIfAborted()
-              try {
-                chai.util.flag(
-                  assertion,
-                  'object',
-                  await callback({
-                    signal: signal ?? new AbortController().signal,
-                  })
+            return undefined
+          if (typeof property === 'string' && unsupported.has(property)) {
+            throw new SyntaxError(
+              `expect.poll() is not supported in combination with .${property}().`
+            )
+          }
+          return (...args: unknown[]) => {
+            const run = async () => {
+              const started = realDateNow()
+              let lastError: unknown
+              do {
+                expectationScope()
+                const signal =
+                  'signal' in scope.context ? scope.context.signal : undefined
+                signal?.throwIfAborted()
+                try {
+                  chai.util.flag(
+                    assertion,
+                    'object',
+                    await callback({
+                      signal: signal ?? new AbortController().signal,
+                    })
+                  )
+                  await Reflect.apply(value, assertion, args)
+                  return
+                } catch (error) {
+                  lastError = error
+                }
+                const remaining = timeout - (realDateNow() - started)
+                if (remaining <= 0) break
+                await new Promise((resolve) =>
+                  realSetTimeout(resolve, Math.min(interval, remaining))
                 )
-                await Reflect.apply(value, assertion, args)
-                return
-              } catch (error) {
-                lastError = error
+              } while (realDateNow() - started <= timeout)
+              if (lastError instanceof Error && callsite.stack) {
+                lastError.cause ??= new Error(
+                  'Matcher did not succeed in time.'
+                )
+                lastError.stack = callsite.stack.replace(
+                  callsite.message,
+                  lastError.message
+                )
               }
-              const remaining = timeout - (realDateNow() - started)
-              if (remaining <= 0) break
-              await new Promise((resolve) =>
-                realSetTimeout(resolve, Math.min(interval, remaining))
-              )
-            } while (realDateNow() - started <= timeout)
-            if (lastError instanceof Error && callsite.stack) {
-              lastError.cause ??= new Error('Matcher did not succeed in time.')
-              lastError.stack = callsite.stack.replace(
-                callsite.message,
-                lastError.message
+              throw (
+                lastError ?? new Error('expect.poll() did not resolve in time')
               )
             }
-            throw (
-              lastError ?? new Error('expect.poll() did not resolve in time')
+            running ??= run()
+            // Finalization reports missing consumption; observe the rejection now
+            // so an unawaited failed poll cannot escape as a process rejection.
+            void running.catch(() => {})
+            return {
+              then(onFulfilled: any, onRejected: any) {
+                awaited = true
+                return running!.then(onFulfilled, onRejected)
+              },
+              catch(onRejected: any) {
+                awaited = true
+                return running!.catch(onRejected)
+              },
+              finally(onFinally: any) {
+                awaited = true
+                return running!.finally(onFinally)
+              },
+            }
+          }
+        },
+      })
+      scope.task.onFinished?.push(() => {
+        if (!awaited) {
+          const error = new Error(
+            'expect.poll() assertion was not awaited. This assertion is asynchronous and must be awaited.'
+          )
+          if (callsite.stack)
+            error.stack = callsite.stack.replace(
+              callsite.message,
+              error.message
             )
-          }
-          running ??= run()
-          // Finalization reports missing consumption; observe the rejection now
-          // so an unawaited failed poll cannot escape as a process rejection.
-          void running.catch(() => {})
-          return {
-            then(onFulfilled: any, onRejected: any) {
-              awaited = true
-              return running!.then(onFulfilled, onRejected)
-            },
-            catch(onRejected: any) {
-              awaited = true
-              return running!.catch(onRejected)
-            },
-            finally(onFinally: any) {
-              awaited = true
-              return running!.finally(onFinally)
-            },
-          }
+          throw error
         }
-      },
-    })
-    scope.task.onFinished?.push(() => {
-      if (!awaited) {
-        const error = new Error(
-          'expect.poll() assertion was not awaited. This assertion is asynchronous and must be awaited.'
+      })
+      return proxy
+    }) as TestExpect['poll']
+    expect.addSnapshotSerializer = (plugin) => {
+      requireExpectationAccess()
+      addSerializer(plugin)
+      const active = originatingScope()
+      if (active && active.kind !== 'collection' && !fileOwned)
+        active.serializers.add(plugin)
+      else fileSerializers.add(plugin)
+    }
+    expect.addEqualityTesters = (testers) => {
+      requireExpectationAccess()
+      addCustomEqualityTesters(testers)
+      equalityTesters.push(...testers)
+    }
+    expect.getState = () => {
+      requireExpectationAccess()
+      return getState(expect)
+    }
+    expect.setState = (state) => {
+      requireExpectationAccess()
+      setState(state, expect)
+    }
+    expect.extend = (matchers) => {
+      requireExpectationAccess()
+      ;(
+        chai.expect as unknown as {
+          extend(
+            expect: ExpectStatic,
+            matchers: Parameters<ExpectStatic['extend']>[0]
+          ): void
+        }
+      ).extend(expect, matchers)
+      for (const name of Object.keys(matchers)) {
+        chai.util.overwriteMethod(
+          chai.Assertion.prototype,
+          name,
+          (original: (...args: unknown[]) => any) => {
+            return function customAssertion(
+              this: NextTestChai.AssertionStatic,
+              ...args: unknown[]
+            ) {
+              const { task } = current()
+              const callsite = new Error()
+              Error.captureStackTrace?.(callsite, customAssertion)
+              const result = original.apply(this, args)
+              if (!result || typeof result.then !== 'function') return result
+              const promise = Promise.resolve(result).catch(
+                (error: unknown) => {
+                  if (error instanceof Error && callsite.stack) {
+                    error.stack = `${error.name}: ${error.message}\n${callsite.stack.split('\n').slice(1).join('\n')}`
+                  }
+                  throw error
+                }
+              )
+              return recordAsyncExpect(
+                task,
+                promise,
+                `expect(actual).${name}()`,
+                callsite
+              )
+            }
+          }
         )
-        if (callsite.stack)
-          error.stack = callsite.stack.replace(callsite.message, error.message)
-        throw error
       }
-    })
-    return proxy
-  }) as TestExpect['poll']
-  expect.addSnapshotSerializer = (plugin) => {
-    requireScopeAccess()
-    addSerializer(plugin)
-    if (active) active.serializers.add(plugin)
-    else fileSerializers.add(plugin)
-  }
-  expect.getState = () => {
-    requireScopeAccess()
-    return getState(expect)
-  }
-  expect.setState = (state) => {
-    requireScopeAccess()
-    setState(state, expect)
-  }
-  expect.extend = (matchers) => {
-    requireScopeAccess()
-    ;(
-      chai.expect as unknown as {
-        extend(
-          expect: ExpectStatic,
-          matchers: Parameters<ExpectStatic['extend']>[0]
-        ): void
-      }
-    ).extend(expect, matchers)
-    for (const name of Object.keys(matchers)) {
-      chai.util.overwriteMethod(
-        chai.Assertion.prototype,
-        name,
-        (original: (...args: unknown[]) => any) => {
-          return function customAssertion(
-            this: NextTestChai.AssertionStatic,
-            ...args: unknown[]
-          ) {
-            const { task } = current()
-            const callsite = new Error()
-            Error.captureStackTrace?.(callsite, customAssertion)
-            const result = original.apply(this, args)
-            if (!result || typeof result.then !== 'function') return result
-            const promise = Promise.resolve(result).catch((error: unknown) => {
-              if (error instanceof Error && callsite.stack) {
-                error.stack = `${error.name}: ${error.message}\n${callsite.stack.split('\n').slice(1).join('\n')}`
-              }
-              throw error
-            })
-            return recordAsyncExpect(
-              task,
-              promise,
-              `expect(actual).${name}()`,
-              callsite
-            )
-          }
-        }
+    }
+    expect.assertions = (count) => {
+      expectationScope()
+      const error = new Error()
+      Error.captureStackTrace?.(error, expect.assertions)
+      setState(
+        {
+          expectedAssertionsNumber: count,
+          expectedAssertionsNumberErrorGen: () => {
+            error.message = `expected number of assertions to be ${count}, but got ${getState(expect).assertionCalls}`
+            return error
+          },
+        },
+        expect
       )
     }
-  }
-  expect.assertions = (count) => {
-    current()
-    const error = new Error()
-    Error.captureStackTrace?.(error, expect.assertions)
+    expect.hasAssertions = () => {
+      expectationScope()
+      const error = new Error('expected any number of assertion, but got none')
+      Error.captureStackTrace?.(error, expect.hasAssertions)
+      setState(
+        { isExpectingAssertions: true, isExpectingAssertionsError: error },
+        expect
+      )
+    }
     setState(
       {
-        expectedAssertionsNumber: count,
-        expectedAssertionsNumberErrorGen: () => {
-          error.message = `expected number of assertions to be ${count}, but got ${getState(expect).assertionCalls}`
-          return error
-        },
+        ...getState(globals[GLOBAL_EXPECT] as ExpectStatic),
+        assertionCalls: 0,
+        expectedAssertionsNumber: null,
+        expectedAssertionsNumberErrorGen: null,
+        isExpectingAssertions: false,
+        isExpectingAssertionsError: null,
+        testPath: options.testPath,
+        ...(test ? { currentTestName: test.fullTestName ?? '' } : {}),
       },
       expect
     )
+    Object.defineProperty(expect, 'assert', { get: () => assert })
+    expect.extend(customMatchers)
+    return expect
   }
-  expect.hasAssertions = () => {
-    current()
-    const error = new Error('expected any number of assertion, but got none')
-    Error.captureStackTrace?.(error, expect.hasAssertions)
-    setState(
-      { isExpectingAssertions: true, isExpectingAssertionsError: error },
-      expect
-    )
-  }
+  const expect = createExpect()
 
   const previousGlobalExpect = Object.getOwnPropertyDescriptor(
     globalThis,
@@ -478,8 +632,30 @@ export async function createAssertionRuntime(options: {
     writable: true,
     value: expect,
   })
-  setState({ assertionCalls: 0 }, expect)
-  expect.extend(customMatchers)
+  function snapshotOwner() {
+    const { context, kind } = current()
+    if (kind !== 'attempt' || !('testId' in context))
+      throw new Error(
+        'Snapshots are unsupported in suite hooks without a test identity'
+      )
+    snapshotTests.add(context.testId)
+    return context
+  }
+  function snapshotError(received: unknown, promise: string | undefined) {
+    if (typeof received !== 'function') {
+      if (!promise)
+        throw new Error(
+          `expected must be a function, received ${typeof received}`
+        )
+      return received
+    }
+    try {
+      received()
+    } catch (error) {
+      return error
+    }
+    throw new Error("snapshot function didn't throw")
+  }
   expect.extend({
     toMatchSnapshot(
       received,
@@ -551,6 +727,64 @@ export async function createAssertionRuntime(options: {
         error,
         isInline: true,
         assertionName: 'toMatchInlineSnapshot',
+      })
+    },
+    toThrowErrorMatchingSnapshot(
+      received,
+      propertiesOrMessage?: object | string,
+      message?: string
+    ) {
+      if (this.isNot)
+        throw new Error('toThrowErrorMatchingSnapshot cannot be used with not')
+      const context = snapshotOwner()
+      return snapshots.match({
+        received: snapshotError(
+          received,
+          chai.util.flag(this.assertion, 'promise')
+        ),
+        filepath: options.testPath,
+        name: context.name,
+        testId: context.testId,
+        properties:
+          typeof propertiesOrMessage === 'object'
+            ? propertiesOrMessage
+            : undefined,
+        message:
+          typeof propertiesOrMessage === 'string'
+            ? propertiesOrMessage
+            : message,
+        error: new Error(),
+        assertionName: 'toThrowErrorMatchingSnapshot',
+      })
+    },
+    toThrowErrorMatchingInlineSnapshot(
+      received,
+      inlineSnapshot?: string,
+      message?: string
+    ) {
+      if (this.isNot)
+        throw new Error(
+          'toThrowErrorMatchingInlineSnapshot cannot be used with not'
+        )
+      const context = snapshotOwner()
+      return snapshots.match({
+        received: snapshotError(
+          received,
+          chai.util.flag(this.assertion, 'promise')
+        ),
+        filepath: options.testPath,
+        name: context.name,
+        testId: context.testId,
+        message,
+        error:
+          chai.util.flag(this.assertion, 'next-test-inline-callsite') ??
+          new Error(),
+        isInline: true,
+        inlineSnapshot:
+          inlineSnapshot === undefined
+            ? undefined
+            : stripSnapshotIndentation(inlineSnapshot),
+        assertionName: 'toThrowErrorMatchingInlineSnapshot',
       })
     },
     async toMatchFileSnapshot(received, filepath: string, message?: string) {
@@ -662,14 +896,32 @@ export async function createAssertionRuntime(options: {
       if (!registeredMocks.has(mock)) {
         registeredMocks.add(mock)
         guardMockMutators(mock)
-        if (active?.kind === 'attempt') active.mocks.add({ mock, restore })
+        const active = originatingScope()
+        if (!fileOwned && active?.kind === 'attempt')
+          active.mocks.add({ mock, restore })
         else fileMocks.add({ mock, restore })
       }
       return mock
     }) as T
   }
 
-  const trackedSpies: typeof spies = {
+  function mockObject<T>(
+    value: T,
+    mockOptions?: { spy?: boolean }
+  ): MaybeMockedDeep<T> {
+    requireScopeAccess()
+    return automockObject(
+      {
+        type: mockOptions?.spy ? 'autospy' : 'automock',
+        globalConstructors: { Object, Function, RegExp, Array, Map },
+        createMockInstance: trackedSpies.createMockInstance,
+      },
+      { value }
+    ).value
+  }
+
+  const trackedSpies: typeof spies & { mockObject: typeof mockObject } = {
+    mockObject,
     ...spies,
     fn: trackMock(spies.fn, false),
     spyOn: trackMock(spies.spyOn, true),
@@ -689,10 +941,10 @@ export async function createAssertionRuntime(options: {
   }
 
   function beginScope(
-    context: AssertionAttempt | AssertionHook,
-    kind: 'attempt' | 'hook'
+    context: AssertionAttempt | AssertionHook | AssertionCollection,
+    kind: 'attempt' | 'hook' | 'collection'
   ) {
-    if (disposed || active)
+    if (disposed || scopes.has(context.id))
       throw new Error('An assertion attempt is already active or disposed')
     const promises: Promise<unknown>[] = []
     const records: { rejected: boolean; error?: unknown }[] = []
@@ -728,22 +980,89 @@ export async function createAssertionRuntime(options: {
       promises,
       onFinished,
     }
-    const scope = {
+    if (
+      kind === 'attempt' &&
+      'onAssertionFailure' in context &&
+      context.onAssertionFailure
+    ) {
+      let result: AssertionTask['result']
+      Object.defineProperty(task, 'result', {
+        get: () => result,
+        set(value: AssertionTask['result']) {
+          result = value
+          if (!value) return
+          let errors = value.errors
+          const track = (values: unknown[] | undefined) =>
+            values &&
+            new Proxy(values, {
+              get(target, key, receiver) {
+                if (key === 'push')
+                  return (...added: unknown[]) => {
+                    for (const error of added)
+                      context.onAssertionFailure?.(error)
+                    return target.push(...added)
+                  }
+                return Reflect.get(target, key, receiver)
+              },
+            })
+          errors = track(errors)
+          Object.defineProperty(value, 'errors', {
+            configurable: true,
+            enumerable: true,
+            get: () => errors,
+            set: (values: unknown[] | undefined) => {
+              errors = track(values)
+            },
+          })
+        },
+      })
+    }
+    const scope: AssertionScope = {
       context,
       kind,
+      ancestors: options.getCurrentScopeAncestors?.() ?? [],
       task,
       finalized: false,
       mocks: new Set<{ mock: MockInstance; restore: boolean }>(),
       serializers: new Set<Parameters<typeof addSerializer>[0]>(),
       utilities: undefined as unknown as AttemptUtilities,
     }
-    scope.utilities = createAttemptUtilities(() => {
-      if (current() !== scope)
-        throw new Error(
-          'Test utility belongs to a different Next assertion scope'
-        )
-    })
-    active = scope
+    scope.utilities =
+      (kind === 'collection' ? collectionUtilities : fileUtilities) ??
+      createAttemptUtilities(
+        () => {
+          if (current() !== scope)
+            throw new Error(
+              'Test utility belongs to a different Next assertion scope'
+            )
+        },
+        options.fakeTimers,
+        runtimeConfig,
+        options.waitForImports
+      )
+    scopes.set(context.id, scope)
+    if (kind === 'attempt') {
+      try {
+        // Published 5.0.4 resets before every try, before user setup/fixtures.
+        const reset = (operation: () => void) => {
+          assertAssertionLifecycleScope(
+            context.id,
+            originatingScope()?.context.id,
+            scopes.get(context.id) === scope && !disposed && !scope.finalized
+          )
+          mutateMocks(operation)
+        }
+        if (runtimeConfig.restoreMocks) reset(() => spies.restoreAllMocks())
+        if (runtimeConfig.mockReset) reset(() => spies.resetAllMocks())
+        if (runtimeConfig.clearMocks ?? fileOwned)
+          reset(() => spies.clearAllMocks())
+        if (options.unstubEnvs) scope.utilities.unstubAllEnvs()
+        if (options.unstubGlobals) scope.utilities.unstubAllGlobals()
+      } catch (error) {
+        scopes.delete(context.id)
+        throw error
+      }
+    }
     if (kind === 'attempt' && 'testId' in context) {
       snapshotTests.delete(context.testId)
       snapshots.clearTest(options.testPath, context.testId)
@@ -764,6 +1083,33 @@ export async function createAssertionRuntime(options: {
     const checkedPromises = new Set<Promise<unknown>>()
     let checkedErrors = 0
     let checkedAssertions = false
+    let rejectedPromises = 0
+    function assertionCountErrors(): unknown[] {
+      if (kind === 'collection') return []
+      // The reference lazily selects the test-local instance, if accessed.
+      // Local state survives retries/repeats; manual instances are independent.
+      const selected =
+        kind === 'attempt' && 'testId' in context
+          ? (localExpectations.get(context.testId) ?? expect)
+          : expect
+      const state = getState(selected)
+      if (
+        state.expectedAssertionsNumber != null &&
+        state.assertionCalls !== state.expectedAssertionsNumber
+      ) {
+        return [state.expectedAssertionsNumberErrorGen!()]
+      }
+      if (state.isExpectingAssertions && state.assertionCalls === 0) {
+        return [state.isExpectingAssertionsError]
+      }
+      if (
+        runtimeConfig.expect?.requireAssertions &&
+        state.assertionCalls === 0
+      ) {
+        return [new Error('expected any number of assertion, but got none')]
+      }
+      return []
+    }
     async function checkpoint() {
       if (scope.finalized) return
       const errors: unknown[] = []
@@ -773,7 +1119,10 @@ export async function createAssertionRuntime(options: {
       uncheckedPromises.forEach((promise) => checkedPromises.add(promise))
       const pending = await Promise.allSettled(uncheckedPromises)
       for (const result of pending) {
-        if (result.status === 'rejected') errors.push(result.reason)
+        if (result.status === 'rejected') {
+          rejectedPromises++
+          errors.push(result.reason)
+        }
       }
       const newChecks = (task.onFinished ?? []).slice(checkedFinished)
       checkedFinished = task.onFinished?.length ?? 0
@@ -789,26 +1138,100 @@ export async function createAssertionRuntime(options: {
       }
       errors.push(...(task.result?.errors ?? []).slice(checkedErrors))
       checkedErrors = task.result?.errors?.length ?? 0
-      const state = getState(expect)
-      if (
-        !checkedAssertions &&
-        state.expectedAssertionsNumber != null &&
-        state.assertionCalls !== state.expectedAssertionsNumber
-      ) {
-        errors.push(state.expectedAssertionsNumberErrorGen!())
+      if (!checkedAssertions) {
+        checkedAssertions = true
+        errors.push(...assertionCountErrors())
       }
-      if (
-        !checkedAssertions &&
-        state.isExpectingAssertions &&
-        state.assertionCalls === 0
-      ) {
-        errors.push(state.isExpectingAssertionsError)
-      }
-      checkedAssertions = true
       if (errors.length)
         throw new AggregateError(errors, 'Test assertions failed')
     }
     return {
+      async suspend<T>(runInner: () => Promise<T>): Promise<T> {
+        if (
+          kind !== 'hook' ||
+          !('hook' in context) ||
+          context.hook !== 'aroundAll' ||
+          current() !== scope
+        )
+          throw new Error(
+            'Only an active aroundAll assertion scope may suspend'
+          )
+        const state = { ...getState(expect) }
+        suspendedScopes.add(scope)
+        scopes.delete(context.id)
+        try {
+          return await runInner()
+        } finally {
+          suspendedScopes.delete(scope)
+          if (
+            disposed ||
+            scope.finalized ||
+            [...scopes.values()].some((inner) =>
+              inner.ancestors.includes(context.id)
+            )
+          )
+            throw new Error(
+              'Cannot resume aroundAll assertions before inner scopes are disposed'
+            )
+          const innerState = getState(expect)
+          for (const key of Reflect.ownKeys(innerState))
+            if (!Object.prototype.hasOwnProperty.call(state, key))
+              Reflect.deleteProperty(innerState, key)
+          setState(state, expect)
+          scopes.set(context.id, scope)
+        }
+      },
+      get expect() {
+        if (current() !== scope || !('testId' in context))
+          throw new Error('context.expect requires an active Next test.')
+        let local = localExpectations.get(context.testId)
+        if (!local) {
+          local = createExpect({
+            id: context.testId,
+            fullTestName: context.name,
+          })
+          localExpectations.set(context.testId, local)
+        }
+        return local
+      },
+      markSkipped() {
+        const errors = (task.result?.errors ?? []).slice(checkedErrors)
+        checkedErrors = task.result?.errors?.length ?? 0
+        return errors
+      },
+      async finishTest(failed: boolean) {
+        // Counts belong to setup/body, before teardown or finished listeners.
+        // Mark them consumed even if awaiting assertions times out, so later
+        // cleanup cannot lend this attempt another assertion count.
+        checkedAssertions = true
+        const previousRejectedPromises = rejectedPromises
+        const errors: unknown[] = []
+        try {
+          await checkpoint()
+        } catch (error) {
+          if (error instanceof AggregateError) errors.push(...error.errors)
+          else errors.push(error)
+        }
+        // The reference skips counts after a thrown body/promise failure, but
+        // still checks them when a soft matcher recorded a failure.
+        if (!failed && rejectedPromises === previousRejectedPromises) {
+          if (kind === 'attempt') {
+            assertAssertionLifecycleScope(
+              context.id,
+              originatingScope()?.context.id,
+              scopes.get(context.id) === scope && !disposed && !scope.finalized
+            )
+          } else if (current() !== scope) {
+            throw new Error(
+              'Assertion count belongs to a different Next assertion scope'
+            )
+          }
+          errors.push(...assertionCountErrors())
+        }
+        if (errors.length === 1) throw errors[0]
+        if (errors.length > 1)
+          throw new AggregateError(errors, 'Test assertions failed')
+      },
       checkpoint,
       async finalize() {
         try {
@@ -818,19 +1241,19 @@ export async function createAssertionRuntime(options: {
         }
       },
       async dispose() {
-        if (active !== scope) return
+        if (scopes.get(context.id) !== scope) return
         scope.finalized = true
         const errors: unknown[] = []
         try {
           try {
-            scope.utilities.dispose()
+            if (!fileOwned && kind !== 'collection') scope.utilities.dispose()
           } catch (error) {
             errors.push(error)
           }
           removeSerializers(scope.serializers)
           errors.push(...drainMocks(scope.mocks))
         } finally {
-          active = undefined
+          scopes.delete(context.id)
         }
         if (errors.length)
           throw new AggregateError(errors, 'Test assertion cleanup failed')
@@ -860,18 +1283,91 @@ export async function createAssertionRuntime(options: {
     },
   })
 
+  let previousShould: PropertyDescriptor | undefined
+  let ownedShould: (() => unknown) | undefined
+  function should(): ReturnType<typeof chai.should> {
+    requireScopeAccess()
+    if (!ownedShould)
+      previousShould = Object.getOwnPropertyDescriptor(
+        Object.prototype,
+        'should'
+      )
+    const helpers = chai.should()
+    const descriptor = Object.getOwnPropertyDescriptor(
+      Object.prototype,
+      'should'
+    )!
+    const getter = descriptor.get!
+    ownedShould = function (this: unknown) {
+      requireScopeAccess()
+      return guardAssertion(Reflect.apply(getter, this, []), current())
+    }
+    // eslint-disable-next-line no-extend-native -- Chai's should plugin installs a file-owned prototype getter.
+    Object.defineProperty(Object.prototype, 'should', {
+      ...descriptor,
+      get: ownedShould,
+    })
+    const objects = new WeakMap<object, object>()
+    const guard = <T extends object>(target: T): T => {
+      let proxy = objects.get(target)
+      if (!proxy) {
+        const methods = new Map<PropertyKey, Function>()
+        proxy = new Proxy(target, {
+          get(object, key, receiver) {
+            requireScopeAccess()
+            const value = Reflect.get(object, key, receiver)
+            if (typeof value === 'function') {
+              let method = methods.get(key)
+              if (!method) {
+                method = (...args: unknown[]) => {
+                  requireScopeAccess()
+                  return Reflect.apply(value, object, args)
+                }
+                methods.set(key, method)
+              }
+              return method
+            }
+            return value && typeof value === 'object' ? guard(value) : value
+          },
+        })
+        objects.set(target, proxy)
+      }
+      return proxy as T
+    }
+    return guard(helpers)
+  }
+
   return {
     expect,
+    createExpect,
     assert,
+    should,
     spies: trackedSpies,
     utilities: new Proxy({} as AttemptUtilities, {
       get(_target, property) {
-        const utility = Reflect.get(current().utilities, property)
-        return typeof utility === 'function'
-          ? utility.bind(current().utilities)
-          : utility
+        requireScopeAccess()
+        const origin = originatingScope()
+        const utility = Reflect.get(
+          fileUtilities ?? current().utilities,
+          property
+        )
+        if (typeof utility !== 'function') return utility
+        return (...args: unknown[]) => {
+          requireScopeAccess()
+          if (origin && current() !== origin)
+            throw new Error(
+              'Test utility belongs to a different Next assertion scope'
+            )
+          return Reflect.apply(
+            utility,
+            fileUtilities ?? current().utilities,
+            args
+          )
+        }
       },
     }),
+    beginCollection: (context: AssertionCollection) =>
+      beginScope(context, 'collection'),
     beginAttempt: (context: AssertionAttempt) => beginScope(context, 'attempt'),
     beginHook: (context: AssertionHook) => beginScope(context, 'hook'),
     finishSnapshotSelection(
@@ -898,46 +1394,68 @@ export async function createAssertionRuntime(options: {
       const updates = stagedSnapshots.take()
       return snapshotTests.size ||
         (snapshotSelection?.complete &&
-          !snapshotSelection.partial &&
           snapshotOptions.updateSnapshot === 'all')
         ? updates
         : []
     },
     async finishFile() {
-      if (active)
+      if (scopes.size || suspendedScopes.size)
         throw new Error('Cannot finish assertions with an active attempt')
       if (disposed) return
       disposed = true
       const errors: unknown[] = []
       let result: Awaited<ReturnType<SnapshotClient['finish']>> | undefined
       try {
-        const state = snapshots.getSnapshotState(options.testPath)
-        if (
-          !snapshotSelection ||
-          snapshotSelection.partial ||
-          !snapshotSelection.complete
-        ) {
-          // A partial selection cannot authorize deletion of unselected keys.
-          // Collection/cleanup failures never authorize an update either.
-          state.removeUncheckedKeys = () => {}
+        if (!options.collectOnly) {
+          const state = snapshots.getSnapshotState(options.testPath)
+          if (!snapshotSelection || !snapshotSelection.complete) {
+            // Unselected/skipped test keys are marked checked by the runner.
+            // Incomplete collection/cleanup never authorizes any pruning.
+            state.removeUncheckedKeys = () => {}
+          }
+          result = await snapshots.finish(options.testPath)
+          snapshotResult = result
+          if (
+            snapshotOptions.updateSnapshot === 'none' &&
+            snapshotSelection?.complete &&
+            !snapshotSelection.partial &&
+            result.unchecked > 0
+          ) {
+            throw new Error(
+              `Obsolete snapshots found (${result.unchecked}); run with --update to remove them.`
+            )
+          }
         }
-        result = await snapshots.finish(options.testPath)
-        snapshotResult = result
-        if (
-          snapshotOptions.updateSnapshot === 'none' &&
-          snapshotSelection?.complete &&
-          !snapshotSelection.partial &&
-          result.unchecked > 0
-        ) {
-          throw new Error(
-            `Obsolete snapshots found (${result.unchecked}); run with --update to remove them.`
-          )
-        }
+      } catch (error) {
+        errors.push(error)
+      }
+      try {
+        collectionUtilities.dispose()
       } catch (error) {
         errors.push(error)
       }
       errors.push(...drainMocks(fileMocks))
       removeSerializers(fileSerializers)
+      if (
+        ownedShould &&
+        Object.getOwnPropertyDescriptor(Object.prototype, 'should')?.get ===
+          ownedShould
+      ) {
+        try {
+          if (previousShould) {
+            // eslint-disable-next-line no-extend-native -- Restore the descriptor captured before installing Chai's plugin.
+            Object.defineProperty(Object.prototype, 'should', previousShould)
+          } else Reflect.deleteProperty(Object.prototype, 'should')
+        } catch (error) {
+          errors.push(error)
+        }
+      }
+      const testers = getCustomEqualityTesters()
+      for (const tester of equalityTesters.reverse()) {
+        const index = testers.lastIndexOf(tester)
+        if (index !== -1) testers.splice(index, 1)
+      }
+      equalityTesters.length = 0
       // Drain our own resources before global fallback helpers, which can stop
       // on a user-overridden mock method. Each fallback is attempted separately.
       try {
@@ -951,6 +1469,7 @@ export async function createAssertionRuntime(options: {
         errors.push(error)
       }
       runtimeActive = false
+      localExpectations.clear()
       snapshots.clear()
       try {
         if (previousGlobalExpect)

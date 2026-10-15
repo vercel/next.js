@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`selected 1`] = `"old"`;
+
+exports[`selected 2`] = `"obsolete selected"`;
+
+exports[`unselected 1`] = `"other"`;
+
+exports[`absent 1`] = `"absent"`;
+
+exports[`legacy key`] = `"legacy"`;

@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto'
 import {
   combineSnapshotUpdatePlans,
   commitSnapshotUpdates,
+  recoverSnapshotUpdates,
 } from 'next/dist/experimental/testing/assertions/snapshots'
 
 it('combines identical profile plans while rejecting conflicting values, revisions, and file owners before publication', () => {
@@ -138,9 +139,8 @@ it('restores already published bytes when a later snapshot replacement fails', a
   await writeFile(external, 'original')
   const fs = require('node:fs/promises')
   const rename = fs.rename
-  let calls = 0
   jest.spyOn(fs, 'rename').mockImplementation(async (...args: unknown[]) => {
-    if (++calls === 2) throw new Error('replacement failed')
+    if (args[1] === raw) throw new Error('replacement failed')
     return Reflect.apply(rename, fs, args)
   })
   try {
@@ -171,9 +171,8 @@ it('preserves a concurrent user edit and retains recoverable bytes if rollback i
   await writeFile(external, 'original')
   const fs = require('node:fs/promises')
   const rename = fs.rename
-  let calls = 0
   jest.spyOn(fs, 'rename').mockImplementation(async (...args: unknown[]) => {
-    if (++calls === 2) {
+    if (args[1] === raw) {
       await writeFile(external, 'user edit')
       throw new Error('replacement failed')
     }
@@ -194,9 +193,102 @@ it('preserves a concurrent user edit and retains recoverable bytes if rollback i
       await readFile(join(directory, '__snapshots__', backup), 'utf8')
     ).toBe('original')
     await expect(readFile(raw)).rejects.toMatchObject({ code: 'ENOENT' })
+    jest.restoreAllMocks()
+    await expect(recoverSnapshotUpdates(directory)).rejects.toThrow(
+      'requires resolving a concurrent edit'
+    )
+    expect(await readFile(external, 'utf8')).toBe('user edit')
+    // Resolving the conflict to the original revision makes recovery idempotent
+    // and releases all retained transaction files without another update request.
+    await writeFile(external, 'original')
+    await recoverSnapshotUpdates(directory)
+    expect(await readdir(join(directory, '__snapshots__'))).toEqual([
+      'parent.test.ts.snap',
+    ])
+    await expect(
+      stat(join(directory, '.next-test-snapshot-journals'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
   } finally {
     jest.restoreAllMocks()
     await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('rolls back cancellation observed during the final snapshot rename', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'next-snapshot-final-cancel-'))
+  const testPath = join(directory, 'case.ts')
+  const external = join(directory, '__snapshots__', 'case.ts.snap')
+  const raw = join(directory, 'raw.txt')
+  const controller = new AbortController()
+  const reason = new Error('cancelled during final rename')
+  await mkdir(join(directory, '__snapshots__'))
+  await writeFile(external, 'external original')
+  await writeFile(raw, 'raw original')
+  const fs = require('node:fs/promises')
+  const rename = fs.rename
+  jest.spyOn(fs, 'rename').mockImplementation(async (...args: unknown[]) => {
+    const result = await Reflect.apply(rename, fs, args)
+    if (args[1] === raw) controller.abort(reason)
+    return result
+  })
+  try {
+    await expect(
+      commitSnapshotUpdates(
+        testPath,
+        [
+          {
+            path: external,
+            previousContent: 'external original',
+            content: 'external updated',
+          },
+          {
+            path: raw,
+            previousContent: 'raw original',
+            content: 'raw updated',
+          },
+        ],
+        { signal: controller.signal }
+      )
+    ).rejects.toBe(reason)
+    expect(await readFile(external, 'utf8')).toBe('external original')
+    expect(await readFile(raw, 'utf8')).toBe('raw original')
+    expect((await readdir(directory)).sort()).toEqual([
+      '__snapshots__',
+      'raw.txt',
+    ])
+  } finally {
+    jest.restoreAllMocks()
+    await rm(directory, { recursive: true, force: true })
+  }
+})
+
+it('refuses recovery records that address a file outside the invocation root', async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), 'next-snapshot-invalid-journal-')
+  )
+  const outside = await mkdtemp(join(tmpdir(), 'next-snapshot-user-source-'))
+  const source = join(outside, 'source.ts')
+  const journal = join(directory, '.next-test-snapshot-journals')
+  try {
+    await writeFile(source, 'user source')
+    await mkdir(journal)
+    await writeFile(
+      join(journal, '00000000-0000-4000-8000-000000000000.json'),
+      JSON.stringify({
+        version: 1,
+        testPath: source,
+        updates: [
+          { path: source, previousContent: 'old', content: 'user source' },
+        ],
+      })
+    )
+    await expect(recoverSnapshotUpdates(directory)).rejects.toThrow(
+      'Invalid snapshot recovery journal'
+    )
+    expect(await readFile(source, 'utf8')).toBe('user source')
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+    await rm(outside, { recursive: true, force: true })
   }
 })
 
