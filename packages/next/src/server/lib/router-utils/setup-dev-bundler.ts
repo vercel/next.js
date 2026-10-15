@@ -124,7 +124,6 @@ import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
-import { Bundler } from '../../../lib/bundler'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -648,11 +647,15 @@ async function startWatcher(
         })
 
         if (isMiddlewareFile(rootFile)) {
-          const getStaticInfoIncludingLayouts = (
+          // This source watcher runs independently of Turbopack's endpoint writes, so generated
+          // static info may be missing or stale here.
+          //
+          // TODO switch this over to Turbopack emitted static-info.json once we have solved the
+          // double-watcher race condition situation.
+          const getStaticInfoIncludingLayoutsFromSource = (
             require('../../../build/get-static-info-including-layouts') as typeof import('../../../build/get-static-info-including-layouts')
-          ).getStaticInfoIncludingLayouts
-          const staticInfo = await getStaticInfoIncludingLayouts({
-            dir,
+          ).getStaticInfoIncludingLayoutsFromSource
+          const staticInfo = await getStaticInfoIncludingLayoutsFromSource({
             pageFilePath: fileName,
             config: nextConfig,
             appDir: appDir,
@@ -660,11 +663,6 @@ async function startWatcher(
             isDev: true,
             isInsideAppDir: isAppPath,
             pageExtensions: nextConfig.pageExtensions,
-            bundler: opts?.turbo
-              ? Bundler.Turbopack
-              : process.env.NEXT_RSPACK
-                ? Bundler.Rspack
-                : Bundler.Webpack,
           })
           if (nextConfig.output === 'export') {
             Log.error(
