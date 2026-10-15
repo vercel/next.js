@@ -78,7 +78,7 @@ export async function getStaticInfoIncludingLayouts({
     if (process.env.__NEXT_TEST_MODE && process.env.IS_TURBOPACK_TEST) {
       /// In the e2e tests, ensure parity between webpack and Turbopack static info
 
-      let reference = await getStaticInfoIncludingLayoutsInner({
+      let reference = await getStaticInfoIncludingLayoutsFromSource({
         isInsideAppDir,
         pageExtensions,
         pageFilePath,
@@ -154,7 +154,7 @@ export async function getStaticInfoIncludingLayouts({
       return readStaticInfo()
     }
   } else {
-    return getStaticInfoIncludingLayoutsInner({
+    return getStaticInfoIncludingLayoutsFromSource({
       isInsideAppDir,
       pageExtensions,
       pageFilePath,
@@ -166,7 +166,7 @@ export async function getStaticInfoIncludingLayouts({
   }
 }
 
-async function getStaticInfoIncludingLayoutsInner({
+export async function getStaticInfoIncludingLayoutsFromSource({
   isInsideAppDir,
   pageExtensions,
   pageFilePath,
