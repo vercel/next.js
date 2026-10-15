@@ -34,7 +34,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         ModuleGraph, SingleModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
     reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
@@ -994,7 +994,7 @@ impl EvaluateContext for WebpackLoaderContext {
 
                 let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
                     entry_path.clone(),
-                    ChunkGroup::Entry(vec![ResolvedVc::upcast(evaluatable)]),
+                    ChunkGroupKey::Entry(vec![ResolvedVc::upcast(evaluatable)]),
                     *import_module_graph,
                     OutputAssets::empty(),
                     OutputAssets::empty(),

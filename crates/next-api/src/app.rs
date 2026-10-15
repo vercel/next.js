@@ -61,7 +61,7 @@ use turbopack_core::{
     module_graph::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         binding_usage_info::compute_binding_usage_info,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
@@ -1933,7 +1933,7 @@ impl AppEndpoint {
             NextRuntime::Edge => {
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
-                    smallvec![ChunkGroup::Shared(ResolvedVc::upcast(
+                    smallvec![ChunkGroupKey::Shared(ResolvedVc::upcast(
                         server_action_manifest_loader,
                     ))],
                     module_graph,
@@ -1942,7 +1942,7 @@ impl AppEndpoint {
 
                 let chunk_group2_assets = chunking_context.evaluated_chunk_group_assets(
                     app_entry.rsc_entry.ident(),
-                    ChunkGroup::Entry(vec![app_entry.rsc_entry]),
+                    ChunkGroupKey::Entry(vec![app_entry.rsc_entry]),
                     module_graph,
                     OutputAssets::empty(),
                     chunk_group1.await?.availability_info,
@@ -1956,7 +1956,7 @@ impl AppEndpoint {
                 async {
                     let mut current_chunk_group = ChunkGroupResult::empty_resolved();
 
-                    let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
+                    let entry_chunk_group = ChunkGroupKey::Entry(vec![app_entry.rsc_entry]);
 
                     let client_references = client_references.await?;
 
@@ -1987,7 +1987,7 @@ impl AppEndpoint {
                                 None
                             } else {
                                 let entry_index = *chunk_group_info
-                                    .get_index_of(entry_chunk_group.key())
+                                    .get_index_of(entry_chunk_group.clone())
                                     .await?;
                                 let merged = chunk_group_info
                                     .get_shared_merged_chunk_group(
@@ -1995,7 +1995,7 @@ impl AppEndpoint {
                                         NEXT_SERVER_UTILITY_MERGE_TAG,
                                     )
                                     .await?;
-                                merged.as_ref().map(|group| group.chunk_group.clone())
+                                merged.as_ref().map(|group| group.chunk_group.key())
                             };
 
                             ensure!(
@@ -2050,7 +2050,9 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                smallvec![ChunkGroup::Shared(ResolvedVc::upcast(server_component))],
+                                smallvec![ChunkGroupKey::Shared(ResolvedVc::upcast(
+                                    server_component
+                                ))],
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -2069,7 +2071,7 @@ impl AppEndpoint {
                     {
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
-                            smallvec![ChunkGroup::Shared(ResolvedVc::upcast(
+                            smallvec![ChunkGroupKey::Shared(ResolvedVc::upcast(
                                 server_action_manifest_loader,
                             ))],
                             module_graph,
