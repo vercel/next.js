@@ -6,5 +6,6 @@ module.exports = {
     'dual-pkg-optout',
     'transitive-external',
     'esm',
+    'external-url-asset',
   ],
 }
