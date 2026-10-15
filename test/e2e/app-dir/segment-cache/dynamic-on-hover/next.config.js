@@ -5,7 +5,6 @@ const nextConfig = {
   cacheComponents: true,
   experimental: {
     dynamicOnHover: true,
-    prefetchInlining: false,
   },
 }
 
