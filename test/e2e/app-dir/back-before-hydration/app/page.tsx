@@ -7,6 +7,9 @@ export default function Home() {
       <Link id="to-post" href="/post">
         To post
       </Link>
+      <Link id="to-missing" href="/missing">
+        To missing
+      </Link>
     </>
   )
 }
