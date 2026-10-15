@@ -116,6 +116,9 @@ export interface RequestMeta {
    */
   hmrRefreshHash?: string
 
+  /** Client HMR version captured before rendering dev-server HTML. */
+  initialHmrVersion?: string
+
   /**
    * Equals the segment path that was used for the prefetch RSC request.
    */

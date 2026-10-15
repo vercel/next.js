@@ -1233,7 +1233,7 @@ The `unstable_rootParams` function has been removed. Use [`next/root-params`](/d
 
 ### Installation fails after upgrading ESLint
 
-Next.js 16 removes `next lint`, but migrating to the ESLint CLI does not require upgrading ESLint. `eslint-config-next@16` requires ESLint 9; an existing compatible lint configuration can use an older version.
+Next.js 16 removes `next lint`, but migrating to the ESLint CLI does not require upgrading ESLint. `eslint-config-next@16` requires ESLint 9 or later, and `eslint-config-next@16.4.0` or later supports ESLint 10. If your existing lint configuration does not use `eslint-config-next@16`, you can keep its compatible ESLint version.
 
 - [ ] If an ESLint upgrade causes peer dependency conflicts, restore the previous compatible versions of `eslint`, `eslint-config-next`, and `@next/eslint-plugin-next` (if present), along with the previous lint configuration.
 - [ ] If installation interrupted the upgrade, retry the same exact target with `--skip-eslint-upgrade` to preserve the repaired lint stack and skip the lint codemod. If Next.js already matches the target, install dependencies and complete interrupted migrations individually. Replace `next lint` scripts with ESLint CLI commands compatible with the preserved configuration. Confirm installation and lint pass.

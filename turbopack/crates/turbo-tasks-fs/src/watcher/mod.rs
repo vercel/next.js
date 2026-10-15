@@ -81,8 +81,8 @@ pub struct DiskWatcherConfig {
     /// [`None`] disables polling, using the platform's native watcher ([`RecommendedWatcher`])
     /// instead of [`PollWatcher`].
     pub poll_interval: Option<Duration>,
-    /// Attach an [`InvalidationReason`] to every invalidation the watcher causes ([`WatchStart`],
-    /// [`WatchChange`], or [`InvalidateRescan`]), so that it can be reported to the user.
+    /// Attach an [`InvalidationReason`] to every invalidation the watcher causes (`WatchStart`,
+    /// `WatchChange`, or `InvalidateRescan`), so that it can be reported to the user.
     ///
     /// This costs an extra allocation per invalidated path, so it's only worth enabling when
     /// something actually consumes the reasons.
@@ -960,15 +960,15 @@ impl BatchedInvalidations {
         let dir_invalidator_map_guard = LazyCell::new(|| dir_invalidator_map.lock().unwrap());
 
         // If this path has no reader, we should not add it to the batch, and we should not extend
-        // the batch schedule
+        // the batch schedule. This function is best-effort and marks some events as relevant that
+        // will no-op.
         let is_relevant = |batch: &Self, path: &Path, parent: Option<&Path>, recursive: bool| {
-            // fast-path: The path or parent is already in the batch, assume it is relevant
-            if batch.paths.contains_key(path)
-                || parent.is_some_and(|parent| batch.paths.contains_key(parent))
-            {
+            // fast-path: The path is already in the batch, assume it is relevant.
+            if batch.paths.contains_key(path) {
                 return true;
             }
-            // slow-path: Lock the invalidator maps, and see if they contain the path
+            // slow-path: Lock the invalidator maps, and see if they contain the path or the parent
+            // (some events invalidate the parent directory)
             invalidator_map_guard.contains_key(path)
                 || dir_invalidator_map_guard.contains_key(path)
                 || parent.is_some_and(|parent| dir_invalidator_map_guard.contains_key(parent))

@@ -8573,7 +8573,9 @@
                 currentTaskInDEV = task$jscomp$0;
                 var childrenLength = request$jscomp$0.children.length,
                   chunkLength = request$jscomp$0.chunks.length,
-                  startNode$jscomp$0 = task$jscomp$0.node;
+                  startNode$jscomp$0 = task$jscomp$0.node,
+                  startKeyPath = task$jscomp$0.keyPath,
+                  startChildIndex = task$jscomp$0.childIndex;
                 try {
                   retryNode(request, task$jscomp$0),
                     request$jscomp$0.lastPushedText &&
@@ -8605,6 +8607,8 @@
                       (task$jscomp$0.thenableState =
                         getThenableStateAfterSuspending()),
                       (request.currentTask = prevTask$jscomp$0),
+                      (task$jscomp$0.keyPath = startKeyPath),
+                      (task$jscomp$0.childIndex = startChildIndex),
                       (request$jscomp$0 = request),
                       abortTaskDEV(task$jscomp$0, request$jscomp$0),
                       task$jscomp$0.abortSet.delete(task$jscomp$0),
@@ -9747,11 +9751,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-b618bbb4-20261007" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-07dde64d-20261013" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-b618bbb4-20261007\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-07dde64d-20261013\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -11834,5 +11838,5 @@
         }
       };
     };
-    exports.version = "19.3.0-experimental-b618bbb4-20261007";
+    exports.version = "19.3.0-experimental-07dde64d-20261013";
   })();

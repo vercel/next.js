@@ -344,8 +344,7 @@ const reactRootOptions: ReactDOMClient.RootOptions = {
 }
 
 export async function hydrate(
-  instrumentationModules: ClientInstrumentationModules,
-  assetPrefix: string
+  instrumentationModules: ClientInstrumentationModules
 ) {
   let staticIndicatorState: StaticIndicatorState | undefined
   let webSocket: WebSocket | undefined
@@ -355,7 +354,7 @@ export async function hydrate(
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
     staticIndicatorState = { pathname: null, appIsrManifest: null }
-    webSocket = createWebSocket(assetPrefix, staticIndicatorState)
+    webSocket = createWebSocket(staticIndicatorState)
   }
   const initialRSCPayload = await initialServerResponse
 

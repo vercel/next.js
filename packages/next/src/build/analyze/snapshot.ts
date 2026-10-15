@@ -64,6 +64,32 @@ const DATA_DIRNAME = 'data'
 const HISTORY_DIRNAME = 'history'
 const METADATA_FILENAME = 'metadata.json'
 const HISTORY_INDEX_FILENAME = 'history.json'
+const ROUTE_SUMMARIES_FILENAME = 'route-summaries.json'
+
+const routeSummariesSchema = z.array(z.object({ route: z.string() }))
+
+/**
+ * Read the analyzer's routes from `route-summaries.json` in a live `data/`
+ * directory or a saved snapshot.
+ *
+ * Turbopack writes one summary per route it wrote `analyze.data` for, keyed by
+ * the directory that data lives in. It is the only route index: the routes
+ * manifest names differ for metadata routes using `generateImageMetadata` or
+ * `generateSitemaps` (`/icon/[__metadata_id__]` vs. the stored `/icon`).
+ */
+export function readAnalyzeRoutes(directory: string): string[] {
+  const summariesFile = path.join(directory, ROUTE_SUMMARIES_FILENAME)
+  try {
+    return routeSummariesSchema
+      .parse(JSON.parse(readFileSync(summariesFile, 'utf8')))
+      .map(({ route }) => route)
+  } catch (error) {
+    throw new Error(
+      `Failed to read analyzer route summaries from ${summariesFile}. The analysis may be from an older Next.js version or incomplete; re-run \`next analyze\` to capture it again.`,
+      { cause: error }
+    )
+  }
+}
 
 interface BuildSnapshotInputs {
   projectDir: string

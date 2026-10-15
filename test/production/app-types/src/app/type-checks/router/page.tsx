@@ -15,6 +15,9 @@ export default function Page() {
     // Correctly typed:
     router.push('/dashboard/another')
     router.prefetch('/about')
+    router.prefetch('/about', { kind: 'auto' })
+    router.prefetch('/about', { kind: 'full' })
+    router.prefetch('/about', { onInvalidate() {} })
     router.push('/redirect')
     router.push(`/blog/${'a/b'}`)
     router.push('/invalid' as Route)
