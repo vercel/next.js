@@ -598,6 +598,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             // Module merging (driven by `scope_hoisting` in the chunking context below) reads
             // `is_mergeable` from the graph node and bails if absent.
             include_mergeable: options.scope_hoisting,
+            // `get_global_module_id_strategy` (used for global/numeric ids below) reads the
+            // stringified ident from the graph node.
+            include_ident_strings: options.global_module_ids || options.numeric_module_ids,
             ..Default::default()
         },
     );
