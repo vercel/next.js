@@ -675,7 +675,13 @@ describe.each([
         `,
         'middleware.js': `
           import { NextResponse } from 'next/server'
-          export const config = { matcher: '/' };
+          export const config = {
+            matcher: [
+              '/',
+              '/with-locale',
+              { source: '/es/without-locale', locale: false },
+            ],
+          };
           export default (req) => {
             const res = NextResponse.next();
             res.headers.set('X-From-Middleware', 'true');
@@ -696,6 +702,52 @@ describe.each([
       },
       dependencies: {},
     })
+
+    it.each([
+      { path: '/with-locale', locale: 'en', matched: true },
+      { path: '/es/with-locale', locale: 'es', matched: true },
+      { path: '/without-locale', locale: 'en', matched: false },
+      { path: '/en/without-locale', locale: 'en', matched: false },
+      { path: '/es/without-locale', locale: 'es', matched: true },
+    ])(
+      'respects matcher locale settings for $path with basePath',
+      async ({ path, locale, matched }) => {
+        const response = await fetchViaHTTP(next.url, `/root${path}`)
+        expect(response.status).toBe(200)
+        expect(await response.text()).toContain(
+          `(${locale}) Hello from /${path.split('/').pop()}`
+        )
+        expect(response.headers.get('X-From-Middleware')).toBe(
+          matched ? 'true' : null
+        )
+      }
+    )
+
+    it.each([
+      { path: 'en/with-locale', locale: 'en', matched: true },
+      { path: 'es/with-locale', locale: 'es', matched: true },
+      { path: 'en/without-locale', locale: 'en', matched: false },
+      { path: 'es/without-locale', locale: 'es', matched: true },
+    ])(
+      'respects matcher locale settings for the $path data route with basePath',
+      async ({ path, locale, matched }) => {
+        const response = await fetchViaHTTP(
+          next.url,
+          `/root/_next/data/${next.buildId}/${path}.json`,
+          undefined,
+          { headers: { 'x-nextjs-data': '1' } }
+        )
+        expect(response.status).toBe(200)
+        expect(await response.json()).toMatchObject({
+          pageProps: {
+            message: `(${locale}) Hello from /${path.split('/').pop()}`,
+          },
+        })
+        expect(response.headers.get('X-From-Middleware')).toBe(
+          matched ? 'true' : null
+        )
+      }
+    )
 
     it(`adds the header for a matched path`, async () => {
       const res1 = await fetchViaHTTP(next.url, `/root`)
