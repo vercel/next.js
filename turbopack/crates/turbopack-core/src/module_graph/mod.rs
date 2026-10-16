@@ -3115,4 +3115,294 @@ pub mod tests {
         .await
         .unwrap();
     }
+
+    // ---------------------------------------------------------------------------------------
+    // Benchmark for `compute_chunk_group_info` on a synthetic, app-shaped graph.
+    //
+    // Run with:
+    //   BENCH_ROUTES=400 cargo test -p turbopack-core --release --lib \
+    //     bench_compute_chunk_group_info -- --ignored --nocapture
+    // ---------------------------------------------------------------------------------------
+
+    struct XorShift(u64);
+    impl XorShift {
+        fn next(&mut self) -> u64 {
+            let mut x = self.0;
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            self.0 = x;
+            x
+        }
+        fn below(&mut self, n: usize) -> usize {
+            (self.next() % n as u64) as usize
+        }
+        /// Skewed towards small indices (popular libraries / components).
+        fn skewed(&mut self, n: usize) -> usize {
+            let a = self.below(n);
+            let b = self.below(n);
+            let c = self.below(n);
+            a.min(b).min(c)
+        }
+    }
+
+    fn env_usize(name: &str, default: usize) -> usize {
+        std::env::var(name)
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(default)
+    }
+
+    struct SyntheticGraph {
+        entries: Vec<String>,
+        deps: Vec<(String, Vec<String>)>,
+        async_edges: Vec<(String, String)>,
+    }
+
+    /// Generates an app-shaped graph:
+    /// - `libs` packages (trees of `lib_size` modules, depending on other more popular packages)
+    /// - `comps` shared components (importing packages and other components)
+    /// - `routes` entries, each with `route_size` local modules, a shared layout chain, and
+    ///   `async_per_route` dynamic imports into a pool of `dyn_pool` lazily loaded modules.
+    fn synthetic_graph(routes: usize, seed: u64) -> SyntheticGraph {
+        let libs = env_usize("BENCH_LIBS", 300);
+        let lib_size = env_usize("BENCH_LIB_SIZE", 40);
+        let comps = env_usize("BENCH_COMPS", 1500);
+        let route_size = env_usize("BENCH_ROUTE_SIZE", 15);
+        let async_per_route = env_usize("BENCH_ASYNC_PER_ROUTE", 3);
+        let dyn_pool = env_usize("BENCH_DYN_POOL", routes.max(1) * 2);
+        let layouts = 20usize;
+
+        let mut rng = XorShift(seed);
+        let mut deps: FxHashMap<String, Vec<String>> = FxHashMap::default();
+        let mut async_edges = Vec::new();
+        let lib = |p: usize, i: usize| format!("lib{p}/m{i}.js");
+
+        for p in 0..libs {
+            for i in 0..lib_size {
+                let mut d = Vec::new();
+                for c in [2 * i + 1, 2 * i + 2] {
+                    if c < lib_size {
+                        d.push(lib(p, c));
+                    }
+                }
+                if rng.below(8) == 0 {
+                    // intra-package edge, may create cycles
+                    d.push(lib(p, rng.below(lib_size)));
+                }
+                if i == 0 && p + 1 < libs {
+                    for _ in 0..rng.below(4) {
+                        let q = p + 1 + rng.skewed(libs - p - 1);
+                        d.push(lib(q, 0));
+                    }
+                }
+                deps.insert(lib(p, i), d);
+            }
+        }
+        let comp = |i: usize| format!("comp/c{i}.js");
+        for i in 0..comps {
+            let mut d = Vec::new();
+            for _ in 0..1 + rng.below(3) {
+                d.push(lib(rng.skewed(libs), rng.below(4).min(lib_size - 1)));
+            }
+            for _ in 0..rng.below(3) {
+                d.push(comp(rng.skewed(comps)));
+            }
+            deps.insert(comp(i), d);
+        }
+        let dynm = |i: usize| format!("dyn/d{i}.js");
+        for i in 0..dyn_pool {
+            let mut d = Vec::new();
+            for _ in 0..1 + rng.below(4) {
+                d.push(comp(rng.below(comps)));
+            }
+            d.push(lib(rng.below(libs), 0));
+            deps.insert(dynm(i), d);
+        }
+        let layout = |i: usize| format!("layout/l{i}.js");
+        for i in 0..layouts {
+            let mut d = vec![comp(rng.skewed(comps)), comp(rng.skewed(comps))];
+            if i > 0 {
+                d.push(layout((i - 1) / 2));
+            }
+            deps.insert(layout(i), d);
+        }
+        let mut entries = Vec::new();
+        for r in 0..routes {
+            let local = |i: usize| format!("route{r}/m{i}.js");
+            let page = format!("route{r}/page.js");
+            let mut page_deps = vec![layout(rng.below(layouts)), local(0)];
+            for _ in 0..async_per_route {
+                let target = dynm(rng.below(dyn_pool));
+                async_edges.push((page.clone(), target.clone()));
+                page_deps.push(target);
+            }
+            deps.insert(page.clone(), page_deps);
+            for i in 0..route_size {
+                let mut d = Vec::new();
+                for c in [2 * i + 1, 2 * i + 2] {
+                    if c < route_size {
+                        d.push(local(c));
+                    }
+                }
+                for _ in 0..rng.below(4) {
+                    d.push(comp(rng.skewed(comps)));
+                }
+                if rng.below(3) == 0 {
+                    d.push(lib(rng.skewed(libs), 0));
+                }
+                if rng.below(10) == 0 {
+                    let target = dynm(rng.below(dyn_pool));
+                    async_edges.push((local(i), target.clone()));
+                    d.push(target);
+                }
+                deps.insert(local(i), d);
+            }
+            entries.push(page);
+        }
+        // Deduplicate edges (a duplicate async+parallel pair would be ambiguous)
+        let mut deps = deps.into_iter().collect::<Vec<_>>();
+        for (_, d) in deps.iter_mut() {
+            let mut seen = rustc_hash::FxHashSet::default();
+            d.retain(|x| seen.insert(x.clone()));
+        }
+        deps.sort();
+        SyntheticGraph {
+            entries,
+            deps,
+            async_edges,
+        }
+    }
+
+    #[turbo_tasks::value(shared)]
+    struct BenchResult {
+        module_count: usize,
+        chunk_group_count: usize,
+        digest: u64,
+        times_us: Vec<u64>,
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn bench_chunk_group_info_operation(
+        routes: usize,
+        seed: u64,
+        iterations: usize,
+    ) -> Result<Vc<BenchResult>> {
+        use std::hash::{Hash, Hasher};
+
+        let g = synthetic_graph(routes, seed);
+        let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+        let root = fs.root().await?;
+        let repo = TestRepo::new_with_chunking_types(
+            &root,
+            g.deps,
+            g.async_edges
+                .into_iter()
+                .map(|(a, b)| (a, b, ChunkingType::Async)),
+        );
+        let entry_modules = g
+            .entries
+            .iter()
+            .map(|e| {
+                Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(e).unwrap(), repo))
+                    .to_resolved()
+            })
+            .try_join()
+            .await?;
+        let graph = SingleModuleGraph::new_with_entries(
+            GraphEntries::resolved_cell(GraphEntries::new(
+                entry_modules
+                    .iter()
+                    .map(|m| ChunkGroupEntry::Entry {
+                        modules: vec![*m],
+                        heuristics: EntryHeuristics::default(),
+                    })
+                    .collect(),
+                vec![],
+            )),
+            false,
+            false,
+        );
+        let names: FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr> = graph
+            .connect()
+            .await?
+            .modules
+            .keys()
+            .map(async |m| Ok((*m, m.ident().await?.path.path.clone())))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
+        let module_graph = ModuleGraph::from_graphs(vec![graph], None)
+            .connect()
+            .await?;
+
+        let mut times_us = Vec::new();
+        let mut digest = 0;
+        let mut chunk_group_count = 0;
+        for _ in 0..iterations {
+            let start = std::time::Instant::now();
+            let info = chunk_group_info::compute_chunk_group_info(&module_graph).await?;
+            times_us.push(start.elapsed().as_micros() as u64);
+            let info = info.await?;
+            chunk_group_count = info.chunk_groups.len();
+            let mcg = info.module_chunk_groups.await?;
+            let mut rows = mcg
+                .iter()
+                .map(|(m, b)| (names.get(m).unwrap().clone(), b.iter().collect::<Vec<_>>()))
+                .collect::<Vec<_>>();
+            rows.sort();
+            let mut h = rustc_hash::FxHasher::default();
+            rows.hash(&mut h);
+            for k in info.chunk_group_keys.iter() {
+                std::mem::discriminant(k).hash(&mut h);
+            }
+            digest = h.finish();
+        }
+        Ok(BenchResult {
+            module_count: names.len(),
+            chunk_group_count,
+            digest,
+            times_us,
+        }
+        .cell())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[ignore]
+    async fn bench_compute_chunk_group_info() {
+        let routes = env_usize("BENCH_ROUTES", 200);
+        let iterations = env_usize("BENCH_ITERATIONS", 10);
+        let seed = env_usize("BENCH_SEED", 42) as u64;
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let r = bench_chunk_group_info_operation(routes, seed, iterations)
+                .read_strongly_consistent()
+                .await?;
+            let mut t = r
+                .times_us
+                .iter()
+                .map(|&us| us as f64 / 1000.0)
+                .collect::<Vec<_>>();
+            t.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let mean = t.iter().sum::<f64>() / t.len() as f64;
+            println!(
+                "BENCH routes={routes} modules={} chunk_groups={} digest={:016x} min={:.2}ms \
+                 median={:.2}ms mean={:.2}ms max={:.2}ms",
+                r.module_count,
+                r.chunk_group_count,
+                r.digest,
+                t[0],
+                t[t.len() / 2],
+                mean,
+                t[t.len() - 1]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }
