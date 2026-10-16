@@ -51,12 +51,12 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
   />
   <FixCard
     group="client"
-    title="Use browser() with Suspense"
+    title="Render on the client"
     href="#render-on-the-client"
     snippets={[
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <BrowserId />' },
-      { text: '</Suspense>', highlight: true },
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())' },
+      { text: 'return <Id>{crypto.randomUUID()}</Id>' },
     ]}
   />
 </FixCardGrid>

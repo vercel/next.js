@@ -487,13 +487,13 @@ const syncMathCards: FixCard[] = [
   },
   {
     id: 'render-on-the-client',
-    title: 'Use browser() with Suspense',
+    title: 'Render on the client',
     group: 'client',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client',
     snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <BrowserDots />' },
-      { text: '</Suspense>', highlight: true },
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())' },
+      { text: 'return <Dots seed={Math.random()} />' },
     ],
     copyable: true,
   },
@@ -526,13 +526,13 @@ const syncDateCards: FixCard[] = [
   },
   {
     id: 'render-on-the-client',
-    title: 'Use browser() with Suspense',
+    title: 'Render on the client',
     group: 'client',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client',
     snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <BrowserClock />' },
-      { text: '</Suspense>', highlight: true },
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())' },
+      { text: 'return <Clock time={Date.now()} />' },
     ],
     copyable: true,
   },
@@ -577,13 +577,13 @@ const syncCryptoCards: FixCard[] = [
   },
   {
     id: 'render-on-the-client',
-    title: 'Use browser() with Suspense',
+    title: 'Render on the client',
     group: 'client',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client',
     snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <BrowserId />' },
-      { text: '</Suspense>', highlight: true },
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())' },
+      { text: 'return <Id>{crypto.randomUUID()}</Id>' },
     ],
     copyable: true,
   },
@@ -592,12 +592,12 @@ const syncCryptoCards: FixCard[] = [
 const syncClientDateCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
-    title: 'Use browser() with Suspense',
+    title: 'Wrap in or move into Suspense',
     group: 'stream',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <BrowserClock />' },
+      { text: '  <DateDisplay />' },
       { text: '</Suspense>', highlight: true },
     ],
     copyable: true,
@@ -631,12 +631,12 @@ const syncClientDateCards: FixCard[] = [
 const syncClientMathCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
-    title: 'Use browser() with Suspense',
+    title: 'Wrap in or move into Suspense',
     group: 'stream',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-random-client#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <BrowserDots />' },
+      { text: '  <RandomId />' },
       { text: '</Suspense>', highlight: true },
     ],
     copyable: true,
@@ -658,12 +658,12 @@ const syncClientMathCards: FixCard[] = [
 const syncClientCryptoCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
-    title: 'Use browser() with Suspense',
+    title: 'Wrap in or move into Suspense',
     group: 'stream',
     link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto-client#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <BrowserId />' },
+      { text: '  <TokenId />' },
       { text: '</Suspense>', highlight: true },
     ],
     copyable: true,

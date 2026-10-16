@@ -555,21 +555,21 @@ describe('card sets for all error families', () => {
   })
 
   it.each([
-    ['Math.random()', '<BrowserDots />'],
-    ['Date.now()', '<BrowserClock />'],
-    ['crypto.randomUUID()', '<BrowserId />'],
+    ['Math.random()', 'return <Dots seed={Math.random()} />'],
+    ['Date.now()', 'return <Clock time={Date.now()} />'],
+    ['crypto.randomUUID()', 'return <Id>{crypto.randomUUID()}</Id>'],
   ])(
-    'sync-io %s shows browser rendering inside Suspense',
-    (cause, component) => {
+    'sync-io %s shows a three-line browser-only client pattern',
+    (cause, renderSnippet) => {
       const clientCard = getCards('sync-io', 'runtime', cause).find(
         (card) => card.id === 'render-on-the-client'
       )
 
-      expect(clientCard?.title).toBe('Use browser() with Suspense')
+      expect(clientCard?.title).toBe('Render on the client')
       expect(clientCard?.snippets).toEqual([
-        { text: '<Suspense fallback={…}>', highlight: true },
-        { text: `  ${component}` },
-        { text: '</Suspense>', highlight: true },
+        { text: '"use client"', highlight: true },
+        { text: 'use(browser())' },
+        { text: renderSnippet },
       ])
     }
   )
@@ -607,24 +607,21 @@ describe('card sets for all error families', () => {
   })
 
   it.each([
-    ['Math.random()', '<BrowserDots />'],
-    ['Date.now()', '<BrowserClock />'],
-    ['crypto.randomUUID()', '<BrowserId />'],
-  ])(
-    'sync-io-client %s combines browser rendering and Suspense',
-    (cause, component) => {
-      const browserCard = getCards('sync-io-client', 'runtime', cause).find(
-        (card) => card.id === 'wrap-in-or-move-into-suspense'
-      )
+    ['Math.random()', '<RandomId />'],
+    ['Date.now()', '<DateDisplay />'],
+    ['crypto.randomUUID()', '<TokenId />'],
+  ])('sync-io-client %s keeps the Suspense fix distinct', (cause, child) => {
+    const suspenseCard = getCards('sync-io-client', 'runtime', cause).find(
+      (card) => card.id === 'wrap-in-or-move-into-suspense'
+    )
 
-      expect(browserCard?.title).toBe('Use browser() with Suspense')
-      expect(browserCard?.snippets).toEqual([
-        { text: '<Suspense fallback={…}>', highlight: true },
-        { text: `  ${component}` },
-        { text: '</Suspense>', highlight: true },
-      ])
-    }
-  )
+    expect(suspenseCard?.title).toBe('Wrap in or move into Suspense')
+    expect(suspenseCard?.snippets).toEqual([
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: `  ${child}` },
+      { text: '</Suspense>', highlight: true },
+    ])
+  })
 })
 
 describe('getUnrenderedSegmentErrorDetails', () => {
