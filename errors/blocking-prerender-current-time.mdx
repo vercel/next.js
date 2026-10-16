@@ -55,7 +55,7 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     href="#render-on-the-client"
     snippets={[
       { text: '"use client"', highlight: true },
-      { text: 'use(io())' },
+      { text: 'use(io()) // or use(browser())' },
       { text: 'return <Clock time={Date.now()} />' },
     ]}
   />
@@ -248,7 +248,23 @@ export function CurrentTime() {
 }
 ```
 
-Wrap the Client Component from its parent:
+#### Render only in the browser with `use(browser())`
+
+Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the timestamp should never be rendered on the server. The component suspends during static prerendering and dynamic server rendering, then renders with the browser's current time.
+
+```jsx filename="app/current-time.js"
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export function CurrentTime() {
+  use(browser())
+  return <time>{new Date().toLocaleString()}</time>
+}
+```
+
+Wrap either Client Component from its parent:
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
@@ -263,7 +279,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [`io`](/docs/app/api-reference/functions/io).
+Learn more: [`io`](/docs/app/api-reference/functions/io), [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 #### Compute the timestamp after hydration
 
@@ -298,11 +314,11 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-With `use(io())`, static prerenders contain the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, while dynamic requests can include the timestamp in the streamed HTML. With `useEffect`, the initial render shows the placeholder and the timestamp appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+With `use(io())`, static prerenders contain the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, while dynamic requests can include the timestamp in the streamed HTML. With `use(browser())`, every server render contains the fallback and the timestamp appears in the browser. With `useEffect`, the initial render shows the placeholder and the timestamp appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render without first calling `use(io())` still trips this error during static prerendering. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render without first calling `use(io())` or `use(browser())` still trips this error during static prerendering. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 
 ## For telemetry, use a timing API
 

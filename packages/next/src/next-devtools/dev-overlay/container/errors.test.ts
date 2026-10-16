@@ -559,7 +559,7 @@ describe('card sets for all error families', () => {
     ['Date.now()', 'return <Clock time={Date.now()} />'],
     ['crypto.randomUUID()', 'return <Id>{crypto.randomUUID()}</Id>'],
   ])(
-    'sync-io %s shows use(io()) as an unhighlighted client pattern',
+    'sync-io %s shows a three-line io()/browser() client pattern',
     (cause, renderSnippet) => {
       const clientCard = getCards('sync-io', 'runtime', cause).find(
         (card) => card.id === 'render-on-the-client'
@@ -567,7 +567,7 @@ describe('card sets for all error families', () => {
 
       expect(clientCard?.snippets).toEqual([
         { text: '"use client"', highlight: true },
-        { text: 'use(io())' },
+        { text: 'use(io()) // or use(browser())' },
         { text: renderSnippet },
       ])
     }

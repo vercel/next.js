@@ -134,7 +134,7 @@ export async function CurrentTime() {
 
 `io()` excludes the read from prerendering without requiring an actual request. Use [`connection()`](/docs/app/api-reference/functions/connection) instead when the work must wait for a real request and must not run during prefetching, such as a request-bound synchronous database query. An awaited `fetch` or asynchronous database query already provides a suspension point, so it doesn't need `io()`.
 
-In a Client Component, call [`use(io())`](/docs/app/api-reference/functions/io). `connection()` is server-only. `io()` suspends during prerendering, then resolves during request-time rendering or in the browser:
+In a Client Component, call [`use(io())`](/docs/app/api-reference/functions/io). `connection()` is server-only. `io()` suspends during prerendering, then resolves during request-time rendering or in the browser. To skip server rendering entirely and produce the value only in the browser, call [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) instead.
 
 ```tsx filename="app/current-time.tsx"
 'use client'

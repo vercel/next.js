@@ -55,7 +55,7 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
     href="#render-on-the-client"
     snippets={[
       { text: '"use client"', highlight: true },
-      { text: 'use(io())' },
+      { text: 'use(io()) // or use(browser())' },
       { text: 'return <Dots seed={Math.random()} />' },
     ]}
   />
@@ -203,7 +203,23 @@ export function Confetti() {
 }
 ```
 
-Wrap the Client Component from its parent:
+#### Render only in the browser with `use(browser())`
+
+Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the random value should never be rendered on the server. The component suspends during static prerendering and dynamic server rendering, then generates the value in the browser.
+
+```jsx filename="app/confetti.js"
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export function Confetti() {
+  use(browser())
+  return <Canvas seed={Math.random()} />
+}
+```
+
+Wrap either Client Component from its parent:
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
@@ -218,7 +234,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [`io`](/docs/app/api-reference/functions/io).
+Learn more: [`io`](/docs/app/api-reference/functions/io), [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 #### Compute the value inside `useEffect`
 
@@ -251,11 +267,11 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-With `use(io())`, static prerenders contain the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, while dynamic requests can include the random value in the streamed HTML. With `useEffect`, the initial render shows the placeholder and the value appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+With `use(io())`, static prerenders contain the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, while dynamic requests can include the random value in the streamed HTML. With `use(browser())`, every server render contains the fallback and the value appears in the browser. With `useEffect`, the initial render shows the placeholder and the value appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that produces a random value inline during render without first calling `use(io())` still trips this error during static prerendering. See the dedicated [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- A Client Component that produces a random value inline during render without first calling `use(io())` or `use(browser())` still trips this error during static prerendering. See the dedicated [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
 
 ## Verifying the fix
 

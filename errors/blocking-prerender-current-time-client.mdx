@@ -274,6 +274,25 @@ export default function Page() {
 
 Learn more: [`io`](/docs/app/api-reference/functions/io).
 
+### Render only in the browser with `use(browser())`
+
+Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the timestamp should never be rendered on the server. The component suspends during static prerendering and dynamic server rendering, then renders with the browser's current time.
+
+```jsx filename="app/components/last-updated.js"
+'use client'
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export function LastUpdated() {
+  use(browser())
+  return <span>Updated at {new Date().toLocaleTimeString()}</span>
+}
+```
+
+Wrap the component in `<Suspense>` as shown above.
+
+Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+
 ## Verifying the fix
 
 After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
