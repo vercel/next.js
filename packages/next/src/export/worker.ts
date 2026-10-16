@@ -566,6 +566,9 @@ export async function exportPages(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
             ;(exportError as any).code = 'NEXT_EXPORT_ERROR'
+            // Lets the build tell an early exit apart from the end-of-build
+            // export failure summary (which uses the same code).
+            ;(exportError as any).isPrerenderEarlyExit = true
             throw exportError
           } else {
             // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
