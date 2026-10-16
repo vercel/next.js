@@ -55,7 +55,7 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     href="#render-on-the-client"
     snippets={[
       { text: '"use client"', highlight: true },
-      { text: 'use(io()) // or use(browser())' },
+      { text: 'use(browser())' },
       { text: 'return <Clock time={Date.now()} />' },
     ]}
   />
@@ -228,25 +228,9 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page, such as a relative time label, localized time display, or stopwatch. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then suspend during static prerendering or compute it after hydration.
+Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page, such as a relative time label, localized time display, or stopwatch. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then render it only in the browser or compute it after hydration.
 
 ### Patterns
-
-#### Suspend static prerendering with `use(io())`
-
-Call [`use(io())`](/docs/app/api-reference/functions/io) before reading the timestamp. It suspends during static prerendering, so the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary renders a fallback. During a dynamic request, `io()` resolves immediately and the server can include the timestamp in the streamed HTML.
-
-```jsx filename="app/current-time.js"
-'use client'
-
-import { use } from 'react'
-import { io } from 'next/cache'
-
-export function CurrentTime() {
-  use(io())
-  return <time>{new Date().toLocaleString()}</time>
-}
-```
 
 #### Render only in the browser with `use(browser())`
 
@@ -264,7 +248,7 @@ export function CurrentTime() {
 }
 ```
 
-Wrap either Client Component from its parent:
+Wrap the Client Component from its parent:
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
@@ -279,7 +263,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [`io`](/docs/app/api-reference/functions/io), [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 #### Compute the timestamp after hydration
 
@@ -314,11 +298,13 @@ Learn more: [Client Components](/docs/app/getting-started/server-and-client-comp
 
 ### Trade-off
 
-With `use(io())`, static prerenders contain the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback, while dynamic requests can include the timestamp in the streamed HTML. With `use(browser())`, every server render contains the fallback and the timestamp appears in the browser. With `useEffect`, the initial render shows the placeholder and the timestamp appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+With `use(browser())`, every server render contains the fallback and the timestamp appears in the browser. With `useEffect`, the initial render shows the placeholder and the timestamp appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render without first calling `use(io())` or `use(browser())` still trips this error during static prerendering. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- Adding [`use client`](/docs/app/api-reference/directives/use-client) does not make a timestamp browser-only. A parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary can contain the static prerender interruption, but a dynamic request can still render the timestamp on the server. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for browser-only, effect, and server-rendering guidance.
+- `use(io())` only interrupts static prerendering. During request-time server rendering, `io()` resolves and an uncached timestamp can differ from the value produced during hydration. Use `use(io())` in a Client Component only when a library preserves the server value for the first client render.
+- If the timestamp must appear in server-rendered HTML, read it in a Server Component and pass the serialized result to the Client Component.
 
 ## For telemetry, use a timing API
 

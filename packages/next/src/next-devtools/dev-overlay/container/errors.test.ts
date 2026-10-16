@@ -559,7 +559,7 @@ describe('card sets for all error families', () => {
     ['Date.now()', 'return <Clock time={Date.now()} />'],
     ['crypto.randomUUID()', 'return <Id>{crypto.randomUUID()}</Id>'],
   ])(
-    'sync-io %s shows a three-line io()/browser() client pattern',
+    'sync-io %s shows a three-line browser-only client pattern',
     (cause, renderSnippet) => {
       const clientCard = getCards('sync-io', 'runtime', cause).find(
         (card) => card.id === 'render-on-the-client'
@@ -567,7 +567,7 @@ describe('card sets for all error families', () => {
 
       expect(clientCard?.snippets).toEqual([
         { text: '"use client"', highlight: true },
-        { text: 'use(io()) // or use(browser())' },
+        { text: 'use(browser())' },
         { text: renderSnippet },
       ])
     }
@@ -580,6 +580,7 @@ describe('card sets for all error families', () => {
       )
     ).toEqual([
       'wrap-in-or-move-into-suspense',
+      'render-only-in-browser',
       'move-into-effect-or-event-handler',
     ])
   })
@@ -589,6 +590,7 @@ describe('card sets for all error families', () => {
       getCards('sync-io-client', 'runtime', 'Date.now()').map((card) => card.id)
     ).toEqual([
       'wrap-in-or-move-into-suspense',
+      'render-only-in-browser',
       'move-into-effect-or-event-handler',
       'measure-elapsed-time',
     ])
@@ -601,9 +603,29 @@ describe('card sets for all error families', () => {
       )
     ).toEqual([
       'wrap-in-or-move-into-suspense',
+      'render-only-in-browser',
       'move-into-effect-or-event-handler',
     ])
   })
+
+  it.each([
+    ['Math.random()', 'return <Dots seed={Math.random()} />'],
+    ['Date.now()', 'return <Clock time={Date.now()} />'],
+    ['crypto.randomUUID()', 'return <Id>{crypto.randomUUID()}</Id>'],
+  ])(
+    'sync-io-client %s includes the browser-only pattern',
+    (cause, renderSnippet) => {
+      const browserCard = getCards('sync-io-client', 'runtime', cause).find(
+        (card) => card.id === 'render-only-in-browser'
+      )
+
+      expect(browserCard?.snippets).toEqual([
+        { text: '"use client"', highlight: true },
+        { text: 'use(browser())' },
+        { text: renderSnippet },
+      ])
+    }
+  )
 })
 
 describe('getUnrenderedSegmentErrorDetails', () => {

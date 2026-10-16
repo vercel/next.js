@@ -22,7 +22,7 @@ kind: error
   come back here for the specific fix.
 </div>
 
-A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues)) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake an unpredictable value into the prerendered HTML. The SSR value won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
+A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called a synchronous [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) API that produces a random value ([`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID), [`crypto.getRandomValues()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues)) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components can render on the server, so Next.js can't bake an unpredictable value into the prerendered HTML. Add a Suspense boundary to contain the prerender interruption, then choose where the value should be produced: render it only in the browser, compute it after hydration, or move the read to a Server Component and pass the serialized result as a prop.
 
 The Server Component case is handled at [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto). Other unpredictable client-side APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)) have parallel error pages: [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) and [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client).
 
@@ -40,6 +40,16 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
     ]}
   />
   <FixCard
+    group="client"
+    title="Render only in the browser"
+    href="#render-only-in-the-browser-with-usebrowser"
+    snippets={[
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())' },
+      { text: 'return <Id>{crypto.randomUUID()}</Id>' },
+    ]}
+  />
+  <FixCard
     group="defer"
     title="Move into effect or event handler"
     href="#move-into-effect-or-event-handler"
@@ -53,13 +63,13 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the generated value is part of the rendered output and a brief fallback during SSR is acceptable. Wrap the consuming Client Component in [`<Suspense>`](https://react.dev/reference/react/Suspense) from its parent. The fallback ships in the prerendered HTML, and Next.js fills in the real component when the browser hydrates.
+Wrap the consuming Client Component in [`<Suspense>`](https://react.dev/reference/react/Suspense) from its parent so the static prerender can use a fallback. A Suspense boundary does not make the component browser-only. If the route performs dynamic work before reaching the boundary, the component can render on the server during the request.
 
 ### Patterns
 
 #### Wrap from a Server Component parent
 
-Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component.
+Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component. Call [`use(browser())`](https://react.dev/reference/react-dom/browser) in the Client Component when its generated value must not render on the server.
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
@@ -79,7 +89,11 @@ export default function Page() {
 ```jsx filename="app/correlation-id.js"
 'use client'
 
+import { use } from 'react'
+import { browser } from 'react-dom'
+
 export function CorrelationId() {
+  use(browser())
   return <input type="hidden" name="trace" value={crypto.randomUUID()} />
 }
 ```
@@ -88,13 +102,13 @@ Learn more: [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+With `use(browser())`, the component shows the fallback during server rendering and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
 - Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling a crypto API in any of them raises this same error. Use stable placeholder content.
-- The inner Client Component still runs during SSR, behind the boundary. If you need to guarantee the value only runs in the browser, use [Move into effect or event handler](#move-into-effect-or-event-handler) instead.
-- A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary only fixes the prerender/hydration mismatch, not client re-renders. If the component using the crypto API re-renders on the client (a parent state change, a context update), it produces a new value each time. To stabilize the value across re-renders, call the crypto API once in a [`useState`](https://react.dev/reference/react/useState) initializer or [`useRef`](https://react.dev/reference/react/useRef), or compute it on the server and pass it down as a prop.
+- A Suspense boundary alone does not prevent request-time server rendering. If an ancestor calls `connection()` or reads request data, a raw generated value can be produced once on the server and again during hydration. Call `use(browser())`, move the read into an effect, or compute it in a Server Component and pass the serialized result as a prop.
+- If the component using the crypto API re-renders on the client (a parent state change, a context update), it produces a new value each time. To stabilize the value across re-renders, generate it once in state after hydration or store it in a [`useRef`](https://react.dev/reference/react/useRef).
 
 ## Move into effect or event handler
 
@@ -192,43 +206,17 @@ The user sees the placeholder briefly before the real value. For interactions th
 ### Gotchas
 
 - Don't compute the value inline during render with a lazy initializer like `useState(() => crypto.randomUUID())`. The initializer still runs during SSR and triggers the error.
-- If the value needs to be hydration-stable, use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
+- If the value must appear in server-rendered HTML, compute it in a Server Component and pass the serialized result as a prop.
 - Only [Web Crypto](https://developer.mozilla.org/en-US/docs/Web/API/Crypto) ships to the browser. Node-only APIs (`crypto.randomBytes`, `crypto.generateKeyPairSync`) are not available on the client. If you're seeing this error for one of those, the call lives on the server: see [Crypto APIs during prerendering](/docs/messages/blocking-prerender-crypto).
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
 ## Other options
 
-### Suspend with `use(io())`
+### Use a hydration-aware data source
 
-When the read genuinely needs to happen per visit and you can't move it to an effect or event, call [`io()`](/docs/app/api-reference/functions/io) from `next/cache` before the read with React's [`use`](https://react.dev/reference/react/use) hook. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell. `use(io())` suspends the prerender so the component is excluded from the shell and rendered on every request from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary.
+Some libraries render uncached data on the server and preserve that result for the first client render. Those libraries can call [`use(io())`](/docs/app/api-reference/functions/io) to keep the read out of the static prerender while still supporting request-time server rendering.
 
-```jsx filename="app/components/request-id.js"
-'use client'
-import { use } from 'react'
-import { io } from 'next/cache'
-
-export function RequestId() {
-  use(io())
-  return <span>Request {crypto.randomUUID()}</span>
-}
-```
-
-Wrap the component in `<Suspense>` so the surrounding shell stays prerendered.
-
-```jsx filename="app/page.js"
-import { Suspense } from 'react'
-import { RequestId } from './components/request-id'
-
-export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <RequestId />
-    </Suspense>
-  )
-}
-```
-
-Learn more: [`io`](/docs/app/api-reference/functions/io).
+Don't call `use(io())` directly before a random Web Crypto API. During request-time server rendering, `io()` resolves and the browser can produce a different value during hydration. Next.js cannot transfer an arbitrary synchronous read from a Client Component to the browser automatically.
 
 ### Render only in the browser with `use(browser())`
 

@@ -134,19 +134,21 @@ export async function CurrentTime() {
 
 `io()` excludes the read from prerendering without requiring an actual request. Use [`connection()`](/docs/app/api-reference/functions/connection) instead when the work must wait for a real request and must not run during prefetching, such as a request-bound synchronous database query. An awaited `fetch` or asynchronous database query already provides a suspension point, so it doesn't need `io()`.
 
-In a Client Component, call [`use(io())`](/docs/app/api-reference/functions/io). `connection()` is server-only. `io()` suspends during prerendering, then resolves during request-time rendering or in the browser. To skip server rendering entirely and produce the value only in the browser, call [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) instead.
+In a Client Component, call [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) when the value should only be produced in the browser. `browser()` suspends during prerendering and request-time server rendering, so the nearest `<Suspense>` boundary renders its fallback on the server.
 
 ```tsx filename="app/current-time.tsx"
 'use client'
 
-import { io } from 'next/cache'
 import { use } from 'react'
+import { browser } from 'react-dom'
 
 export function CurrentTime() {
-  use(io())
+  use(browser())
   return <p>{new Date().toISOString()}</p>
 }
 ```
+
+If the value must appear in server-rendered HTML, read it in a Server Component and pass the serialized result to the Client Component. A library can also preserve a server value for the first client render. Calling `use(io())` before an uncached synchronous read does not preserve its value: `io()` resolves during request-time server rendering, so the browser can produce a different value during hydration.
 
 ## Following validation
 
