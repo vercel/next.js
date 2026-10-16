@@ -23,7 +23,6 @@
 //!   all, for callers that can retry later.
 
 use std::{
-    cell::Cell,
     marker::PhantomData,
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
     thread,
@@ -104,9 +103,9 @@ impl SnapshotCoordinator {
         Self::new_with_custom_slow_settle_report_timeout(DEFAULT_SLOW_SETTLE_REPORT_TIME)
     }
     fn new_with_custom_slow_settle_report_timeout(slow_settle_report_timeout: Duration) -> Self {
-        // Twice the parallelism: threads are numbered round-robin and keep being created (e.g.
-        // by `block_in_place`), so once the numbering wraps, active threads land on stripes at
-        // random. Spare stripes keep them mostly apart.
+        // Twice the parallelism: thread ids keep growing as threads are created (e.g. by
+        // `block_in_place`), so once they wrap around the stripes, active threads land on stripes
+        // at random. Spare stripes keep them mostly apart.
         let stripes = (available_parallelism().map_or(1, |n| n.get()) * 2)
             .next_power_of_two()
             .min(MAX_STRIPES);
@@ -130,23 +129,13 @@ impl SnapshotCoordinator {
         }
     }
 
-    /// The calling thread's stripe. Threads are numbered on first use, round-robin.
+    /// The calling thread's stripe, picked by its [`ThreadId`](thread::ThreadId). Ids are handed
+    /// out in order and never reused, so threads spread over the stripes round-robin. Reading the
+    /// current id is a single thread-local access.
     fn stripe(&self) -> &AtomicUsize {
-        static NEXT: AtomicUsize = AtomicUsize::new(0);
-        thread_local! {
-            static INDEX: Cell<usize> = const { Cell::new(usize::MAX) };
-        }
-        let stripe = INDEX.with(|index| {
-            let mut i = index.get();
-            if i == usize::MAX {
-                i = NEXT.fetch_add(1, Ordering::Relaxed);
-                index.set(i);
-            }
-            // The thread keeps its unmasked number: coordinators can have different stripe
-            // counts (tests use small ones). The stripe count is a power of two.
-            i & (self.stripes.len() - 1)
-        });
-        &self.stripes[stripe]
+        let id = thread::current_id().as_u64().get() as usize;
+        // the stripe count is a power of two
+        &self.stripes[id & (self.stripes.len() - 1)]
     }
 
     /// Active operations: the sum of the stripes, read one stripe at a time. With admission
