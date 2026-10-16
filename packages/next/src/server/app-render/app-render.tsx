@@ -425,7 +425,6 @@ export type AppRenderContext = {
   assetPrefix: string
   isNotFoundPath: boolean
   nonce: string | undefined
-  initialHmrVersion?: string
   res: BaseNextResponse
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
@@ -2739,7 +2738,6 @@ async function prepareAppPageRender(
   )
 
   const ctx: AppRenderContext = {
-    initialHmrVersion: getRequestMeta(req, 'initialHmrVersion'),
     componentMod: ComponentMod,
     url,
     renderOpts,
@@ -3094,6 +3092,7 @@ async function renderAppPage(
             requestStore,
             res,
             ctx,
+            dev,
             notFoundLoaderTree,
             formState,
             postponedState,
@@ -3139,6 +3138,7 @@ async function renderAppPage(
       requestStore,
       res,
       ctx,
+      dev,
       loaderTree,
       formState,
       postponedState,
@@ -3582,6 +3582,7 @@ async function renderToStream(
   requestStore: RequestStore,
   res: BaseNextResponse,
   ctx: AppRenderContext,
+  dev: DevRenderContext | undefined,
   tree: LoaderTree,
   formState: any,
   postponedState: PostponedState | null,
@@ -3672,7 +3673,7 @@ async function renderToStream(
     bootstrapScriptContent = `self.__next_r=${JSON.stringify(
       requestId ?? crypto.randomUUID()
     )}`
-    const initialHmrVersion = ctx.initialHmrVersion
+    const initialHmrVersion = dev?.initialHmrVersion
     if (initialHmrVersion !== undefined) {
       // Only the dev server with Turbopack HMR supplies this captured baseline.
       bootstrapScriptContent += `;var __nextHmrInitialVersion=${htmlEscapeJsonString(
