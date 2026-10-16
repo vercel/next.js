@@ -272,6 +272,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
     // In the future, this assertion can be relaxed to only prevent sharing if the implementation
     // changed.
+    // Allow a full build and browser checks for each of the two deployments.
     it('should not have the same cache key across deployments', async () => {
       const key1 = await execute(next, envKey, 'dpl-id-1')
       const key2 = await execute(next, envKey, 'dpl-id-2')
@@ -301,7 +302,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
       expect(key1.keyRoute).not.toBe(key2.keyRoute)
       expect(key1.dataRoute).not.toBe(key2.dataRoute)
-    })
+    }, 120_000)
 
     it('should share a durable cache entry between an App Page and an API route', async () => {
       await next.stop()
