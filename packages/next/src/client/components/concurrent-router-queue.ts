@@ -64,22 +64,6 @@ export function restore(
   notImplemented()
 }
 
-// Never implemented, on purpose. This op exists only because the sequential
-// queue expresses an MPA navigation as state (`pushRef.mpaNavigation`)
-// consumed by a render-phase side effect, so a bfcache-restored page must
-// reset that state with an urgent update before any other render can observe
-// it and re-fire the navigation — urgency as a defense. The concurrent
-// machine has no such hazard to defend against, and its single
-// history/location owner handles the `pageshow` event itself, feeding it in
-// as an ordinary restore — so this entry point won't be called at all once
-// the shared callers are ported, and it dies with the sequential queue.
-export function legacyUrgentBFCacheRestore(
-  _url: URL,
-  _historyState: AppHistoryState | undefined
-): void {
-  notImplemented()
-}
-
 export function refresh(): void {
   notImplemented()
 }

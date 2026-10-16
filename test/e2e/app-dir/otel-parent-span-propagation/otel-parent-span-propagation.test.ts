@@ -4,20 +4,18 @@ import { type Collector, connectCollector } from './collector'
 
 const COLLECTOR_PORT = 9876
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('otel-parent-span-propagation', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: require('./package.json').dependencies,
     env: {
       TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
       NEXT_TELEMETRY_DISABLED: '1',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   let collector: Collector
 

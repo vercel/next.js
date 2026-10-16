@@ -7,12 +7,9 @@ const testFn =
     : describe
 
 testFn('turbopack `text` / `raw` module types', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should load matched files as strings through a `?raw` rule', async () => {
     const $ = await next.render$('/raw')

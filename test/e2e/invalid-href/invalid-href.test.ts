@@ -2,8 +2,6 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { waitForRedbox, getRedboxHeader, retry } from 'next-test-utils'
 
-jest.retryTimes(0)
-
 describe('Invalid hrefs', () => {
   const { next } = nextTestSetup({
     files: __dirname,

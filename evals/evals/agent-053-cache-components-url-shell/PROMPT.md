@@ -1,0 +1,1 @@
+Enable Cache Components for this shop. Product URLs and their currency query must keep rendering the correct details, and product details should stay reusable across requests. Keep the shop frame useful while data loads, and let related products stream afterward. Finish with a production build without route opt-outs.

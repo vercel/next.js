@@ -30,10 +30,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -117,10 +117,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -169,6 +169,7 @@
             ),
         ],
         span: 2725..2739,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__filename",
@@ -201,10 +202,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -306,10 +307,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -395,10 +396,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -447,6 +448,7 @@
             ),
         ],
         span: 2775..2789,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__dirname",
@@ -479,10 +481,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -584,10 +586,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -756,10 +758,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -827,10 +829,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -939,10 +941,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -977,50 +979,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        BlockStmtOrExpr(
-                            BlockStmt,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        46,
+                    ),
                 ),
             },
         },
@@ -1053,10 +1014,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1120,10 +1081,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -1184,6 +1145,7 @@
                             ),
                         ],
                         span: 3526..3536,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "__dirname",
@@ -1216,10 +1178,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -1360,10 +1322,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -1448,10 +1410,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -1477,50 +1439,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        BlockStmtOrExpr(
-                            BlockStmt,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        49,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -1562,10 +1483,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     2,
                                 ),
@@ -1625,10 +1546,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     2,
                                 ),
@@ -1640,47 +1561,9 @@
                     },
                 ],
                 range: StartAfter(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        BlockStmtOrExpr(
-                            BlockStmt,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                    ],
+                    AstPathId(
+                        48,
+                    ),
                 ),
             },
         },
@@ -1713,10 +1596,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -1820,6 +1703,7 @@
             ),
         ],
         span: 3671..3682,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2176,7 +2060,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2208,6 +2092,7 @@
             ),
         ],
         span: 1005..1021,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",
@@ -2232,7 +2117,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2306,7 +2191,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2347,6 +2232,7 @@
             ),
         ],
         span: 1025..1032,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2384,7 +2270,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2454,7 +2340,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2495,6 +2381,7 @@
             ),
         ],
         span: 1038..1051,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2532,7 +2419,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2601,7 +2488,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     3,
                 ),
@@ -2671,7 +2558,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -2707,42 +2594,13 @@
                             ),
                         ],
                         span: 1112..1145,
+                        in_truthiness_context: false,
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                5,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                3,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        9,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -2781,7 +2639,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -2857,7 +2715,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -2899,48 +2757,13 @@
                                             ),
                                         ],
                                         span: 1239..1273,
+                                        in_truthiness_context: false,
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                5,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                3,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        12,
+                                    ),
                                 ),
                             },
                             else: EffectsBlock {
@@ -2968,7 +2791,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -3058,7 +2881,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -3099,45 +2922,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                5,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                3,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        13,
+                                    ),
                                 ),
                             },
                         },
@@ -3162,7 +2949,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3184,39 +2971,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                5,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                3,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Alt,
-                        ),
-                    ],
+                    AstPathId(
+                        10,
+                    ),
                 ),
             },
         },
@@ -3241,7 +2998,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     3,
                 ),
@@ -3277,7 +3034,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     4,
                 ),
@@ -3310,7 +3067,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -3357,7 +3114,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -3410,7 +3167,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -3436,39 +3193,9 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                6,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    AstPathId(
+                        21,
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -3542,7 +3269,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -3601,7 +3328,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3643,6 +3370,7 @@
                             ),
                         ],
                         span: 1602..1617,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "require",
@@ -3667,7 +3395,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3776,7 +3504,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3835,7 +3563,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3924,7 +3652,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3995,7 +3723,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -4040,6 +3768,7 @@
                             ),
                         ],
                         span: 1712..1725,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "fs",
@@ -4064,7 +3793,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -4158,7 +3887,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -4257,7 +3986,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4321,6 +4050,7 @@
                                             ),
                                         ],
                                         span: 1758..1773,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -4345,7 +4075,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4458,7 +4188,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4539,7 +4269,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4658,7 +4388,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4721,53 +4451,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                3,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Try,
-                                        ),
-                                        TryStmt(
-                                            Handler,
-                                        ),
-                                        CatchClause(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                1,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        28,
+                                    ),
                                 ),
                             },
                         },
@@ -4792,7 +4478,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -4843,7 +4529,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     5,
                                 ),
@@ -4916,7 +4602,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     5,
                                 ),
@@ -4991,7 +4677,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5038,6 +4724,7 @@
                                             ),
                                         ],
                                         span: 2299..2311,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -5071,7 +4758,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5129,6 +4816,7 @@
                                             ),
                                         ],
                                         span: 2312..2327,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -5153,7 +4841,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5261,7 +4949,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5374,7 +5062,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5450,7 +5138,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5497,6 +5185,7 @@
                                             ),
                                         ],
                                         span: 2367..2376,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: Variable(
@@ -5533,7 +5222,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5599,6 +5288,7 @@
                                             ),
                                         ],
                                         span: 2422..2435,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5645,7 +5335,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5801,7 +5491,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5874,7 +5564,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5919,6 +5609,7 @@
                                             ),
                                         ],
                                         span: 2463..2476,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "fs",
@@ -5943,7 +5634,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -6037,7 +5728,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -6136,7 +5827,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6189,6 +5880,7 @@
                                                             ),
                                                         ],
                                                         span: 2501..2516,
+                                                        in_truthiness_context: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
@@ -6213,7 +5905,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6323,7 +6015,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6402,7 +6094,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6455,6 +6147,7 @@
                                                             ),
                                                         ],
                                                         span: 2548..2560,
+                                                        in_truthiness_context: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
@@ -6479,7 +6172,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6590,7 +6283,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6639,53 +6332,9 @@
                                                     },
                                                 ],
                                                 range: Exact(
-                                                    [
-                                                        Program(
-                                                            Script,
-                                                        ),
-                                                        Script(
-                                                            Body(
-                                                                6,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            Decl,
-                                                        ),
-                                                        Decl(
-                                                            Fn,
-                                                        ),
-                                                        FnDecl(
-                                                            Function,
-                                                        ),
-                                                        Function(
-                                                            Body,
-                                                        ),
-                                                        BlockStmt(
-                                                            Stmts(
-                                                                6,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            If,
-                                                        ),
-                                                        IfStmt(
-                                                            Cons,
-                                                        ),
-                                                        Stmt(
-                                                            Block,
-                                                        ),
-                                                        BlockStmt(
-                                                            Stmts(
-                                                                2,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            If,
-                                                        ),
-                                                        IfStmt(
-                                                            Cons,
-                                                        ),
-                                                    ],
+                                                    AstPathId(
+                                                        35,
+                                                    ),
                                                 ),
                                             },
                                         },
@@ -6710,7 +6359,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -6760,7 +6409,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -6786,39 +6435,9 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        31,
+                                    ),
                                 ),
                             },
                             else: EffectsBlock {
@@ -6845,7 +6464,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     7,
                                                 ),
@@ -6857,36 +6476,9 @@
                                     },
                                 ],
                                 range: StartAfter(
-                                    [
-                                        Program(
-                                            Script,
-                                        ),
-                                        Script(
-                                            Body(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                    ],
+                                    AstPathId(
+                                        30,
+                                    ),
                                 ),
                             },
                         },
@@ -6911,7 +6503,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     6,
                                 ),
@@ -6927,36 +6519,9 @@
                     },
                 ],
                 range: StartAfter(
-                    [
-                        Program(
-                            Script,
-                        ),
-                        Script(
-                            Body(
-                                6,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        BlockStmt(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                    ],
+                    AstPathId(
+                        20,
+                    ),
                 ),
             },
         },
@@ -6981,7 +6546,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

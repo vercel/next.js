@@ -7,6 +7,8 @@ import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
 import { createFakeCDN } from './server.mjs'
 
 describe('segment cache (CDN cache busting)', () => {
+  // Deploy mode exclusion: This suite runs Next.js behind an in-process fake
+  // CDN on local ports.
   if (isNextDev || isNextDeploy) {
     test('should not run during dev or deploy test runs', () => {})
     return

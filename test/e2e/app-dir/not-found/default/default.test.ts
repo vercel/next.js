@@ -5,7 +5,6 @@ const isPPREnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 describe('app dir - not-found - default', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should has noindex in the head html', async () => {

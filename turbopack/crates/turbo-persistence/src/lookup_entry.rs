@@ -70,8 +70,8 @@ impl Entry for LookupEntry {
         self.key.len()
     }
 
-    fn write_key_to(&self, buf: &mut Vec<u8>) {
-        buf.extend_from_slice(&self.key);
+    fn key_bytes(&self) -> &[u8] {
+        &self.key
     }
 
     fn value(&self) -> EntryValue<'_> {

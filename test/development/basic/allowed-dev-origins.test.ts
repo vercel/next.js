@@ -1,7 +1,7 @@
 import http from 'http'
 import { join } from 'path'
 import { FileRef, NextInstance, nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, findPort, retry } from 'next-test-utils'
+import { fetchViaHTTP, fetchViaRawHttp, findPort, retry } from 'next-test-utils'
 
 async function createHostServer() {
   const server = http.createServer((req, res) => {
@@ -42,10 +42,11 @@ function requestInternalDevScript(
   basePath: string,
   options: { referer?: string } = {}
 ) {
-  return fetchViaHTTP(
+  // Global fetch computes the Sec-Fetch-* headers itself and overrides user
+  // values, so these requests use a raw HTTP request.
+  return fetchViaRawHttp(
     appPort,
     withBasePath(basePath, '/_next/static/chunks/pages/_app.js'),
-    undefined,
     {
       headers: {
         ...(options.referer ? { referer: options.referer } : {}),

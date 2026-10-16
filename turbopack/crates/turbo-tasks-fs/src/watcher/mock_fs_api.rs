@@ -8,10 +8,7 @@ use rustc_hash::FxHashMap;
 use tempfile::TempDir;
 use tokio::{runtime::Handle, sync::RwLock};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    InvalidationReason, NonLocalValue, TransientInstance, TurboTasksApi,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-};
+use turbo_tasks::{InvalidationReason, NonLocalValue, TransientInstance, TurboTasksApi};
 
 use crate::{
     invalidator_map::InvalidatorMap,
@@ -29,6 +26,10 @@ pub struct MockFileSystem {
     pub dir_invalidator_map: InvalidatorMap,
     pub invalidation_lock: RwLock<()>,
     pub run_counts: Mutex<FxHashMap<Arc<PathBuf>, u64>>,
+    /// Tracked reads wait for a read lock on this before reading. Tests can hold the write lock to
+    /// delay re-executions of invalidated reads, e.g. to simulate a filesystem change happening
+    /// before a dependent task has re-registered its read.
+    pub read_gate: RwLock<()>,
     transient_handle: TransientInstance<MockFsHandle>,
     _temp_dir: TempDir,
 }
@@ -36,9 +37,6 @@ pub struct MockFileSystem {
 struct MockFsHandle(Weak<MockFileSystem>);
 
 unsafe impl NonLocalValue for MockFsHandle {}
-impl TraceRawVcs for MockFsHandle {
-    fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
-}
 
 impl MockFileSystem {
     pub fn new(config: DiskWatcherConfig) -> Arc<MockFileSystem> {
@@ -54,6 +52,7 @@ impl MockFileSystem {
             dir_invalidator_map: InvalidatorMap::new(),
             invalidation_lock: RwLock::new(()),
             run_counts: Mutex::new(FxHashMap::default()),
+            read_gate: RwLock::new(()),
             transient_handle: TransientInstance::new(MockFsHandle(weak.clone())),
             _temp_dir: temp_dir,
         })
@@ -64,6 +63,7 @@ impl MockFileSystem {
         async fn tracked_read_operation(fs: TransientInstance<MockFsHandle>, path: RcStr) {
             let fs = fs.0.upgrade().unwrap();
             let path = Arc::new(PathBuf::from(&*path));
+            let _gate = fs.read_gate.read().await;
 
             if metadata(&*path).unwrap().is_dir() {
                 fs.dir_invalidator_map

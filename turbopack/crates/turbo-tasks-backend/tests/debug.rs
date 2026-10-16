@@ -1,3 +1,5 @@
+// `ValueDebug` only carries `dbg()` under `debug_assertions`
+#![cfg(debug_assertions)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
@@ -278,7 +280,7 @@ struct StructWithVec {
 struct StructWithIgnore {
     dont_ignore: u32,
     // We're using a `Mutex` instead of a `T: Debug` type to ensure we support `T: !Debug`.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     ignore: Mutex<()>,
 }
 

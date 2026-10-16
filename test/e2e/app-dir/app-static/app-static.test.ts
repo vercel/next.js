@@ -785,10 +785,8 @@ describe('app-dir static/dynamic handling', () => {
         ? await next.readFile('.next/server/app/blog/seb.prefetch.rsc')
         : await next.readFile('.next/server/app/blog/seb.rsc')
 
-      // During SSG, pages that correspond with dynamic routes shouldn't have any search
-      // parameters in the `__PAGE__` segment string. The only time we expect to see
-      // search parameters in the `__PAGE__` segment string is when the RSC data is
-      // requested from the client with search parameters.
+      // Page segments contain only structural identity. Search params are
+      // carried separately, including in responses for dynamic routes.
       expect(data).not.toContain('__PAGE__?')
       expect(data).toContain('__PAGE__')
     })
@@ -3560,14 +3558,11 @@ describe('app-dir static/dynamic handling', () => {
       await waitFor(1000)
 
       res = await next.fetch(path)
+      // fetch resolves when the response headers arrive, which is the first
+      // byte of the response.
+      const startedStreaming = Date.now()
 
       let data: any
-      let startedStreaming: number = -1
-      res.body.on('data', () => {
-        if (startedStreaming === -1) {
-          startedStreaming = Date.now()
-        }
-      })
       if (res.headers.get('content-type').includes('application/json')) {
         data = await res.json()
       } else {
@@ -3589,11 +3584,6 @@ describe('app-dir static/dynamic handling', () => {
       if (Number.isNaN(startedResponding)) {
         throw new Error(
           `Expected start to be a number. Received: "${data.start}"`
-        )
-      }
-      if (startedStreaming === -1) {
-        throw new Error(
-          'Expected startedStreaming to be set. This is a bug in the test.'
         )
       }
 
@@ -4652,6 +4642,29 @@ describe('app-dir static/dynamic handling', () => {
         const $2 = cheerio.load(await res2.text())
         expect(firstTime).toBe($2('#now').text())
       }
+    })
+
+    // A new static fallback is rendered with Flight headers stripped. Parsing
+    // its malformed router state before that point would fail the render.
+    // @force-gate prod
+    it('should serve Flight and HTML for a static fallback first requested via RSC', async () => {
+      const path = '/force-static/rsc-first'
+      const rscResponse = await next.fetch(path, {
+        headers: {
+          rsc: '1',
+          'next-router-state-tree': JSON.stringify(['', '']),
+        },
+      })
+      expect(rscResponse.status).toBe(200)
+      expect(rscResponse.headers.get('content-type')).toContain(
+        'text/x-component'
+      )
+      expect(await rscResponse.text()).toContain('rsc-first')
+
+      const htmlResponse = await next.fetch(path)
+      expect(htmlResponse.status).toBe(200)
+      const $ = cheerio.load(await htmlResponse.text())
+      expect(JSON.parse($('#params').text())).toEqual({ slug: 'rsc-first' })
     })
   }
 

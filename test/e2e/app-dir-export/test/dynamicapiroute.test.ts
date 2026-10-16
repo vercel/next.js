@@ -1,5 +1,7 @@
 import { runTests } from './utils'
 
+// These cases patch fixture files and manually run local builds.
+// @force-gate !deploy
 describe('app dir - with output export - dynamic api route', () => {
   describe.each([
     {

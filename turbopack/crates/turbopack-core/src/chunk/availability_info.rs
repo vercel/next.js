@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, trace::TraceRawVcs};
+use turbo_tasks::{OperationVc, ResolvedVc};
 
 use crate::{
     chunk::available_modules::{AvailableModules, AvailableModulesSet},
@@ -11,14 +11,14 @@ use crate::{
 
 bitfield! {
     #[turbo_tasks::task_input]
-    #[derive(Clone, Copy, Default, TraceRawVcs, PartialEq, Eq, Hash, Encode, Decode)]
+    #[derive(Clone, Copy, Default, PartialEq, Eq, Hash, Encode, Decode)]
     pub struct AvailabilityFlags(u8);
     impl Debug;
     pub is_in_async_module, set_is_in_async_module: 0;
 }
 
 #[turbo_tasks::task_input]
-#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug, TraceRawVcs, Encode, Decode)]
+#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug, Encode, Decode)]
 pub struct AvailabilityInfo {
     flags: AvailabilityFlags,
     /// There are modules already available.

@@ -3,12 +3,6 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('i18n-data-fetching-redirect', () => {
-  // TODO: investigate tests failures on deploy
-  if ((global as any).isNextDeploy) {
-    it('should skip temporarily', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, 'app/pages')),

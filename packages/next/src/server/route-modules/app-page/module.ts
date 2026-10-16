@@ -1,5 +1,6 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
+import type { PrerenderResult } from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
 import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
@@ -23,6 +24,7 @@ import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { OpaqueFallbackRouteParams } from '../../request/fallback-params'
 import { PrerenderManifestMatcher } from './helpers/prerender-manifest-matcher'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
+import type { ParsedRequestHeaders } from './parse-request-headers'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -71,12 +73,29 @@ type AppPageUserlandModule = {
   loaderTree: LoaderTree
 }
 
+export type RouteMatch = {
+  // The pathname produced by route preparation, including its delimiter-safe
+  // encoding for path parameters.
+  readonly resolvedPathname: string
+}
+
+/** Live dev-server state captured for a render; absent in production and build prerenders. */
+export type DevRenderContext = {
+  readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  readonly hmrRefreshHash: string | undefined
+}
+
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
+  // Exact path-relative URL (pathname plus search) after route preparation,
+  // preserving its encoded bytes for rendering and prerender request IDs.
+  requestUrl: string
   page: string
+  routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
-  serverComponentsHmrCache?: ServerComponentsHmrCache
+  dev: DevRenderContext | undefined
+  parsedRequestHeaders: ParsedRequestHeaders
   sharedContext: AppSharedContext
 }
 
@@ -163,12 +182,19 @@ export class AppPageRouteModule extends RouteModule<
     return renderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
-      context.renderOpts,
-      context.serverComponentsHmrCache,
-      context.sharedContext
+      // HEAD responses do not consume the render stream, so they cannot
+      // establish a new status for the dev indicator.
+      process.env.__NEXT_DEV_SERVER && req.method === 'HEAD'
+        ? { ...context.renderOpts, setIsrStatus: undefined }
+        : context.renderOpts,
+      context.dev,
+      context.sharedContext,
+      context.routeMatch,
+      context.parsedRequestHeaders
     )
   }
 
@@ -176,16 +202,19 @@ export class AppPageRouteModule extends RouteModule<
     req: BaseNextRequest,
     res: BaseNextResponse,
     context: AppPageRouteHandlerContext
-  ): Promise<RenderResult> {
+  ): Promise<PrerenderResult> {
     return prerenderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
       context.renderOpts,
-      context.serverComponentsHmrCache,
-      context.sharedContext
+      undefined,
+      context.sharedContext,
+      context.routeMatch,
+      context.parsedRequestHeaders
     )
   }
 

@@ -42,7 +42,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   COMPILER_NAMES,
-  RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
 import type { __ApiPreviewProps } from '../api-utils'
 import { findPageFile } from '../lib/find-page-file'
@@ -111,6 +110,7 @@ import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
+import { createAtomicManifestOutputFileSystem } from './atomic-manifest-output-fs'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { Lockfile } from '../../build/lockfile'
 import {
@@ -266,6 +266,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
+  private hasVulnerabilityInsight: Promise<boolean>
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -290,6 +291,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch,
       lockfile,
       onDevServerCleanup,
+      hasVulnerabilityInsight,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -304,6 +306,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch: () => void
       lockfile: Lockfile | undefined
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+      hasVulnerabilityInsight: Promise<boolean>
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -323,6 +326,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.telemetry = telemetry
     this.resetFetch = resetFetch
     this.lockfile = lockfile
+    this.hasVulnerabilityInsight = hasVulnerabilityInsight
 
     this.config = config
     this.previewProps = previewProps
@@ -466,7 +470,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
 
       this.webpackHotMiddleware.onHMR(client, htmlRequestId)
-      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
+      this.onDemandEntries?.onHMR(
+        client,
+        () => this.hmrServerError,
+        htmlRequestId
+      )
 
       const enableCacheComponents = this.config.cacheComponents
       // Clients with a request ID are inferred App Router clients. If Cache
@@ -754,8 +762,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         config: this.config,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
-        originalRewrites: this.config._originalRewrites,
-        originalRedirects: this.config._originalRedirects,
         runWebpackSpan: this.hotReloaderSpan,
         appDir: this.appDir,
         previewProps: this.previewProps,
@@ -817,12 +823,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         afterFiles: [],
         fallback: [],
       },
-      originalRewrites: {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      },
-      originalRedirects: [],
       isDevFallback: true,
       entrypoints: (
         await createEntrypoints({
@@ -845,6 +845,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
 
     const fallbackCompiler = getWebpackBundler()(fallbackConfig)
+    // Requests can read manifests while a rebuild is emitting them.
+    fallbackCompiler.outputFileSystem = createAtomicManifestOutputFileSystem(
+      fallbackCompiler.outputFileSystem!
+    )
 
     this.fallbackWatcher = await new Promise((resolve) => {
       let bootedFallbackCompiler = false
@@ -977,9 +981,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 })
               : undefined
 
-            const isServerComponent =
-              isAppPath && staticInfo?.rsc !== RSC_MODULE_TYPES.client
-
             const pageType: PAGE_TYPES = entryData.bundlePath.startsWith(
               'pages/'
             )
@@ -1086,7 +1087,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     isDev: true,
                     page,
                     pages: this.pagesMapping,
-                    isServerComponent,
+                    isServerComponent: isAppPath,
                     appDirLoader,
                     pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
                     preferredRegion: staticInfo?.preferredRegion,
@@ -1156,7 +1157,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     isDev: true,
                     page,
                     pages: this.pagesMapping,
-                    isServerComponent,
+                    isServerComponent: isAppPath,
                     pagesType: PAGE_TYPES.PAGES,
                     preferredRegion: staticInfo?.preferredRegion,
                   })
@@ -1234,7 +1235,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.server,
                   name: bundlePath,
-                  isServerComponent,
+                  isServerComponent: isAppPath,
                   value,
                   hasAppDir,
                 })
@@ -1278,8 +1279,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     // Copy over the filesystem so that it is shared between all compilers.
     const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
+    // Requests can read manifests while a rebuild is emitting them.
+    const outputFileSystem = createAtomicManifestOutputFileSystem(
+      this.multiCompiler.compilers[0].outputFileSystem!
+    )
     for (const compiler of this.multiCompiler.compilers) {
       compiler.inputFileSystem = inputFileSystem
+      compiler.outputFileSystem = outputFileSystem
       // This is set for the initial compile. After that Watching class in webpack adds it.
       compiler.fsStartTime = Date.now()
       // Ensure NodeEnvironmentPlugin doesn't purge the inputFileSystem. Purging is handled in `done` below.
@@ -1644,7 +1650,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.versionInfo,
       this.devtoolsFrontendUrl,
       this.config,
-      initialDevToolsConfig
+      initialDevToolsConfig,
+      this.hasVulnerabilityInsight
     )
 
     let booted = false

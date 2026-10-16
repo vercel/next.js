@@ -1050,9 +1050,12 @@ describe('app-dir action handling', () => {
 
           await retry(async () => {
             await browser.elementByCss('#inc').click()
+            await browser.waitForIdleNetwork()
             const val = Number(await browser.elementById('count').text())
-            expect(val).toBeGreaterThan(1000)
-          })
+            // An unrelated Fast Refresh can reload the page while the test is
+            // running, resetting the counter before the updated action runs.
+            expect(val).toBeGreaterThanOrEqual(1000)
+          }, 10_000)
         } finally {
           await next.patchFile(filePath, origContent)
         }

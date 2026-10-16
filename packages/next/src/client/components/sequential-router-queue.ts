@@ -152,30 +152,6 @@ export function restore(
   })
 }
 
-/**
- * The bfcache `pageshow` restore (see the pageshow handler in app-router.tsx).
- * Unlike every other navigator operation, this dispatches as a deliberately
- * urgent (non-transition) update: the restored state reset must render before
- * anything else can observe the stale mpaNavigation state and re-fire the MPA
- * navigation the restore exists to prevent. As a transition it would be
- * interruptible, and an intervening urgent render could commit against the
- * stale state first.
- *
- * This is a preserved legacy special case. It will not be carried into the
- * concurrent router queue, which handles bfcache restore through its own
- * design.
- */
-export function legacyUrgentBFCacheRestore(
-  url: URL,
-  historyState: AppHistoryState | undefined
-): void {
-  dispatchAppRouterAction({
-    type: ACTION_RESTORE,
-    url,
-    historyState,
-  })
-}
-
 export function refresh(): void {
   startTransition(() => {
     dispatchAppRouterAction({

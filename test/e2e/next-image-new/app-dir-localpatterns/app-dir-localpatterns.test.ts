@@ -5,10 +5,12 @@ import {
   waitForRedbox,
 } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
 describe('Image localPatterns config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   async function getSrc(browser: Playwright, id: string) {

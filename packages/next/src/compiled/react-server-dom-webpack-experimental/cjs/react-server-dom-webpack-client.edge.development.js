@@ -11,6 +11,12 @@
 "use strict";
 "production" !== process.env.NODE_ENV &&
   (function () {
+    function createStringDecoder() {
+      return new TextDecoder("utf-8", {
+        ignoreBOM:
+          0 < arguments.length && void 0 !== arguments[0] ? arguments[0] : !1
+      });
+    }
     function checkEvalAvailabilityOnceDev() {
       if (!hasConfirmedEval) {
         hasConfirmedEval = !0;
@@ -410,11 +416,8 @@
           entry.done
             ? ((entry = nextPartId++),
               data.append(formFieldPrefix + entry, new Blob(buffer)),
-              data.append(
-                formFieldPrefix + streamId,
-                '"$o' + entry.toString(16) + '"'
-              ),
-              data.append(formFieldPrefix + streamId, "C"),
+              data.append(streamPrefix, '"$o' + entry.toString(16) + '"'),
+              data.append(streamPrefix, "C"),
               pendingParts--,
               0 === pendingParts && resolve(data))
             : (buffer.push(entry.value),
@@ -424,20 +427,21 @@
         var data = formData;
         pendingParts++;
         var streamId = nextPartId++,
-          buffer = [];
+          buffer = [],
+          streamPrefix = formFieldPrefix + "S" + streamId;
         reader.read(new Uint8Array(1024)).then(progress, reject);
         return "$r" + streamId.toString(16);
       }
       function serializeReader(reader) {
         function progress(entry) {
           if (entry.done)
-            data.append(formFieldPrefix + streamId, "C"),
+            data.append(streamPrefix, "C"),
               pendingParts--,
               0 === pendingParts && resolve(data);
           else
             try {
               var partJSON = JSON.stringify(entry.value, resolveToJSON);
-              data.append(formFieldPrefix + streamId, partJSON);
+              data.append(streamPrefix, partJSON);
               reader.read().then(progress, reject);
             } catch (x) {
               reject(x);
@@ -446,7 +450,8 @@
         null === formData && (formData = new FormData());
         var data = formData;
         pendingParts++;
-        var streamId = nextPartId++;
+        var streamId = nextPartId++,
+          streamPrefix = formFieldPrefix + "S" + streamId;
         reader.read().then(progress, reject);
         return "$R" + streamId.toString(16);
       }
@@ -461,12 +466,11 @@
       function serializeAsyncIterable(iterable, iterator) {
         function progress(entry) {
           if (entry.done) {
-            if (void 0 === entry.value)
-              data.append(formFieldPrefix + streamId, "C");
+            if (void 0 === entry.value) data.append(streamPrefix, "C");
             else
               try {
                 var partJSON = JSON.stringify(entry.value, resolveToJSON);
-                data.append(formFieldPrefix + streamId, "C" + partJSON);
+                data.append(streamPrefix, "C" + partJSON);
               } catch (x) {
                 reject(x);
                 return;
@@ -476,10 +480,10 @@
           } else
             try {
               var _partJSON = JSON.stringify(entry.value, resolveToJSON);
-              data.append(formFieldPrefix + streamId, _partJSON);
+              data.append(streamPrefix, _partJSON);
               iterator.next().then(progress, reject);
-            } catch (x$0) {
-              reject(x$0);
+            } catch (x$3) {
+              reject(x$3);
             }
         }
         null === formData && (formData = new FormData());
@@ -487,6 +491,7 @@
         pendingParts++;
         var streamId = nextPartId++;
         iterable = iterable === iterator;
+        var streamPrefix = formFieldPrefix + "S" + streamId;
         iterator.next().then(progress, reject);
         return "$" + (iterable ? "x" : "X") + streamId.toString(16);
       }
@@ -512,16 +517,28 @@
               ));
         if (null === value) return null;
         if ("object" === typeof value) {
+          originalValue = knownServerObjectReferences.get(value);
+          if (void 0 !== originalValue) {
+            key = writtenObjects.get(value);
+            if (void 0 !== key)
+              if (modelRoot === value) modelRoot = null;
+              else return key;
+            key = JSON.stringify({ id: originalValue }, resolveToJSON);
+            null === formData && (formData = new FormData());
+            var refId = nextPartId++;
+            formData.set(formFieldPrefix + refId, key);
+            key = "$H" + refId.toString(16);
+            writtenObjects.set(value, key);
+            return key;
+          }
           switch (value.$$typeof) {
             case REACT_ELEMENT_TYPE:
-              if (void 0 !== temporaryReferences && -1 === key.indexOf(":")) {
-                var parentReference = writtenObjects.get(this);
-                if (void 0 !== parentReference)
-                  return (
-                    temporaryReferences.set(parentReference + ":" + key, value),
-                    "$T"
-                  );
-              }
+              if (
+                void 0 !== temporaryReferences &&
+                -1 === key.indexOf(":") &&
+                ((refId = writtenObjects.get(this)), void 0 !== refId)
+              )
+                return temporaryReferences.set(refId + ":" + key, value), "$T";
               if (void 0 !== temporaryReferences && modelRoot === value)
                 return (modelRoot = null), "$T";
               throw Error(
@@ -534,9 +551,9 @@
               null === formData && (formData = new FormData());
               pendingParts++;
               try {
-                parentReference = init(originalValue);
+                refId = init(originalValue);
                 var lazyId = nextPartId++,
-                  partJSON = serializeModel(parentReference, lazyId);
+                  partJSON = serializeModel(refId, lazyId);
                 formData.append(formFieldPrefix + lazyId, partJSON);
                 return "$" + lazyId.toString(16);
               } catch (x) {
@@ -547,7 +564,7 @@
                 ) {
                   pendingParts++;
                   var _lazyId = nextPartId++;
-                  parentReference = function () {
+                  refId = function () {
                     try {
                       var _partJSON2 = serializeModel(value, _lazyId),
                         _data = formData;
@@ -558,7 +575,7 @@
                       reject(reason);
                     }
                   };
-                  x.then(parentReference, parentReference);
+                  x.then(refId, refId);
                   return "$" + _lazyId.toString(16);
                 }
                 reject(x);
@@ -567,11 +584,11 @@
                 pendingParts--;
               }
           }
-          parentReference = writtenObjects.get(value);
+          refId = writtenObjects.get(value);
           if ("function" === typeof value.then) {
-            if (void 0 !== parentReference)
+            if (void 0 !== refId)
               if (modelRoot === value) modelRoot = null;
-              else return parentReference;
+              else return refId;
             null === formData && (formData = new FormData());
             pendingParts++;
             var promiseId = nextPartId++;
@@ -594,17 +611,17 @@
             }, reject);
             return key;
           }
-          if (void 0 !== parentReference)
+          if (void 0 !== refId)
             if (modelRoot === value) modelRoot = null;
-            else return parentReference;
+            else return refId;
           else
             -1 === key.indexOf(":") &&
-              ((parentReference = writtenObjects.get(this)),
-              void 0 !== parentReference &&
-                ((parentReference = parentReference + ":" + key),
-                writtenObjects.set(value, parentReference),
+              ((refId = writtenObjects.get(this)),
+              void 0 !== refId &&
+                ((refId = refId + ":" + key),
+                writtenObjects.set(value, refId),
                 void 0 !== temporaryReferences &&
-                  temporaryReferences.set(parentReference, value)));
+                  temporaryReferences.set(refId, value)));
           if (isArrayImpl(value)) return value;
           if (value instanceof FormData) {
             null === formData && (formData = new FormData());
@@ -619,26 +636,26 @@
           if (value instanceof Map)
             return (
               (key = nextPartId++),
-              (parentReference = serializeModel(Array.from(value), key)),
+              (refId = serializeModel(Array.from(value), key)),
               null === formData && (formData = new FormData()),
-              formData.append(formFieldPrefix + key, parentReference),
+              formData.append(formFieldPrefix + key, refId),
               "$Q" + key.toString(16)
             );
           if (value instanceof Set)
             return (
               (key = nextPartId++),
-              (parentReference = serializeModel(Array.from(value), key)),
+              (refId = serializeModel(Array.from(value), key)),
               null === formData && (formData = new FormData()),
-              formData.append(formFieldPrefix + key, parentReference),
+              formData.append(formFieldPrefix + key, refId),
               "$W" + key.toString(16)
             );
           if (value instanceof ArrayBuffer)
             return (
               (key = new Blob([value])),
-              (parentReference = nextPartId++),
+              (refId = nextPartId++),
               null === formData && (formData = new FormData()),
-              formData.append(formFieldPrefix + parentReference, key),
-              "$A" + parentReference.toString(16)
+              formData.append(formFieldPrefix + refId, key),
+              "$A" + refId.toString(16)
             );
           if (value instanceof Int8Array)
             return serializeTypedArray("O", value);
@@ -670,33 +687,29 @@
               formData.append(formFieldPrefix + key, value),
               "$B" + key.toString(16)
             );
-          if ((parentReference = getIteratorFn(value)))
+          if ((refId = getIteratorFn(value)))
             return (
-              (parentReference = parentReference.call(value)),
-              parentReference === value
+              (refId = refId.call(value)),
+              refId === value
                 ? ((key = nextPartId++),
-                  (parentReference = serializeModel(
-                    Array.from(parentReference),
-                    key
-                  )),
+                  (refId = serializeModel(Array.from(refId), key)),
                   null === formData && (formData = new FormData()),
-                  formData.append(formFieldPrefix + key, parentReference),
+                  formData.append(formFieldPrefix + key, refId),
                   "$i" + key.toString(16))
-                : Array.from(parentReference)
+                : Array.from(refId)
             );
           if (
             "function" === typeof ReadableStream &&
             value instanceof ReadableStream
           )
             return serializeReadableStream(value);
-          parentReference = value[ASYNC_ITERATOR];
-          if ("function" === typeof parentReference)
-            return serializeAsyncIterable(value, parentReference.call(value));
-          parentReference = getPrototypeOf(value);
+          refId = value[ASYNC_ITERATOR];
+          if ("function" === typeof refId)
+            return serializeAsyncIterable(value, refId.call(value));
+          refId = getPrototypeOf(value);
           if (
-            parentReference !== ObjectPrototype$1 &&
-            (null === parentReference ||
-              null !== getPrototypeOf(parentReference))
+            refId !== ObjectPrototype$1 &&
+            (null === refId || null !== getPrototypeOf(refId))
           ) {
             if (void 0 === temporaryReferences)
               throw Error(
@@ -718,11 +731,11 @@
                 )
               : isSimpleObject(value)
                 ? Object.getOwnPropertySymbols &&
-                  ((parentReference = Object.getOwnPropertySymbols(value)),
-                  0 < parentReference.length &&
+                  ((refId = Object.getOwnPropertySymbols(value)),
+                  0 < refId.length &&
                     console.error(
                       "Only plain objects can be passed to Server Functions from the Client. Objects with symbol properties like %s are not supported.%s",
-                      parentReference[0].description,
+                      refId[0].description,
                       describeObjectForErrorMessage(this, key)
                     ))
                 : console.error(
@@ -741,30 +754,27 @@
         if ("number" === typeof value) return serializeNumber(value);
         if ("undefined" === typeof value) return "$undefined";
         if ("function" === typeof value) {
-          parentReference = knownServerReferences.get(value);
-          if (void 0 !== parentReference) {
+          refId = knownServerReferences.get(value);
+          if (void 0 !== refId) {
             key = writtenObjects.get(value);
             if (void 0 !== key) return key;
             key = JSON.stringify(
-              { id: parentReference.id, bound: parentReference.bound },
+              { id: refId.id, bound: refId.bound },
               resolveToJSON
             );
             null === formData && (formData = new FormData());
-            parentReference = nextPartId++;
-            formData.set(formFieldPrefix + parentReference, key);
-            key = "$h" + parentReference.toString(16);
+            refId = nextPartId++;
+            formData.set(formFieldPrefix + refId, key);
+            key = "$h" + refId.toString(16);
             writtenObjects.set(value, key);
             return key;
           }
           if (
             void 0 !== temporaryReferences &&
             -1 === key.indexOf(":") &&
-            ((parentReference = writtenObjects.get(this)),
-            void 0 !== parentReference)
+            ((refId = writtenObjects.get(this)), void 0 !== refId)
           )
-            return (
-              temporaryReferences.set(parentReference + ":" + key, value), "$T"
-            );
+            return temporaryReferences.set(refId + ":" + key, value), "$T";
           throw Error(
             "Client Functions cannot be passed directly to Server Functions. Only Functions passed from the Server can be passed back again."
           );
@@ -773,12 +783,9 @@
           if (
             void 0 !== temporaryReferences &&
             -1 === key.indexOf(":") &&
-            ((parentReference = writtenObjects.get(this)),
-            void 0 !== parentReference)
+            ((refId = writtenObjects.get(this)), void 0 !== refId)
           )
-            return (
-              temporaryReferences.set(parentReference + ":" + key, value), "$T"
-            );
+            return temporaryReferences.set(refId + ":" + key, value), "$T";
           throw Error(
             "Symbols cannot be passed to a Server Function without a temporary reference set. Pass a TemporaryReferenceSet to the options." +
               describeObjectForErrorMessage(this, key)
@@ -1719,6 +1726,7 @@
       this._children = [];
       this._debugChunk = null;
       this._debugInfo = [];
+      this._receivedDebugInfo = null;
     }
     function unwrapWeakResponse(weakResponse) {
       weakResponse = weakResponse.weak.deref();
@@ -1955,15 +1963,21 @@
       }
     }
     function createResolvedModelChunk(response, value) {
-      return new ReactPromise("resolved_model", value, response);
+      var $jscomp$compprop0 = {};
+      return new ReactPromise(
+        "resolved_model",
+        value,
+        (($jscomp$compprop0[RESPONSE_SYMBOL] = response), $jscomp$compprop0)
+      );
     }
     function createResolvedIteratorResultChunk(response, value, done) {
+      var $jscomp$compprop1 = {};
       return new ReactPromise(
         "resolved_model",
         (done ? '{"done":true,"value":' : '{"done":false,"value":') +
           value +
           "}",
-        response
+        (($jscomp$compprop1[RESPONSE_SYMBOL] = response), $jscomp$compprop1)
       );
     }
     function resolveIteratorResultChunk(response, chunk, value, done) {
@@ -1984,7 +1998,8 @@
           rejectListeners = chunk.reason;
         chunk.status = "resolved_model";
         chunk.value = value;
-        chunk.reason = response;
+        value = {};
+        chunk.reason = ((value[RESPONSE_SYMBOL] = response), value);
         null !== resolveListeners &&
           (initializeModelChunk(chunk),
           wakeChunkIfInitialized(
@@ -2089,39 +2104,59 @@
         prevChunk = initializingChunk;
       initializingHandler = null;
       var resolvedModel = chunk.value,
-        response = chunk.reason;
+        response = chunk.reason[RESPONSE_SYMBOL];
       chunk.status = "blocked";
       chunk.value = null;
       chunk.reason = null;
       initializingChunk = chunk;
       initializeDebugChunk(response, chunk);
       try {
-        var value = parseModel(response, resolvedModel),
-          resolveListeners = chunk.value;
-        if (null !== resolveListeners)
-          for (
-            chunk.value = null, chunk.reason = null, resolvedModel = 0;
-            resolvedModel < resolveListeners.length;
-            resolvedModel++
-          ) {
-            var listener = resolveListeners[resolvedModel];
-            "function" === typeof listener
-              ? listener(value)
-              : fulfillReference(response, listener, value, chunk);
-          }
-        if (null !== initializingHandler) {
-          if (initializingHandler.errored) throw initializingHandler.reason;
-          if (0 < initializingHandler.deps) {
-            initializingHandler.value = value;
-            initializingHandler.chunk = chunk;
+        var value = parseModel(response, resolvedModel);
+        resolvedModel = initializingHandler;
+        if (null !== resolvedModel) {
+          if (resolvedModel.errored) {
+            "blocked" === chunk.status &&
+              triggerErrorOnChunk(response, chunk, resolvedModel.reason);
             return;
           }
+          resolvedModel.value = value;
+          resolvedModel.chunk = chunk;
         }
-        chunk.status = "fulfilled";
-        chunk.value = value;
+        var listeners = chunk.value,
+          rejectListeners = chunk.reason;
+        chunk.value = null;
         chunk.reason = null;
-        filterDebugInfo(response, chunk);
-        moveDebugInfoFromChunkToInnerValue(chunk, value);
+        if (null !== listeners) {
+          for (
+            var cyclic = null, deferred = null, i = 0;
+            i < listeners.length;
+            i++
+          ) {
+            var listener = listeners[i];
+            if (
+              "function" !== typeof listener &&
+              null !== resolveBlockedCycle(chunk, listener)
+            ) {
+              if (
+                (null === cyclic && (cyclic = []),
+                cyclic.push(listener),
+                null !== rejectListeners)
+              ) {
+                var rejectionIdx = rejectListeners.indexOf(listener);
+                -1 !== rejectionIdx && rejectListeners.splice(rejectionIdx, 1);
+              }
+            } else
+              null === deferred && (deferred = []), deferred.push(listener);
+          }
+          null !== deferred &&
+            ((chunk.value = deferred), (chunk.reason = rejectListeners));
+          if (null !== cyclic)
+            for (listeners = 0; listeners < cyclic.length; listeners++)
+              fulfillReference(response, cyclic[listeners], value, chunk);
+        }
+        "blocked" !== chunk.status ||
+          (null !== resolvedModel && 0 < resolvedModel.deps) ||
+          initializeBlockedChunk(response, chunk, value, null);
       } catch (error) {
         (chunk.status = "rejected"), (chunk.reason = error);
       } finally {
@@ -2275,6 +2310,30 @@
         chunks.set(id, chunk));
       return chunk;
     }
+    function initializeBlockedChunk(response, chunk, value, reason) {
+      var resolveListeners = chunk.value;
+      chunk._receivedDebugInfo = null;
+      chunk.status = "fulfilled";
+      chunk.value = value;
+      chunk.reason = reason;
+      null !== resolveListeners
+        ? wakeChunk(response, resolveListeners, value, chunk)
+        : (filterDebugInfo(response, chunk),
+          moveDebugInfoFromChunkToInnerValue(chunk, value));
+    }
+    function initializeChunkIfUnblocked(response, handler) {
+      if (0 === handler.deps && !handler.errored) {
+        var chunk = handler.chunk;
+        null !== chunk &&
+          "blocked" === chunk.status &&
+          initializeBlockedChunk(
+            response,
+            chunk,
+            handler.value,
+            handler.reason
+          );
+      }
+    }
     function fulfillReference(response, reference, value, fulfilledChunk) {
       var handler = reference.handler,
         parentObject = reference.parentObject,
@@ -2381,7 +2440,8 @@
           var element = handler.value;
           switch (key) {
             case "3":
-              transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
+              reference.isDebug ||
+                transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
               element.props = mappedValue;
               break;
             case "4":
@@ -2391,7 +2451,8 @@
               element._debugStack = mappedValue;
               break;
             default:
-              transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
+              reference.isDebug ||
+                transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
           }
         } else
           reference.isDebug ||
@@ -2401,19 +2462,7 @@
         return;
       }
       handler.deps--;
-      0 === handler.deps &&
-        ((reference = handler.chunk),
-        null !== reference &&
-          "blocked" === reference.status &&
-          ((value = reference.value),
-          (reference.status = "fulfilled"),
-          (reference.value = handler.value),
-          (reference.reason = handler.reason),
-          null !== value
-            ? wakeChunk(response, value, handler.value, reference)
-            : ((handler = handler.value),
-              filterDebugInfo(response, reference),
-              moveDebugInfoFromChunkToInnerValue(reference, handler))));
+      initializeChunkIfUnblocked(response, handler);
     }
     function rejectReference(response, handler, error) {
       if (!handler.errored) {
@@ -2488,6 +2537,9 @@
       return null;
     }
     function loadServerReference(response, metaData, parentObject, key) {
+      if ("then" === key) return null;
+      var id = metaData.id;
+      if ("string" !== typeof id) return null;
       if (!response._serverReferenceConfig)
         return createBoundServerReference(
           metaData,
@@ -2497,22 +2549,23 @@
         );
       var serverReference = resolveServerReference(
           response._serverReferenceConfig,
-          metaData.id
+          id
         ),
-        promise = preloadModule(serverReference);
-      if (promise)
-        metaData.bound && (promise = Promise.all([promise, metaData.bound]));
-      else if (metaData.bound) promise = Promise.resolve(metaData.bound);
+        bound = metaData.bound;
+      if ((metaData = preloadModule(serverReference)))
+        bound instanceof ReactPromise &&
+          (metaData = Promise.all([metaData, bound]));
+      else if (bound instanceof ReactPromise) metaData = Promise.resolve(bound);
       else
         return (
-          (promise = requireModule(serverReference)),
+          (metaData = requireModule(serverReference)),
           registerBoundServerReference(
-            promise,
-            metaData.id,
-            metaData.bound,
+            metaData,
+            id,
+            bound,
             response._encodeFormAction
           ),
-          promise
+          metaData
         );
       if (initializingHandler) {
         var handler = initializingHandler;
@@ -2526,18 +2579,24 @@
           deps: 1,
           errored: !1
         };
-      promise.then(
+      metaData.then(
         function () {
           var resolvedValue = requireModule(serverReference);
-          if (metaData.bound) {
-            var boundArgs = metaData.bound.value.slice(0);
-            boundArgs.unshift(null);
-            resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
+          if (bound) {
+            var promiseValue = bound.value;
+            promiseValue = isArrayImpl(promiseValue)
+              ? promiseValue.slice(0)
+              : [];
+            promiseValue.unshift(null);
+            resolvedValue = resolvedValue.bind.apply(
+              resolvedValue,
+              promiseValue
+            );
           }
           registerBoundServerReference(
             resolvedValue,
-            metaData.id,
-            metaData.bound,
+            id,
+            bound,
             response._encodeFormAction
           );
           "__proto__" !== key && (parentObject[key] = resolvedValue);
@@ -2550,39 +2609,28 @@
             null !== handler.value &&
             handler.value.$$typeof === REACT_ELEMENT_TYPE
           )
-            switch (((boundArgs = handler.value), key)) {
+            switch (((promiseValue = handler.value), key)) {
               case "3":
-                boundArgs.props = resolvedValue;
+                promiseValue.props = resolvedValue;
                 break;
               case "4":
-                boundArgs._owner = resolvedValue;
+                promiseValue._owner = resolvedValue;
             }
           handler.deps--;
-          0 === handler.deps &&
-            ((resolvedValue = handler.chunk),
-            null !== resolvedValue &&
-              "blocked" === resolvedValue.status &&
-              ((boundArgs = resolvedValue.value),
-              (resolvedValue.status = "fulfilled"),
-              (resolvedValue.value = handler.value),
-              (resolvedValue.reason = null),
-              null !== boundArgs
-                ? wakeChunk(response, boundArgs, handler.value, resolvedValue)
-                : ((boundArgs = handler.value),
-                  filterDebugInfo(response, resolvedValue),
-                  moveDebugInfoFromChunkToInnerValue(
-                    resolvedValue,
-                    boundArgs
-                  ))));
+          initializeChunkIfUnblocked(response, handler);
         },
         function (error) {
           if (!handler.errored) {
-            var blockedValue = handler.value;
-            handler.errored = !0;
-            handler.value = null;
-            handler.reason = error;
-            var chunk = handler.chunk;
-            if (null !== chunk && "blocked" === chunk.status) {
+            var blockedValue = handler.value,
+              erroredHandler = handler;
+            erroredHandler.errored = !0;
+            erroredHandler.value = null;
+            erroredHandler.reason = error;
+            erroredHandler = handler.chunk;
+            if (
+              null !== erroredHandler &&
+              "blocked" === erroredHandler.status
+            ) {
               if (
                 "object" === typeof blockedValue &&
                 null !== blockedValue &&
@@ -2595,14 +2643,22 @@
                 erroredComponent.debugStack = blockedValue._debugStack;
                 supportsCreateTask &&
                   (erroredComponent.debugTask = blockedValue._debugTask);
-                chunk._debugInfo.push(erroredComponent);
+                erroredHandler._debugInfo.push(erroredComponent);
               }
-              triggerErrorOnChunk(response, chunk, error);
+              triggerErrorOnChunk(response, erroredHandler, error);
             }
           }
         }
       );
       return null;
+    }
+    function loadServerObjectReference(response, metaData) {
+      response = metaData.$$reference;
+      if (void 0 !== response) return response;
+      response = metaData.id;
+      var reference = new Proxy({}, serverObjectReferenceProxyHandlers);
+      knownServerObjectReferences.set(reference, response);
+      return (metaData.$$reference = reference);
     }
     function resolveLazy(value) {
       for (
@@ -2618,13 +2674,23 @@
       }
       return value;
     }
-    function transferReferencedDebugInfo(parentChunk, referencedChunk) {
-      if (null !== parentChunk) {
+    function transferReferencedDebugInfo(receivingChunk, referencedChunk) {
+      if (null !== receivingChunk) {
         referencedChunk = referencedChunk._debugInfo;
-        parentChunk = parentChunk._debugInfo;
-        for (var i = 0; i < referencedChunk.length; ++i) {
-          var debugInfoEntry = referencedChunk[i];
-          null == debugInfoEntry.name && parentChunk.push(debugInfoEntry);
+        var receivingDebugInfo = receivingChunk._debugInfo,
+          receivedDebugInfo = receivingChunk._receivedDebugInfo;
+        null === receivedDebugInfo &&
+          (receivedDebugInfo = receivingChunk._receivedDebugInfo = new Set());
+        for (
+          receivingChunk = 0;
+          receivingChunk < referencedChunk.length;
+          ++receivingChunk
+        ) {
+          var debugInfoEntry = referencedChunk[receivingChunk];
+          null != debugInfoEntry.name ||
+            receivedDebugInfo.has(debugInfoEntry) ||
+            (receivedDebugInfo.add(debugInfoEntry),
+            receivingDebugInfo.push(debugInfoEntry));
         }
       }
     }
@@ -2697,9 +2763,10 @@
                 default:
                   return (
                     initializingHandler
-                      ? ((initializingHandler.errored = !0),
-                        (initializingHandler.value = null),
-                        (initializingHandler.reason = value.reason))
+                      ? ((parentObject = initializingHandler),
+                        (parentObject.errored = !0),
+                        (parentObject.value = null),
+                        (parentObject.reason = value.reason))
                       : (initializingHandler = {
                           parent: null,
                           chunk: null,
@@ -2782,9 +2849,10 @@
         default:
           return (
             initializingHandler
-              ? ((initializingHandler.errored = !0),
-                (initializingHandler.value = null),
-                (initializingHandler.reason = id.reason))
+              ? ((parentObject = initializingHandler),
+                (parentObject.errored = !0),
+                (parentObject.value = null),
+                (parentObject.reason = id.reason))
               : (initializingHandler = {
                   parent: null,
                   chunk: null,
@@ -2837,8 +2905,8 @@
     function extractIterator(response, model) {
       return model[Symbol.iterator]();
     }
-    function createModel(response, model) {
-      return model;
+    function createModel(response, model, parentObject, key) {
+      return "then" === key && "function" === typeof model ? null : model;
     }
     function getInferredFunctionApproximate(code) {
       code = code.startsWith("Object.defineProperty(")
@@ -2927,6 +2995,17 @@
               parentObject,
               key,
               loadServerReference
+            );
+          case "H":
+            return (
+              (ref = value.slice(2)),
+              getOutlinedModel(
+                response,
+                ref,
+                parentObject,
+                key,
+                loadServerObjectReference
+              )
             );
           case "T":
             parentObject = "$" + value.slice(2);
@@ -3095,7 +3174,7 @@
       this._encodeFormAction = encodeFormAction;
       this._nonce = nonce;
       this._chunks = chunks;
-      this._stringDecoder = new TextDecoder();
+      this._stringDecoder = createStringDecoder(!0);
       this._closed = !1;
       this._closedReason = null;
       this._allowPartialStream = allowPartialStream;
@@ -3930,8 +4009,8 @@
       )
         byteLength += buffer[i].byteLength;
       byteLength = new Uint8Array(byteLength);
-      for (var _i3 = (i = 0); _i3 < l; _i3++) {
-        var chunk = buffer[_i3];
+      for (var _i4 = (i = 0); _i4 < l; _i4++) {
+        var chunk = buffer[_i4];
         byteLength.set(chunk, i);
         i += chunk.byteLength;
       }
@@ -4031,8 +4110,8 @@
             break;
           }
         }
-        for (var _i4 = debugInfo.length - 1; 0 <= _i4; _i4--) {
-          var _info = debugInfo[_i4];
+        for (var _i5 = debugInfo.length - 1; 0 <= _i5; _i5--) {
+          var _info = debugInfo[_i5];
           if ("number" === typeof _info.time && _info.time > parentEndTime) {
             parentEndTime = _info.time;
             break;
@@ -4049,13 +4128,13 @@
         var childrenEndTime = -Infinity,
           childTrackIdx = trackIdx$jscomp$6,
           childTrackTime = trackTime,
-          _i5 = 0;
-        _i5 < children.length;
-        _i5++
+          _i6 = 0;
+        _i6 < children.length;
+        _i6++
       ) {
         var childResult = flushComponentPerformance(
           response$jscomp$0,
-          children[_i5],
+          children[_i6],
           childTrackIdx,
           childTrackTime,
           parentEndTime
@@ -4073,16 +4152,16 @@
             isLastComponent = !0,
             endTime = -1,
             endTimeIdx = -1,
-            _i6 = debugInfo.length - 1;
-          0 <= _i6;
-          _i6--
+            _i7 = debugInfo.length - 1;
+          0 <= _i7;
+          _i7--
         ) {
-          var _info2 = debugInfo[_i6];
+          var _info2 = debugInfo[_i7];
           if ("number" === typeof _info2.time) {
             0 === componentEndTime && (componentEndTime = _info2.time);
             var time = _info2.time;
             if (-1 < endTimeIdx)
-              for (var j = endTimeIdx - 1; j > _i6; j--) {
+              for (var j = endTimeIdx - 1; j > _i7; j--) {
                 var candidateInfo = debugInfo[j];
                 if ("string" === typeof candidateInfo.name) {
                   componentEndTime > childrenEndTime &&
@@ -4356,7 +4435,7 @@
               }
             else {
               endTime = time;
-              for (var _j = debugInfo.length - 1; _j > _i6; _j--) {
+              for (var _j = debugInfo.length - 1; _j > _i7; _j--) {
                 var _candidateInfo = debugInfo[_j];
                 if ("string" === typeof _candidateInfo.name) {
                   componentEndTime > childrenEndTime &&
@@ -4488,7 +4567,7 @@
               }
             }
             endTime = time;
-            endTimeIdx = _i6;
+            endTimeIdx = _i7;
           }
         }
       result.endTime = childrenEndTime;
@@ -5151,8 +5230,45 @@
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
       ObjectPrototype$1 = Object.prototype,
       knownServerReferences = new WeakMap(),
+      knownServerObjectReferences = new WeakMap(),
       boundCache = new WeakMap(),
       fakeServerFunctionIdx = 0,
+      serverObjectReferenceProxyHandlers = {
+        get: function (target, name) {
+          switch (name) {
+            case "$$typeof":
+              return target.$$typeof;
+            case "name":
+              return;
+            case "displayName":
+              return;
+            case "defaultProps":
+              return;
+            case "_debugInfo":
+              return;
+            case ASYNC_ITERATOR:
+              return;
+            case "toJSON":
+              return;
+            case Symbol.toPrimitive:
+              return Object.prototype[Symbol.toPrimitive];
+            case Symbol.toStringTag:
+              return Object.prototype[Symbol.toStringTag];
+            case "then":
+              return;
+          }
+          throw Error(
+            "Cannot access " +
+              String(name) +
+              " on the client. You cannot read a Server Reference to an object on the client. You can only pass it back to the server."
+          );
+        },
+        set: function () {
+          throw Error(
+            "Cannot assign to a Server Reference to an object on the client."
+          );
+        }
+      },
       FunctionBind = Function.prototype.bind,
       ArraySlice = Array.prototype.slice,
       v8FrameRegExp =
@@ -5177,7 +5293,8 @@
         React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
         ReactSharedInteralsServer,
       ObjectPrototype = Object.prototype,
-      ArrayPrototype = Array.prototype;
+      ArrayPrototype = Array.prototype,
+      RESPONSE_SYMBOL = Symbol();
     ReactPromise.prototype = Object.create(Promise.prototype);
     Object.defineProperty(ReactPromise.prototype, "then", {
       writable: !0,

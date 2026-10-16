@@ -1,19 +1,30 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { randomUUID } from 'crypto'
+import escapeStringRegexp from 'escape-string-regexp'
+import stripAnsi from 'strip-ansi'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('use-cache-swr', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
+    env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
   })
-
-  if (skipped) return
 
   let outputIndex: number
 
   beforeEach(() => {
     outputIndex = next.cliOutput.length
   })
+
+  function getOutput() {
+    return stripAnsi(next.cliOutput.slice(outputIndex))
+      .split('\n')
+      .filter((line) => !line.includes(' Cache '))
+      .join('\n')
+  }
 
   it('should serve stale data and then pre-warmed data on subsequent request', async () => {
     const browser = await next.browser('/')
@@ -178,45 +189,87 @@ describe('use-cache-swr', () => {
     expect(cliOutput).toMatch(/PersistentCacheHandler::get.*"inner".*_N_T_\//)
   })
 
-  it('should dedupe SWR regens across concurrent requests', async () => {
-    const browser = await next.browser('/')
-    await browser.elementById('outer-data').text()
+  it.each(['concurrent', 'slow-read'])(
+    'should dedupe SWR regens across %s requests',
+    async (mode) => {
+      const id = `${mode}-${randomUUID()}`
+      const pathname = `/delayed-route?id=${id}`
+      const initial = await (await next.fetch(pathname)).json()
+      expect(initial.cached).toBeDateString()
+      outputIndex = next.cliOutput.length
 
-    // Wait for the outer cache to go stale (revalidate: 5).
-    await new Promise((resolve) => setTimeout(resolve, 6000))
+      // The simulated I/O takes as long as this entry's revalidate interval.
+      // Complete one stale read before starting another to avoid sharing only the
+      // lookup.
+      expect((await (await next.fetch(pathname)).json()).cached).toBe(
+        initial.cached
+      )
+      expect((await (await next.fetch(pathname)).json()).cached).toBe(
+        initial.cached
+      )
 
-    // Reset output index to capture only the SWR-related logs.
+      await retry(() => {
+        const output = getOutput()
+        expect(output).toIncludeRepeated(
+          escapeStringRegexp(`use-cache-swr: generating delayed data ${id}`),
+          1
+        )
+        expect(output).toIncludeRepeated(
+          escapeStringRegexp(`use-cache-swr: generated delayed data ${id}`),
+          1
+        )
+      })
+
+      const fresh = await (await next.fetch(pathname)).json()
+      expect(fresh.cached).toBeDateString()
+      expect(fresh.cached).not.toBe(initial.cached)
+    }
+  )
+
+  it('should not start another regeneration for a read during a background cache write', async () => {
+    const id = `write-completion-${randomUUID()}`
+    const pathname = `/delayed-route?id=${id}`
+    const initial = await (await next.fetch(`${pathname}&request=warm`)).json()
+    expect(initial.cached).toBeDateString()
+    const writeFinished = `PersistentCacheHandler::set [^\\r\\n]*${escapeStringRegexp(id)}`
+    await retry(() => {
+      expect(getOutput()).toMatch(new RegExp(writeFinished))
+    })
     outputIndex = next.cliOutput.length
 
-    // Fire multiple concurrent requests that all find the stale entry.
-    // Only one of them should trigger a background regen.
-    await Promise.all([next.fetch('/'), next.fetch('/'), next.fetch('/')])
-
-    // Wait for the background regen to complete.
+    expect(
+      (await (await next.fetch(`${pathname}&request=trigger`)).json()).cached
+    ).toBe(initial.cached)
     await retry(() => {
-      const regenOutput = next.cliOutput.slice(outputIndex)
-      expect(regenOutput).toInclude('use-cache-swr: generating outer data')
+      expect(getOutput()).toMatch(
+        new RegExp(
+          `PersistentCacheHandler::set-start [^\\r\\n]*${escapeStringRegexp(id)}`
+        )
+      )
     })
-
-    const cliOutput = next.cliOutput.slice(outputIndex)
-
-    // The cache function should have been executed only once across all
-    // concurrent requests, not once per request.
-    const generationCalls = cliOutput.split('\n').filter(
-      (line) =>
-        line.includes('use-cache-swr: generating outer data') &&
-        // Ignore replayed logs that have a Cache badge.
-        !line.includes(' Cache ')
+    const fresh = await (
+      await next.fetch(`${pathname}&request=during-write`)
+    ).json()
+    expect(fresh.cached).toBeDateString()
+    expect(fresh.cached).not.toBe(initial.cached)
+    const completion = `pending revalidates promise finished for: ${pathname}&request=trigger`
+    await retry(() => {
+      const output = getOutput()
+      expect(output).toIncludeRepeated(escapeStringRegexp(completion), 1)
+      expect(output).toMatch(
+        new RegExp(
+          `${writeFinished}[^\\r\\n]*\\r?\\n[\\s\\S]*${escapeStringRegexp(completion)}`
+        )
+      )
+    })
+    expect(getOutput()).toMatch(
+      new RegExp(
+        `PersistentCacheHandler::get-pending [^\\r\\n]*${escapeStringRegexp(id)}`
+      )
     )
-
-    // In dev, warm reads resolve in a microtask via the built-in front handler,
-    // so the cross-request dedup window (the leader's read latency) is too
-    // small for concurrent requests to reliably join one leader. That is the
-    // intended dev-fast trade, and only costs a redundant regen in single-user
-    // dev. The strict dedup guarantee is a production concern, where the
-    // backing read holds the window open.
-    if (!isNextDev) {
-      expect(generationCalls).toHaveLength(1)
-    }
+    expect(getOutput()).toIncludeRepeated(
+      escapeStringRegexp(`use-cache-swr: generating delayed data ${id}`),
+      1
+    )
   })
 })

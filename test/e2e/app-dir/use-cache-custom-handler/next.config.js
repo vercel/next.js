@@ -4,7 +4,7 @@
 const nextConfig = {
   cacheComponents: true,
   cacheHandlers: {
-    default: require.resolve('./handler.js'),
+    default: require.resolve('./handler-loader.mjs'),
   },
 }
 

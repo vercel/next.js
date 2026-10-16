@@ -1,3 +1,4 @@
+import { getRouteCacheKey, isRouteCacheOwner } from '../route-cache-key'
 import type { CacheFs } from '../../../shared/lib/utils'
 import type { PrerenderManifest } from '../../../build'
 import {
@@ -10,27 +11,29 @@ import {
   type IncrementalFetchCacheEntry,
   type GetIncrementalFetchCacheContext,
   type GetIncrementalResponseCacheContext,
+  type GetIncrementalResponseCacheHandlerContext,
+  type GetIncrementalImageCacheContext,
   type CachedFetchValue,
   type SetIncrementalFetchCacheContext,
   type SetIncrementalResponseCacheContext,
+  type SetIncrementalResponseCacheHandlerContext,
+  type SetIncrementalImageCacheContext,
 } from '../../response-cache'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import FileSystemCache from './file-system-cache'
-import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
 import {
   CACHE_ONE_YEAR_SECONDS,
   NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
-import { toRoute } from '../to-route'
 import { SharedCacheControls } from './shared-cache-controls.external'
 import {
   getResumeDataCache,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
-import type { Revalidate } from '../cache-control'
+import type { CacheControl, Revalidate } from '../cache-control'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
@@ -54,6 +57,13 @@ export interface CacheHandlerValue {
   age?: number
   cacheState?: string
   value: IncrementalCacheValue | null
+  /**
+   * The entry's cache lifetime, as passed to `set()` in `ctx.cacheControl`.
+   * A cache handler that stores it and returns it here lets any instance serve
+   * the entry with its lifetime, including one that did not render it (another
+   * server sharing the cache, or the same server after a restart).
+   */
+  cacheControl?: CacheControl
 }
 
 function toHex(buffer: ArrayBufferView | ArrayBuffer): string {
@@ -106,7 +116,10 @@ export class CacheHandler {
 
   public async get(
     _cacheKey: string,
-    _ctx: GetIncrementalFetchCacheContext | GetIncrementalResponseCacheContext
+    _ctx:
+      | GetIncrementalFetchCacheContext
+      | GetIncrementalResponseCacheHandlerContext
+      | GetIncrementalImageCacheContext
   ): Promise<CacheHandlerValue | null> {
     return {} as any
   }
@@ -114,7 +127,10 @@ export class CacheHandler {
   public async set(
     _cacheKey: string,
     _data: IncrementalCacheValue | null,
-    _ctx: SetIncrementalFetchCacheContext | SetIncrementalResponseCacheContext
+    _ctx:
+      | SetIncrementalFetchCacheContext
+      | SetIncrementalResponseCacheHandlerContext
+      | SetIncrementalImageCacheContext
   ): Promise<void> {}
 
   public async revalidateTag(
@@ -163,6 +179,7 @@ export class IncrementalCache implements IncrementalCacheType {
    * prerender manifest until the in-memory cache is updated with new values.
    */
   private readonly cacheControls: SharedCacheControls
+  private readonly locales?: readonly string[]
 
   constructor({
     fs,
@@ -177,6 +194,7 @@ export class IncrementalCache implements IncrementalCacheType {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
+    locales,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -184,6 +202,7 @@ export class IncrementalCache implements IncrementalCacheType {
     serverDistDir?: string
     flushToDisk?: boolean
     allowedRevalidateHeaderKeys?: string[]
+    locales?: readonly string[]
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
     previewProps: DeepReadonly<__ApiPreviewProps>
@@ -238,7 +257,11 @@ export class IncrementalCache implements IncrementalCacheType {
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.previewProps = previewProps
     this.prerenderManifest = prerenderManifest
-    this.cacheControls = new SharedCacheControls(this.prerenderManifest)
+    this.locales = locales
+    this.cacheControls = new SharedCacheControls(
+      this.prerenderManifest,
+      locales
+    )
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
     let revalidatedTags: string[] = []
 
@@ -271,7 +294,7 @@ export class IncrementalCache implements IncrementalCacheType {
   }
 
   private calculateRevalidate(
-    pathname: string,
+    cacheControl: CacheControl | undefined,
     fromTime: number,
     dev: boolean,
     isFallback: boolean | undefined
@@ -280,8 +303,6 @@ export class IncrementalCache implements IncrementalCacheType {
     // and default to always revalidating to allow easier debugging
     if (dev)
       return Math.floor(performance.timeOrigin + performance.now() - 1000)
-
-    const cacheControl = this.cacheControls.get(toRoute(pathname))
 
     // if an entry isn't present in routes we fallback to a default
     // of revalidating after 1 second unless it's a fallback request.
@@ -297,10 +318,6 @@ export class IncrementalCache implements IncrementalCacheType {
         : initialRevalidateSeconds
 
     return revalidateAfter
-  }
-
-  _getPathname(pathname: string, fetchCache?: boolean) {
-    return fetchCache ? pathname : normalizePagePath(pathname)
   }
 
   resetRequestCache() {
@@ -487,12 +504,18 @@ export class IncrementalCache implements IncrementalCacheType {
   ): Promise<IncrementalFetchCacheEntry | null>
   async get(
     cacheKey: string,
-    ctx: GetIncrementalResponseCacheContext
+    ctx: GetIncrementalResponseCacheContext | GetIncrementalImageCacheContext
   ): Promise<IncrementalResponseCacheEntry | null>
   async get(
     cacheKey: string,
-    ctx: GetIncrementalFetchCacheContext | GetIncrementalResponseCacheContext
+    ctx:
+      | GetIncrementalFetchCacheContext
+      | GetIncrementalResponseCacheContext
+      | GetIncrementalImageCacheContext
   ): Promise<IncrementalCacheEntry | null> {
+    if (ctx.kind === IncrementalCacheKind.IMAGE) {
+      throw new InvariantError('Images must use the image optimizer cache')
+    }
     // Unlike other caches if we have a resume data cache, we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
     if (ctx.kind === IncrementalCacheKind.FETCH) {
@@ -549,12 +572,16 @@ export class IncrementalCache implements IncrementalCacheType {
       return null
     }
 
-    cacheKey = this._getPathname(
-      cacheKey,
-      ctx.kind === IncrementalCacheKind.FETCH
-    )
-
-    const cacheData = await this.cacheHandler?.get(cacheKey, ctx)
+    let storageKey = cacheKey
+    let handlerContext: Parameters<CacheHandler['get']>[1] = ctx
+    if (ctx.kind !== IncrementalCacheKind.FETCH) {
+      // Ownership scopes the key and metadata inside Next.js. Storage handlers
+      // only need the resulting key and the existing cache options.
+      const { route, ...responseContext } = ctx
+      storageKey = getRouteCacheKey(cacheKey, route)
+      handlerContext = responseContext
+    }
+    const cacheData = await this.cacheHandler?.get(storageKey, handlerContext)
 
     if (ctx.kind === IncrementalCacheKind.FETCH) {
       if (!cacheData) {
@@ -632,7 +659,15 @@ export class IncrementalCache implements IncrementalCacheType {
 
     let entry: IncrementalResponseCacheEntry | null = null
     const { isFallback } = ctx
-    const cacheControl = this.cacheControls.get(toRoute(cacheKey))
+    let cacheControl = this.cacheControls.get(cacheKey, ctx.route)
+
+    // The stored lifetime belongs to this entry, which another instance may
+    // have replaced with a different lifetime. Prefer it over this process's
+    // remembered lifetime, and update the route so revalidation uses it too.
+    if (cacheData?.cacheControl) {
+      cacheControl = cacheData.cacheControl
+      this.cacheControls.set(storageKey, cacheControl)
+    }
 
     let isStale: boolean | -1 | undefined
     let revalidateAfter: Revalidate
@@ -645,7 +680,7 @@ export class IncrementalCache implements IncrementalCacheType {
       const lastModified = cacheData?.lastModified || now
 
       revalidateAfter = this.calculateRevalidate(
-        cacheKey,
+        cacheControl,
         lastModified,
         this.dev ?? false,
         ctx.isFallback
@@ -702,7 +737,13 @@ export class IncrementalCache implements IncrementalCacheType {
 
     if (
       !cacheData &&
-      this.prerenderManifest.notFoundRoutes.includes(cacheKey)
+      this.prerenderManifest.notFoundRoutes.includes(cacheKey) &&
+      isRouteCacheOwner(
+        cacheKey,
+        ctx.route,
+        this.prerenderManifest.routes[cacheKey],
+        this.locales
+      )
     ) {
       // for the first hit after starting the server the cache
       // may not have a way to save notFound: true so if
@@ -729,13 +770,19 @@ export class IncrementalCache implements IncrementalCacheType {
   async set(
     pathname: string,
     data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
-    ctx: SetIncrementalResponseCacheContext
+    ctx: SetIncrementalResponseCacheContext | SetIncrementalImageCacheContext
   ): Promise<void>
   async set(
     pathname: string,
     data: IncrementalCacheValue | null,
-    ctx: SetIncrementalFetchCacheContext | SetIncrementalResponseCacheContext
+    ctx:
+      | SetIncrementalFetchCacheContext
+      | SetIncrementalResponseCacheContext
+      | SetIncrementalImageCacheContext
   ): Promise<void> {
+    if ('kind' in ctx && ctx.kind === IncrementalCacheKind.IMAGE) {
+      throw new InvariantError('Images must use the image optimizer cache')
+    }
     // Even if we otherwise disable caching for testMode or if no fetchCache is
     // configured we still always stash results in the resume data cache if one
     // exists. This is because this is a transient in memory cache that
@@ -757,7 +804,16 @@ export class IncrementalCache implements IncrementalCacheType {
 
     if (this.disableForTestmode || (this.dev && !ctx.fetchCache)) return
 
-    pathname = this._getPathname(pathname, ctx.fetchCache)
+    let storageKey = pathname
+    let handlerContext: Parameters<CacheHandler['set']>[2] = ctx
+    if (!ctx.fetchCache) {
+      const { route, ...responseContext } = ctx
+      if (!route) {
+        throw new InvariantError('Response cache requires a source route')
+      }
+      storageKey = getRouteCacheKey(pathname, route)
+      handlerContext = responseContext
+    }
 
     // FetchCache has upper limit of 2MB per-entry currently
     const itemSize = JSON.stringify(data).length
@@ -782,10 +838,10 @@ export class IncrementalCache implements IncrementalCacheType {
 
     try {
       if (!ctx.fetchCache && ctx.cacheControl) {
-        this.cacheControls.set(toRoute(pathname), ctx.cacheControl)
+        this.cacheControls.set(storageKey, ctx.cacheControl)
       }
 
-      await this.cacheHandler?.set(pathname, data, ctx)
+      await this.cacheHandler?.set(storageKey, data, handlerContext)
     } catch (error) {
       console.warn('Failed to update prerender cache for', pathname, error)
     }

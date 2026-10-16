@@ -9,7 +9,7 @@ import {
   recordRequestInsightFetch,
 } from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
-import { getTracer, SpanKind } from './trace/tracer'
+import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
 import {
   CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
@@ -72,7 +72,7 @@ function shouldProcessFetchConfigForWorkUnit(
       )
     case 'prerender-runtime':
     case 'validation-client':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return false
     default:
       return workUnitStore satisfies never
@@ -185,6 +185,11 @@ function trackFetchMetric(
     'next.fetch.cache_status': metric.cacheStatus,
     'next.fetch.cache_reason': metric.cacheReason,
   })
+
+  if (span && metric.status >= 400) {
+    span.setStatus({ code: SpanStatusCode.ERROR })
+    span.setAttribute('error.type', String(metric.status))
+  }
 
   if (isRequestInsightsEnabled()) {
     const requestInsightsIdentity = getRequestInsightsIdentity()
@@ -473,7 +478,7 @@ export function createPatchedFetcher(
               break
             case 'request':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -512,7 +517,7 @@ export function createPatchedFetcher(
             case 'request':
             case 'cache':
             case 'private-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -683,7 +688,7 @@ export function createPatchedFetcher(
             case 'cache':
             case 'private-cache':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -815,7 +820,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -859,7 +864,7 @@ export function createPatchedFetcher(
             case 'prerender-runtime':
             case 'prerender-legacy':
             case 'unstable-cache':
-            case 'generate-static-params':
+            case 'build-time-generator':
               break
             default:
               workUnitStore satisfies never
@@ -1013,7 +1018,7 @@ export function createPatchedFetcher(
                   case 'cache':
                   case 'private-cache':
                   case 'unstable-cache':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                   case undefined:
                     return createCachedDynamicResponse(
                       workStore,
@@ -1096,7 +1101,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1219,7 +1224,7 @@ export function createPatchedFetcher(
                 case 'cache':
                 case 'private-cache':
                 case 'unstable-cache':
-                case 'generate-static-params':
+                case 'build-time-generator':
                   break
                 default:
                   workUnitStore satisfies never
@@ -1266,7 +1271,7 @@ export function createPatchedFetcher(
                   case 'private-cache':
                   case 'unstable-cache':
                   case 'prerender-legacy':
-                  case 'generate-static-params':
+                  case 'build-time-generator':
                     break
                   default:
                     workUnitStore satisfies never

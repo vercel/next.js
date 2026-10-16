@@ -3,7 +3,13 @@ import {
   fetchInternalImage,
   ImageError,
 } from 'next/dist/server/image-optimizer'
+import { serveStatic } from 'next/dist/server/serve-static'
+import { EventEmitter } from 'events'
+import { promises as fs } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { Socket } from 'net'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 describe('fetchInternalImage', () => {
   describe('non-2xx responses', () => {
@@ -204,6 +210,59 @@ describe('fetchInternalImage', () => {
 
       expect(result.buffer).toBeInstanceOf(Buffer)
       expect(result.buffer.length).toBe(maximumResponseBody)
+    })
+  })
+  describe('when the requesting client disconnects', () => {
+    it('should complete the internal fetch even if the requester socket is no longer writable', async () => {
+      const size = 1024 * 1024
+      const fileName = 'disconnect.png'
+      const dir = await fs.mkdtemp(join(tmpdir(), 'fetch-internal-image-'))
+      await fs.writeFile(join(dir, fileName), Buffer.alloc(size, 1))
+
+      try {
+        // Emulate a requester whose connection already went away. `send`
+        // (used by `serveStatic`) consults `on-finished`, which treats a
+        // response as finished as soon as `res.socket.writable` is false.
+        const closedSocket = Object.assign(new EventEmitter(), {
+          writable: false,
+          destroyed: true,
+        }) as unknown as Socket
+        const mockReq = {
+          method: 'GET',
+          socket: closedSocket,
+        } as unknown as IncomingMessage
+        const mockRes = {} as ServerResponse
+
+        const handleRequest = (req: IncomingMessage, res: ServerResponse) =>
+          serveStatic(req, res, fileName, { root: dir })
+
+        const result = await Promise.race([
+          fetchInternalImage(
+            `/${fileName}`,
+            mockReq,
+            mockRes,
+            300_000_000,
+            handleRequest
+          ),
+          new Promise<never>((_resolve, reject) => {
+            const timer = setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    'fetchInternalImage did not settle after the requester disconnected'
+                  )
+                ),
+              5_000
+            )
+            timer.unref()
+          }),
+        ])
+
+        expect(result.buffer.length).toBe(size)
+        expect(result.contentType).toBe('image/png')
+      } finally {
+        await fs.rm(dir, { recursive: true, force: true })
+      }
     })
   })
 })

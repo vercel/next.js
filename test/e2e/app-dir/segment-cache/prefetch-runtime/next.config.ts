@@ -2,6 +2,7 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
+  partialPrefetching: true,
   productionBrowserSourceMaps: true,
   experimental: {
     // TODO: This test asserts on the pre-`varyParams` cache-keying behavior

@@ -1,3 +1,4 @@
+import type { RootRouteTree } from '../segment-cache/cache'
 import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/decode-server-response'
@@ -185,7 +186,7 @@ export type ScrollHandlerRef = {
    * When true, the scroll handler uses the navigation-level `scrollRef`
    * for every segment regardless of per-node state. Used for hash-only
    * navigations where every segment should be treated as a scroll
-   * target. When false, the handler checks `cacheNode.scrollRef`
+   * target. When false, the handler checks `renderTree.data.scrollRef`
    * instead (per-node), so only segments that actually navigated scroll.
    */
   forceScroll: boolean
@@ -210,10 +211,15 @@ export type AppRouterState = {
    */
   tree: FlightRouterState
   /**
-   * The cache holds React nodes for every segment that is shown on screen as well as previously shown segments.
-   * It also holds in-progress data requests.
+   * The render tree and the document head (see RootRouteTree). The tree holds
+   * React nodes for every segment that is shown on screen as well as
+   * previously shown segments, and in-progress data requests. The head is a
+   * one-node render tree keyed at the metadata vary path.
+   *
+   * One object per committed navigation; the prefetch scheduler compares it by
+   * identity (see PrefetchTask.renderTreeAtTimeOfPrefetch).
    */
-  cache: CacheNode
+  root: RootRouteTree<CacheNode>
   /**
    * Decides if the update should create a new history entry and if the navigation has to trigger a browser navigation.
    */

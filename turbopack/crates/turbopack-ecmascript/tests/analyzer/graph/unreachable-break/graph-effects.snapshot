@@ -4,6 +4,7 @@
         export: Some(
             "calledA1",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -28,7 +29,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -102,7 +103,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -146,7 +147,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -175,6 +176,7 @@
         export: Some(
             "unreachableA3",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -199,7 +201,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -273,7 +275,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -297,6 +299,7 @@
         export: Some(
             "unreachableB1",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -321,7 +324,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -409,7 +412,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -467,7 +470,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -496,6 +499,7 @@
         export: Some(
             "calledB1",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -520,7 +524,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -594,7 +598,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -618,6 +622,7 @@
         export: Some(
             "calledC1",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -642,7 +647,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -730,7 +735,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -788,7 +793,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -817,6 +822,7 @@
         export: Some(
             "calledC2",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -841,7 +847,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -915,7 +921,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),

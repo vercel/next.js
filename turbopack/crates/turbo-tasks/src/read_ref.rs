@@ -18,11 +18,7 @@ use turbo_tasks_hash::DeterministicHash;
 
 #[cfg(debug_assertions)]
 use crate::debug::{ValueDebugFormat, ValueDebugFormatString};
-use crate::{
-    ResolvedVc, SharedReference, Vc, VcRead, VcValueType,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-    vc::VcCellMode,
-};
+use crate::{ResolvedVc, SharedReference, Vc, VcRead, VcValueType, vc::VcCellMode};
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
@@ -66,15 +62,6 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Self::as_raw_ref(self).fmt(f)
-    }
-}
-
-impl<T> TraceRawVcs for ReadRef<T>
-where
-    T: TraceRawVcs,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        Self::as_raw_ref(self).trace_raw_vcs(trace_context);
     }
 }
 

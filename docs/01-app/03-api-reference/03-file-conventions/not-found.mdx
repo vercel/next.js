@@ -10,7 +10,9 @@ Next.js provides two conventions to handle not found cases:
 
 ## `not-found.js`
 
-The **not-found** file is used to render UI when the [`notFound`](/docs/app/api-reference/functions/not-found) function is thrown within a route segment. Along with serving a custom UI, Next.js will return a `200` HTTP status code for streamed responses, and `404` for non-streamed responses (see [Status Codes](/docs/app/api-reference/file-conventions/loading#status-codes) for details about SEO).
+The **not-found** file renders UI when the [`notFound`](/docs/app/api-reference/functions/not-found) function is thrown within a route segment.
+
+Before streaming starts, Next.js returns a `404` status code. After streaming starts, the status code remains `200` and the not-found UI renders in the response. Next.js injects a `<meta name="robots" content="noindex" />` tag in both cases. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes) for details.
 
 ```tsx filename="app/not-found.tsx" switcher
 import Link from 'next/link'
@@ -182,7 +184,7 @@ If you need to use Client Component hooks like `usePathname` to display content 
 
 ### Metadata
 
-For `global-not-found.js`, you can export a `metadata` object or a [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to customize the `<title>`, `<meta>`, and other head tags for your 404 page:
+Both the root `app/not-found.js` and `app/global-not-found.js` support exporting a `metadata` object or a [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to customize the `<title>`, `<meta>`, and other head tags for your 404 page:
 
 > **Good to know**: Next.js automatically injects `<meta name="robots" content="noindex" />` for pages that return a 404 status code, including `global-not-found.js` pages.
 

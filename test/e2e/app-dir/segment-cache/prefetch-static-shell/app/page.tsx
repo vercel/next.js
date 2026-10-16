@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { LinkAccordion } from '../components/link-accordion'
+import { DynamicLinkAccordion } from '../components/dynamic-accordion'
 
 export default function Page() {
   return (
@@ -47,6 +48,14 @@ export default function Page() {
               </LinkAccordion>
             </li>
             <li>
+              <LinkAccordion
+                href="/params-used-after-navigation/1"
+                prefetch={true}
+              >
+                Param 1 (prefetch=true)
+              </LinkAccordion>
+            </li>
+            <li>
               <Link href="/params-used-after-navigation/2" prefetch={false}>
                 Param 2 (unprefetched)
               </Link>
@@ -62,6 +71,11 @@ export default function Page() {
               </LinkAccordion>
             </li>
             <li>
+              <LinkAccordion href="/params-used-in-icon/1" prefetch={true}>
+                Param 1 (prefetch=true)
+              </LinkAccordion>
+            </li>
+            <li>
               <Link href="/params-used-in-icon/2" prefetch={false}>
                 Params 2
               </Link>
@@ -74,7 +88,17 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/uses-search-params?q=test" prefetch={true}>
+            Uses search params (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/uses-connection">Uses connection</LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/uses-connection" prefetch={true}>
+            Uses connection (prefetch=true)
+          </LinkAccordion>
         </li>
         <li>
           <LinkAccordion href="/uses-runtime-after-navigation">
@@ -92,6 +116,11 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
+          <LinkAccordion href="/uses-runtime-after-prefetch" prefetch={true}>
+            Uses runtime APIs after prefetch() (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/uses-prefetch-static">
             Uses prefetch() on a static page
           </LinkAccordion>
@@ -105,6 +134,28 @@ export default function Page() {
           <LinkAccordion href="/dynamic-param/two">
             Dynamic param two
           </LinkAccordion>
+        </li>
+        <li>
+          Excluded caches
+          <ul>
+            <li>
+              <LinkAccordion href="/excluded-caches/uses-non-shell-cache">
+                Uses a cache that is excluded from the shell due to short stale
+              </LinkAccordion>
+            </li>
+            <li>
+              <LinkAccordion href="/excluded-caches/uses-non-prefetchable-cache">
+                Uses a cache that is excluded from all prerenders due to short
+                stale
+              </LinkAccordion>
+            </li>
+            <li>
+              <LinkAccordion href="/excluded-caches/uses-non-prerenderable-cache">
+                Uses a cache that is excluded from static prerenders due to
+                short expire
+              </LinkAccordion>
+            </li>
+          </ul>
         </li>
         {/* The speculative-* routes are partial (non-eager), so their
             links use prefetch={true} to opt into the Speculative phase —
@@ -120,6 +171,153 @@ export default function Page() {
           </LinkAccordion>
         </li>
       </ul>
+
+      <h2>{'Static requests with prefetch={true}'}</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/speculative-static-param/one" prefetch={true}>
+            Speculative static param one
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/speculative-static-param/two" prefetch={true}>
+            Speculative static param one
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <h2>Conditional cookies in prefetch</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/maybe-runtime-prefetch/no-cookies-in-prefetch">
+            Does not use cookies in the prefetch (prefetch=auto)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/maybe-runtime-prefetch/no-cookies-in-prefetch"
+            prefetch={true}
+          >
+            Does not use cookies in the prefetch (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <ul>
+        <li>
+          <LinkAccordion href="/maybe-runtime-prefetch/no-cookies-in-prefetch-2">
+            Does not use cookies in the prefetch 2 (prefetch=auto)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/maybe-runtime-prefetch/no-cookies-in-prefetch-2"
+            prefetch={true}
+          >
+            Does not use cookies in the prefetch 2 (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <ul>
+        <li>
+          <LinkAccordion href="/maybe-runtime-prefetch/yes-cookies-in-prefetch">
+            Uses cookies in the prefetch (prefetch=auto)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/maybe-runtime-prefetch/yes-cookies-in-prefetch"
+            prefetch={true}
+          >
+            Uses cookies in the prefetch (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <ul>
+        <li>
+          <LinkAccordion href="/maybe-runtime-prefetch/yes-cookies-in-prefetch-not-prerendered">
+            Uses cookies in the prefetch, but was not prerendered
+            (prefetch=auto)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/maybe-runtime-prefetch/yes-cookies-in-prefetch-not-prerendered"
+            prefetch={true}
+          >
+            Uses cookies in the prefetch, but was not prerendered
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <h2>ensureStatic</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/ensure-static/false/uses-cookies">
+            Page with <code>ensureStatic = false</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/ensure-static/shell/uses-cookies">
+            Page with <code>ensureStatic = "shell"</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/ensure-static/shell/uses-cookies"
+            prefetch={true}
+          >
+            Page with <code>ensureStatic = "shell"</code> that uses cookies
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/ensure-static/prefetch/uses-cookies">
+            Page with <code>ensureStatic = "prefetch"</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/ensure-static/prefetch/uses-cookies"
+            prefetch={true}
+          >
+            Page with <code>ensureStatic = "prefetch"</code> that uses cookies
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <h2>ensureStatic = "navigation"</h2>
+      <li>
+        <LinkAccordion href="/ensure-static/navigation/prerendered-1">
+          prerendered param 1
+        </LinkAccordion>
+      </li>
+      <li>
+        <LinkAccordion
+          href="/ensure-static/navigation/prerendered-1"
+          prefetch={true}
+        >
+          prerendered param 1 (prefetch=true)
+        </LinkAccordion>
+      </li>
+      <li>
+        <LinkAccordion
+          href="/ensure-static/navigation/not-prerendered-1"
+          prefetch={true}
+        >
+          not-prerendered param 1 (prefetch=true)
+        </LinkAccordion>
+      </li>
+      {/* Used for manual testing of on-demand prerenders */}
+      <DynamicLinkAccordion
+        hrefPattern="/ensure-static/navigation/not-prerendered-{counter}"
+        placeholder="{counter}"
+        initialCount={2}
+      />
     </main>
   )
 }

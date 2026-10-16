@@ -8,14 +8,14 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
+use turbo_tasks_fs::{DiskFileSystem, FileSystemPath};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::AstPath,
     runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_FILE_URL},
 };
 
@@ -26,9 +26,7 @@ use crate::{
 /// in the file. But we must only initialize the binding a single time.
 ///
 /// This singleton behavior must be enforced by the caller!
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct ImportMetaBinding {
     path: FileSystemPath,
     hmr_enabled: bool,
@@ -56,12 +54,19 @@ impl ImportMetaBinding {
 
     pub async fn code_generation(
         &self,
+        _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let rel_path = chunking_context
-            .root_path()
-            .await?
-            .get_relative_path_to(&self.path);
+        let root_path = chunking_context.root_path().await?;
+        // A module from another disk filesystem (such as an additional root) isn't inside the root
+        // path, so the runtime returns a placeholder URL named after that filesystem.
+        let (root, rel_path) = if self.path.fs != root_path.fs
+            && let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.path.fs)
+        {
+            (Some(fs.await?.name().clone()), Some(self.path.path.clone()))
+        } else {
+            (None, root_path.get_relative_path_to(&self.path))
+        };
         let path = rel_path.map_or_else(
             || {
                 quote!(
@@ -74,11 +79,20 @@ impl ImportMetaBinding {
                 // we embed `formatted` into. The runtime helper (`TURBOPACK_RESOLVE_FILE_URL`)
                 // is responsible for producing the final, properly URL-encoded `file://` URI.
                 let formatted = encode_path(path.trim_start_matches("./")).to_string();
-                quote!(
-                    "$turbopack_resolve_file_url($formatted)" as Expr,
-                    turbopack_resolve_file_url: Expr = TURBOPACK_RESOLVE_FILE_URL.into(),
-                    formatted: Expr = formatted.into()
-                )
+                if let Some(root) = &root {
+                    quote!(
+                        "$turbopack_resolve_file_url($formatted, $root)" as Expr,
+                        turbopack_resolve_file_url: Expr = TURBOPACK_RESOLVE_FILE_URL.into(),
+                        formatted: Expr = formatted.into(),
+                        root: Expr = root.as_str().into()
+                    )
+                } else {
+                    quote!(
+                        "$turbopack_resolve_file_url($formatted)" as Expr,
+                        turbopack_resolve_file_url: Expr = TURBOPACK_RESOLVE_FILE_URL.into(),
+                        formatted: Expr = formatted.into()
+                    )
+                }
             },
         );
 
@@ -136,23 +150,22 @@ impl From<ImportMetaBinding> for CodeGen {
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But all references refer to the same mutable object.
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ImportMetaRef {
-    ast_path: AstPath,
+    ast_path: AstPathId,
 }
 
 impl ImportMetaRef {
-    pub fn new(ast_path: AstPath) -> Self {
+    pub fn new(ast_path: AstPathId) -> Self {
         ImportMetaRef { ast_path }
     }
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.ast_path, visit_mut_expr, |expr: &mut Expr| {
             *expr = Expr::Ident(meta_ident());
         });
 

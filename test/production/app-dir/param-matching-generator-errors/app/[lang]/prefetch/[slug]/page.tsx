@@ -1,0 +1,10 @@
+import { prefetch } from 'next/cache'
+
+export async function unstable_generateParamMatching() {
+  await prefetch()
+  return { slug: 'blocking' }
+}
+
+export default function Page() {
+  return <p>prefetch</p>
+}

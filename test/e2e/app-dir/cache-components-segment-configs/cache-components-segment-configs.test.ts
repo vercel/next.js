@@ -6,16 +6,14 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('cache-components-segment-configs', () => {
-  const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it("it should error when using segment configs that aren't supported by cacheComponents", async () => {
     try {

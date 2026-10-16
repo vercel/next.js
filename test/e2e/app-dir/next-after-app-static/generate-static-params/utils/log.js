@@ -6,7 +6,8 @@ export function readCliLogs(/** @type {string} */ output) {
   return output
     .split('\n')
     .map((line) => {
-      const match = line.match(/^<test-log>(?<value>.+?)<\/test-log>$/)
+      // Deployment build logs can prefix each line with a timestamp.
+      const match = line.match(/<test-log>(?<value>.+?)<\/test-log>$/)
       if (!match) {
         return null
       }

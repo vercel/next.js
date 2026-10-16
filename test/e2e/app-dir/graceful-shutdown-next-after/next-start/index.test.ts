@@ -1,15 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// These tests send SIGINT/SIGTERM to a local Next.js process and observe whether
+// after() finishes before it exits. Vercel manages the deployed process lifecycle,
+// so the test runner cannot trigger and observe this shutdown sequence.
+// @force-gate !deploy
 describe('after during server shutdown - next start', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // the tests use cli logs
     skipStart: true,
   })
-  if (skipped) {
-    return
-  }
 
   beforeEach(async () => {
     await next.start()

@@ -3,15 +3,13 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely reads files from the isolated local fixture.
+// @force-gate !deploy
 describe('log-file', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   function getLogFilePath(): string {
     const logFilePath = path.join(
@@ -148,6 +146,9 @@ describe('log-file', () => {
     }
   })
 
+  // The snapshot includes an `ArrayBuffer.prototype.detached` warning that
+  // only React 19+ emits during Pages Router SSR.
+  // @force-gate !react18
   it('should capture logging in pages router', async () => {
     // Make request to page with getServerSideProps
     await next.browser('/pages-router-page')
@@ -162,6 +163,7 @@ describe('log-file', () => {
          {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"Pages Router SSR: This is an error message from getServerSideProps"}
          {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"WARN","message":"Pages Router SSR: This is a warning message from getServerSideProps"}
          {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"LOG","message":"Pages Router isomorphic: This is a log message from render"}
+         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"React encountered an empty buffer when writing in an environment that does not support ArrayBuffer.prototype.detached. This could be a security issue if the buffer was not actually empty. Please use a modern Edge runtime that supports ArrayBuffer.prototype.detached."}
          {"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"LOG","message":"Pages Router isomorphic: This is a log message from render"}"
         `)
       })

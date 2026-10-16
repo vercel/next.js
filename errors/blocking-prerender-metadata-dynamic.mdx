@@ -1,6 +1,6 @@
 ---
 title: Next.js encountered uncached data in generateMetadata()
-kind: insight
+kind: error
 ---
 
 <div
@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This error is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide for an
@@ -23,6 +23,8 @@ kind: insight
 </div>
 
 During [prerendering](/docs/app/glossary#prerendering), [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) performed an uncached data access ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database call, [`await connection()`](/docs/app/api-reference/functions/connection)). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js expects metadata to be prerenderable when the rest of the route is. This route's metadata is blocked, but the rest of its content can be prerendered.
+
+During `next build`, Next.js may link to this page when it cannot distinguish uncached data from runtime data. For a short cache, [extend the cache lifetime](/docs/messages/blocking-prerender-metadata-runtime#extend-the-cache-lifetime).
 
 Request-bound reads ([`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional)) in `generateMetadata()` have different fixes. See [Next.js encountered runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime).
 
@@ -118,7 +120,6 @@ Freshness depends on the cache configuration. The metadata stays the same until 
 
 - [`use cache`](/docs/app/api-reference/directives/use-cache) can't be combined with [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) in the same scope. Inside a cached function, you can't call request-bound APIs. If the metadata needs a request-bound value (a session token to call a protected API), read it outside the cached scope and pass it as an argument, or use [Mark the route as dynamic](#mark-the-route-as-dynamic) instead.
 - If the metadata function reads `params`, the params become part of the cache key automatically. Each unique param set gets its own cached metadata entry.
-- A short [`cacheLife`](/docs/app/api-reference/functions/cacheLife) (a profile whose `revalidate` is shorter than the prerender's effective lifetime) prevents the metadata from being included in the prerender. The route becomes partially dynamic. Use a longer profile if you want the metadata included in the static shell.
 
 ## Mark the route as dynamic
 
@@ -187,20 +188,6 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 
-## Related Insights
+## Related validation errors
 
-- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
-- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
-- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
-- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
-- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
-- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
-- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
-- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
-- [Unrendered segment](/docs/messages/instant-unrendered-segment)
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

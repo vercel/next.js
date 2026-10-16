@@ -18,6 +18,7 @@
         export: Some(
             "named",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -105,10 +106,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -137,6 +138,7 @@
         export: Some(
             "named",
         ),
+        member: None,
         ast_path: [
             Program(
                 Module,
@@ -211,7 +213,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

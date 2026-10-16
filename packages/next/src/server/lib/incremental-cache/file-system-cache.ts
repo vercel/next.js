@@ -1,3 +1,4 @@
+import { getRouteCacheKey, ROUTE_CACHE_DIRECTORY } from '../route-cache-key'
 import type { RouteMetadata } from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from '.'
 import type { CacheFs } from '../../../shared/lib/utils'
@@ -7,8 +8,9 @@ import {
   IncrementalCacheKind,
   type CachedFetchValue,
   type IncrementalCacheValue,
+  type GetIncrementalResponseCacheHandlerContext,
   type SetIncrementalFetchCacheContext,
-  type SetIncrementalResponseCacheContext,
+  type SetIncrementalResponseCacheHandlerContext,
 } from '../../response-cache'
 
 import type { LRUCache } from '../lru-cache'
@@ -40,6 +42,10 @@ export default class FileSystemCache implements CacheHandler {
   private revalidatedTags: string[]
   private static debug: boolean = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
   private static memoryCache: LRUCache<CacheHandlerValue> | undefined
+  private static readonly seedReads = new Map<
+    string,
+    { readers: number; version: number; promotion?: Promise<void> }
+  >()
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
@@ -63,6 +69,31 @@ export default class FileSystemCache implements CacheHandler {
   }
 
   public resetRequestCache(): void {}
+
+  private getSeedReadState(key: string) {
+    return FileSystemCache.seedReads.get(`${this.serverDistDir}:${key}`)
+  }
+
+  private beginSeedRead(key: string) {
+    const stateKey = `${this.serverDistDir}:${key}`
+    let state = FileSystemCache.seedReads.get(stateKey)
+    if (!state) {
+      state = { readers: 0, version: 0 }
+      FileSystemCache.seedReads.set(stateKey, state)
+    }
+    state.readers++
+    return { stateKey, state, version: state.version }
+  }
+
+  private finishSeedRead(
+    stateKey: string,
+    state: { readers: number; version: number; promotion?: Promise<void> }
+  ) {
+    state.readers--
+    if (state.readers === 0 && !state.promotion) {
+      FileSystemCache.seedReads.delete(stateKey)
+    }
+  }
 
   public async revalidateTag(
     tags: string | string[],
@@ -105,8 +136,16 @@ export default class FileSystemCache implements CacheHandler {
   public async get(...args: Parameters<CacheHandler['get']>) {
     const [key, ctx] = args
     const { kind } = ctx
+    let readKey = key
+    let seedRead: ReturnType<FileSystemCache['beginSeedRead']> | undefined
 
     let data = FileSystemCache.memoryCache?.get(key)
+
+    const activePromotion = this.getSeedReadState(key)?.promotion
+    if (!data && activePromotion) {
+      await activePromotion
+      data = FileSystemCache.memoryCache?.get(key)
+    }
 
     if (FileSystemCache.debug) {
       if (kind === IncrementalCacheKind.FETCH) {
@@ -116,12 +155,63 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
-    // let's check the disk for seed data
+    const isResponse =
+      kind === IncrementalCacheKind.PAGES ||
+      kind === IncrementalCacheKind.APP_PAGE ||
+      kind === IncrementalCacheKind.APP_ROUTE
+
+    if (
+      !data &&
+      isResponse &&
+      key.startsWith(`/${ROUTE_CACHE_DIRECTORY}/`) &&
+      process.env.NEXT_RUNTIME !== 'edge'
+    ) {
+      const primaryPath = this.getFilePath(
+        kind === IncrementalCacheKind.APP_ROUTE ? `${key}.body` : `${key}.html`,
+        kind
+      )
+      if (!this.fs.existsSync(primaryPath)) {
+        const marker = key.indexOf('/$/')
+        if (marker !== -1) {
+          const legacyKey = key.slice(marker + 2)
+          const legacyMetaPath = this.getFilePath(
+            `${legacyKey}${NEXT_META_SUFFIX}`,
+            kind
+          )
+          try {
+            const meta = JSON.parse(
+              this.fs.readFileSync(legacyMetaPath, 'utf8')
+            ) as RouteMetadata
+            const namespaceEnd = key.indexOf('/$/')
+            const ownerKey = meta.routeCache
+              ? getRouteCacheKey('/', meta.routeCache.owner)
+              : undefined
+            if (
+              meta.routeCache?.key === key &&
+              (meta.routeCache.isFallback === Boolean(ctx.isFallback) ||
+                // PPR also reads fallback shells through ordinary response and
+                // navigation resume-data lookups, which set isFallback: false.
+                (kind === IncrementalCacheKind.APP_PAGE &&
+                  ctx.isRoutePPREnabled &&
+                  meta.postponed != null)) &&
+              ownerKey?.slice(0, ownerKey.indexOf('/$/')) ===
+                key.slice(0, namespaceEnd)
+            ) {
+              readKey = legacyKey
+              seedRead = this.beginSeedRead(key)
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // Check the scoped disk entry first, or a verified immutable build seed
+    // only when its scoped primary payload is genuinely absent.
     if (!data && process.env.NEXT_RUNTIME !== 'edge') {
       try {
         if (kind === IncrementalCacheKind.APP_ROUTE) {
           const filePath = this.getFilePath(
-            `${key}.body`,
+            `${readKey}.body`,
             IncrementalCacheKind.APP_ROUTE
           )
           const fileData = await this.fs.readFile(filePath)
@@ -135,17 +225,18 @@ export default class FileSystemCache implements CacheHandler {
           )
 
           data = {
-            lastModified: mtime.getTime(),
+            lastModified: meta.routeCacheLastModified ?? mtime.getTime(),
             value: {
               kind: CachedRouteKind.APP_ROUTE,
               body: fileData,
               headers: meta.headers,
               status: meta.status,
             },
+            cacheControl: meta.cacheControl,
           }
         } else {
           const filePath = this.getFilePath(
-            kind === IncrementalCacheKind.FETCH ? key : `${key}.html`,
+            kind === IncrementalCacheKind.FETCH ? readKey : `${readKey}.html`,
             kind
           )
 
@@ -187,17 +278,15 @@ export default class FileSystemCache implements CacheHandler {
               }
             }
           } else if (kind === IncrementalCacheKind.APP_PAGE) {
-            // We try to load the metadata file, but if it fails, we don't
-            // error. We also don't load it if this is a fallback.
-            let meta: RouteMetadata | undefined
-            try {
-              meta = JSON.parse(
-                await this.fs.readFile(
-                  filePath.replace(/\.html$/, NEXT_META_SUFFIX),
-                  'utf8'
-                )
+            // Metadata is required for both normal entries and fallback shells.
+            // Promoted entries publish their primary payload last, so a missing
+            // sidecar means the scoped entry is incomplete.
+            const meta: RouteMetadata = JSON.parse(
+              await this.fs.readFile(
+                filePath.replace(/\.html$/, NEXT_META_SUFFIX),
+                'utf8'
               )
-            } catch {}
+            )
 
             let maybeSegmentData: Map<string, Buffer> | undefined
             if (meta?.segmentPaths) {
@@ -208,7 +297,7 @@ export default class FileSystemCache implements CacheHandler {
               // identical regardless.
               const segmentData: Map<string, Buffer> = new Map()
               maybeSegmentData = segmentData
-              const segmentsDir = key + RSC_SEGMENTS_DIR_SUFFIX
+              const segmentsDir = readKey + RSC_SEGMENTS_DIR_SUFFIX
               await Promise.all(
                 meta.segmentPaths.map(async (segmentPath: string) => {
                   const segmentDataFilePath = this.getFilePath(
@@ -236,14 +325,14 @@ export default class FileSystemCache implements CacheHandler {
             ) {
               rscData = await this.fs.readFile(
                 this.getFilePath(
-                  `${key}${RSC_SUFFIX}`,
+                  `${readKey}${RSC_SUFFIX}`,
                   IncrementalCacheKind.APP_PAGE
                 )
               )
             }
 
             data = {
-              lastModified: mtime.getTime(),
+              lastModified: meta.routeCacheLastModified ?? mtime.getTime(),
               value: {
                 kind: CachedRouteKind.APP_PAGE,
                 html: fileData,
@@ -253,16 +342,22 @@ export default class FileSystemCache implements CacheHandler {
                 status: meta?.status,
                 segmentData: maybeSegmentData,
               },
+              cacheControl: meta?.cacheControl,
             }
           } else if (kind === IncrementalCacheKind.PAGES) {
-            let meta: RouteMetadata | undefined
+            const meta: RouteMetadata = JSON.parse(
+              await this.fs.readFile(
+                filePath.replace(/\.html$/, NEXT_META_SUFFIX),
+                'utf8'
+              )
+            )
             let pageData: string | object = {}
 
             if (!ctx.isFallback) {
               pageData = JSON.parse(
                 await this.fs.readFile(
                   this.getFilePath(
-                    `${key}${NEXT_DATA_SUFFIX}`,
+                    `${readKey}${NEXT_DATA_SUFFIX}`,
                     IncrementalCacheKind.PAGES
                   ),
                   'utf8'
@@ -271,7 +366,7 @@ export default class FileSystemCache implements CacheHandler {
             }
 
             data = {
-              lastModified: mtime.getTime(),
+              lastModified: meta.routeCacheLastModified ?? mtime.getTime(),
               value: {
                 kind: CachedRouteKind.PAGES,
                 html: fileData,
@@ -288,9 +383,14 @@ export default class FileSystemCache implements CacheHandler {
         }
 
         if (data) {
-          FileSystemCache.memoryCache?.set(key, data)
+          if (!seedRead) {
+            FileSystemCache.memoryCache?.set(key, data)
+          }
         }
       } catch {
+        if (seedRead) {
+          this.finishSeedRead(seedRead.stateKey, seedRead.state)
+        }
         return null
       }
     }
@@ -315,6 +415,9 @@ export default class FileSystemCache implements CacheHandler {
             console.log('FileSystemCache: expired tags', cacheTags)
           }
 
+          if (seedRead) {
+            this.finishSeedRead(seedRead.stateKey, seedRead.state)
+          }
           return null
         }
       }
@@ -343,17 +446,181 @@ export default class FileSystemCache implements CacheHandler {
       }
     }
 
+    if (seedRead && data) {
+      const { stateKey, state, version } = seedRead
+      try {
+        if (state.version === version) {
+          await this.promoteSeed(
+            key,
+            readKey,
+            data,
+            ctx as GetIncrementalResponseCacheHandlerContext,
+            stateKey,
+            state,
+            version
+          )
+          if (
+            state.version === version &&
+            !FileSystemCache.memoryCache?.get(key)
+          ) {
+            FileSystemCache.memoryCache?.set(key, data)
+          }
+        }
+      } finally {
+        this.finishSeedRead(stateKey, state)
+      }
+    }
+
     return data ?? null
+  }
+
+  private async promoteSeed(
+    key: string,
+    seedKey: string,
+    data: CacheHandlerValue,
+    ctx: GetIncrementalResponseCacheHandlerContext,
+    stateKey: string,
+    state: { readers: number; version: number; promotion?: Promise<void> },
+    version: number
+  ) {
+    const writeFileAtomic = this.fs.writeFileAtomic
+    if (!this.flushToDisk || !writeFileAtomic || !data.value) return
+
+    if (state.promotion) {
+      await state.promotion
+      return
+    }
+
+    const promotion = (async () => {
+      const value = data.value
+      if (
+        !value ||
+        state.version !== version ||
+        (value.kind !== CachedRouteKind.PAGES &&
+          value.kind !== CachedRouteKind.APP_PAGE &&
+          value.kind !== CachedRouteKind.APP_ROUTE)
+      ) {
+        return
+      }
+
+      const kind = ctx.kind
+      const primaryPath = this.getFilePath(
+        value.kind === CachedRouteKind.APP_ROUTE
+          ? `${key}.body`
+          : `${key}.html`,
+        kind
+      )
+      if (this.fs.existsSync(primaryPath)) return
+
+      const seedPrimaryPath = this.getFilePath(
+        value.kind === CachedRouteKind.APP_ROUTE
+          ? `${seedKey}.body`
+          : `${seedKey}.html`,
+        kind
+      )
+      const seedMetaPath = seedPrimaryPath.replace(
+        value.kind === CachedRouteKind.APP_ROUTE ? /\.body$/ : /\.html$/,
+        NEXT_META_SUFFIX
+      )
+      const meta = JSON.parse(
+        await this.fs.readFile(seedMetaPath, 'utf8')
+      ) as RouteMetadata
+      meta.routeCacheLastModified = data.lastModified
+
+      // Copy every ancillary seed file first. The scoped primary payload is
+      // the publication marker and is written only after metadata is complete.
+      const ancillaryFiles: Array<{ path: string; data: Buffer | string }> = []
+      if (value.kind === CachedRouteKind.PAGES && !ctx.isFallback) {
+        ancillaryFiles.push({
+          path: this.getFilePath(`${key}${NEXT_DATA_SUFFIX}`, kind),
+          data: await this.fs.readFile(
+            this.getFilePath(`${seedKey}${NEXT_DATA_SUFFIX}`, kind)
+          ),
+        })
+      } else if (value.kind === CachedRouteKind.APP_PAGE) {
+        if (
+          !ctx.isFallback &&
+          (!ctx.isRoutePPREnabled || meta.postponed == null)
+        ) {
+          ancillaryFiles.push({
+            path: this.getFilePath(`${key}${RSC_SUFFIX}`, kind),
+            data: await this.fs.readFile(
+              this.getFilePath(`${seedKey}${RSC_SUFFIX}`, kind)
+            ),
+          })
+        }
+        ancillaryFiles.push(
+          ...(await Promise.all(
+            (meta.segmentPaths ?? []).map(async (segmentPath) => ({
+              path: this.getFilePath(
+                key +
+                  RSC_SEGMENTS_DIR_SUFFIX +
+                  segmentPath +
+                  RSC_SEGMENT_SUFFIX,
+                kind
+              ),
+              data: await this.fs.readFile(
+                this.getFilePath(
+                  seedKey +
+                    RSC_SEGMENTS_DIR_SUFFIX +
+                    segmentPath +
+                    RSC_SEGMENT_SUFFIX,
+                  kind
+                )
+              ),
+            }))
+          ))
+        )
+      }
+
+      const writer = new MultiFileWriter(this.fs)
+      for (const file of ancillaryFiles) writer.append(file.path, file.data)
+      await writer.wait()
+      if (state.version !== version) return
+
+      const metaPath = primaryPath.replace(
+        value.kind === CachedRouteKind.APP_ROUTE ? /\.body$/ : /\.html$/,
+        NEXT_META_SUFFIX
+      )
+      await this.fs.mkdir(path.dirname(metaPath))
+      await this.fs.writeFile(metaPath, JSON.stringify(meta))
+      if (state.version !== version || this.fs.existsSync(primaryPath)) return
+
+      await writeFileAtomic.call(
+        this.fs,
+        primaryPath,
+        await this.fs.readFile(seedPrimaryPath)
+      )
+    })()
+
+    state.promotion = promotion.catch((error) => {
+      if (FileSystemCache.debug) {
+        console.log('FileSystemCache: failed to promote build seed', error)
+      }
+    })
+    try {
+      await state.promotion
+    } finally {
+      if (state.promotion) state.promotion = undefined
+      if (state.readers === 0) FileSystemCache.seedReads.delete(stateKey)
+    }
   }
 
   public async set(
     key: string,
     data: IncrementalCacheValue | null,
-    ctx: SetIncrementalFetchCacheContext | SetIncrementalResponseCacheContext
+    ctx:
+      | SetIncrementalFetchCacheContext
+      | SetIncrementalResponseCacheHandlerContext
   ) {
+    const cacheControl = ctx.fetchCache ? undefined : ctx.cacheControl
+    const seedState = this.getSeedReadState(key)
+    if (seedState) seedState.version++
+
     FileSystemCache.memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
+      cacheControl,
     })
 
     if (FileSystemCache.debug) {
@@ -361,6 +628,8 @@ export default class FileSystemCache implements CacheHandler {
     }
 
     if (!this.flushToDisk || !data) return
+
+    await seedState?.promotion
 
     // Create a new writer that will prepare to write all the files to disk
     // after their containing directory is created.
@@ -380,6 +649,7 @@ export default class FileSystemCache implements CacheHandler {
         postponed: undefined,
         segmentPaths: undefined,
         prefetchHints: undefined,
+        cacheControl,
       }
 
       writer.append(
@@ -434,8 +704,21 @@ export default class FileSystemCache implements CacheHandler {
           postponed: data.postponed,
           segmentPaths,
           prefetchHints: undefined,
+          cacheControl,
         }
 
+        writer.append(
+          htmlPath.replace(/\.html$/, NEXT_META_SUFFIX),
+          JSON.stringify(meta)
+        )
+      } else {
+        const meta: RouteMetadata = {
+          headers: data.headers,
+          status: data.status,
+          postponed: undefined,
+          segmentPaths: undefined,
+          prefetchHints: undefined,
+        }
         writer.append(
           htmlPath.replace(/\.html$/, NEXT_META_SUFFIX),
           JSON.stringify(meta)
@@ -474,6 +757,16 @@ export default class FileSystemCache implements CacheHandler {
         break
       default:
         throw new Error(`Unexpected file path kind: ${kind}`)
+    }
+
+    // Scoped response artifacts live outside the compiled route and ASO files.
+    if (
+      (kind === IncrementalCacheKind.PAGES ||
+        kind === IncrementalCacheKind.APP_PAGE ||
+        kind === IncrementalCacheKind.APP_ROUTE) &&
+      key.startsWith(`/${ROUTE_CACHE_DIRECTORY}/`)
+    ) {
+      rootDir = path.join(this.serverDistDir, '.')
     }
 
     const filePath = path.join(rootDir, key)

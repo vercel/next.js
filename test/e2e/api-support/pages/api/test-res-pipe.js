@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'
+import { Readable } from 'stream'
 
 export default async (req, res) => {
   const dataRes = await fetch(
@@ -6,5 +6,5 @@ export default async (req, res) => {
   )
 
   res.status(dataRes.status)
-  dataRes.body.pipe(res)
+  Readable.fromWeb(dataRes.body).pipe(res)
 }

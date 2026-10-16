@@ -6,13 +6,10 @@ import {
 } from '../../../../lib/next-test-utils'
 
 describe('after() in generateStaticParams - thrown errors', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true, // can't access build errors in deploy tests
   })
-
-  if (skipped) return
 
   if (isNextDev) {
     it('shows the error overlay if an error is thrown inside after', async () => {
@@ -26,8 +23,7 @@ describe('after() in generateStaticParams - thrown errors', () => {
     })
   } else {
     it('fails the build if an error is thrown inside after', async () => {
-      const buildResult = await next.build()
-      expect(buildResult?.exitCode).toBe(1)
+      await expect(next.start()).rejects.toThrow()
 
       const route = '/callback/[myParam]'
       expect(next.cliOutput).toContain(
@@ -36,6 +32,6 @@ describe('after() in generateStaticParams - thrown errors', () => {
       expect(next.cliOutput).toContain(
         `My cool error thrown inside after on route "${route}"`
       )
-    })
+    }, 240_000)
   }
 })

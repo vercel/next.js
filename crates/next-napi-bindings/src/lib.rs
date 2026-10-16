@@ -34,28 +34,22 @@ DEALINGS IN THE SOFTWARE.
 
 use std::sync::Arc;
 
-use napi::bindgen_prelude::create_custom_tokio_runtime;
 use swc_core::{
     base::Compiler,
     common::{FilePathMapping, SourceMap},
 };
 
 pub mod code_frame;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod lockfile;
 pub mod mdx;
 pub mod minify;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod next_api;
 pub mod parse;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod react_compiler;
 pub mod rspack;
 pub mod transform;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod turbo_trace_server;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
 pub mod util;
 
@@ -82,9 +76,11 @@ fn init() {
         static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
     }
 
+    use napi::bindgen_prelude::create_custom_tokio_runtime;
     use tokio::runtime::Builder;
     use turbo_tasks::{panic_hooks::handle_panic, parallel::available_parallelism};
     use turbo_tasks_malloc::TurboMalloc;
+    use turbopack_trace_utils::tokio_workers;
 
     let prev_hook = take_hook();
     set_hook(Box::new(move |info| {
@@ -93,6 +89,7 @@ fn init() {
     }));
 
     let worker_threads = available_parallelism().map(|n| n.get()).unwrap_or(1);
+    tokio_workers::set_worker_threads(worker_threads);
 
     let rt = Builder::new_multi_thread()
         .enable_all()
@@ -100,6 +97,7 @@ fn init() {
             TurboMalloc::thread_stop();
         })
         .on_thread_park(|| {
+            tokio_workers::park();
             LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
                 if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
                     swc_core::ecma::atoms::hstr::global_atom_store_gc();
@@ -108,6 +106,7 @@ fn init() {
             });
             TurboMalloc::thread_park();
         })
+        .on_thread_unpark(tokio_workers::unpark)
         .worker_threads(worker_threads)
         // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place
         .max_blocking_threads(usize::MAX - worker_threads)

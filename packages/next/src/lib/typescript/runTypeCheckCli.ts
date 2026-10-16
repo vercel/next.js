@@ -59,7 +59,6 @@ export async function runTypeCheckCli({
   }
 
   return {
-    hasWarnings: false,
     incremental,
   }
 }

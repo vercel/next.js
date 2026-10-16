@@ -30,7 +30,7 @@ function getValidationBoundaryTracking(): ValidationBoundaryTracking | null {
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default:
       store satisfies never
