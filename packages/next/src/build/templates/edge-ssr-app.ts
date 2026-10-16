@@ -124,6 +124,7 @@ async function requestHandler(
     'parsedRequestHeaders'
   > = {
     requestUrl: baseReq.url,
+    requestHeaders: baseReq.headers,
     serverActionRequestMetadata,
     page: normalizedSrcPage,
     routeMatch,

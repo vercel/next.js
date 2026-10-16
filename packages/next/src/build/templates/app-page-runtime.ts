@@ -896,6 +896,7 @@ export function createAppPageEntrypoint({
         const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
           requestUrl: req.url!,
+          requestHeaders: req.headers,
           query,
           params,
           page: normalizedSrcPage,

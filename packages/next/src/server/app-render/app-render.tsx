@@ -15,6 +15,7 @@ import type {
 } from '../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../shared/lib/app-router-types'
 import type { Readable } from 'node:stream'
+import type { IncomingHttpHeaders } from 'http'
 import {
   workAsyncStorage,
   type WorkStore,
@@ -2919,6 +2920,7 @@ async function prerenderAppPage({
 
 async function renderAppPage(
   req: BaseNextRequest,
+  requestHeaders: IncomingHttpHeaders,
   {
     ctx,
     metadata,
@@ -2967,7 +2969,7 @@ async function renderAppPage(
         : null
   const createRequestStore = createRequestStoreForRender.bind(
     null,
-    req,
+    requestHeaders,
     res,
     url,
     rootParams,
@@ -3212,6 +3214,7 @@ async function renderToHTMLOrFlightImpl(
   req: BaseNextRequest,
   res: BaseNextResponse,
   requestUrl: string,
+  requestHeaders: IncomingHttpHeaders,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
   query: NextParsedUrlQuery,
@@ -3258,7 +3261,14 @@ async function renderToHTMLOrFlightImpl(
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
     }
   )
-  return renderAppPage(req, prepared, postponedState, dev, stagedFallbackParams)
+  return renderAppPage(
+    req,
+    requestHeaders,
+    prepared,
+    postponedState,
+    dev,
+    stagedFallbackParams
+  )
 }
 
 async function prerenderToHTMLOrFlightImpl(
@@ -3315,6 +3325,7 @@ export type AppPageRender = (
   req: BaseNextRequest,
   res: BaseNextResponse,
   requestUrl: string,
+  requestHeaders: IncomingHttpHeaders,
   pagePath: string,
   query: NextParsedUrlQuery,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -3417,6 +3428,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   req,
   res,
   requestUrl,
+  requestHeaders,
   pagePath,
   query,
   fallbackRouteParams,
@@ -3454,6 +3466,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     req,
     res,
     requestUrl,
+    requestHeaders,
     url,
     pagePath,
     query,
