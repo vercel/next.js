@@ -457,7 +457,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/normal/use-search-params/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/normal/use-search-params/[id]/page: /client-hook-abort-reasons/normal/use-search-params/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/normal/use-search-params/[id]/page: /client-hook-abort-reasons/normal/use-search-params/[id], exiting the build."
                 `)
               }
               return
@@ -551,7 +552,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-search-params/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/normal/use-search-params/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/normal/use-search-params/[id]/page: /client-hook-abort-reasons/normal/use-search-params/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/normal/use-search-params/[id]/page: /client-hook-abort-reasons/normal/use-search-params/[id], exiting the build."
               `)
             }
           })
@@ -746,7 +748,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-pathname/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/normal/use-pathname/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/normal/use-pathname/[id]/page: /client-hook-abort-reasons/normal/use-pathname/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/normal/use-pathname/[id]/page: /client-hook-abort-reasons/normal/use-pathname/[id], exiting the build."
                 `)
               }
               return
@@ -840,7 +843,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-pathname/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/normal/use-pathname/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/normal/use-pathname/[id]/page: /client-hook-abort-reasons/normal/use-pathname/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/normal/use-pathname/[id]/page: /client-hook-abort-reasons/normal/use-pathname/[id], exiting the build."
               `)
             }
           })
@@ -1035,7 +1039,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/normal/use-params/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/normal/use-params/[id]/page: /client-hook-abort-reasons/normal/use-params/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/normal/use-params/[id]/page: /client-hook-abort-reasons/normal/use-params/[id], exiting the build."
                 `)
               }
               return
@@ -1129,7 +1134,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-params/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/normal/use-params/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/normal/use-params/[id]/page: /client-hook-abort-reasons/normal/use-params/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/normal/use-params/[id]/page: /client-hook-abort-reasons/normal/use-params/[id], exiting the build."
               `)
             }
           })
@@ -1324,7 +1330,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page: /client-hook-abort-reasons/normal/use-selected-layout-segments/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page: /client-hook-abort-reasons/normal/use-selected-layout-segments/[id], exiting the build."
                 `)
               }
               return
@@ -1418,7 +1425,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/normal/use-selected-layout-segments/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page: /client-hook-abort-reasons/normal/use-selected-layout-segments/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/normal/use-selected-layout-segments/[id]/page: /client-hook-abort-reasons/normal/use-selected-layout-segments/[id], exiting the build."
               `)
             }
           })
@@ -1613,7 +1621,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page: /client-hook-abort-reasons/normal/use-selected-layout-segment/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page: /client-hook-abort-reasons/normal/use-selected-layout-segment/[id], exiting the build."
                 `)
               }
               return
@@ -1707,7 +1716,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/normal/use-selected-layout-segment/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page: /client-hook-abort-reasons/normal/use-selected-layout-segment/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/normal/use-selected-layout-segment/[id]/page: /client-hook-abort-reasons/normal/use-selected-layout-segment/[id], exiting the build."
               `)
             }
           })
@@ -1949,7 +1959,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-search-params/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-search-params/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/sync-io/use-search-params/[id]/page: /client-hook-abort-reasons/sync-io/use-search-params/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/sync-io/use-search-params/[id]/page: /client-hook-abort-reasons/sync-io/use-search-params/[id], exiting the build."
                 `)
               }
               return
@@ -2006,7 +2017,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-search-params/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-search-params/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/sync-io/use-search-params/[id]/page: /client-hook-abort-reasons/sync-io/use-search-params/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/sync-io/use-search-params/[id]/page: /client-hook-abort-reasons/sync-io/use-search-params/[id], exiting the build."
               `)
             }
           })
@@ -2065,7 +2077,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-pathname/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-pathname/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/sync-io/use-pathname/[id]/page: /client-hook-abort-reasons/sync-io/use-pathname/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/sync-io/use-pathname/[id]/page: /client-hook-abort-reasons/sync-io/use-pathname/[id], exiting the build."
                 `)
               }
               return
@@ -2122,7 +2135,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-pathname/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-pathname/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/sync-io/use-pathname/[id]/page: /client-hook-abort-reasons/sync-io/use-pathname/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/sync-io/use-pathname/[id]/page: /client-hook-abort-reasons/sync-io/use-pathname/[id], exiting the build."
               `)
             }
           })
@@ -2271,7 +2285,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-params/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/sync-io/use-params/[id]/page: /client-hook-abort-reasons/sync-io/use-params/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/sync-io/use-params/[id]/page: /client-hook-abort-reasons/sync-io/use-params/[id], exiting the build."
                 `)
               }
               return
@@ -2373,7 +2388,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-params/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-params/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/sync-io/use-params/[id]/page: /client-hook-abort-reasons/sync-io/use-params/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/sync-io/use-params/[id]/page: /client-hook-abort-reasons/sync-io/use-params/[id], exiting the build."
               `)
             }
           })
@@ -2516,7 +2532,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page: /client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page: /client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id], exiting the build."
                 `)
               }
               return
@@ -2606,7 +2623,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page: /client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id]/page: /client-hook-abort-reasons/sync-io/use-selected-layout-segments/[id], exiting the build."
               `)
             }
           })
@@ -2835,7 +2853,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page: /client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id], exiting the build."
+
+                 > Export encountered an error on /client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page: /client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id], exiting the build."
                 `)
               }
               return
@@ -2970,7 +2989,8 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - Start the app in development mode by running \`next dev\`, then open "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page: /client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id], exiting the build."
+
+               > Export encountered an error on /client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id]/page: /client-hook-abort-reasons/sync-io/use-selected-layout-segment/[id], exiting the build."
               `)
             }
           })

@@ -3,10 +3,9 @@ import type { Telemetry } from '../telemetry/storage'
 import type { Span } from '../trace'
 
 import * as Log from './output/log'
-import { Worker } from '../lib/worker'
+import { Worker } from '../lib/worker/index'
 import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
-import isError from '../lib/is-error'
 import { hrtimeDurationToString } from './duration-to-string'
 import { getBuildDistDir } from '../export/utils'
 
@@ -46,10 +45,9 @@ function verifyAndRunTypeScript(
     typeCheckWorker = new Worker(
       require.resolve('../lib/verify-typescript-setup'),
       {
+        workerName: 'Next.js type check worker',
         exposedMethods: ['verifyAndRunTypeScriptInWorker'],
-        debuggerPortOffset: -1,
-        isolatedMemory: false,
-        numWorkers: 1,
+        maxWorkers: 1,
         enableWorkerThreads,
         maxRetries: 0,
       }
@@ -80,15 +78,14 @@ function verifyAndRunTypeScript(
     useTypeScriptCli,
     onFirstCliOutput,
   })
-    .then((result) => {
-      typeCheckWorker?.end()
+    .then(async (result) => {
+      await typeCheckWorker?.shutdown()
       return result
     })
     .catch(() => {
       // The error is already logged (in the worker for the API checker, or
-      // directly for the in-process CLI checker); we simply exit to prevent the
-      // `Jest worker encountered 1 child process exceptions, exceeding retry
-      // limit` message from showing up.
+      // directly for the in-process CLI checker); we simply exit to avoid
+      // reporting the same failure a second time.
       process.exit(1)
     })
 }
@@ -132,63 +129,53 @@ export async function startTypeChecking({
 
   const typeCheckAndLintStart = process.hrtime()
 
-  try {
-    const [verifyResult, typeCheckEnd] = await nextBuildSpan
-      .traceChild('run-typescript')
-      .traceAsyncFn(() =>
-        verifyAndRunTypeScript(
-          dir,
-          getBuildDistDir(config),
-          Boolean(config.experimental.strictRouteTypes),
-          !ignoreTypeScriptErrors,
-          config.typescript.tsconfigPath,
-          Boolean(config.typedRoutes),
-          config.images.disableStaticImages,
-          cacheDir,
-          config.experimental.workerThreads,
-          !!appDir,
-          !!pagesDir,
-          appDir,
-          pagesDir,
-          debugBuildPaths,
-          useTypeScriptCli,
-          // Stop the spinner before as soon as the subprocess reports output.
-          useTypeScriptCli && typeCheckingSpinner
-            ? () => typeCheckingSpinner.stop()
-            : undefined
-        ).then((resolved) => {
-          const checkEnd = process.hrtime(typeCheckAndLintStart)
-          return [resolved, checkEnd] as const
-        })
-      )
+  const [verifyResult, typeCheckEnd] = await nextBuildSpan
+    .traceChild('run-typescript')
+    .traceAsyncFn(() =>
+      verifyAndRunTypeScript(
+        dir,
+        getBuildDistDir(config),
+        Boolean(config.experimental.strictRouteTypes),
+        !ignoreTypeScriptErrors,
+        config.typescript.tsconfigPath,
+        Boolean(config.typedRoutes),
+        config.images.disableStaticImages,
+        cacheDir,
+        config.experimental.workerThreads,
+        !!appDir,
+        !!pagesDir,
+        appDir,
+        pagesDir,
+        debugBuildPaths,
+        useTypeScriptCli,
+        // Stop the spinner before as soon as the subprocess reports output.
+        useTypeScriptCli && typeCheckingSpinner
+          ? () => typeCheckingSpinner.stop()
+          : undefined
+      ).then((resolved) => {
+        const checkEnd = process.hrtime(typeCheckAndLintStart)
+        return [resolved, checkEnd] as const
+      })
+    )
 
-    if (typeCheckingSpinner) {
-      typeCheckingSpinner.stop()
-    }
+  if (typeCheckingSpinner) {
+    typeCheckingSpinner.stop()
+  }
 
-    createSpinner(
-      `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
-    )?.stopAndPersist()
+  createSpinner(
+    `Finished TypeScript${ignoreTypeScriptErrors ? ' config validation' : ''} in ${hrtimeDurationToString(typeCheckEnd)}`
+  )?.stopAndPersist()
 
-    if (!ignoreTypeScriptErrors && verifyResult) {
-      telemetry.record(
-        eventTypeCheckCompleted({
-          durationInSeconds: typeCheckEnd[0],
-          typescriptVersion: verifyResult.version,
-          inputFilesCount: verifyResult.result?.inputFilesCount,
-          totalFilesCount: verifyResult.result?.totalFilesCount,
-          incremental: verifyResult.result?.incremental,
-          typeCheckMode: verifyResult.typeCheckMode,
-        })
-      )
-    }
-  } catch (err) {
-    // prevent showing jest-worker internal error as it
-    // isn't helpful for users and clutters output
-    if (isError(err) && err.message === 'Call retries were exceeded') {
-      await telemetry.flush()
-      process.exit(1)
-    }
-    throw err
+  if (!ignoreTypeScriptErrors && verifyResult) {
+    telemetry.record(
+      eventTypeCheckCompleted({
+        durationInSeconds: typeCheckEnd[0],
+        typescriptVersion: verifyResult.version,
+        inputFilesCount: verifyResult.result?.inputFilesCount,
+        totalFilesCount: verifyResult.result?.totalFilesCount,
+        incremental: verifyResult.result?.incremental,
+        typeCheckMode: verifyResult.typeCheckMode,
+      })
+    )
   }
 }

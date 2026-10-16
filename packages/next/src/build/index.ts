@@ -22,7 +22,7 @@ import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
-import { getNextBuildDebuggerPortOffset, Worker } from '../lib/worker'
+import { Worker } from '../lib/worker/index'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
@@ -1027,8 +1027,8 @@ export function createStaticWorker(
 ): StaticWorker {
   const { numberOfWorkers, debuggerPortOffset, progress } = options
   return new Worker(staticWorkerPath, {
-    logger: Log,
-    numWorkers: numberOfWorkers,
+    workerName: 'Next.js static worker',
+    maxWorkers: numberOfWorkers,
     onActivity: () => {
       progress?.run()
     },
@@ -1929,9 +1929,8 @@ export default async function build(
                 const buildTraceWorker = new Worker(
                   require.resolve('./collect-build-traces'),
                   {
-                    debuggerPortOffset: -1,
-                    isolatedMemory: false,
-                    numWorkers: 1,
+                    workerName: 'Next.js build trace worker',
+                    maxWorkers: 1,
                     exposedMethods: ['collectBuildTraces'],
                     forkOptions: process.env.NEXT_CPU_PROF
                       ? {
@@ -2336,9 +2335,9 @@ export default async function build(
 
       staticWorker = createStaticWorker(config, {
         numberOfWorkers,
-        debuggerPortOffset: getNextBuildDebuggerPortOffset({
-          kind: 'export-page',
-        }),
+        // Port offset 0: export-page workers get the first debugger port after
+        // the parent process (base + 1 + 0).
+        debuggerPortOffset: 0,
       })
 
       const analysisBegin = process.hrtime()
@@ -4479,7 +4478,7 @@ export default async function build(
       // When output: export we want to end the worker later as it's still used for writeFullyStaticExport
       if (config.output !== 'export') {
         // ensure the worker is not left hanging
-        staticWorker?.end()
+        await staticWorker?.shutdown()
         staticWorker = undefined! // Reset staticWorker to make sure it does not end in `finally`
       }
 
@@ -4711,7 +4710,7 @@ export default async function build(
       if (config.output === 'export') {
         // TODO: When writeFullyStaticExport doesn't fail when staticWorker is passed moved this after writeFullyStaticExport.
         // End the worker here when it's output: export.
-        staticWorker.end()
+        await staticWorker.shutdown()
         staticWorker = undefined! // Reset staticWorker to make sure it does not end in `finally`
 
         await nextBuildSpan
@@ -4890,7 +4889,7 @@ export default async function build(
   } finally {
     // @ts-expect-error Existence of staticWorker is checked here intentionally.
     if (staticWorker) {
-      staticWorker.end()
+      await staticWorker.shutdown()
     }
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur

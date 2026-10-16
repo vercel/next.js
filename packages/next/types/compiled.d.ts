@@ -50,13 +50,6 @@ declare module 'next/dist/compiled/superstruct' {
   export type Describe<T> = any
 }
 
-declare module 'next/dist/compiled/jest-worker' {
-  export class Worker {
-    constructor(...args: any[])
-    end(): any
-  }
-}
-
 declare module 'next/dist/compiled/amphtml-validator' {
   export type Validator = {
     validateString(html: string): Promise<any>

@@ -128,7 +128,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-current-time/date/page: /sync-io-current-time/date, exiting the build."
+
+             > Export encountered an error on /sync-io-current-time/date/page: /sync-io-current-time/date, exiting the build."
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
@@ -148,7 +149,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/date". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-current-time/date/page: /sync-io-current-time/date, exiting the build."
+
+             > Export encountered an error on /sync-io-current-time/date/page: /sync-io-current-time/date, exiting the build."
             `)
           }
         }
@@ -272,7 +274,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-current-time/date-now/page: /sync-io-current-time/date-now, exiting the build."
+
+             > Export encountered an error on /sync-io-current-time/date-now/page: /sync-io-current-time/date-now, exiting the build."
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
@@ -292,7 +295,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/date-now". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-current-time/date-now/page: /sync-io-current-time/date-now, exiting the build."
+
+             > Export encountered an error on /sync-io-current-time/date-now/page: /sync-io-current-time/date-now, exiting the build."
             `)
           }
         }
@@ -416,7 +420,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-current-time/new-date/page: /sync-io-current-time/new-date, exiting the build."
+
+             > Export encountered an error on /sync-io-current-time/new-date/page: /sync-io-current-time/new-date, exiting the build."
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
@@ -436,7 +441,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-current-time/new-date". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-current-time/new-date/page: /sync-io-current-time/new-date, exiting the build."
+
+             > Export encountered an error on /sync-io-current-time/new-date/page: /sync-io-current-time/new-date, exiting the build."
             `)
           }
         }
@@ -557,7 +563,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-random/math-random/page: /sync-io-random/math-random, exiting the build."
+
+             > Export encountered an error on /sync-io-random/math-random/page: /sync-io-random/math-random, exiting the build."
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
@@ -576,7 +583,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-random/math-random". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-random/math-random/page: /sync-io-random/math-random, exiting the build."
+
+             > Export encountered an error on /sync-io-random/math-random/page: /sync-io-random/math-random, exiting the build."
             `)
           }
         }
@@ -700,7 +708,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value, exiting the build."
+
+             > Export encountered an error on /sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value, exiting the build."
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
@@ -719,7 +728,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-web-crypto/get-random-value". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value, exiting the build."
+
+             > Export encountered an error on /sync-io-web-crypto/get-random-value/page: /sync-io-web-crypto/get-random-value, exiting the build."
             `)
           }
         }
@@ -840,7 +850,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid, exiting the build."
+
+             > Export encountered an error on /sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid, exiting the build."
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
@@ -859,7 +870,8 @@ export function registerSyncIoTimeAndRandomTests(
                - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/sync-io-web-crypto/random-uuid". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid, exiting the build."
+
+             > Export encountered an error on /sync-io-web-crypto/random-uuid/page: /sync-io-web-crypto/random-uuid, exiting the build."
             `)
           }
         }

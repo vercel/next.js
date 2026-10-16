@@ -297,9 +297,9 @@ export async function verifyAndRunTypeScript({
   } catch (err) {
     // Print the user-facing message here and rethrow. This function runs both
     // in-process (next dev / next test / next typegen, and the CLI type-check
-    // during build) and inside a jest worker (the TypeScript-API type-check
-    // during build). A thrown error does not survive the worker boundary — the
-    // parent only sees `Call retries were exceeded` — so the message must be
+    // during build) and inside a worker (the TypeScript-API type-check during
+    // build). The worker entrypoint exits instead of rethrowing, so the error
+    // never reaches the parent — so the message must be
     // printed on this side. The caller decides what to do with the throw (exit,
     // or tolerate it as `next dev` does on re-verification).
     if (err instanceof CompileError) {
@@ -320,9 +320,8 @@ export async function verifyAndRunTypeScript({
 /**
  * Worker entrypoint used by `next build` for the TypeScript-API type-check.
  * `verifyAndRunTypeScript` has already printed any error, so on failure we exit
- * the worker directly rather than rethrowing: a thrown error would be retried by
- * jest-worker and surface in the parent as the unhelpful
- * `Jest worker encountered 1 child process exceptions, exceeding retry limit`.
+ * the worker directly rather than rethrowing: a thrown error would be
+ * serialized back to the parent and reported a second time.
  */
 export async function verifyAndRunTypeScriptInWorker(
   options: Parameters<typeof verifyAndRunTypeScript>[0]
