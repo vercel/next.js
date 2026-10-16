@@ -15,6 +15,7 @@ use crate::{
     compression::{Compressor, checksum_block},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::MetaEntryFlags,
+    radix_sort::radix_sort_u32,
     static_sorted_file::{
         BLOB_VALUE_REF_SIZE, BLOCK_TYPE_INDEX, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, FixedRegions,
         KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
@@ -1131,9 +1132,11 @@ impl<E: Entry> StreamingSstWriter<E> {
         let fp_size = builder.fingerprint_size();
         assert!(fp_size < 32, "fp_size {fp_size} exceeds u32");
         let fp_mask = (1u32 << fp_size) - 1;
-        // Mask in-place to fingerprint size and sort.
-        self.collected_fingerprints
-            .sort_unstable_by_key(|&h| h & fp_mask);
+        // Mask in-place to fingerprint size and sort. The builder only uses these low bits.
+        for h in &mut self.collected_fingerprints {
+            *h &= fp_mask;
+        }
+        radix_sort_u32(&mut self.collected_fingerprints, u32::from(fp_size));
         for &h in &self.collected_fingerprints {
             builder
                 .insert_fingerprint(false, h as u64)
