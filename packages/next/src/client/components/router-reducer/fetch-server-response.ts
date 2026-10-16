@@ -30,8 +30,15 @@ import { findSourceMapURL } from '../../app-find-source-map-url'
 import { prepareFlightRouterStateForRequest } from '../../flight-data-helpers'
 import type { PartialTransportData } from '../../../shared/lib/rsc-transport'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
-import { urlToUrlWithoutFlightMarker } from '../../route-params'
-import type { NormalizedSearch } from '../segment-cache/cache-key'
+import {
+  getPathnameFromRequestURL,
+  getRenderedPathname,
+  urlToUrlWithoutFlightMarker,
+} from '../../route-params'
+import type {
+  NormalizedPathname,
+  NormalizedSearch,
+} from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
@@ -60,6 +67,12 @@ export interface FetchServerResponseOptions {
 type SpaFetchServerResponseResult = {
   transportData: PartialTransportData | null
   canonicalUrl: URL
+  /**
+   * The pathname the response was rendered for. Used to resolve dynamic
+   * segments without a concrete param value: a response rendered from a
+   * fallback shell carries opaque placeholders for unknown params.
+   */
+  renderedPathname: NormalizedPathname
   renderedSearch: NormalizedSearch
   couldBeIntercepted: boolean
   supportsPerSegmentPrefetching: boolean
@@ -276,6 +289,13 @@ export async function fetchServerResponse(
     return {
       transportData: flightResponse.t ?? null,
       canonicalUrl: canonicalUrl,
+      // In output: "export" mode the response URL has the `.txt` suffix
+      // appended, so derive the pathname from the page URL instead (rewrites
+      // don't exist on a static host).
+      renderedPathname:
+        process.env.__NEXT_CONFIG_OUTPUT === 'export'
+          ? getPathnameFromRequestURL(originalUrl)
+          : getRenderedPathname(res),
       // TODO: We should be able to read this from the rewrite header, not the
       // Flight response. Theoretically they should always agree, but there are
       // currently some cases where it's incorrect for interception routes. We

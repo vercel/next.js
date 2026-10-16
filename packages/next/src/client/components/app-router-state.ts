@@ -502,6 +502,7 @@ async function navigateToUnknownRoute(
   const {
     transportData,
     canonicalUrl,
+    renderedPathname,
     renderedSearch,
     couldBeIntercepted,
     supportsPerSegmentPrefetching,
@@ -525,9 +526,9 @@ async function navigateToUnknownRoute(
     // their own, buffered, payloads).
     null,
     isResponsePartial,
-    // Navigation responses always include the param values in the tree, so
-    // there's no pathname to parse them from (nor a need to).
-    null,
+    // A response rendered from a fallback shell carries opaque placeholders
+    // for unknown params, which are parsed from the rendered pathname.
+    renderedPathname,
     renderedSearch,
     null,
     dynamicStaleTime
@@ -560,6 +561,7 @@ async function navigateToUnknownRoute(
     isResponsePartial,
     responseChunks,
     currentFlightRouterState,
+    renderedPathname,
     renderedSearch,
     map
   ).catch(() => {
