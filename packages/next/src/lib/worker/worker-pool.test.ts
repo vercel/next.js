@@ -917,6 +917,149 @@ describe('WorkerPool', () => {
   })
 
   // -----------------------------------------------------------------------
+  // Serialization / send failures
+  // -----------------------------------------------------------------------
+  describe('serialization failures', () => {
+    function getCallMessages(proc: FakeChildProcess): unknown[][] {
+      return proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+    }
+
+    /** Make the fake process throw when the pool sends a CALL message */
+    function throwOnCall(proc: FakeChildProcess, error: Error): void {
+      const originalSend = proc.send.bind(proc)
+      proc.send = (message: unknown, cb?: () => void) => {
+        if ((message as unknown[])[0] === CHILD_MESSAGE_CALL) {
+          throw error
+        }
+        return originalSend(message, cb)
+      }
+    }
+
+    it('rejects a call with circular args and keeps the worker usable', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+      })
+      const warmup = pool.dispatch('warmup', [])
+      const proc = latestProcess()
+      replyReady(proc)
+      replyOk(proc, getCallMessages(proc)[0][1] as number, 'ok')
+      await warmup
+
+      const circular: any = {}
+      circular.self = circular
+      await expect(pool.dispatch('doWork', [circular])).rejects.toThrow(
+        TypeError
+      )
+
+      // The failed call must not occupy the worker's only concurrency slot
+      const next = pool.dispatch('doWork', ['fine'])
+      const calls = getCallMessages(proc)
+      expect(calls).toHaveLength(2)
+      expect(calls[1][2]).toBe('doWork')
+      expect(calls[1][3]).toEqual(['fine'])
+      replyOk(proc, calls[1][1] as number, 'done')
+      await expect(next).resolves.toBe('done')
+      expect(spawnedProcesses).toHaveLength(1)
+      pool.shutdownNow()
+    })
+
+    it('rejects a call with BigInt args when sanitizing', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+      })
+      const promise = pool.dispatch('doWork', [BigInt(1)])
+      replyReady(latestProcess())
+      await expect(promise).rejects.toThrow(TypeError)
+      pool.shutdownNow()
+    })
+
+    it('rejects a call whose send throws a DataCloneError when sanitizeArgs is false', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+        sanitizeArgs: false,
+      })
+      const promise = pool.dispatch('doWork', [() => {}])
+      const proc = latestProcess()
+      const cloneError = new Error('could not be cloned')
+      cloneError.name = 'DataCloneError'
+      throwOnCall(proc, cloneError)
+      replyReady(proc)
+      await expect(promise).rejects.toBe(cloneError)
+      pool.shutdownNow()
+    })
+
+    it('drains the next queued task on READY after a failing one', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+      })
+      const circular: any = {}
+      circular.self = circular
+      const bad = pool.dispatch('doWork', [circular])
+      const good = pool.dispatch('doWork', ['fine'])
+      const proc = latestProcess()
+
+      // READY drains the queue; the failing task must not throw out of the
+      // message handler or block the task queued behind it.
+      expect(() => replyReady(proc)).not.toThrow()
+      await expect(bad).rejects.toThrow(TypeError)
+
+      const calls = getCallMessages(proc)
+      expect(calls).toHaveLength(1)
+      expect(calls[0][3]).toEqual(['fine'])
+      replyOk(proc, calls[0][1] as number, 'done')
+      await expect(good).resolves.toBe('done')
+      pool.shutdownNow()
+    })
+
+    it.each(['ok', 'client error'] as const)(
+      'drains past a failing queued task when an in-flight call completes (%s)',
+      async (completion) => {
+        const pool = new WorkerPool({
+          workerPath: '/fake/worker.js',
+          maxWorkers: 1,
+          enableWorkerThreads: true,
+        })
+        const first = pool.dispatch('doWork', ['first'])
+        const proc = latestProcess()
+        replyReady(proc)
+        const firstCall = getCallMessages(proc)[0]
+
+        // Queued behind the in-flight call: a bad task, then a good one
+        const circular: any = {}
+        circular.self = circular
+        const bad = pool.dispatch('doWork', [circular])
+        const good = pool.dispatch('doWork', ['fine'])
+
+        if (completion === 'ok') {
+          replyOk(proc, firstCall[1] as number, 'first done')
+          await expect(first).resolves.toBe('first done')
+        } else {
+          replyClientError(proc, firstCall[1] as number, 'Error', 'boom')
+          await expect(first).rejects.toThrow('boom')
+        }
+        await expect(bad).rejects.toThrow(TypeError)
+
+        // The good task must be sent even though the bad one never took the
+        // freed slot
+        const calls = getCallMessages(proc)
+        expect(calls).toHaveLength(2)
+        expect(calls[1][3]).toEqual(['fine'])
+        replyOk(proc, calls[1][1] as number, 'done')
+        await expect(good).resolves.toBe('done')
+        pool.shutdownNow()
+      }
+    )
+  })
+
+  // -----------------------------------------------------------------------
   // Resolves non-absolute workerPath
   // -----------------------------------------------------------------------
   describe('workerPath', () => {

@@ -530,11 +530,27 @@ export class WorkerPool {
     // child_process JSON serialization behaviour. Callers that need structured
     // clone semantics (e.g. SharedArrayBuffer) opt out via `sanitizeArgs`.
     // TODO: Remove once callers stop passing functions in args.
-    const sanitizedArgs =
-      this._options.enableWorkerThreads && this._options.sanitizeArgs
-        ? JSON.parse(JSON.stringify(args))
-        : args
-    worker.handle.send([CHILD_MESSAGE_CALL, requestId, method, sanitizedArgs])
+    try {
+      const sanitizedArgs =
+        this._options.enableWorkerThreads && this._options.sanitizeArgs
+          ? JSON.parse(JSON.stringify(args))
+          : args
+      worker.handle.send([CHILD_MESSAGE_CALL, requestId, method, sanitizedArgs])
+    } catch (error) {
+      // The args could not be serialized (e.g. circular data, BigInt, or a
+      // DataCloneError from structured clone), so the call never reached the
+      // worker. Release its concurrency slot and reject only this call; the
+      // worker itself is still healthy. This runs synchronously inside queue
+      // draining, so it must not throw.
+      worker.activeRequests.delete(requestId)
+      if (
+        worker.state === WorkerState.RUNNING &&
+        worker.activeRequests.size < this._options.concurrencyPerWorker
+      ) {
+        this._availableWorkers.add(worker)
+      }
+      reject(error)
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -553,7 +569,10 @@ export class WorkerPool {
           worker.activeRequests.delete(requestId)
           this._markAvailableIfRunning(worker)
           pending.resolve(result)
-          this._dequeueTask(worker)
+          // Drain (not just dequeue one): a dequeued task whose args fail to
+          // serialize is rejected without occupying the freed slot, so the
+          // next queued task must still be offered to this worker.
+          this._drainQueue(worker)
         }
         break
       }
@@ -566,7 +585,7 @@ export class WorkerPool {
           worker.activeRequests.delete(requestId)
           this._markAvailableIfRunning(worker)
           pending.reject(error)
-          this._dequeueTask(worker)
+          this._drainQueue(worker)
         }
         break
       }
@@ -712,21 +731,6 @@ export class WorkerPool {
   // ---------------------------------------------------------------------------
   // Internal: task queue
   // ---------------------------------------------------------------------------
-
-  /** Dequeue one task into a worker that has capacity */
-  private _dequeueTask(worker: PoolWorker): void {
-    if (
-      worker.state !== WorkerState.RUNNING ||
-      worker.activeRequests.size >= this._options.concurrencyPerWorker
-    ) {
-      return
-    }
-
-    const task = this._taskQueue.shift()
-    if (task) {
-      this._sendCall(worker, task.method, task.args, task.resolve, task.reject)
-    }
-  }
 
   /** Drain as many queued tasks as a single worker can accept */
   private _drainQueue(worker: PoolWorker): void {
