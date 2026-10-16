@@ -56,15 +56,32 @@ jest.mock('child_process', () => ({
   }),
 }))
 
-jest.mock('worker_threads', () => ({
-  Worker: jest.fn().mockImplementation(() => {
-    const proc = new FakeChildProcess()
-    // worker_threads.Worker uses postMessage instead of send
-    ;(proc as any).postMessage = (msg: unknown) => proc.send(msg)
-    spawnedProcesses.push(proc)
-    return proc
-  }),
-}))
+jest.mock('worker_threads', () => {
+  // A worker_threads.Worker double: `instanceof Worker` holds (so the pool
+  // takes its thread code path), messages go through postMessage, it is
+  // stopped with terminate(), and 'exit' carries only an exit code.
+  const Worker = jest.fn().mockImplementation(() => {
+    const thread = new FakeChildProcess()
+    ;(thread as any).isFakeThread = true
+    ;(thread as any).postMessage = (msg: unknown) => {
+      thread.sent.push(msg as unknown[])
+    }
+    ;(thread as any).terminate = jest.fn(() => {
+      thread.killed = true
+      setImmediate(() => thread.emit('exit', 1))
+      return Promise.resolve(1)
+    })
+    // Threads have no IPC send() or kill()
+    ;(thread as any).send = undefined
+    ;(thread as any).kill = undefined
+    spawnedProcesses.push(thread)
+    return thread
+  })
+  Object.defineProperty(Worker, Symbol.hasInstance, {
+    value: (value: unknown) => (value as any)?.isFakeThread === true,
+  })
+  return { Worker }
+})
 
 // We import WorkerPool *after* the mock so `fork` is already stubbed.
 import { WorkerPool, WorkerExitError } from './worker-pool'
@@ -993,6 +1010,67 @@ describe('WorkerPool', () => {
   })
 
   // -----------------------------------------------------------------------
+  // worker_threads handle
+  // -----------------------------------------------------------------------
+  describe('worker_threads', () => {
+    it('messages threads with postMessage', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+      })
+      const promise = pool.dispatch('doWork', ['x'])
+      const thread = latestProcess()
+      // The double has no IPC send(); everything goes through postMessage
+      expect((thread as any).send).toBeUndefined()
+      expect(thread.sent[0][0]).toBe(CHILD_MESSAGE_INITIALIZE)
+
+      replyReady(thread)
+      const call = thread.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
+      expect(call[3]).toEqual(['x'])
+      replyOk(thread, call[1] as number, 'done')
+      await expect(promise).resolves.toBe('done')
+      pool.shutdownNow()
+    })
+
+    it('reports a thread exit with its code and a null signal', async () => {
+      const onWorkerExit = jest.fn()
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+        onWorkerExit,
+      })
+      const promise = pool.dispatch('test', [])
+      const thread = latestProcess()
+      replyReady(thread)
+
+      // worker_threads 'exit' only carries a code
+      thread.emit('exit', 7)
+
+      expect(onWorkerExit).toHaveBeenCalledWith(7, null)
+      await expect(promise).rejects.toThrow(
+        'Worker exited with code: 7 and signal: null'
+      )
+      pool.shutdownNow()
+    })
+
+    it('stops threads with terminate() on shutdownNow()', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+      })
+      pool.dispatch('test', []).catch(() => {})
+      const thread = latestProcess()
+
+      pool.shutdownNow()
+
+      expect((thread as any).terminate).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // -----------------------------------------------------------------------
   // Arg sanitization for worker_threads
   // -----------------------------------------------------------------------
   describe('arg sanitization', () => {
@@ -1055,14 +1133,16 @@ describe('WorkerPool', () => {
       return proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
     }
 
-    /** Make the fake process throw when the pool sends a CALL message */
+    /** Make the fake worker throw when the pool sends a CALL message */
     function throwOnCall(proc: FakeChildProcess, error: Error): void {
-      const originalSend = proc.send.bind(proc)
-      proc.send = (message: unknown, cb?: () => void) => {
+      // Threads are messaged with postMessage, processes with send
+      const key = (proc as any).postMessage ? 'postMessage' : 'send'
+      const original = (proc as any)[key].bind(proc)
+      ;(proc as any)[key] = (message: unknown, ...rest: unknown[]) => {
         if ((message as unknown[])[0] === CHILD_MESSAGE_CALL) {
           throw error
         }
-        return originalSend(message, cb)
+        return original(message, ...rest)
       }
     }
 
