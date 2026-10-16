@@ -6,6 +6,7 @@ import '../lib/require-instrumentation-client'
 
 // TODO: Remove use of `any` type.
 import { initialize, version, router, emitter, hydrate } from './'
+import { createTurbopackSetPublicPath } from './turbopack-public-path'
 
 window.next = {
   version,
@@ -16,7 +17,7 @@ window.next = {
   },
   emitter,
 }
-;(self as any).__next_set_public_path__ = () => {}
+;(self as any).__next_set_public_path__ = createTurbopackSetPublicPath()
 ;(self as any).__webpack_hash__ = ''
 
 // for the page loader
