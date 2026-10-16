@@ -25,12 +25,6 @@ import type {
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
-import type {
-  DevRenderContext,
-  RouteMatch as AppRenderRouteMatch,
-} from './route-modules/app-page/module'
-import { createDevRenderContext } from './route-modules/app-page/dev-render-context'
-import { getServerActionRequestMetadata } from './lib/server-action-request-meta'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
@@ -39,7 +33,6 @@ import type { WaitUntil } from './after/builtin-request-context'
 import type { AppPageModule } from './route-modules/app-page/module'
 import type { AppRouteModule } from './route-modules/app-route/module.compiled'
 import type { ErrorModule } from './load-default-error-components'
-import type { PagesModule } from './route-modules/pages/module.compiled'
 
 import fs from 'fs'
 import { join, relative } from 'path'
@@ -73,7 +66,6 @@ import type {
   MiddlewareRoutingItem,
   RequestContext,
   NormalizedRouteManifest,
-  LoadedRenderOpts,
   RouteHandler,
   NextEnabledDirectories,
   BaseRequestHandler,
@@ -117,15 +109,6 @@ import { createRequestResponseMocks, MockedResponse } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { loadManifest } from './load-manifest.external'
-import {
-  lazyPrerenderAppPage,
-  lazyRenderAppPage,
-} from './route-modules/app-page/module.render'
-import {
-  parseRequestHeaders,
-  type ParsedRequestHeaders,
-} from './route-modules/app-page/parse-request-headers'
-import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
@@ -646,117 +629,6 @@ export default class NextNodeServer extends BaseServer<
       },
     })
     return true
-  }
-
-  protected async renderHTML(
-    req: NodeNextRequest,
-    res: NodeNextResponse,
-    pathname: string,
-    query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts,
-    routeMatch: AppRenderRouteMatch
-  ): Promise<RenderResult> {
-    return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
-      this.renderHTMLImpl(req, res, pathname, query, renderOpts, routeMatch)
-    )
-  }
-
-  private async renderHTMLImpl(
-    req: NodeNextRequest,
-    res: NodeNextResponse,
-    pathname: string,
-    query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts,
-    routeMatch: AppRenderRouteMatch
-  ): Promise<RenderResult> {
-    if (process.env.NEXT_MINIMAL) {
-      throw new Error(
-        'Invariant: renderHTML should not be called in minimal mode'
-      )
-      // the `else` branch is needed for tree-shaking
-    } else {
-      // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-      // object here but only updating its `nextFontManifest` field.
-      // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-      renderOpts.nextFontManifest = this.nextFontManifest
-
-      if (this.enabledDirectories.app && renderOpts.isAppPath) {
-        const renderAppPage =
-          !renderOpts.supportsDynamicResponse &&
-          !renderOpts.isDraftMode &&
-          !renderOpts.isPossibleServerAction
-            ? lazyPrerenderAppPage
-            : lazyRenderAppPage
-        const dev: DevRenderContext | undefined = createDevRenderContext(
-          req,
-          process.env.__NEXT_DEV_SERVER
-            ? this.getServerComponentsHmrCache()
-            : undefined
-        )
-        const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
-          req.headers,
-          {
-            isRoutePPREnabled:
-              renderOpts.experimental.isRoutePPREnabled === true,
-            previewModeId: renderOpts.previewProps?.previewModeId,
-          }
-        )
-
-        const result = await renderAppPage(
-          req,
-          res,
-          req.url,
-          pathname,
-          query,
-          // This code path does not service revalidations for unknown param
-          // shells. As a result, we don't need to pass in the unknown params.
-          null,
-          renderOpts as LoadedRenderOpts<AppPageModule>,
-          dev,
-          {
-            buildId: this.buildId,
-            deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.supportsImmutableAssets
-              ? ''
-              : this.deploymentId,
-          },
-          routeMatch,
-          parsedRequestHeaders,
-          getServerActionRequestMetadata(req)
-        )
-        if ('error' in result) {
-          throw result.error
-        }
-        return result
-      } else {
-        // TODO: re-enable this once we've refactored to use implicit matches
-        // throw new Error('Invariant: render should have used routeModule')
-
-        return lazyRenderPagesPage(
-          req.originalRequest,
-          res.originalResponse,
-          pathname,
-          query,
-          renderOpts as LoadedRenderOpts<PagesModule>,
-          {
-            buildId: this.buildId,
-            deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.supportsImmutableAssets
-              ? undefined
-              : this.deploymentId,
-            customServer: this.serverOptions.customServer || undefined,
-          },
-          {
-            isFallback: false,
-            isDraftMode: renderOpts.isDraftMode,
-            developmentNotFoundSourcePage: getRequestMeta(
-              req,
-              'developmentNotFoundSourcePage'
-            ),
-          }
-        )
-      }
-    }
   }
 
   protected async imageOptimizer(
