@@ -207,7 +207,7 @@ import {
   ClientComponentLoadTracker,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
-import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
+import { isNodeNextResponse } from '../base-http/helpers'
 import { waitForResponseToFinish } from './wait-for-response'
 import {
   beginDevValidation,
@@ -2652,12 +2652,11 @@ async function prepareAppPageRender(
   } = renderOpts
 
   if (
-    // The type check here ensures that `req` is correctly typed, and the
-    // environment variable check provides dead code elimination.
-    process.env.NEXT_RUNTIME !== 'edge' &&
-    isNodeNextRequest(req)
+    // Build-time prerenders track fetch metrics through after() callbacks.
+    process.env.__NEXT_DEV_SERVER &&
+    process.env.NEXT_RUNTIME !== 'edge'
   ) {
-    res.onClose(() => {
+    renderOpts.onClose(() => {
       // We stop tracking fetch metrics when the response closes, since we
       // report them at that time.
       workStore.shouldTrackFetchMetrics = false
