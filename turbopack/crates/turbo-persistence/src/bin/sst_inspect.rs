@@ -14,7 +14,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use byteorder::{BE, ReadBytesExt};
 use fs_err::{self as fs, File};
 use lz4_flex::block::decompress_into;
@@ -306,28 +306,29 @@ struct RawBlock {
 }
 
 /// Reads, checksums, and decompresses a single block from the mmap.
+///
+/// The block's range is validated with the same check the database's readers use, so a corrupt
+/// block directory is reported as an error instead of an out-of-bounds slice.
 fn read_block(
     mmap: &Mmap,
     block_offsets_start: usize,
     block_index: u16,
-    sequence_number: u32,
+    meta: &StaticSortedFileMetaData,
     compression: Compression,
 ) -> Result<RawBlock> {
-    let offset = block_offsets_start + block_index as usize * size_of::<u32>();
-
-    let block_start = if block_index == 0 {
-        0
-    } else {
-        (&mmap[offset - size_of::<u32>()..offset]).read_u32::<BE>()? as usize
-    };
-    let block_end = (&mmap[offset..offset + size_of::<u32>()]).read_u32::<BE>()? as usize;
+    let sequence_number = meta.sequence_number;
+    let range = meta.block_range(block_index, block_offsets_start, |i| {
+        let offset = block_offsets_start + i * size_of::<u32>();
+        u32::from_be_bytes(mmap[offset..offset + size_of::<u32>()].try_into().unwrap())
+    })?;
+    let block_start = range.start;
 
     let uncompressed_length =
         (&mmap[block_start..block_start + size_of::<u32>()]).read_u32::<BE>()?;
     let expected_checksum = (&mmap
         [block_start + size_of::<u32>()..block_start + BLOCK_HEADER_SIZE])
         .read_u32::<BE>()?;
-    let compressed_data = &mmap[block_start + BLOCK_HEADER_SIZE..block_end];
+    let compressed_data = &mmap[block_start + BLOCK_HEADER_SIZE..range.end];
     let compressed_size = compressed_data.len() as u64;
 
     let was_compressed = uncompressed_length > 0;
@@ -358,9 +359,13 @@ fn read_block(
             Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
                 .context("zstd decompression failed")?,
         };
-        assert_eq!(
-            bytes_written, uncompressed_length as usize,
-            "Decompressed length does not match expected"
+        ensure!(
+            bytes_written == uncompressed_length as usize,
+            "Decompressed length {} of block {} in {:08}.sst does not match expected {}",
+            bytes_written,
+            block_index,
+            sequence_number,
+            uncompressed_length
         );
         buffer.into_boxed_slice()
     } else {
@@ -498,11 +503,11 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         ..Default::default()
     };
 
-    let block_offsets_start = StaticSortedFileMetaData {
+    let meta = StaticSortedFileMetaData {
         sequence_number: info.sequence_number,
         block_count: info.block_count,
-    }
-    .checked_block_offsets_start(mmap.len())?;
+    };
+    let block_offsets_start = meta.checked_block_offsets_start(mmap.len())?;
 
     // Read the index block (always the last block) first to learn which blocks are key blocks.
     // Without this, we'd have to guess block types from their first byte, which is wrong for
@@ -512,7 +517,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         &mmap,
         block_offsets_start,
         index_block_index,
-        info.sequence_number,
+        &meta,
         compression,
     )?;
     let key_block_indices = parse_key_block_indices(&index_raw.data);
@@ -525,13 +530,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
 
     // Now iterate through all blocks, using the key block set for classification.
     for block_index in 0..index_block_index {
-        let raw = match read_block(
-            &mmap,
-            block_offsets_start,
-            block_index,
-            info.sequence_number,
-            compression,
-        ) {
+        let raw = match read_block(&mmap, block_offsets_start, block_index, &meta, compression) {
             Ok(raw) => raw,
             Err(e) => {
                 eprintln!(
@@ -985,4 +984,106 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Writes `bytes` as an SST file, memory-maps it and returns the mapping and its metadata.
+    /// The temporary directory is returned so the file outlives the mapping.
+    fn map_sst(
+        bytes: &[u8],
+        block_count: u16,
+    ) -> (tempfile::TempDir, Mmap, StaticSortedFileMetaData) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("00000001.sst");
+        std::fs::write(&path, bytes).unwrap();
+        let file = File::open(&path).unwrap();
+        let mmap = unsafe { Mmap::map(file.file()).unwrap() };
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count,
+        };
+        (dir, mmap, meta)
+    }
+
+    /// Builds an SST from raw block bytes (header included) followed by their end offsets.
+    fn sst_bytes(blocks: &[Vec<u8>]) -> Vec<u8> {
+        let mut bytes = blocks.concat();
+        let mut end = 0;
+        for block in blocks {
+            end += block.len() as u32;
+            bytes.extend_from_slice(&end.to_be_bytes());
+        }
+        bytes
+    }
+
+    fn uncompressed_block(data: &[u8]) -> Vec<u8> {
+        let mut block = 0_u32.to_be_bytes().to_vec();
+        block.extend_from_slice(&checksum_block(data).to_be_bytes());
+        block.extend_from_slice(data);
+        block
+    }
+
+    fn read_err(bytes: &[u8], block_count: u16, block_index: u16) -> String {
+        let (_dir, mmap, meta) = map_sst(bytes, block_count);
+        let block_offsets_start = meta.checked_block_offsets_start(mmap.len()).unwrap();
+        let Err(err) = read_block(
+            &mmap,
+            block_offsets_start,
+            block_index,
+            &meta,
+            Compression::Lz4,
+        ) else {
+            panic!("read_block accepted block {block_index}");
+        };
+        format!("{err:#}")
+    }
+
+    #[test]
+    fn read_block_reads_valid_blocks() {
+        let bytes = sst_bytes(&[uncompressed_block(b"value"), uncompressed_block(b"\0index")]);
+        let (_dir, mmap, meta) = map_sst(&bytes, 2);
+        let block_offsets_start = meta.checked_block_offsets_start(mmap.len()).unwrap();
+        let raw = read_block(&mmap, block_offsets_start, 0, &meta, Compression::Lz4).unwrap();
+        assert_eq!(&*raw.data, b"value");
+    }
+
+    #[test]
+    fn read_block_rejects_out_of_range_block_index() {
+        let bytes = sst_bytes(&[uncompressed_block(b"index")]);
+        let message = read_err(&bytes, 1, 1);
+        assert!(message.contains("out of range"), "{message}");
+    }
+
+    #[test]
+    fn read_block_rejects_corrupt_value_block_offset() {
+        let mut bytes = sst_bytes(&[uncompressed_block(b"value"), uncompressed_block(b"index")]);
+        let directory_start = bytes.len() - 2 * size_of::<u32>();
+        bytes[directory_start..directory_start + 4].copy_from_slice(&u32::MAX.to_be_bytes());
+        let message = read_err(&bytes, 2, 0);
+        assert!(message.contains("not a valid block"), "{message}");
+    }
+
+    #[test]
+    fn read_block_rejects_corrupt_index_block_offset() {
+        let mut bytes = sst_bytes(&[uncompressed_block(b"value"), uncompressed_block(b"index")]);
+        let last_entry = bytes.len() - size_of::<u32>();
+        bytes[last_entry..].copy_from_slice(&(last_entry as u32 + 1).to_be_bytes());
+        let message = read_err(&bytes, 2, 1);
+        assert!(message.contains("not a valid block"), "{message}");
+    }
+
+    #[test]
+    fn read_block_rejects_decompressed_length_mismatch() {
+        let data = b"compressible compressible compressible";
+        let compressed = lz4_flex::block::compress(data);
+        // Claim one more byte than the compressed data decodes to.
+        let mut block = (data.len() as u32 + 1).to_be_bytes().to_vec();
+        block.extend_from_slice(&checksum_block(&compressed).to_be_bytes());
+        block.extend_from_slice(&compressed);
+        let message = read_err(&sst_bytes(&[block]), 1, 0);
+        assert!(message.contains("Decompressed length"), "{message}");
+    }
 }
