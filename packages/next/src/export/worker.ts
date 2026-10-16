@@ -318,7 +318,11 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const routeMatch: RouteMatch = { resolvedPathname }
+    const routeMatch: RouteMatch = {
+      resolvedPathname,
+      // Build prerenders currently have no Vary header to mark interception.
+      couldBeIntercepted: false,
+    }
     const sharedContext: AppSharedContext = {
       buildId,
       deploymentId,
