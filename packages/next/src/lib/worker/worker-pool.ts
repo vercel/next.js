@@ -12,6 +12,7 @@ import {
   PARENT_MESSAGE_SETUP_ERROR,
   PARENT_MESSAGE_CUSTOM,
   PARENT_MESSAGE_READY,
+  PARENT_MESSAGE_LOAD_ERROR,
   type ParentMessage,
   type ChildMessageInitialize,
 } from './types'
@@ -557,7 +558,7 @@ export class WorkerPool {
   // Internal: message handling
   // ---------------------------------------------------------------------------
 
-  /** Route an incoming IPC message from a worker to the appropriate handler (OK, CLIENT_ERROR, SETUP_ERROR, CUSTOM, READY) */
+  /** Route an incoming IPC message from a worker to the appropriate handler (OK, CLIENT_ERROR, SETUP_ERROR, CUSTOM, READY, LOAD_ERROR) */
   private _handleMessage(worker: PoolWorker, message: ParentMessage): void {
     switch (message[0]) {
       case PARENT_MESSAGE_OK: {
@@ -615,6 +616,10 @@ export class WorkerPool {
         worker.state = WorkerState.RUNNING
         this._bootingCount--
         this._onWorkerReady(worker)
+        break
+      }
+      case PARENT_MESSAGE_LOAD_ERROR: {
+        this._handleLoadError(worker, message)
         break
       }
       default:
@@ -701,6 +706,40 @@ export class WorkerPool {
       }
       this._spawnForQueuedTasks()
     }
+  }
+
+  /**
+   * Handle a worker whose module failed to load (require() threw). Unlike a
+   * setup() failure the worker can't serve any CALL, and every worker loads
+   * the same module, so reject its in-flight requests and all queued tasks
+   * with the load error, then remove and kill the worker. Its exit is
+   * expected: it isn't reported via onWorkerExit or respawned. A later
+   * dispatch() spawns a fresh worker.
+   */
+  private _handleLoadError(
+    worker: PoolWorker,
+    message: Extract<ParentMessage, [typeof PARENT_MESSAGE_LOAD_ERROR, ...any]>
+  ): void {
+    const [, errorName, errorMessage, errorStack] = message
+    const error = new Error('Error when loading worker module: ' + errorMessage)
+    ;(error as any).type = errorName
+    error.stack = errorStack
+
+    if (worker.state === WorkerState.BOOTING) {
+      this._bootingCount--
+    }
+    // SHUTTING_DOWN makes _handleExit treat the upcoming exit as expected
+    worker.state = WorkerState.SHUTTING_DOWN
+    this._allWorkers.delete(worker)
+    this._availableWorkers.delete(worker)
+
+    this._rejectActiveRequests(worker, error)
+    for (const task of this._taskQueue) {
+      task.reject(error)
+    }
+    this._taskQueue = []
+
+    worker.handle.forceKill()
   }
 
   /**

@@ -25,12 +25,14 @@ export const CHILD_MESSAGE_END = 2
 export const PARENT_MESSAGE_OK = 0
 /** A CALL threw an error — carries serialized error details */
 export const PARENT_MESSAGE_CLIENT_ERROR = 1
-/** The setup() function threw during initialization */
+/** The setup() function threw (or isn't a function) during initialization; the module is loaded */
 export const PARENT_MESSAGE_SETUP_ERROR = 2
 /** An arbitrary message sent by the worker via process.send() */
 export const PARENT_MESSAGE_CUSTOM = 3
 /** The worker has finished loading its module and running setup() */
 export const PARENT_MESSAGE_READY = 4
+/** Loading (require) the worker module threw; the worker can't handle CALLs */
+export const PARENT_MESSAGE_LOAD_ERROR = 5
 
 // Parent → Child message types
 export type ChildMessageInitialize = [
@@ -83,9 +85,17 @@ export type ParentMessageCustom = [
 
 export type ParentMessageReady = [type: typeof PARENT_MESSAGE_READY]
 
+export type ParentMessageLoadError = [
+  type: typeof PARENT_MESSAGE_LOAD_ERROR,
+  errorName: string,
+  errorMessage: string,
+  errorStack: string | undefined,
+]
+
 export type ParentMessage =
   | ParentMessageOk
   | ParentMessageClientError
   | ParentMessageSetupError
   | ParentMessageCustom
   | ParentMessageReady
+  | ParentMessageLoadError

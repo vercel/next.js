@@ -50,8 +50,11 @@ Communication between parent and child uses arrays sent over IPC (child_process)
 | SETUP_ERROR | `[2, errorName, message, stack]` |
 | CUSTOM | `[3, payload]` |
 | READY | `[4]` |
+| LOAD_ERROR | `[5, errorName, message, stack]` |
 
-Each CALL gets a unique `requestId` so responses can be correlated, enabling multiple concurrent calls per worker. The READY message is sent once per worker after the module is loaded and optional `setup()` completes, signaling the worker is fully initialized. If `setup()` fails, READY is not sent; the SETUP_ERROR handler frees the booting slot instead.
+Each CALL gets a unique `requestId` so responses can be correlated, enabling multiple concurrent calls per worker. The READY message is sent once per worker after the module is loaded and optional `setup()` completes, signaling the worker is fully initialized. If `setup()` fails, READY is not sent; the SETUP_ERROR handler frees the booting slot instead and the worker keeps serving calls, since its module is loaded.
+
+If loading the module itself fails (`require()` throws), the child sends LOAD_ERROR instead. That worker can't serve any call, and every worker loads the same module, so the pool rejects the worker's in-flight calls and all queued calls with `Error when loading worker module: <message>`, then removes and kills the worker. This exit is expected: it isn't reported via `onWorkerExit` and doesn't count as a respawn. The next `dispatch()` spawns a fresh worker.
 
 ## Usage
 

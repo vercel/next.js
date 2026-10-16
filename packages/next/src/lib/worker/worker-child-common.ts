@@ -14,6 +14,7 @@ import {
   PARENT_MESSAGE_CLIENT_ERROR,
   PARENT_MESSAGE_SETUP_ERROR,
   PARENT_MESSAGE_READY,
+  PARENT_MESSAGE_LOAD_ERROR,
   type ChildMessage,
 } from './types'
 
@@ -87,6 +88,11 @@ export function createMessageHandler(
     transport.send([PARENT_MESSAGE_SETUP_ERROR, e.name, e.message, e.stack])
   }
 
+  function reportLoadError(error: unknown): void {
+    const e = normalizeError(error)
+    transport.send([PARENT_MESSAGE_LOAD_ERROR, e.name, e.message, e.stack])
+  }
+
   /**
    * Call `fn` with `args` in `ctx`, routing the result (sync or async) to
    * `onSuccess` or `onError`.
@@ -120,9 +126,10 @@ export function createMessageHandler(
     try {
       main = require(workerPath)
     } catch (err) {
-      // Module not found, syntax error, etc. Report back to the parent so it
-      // doesn't wait for PARENT_MESSAGE_READY that will never arrive.
-      reportInitializeError(err)
+      // Module not found, syntax error, etc. Report it as a load error (not a
+      // setup error): the module isn't available, so the parent must not
+      // dispatch CALLs to this worker.
+      reportLoadError(err)
       return
     }
 
@@ -154,6 +161,13 @@ export function createMessageHandler(
     method: string,
     args: unknown[]
   ): void {
+    // The parent stops dispatching after a load error, but never let a stray
+    // CALL crash the worker by dereferencing the missing module.
+    if (main == null) {
+      reportClientError(requestId, new Error('Worker module is not loaded'))
+      return
+    }
+
     let fn: unknown
     if (method === 'default') {
       fn = main.__esModule ? main['default'] : main

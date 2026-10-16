@@ -1,4 +1,7 @@
 import { EventEmitter } from 'events'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import { PassThrough } from 'stream'
 import {
   CHILD_MESSAGE_INITIALIZE,
@@ -9,7 +12,10 @@ import {
   PARENT_MESSAGE_SETUP_ERROR,
   PARENT_MESSAGE_CUSTOM,
   PARENT_MESSAGE_READY,
+  PARENT_MESSAGE_LOAD_ERROR,
+  type ChildMessage,
 } from './types'
+import { createMessageHandler } from './worker-child-common'
 
 // ---------------------------------------------------------------------------
 // Fake child process used for all tests
@@ -109,6 +115,21 @@ function replySetupError(
 ): void {
   proc.emit('message', [
     PARENT_MESSAGE_SETUP_ERROR,
+    errorName,
+    errorMessage,
+    stack,
+  ])
+}
+
+/** Simulate a PARENT_MESSAGE_LOAD_ERROR reply (require() of the worker module threw) */
+function replyLoadError(
+  proc: FakeChildProcess,
+  errorName: string,
+  errorMessage: string,
+  stack?: string
+): void {
+  proc.emit('message', [
+    PARENT_MESSAGE_LOAD_ERROR,
     errorName,
     errorMessage,
     stack,
@@ -374,6 +395,116 @@ describe('WorkerPool', () => {
       await expect(p2).resolves.toBe('result-b')
 
       pool.shutdownNow()
+    })
+
+    describe('module load errors', () => {
+      it('rejects queued tasks with the load error and removes the worker', async () => {
+        const onWorkerExit = jest.fn()
+        const pool = new WorkerPool({
+          workerPath: '/fake/worker.js',
+          maxWorkers: 1,
+          onWorkerExit,
+        })
+        const p1 = pool.dispatch('a', [])
+        const p2 = pool.dispatch('b', [])
+        const proc = latestProcess()
+
+        replyLoadError(proc, 'SyntaxError', 'Unexpected token', 'STACK')
+
+        for (const p of [p1, p2]) {
+          const err = await p.then(
+            () => {
+              throw new Error('expected rejection')
+            },
+            (e) => e
+          )
+          expect(err.message).toBe(
+            'Error when loading worker module: Unexpected token'
+          )
+          expect(err.type).toBe('SyntaxError')
+          expect(err.stack).toBe('STACK')
+        }
+
+        // No CALL was ever sent to the broken worker, and it was killed
+        expect(
+          proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+        ).toHaveLength(0)
+        expect(proc.killed).toBe(true)
+        expect(pool.getWorkerCount()).toBe(0)
+
+        // Its exit is expected, so it is neither reported nor respawned
+        proc.emit('exit', null, 'SIGKILL')
+        expect(onWorkerExit).not.toHaveBeenCalled()
+        expect(spawnedProcesses).toHaveLength(1)
+        pool.shutdownNow()
+      })
+
+      it('rejects tasks queued for other booting workers too', async () => {
+        const pool = new WorkerPool({
+          workerPath: '/fake/worker.js',
+          maxWorkers: 4,
+          maxBootingWorkers: 4,
+        })
+        const promises = [1, 2, 3].map((i) => pool.dispatch('a', [i]))
+        expect(spawnedProcesses.length).toBeGreaterThan(1)
+
+        replyLoadError(spawnedProcesses[0], 'Error', 'boom')
+
+        for (const p of promises) {
+          await expect(p).rejects.toThrow(
+            'Error when loading worker module: boom'
+          )
+        }
+        pool.shutdownNow()
+      })
+
+      it('spawns a fresh worker for the next dispatch', async () => {
+        const pool = new WorkerPool({
+          workerPath: '/fake/worker.js',
+          maxWorkers: 1,
+        })
+        const p1 = pool.dispatch('a', [])
+        replyLoadError(latestProcess(), 'Error', 'boom')
+        await expect(p1).rejects.toThrow('boom')
+
+        const p2 = pool.dispatch('b', [])
+        expect(spawnedProcesses).toHaveLength(2)
+        const proc = latestProcess()
+        replyReady(proc)
+        const call = proc.sent.find((m) => m[0] === CHILD_MESSAGE_CALL)!
+        replyOk(proc, call[1] as number, 'ok')
+        await expect(p2).resolves.toBe('ok')
+        pool.shutdownNow()
+      })
+
+      it('rejects active and queued requests with the load error', async () => {
+        const onWorkerExit = jest.fn()
+        const pool = new WorkerPool({
+          workerPath: '/fake/worker.js',
+          maxWorkers: 1,
+          onWorkerExit,
+        })
+        const active = pool.dispatch('a', [])
+        const proc = latestProcess()
+        replyReady(proc)
+        expect(
+          proc.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+        ).toHaveLength(1)
+        const queued = pool.dispatch('b', [])
+
+        replyLoadError(proc, 'Error', 'boom', 'STACK')
+
+        for (const p of [active, queued]) {
+          await expect(p).rejects.toThrow(
+            'Error when loading worker module: boom'
+          )
+        }
+        expect(proc.killed).toBe(true)
+        expect(pool.getWorkerCount()).toBe(0)
+        proc.emit('exit', null, 'SIGKILL')
+        expect(onWorkerExit).not.toHaveBeenCalled()
+        pool.shutdownNow()
+      })
     })
 
     it('dispatches correct method and args', () => {
@@ -1860,5 +1991,94 @@ describe('WorkerPool', () => {
 
       pool.shutdownNow()
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Child-side protocol handler (real require() of fixture modules)
+// ---------------------------------------------------------------------------
+describe('createMessageHandler', () => {
+  let fixtureDir: string
+
+  beforeAll(() => {
+    fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-child-common-'))
+  })
+
+  afterAll(() => {
+    fs.rmSync(fixtureDir, { recursive: true, force: true })
+  })
+
+  function writeFixture(name: string, source: string): string {
+    const file = path.join(fixtureDir, name)
+    fs.writeFileSync(file, source)
+    return file
+  }
+
+  function createHandler() {
+    const sent: unknown[][] = []
+    const handler = createMessageHandler({
+      send: (message) => sent.push(message),
+      disconnect: () => {},
+    })
+    return { sent, handler }
+  }
+
+  it('reports a module that throws at require time as a load error', () => {
+    const workerPath = writeFixture(
+      'throws-on-load.js',
+      `throw new Error('boom at load')`
+    )
+    const { sent, handler } = createHandler()
+
+    handler([CHILD_MESSAGE_INITIALIZE, workerPath, []] as ChildMessage)
+
+    expect(sent).toHaveLength(1)
+    const [type, name, message, stack] = sent[0]
+    expect(type).toBe(PARENT_MESSAGE_LOAD_ERROR)
+    expect(name).toBe('Error')
+    expect(message).toBe('boom at load')
+    expect(stack).toContain('boom at load')
+  })
+
+  it('answers a call with a client error when the module failed to load', () => {
+    const workerPath = writeFixture(
+      'throws-on-load-2.js',
+      `throw new Error('boom at load')`
+    )
+    const { sent, handler } = createHandler()
+    handler([CHILD_MESSAGE_INITIALIZE, workerPath, []] as ChildMessage)
+
+    expect(() =>
+      handler([CHILD_MESSAGE_CALL, 1, 'doWork', []] as ChildMessage)
+    ).not.toThrow()
+
+    const reply = sent[1]
+    expect(reply[0]).toBe(PARENT_MESSAGE_CLIENT_ERROR)
+    expect(reply[1]).toBe(1)
+    expect(reply[3]).toBe('Worker module is not loaded')
+  })
+
+  it('still reports setup() failures as setup errors and keeps serving calls', () => {
+    const workerPath = writeFixture(
+      'setup-throws.js',
+      `exports.setup = () => { throw new Error('boom in setup') }
+       exports.doWork = (x) => x * 2`
+    )
+    const { sent, handler } = createHandler()
+
+    handler([CHILD_MESSAGE_INITIALIZE, workerPath, []] as ChildMessage)
+    expect(sent[0][0]).toBe(PARENT_MESSAGE_SETUP_ERROR)
+    expect(sent[0][2]).toBe('boom in setup')
+
+    handler([CHILD_MESSAGE_CALL, 1, 'doWork', [21]] as ChildMessage)
+    expect(sent[1]).toEqual([PARENT_MESSAGE_OK, 1, 42])
+  })
+
+  it('sends READY after a module without setup() loads', () => {
+    const workerPath = writeFixture('no-setup.js', `exports.doWork = () => 1`)
+    const { sent, handler } = createHandler()
+
+    handler([CHILD_MESSAGE_INITIALIZE, workerPath, []] as ChildMessage)
+    expect(sent).toEqual([[PARENT_MESSAGE_READY]])
   })
 })
