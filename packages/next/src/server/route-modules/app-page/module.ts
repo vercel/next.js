@@ -207,24 +207,20 @@ export class AppPageRouteModule extends RouteModule<
   }
 
   public prerender(
-    req: BaseNextRequest,
     res: BaseNextResponse,
     context: AppPageRouteHandlerContext
   ): Promise<PrerenderResult> {
     return prerenderToHTMLOrFlight(
-      req,
       res,
       context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
       context.renderOpts,
-      undefined,
       context.sharedContext,
       context.routeMatch,
       context.parsedRequestHeaders,
-      context.serverActionRequestMetadata,
-      context.stagedFallbackParams
+      context.serverActionRequestMetadata
     )
   }
 

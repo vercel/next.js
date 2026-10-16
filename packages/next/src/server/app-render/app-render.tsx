@@ -2549,7 +2549,6 @@ function installGlobalModuleLoadingHandlers(
 
 type PreparedAppPageRender = {
   serverActionRequestMetadata: ServerActionRequestMetadata
-  req: BaseNextRequest
   ctx: AppRenderContext
   metadata: AppPageRenderResultMetadata
   loaderTree: LoaderTree
@@ -2613,7 +2612,6 @@ function initializeClientComponentLoadTracking(
 }
 
 async function prepareAppPageRender(
-  req: BaseNextRequest,
   res: BaseNextResponse,
   requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
@@ -2630,7 +2628,7 @@ async function prepareAppPageRender(
   generateRequestId: GenerateRequestId,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   renderCapabilities: AppRenderCapabilities
-) {
+): Promise<PreparedAppPageRender> {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
     res.statusCode = 404
@@ -2767,7 +2765,6 @@ async function prepareAppPageRender(
 
   return {
     serverActionRequestMetadata,
-    req,
     ctx,
     metadata,
     loaderTree,
@@ -2921,8 +2918,8 @@ async function prerenderAppPage({
 }
 
 async function renderAppPage(
+  req: BaseNextRequest,
   {
-    req,
     ctx,
     metadata,
     loaderTree,
@@ -3237,7 +3234,6 @@ async function renderToHTMLOrFlightImpl(
     )
   }
   const prepared = await prepareAppPageRender(
-    req,
     res,
     requestUrl,
     url,
@@ -3262,11 +3258,10 @@ async function renderToHTMLOrFlightImpl(
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
     }
   )
-  return renderAppPage(prepared, postponedState, dev, stagedFallbackParams)
+  return renderAppPage(req, prepared, postponedState, dev, stagedFallbackParams)
 }
 
 async function prerenderToHTMLOrFlightImpl(
-  req: BaseNextRequest,
   res: BaseNextResponse,
   requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
@@ -3289,7 +3284,6 @@ async function prerenderToHTMLOrFlightImpl(
   }
   const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
   const prepared = await prepareAppPageRender(
-    req,
     res,
     requestUrl,
     url,
@@ -3334,7 +3328,16 @@ export type AppPageRender = (
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
-  ...args: Parameters<AppPageRender>
+  res: BaseNextResponse,
+  requestUrl: string,
+  pagePath: string,
+  query: NextParsedUrlQuery,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
+  renderOpts: RenderOpts,
+  sharedContext: AppSharedContext,
+  routeMatch: RouteMatch,
+  parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata
 ) => Promise<PrerenderResult>
 
 type AppPagePreparation = {
@@ -3469,14 +3472,12 @@ export const renderToHTMLOrFlight: AppPageRender = (
 }
 
 export const prerenderToHTMLOrFlight: AppPagePrerender = (
-  req,
   res,
   requestUrl,
   pagePath,
   query,
   fallbackRouteParams,
   renderOpts,
-  _dev,
   sharedContext,
   routeMatch,
   parsedRequestHeaders,
@@ -3505,7 +3506,6 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
   return workAsyncStorage.run(
     workStore,
     prerenderToHTMLOrFlightImpl,
-    req,
     res,
     requestUrl,
     url,

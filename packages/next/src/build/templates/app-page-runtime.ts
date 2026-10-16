@@ -782,13 +782,12 @@ export function createAppPageEntrypoint({
         context: AppPageRouteHandlerContext,
         renderOperation: AppPageRenderOperation
       ) => {
-        const nextReq = new NodeNextRequest(req)
         const nextRes = new NodeNextResponse(res)
 
         const result =
           renderOperation === 'prerender'
-            ? routeModule.prerender(nextReq, nextRes, context)
-            : routeModule.render(nextReq, nextRes, context)
+            ? routeModule.prerender(nextRes, context)
+            : routeModule.render(new NodeNextRequest(req), nextRes, context)
 
         return result.finally(() => {
           if (!span) return
