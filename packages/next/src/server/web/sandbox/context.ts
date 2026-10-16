@@ -135,11 +135,11 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
 }
 
 function createProcessPolyfill(env: Record<string, string>) {
-  const processPolyfill = { env: buildEnvironmentVariablesFrom(env) }
+  const processPolyfill = { env: buildEnvironmentVariablesFrom(env), version: process.version }
   const overriddenValue: Record<string, any> = {}
 
   for (const key of Object.keys(process)) {
-    if (key === 'env') continue
+    if (key === 'env' || key === 'version') continue
     Object.defineProperty(processPolyfill, key, {
       get() {
         if (overriddenValue[key] !== undefined) {
