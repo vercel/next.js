@@ -255,6 +255,28 @@ fn be_key_u64(key: &[u8]) -> u64 {
     u64::from_be_bytes(key.try_into().expect("8-byte key"))
 }
 
+/// Stably sorts `entries` by a key that `pack` combines with the entry's index into one integer
+/// (the key in the high bits), which `index` recovers.
+///
+/// Each key is read once and the dense packed integers are sorted, instead of sorting the entries
+/// with a key extracting comparator, which reads both keys through their entries on every
+/// comparison. The index in the low bits breaks ties, so an unstable sort of the integers gives
+/// the stable order.
+fn sort_by_packed_key<T: Copy, P: Ord + Copy>(
+    entries: &mut [T],
+    pack: impl Fn(T, usize) -> P,
+    index: impl Fn(P) -> usize,
+) {
+    let mut packed: Vec<P> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, &entry)| pack(entry, i))
+        .collect();
+    packed.sort_unstable();
+    let sorted: Vec<T> = packed.iter().map(|&p| entries[index(p)]).collect();
+    entries.copy_from_slice(&sorted);
+}
+
 /// Trait for entries from that SST files can be created
 pub trait Entry {
     /// Returns the hash of the key
@@ -1014,8 +1036,16 @@ impl<E: Entry> StreamingSstWriter<E> {
             let mut entries: Vec<&PendingEntry<E>> = pending_keys.range(start..end).collect();
             // Stable sort is important to preserve relative order of tombstones
             match info.uniform_key_len() {
-                Some(4) => entries.sort_by_key(|&e| be_key_u32(e.entry.key_bytes())),
-                Some(8) => entries.sort_by_key(|&e| be_key_u64(e.entry.key_bytes())),
+                Some(4) => sort_by_packed_key(
+                    &mut entries,
+                    |e, index| u64::from(be_key_u32(e.entry.key_bytes())) << 32 | index as u64,
+                    |packed| packed as u32 as usize,
+                ),
+                Some(8) => sort_by_packed_key(
+                    &mut entries,
+                    |e, index| u128::from(be_key_u64(e.entry.key_bytes())) << 64 | index as u128,
+                    |packed| packed as u64 as usize,
+                ),
                 _ => entries.sort_by_key(|&e| e.entry.key_bytes()),
             }
             Either::Right(entries.into_iter())
@@ -1476,6 +1506,36 @@ impl<W: Write> IndexBlockBuilder<W> {
     fn put(&mut self, hash: u64, block: u16) {
         self.writer.write_u64::<BE>(hash).unwrap();
         self.writer.write_u16::<BE>(block).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod sort_by_packed_key_tests {
+    use super::sort_by_packed_key;
+
+    /// Equal keys keep their order, like the stable sort the writer used before.
+    #[test]
+    fn test_is_stable() {
+        // (key, original position), with few distinct keys so most are duplicates.
+        let entries: Vec<(u64, usize)> = (0..1000).map(|i| ((i * 7919 % 13) as u64, i)).collect();
+        let mut expected = entries.clone();
+        expected.sort_by_key(|e| e.0);
+
+        let mut by_u32 = entries.clone();
+        sort_by_packed_key(
+            &mut by_u32,
+            |e, index| (e.0 << 32) | index as u64,
+            |packed| packed as u32 as usize,
+        );
+        assert_eq!(by_u32, expected);
+
+        let mut by_u64 = entries;
+        sort_by_packed_key(
+            &mut by_u64,
+            |e, index| (u128::from(e.0 | 1 << 63) << 64) | index as u128,
+            |packed| packed as u64 as usize,
+        );
+        assert_eq!(by_u64, expected);
     }
 }
 
