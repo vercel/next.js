@@ -105,15 +105,17 @@ describe('validateFontFunctionCall errors', () => {
     )
   })
 
-  test('Setting axes on variable font with incorrect weight', async () => {
-    expect(() =>
-      validateGoogleFontFunctionCall('Roboto_Flex', {
+  test('Setting axes on variable font with fixed weights', async () => {
+    expect(
+      validateGoogleFontFunctionCall('Newsreader', {
         weight: ['400', '700'],
-        axes: ['wght'],
+        axes: ['opsz'],
         subsets: ['latin'],
       })
-    ).toThrowErrorMatchingInlineSnapshot(
-      '"Axes can only be defined for variable fonts when the weight property is nonexistent or set to `variable`."'
-    )
+    ).toMatchObject({
+      fontFamily: 'Newsreader',
+      weights: ['400', '700'],
+      selectedVariableAxes: ['opsz'],
+    })
   })
 })
