@@ -119,3 +119,27 @@ it('response.cookie does not modify options', async () => {
   response.cookies.set('cookieName', 'cookieValue', options)
   expect(options).toEqual({ maxAge: 10000 })
 })
+
+it('does not throw when the cookie value contains a percent sign', async () => {
+  const { NextResponse } = await import(
+    'next/dist/server/web/spec-extension/response'
+  )
+
+  const response = new NextResponse()
+  response.cookies.set('session', 'a%b')
+
+  // Reading the `set-cookie` header back through `ResponseCookies` (as done
+  // when merging middleware cookies and mutable cookies) used to throw
+  // `URIError: URI malformed`.
+  const headers = new Headers()
+  for (const value of response.headers.getSetCookie()) {
+    headers.append('set-cookie', value)
+  }
+  const { ResponseCookies } = await import(
+    'next/dist/server/web/spec-extension/cookies'
+  )
+  expect(() => new ResponseCookies(headers)).not.toThrow()
+
+  const reparsed = new ResponseCookies(headers)
+  expect(reparsed.get('session')?.value).toBe('a%b')
+})
