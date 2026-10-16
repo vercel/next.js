@@ -361,7 +361,8 @@ describe('instant validation - level manual-warning', () => {
              - Start the app in development mode by running \`next dev\`, then open "/without-root-suspense/bare" in your browser to investigate the error.
              - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Error occurred prerendering page "/without-root-suspense/bare". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /without-root-suspense/bare/page: /without-root-suspense/bare, exiting the build."
+
+           > Export encountered an error on /without-root-suspense/bare/page: /without-root-suspense/bare, exiting the build."
           `)
         })
 
@@ -386,7 +387,8 @@ describe('instant validation - level manual-warning', () => {
              - Start the app in development mode by running \`next dev\`, then open "/without-root-suspense/explicit-true" in your browser to investigate the error.
              - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Error occurred prerendering page "/without-root-suspense/explicit-true". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /without-root-suspense/explicit-true/page: /without-root-suspense/explicit-true, exiting the build."
+
+           > Export encountered an error on /without-root-suspense/explicit-true/page: /without-root-suspense/explicit-true, exiting the build."
           `)
         })
 
@@ -413,7 +415,8 @@ describe('instant validation - level manual-warning', () => {
              - Start the app in development mode by running \`next dev\`, then open "/without-root-suspense/explicit-warning" in your browser to investigate the error.
              - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Error occurred prerendering page "/without-root-suspense/explicit-warning". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /without-root-suspense/explicit-warning/page: /without-root-suspense/explicit-warning, exiting the build."
+
+           > Export encountered an error on /without-root-suspense/explicit-warning/page: /without-root-suspense/explicit-warning, exiting the build."
           `)
         })
 
@@ -444,7 +447,8 @@ describe('instant validation - level manual-warning', () => {
              - Start the app in development mode by running \`next dev\`, then open "/without-root-suspense/explicit-error" in your browser to investigate the error.
              - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Error occurred prerendering page "/without-root-suspense/explicit-error". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /without-root-suspense/explicit-error/page: /without-root-suspense/explicit-error, exiting the build."
+
+           > Export encountered an error on /without-root-suspense/explicit-error/page: /without-root-suspense/explicit-error, exiting the build."
           `)
         })
       })
