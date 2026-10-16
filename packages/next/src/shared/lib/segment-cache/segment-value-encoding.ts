@@ -67,7 +67,12 @@ function encodeToFilesystemAndURLSafeString(value: string) {
   }
   // If there are any unsafe characters, base64url-encode the entire value.
   // We also add a ! prefix so it doesn't collide with the simple case.
-  const base64url = btoa(value)
+  const bytes = new TextEncoder().encode(value)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  const base64url = btoa(binary)
     .replace(/\+/g, '-') // Replace '+' with '-'
     .replace(/\//g, '_') // Replace '/' with '_'
     .replace(/=+$/, '') // Remove trailing '='
