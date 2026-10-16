@@ -463,10 +463,10 @@ export type InitialRSCPayload = {
    */
   u?: Promise<boolean>
   /**
-   * shellByteLength - Resolves when the shell stage ends.
-   * If it resolves to null, then the shell is the same as the main response.
-   * */
-  a?: Promise<number | null>
+   * stageByteLengths - Where each stage ends; see
+   * NavigationFlightResponse['a'].
+   */
+  a?: Promise<Array<number>>
   /** runtimePrefetchStream — Embedded runtime prefetch Flight stream. */
   p?: ReadableStream<Uint8Array>
   /**
@@ -531,46 +531,34 @@ type NavigationFlightResponseBase = {
    * TransportSegmentData). */
   s?: AsyncIterable<number>
   /**
-   * shellByteLength - Resolves when the shell stage ends.
-   * If it resolves to null, then the shell is the same as the main response.
+   * stageByteLengths - The byte offset where each stage ends, in stage order
+   * starting with the shell. A stage is listed only when a later stage added
+   * bytes; an unlisted stage ends at the end of the response, and so does the
+   * last stage, which is never listed. Absent when the response wasn't
+   * staged.
    *
-   * In a per-segment prefetch response this is the shell byte boundary the
-   * client uses for the shell double-decode: re-decoding the buffered
-   * response truncated at the offset yields the shell variant of every
-   * segment (param-dependent content reduced to still-pending references).
-   * `0` means no shell exists (the page wasn't produced by staged
-   * rendering) — never a valid offset, so it doubles as the "none"
-   * sentinel. The resolution row flushes past the boundary, so a truncated
-   * shell decode reads it as pending, which is harmless. The client's
-   * buffered read leans on the same fact from the other side: 0 read from
-   * an unfulfilled `a` implies a bug — see the shell-extraction comment in
-   * fetchAndWritePerSegmentPrefetchResponse (segment-cache/cache.ts).
+   * Decoding the response up to a stage's offset reads it as of that stage.
+   * The shell prefix is the shell variant of every segment (param-dependent
+   * content reduced to still-pending references). In a per-segment prefetch
+   * response the offsets are the segment response's own, measured against a
+   * staged decode of the page. The resolution row flushes past every offset,
+   * so a truncated decode reads it as pending, which is harmless.
    */
-  a?: Promise<number | null>
+  a?: Promise<Array<number>>
   /**
-   * needsRuntimeRequest — presence means the response carries a stage-scoped
-   * runtime-data verdict. Per-segment prefetch responses always emit one,
-   * and so does any prerendered page payload, which embeds the prerender's
-   * runtime-data probe — that covers navigation responses served from
-   * prerender output and the truncated initial payload alike. Live renders
-   * emit none. Only per-segment responses additionally promise-encode the
-   * head's partiality (see TransportSegmentData). The value is the page's
-   * runtime-data-access flag (the page payload's own `u`; per-segment
-   * responses forward it from the staged decode of the page data).
-   * Fulfilled `true` means a runtime prefetch would return more
-   * than this static response; pending or fulfilled `false` means it
-   * wouldn't. Promise-encoded so the answer rewinds with a truncated
-   * decode: the fulfillment row lands on the same side of the shell byte
-   * boundary (`a`) as the access it records. Tracking is page-global, so it
-   * lives on the response, not on each segment; per-segment granularity
-   * comes from combining it with each segment's partiality:
-   * needsRuntimeRequest(segment) = (settled true) && (isPartial pending).
-   * The derived value must never falsely claim that no runtime request is
-   * needed, so every fallback is conservative: pages that carry no `u`
-   * (legacy render paths) forward an already-resolved `true`. Unlike the
-   * build-constant prefetch hints, this is computed per render and may
-   * change between responses for the same build — it reflects THIS
-   * response.
+   * Whether rendering this response read runtime data, like cookies or
+   * headers. Per-segment prefetch responses always send it, and so do pages
+   * served from a Cache Components prerender. Live renders never do. `true`
+   * means a runtime request would return more than this response.
+   *
+   * It's a promise so it rewinds with the stages. The row that resolves it
+   * lands in the same stage as the access it records, so a decode cut off at
+   * an earlier stage (see `a`) reads it as pending, which counts as `false`.
+   * Segment responses for a page rendered without stages send it already
+   * resolved to `true`, so we never skip a runtime request we need.
+   *
+   * It's tracked for the whole page, not per segment, and it describes this
+   * response, not the build.
    */
   u?: Promise<boolean>
   /**
