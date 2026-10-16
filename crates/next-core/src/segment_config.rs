@@ -317,7 +317,8 @@ impl NextSegmentConfig {
                     // TODO: The implementation of getMiddlewareMatchers outputs a regex here
                     // using path-to-regexp. Currently there is no
                     // equivalent of that so it post-processes
-                    // this value to the relevant regex in manifest-loader.ts
+                    // this value to the relevant regex in manifest-loader.ts and
+                    // readStaticInfo() for static-info.json.
                     matcher.regexp = Some(RcStr::from(source));
 
                     matcher
