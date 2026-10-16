@@ -137,6 +137,7 @@ async function requestHandler(
       clientAssetToken,
     },
     fallbackRouteParams: null,
+    stagedFallbackParams: null,
 
     renderOpts: {
       App: () => null,

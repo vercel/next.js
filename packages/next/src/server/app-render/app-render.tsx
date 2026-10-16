@@ -295,7 +295,6 @@ import {
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
-import { getRequestMeta } from '../request-meta'
 import { htmlEscapeJsonString } from '../../shared/lib/htmlescape'
 import {
   getDynamicParam,
@@ -2931,7 +2930,8 @@ async function renderAppPage(
     serverActionRequestMetadata,
   }: PreparedAppPageRender,
   postponedState: PostponedState | null,
-  dev: DevRenderContext | undefined
+  dev: DevRenderContext | undefined,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ) {
   const {
     res,
@@ -2963,8 +2963,6 @@ async function renderAppPage(
   const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
   // Keep the placeholder map for dev's separate prerender validation. The
   // request store only needs names to defer params during a staged render.
-  const stagedFallbackParams =
-    getRequestMeta(req, 'stagedFallbackParams') ?? null
   const stagedFallbackParamNames =
     postponedState?.stagedFallbackParams !== undefined
       ? postponedState.stagedFallbackParams
@@ -3230,7 +3228,8 @@ async function renderToHTMLOrFlightImpl(
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  routeMatch: RouteMatch
+  routeMatch: RouteMatch,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ) {
   if (renderOpts.ComponentMod.__next_app__) {
     installGlobalModuleLoadingHandlers(
@@ -3264,7 +3263,7 @@ async function renderToHTMLOrFlightImpl(
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
     }
   )
-  return renderAppPage(prepared, postponedState, dev)
+  return renderAppPage(prepared, postponedState, dev, stagedFallbackParams)
 }
 
 async function prerenderToHTMLOrFlightImpl(
@@ -3331,7 +3330,8 @@ export type AppPageRender = (
   sharedContext: AppSharedContext,
   routeMatch: RouteMatch,
   parsedRequestHeaders: ParsedRequestHeaders,
-  serverActionRequestMetadata: ServerActionRequestMetadata
+  serverActionRequestMetadata: ServerActionRequestMetadata,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3423,7 +3423,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   sharedContext,
   routeMatch,
   parsedRequestHeaders,
-  serverActionRequestMetadata
+  serverActionRequestMetadata,
+  stagedFallbackParams
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
     serverActionRequestMetadata,
@@ -3463,7 +3464,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
-    routeMatch
+    routeMatch,
+    stagedFallbackParams
   )
 }
 
