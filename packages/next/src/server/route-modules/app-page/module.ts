@@ -78,6 +78,7 @@ export type RouteMatch = {
   // The pathname produced by route preparation, including its delimiter-safe
   // encoding for path parameters.
   readonly resolvedPathname: string
+  readonly couldBeIntercepted: boolean
 }
 
 /** Live dev-server state captured for a render; absent in production and build prerenders. */
@@ -246,7 +247,7 @@ export class AppPageRouteModule extends RouteModule<
     return runValidationInDevFromSnapshot(message, componentMod, abortSignal)
   }
 
-  private pathCouldBeIntercepted(
+  public pathCouldBeIntercepted(
     resolvedPathname: string,
     interceptionRoutePatterns: RegExp[]
   ): boolean {
