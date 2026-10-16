@@ -79,10 +79,7 @@ import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
 import { stripInternalQueries } from '../internal-utils'
 import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
-import {
-  NEXT_ROUTER_STALE_TIME_HEADER,
-  NEXT_URL,
-} from '../../client/components/app-router-headers'
+import { NEXT_ROUTER_STALE_TIME_HEADER } from '../../client/components/app-router-headers'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import {
   createRequestStore as createRequestStoreFromInputs,
@@ -416,6 +413,7 @@ export type AppRenderContext = {
   query: NextParsedUrlQuery
   isPrefetch: boolean
   isPossibleServerAction: boolean
+  couldBeIntercepted: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
   flightRouterState?: FlightRouterState
@@ -699,13 +697,11 @@ async function generateDynamicRSCPayload(
     }
   }
 
-  // In dev, the Vary header may not reliably reflect whether a route can
-  // be intercepted, because interception routes are compiled on demand.
+  // In dev, interception routes are compiled on demand, so route matching may
+  // not reliably reflect whether a route can be intercepted yet.
   // Default to true so the client doesn't cache a stale Fallback entry.
-  const varyHeader = ctx.res.getHeader('vary')
   const couldBeIntercepted =
-    !!process.env.__NEXT_DEV_SERVER ||
-    (typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL))
+    !!process.env.__NEXT_DEV_SERVER || ctx.couldBeIntercepted
 
   // If we have an action result, then this is a server action response.
   // We can rely on this because `ActionResult` will always be a promise, even if
@@ -2127,16 +2123,13 @@ async function getRSCPayload(
     hintTree: hints,
   })
 
-  // When the `vary` response header is present with `Next-URL`, that means there's a chance
-  // it could respond differently if there's an interception route. We provide this information
-  // to `AppRouter` so that it can properly seed the prefetch cache with a prefix, if needed.
-  // In dev, the Vary header may not reliably reflect whether a route can
-  // be intercepted, because interception routes are compiled on demand.
+  // Tell AppRouter whether the response can differ for an interception route,
+  // so it can seed the prefetch cache with a prefix if needed.
+  // In dev, interception routes are compiled on demand, so route matching may
+  // not reliably reflect whether a route can be intercepted yet.
   // Default to true so the client doesn't cache a stale Fallback entry.
-  const varyHeader = ctx.res.getHeader('vary')
   const couldBeIntercepted =
-    !!process.env.__NEXT_DEV_SERVER ||
-    (typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL))
+    !!process.env.__NEXT_DEV_SERVER || ctx.couldBeIntercepted
 
   const initialHead = createElement(
     Fragment,
@@ -2748,6 +2741,7 @@ async function prepareAppPageRender(
     query,
     isPrefetch: isPrefetchRequest,
     isPossibleServerAction: serverActionRequestMetadata.isPossibleServerAction,
+    couldBeIntercepted: routeMatch.couldBeIntercepted,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
@@ -8687,6 +8681,7 @@ async function validateInstantConfigInBuildWithSample(
       query: sampleQuery,
       isPrefetch: false,
       isPossibleServerAction: false,
+      couldBeIntercepted: outerCtx.couldBeIntercepted,
       requestTimestamp: outerCtx.requestTimestamp,
       appUsingSizeAdjustment: outerCtx.appUsingSizeAdjustment,
       flightRouterState: undefined,

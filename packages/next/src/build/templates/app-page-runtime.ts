@@ -892,7 +892,13 @@ export function createAppPageEntrypoint({
             previewModeId: previewProps?.previewModeId,
           }
         )
-        const routeMatch: RouteMatch = { resolvedPathname }
+        const routeMatch: RouteMatch = {
+          resolvedPathname,
+          couldBeIntercepted: routeModule.pathCouldBeIntercepted(
+            resolvedPathname,
+            interceptionRoutePatterns
+          ),
+        }
         const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
           requestUrl: req.url!,

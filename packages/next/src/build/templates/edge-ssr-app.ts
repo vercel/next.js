@@ -117,7 +117,11 @@ async function requestHandler(
 
   const closeController = new CloseController()
 
-  const routeMatch: RouteMatch = { resolvedPathname }
+  const routeMatch: RouteMatch = {
+    resolvedPathname,
+    // The Vary header is currently added after rendering in the Edge adapter.
+    couldBeIntercepted: false,
+  }
   const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
   const renderContextBase: Omit<
     AppPageRouteHandlerContext,
