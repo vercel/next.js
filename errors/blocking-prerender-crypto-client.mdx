@@ -31,22 +31,12 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
 <FixCardGrid>
   <FixCard
     group="stream"
-    title="Wrap in or move into Suspense"
+    title="Use browser() with Suspense"
     href="#wrap-in-or-move-into-suspense"
     snippets={[
       { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <TokenId />' },
+      { text: '  <BrowserId />' },
       { text: '</Suspense>', highlight: true },
-    ]}
-  />
-  <FixCard
-    group="client"
-    title="Render only in the browser"
-    href="#render-only-in-the-browser-with-usebrowser"
-    snippets={[
-      { text: '"use client"', highlight: true },
-      { text: 'use(browser())' },
-      { text: 'return <Id>{crypto.randomUUID()}</Id>' },
     ]}
   />
   <FixCard
@@ -217,25 +207,6 @@ The user sees the placeholder briefly before the real value. For interactions th
 Some libraries render uncached data on the server and preserve that result for the first client render. Those libraries can call [`use(io())`](/docs/app/api-reference/functions/io) to keep the read out of the static prerender while still supporting request-time server rendering.
 
 Don't call `use(io())` directly before a random Web Crypto API. During request-time server rendering, `io()` resolves and the browser can produce a different value during hydration. Next.js cannot transfer an arbitrary synchronous read from a Client Component to the browser automatically.
-
-### Render only in the browser with `use(browser())`
-
-Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the generated value should never be rendered on the server. The component suspends during static prerendering and dynamic server rendering, then generates the value in the browser.
-
-```jsx filename="app/components/request-id.js"
-'use client'
-import { use } from 'react'
-import { browser } from 'react-dom'
-
-export function RequestId() {
-  use(browser())
-  return <span>Request {crypto.randomUUID()}</span>
-}
-```
-
-Wrap the component in `<Suspense>` as shown above.
-
-Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ## Verifying the fix
 

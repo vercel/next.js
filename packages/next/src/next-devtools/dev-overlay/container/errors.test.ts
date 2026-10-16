@@ -555,20 +555,21 @@ describe('card sets for all error families', () => {
   })
 
   it.each([
-    ['Math.random()', 'return <Dots seed={Math.random()} />'],
-    ['Date.now()', 'return <Clock time={Date.now()} />'],
-    ['crypto.randomUUID()', 'return <Id>{crypto.randomUUID()}</Id>'],
+    ['Math.random()', '<BrowserDots />'],
+    ['Date.now()', '<BrowserClock />'],
+    ['crypto.randomUUID()', '<BrowserId />'],
   ])(
-    'sync-io %s shows a three-line browser-only client pattern',
-    (cause, renderSnippet) => {
+    'sync-io %s shows browser rendering inside Suspense',
+    (cause, component) => {
       const clientCard = getCards('sync-io', 'runtime', cause).find(
         (card) => card.id === 'render-on-the-client'
       )
 
+      expect(clientCard?.title).toBe('Use browser() with Suspense')
       expect(clientCard?.snippets).toEqual([
-        { text: '"use client"', highlight: true },
-        { text: 'use(browser())' },
-        { text: renderSnippet },
+        { text: '<Suspense fallback={…}>', highlight: true },
+        { text: `  ${component}` },
+        { text: '</Suspense>', highlight: true },
       ])
     }
   )
@@ -580,7 +581,6 @@ describe('card sets for all error families', () => {
       )
     ).toEqual([
       'wrap-in-or-move-into-suspense',
-      'render-only-in-browser',
       'move-into-effect-or-event-handler',
     ])
   })
@@ -590,7 +590,6 @@ describe('card sets for all error families', () => {
       getCards('sync-io-client', 'runtime', 'Date.now()').map((card) => card.id)
     ).toEqual([
       'wrap-in-or-move-into-suspense',
-      'render-only-in-browser',
       'move-into-effect-or-event-handler',
       'measure-elapsed-time',
     ])
@@ -603,26 +602,26 @@ describe('card sets for all error families', () => {
       )
     ).toEqual([
       'wrap-in-or-move-into-suspense',
-      'render-only-in-browser',
       'move-into-effect-or-event-handler',
     ])
   })
 
   it.each([
-    ['Math.random()', 'return <Dots seed={Math.random()} />'],
-    ['Date.now()', 'return <Clock time={Date.now()} />'],
-    ['crypto.randomUUID()', 'return <Id>{crypto.randomUUID()}</Id>'],
+    ['Math.random()', '<BrowserDots />'],
+    ['Date.now()', '<BrowserClock />'],
+    ['crypto.randomUUID()', '<BrowserId />'],
   ])(
-    'sync-io-client %s includes the browser-only pattern',
-    (cause, renderSnippet) => {
+    'sync-io-client %s combines browser rendering and Suspense',
+    (cause, component) => {
       const browserCard = getCards('sync-io-client', 'runtime', cause).find(
-        (card) => card.id === 'render-only-in-browser'
+        (card) => card.id === 'wrap-in-or-move-into-suspense'
       )
 
+      expect(browserCard?.title).toBe('Use browser() with Suspense')
       expect(browserCard?.snippets).toEqual([
-        { text: '"use client"', highlight: true },
-        { text: 'use(browser())' },
-        { text: renderSnippet },
+        { text: '<Suspense fallback={…}>', highlight: true },
+        { text: `  ${component}` },
+        { text: '</Suspense>', highlight: true },
       ])
     }
   )
