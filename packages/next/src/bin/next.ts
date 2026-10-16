@@ -666,6 +666,8 @@ program
   )
   // Keep nudge attribution available to agents without exposing it in public help.
   .addOption(new Option('--internal-nudge-id <id>').hideHelp())
+  // Older CLIs reject this option before upgrading instead of delegating again.
+  .addOption(new Option('--internal-skip-cli-bootstrap').hideHelp())
   .action(async (directory, options) => {
     const mod = await import('../cli/next-upgrade.js')
     await mod.spawnNextUpgrade(

@@ -37,6 +37,7 @@ type NextUpgradeOptions = {
   revision: string
   verbose: boolean
   agent: boolean | string | undefined
+  internalSkipCliBootstrap?: boolean
 }
 
 const UUID_PATTERN =
@@ -149,31 +150,6 @@ async function loadAgentUpgradeConfig(directory: string) {
   return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
 }
 
-async function resolveCanaryVersion(): Promise<string> {
-  try {
-    const response = await fetch('https://registry.npmjs.org/next/canary', {
-      signal: AbortSignal.timeout(10_000),
-      cache: 'no-store',
-      redirect: 'error',
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-
-    const { version } = await response.json()
-    if (typeof version !== 'string' || valid(version) !== version) {
-      throw new Error('Invalid canary version')
-    }
-
-    return version
-  } catch (error) {
-    throw new Error('Could not fetch the latest Next.js canary from npm.', {
-      cause: error,
-    })
-  }
-}
-
 export async function spawnNextUpgrade(
   directory: string | undefined,
   options: NextUpgradeOptions,
@@ -237,7 +213,7 @@ export async function spawnNextUpgrade(
 
     let resolvedPolicy: AgentUpgradePolicy | null = null
     let targetVersion: string | null = null
-    let failureStage: 'cli' | 'metadata' | 'guide' | 'handoff' = 'cli'
+    let failureStage: 'cli' | 'guide' | 'handoff' = 'cli'
     let cliResultRecorded = false
 
     // Preparation and handoff can both fail; record only the first terminal result.
@@ -311,54 +287,49 @@ export async function spawnNextUpgrade(
       delete process.env.__NEXT_UPGRADE_USE_CURRENT_CLI
 
       if (expectedVersion !== undefined) {
-        // Delegated upgrades and evals use their pinned CLI without another lookup.
+        // Evals use their pinned CLI, including when the bootstrap option is set.
         if (process.env.__NEXT_VERSION !== expectedVersion) {
           throw new Error(
             `Expected Next.js ${expectedVersion} for the upgrade, but launched ${process.env.__NEXT_VERSION}.`
           )
         }
-      } else {
+      } else if (!options.internalSkipCliBootstrap) {
         Log.info(dim('Preparing upgrade...'))
-        failureStage = 'metadata'
-        const canaryVersion = await resolveCanaryVersion()
-        failureStage = 'cli'
-        if (process.env.__NEXT_VERSION !== canaryVersion) {
-          const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
-          const agentArgument =
-            typeof options.agent === 'string'
-              ? `--agent=${options.agent}`
-              : '--agent'
-          const args = [
-            ...runnerArgs,
-            `next@${canaryVersion}`,
-            'upgrade',
-            baseDir,
-            agentArgument,
-          ]
+        const [command, ...runnerArgs] = getNpxCommand(baseDir, {
+          preferFresh: true,
+        }).split(' ')
+        const agentArgument =
+          typeof options.agent === 'string'
+            ? `--agent=${options.agent}`
+            : '--agent'
+        const args = [
+          ...runnerArgs,
+          'next@canary',
+          'upgrade',
+          baseDir,
+          agentArgument,
+          '--internal-skip-cli-bootstrap',
+        ]
 
-          if (options.verbose) {
-            args.push('--verbose')
-          }
-
-          process.exitCode = await runChildProcess(
-            command,
-            args,
-            {
-              cwd: baseDir,
-              stdio: 'inherit',
-              env: {
-                ...process.env,
-                // The delegated CLI emits the CLI result for this invocation's run ID.
-                __NEXT_AGENT_UPGRADE_RUN_ID: runId,
-                __NEXT_UPGRADE_EXPECTED_CLI_VERSION: canaryVersion,
-                // Older canaries recognize only this recursion guard.
-                __NEXT_UPGRADE_USE_CURRENT_CLI: '1',
-              },
-            },
-            null
-          )
-          return
+        if (options.verbose) {
+          args.push('--verbose')
         }
+
+        process.exitCode = await runChildProcess(
+          command,
+          args,
+          {
+            cwd: baseDir,
+            stdio: 'inherit',
+            env: {
+              ...process.env,
+              // The delegated CLI emits the CLI result for this invocation's run ID.
+              __NEXT_AGENT_UPGRADE_RUN_ID: runId,
+            },
+          },
+          null
+        )
+        return
       }
 
       // A workspace root must not launch an upgrade for an unspecified app.
@@ -637,9 +608,6 @@ When this task ends, report its result once. After completing the requested upgr
     } catch (error) {
       // Report the failed preparation stage while preserving the original error below.
       switch (failureStage) {
-        case 'metadata':
-          recordCLIResult('metadata_failure', null, null)
-          break
         case 'guide':
           recordCLIResult('guide_failure', null, null)
           break
