@@ -136,16 +136,17 @@ impl SnapshotCoordinator {
         thread_local! {
             static INDEX: Cell<usize> = const { Cell::new(usize::MAX) };
         }
-        let i = INDEX.with(|index| {
+        let stripe = INDEX.with(|index| {
             let mut i = index.get();
             if i == usize::MAX {
                 i = NEXT.fetch_add(1, Ordering::Relaxed);
                 index.set(i);
             }
-            i
+            // The thread keeps its unmasked number: coordinators can have different stripe
+            // counts (tests use small ones). The stripe count is a power of two.
+            i & (self.stripes.len() - 1)
         });
-        // the stripe count is a power of two
-        &self.stripes[i & (self.stripes.len() - 1)]
+        &self.stripes[stripe]
     }
 
     /// Active operations: the sum of the stripes, read one stripe at a time. With admission
