@@ -6,11 +6,7 @@ use tokio::{
     sync::{Notify, watch},
     time::{Duration, sleep, timeout},
 };
-use turbo_tasks::{
-    State, TransientInstance, Vc, prevent_gc,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-    turbo_tasks,
-};
+use turbo_tasks::{State, TransientInstance, Vc, prevent_gc, turbo_tasks};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -19,8 +15,8 @@ static REGISTRATION: Registration = register!();
 async fn test_spawns_detached() -> anyhow::Result<()> {
     run_once(&REGISTRATION, async || {
         println!("test_spawns_detached");
-        // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`, just
-        // disable GC for the test so this can't cause any problems.
+        // The watch channel can hold task values outside the task graph, so keep them alive for
+        // the duration of this test.
         prevent_gc();
         // timeout: prevent the test from hanging, and fail instead if this is broken
         timeout(Duration::from_secs(5), async {
@@ -53,20 +49,9 @@ async fn test_spawns_detached() -> anyhow::Result<()> {
     .await
 }
 
-#[derive(TraceRawVcs)]
-struct NotifyTaskInput(
-    // trace_ignore: `notify` doesn't store any data
-    #[turbo_tasks(trace_ignore)] Notify,
-);
+struct NotifyTaskInput(Notify);
 
 struct WatchSenderTaskInput<T>(watch::Sender<T>);
-
-impl<T: TraceRawVcs> TraceRawVcs for WatchSenderTaskInput<T> {
-    fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {
-        // HACK: This implementation is wrong (the channel contains a `Vc`), but we can't access it.
-        // Instead we just `prevent_gc` in the tests.
-    }
-}
 
 #[turbo_tasks::function(root)]
 async fn spawns_detached(
@@ -87,7 +72,8 @@ async fn spawns_detached(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
     run_once(&REGISTRATION, async || {
-        // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`
+        // The watch channel can hold task values outside the task graph, so keep them alive for
+        // the duration of this test.
         prevent_gc();
         // timeout: prevent the test from hanging, and fail instead if this is broken
         timeout(Duration::from_secs(5), async {

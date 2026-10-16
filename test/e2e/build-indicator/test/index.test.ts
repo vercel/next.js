@@ -22,6 +22,7 @@ const installCheckVisible = (browser) => {
 
 describe('Build Activity Indicator', () => {
   // Use describe.skip so that this suite does not fail with "no tests" during deploy tests.
+  // Deploy mode exclusion: This nested suite intentionally fails a local build and asserts its CLI diagnostics.
   ;(isNextDeploy ? describe.skip : describe)('Invalid position config', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, '..'),

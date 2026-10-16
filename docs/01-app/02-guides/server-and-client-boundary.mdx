@@ -154,7 +154,7 @@ For the practical list of what belongs in each environment, see [When to use Ser
 
 ## Crossing the boundary
 
-You mark a Client Component with the [`'use client'`](/docs/app/api-reference/directives/use-client) directive. The directive draws a boundary in the module graph, and two rules determine what crosses it:
+You mark a module as a client entry point by adding the [`'use client'`](/docs/app/api-reference/directives/use-client) directive at the top of the file, before any imports. The directive draws a boundary in the module graph, and two rules determine what crosses it:
 
 - **Code** crosses through imports. Whatever a Client Component imports is pulled into the [client bundle](/docs/app/glossary#client-bundles).
 - **Data** crosses through props, and it must be [serializable](/docs/app/getting-started/server-and-client-components#passing-data-from-server-to-client-components), so functions like event handlers cannot cross.

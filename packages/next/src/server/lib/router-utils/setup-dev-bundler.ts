@@ -102,6 +102,7 @@ import { UnmatchedAppPagesError } from '../../../shared/lib/errors/unmatched-app
 import { MissingCanonicalInterceptionRoutesError } from '../../../shared/lib/errors/missing-canonical-interception-routes-error'
 import { IncompatibleParallelRouteSlotsError } from '../../../shared/lib/errors/incompatible-parallel-route-slots-error'
 import { findMissingCanonicalInterceptionRoutes } from '../../../shared/lib/router/utils/interception-routes'
+import { getStrictRouteMatchingDefaultWarning } from './strict-route-matching-config'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -140,6 +141,7 @@ export type SetupOpts = {
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
   serverFastRefresh?: boolean
+  hasVulnerabilityInsight: Promise<boolean>
 }
 
 export interface DevRoutesManifest {
@@ -293,6 +295,7 @@ async function startWatcher(
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
+          hasVulnerabilityInsight: opts.hasVulnerabilityInsight,
         })
       })()
 
@@ -905,8 +908,8 @@ async function startWatcher(
         clientRouterFilters = createClientRouterFilter(
           Object.keys(appPaths),
           nextConfig.experimental.clientRouterFilterRedirects
-            ? ((nextConfig as any)._originalRedirects || []).filter(
-                (r: any) => !r.internal
+            ? (opts.fsChecker.originalRedirects || []).filter(
+                (r) => !r.internal
               )
             : [],
           nextConfig.experimental.clientRouterFilterAllowedRate
@@ -1146,6 +1149,10 @@ async function startWatcher(
       ) {
         for (const error of routeMatchingErrors) {
           Log.error(error.message)
+        }
+        const warning = getStrictRouteMatchingDefaultWarning(nextConfig)
+        if (warning) {
+          Log.warnOnce(warning)
         }
       }
       // Turbopack reports route-matching failures as app-structure issues.

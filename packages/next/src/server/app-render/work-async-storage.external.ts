@@ -13,6 +13,7 @@ import { workAsyncStorageInstance } from './work-async-storage-instance' with { 
 import type { LazyResult } from '../lib/lazy-result'
 import type { DigestedError } from './create-error-handler'
 import type { ActionRevalidationKind } from '../../shared/lib/action-revalidation-kind'
+import type { ClientComponentLoadTracker } from '../client-component-renderer-logger'
 
 export interface WorkStore {
   /**
@@ -21,8 +22,8 @@ export interface WorkStore {
   readonly page: string
 
   /**
-   * The route that is being rendered. This is the page property without the
-   * trailing `/page` or `/route` suffix.
+   * The route that is being rendered. This is the page property without the trailing `/page` or
+   * `/route` suffix and without route groups (i.e. after normalizeAppPath)
    */
   readonly route: string
 
@@ -101,6 +102,7 @@ export interface WorkStore {
 
   fetchMetrics?: FetchMetrics
   shouldTrackFetchMetrics: boolean
+  clientComponentLoadTracker: ClientComponentLoadTracker | undefined
 
   /**
    * Tracks pending `"use cache"` invocations within the current request scope,

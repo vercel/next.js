@@ -13,6 +13,9 @@ bench = false
 name = "allocation"
 harness = false
 
+[lints]
+workspace = true
+
 [dependencies]
 
 [dev-dependencies]

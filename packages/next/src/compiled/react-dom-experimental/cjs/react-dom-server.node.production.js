@@ -44,6 +44,11 @@ function getIteratorFn(maybeIterable) {
 var ASYNC_ITERATOR = Symbol.asyncIterator,
   REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
   isArrayImpl = Array.isArray,
+  hasOwnProperty = Object.prototype.hasOwnProperty,
+  supportsArrayBufferDetached = hasOwnProperty.call(
+    ArrayBuffer.prototype,
+    "detached"
+  ),
   scheduleMicrotask = queueMicrotask;
 function flushBuffered(destination) {
   "function" === typeof destination.flush && destination.flush();
@@ -84,33 +89,37 @@ function writeChunk(destination, chunk) {
           (currentView = new Uint8Array(4096)),
           (writtenBytes = 0));
       }
+  } else if (0 === chunk.byteLength) {
+    if (supportsArrayBufferDetached && chunk.buffer.detached)
+      throw Error(
+        "Cannot transport a detached buffer. This usually happens when trying to transport multiple buffer-spanning views on the same underyling buffer. Either reuse the exact same view by identity or copy the underlying buffer manually via `view.slice()`."
+      );
   } else
-    0 !== chunk.byteLength &&
-      (4096 < chunk.byteLength
-        ? (0 < writtenBytes &&
-            (writeToDestination(
-              destination,
-              currentView.subarray(0, writtenBytes)
-            ),
-            (currentView = new Uint8Array(4096)),
-            (writtenBytes = 0)),
-          writeToDestination(destination, chunk))
-        : ((target = currentView.length - writtenBytes),
-          target < chunk.byteLength &&
-            (0 === target
-              ? writeToDestination(destination, currentView)
-              : (currentView.set(chunk.subarray(0, target), writtenBytes),
-                (writtenBytes += target),
-                writeToDestination(destination, currentView),
-                (chunk = chunk.subarray(target))),
-            (currentView = new Uint8Array(4096)),
-            (writtenBytes = 0)),
-          currentView.set(chunk, writtenBytes),
-          (writtenBytes += chunk.byteLength),
-          4096 === writtenBytes &&
-            (writeToDestination(destination, currentView),
-            (currentView = new Uint8Array(4096)),
-            (writtenBytes = 0))));
+    4096 < chunk.byteLength
+      ? (0 < writtenBytes &&
+          (writeToDestination(
+            destination,
+            currentView.subarray(0, writtenBytes)
+          ),
+          (currentView = new Uint8Array(4096)),
+          (writtenBytes = 0)),
+        writeToDestination(destination, chunk))
+      : ((target = currentView.length - writtenBytes),
+        target < chunk.byteLength &&
+          (0 === target
+            ? writeToDestination(destination, currentView)
+            : (currentView.set(chunk.subarray(0, target), writtenBytes),
+              (writtenBytes += target),
+              writeToDestination(destination, currentView),
+              (chunk = chunk.subarray(target))),
+          (currentView = new Uint8Array(4096)),
+          (writtenBytes = 0)),
+        currentView.set(chunk, writtenBytes),
+        (writtenBytes += chunk.byteLength),
+        4096 === writtenBytes &&
+          (writeToDestination(destination, currentView),
+          (currentView = new Uint8Array(4096)),
+          (writtenBytes = 0)));
 }
 function writeToDestination(destination, view) {
   destination = destination.write(view);
@@ -149,7 +158,6 @@ function readAsDataURL(blob) {
   });
 }
 var assign = Object.assign,
-  hasOwnProperty = Object.prototype.hasOwnProperty,
   VALID_ATTRIBUTE_NAME_REGEX = RegExp(
     "^[:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD][:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD\\-.0-9\\u00B7\\u0300-\\u036F\\u203F-\\u2040]*$"
   ),
@@ -7979,11 +7987,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-experimental-59aff3e1-20260918" !== isomorphicReactPackageVersion)
+  if ("19.3.0-experimental-99c106c4-20261014" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-experimental-59aff3e1-20260918\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-experimental-99c106c4-20261014\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -8481,4 +8489,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-experimental-59aff3e1-20260918";
+exports.version = "19.3.0-experimental-99c106c4-20261014";

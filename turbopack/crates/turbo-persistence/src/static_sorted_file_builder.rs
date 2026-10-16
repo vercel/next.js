@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     collections::VecDeque,
     io::{BufWriter, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
@@ -330,6 +330,8 @@ pub struct StaticSortedFileBuilderMeta<'a> {
     pub flags: MetaEntryFlags,
     /// The number of entries in the SST file
     pub entries: u64,
+    /// The number of tombstone entries (`KeyDeleted` and `KeyValueDeleted`) in the SST file.
+    pub tombstones: u64,
 }
 
 /// Writes an SST file from a pre-sorted slice of entries.
@@ -355,7 +357,10 @@ pub fn write_static_stored_file<E: Entry>(
     );
     let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64, compression)?;
     for entry in entries {
-        writer.add(entry)?;
+        if let Err(err) = writer.add(entry) {
+            writer.cancel();
+            return Err(err);
+        }
     }
     writer.close()
 }
@@ -544,6 +549,9 @@ pub struct StreamingSstWriter<E: Entry> {
     // File I/O. Wrapped in Option so close() can take ownership without a partial-move
     // compile error (partial moves are forbidden when the type has a Drop impl).
     file: Option<BufWriter<File>>,
+    file_path: PathBuf,
+    /// Whether close() successfully finalized the SST, so Drop must preserve the file.
+    preserve_file: bool,
     compress_buffer: Vec<u8>,
     block_offsets: Vec<u32>,
     compressor: Compressor,
@@ -603,6 +611,7 @@ pub struct StreamingSstWriter<E: Entry> {
     min_hash: u64,
     max_hash: u64,
     entry_count: u64,
+    tombstone_count: u64,
     flags: MetaEntryFlags,
 
     // Fullness tracking (for compaction callers)
@@ -615,7 +624,8 @@ pub struct StreamingSstWriter<E: Entry> {
     /// State of the current incomplete key block at the tail of the resolved prefix.
     current_key_block: KeyBlockAccumulator,
 
-    /// Set to `true` by `close()` so the Drop guard can detect writers dropped without closing.
+    /// Set to `true` by `close()` or `cancel()` so the Drop guard can detect writers dropped
+    /// without completing their lifecycle.
     #[cfg(debug_assertions)]
     finished: bool,
 }
@@ -630,6 +640,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         max_entry_count: u64,
         compression: Compression,
     ) -> Result<Self> {
+        let file_path = file.to_owned();
         let file = BufWriter::new(File::create(file)?);
         let compressor = Compressor::new(compression)?;
 
@@ -648,6 +659,8 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         Ok(Self {
             file: Some(file),
+            file_path,
+            preserve_file: false,
             compress_buffer: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE),
             block_offsets: Vec::with_capacity(estimated_total_blocks),
             compressor,
@@ -668,6 +681,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             min_hash: u64::MAX,
             max_hash: 0,
             entry_count: 0,
+            tombstone_count: 0,
             flags,
             total_key_size: 0,
             total_value_size: 0,
@@ -801,8 +815,12 @@ impl<E: Entry> StreamingSstWriter<E> {
                 }
             }
             EntryValue::Large { blob } => ValueRef::Blob { blob_id: blob },
-            EntryValue::KeyDeleted => ValueRef::KeyDeleted,
+            EntryValue::KeyDeleted => {
+                self.tombstone_count += 1;
+                ValueRef::KeyDeleted
+            }
             EntryValue::KeyValueDeleted { value } => {
+                self.tombstone_count += 1;
                 // Enforced by `WriteBatch::delete_value`, which rejects oversized values.
                 debug_assert!(value.len() <= MAX_INLINE_VALUE_SIZE);
                 let mut data = [0u8; MAX_INLINE_VALUE_SIZE];
@@ -816,6 +834,27 @@ impl<E: Entry> StreamingSstWriter<E> {
 
         self.push_pending_key_entry(entry, value_ref);
         self.try_flush_key_blocks()
+    }
+
+    /// Abandons this writer without flushing buffered data or finalizing the SST file.
+    pub fn cancel(mut self) {
+        self.discard_partial_file();
+        #[cfg(debug_assertions)]
+        {
+            self.finished = true;
+        }
+    }
+
+    /// Closes the raw handle without flushing its buffer and best-effort removes the partial SST.
+    fn discard_partial_file(&mut self) {
+        if let Some(file) = self.file.take() {
+            // Unlike dropping BufWriter, into_parts() does not attempt to flush its buffer.
+            let (file, _) = file.into_parts();
+            drop(file);
+        }
+        // Startup recovery is the fallback if deletion itself fails (for example on Windows if
+        // another handle is still open). Never replace the error that caused cancellation.
+        let _ = fs_err::remove_file(&self.file_path);
     }
 
     /// Appends a new entry to the pending-keys queue.
@@ -1119,9 +1158,12 @@ impl<E: Entry> StreamingSstWriter<E> {
             size: file_size,
             flags: self.flags,
             entries: self.entry_count,
+            tombstones: self.tombstone_count,
         };
 
-        Ok((meta, file.into_inner()?))
+        let file = file.into_inner()?;
+        self.preserve_file = true;
+        Ok((meta, file))
     }
 
     /// Flushes all remaining entries as key blocks. Called from `close()` after all small value
@@ -1175,14 +1217,18 @@ impl<E: Entry> StreamingSstWriter<E> {
     }
 }
 
-#[cfg(debug_assertions)]
 impl<E: Entry> Drop for StreamingSstWriter<E> {
     fn drop(&mut self) {
+        if !self.preserve_file {
+            self.discard_partial_file();
+        }
+
         // Skip assertion during panic unwinding to avoid a double-panic (which would abort).
+        #[cfg(debug_assertions)]
         if !std::thread::panicking() {
             assert!(
                 self.finished || self.entry_count == 0,
-                "StreamingSstWriter dropped without calling close()"
+                "StreamingSstWriter dropped without calling close() or cancel()"
             );
         }
     }
@@ -1580,7 +1626,10 @@ mod tests {
         let mut writer =
             StreamingSstWriter::new(&sst_path, flags, entries.len() as u64, Compression::Lz4)?;
         for entry in entries {
-            writer.add(entry)?;
+            if let Err(err) = writer.add(entry) {
+                writer.cancel();
+                return Err(err);
+            }
         }
         let (meta, _file) = writer.close()?;
         Ok(meta)
@@ -1810,6 +1859,54 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
+    fn cancel_after_failed_add_does_not_trigger_drop_assertion() {
+        let dir = tempfile::tempdir().unwrap();
+        let sst_path = dir.path().join("test.sst");
+        let mut writer =
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 1, Compression::Lz4)
+                .unwrap();
+
+        // Replace the output with an unbuffered, read-only handle to force a deterministic write
+        // error without relying on the filesystem being full.
+        drop(writer.file.take());
+        writer.file = Some(BufWriter::with_capacity(0, File::open(&sst_path).unwrap()));
+        let error = writer
+            .add(TestEntry::medium(b"key", &[0; 8192]))
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("Failed to write value block"));
+
+        let cancel_result =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| writer.cancel()));
+        assert!(
+            cancel_result.is_ok(),
+            "cancelling a writer after an add error must not trigger the lifecycle assertion"
+        );
+        assert!(!sst_path.exists(), "cancel should remove the partial SST");
+    }
+
+    #[test]
+    fn failed_close_removes_partial_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let sst_path = dir.path().join("test.sst");
+        let mut writer =
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 1, Compression::Lz4)
+                .unwrap();
+        writer.add(TestEntry::inline(b"key", b"value")).unwrap();
+
+        // Force close() to fail while flushing the pending key block.
+        drop(writer.file.take());
+        writer.file = Some(BufWriter::with_capacity(0, File::open(&sst_path).unwrap()));
+        let error = writer.close().unwrap_err();
+
+        assert!(format!("{error:#}").contains("Failed to write key block"));
+        assert!(
+            !sst_path.exists(),
+            "a failed close should remove the partial SST"
+        );
+    }
+
+    #[test]
     fn is_full_entry_count_limit() {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
@@ -1894,7 +1991,10 @@ mod tests {
             Compression::Lz4,
         )?;
         for entry in &entries {
-            writer.add(entry)?;
+            if let Err(err) = writer.add(entry) {
+                writer.cancel();
+                return Err(err);
+            }
         }
         let (meta2, _) = writer.close()?;
 
@@ -2025,14 +2125,13 @@ mod tests {
         let raw = &data[..end];
         // Each block is prefixed by BLOCK_HEADER_SIZE bytes: 4B uncompressed size + 4B checksum.
         // An uncompressed size of 0 means the block is stored as-is.
-        let uncompressed_size = BE::read_u32(raw) as usize;
+        let uncompressed_size = BE::read_u32(raw);
         let body = &raw[BLOCK_HEADER_SIZE..];
         Ok(if uncompressed_size == 0 {
             body.to_vec()
         } else {
-            let mut out = vec![0u8; uncompressed_size];
-            lz4_flex::block::decompress_into(body, &mut out)?;
-            out
+            crate::compression::decompress_into_arc(Compression::Lz4, uncompressed_size, body)?
+                .to_vec()
         })
     }
 

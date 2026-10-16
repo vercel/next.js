@@ -44,6 +44,8 @@ import {
   JSON_CONTENT_TYPE_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_RESUME_HEADER,
+  NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
 import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
@@ -278,7 +280,24 @@ async function createForwardedActionResponse(
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req)
     ) {
-      body = req.stream()
+      // If the action body was already stashed (and consumed from the
+      // request stream) so it could be replayed for the local action
+      // handler (e.g. when resume state was read from the body first),
+      // forward that stashed body instead of re-reading the now-exhausted
+      // stream, which would otherwise hang forever. Since the forwarded
+      // body no longer starts with the postponed state, the resume headers
+      // no longer apply and must be dropped so the receiving worker doesn't
+      // try to read postponed state from it.
+      // The platform can attach the target page's postponed state, including
+      // its RDC, to the forwarded request independently of these headers.
+      const actionBody = getRequestMeta(req, 'actionBody')
+      if (actionBody) {
+        body = new Uint8Array(actionBody)
+        forwardedHeaders.delete(NEXT_RESUME_HEADER)
+        forwardedHeaders.delete(NEXT_RESUME_STATE_LENGTH_HEADER)
+      } else {
+        body = req.stream()
+      }
     } else {
       throw new Error('Invariant: Unknown request type.')
     }
@@ -759,7 +778,7 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await generateFlight(req, ctx, requestStore, {
+          result: await generateFlight(ctx, requestStore, {
             actionResult: promise,
             // We didn't execute an action, so no revalidations could have
             // occurred. We can skip rendering the page.
@@ -1302,7 +1321,7 @@ export async function handleAction({
           return {
             type: 'done',
             result: await actionAsyncStorage.exit(() =>
-              generateFlight(req, ctx, requestStore, {
+              generateFlight(ctx, requestStore, {
                 actionResult: Promise.resolve(actionResult),
                 skipPageRendering,
                 temporaryReferences,
@@ -1372,7 +1391,7 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await generateFlight(req, ctx, requestStore, {
+          result: await generateFlight(ctx, requestStore, {
             skipPageRendering: shouldSkipPageRendering,
             actionResult: promise,
             temporaryReferences,
@@ -1417,7 +1436,7 @@ export async function handleAction({
 
       return {
         type: 'done',
-        result: await generateFlight(req, ctx, requestStore, {
+        result: await generateFlight(ctx, requestStore, {
           actionResult: promise,
           // If the page was not revalidated, or if this is an action-only
           // request, we can skip rendering the page.

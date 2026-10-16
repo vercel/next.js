@@ -20,6 +20,7 @@ import { printBuildErrors } from '../print-build-errors'
 import { normalizePath } from '../../lib/normalize-path'
 import type { ProjectOptions, RawEntrypoints } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
+import { getStrictRouteMatchingDefaultWarning } from '../../server/lib/router-utils/strict-route-matching-config'
 
 export async function turbopackBuild(telemetry: Telemetry): Promise<{
   duration: number
@@ -152,12 +153,15 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     signal: shutdownController.signal,
   })
   const runShutdown = async () => {
-    // Shutdown may trigger final compilation events (e.g. persistence,
-    // compaction trace spans).  This is the last chance to capture them.
-    // After shutdown resolves we abort the signal to close the iterator
-    // and drain any remaining buffered events.
-
     await project.shutdown()
+    // Shutdown flushes and closes the compilation event queue, so the
+    // subscription ends once final events (e.g. persistence, compaction trace
+    // spans) have been delivered. The timeout is only a backstop against a
+    // subscription that never closes.
+    await Promise.race([
+      compilationEvents,
+      new Promise((resolve) => setTimeout(resolve, 10_000).unref()),
+    ])
     shutdownController.abort()
     await compilationEvents
   }
@@ -184,6 +188,8 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     // keeping SSG errors more prominent than compile warnings.
     const { warnings } = printBuildErrors(entrypoints, dev, {
       deferWarnings: true,
+      strictRouteMatchingDefaultWarning:
+        getStrictRouteMatchingDefaultWarning(config),
     })
 
     // Skip when telemetry is fully off — featureUsage() isn't free.

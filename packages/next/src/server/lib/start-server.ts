@@ -18,7 +18,11 @@ import os from 'os'
 import { exec } from 'child_process'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getMemoryRestartStats, RESTART_EXIT_CODE } from './utils'
+import {
+  blockOnOutputWrites,
+  getMemoryRestartStats,
+  RESTART_EXIT_CODE,
+} from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
@@ -29,6 +33,7 @@ import {
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
+  syncAgentUpgradeForDev,
   syncAgentFeedbackForDev,
   syncAgentRulesForDev,
 } from './app-info-log'
@@ -45,6 +50,7 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import { isCI } from '../ci-info'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -446,7 +452,12 @@ export async function startServer(
                   // Use flushDetached to avoid blocking process exit
                   // Each process writes to a unique file (_events_${pid}.json)
                   // to avoid race conditions with the parent process
-                  telemetry.flushDetached('dev', dir)
+                  telemetry.flushDetached({
+                    mode: 'dev',
+                    dir,
+                    distDir: null,
+                    events: null,
+                  })
                 }
               } catch (_) {
                 // Ignore telemetry errors during cleanup
@@ -519,15 +530,38 @@ export async function startServer(
           )
 
           logAgentFileSync(
-            await syncAgentFeedbackForDev(
+            await syncAgentUpgradeForDev(
               dir,
-              initResult.agentFeedback === true
+              initResult.agentUpgrade !== false
             ),
             (files) =>
-              `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
+              `Generated upgrade instructions in ${files}. Set \`experimental.agentUpgrade: false\` in next.config to disable.`,
             (files) =>
-              `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
+              `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
           )
+
+          if (!isCI) {
+            const { traceGlobals } =
+              require('../../trace/shared') as typeof import('../../trace/shared')
+            const telemetry = traceGlobals.get('telemetry') as
+              | InstanceType<typeof import('../../telemetry/storage').Telemetry>
+              | undefined
+            const agentFeedbackConfigured = initResult.agentFeedback === true
+            const telemetryEnabled = telemetry?.isEnabled === true
+
+            logAgentFileSync(
+              await syncAgentFeedbackForDev(
+                dir,
+                agentFeedbackConfigured && telemetryEnabled
+              ),
+              (files) =>
+                `Generated agent feedback instructions in ${files}. Set \`experimental.agentFeedback: false\` in next.config to disable.`,
+              (files) =>
+                agentFeedbackConfigured
+                  ? `Removed agent feedback instructions from ${files} because Next.js Telemetry is disabled.`
+                  : `Removed agent feedback instructions from ${files} because \`experimental.agentFeedback\` is disabled.`
+            )
+          }
         }
 
         handlersReady()
@@ -610,7 +644,22 @@ export async function startServer(
 }
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  // Output is piped to the CLI to hold it while the upgrade menu is open.
+  if (process.env.NEXT_PRIVATE_PROMPT_OUTPUT === '1') {
+    blockOnOutputWrites()
+  }
   process.addListener('message', async (msg: any) => {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      typeof msg.nextTerminalColumns === 'number'
+    ) {
+      // The CLI's terminal was resized. Code frames read this width.
+      process.env.NEXT_PRIVATE_TERMINAL_COLUMNS = String(
+        msg.nextTerminalColumns
+      )
+      return
+    }
     if (
       msg &&
       typeof msg === 'object' &&
@@ -686,10 +735,7 @@ function logAgentFileSync(
 
   const generated: string[] = []
   const removed: string[] = []
-  for (const [file, action] of [
-    ['AGENTS.md', result.agentsMd],
-    ['CLAUDE.md', result.claudeMd],
-  ] as const) {
+  for (const [file, action] of [['AGENTS.md', result.agentsMd]] as const) {
     if (action === 'created' || action === 'updated') {
       generated.push(file)
     } else if (action === 'removed') {

@@ -973,13 +973,23 @@ body {
   --google-font-color-nabla:colrv1;
 }
   `,
-  'https://fonts.googleapis.com/css2?family=Single+Day:wght@400&display=swap': `
+  'https://fonts.googleapis.com/css2?family=Noto+Sans+Math:wght@400&display=swap': `
   @font-face {
-    font-family: 'Single Day';
+    font-family: 'Noto Sans Math';
     font-style: normal;
     font-weight: 400;
     font-display: swap;
-    src: url(https://fonts.gstatic.com/s/singleday/v15/LYjHdGDjlEgoAcF95EI5jV8FVtffGoa4-V3jzT3lMfZhY8uIhf9daTM.0.woff2) format('woff2');
+    src: url(https://fonts.gstatic.com/s/notosansmath/v19/7Aump_cpkSecTWaHRlH2hyV5UHkG.ttf) format('truetype');
+  }
+  `,
+  // The font file does not exist, so fetching it returns 404.
+  'https://fonts.googleapis.com/css2?family=Bitter:wght@400&display=swap': `
+  @font-face {
+    font-family: 'Bitter';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url(https://fonts.gstatic.com/s/bitter/v42/does-not-exist.woff2) format('woff2');
   }
   `,
 }

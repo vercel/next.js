@@ -55,7 +55,7 @@ struct CounterValue(usize);
 
 #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
 struct Counter {
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[turbo_tasks(debug_ignore)]
     value: Mutex<(usize, HashSet<Invalidator>)>,
 }
 

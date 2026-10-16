@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import {
   createPrerenderResumeDataCache,
   deflateResumeDataCache,
@@ -64,7 +65,12 @@ describe('getDynamicHTMLPostponedState', () => {
     const parsed = parsePostponedState(state, undefined)
 
     expect(state).not.toContain(key)
-    expect(parsed).toMatchInlineSnapshot(`
+    // Other suites may enable async hooks, which attach internal symbols to
+    // promises. Check the entry below rather than snapshotting those fields.
+    expect(parsed.renderResumeDataCache.cache.size).toBe(1)
+    expect(parsed).toMatchInlineSnapshot(
+      { renderResumeDataCache: { cache: expect.any(Map) } },
+      `
      {
        "data": [
          1,
@@ -76,9 +82,7 @@ describe('getDynamicHTMLPostponedState', () => {
          },
        ],
        "renderResumeDataCache": {
-         "cache": Map {
-           "1" => Promise {},
-         },
+         "cache": Any<Map>,
          "decryptedBoundArgs": Map {},
          "encryptedBoundArgs": Map {},
          "fetch": Map {},
@@ -90,13 +94,14 @@ describe('getDynamicHTMLPostponedState', () => {
        },
        "type": 2,
      }
-    `)
+    `
+    )
 
     const value = await parsed.renderResumeDataCache.cache.get('1')
 
-    expect(value).toBeDefined()
+    assert(value !== undefined && typeof value !== 'symbol')
 
-    await expect(streamToString(value!.entry.value)).resolves.toEqual('hello')
+    await expect(streamToString(value.entry.value)).resolves.toEqual('hello')
   })
 
   it('serializes a HTML postponed state without fallback params', async () => {
@@ -349,8 +354,8 @@ describe('parseResumeDataCacheFromPostponedState', () => {
     )
     const value = await resumeDataCache.cache.get('cache-key')
 
-    expect(value).toBeDefined()
-    await expect(streamToString(value!.entry.value)).resolves.toBe(
+    assert(value !== undefined && typeof value !== 'symbol')
+    await expect(streamToString(value.entry.value)).resolves.toBe(
       'cached value'
     )
   })

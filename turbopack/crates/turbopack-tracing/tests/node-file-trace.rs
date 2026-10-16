@@ -29,7 +29,7 @@ use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, ResolvedVc, TurboTasks, ValueToString, Vc, backend::Backend,
-    read_strongly_consistent_and_apply_effects, take_effects, trace::TraceRawVcs,
+    read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
@@ -415,7 +415,7 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            analyze_mode: AnalyzeMode::Tracing,
+            analyze_mode: AnalyzeMode::tracing(),
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
             follow_reexports: false,
@@ -608,7 +608,6 @@ fn node_file_trace<B: Backend + 'static>(
     })
 }
 
-#[derive(TraceRawVcs)]
 struct CommandOutput {
     stdout: String,
     stderr: String,

@@ -2,13 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('incompatible-parallel-route-slots', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('reports the layout whose slots cannot render the same URLs', async () => {
     if (isNextDev) {
@@ -53,9 +50,10 @@ describe('incompatible-parallel-route-slots', () => {
       expect(`${stripAnsi(next.cliOutput)}\n${response}`).not.toContain(
         'strict route matching retained the incomplete route matcher'
       )
+      expectDefaultStrictRouteMatchingWarning(next.cliOutput)
     } else {
-      const { exitCode, cliOutput } = await next.build()
-      expect(exitCode).toBe(1)
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       expect(extractIncompatibleSlotsError(cliOutput)).toMatchInlineSnapshot(`
        "The following layouts have parallel route slots that cannot render the same URLs:
@@ -71,9 +69,16 @@ describe('incompatible-parallel-route-slots', () => {
       expect(stripAnsi(cliOutput)).not.toContain(
         'strict route matching retained the incomplete route matcher'
       )
+      expectDefaultStrictRouteMatchingWarning(cliOutput)
     }
-  })
+  }, 240_000)
 })
+
+function expectDefaultStrictRouteMatchingWarning(output: string): void {
+  expect(stripAnsi(output)).toContain(
+    'you can temporarily restore loose route matching by setting `deprecated.looseRouteMatching` to `true`'
+  )
+}
 
 function extractIncompatibleSlotsError(output: string): string {
   const normalizedOutput = stripAnsi(output)

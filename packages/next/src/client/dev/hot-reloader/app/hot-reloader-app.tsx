@@ -309,6 +309,10 @@ export function processMessage(
       }
       break
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT: {
+      dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      break
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
     case HMR_MESSAGE_SENT_TO_BROWSER.SYNC: {
       dispatcher.buildingIndicatorHide()
@@ -322,6 +326,9 @@ export function processMessage(
       // Is undefined when it's a 'built' event
       if ('versionInfo' in message)
         dispatcher.onVersionInfo(message.versionInfo)
+      if ('hasVulnerabilityInsight' in message) {
+        dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      }
       if ('debug' in message && message.debug)
         dispatcher.onDebugInfo(message.debug)
       if ('devIndicator' in message)

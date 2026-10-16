@@ -95,6 +95,7 @@ export interface OverlayState {
     showInternal: boolean
     verbose: boolean
   }>
+  readonly hasVulnerabilityInsight: boolean
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -131,6 +132,7 @@ export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 export const ACTION_REQUEST_INSIGHTS_SNAPSHOT = 'request-insights-snapshot'
 export const ACTION_REQUEST_INSIGHTS_UPDATE = 'request-insights-update'
+export const ACTION_VULNERABILITY_INSIGHT = 'vulnerability-insight'
 
 export function updateRequestInsights(
   currentRequests: readonly RequestInsight[],
@@ -284,6 +286,11 @@ interface RequestInsightsUpdateAction {
   insight: RequestInsight
 }
 
+interface VulnerabilityInsightAction {
+  type: typeof ACTION_VULNERABILITY_INSIGHT
+  hasVulnerabilityInsight: boolean
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -314,6 +321,7 @@ export type DispatcherEvent =
   | InstantErrorsClearAction
   | RequestInsightsSnapshotAction
   | RequestInsightsUpdateAction
+  | VulnerabilityInsightAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -401,6 +409,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   instantNavs: hasInstantNavsCookie,
   requestInsights: [],
   requestInsightsConfig: { showInternal: false, verbose: false },
+  hasVulnerabilityInsight: false,
 }
 
 function getInitialState(
@@ -700,6 +709,12 @@ export function useErrorOverlayReducer(
         }
         case ACTION_REQUEST_INSIGHTS_SNAPSHOT: {
           return { ...state, requestInsights: action.snapshot.requests }
+        }
+        case ACTION_VULNERABILITY_INSIGHT: {
+          return {
+            ...state,
+            hasVulnerabilityInsight: action.hasVulnerabilityInsight,
+          }
         }
         case ACTION_REQUEST_INSIGHTS_UPDATE: {
           return {

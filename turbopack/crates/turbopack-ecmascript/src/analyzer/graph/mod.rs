@@ -95,13 +95,13 @@ pub fn create_graph<'a>(
     // CommonJS export recognition runs for a CommonJS module that emits code when either CJS
     // tree-shaking or CJS scope hoisting is enabled (both consume the static export analysis).
     if (cjs_tree_shaking || cjs_scope_hoisting)
-        && analyze_mode.is_code_gen()
+        && analyze_mode.is_codegen
         && eval_context.is_cjs(specified_module_type)
     {
         analyzer.enable_cjs_exports();
     }
 
-    if cjs_tree_shaking && analyze_mode.is_code_gen() {
+    if cjs_tree_shaking && analyze_mode.is_codegen {
         analyzer.enable_require_usage(&eval_context.imports);
     }
 

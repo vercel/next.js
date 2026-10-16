@@ -18,6 +18,22 @@ describe('use-cache-custom-handler', () => {
     outputIndex = next.cliOutput.length
   })
 
+  it('uses the custom handler for the first request during startup', async () => {
+    const $ = await next.render$('/registration')
+    expect($('#data').text()).toBe('registration')
+
+    await retry(async () => {
+      const writes: CacheWrite[] = await next
+        .fetch('/cache-writes')
+        .then((response) => response.json())
+      expect(writes).toContainEqual(
+        expect.objectContaining({
+          tags: expect.arrayContaining(['registration']),
+        })
+      )
+    }, 3000)
+  })
+
   it('should use a modern custom cache handler if provided', async () => {
     const browser = await next.browser(`/`)
     const initialData = await browser.elementById('data').text()
@@ -121,6 +137,24 @@ describe('use-cache-custom-handler', () => {
     })
   })
 
+  it('should call updateTags once per profile group', async () => {
+    const browser = await next.browser(`/`)
+
+    outputIndex = next.cliOutput.length
+
+    await browser.elementById('revalidate-multiple-profiles').click()
+
+    await retry(async () => {
+      const cliOutput = next.cliOutput.slice(outputIndex)
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["modern"]'
+      )
+      expect(cliOutput).toInclude(
+        'ModernCustomCacheHandler::updateTags ["other"]'
+      )
+    })
+  })
+
   if (isNextStart) {
     it('should save a short-lived cache during prerendering at buildtime', async () => {
       expect(next.cliOutput).toMatch(
@@ -188,4 +222,25 @@ describe('use-cache-custom-handler', () => {
       )
     })
   })
+
+  if (isNextStart) {
+    it('handles a failed handler preload without an unhandled rejection', async () => {
+      await next.stop()
+      await next.start({
+        skipBuild: true,
+        env: { NEXT_TEST_FAIL_CUSTOM_CACHE_HANDLER: '1' },
+      })
+
+      await retry(() => {
+        expect(next.cliOutput).toContain('Failed to preload entries:')
+        expect(next.cliOutput).toContain(
+          'test custom cache handler failed to load'
+        )
+      })
+
+      const response = await next.fetch('/registration')
+      expect(response.status).toBe(500)
+      expect(next.cliOutput).not.toContain('unhandledRejection:')
+    })
+  }
 })

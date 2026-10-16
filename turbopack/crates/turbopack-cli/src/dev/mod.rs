@@ -14,7 +14,6 @@ use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Vc,
-    trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
 };
 use turbo_tasks_backend::{
@@ -217,7 +216,7 @@ impl TurbopackDevServerBuilder {
             Box::new(move || Vc::upcast(ConsoleUi::new(log_args.clone())))
         });
 
-        #[derive(Clone, TraceRawVcs, NonLocalValue)]
+        #[derive(Clone, NonLocalValue)]
         struct ServerSourceProvider {
             root_dir: RcStr,
             project_dir: RcStr,

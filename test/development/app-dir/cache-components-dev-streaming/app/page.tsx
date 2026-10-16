@@ -25,6 +25,11 @@ export default function Page() {
         </Link>
       </li>
       <li>
+        <Link href="/partial-prefetching/session-data-ensure-static">
+          /partial-prefetching/session-data-ensure-static
+        </Link>
+      </li>
+      <li>
         <Link href="/partial-prefetching/link-data?prefetch=auto">
           /partial-prefetching/link-data
         </Link>

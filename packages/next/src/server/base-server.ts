@@ -37,6 +37,7 @@ import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-ma
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { RouteMatch } from './route-matches/route-match'
+import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
 import type { RouteDefinition } from './route-definitions/route-definition'
 import type { AppPageRouteDefinition } from './route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
@@ -150,15 +151,20 @@ import {
 } from './after/builtin-request-context'
 import { NextRequestHint } from './web/adapter'
 import type { RouteModule } from './route-modules/route-module'
-import { type FallbackMode, parseFallbackField } from '../lib/fallback'
+import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import { decodePathParams } from './lib/router-utils/decode-path-params'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
-import type { PrerenderedRoute } from '../build/static-paths/types'
+import type {
+  PrerenderRouteMatcher,
+  PrerenderedRoute,
+  StaticPathsResult,
+} from '../build/static-paths/types'
 import {
   createOpaqueFallbackRouteParams,
   getStagedFallbackParams,
@@ -215,6 +221,11 @@ export interface Options {
    * Object containing the configuration next.config.js
    */
   conf: NextConfig
+  /**
+   * Present when the build manifest was read, even if its marker is undefined.
+   * @internal
+   */
+  compileMode?: { isExperimentalCompile: boolean | undefined }
   /**
    * Set to false when the server was created by Next.js
    */
@@ -414,7 +425,8 @@ export default abstract class Server<
     res: ServerResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts
+    renderOpts: LoadedRenderOpts,
+    routeMatch: AppRenderRouteMatch
   ): Promise<RenderResult>
 
   protected abstract getIncrementalCache(options: {
@@ -435,6 +447,11 @@ export default abstract class Server<
    * server; returns `undefined` otherwise.
    */
   protected getServerComponentsHmrRefreshHash(): string | undefined {
+    return undefined
+  }
+
+  /** Available only on the dev server with Turbopack HMR. */
+  protected getClientHmrVersion(): string | undefined {
     return undefined
   }
 
@@ -594,7 +611,9 @@ export default abstract class Server<
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
 
-      isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
+      isExperimentalCompile: options.compileMode
+        ? options.compileMode.isExperimentalCompile
+        : this.nextConfig.experimental.isExperimentalCompile,
       cacheComponents: this.nextConfig.cacheComponents ?? false,
       partialPrefetching: this.nextConfig.partialPrefetching,
       validationLevel:
@@ -636,8 +655,6 @@ export default abstract class Server<
             this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
               true),
       },
-      onInstrumentationRequestError:
-        this.instrumentationOnRequestError.bind(this),
       prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
       logServerFunctions:
@@ -891,8 +908,26 @@ export default abstract class Server<
               'http.target': req.url,
             },
           },
-          async (span) =>
-            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+          async (span) => {
+            if (getRequestMeta(req, 'middlewareInvoke')) {
+              // When middleware lets the request continue, the router server
+              // calls `handleRequest` twice: once to run middleware (this pass)
+              // and once to render. Publish this span's W3C trace context on
+              // the request, so the middleware span (including the Edge
+              // sandbox, which extracts it from the request headers) is a
+              // child of this span instead of starting a new trace. The
+              // middleware forwards its own span's context to the render pass
+              // via request-header overrides, which replace this value; it
+              // only stays when there is no middleware span to forward (e.g.
+              // OpenTelemetry isn't registered in the Edge runtime), keeping
+              // the render in this trace.
+              const traceContext = tracer.getTraceContextHeaders()
+              if (traceContext) {
+                Object.assign(req.headers, traceContext)
+              }
+            }
+
+            return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
               if (!span) return
 
               const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
@@ -951,6 +986,7 @@ export default abstract class Server<
                 span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
               }
             })
+          }
         )
       })
 
@@ -2039,7 +2075,11 @@ export default abstract class Server<
   ): Promise<void>
 
   public setAssetPrefix(prefix?: string): void {
-    this.nextConfig.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+    this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+  }
+
+  public getAssetPrefix(): string {
+    return this.renderOpts.assetPrefix || ''
   }
 
   protected prepared: boolean = false
@@ -2304,11 +2344,7 @@ export default abstract class Server<
     requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
-  }): Promise<{
-    staticPaths?: string[]
-    prerenderedRoutes?: PrerenderedRoute[]
-    fallbackMode?: FallbackMode
-  }> {
+  }): Promise<Partial<StaticPathsResult> & { staticPaths?: string[] }> {
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
       this.getPrerenderManifest().dynamicRoutes[pathname]?.fallback
@@ -2382,6 +2418,12 @@ export default abstract class Server<
     }: RequestContext<ServerRequest, ServerResponse>,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
+    if (this.dev && getRequestMeta(req, 'initialHmrVersion') === undefined) {
+      // Snapshot before rendering/streaming HTML. Reading the live version at
+      // script insertion or socket connection can hide an intervening CSS edit.
+      addRequestMeta(req, 'initialHmrVersion', this.getClientHmrVersion())
+    }
+
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
       pathname = '/404'
     }
@@ -2748,13 +2790,35 @@ export default abstract class Server<
       }
 
       if (isAppPath && this.nextConfig.cacheComponents) {
-        if (pathsResults.prerenderedRoutes?.length) {
-          // The source selection includes concrete routes with no fallback
-          // params. Otherwise it could choose a generic fallback for a fully
-          // generated URL.
-          let matchedRoute: PrerenderedRoute | undefined
-          for (const route of pathsResults.prerenderedRoutes) {
-            if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
+        const paramMatching = pathsResults.paramMatching
+        if (paramMatching !== undefined) {
+          // Explicit fallback and blocking policies describe how production
+          // prerenders are selected. Normal dev requests still render
+          // dynamically; only an explicit not-found match changes their
+          // foreground behavior.
+          addRequestMeta(req, 'devParamMatchingRejected', false)
+          addRequestMeta(
+            req,
+            'devNotFoundParams',
+            Object.keys(paramMatching).filter(
+              (name) => paramMatching[name] === 'not-found'
+            )
+          )
+        }
+
+        if (
+          pathsResults.prerenderedRoutes?.length ||
+          pathsResults.prerenderRouteMatchers?.length
+        ) {
+          // Build-time pathnames are decoded. Match the decoded rewrite
+          // destination, not the original encoded URL, just as in production.
+          const decodedPathname = decodePathParams(resolvedUrlPathname)
+
+          // Match both build-time prerenders and routes that have no
+          // build-time output, such as an explicit blocking match.
+          let matchedRoute: PrerenderedRoute | PrerenderRouteMatcher | undefined
+          for (const route of pathsResults.prerenderedRoutes ?? []) {
+            if (!getRouteRegex(route.pathname).re.test(decodedPathname)) {
               continue
             }
             if (
@@ -2765,10 +2829,29 @@ export default abstract class Server<
               matchedRoute = route
             }
           }
+          for (const route of pathsResults.prerenderRouteMatchers ?? []) {
+            if (!getRouteRegex(route.pathname).re.test(decodedPathname)) {
+              continue
+            }
+            if (
+              matchedRoute === undefined ||
+              route.fallbackRouteParams.length <
+                (matchedRoute.fallbackRouteParams?.length ?? 0)
+            ) {
+              matchedRoute = route
+            }
+          }
+          if (
+            paramMatching !== undefined &&
+            matchedRoute?.fallbackMode === FallbackMode.NOT_FOUND
+          ) {
+            addRequestMeta(req, 'devParamMatchingRejected', true)
+          }
+
           if (matchedRoute) {
-            // Explicit shell requests render the matched artifact. Ordinary
-            // requests stage and validate the same required or completed shell
-            // target.
+            // Shell requests keep the matched route's fallback params unknown.
+            // Ordinary requests use stagedFallbackParams below to determine
+            // which params resolve in the static phase.
             addRequestMeta(
               req,
               'fallbackRouteParams',
@@ -2778,11 +2861,29 @@ export default abstract class Server<
                   )
                 : null
             )
-            addRequestMeta(
-              req,
-              'stagedFallbackParams',
-              getStagedFallbackParams(matchedRoute)
-            )
+            let stagedFallbackParams = getStagedFallbackParams({
+              ...matchedRoute,
+              // A match without a build-time prerender has no shell validation
+              // metadata. With false, getStagedFallbackParams lets remaining
+              // prerenderable params resolve in the static phase; params that
+              // cannot be prerendered still wait for the dynamic phase.
+              throwOnEmptyStaticShell:
+                'throwOnEmptyStaticShell' in matchedRoute
+                  ? matchedRoute.throwOnEmptyStaticShell
+                  : false,
+            })
+            if (pathsResults.explicitFallbackRouteParams) {
+              // An explicit fallback must work even when its params are
+              // unknown. Preserve that boundary for fully generated URLs too,
+              // without losing holes in a required partial source shell.
+              stagedFallbackParams = new Map([
+                ...(stagedFallbackParams ?? []),
+                ...(createOpaqueFallbackRouteParams(
+                  pathsResults.explicitFallbackRouteParams
+                ) ?? []),
+              ])
+            }
+            addRequestMeta(req, 'stagedFallbackParams', stagedFallbackParams)
           }
         }
       }

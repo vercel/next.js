@@ -83,3 +83,9 @@ The configuration object has key values with the following format:
 | `stale`      | `number`  | Duration the client should cache a value without checking the server.                                     | Optional                                    |
 | `revalidate` | `number`  | Frequency at which the cache should refresh on the server; stale values may be served while revalidating. | Optional                                    |
 | `expire`     | `number`  | Maximum duration for which a value can remain stale before switching to dynamic.                          | Optional - Must be longer than `revalidate` |
+
+## Version History
+
+| Version   | Changes                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `v16.0.0` | `cacheLife` stabilized and moved from `experimental.cacheLife` to the top-level `cacheLife` option. |

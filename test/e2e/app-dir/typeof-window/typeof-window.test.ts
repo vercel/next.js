@@ -1,18 +1,35 @@
-import { nextTestSetup } from 'e2e-utils'
-import path from 'path'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { execFileSync } from 'child_process'
+import { mkdtemp, rm } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 describe('typeof-window', () => {
-  const { next, skipped } = nextTestSetup({
-    files: __dirname,
-    // This test is skipped when deployed because the local tarball appears corrupted
-    // It also doesn't seem particularly useful to test when deployed
-    skipDeployment: true,
-    dependencies: {
-      'my-differentiated-files': `file:${path.join(__dirname, 'my-differentiated-files.tar')}`,
-    },
+  const overrideFiles: Record<string, FileRef> = {}
+  let archiveDir: string
+
+  beforeAll(async () => {
+    archiveDir = await mkdtemp(join(tmpdir(), 'my-differentiated-files-'))
+    const archivePath = join(archiveDir, 'my-differentiated-files.tgz')
+    execFileSync('tar', ['-czf', archivePath, 'my-differentiated-files'], {
+      cwd: __dirname,
+    })
+    overrideFiles['my-differentiated-files.tgz'] = new FileRef(archivePath)
   })
 
-  if (skipped) return
+  afterAll(async () => {
+    if (archiveDir) {
+      await rm(archiveDir, { recursive: true, force: true })
+    }
+  })
+
+  const { next } = nextTestSetup({
+    files: __dirname,
+    overrideFiles,
+    dependencies: {
+      'my-differentiated-files': 'file:./my-differentiated-files.tgz',
+    },
+  })
 
   it('should work using cheerio', async () => {
     const $ = await next.render$('/')

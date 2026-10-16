@@ -1,4 +1,4 @@
-import { unstable_navigation as navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 import { Suspense } from 'react'
 
 export const instant = { level: 'experimental-error' }

@@ -98,26 +98,26 @@ In the [component hierarchy](/docs/app/getting-started/project-structure#compone
 - Otherwise, [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) may be used. Next.js automatically detects user agents to choose between blocking and streaming behavior.
 - Since streaming is server-rendered, it does not impact SEO. You can use the [Rich Results Test](https://search.google.com/test/rich-results) tool from Google to see how your page appears to Google's web crawlers and view the serialized HTML ([source](https://web.dev/rendering-on-the-web/#seo-considerations)).
 
-### Status Codes
+### Status codes
 
-When streaming, a `200` status code will be returned to signal that the request was successful.
+Streaming page responses begin with a `200` status code.
 
-The server can still communicate errors or issues to the client within the streamed content itself, for example, when using [`redirect`](/docs/app/api-reference/functions/redirect) or [`notFound`](/docs/app/api-reference/functions/not-found). Because the response headers have already been sent to the client, the status code of the response cannot be updated.
+The initial response headers set the status for the rest of the response. Next.js can then stream redirects and HTTP access fallbacks with [`redirect`](/docs/app/api-reference/functions/redirect), [`notFound`](/docs/app/api-reference/functions/not-found), [`forbidden`](/docs/app/api-reference/functions/forbidden), or [`unauthorized`](/docs/app/api-reference/functions/unauthorized).
 
 For example, when a 404 page is streamed to the client, Next.js includes a `<meta name="robots" content="noindex">` tag in the streamed HTML. This prevents search engines from indexing that URL even if the HTTP status is 200. See Google’s guidance on the [`robots` meta tag](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag).
 
-Some crawlers may label these responses as “soft 404s”. In the streaming case, this does not lead to indexation because the page is explicitly marked `noindex` in the HTML.
+Some crawlers may label these responses as “soft 404s”. The `noindex` tag keeps them out of search results.
 
-If you need a 404 status, for compliance or analytics, ensure the resource exists before the response body is streamed, so that the server can set the HTTP status code.
+Run the corresponding check before the response body streams to return a `404`, `403`, or `401` status for compliance or analytics.
 
-You can run this check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) to rewrite missing slugs to a not-found route, or [produce a 404 response](/docs/app/api-reference/file-conventions/proxy#producing-a-response). Keep proxy checks fast, and avoid fetching full content there.
+For a `404`, you can check the slug in [Proxy](/docs/app/api-reference/file-conventions/proxy), then rewrite it to a not-found route or [return a `404` response](/docs/app/api-reference/file-conventions/proxy#producing-a-response). Keep Proxy checks fast, and avoid fetching full content there.
 
 <details>
 <summary>When is the response body streamed?</summary>
 
-The response body starts streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a Server Component suspends under a `Suspense` boundary. Place `notFound()` before those boundaries and before any `await` that may suspend.
+The response body starts streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a Server Component suspends under a `<Suspense>` boundary. Calling `notFound()`, `forbidden()`, or `unauthorized()` before this point preserves its `404`, `403`, or `401` status.
 
-To start streaming, the response headers must be set. This is why it is not possible to change the status code after streaming started.
+Starting the stream sends the response headers and fixes the status code.
 
 </details>
 

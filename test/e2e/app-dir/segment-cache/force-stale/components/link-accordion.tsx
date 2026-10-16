@@ -7,10 +7,13 @@ export function LinkAccordion({
   href,
   children,
   prefetch,
+  id,
 }: {
   href: string
   children: React.ReactNode
   prefetch?: LinkProps['prefetch']
+  // Distinguishes accordions that share an href.
+  id?: string
 }) {
   const [isVisible, setIsVisible] = useState(false)
   return (
@@ -19,10 +22,10 @@ export function LinkAccordion({
         type="checkbox"
         checked={isVisible}
         onChange={() => setIsVisible(!isVisible)}
-        data-link-accordion={href}
+        data-link-accordion={id ?? href}
       />
       {isVisible ? (
-        <Link href={href} prefetch={prefetch}>
+        <Link href={href} prefetch={prefetch} id={id}>
           {children}
         </Link>
       ) : (

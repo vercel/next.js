@@ -291,6 +291,12 @@ export default async function Page() {
         <li>
           <DebugLinkAccordion href="/fully-static" prefetch />
         </li>
+        <li>
+          <DebugLinkAccordion href="/cache-from-rdc" />
+        </li>
+        <li>
+          <DebugLinkAccordion href="/cache-from-rdc" prefetch />
+        </li>
       </ul>
     </main>
   )

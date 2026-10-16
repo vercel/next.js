@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { retry } from 'next-test-utils'
 
 // This suite asserts directly on App Shell prefetch responses, so every
 // `createRouterAct` call passes `{ includeAppShellRequests: true }`. By default
@@ -8,7 +9,7 @@ import { createRouterAct } from 'router-act'
 // for assertion purposes, since the App Shell is conceptually part of the route
 // rather than prefetch data. These tests are the exception that opts back in.
 describe('App Shell prefetching', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
   if (isNextDev) {
@@ -144,7 +145,7 @@ describe('App Shell prefetching', () => {
     )
   })
 
-  it('skips the per-link Speculative prefetch for a route with prefetch = "partial"', async () => {
+  it('skips the per-link Speculative prefetch for a link without prefetch={true}', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -180,7 +181,7 @@ describe('App Shell prefetching', () => {
     }, 'no-requests')
   })
 
-  it('does NOT skip the Speculative prefetch for a prefetch={true} link, even on a partial route', async () => {
+  it('does NOT skip the Speculative prefetch for a link with prefetch={true}', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -277,8 +278,9 @@ describe('App Shell prefetching', () => {
         .elementByCss('input[data-link-accordion="/short-stale/1"]')
         .click()
     }, [
-      // The route reads request data, so its static-attempt hint is unset
-      // and the prefetch deopts to a runtime request.
+      // The route deliberately accesses cookies to force using a runtime shell.
+      // Note that the short-stale cache is omitted from both static and runtime shells,
+      // and thus is not counted as a runtime access.
       { includes: 'App shell for short-stale', kind: 'runtime' },
     ])
 
@@ -1109,25 +1111,28 @@ describe('App Shell prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page, { includeAppShellRequests: true })
+      let act = createRouterAct(page, { includeAppShellRequests: true })
 
       // Reveal the LinkAccordion for /with-root-param/en/static-posts/1. The
       // route is fully static and opts into Partial Prefetching, so a single
       // per-segment static prefetch fires, carrying the resolved page content
       // plus the shell prefix above the params boundary (which the client
       // extracts and caches at the Fallback vary path).
-      await act(async () => {
-        await browser
-          .elementByCss(
-            'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
-          )
-          .click()
-      }, [
-        {
-          includes: 'App shell for static posts with root param: en',
-          kind: 'static',
-        },
-      ])
+      const prefetchEnglishShell = () =>
+        act(async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/with-root-param/en/static-posts/1"]'
+            )
+            .click()
+        }, [
+          {
+            includes: 'App shell for static posts with root param: en',
+            kind: 'static',
+          },
+        ])
+
+      await prefetchEnglishShell()
 
       await act(async () => {
         const startingUrl = await browser.url()
@@ -1158,26 +1163,54 @@ describe('App Shell prefetching', () => {
         'Static post 125 with root param: pl'
       )
 
-      // Go back to the home page, then repeat the "prefetch post / navigate to
-      // an unprefetched post that shares its shell" flow (from the "includes
-      // root params" tests) with a THIRD root param ("fr"). This proves the
-      // freshly prefetched "fr" shell is actually used — not the earlier "en"
-      // shell.
-      await browser.back()
+      // The test loads a fresh home page to prevent BFCache from restoring
+      // visible accordions and triggering uncontrolled prefetches. It primes
+      // English again before French to keep both root-param entries in the
+      // client cache.
+      await browser.loadPage(next.url + '/with-root-param/en', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      act = createRouterAct(page, { includeAppShellRequests: true })
 
-      await act(
-        async () => {
+      const prefetchFrenchShell = async () => {
+        await prefetchEnglishShell()
+        await act(async () => {
           await browser
             .elementByCss(
               'input[data-link-accordion="/with-root-param/fr/static-posts/1"]'
             )
             .click()
-        },
-        [
-          // TODO(app-shells): why aren't there requests here?
-          // { includes: 'App shell for static posts with root param: fr' },
-        ]
-      )
+        }, [
+          {
+            includes: 'App shell for static posts with root param: fr',
+            kind: 'static',
+          },
+        ])
+      }
+
+      if (isNextDeploy) {
+        // The test refreshes before each prefetch to clear the client's cached
+        // fallback. Deploy can serve generic segments while ISR generates a
+        // shell for unprerendered root params. Next start generates that shell
+        // blockingly.
+        //
+        // TODO: Consolidate on-demand shell generation between next start and
+        // deploy. Decide whether both modes should block on the root-specific
+        // shell or initially serve fallback segments.
+        await retry(
+          async () => {
+            await browser.refresh()
+            await prefetchFrenchShell()
+          },
+          10_000,
+          1_000,
+          'wait for the French root-specific shell'
+        )
+      } else {
+        await prefetchFrenchShell()
+      }
 
       await act(async () => {
         // Navigate to an unprefetched post that shares the "fr" shell. The

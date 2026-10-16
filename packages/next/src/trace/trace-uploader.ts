@@ -11,6 +11,9 @@ const COMMON_ALLOWED_EVENTS = [
   'memory-usage',
   'turbopack-persistence',
   'turbopack-compaction',
+  'turbopack-module-graph',
+  'turbopack-write-entrypoints',
+  'turbopack-emit',
 ]
 
 // Predefined set of the event names to be included in the trace.
