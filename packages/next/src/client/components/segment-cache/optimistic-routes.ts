@@ -70,6 +70,7 @@ import {
 } from '../../route-params'
 import type { NormalizedPathname, NormalizedSearch } from './cache-key'
 import { splitPathnameIntoParts } from './cache-key'
+import { mayBelongToPagesRouter } from './pages-router-filter'
 import {
   appendLayoutVaryPath,
   finalizeVaryPath,
@@ -740,6 +741,16 @@ export function matchKnownRoute(
   pathname: string,
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
+  // The known route tree only describes App Router routes. If this URL may be
+  // owned by the Pages Router — which can shadow App Router patterns, e.g. a
+  // pages/docs.tsx page shadowing the zero-segment match of
+  // app/docs/[[...slug]] — predicting a route for it would commit an App
+  // Router tree for a URL the server resolves to an entirely different
+  // renderer. Bail out to server resolution instead.
+  if (mayBelongToPagesRouter(pathname)) {
+    return null
+  }
+
   const pathnameParts = splitPathnameIntoParts(pathname)
   const resolvedParams: ResolvedParams = new Map()
   const match = matchKnownRoutePart(
