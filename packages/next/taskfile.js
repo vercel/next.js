@@ -94,7 +94,6 @@ const externals = {
   fibers: 'fibers',
 
   chokidar: 'chokidar',
-  'jest-worker': 'jest-worker',
 
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
