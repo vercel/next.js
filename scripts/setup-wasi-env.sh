@@ -5,7 +5,7 @@
 # shell, which a subprocess cannot do:
 #
 #     source scripts/setup-wasi-env.sh
-#     cargo check -p next-napi-bindings --target wasm32-wasip1-threads
+#     cargo build -p next-napi-bindings --target wasm32-wasip1-threads
 #
 # See contributing/core/building-wasm.md for the full workflow, including running tests.
 #

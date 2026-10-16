@@ -10,7 +10,9 @@ const {
   createWasiEnvironment,
   createWasiImportObject,
   initializeWasiThread,
+  instantiateWasiNapiModule,
   nextThreadId,
+  registerNapiExports,
   WASI_MEMORY_INITIAL_PAGES,
   WASI_MEMORY_MAXIMUM_PAGES,
 } = loader
@@ -129,6 +131,18 @@ test('rejects duplicate custom sections instead of picking one', async () => {
   assert.throws(() => read(71, nameLength, 512, 8), /is ambiguous/)
 })
 
+test('registers every napi-rs wasm export before N-API initialization', () => {
+  const calls = []
+  registerNapiExports({
+    exports: {
+      memory: {},
+      __napi_register__first_0: () => calls.push('first'),
+      __napi_register__second_1: () => calls.push('second'),
+    },
+  })
+  assert.deepEqual(calls, ['first', 'second'])
+})
+
 test('aliases @emnapi/core napi imports into napi-sys env imports', async () => {
   const bytes = buildModule({ customSections: [] })
   const module = await WebAssembly.compile(bytes)
@@ -164,22 +178,59 @@ test('aliases @emnapi/core napi imports into napi-sys env imports', async () => 
   assert.equal(imports.wasi_snapshot_preview1.fd_write, wasiFdWrite)
 })
 
+test('passes Node parallelism to the main WASI instance', async () => {
+  const wasiOptions = []
+  class FakeWasi {
+    constructor(options) {
+      wasiOptions.push(options)
+    }
+    getImportObject() {
+      return {}
+    }
+    initialize() {}
+  }
+  const initCalls = []
+
+  await instantiateWasiNapiModule({
+    bytes: buildModule({
+      initial: WASI_MEMORY_INITIAL_PAGES,
+      maximum: WASI_MEMORY_MAXIMUM_PAGES,
+    }),
+    napiModule: {
+      imports: {},
+      init: (options) => initCalls.push(options),
+    },
+    env: { KEEP: 'yes', TURBO_TASKS_AVAILABLE_PARALLELISM: '2' },
+    onThreadError: () => {},
+    workerPath: '/loader-worker.js',
+    WasiClass: FakeWasi,
+  })
+
+  assert.equal(wasiOptions.length, 1)
+  assert.deepEqual(wasiOptions[0].env, {
+    TURBO_TASKS_AVAILABLE_PARALLELISM: '2',
+    KEEP: 'yes',
+  })
+  assert.equal(initCalls.length, 1)
+})
+
+test('uses Node parallelism by default and preserves unrelated env', () => {
+  const detected = Number(
+    createWasiEnvironment({}).TURBO_TASKS_AVAILABLE_PARALLELISM
+  )
+  assert.equal(Number.isInteger(detected) && detected > 0, true)
+
+  assert.deepEqual(createWasiEnvironment({ KEEP: 'yes' }, 6), {
+    TURBO_TASKS_AVAILABLE_PARALLELISM: '6',
+    KEEP: 'yes',
+  })
+})
+
 test('allocates thread ids atomically from shared state', () => {
   const ids = new Int32Array(new SharedArrayBuffer(4))
   assert.equal(nextThreadId(ids), 1)
   assert.equal(nextThreadId(ids), 2)
   assert.throws(() => nextThreadId(new Int32Array(1)), /shared Int32Array/)
-})
-
-test('uses Node parallelism by default and preserves unrelated env', () => {
-  assert.deepEqual(createWasiEnvironment({ KEEP: 'yes' }, 6), {
-    TURBO_TASKS_AVAILABLE_PARALLELISM: '6',
-    KEEP: 'yes',
-  })
-  assert.deepEqual(
-    createWasiEnvironment({ TURBO_TASKS_AVAILABLE_PARALLELISM: '2' }, 6),
-    { TURBO_TASKS_AVAILABLE_PARALLELISM: '2' }
-  )
 })
 
 test('transfers one compiled module through the shared thread manager', async () => {
@@ -242,7 +293,7 @@ test('transfers one compiled module through the shared thread manager', async ()
     threadIds: ids,
     workerData: {
       args: ['test.wasm'],
-      env: { KEEP: 'yes' },
+      env: createWasiEnvironment({ KEEP: 'yes' }, 6),
       preopens: {},
       workerPath: '/loader-worker.js',
       napiModuleSpecifier: '/emnapi-provider.js',
@@ -271,7 +322,7 @@ test('transfers one compiled module through the shared thread manager', async ()
   assert.equal(workers[0].unreferenced, true)
 })
 
-test('spawned threads initialize WASI without _start before entering the thread', () => {
+test('spawned threads initialize WASI without process entry points', () => {
   const calls = []
   const wasi = {
     initialize(instance) {
@@ -281,12 +332,14 @@ test('spawned threads initialize WASI without _start before entering the thread'
   const instance = {
     exports: {
       _start: () => calls.push(['unexpected start']),
+      _initialize: () => calls.push(['unexpected initialize']),
       wasi_thread_start: (id, arg) => calls.push(['thread start', id, arg]),
     },
   }
 
   initializeWasiThread(wasi, instance)(7, 11)
   assert.equal('_start' in calls[0][1], false)
+  assert.equal('_initialize' in calls[0][1], false)
   assert.deepEqual(calls[1], ['thread start', 7, 11])
   assert.throws(
     () => initializeWasiThread(wasi, { exports: {} }),
