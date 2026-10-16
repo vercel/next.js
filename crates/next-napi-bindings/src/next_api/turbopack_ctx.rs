@@ -424,7 +424,10 @@ static PANIC_LOG: LazyLock<PathBuf> = LazyLock::new(|| {
 // TODO: Now that we're passing the error to a JS callback, handle this logic in Next.js using the
 // logger there instead of writing directly to stderr.
 pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
-    if cfg!(debug_assertions)
+    // WASI preview1 does not implement `std::env::temp_dir()`. Always use stderr there, including
+    // release builds, so error reporting preserves the original diagnostic instead of trapping.
+    if cfg!(target_family = "wasm")
+        || cfg!(debug_assertions)
         || env::var("SWC_DEBUG") == Ok("1".to_string())
         || env::var("CI").is_ok_and(|v| !v.is_empty())
         // Next's run-tests unsets CI and sets NEXT_TEST_CI

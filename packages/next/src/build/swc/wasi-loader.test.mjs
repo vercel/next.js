@@ -198,6 +198,7 @@ test('passes Node parallelism to the main WASI instance', async () => {
     }),
     napiModule: {
       imports: {},
+      emnapi: { addSendListener: () => true },
       init: (options) => initCalls.push(options),
     },
     env: { KEEP: 'yes', TURBO_TASKS_AVAILABLE_PARALLELISM: '2' },
@@ -287,6 +288,7 @@ test('transfers one compiled module through the shared thread manager', async ()
     shared: true,
   })
   const ids = new Int32Array(new SharedArrayBuffer(4))
+  const listenerCalls = []
   const { threadSpawn, manager } = await createThreadRuntime({
     module,
     memory,
@@ -301,11 +303,16 @@ test('transfers one compiled module through the shared thread manager', async ()
     workerPath: '/loader-worker.js',
     wasiThreadsModuleSpecifier: '/wasi-threads-provider.js',
     onError: assert.fail,
+    beforeLoad(worker) {
+      assert.deepEqual(worker.messages, [])
+      listenerCalls.push(worker)
+    },
     WorkerClass: FakeWorker,
     ThreadManagerClass: FakeThreadManager,
   })
 
   assert.equal(threadSpawn(41), 1)
+  assert.deepEqual(listenerCalls, [workers[0]])
   assert.equal(manager.module, module)
   assert.equal(manager.memory, memory)
   assert.equal(workers[0].options.workerData.threadIds, ids)
