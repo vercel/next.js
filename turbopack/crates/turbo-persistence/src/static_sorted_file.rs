@@ -463,12 +463,21 @@ impl StaticSortedFile {
                         file.metadata().map(|m| m.len()).unwrap_or(0)
                     )
                 })?;
+                // Lookups touch only a few blocks of most SSTs, so `Random` stops the kernel from
+                // reading around every fault. In exchange, `get_raw_block_slice` asks for a
+                // multi-page block with `WillNeed` before its first full read. Every block access
+                // reads the block-offset table, so request that up front.
                 #[cfg(unix)]
                 {
                     mmap.advise(memmap2::Advice::Random)?;
                     let offset = meta.block_offsets_start(mmap.len());
-                    let _ =
-                        mmap.advise_range(memmap2::Advice::Sequential, offset, mmap.len() - offset);
+                    let _ = mmap.advise_range(
+                        memmap2::Advice::WillNeed,
+                        offset,
+                        mmap.len().saturating_sub(offset),
+                    );
+                    #[cfg(test)]
+                    will_need_log::record(offset..mmap.len());
                 }
                 advise_mmap_for_persistence(&mmap)?;
                 StaticSortedFileBacking::Mmap(Arc::new(mmap))
@@ -820,8 +829,12 @@ fn get_or_read_block<'l>(
     let _ = verified_blocks;
     #[cfg(feature = "mmap")]
     let mmap_block = if let StaticSortedFileBacking::Mmap(mmap) = backing {
+        // An unverified block is about to be read in full for the first time in this open (CRC
+        // verification and, if compressed, decompression), so hint it. A verified block is either
+        // in the block cache or touches only the bytes a lookup needs.
+        let will_need = !is_block_verified(block_index, verified_blocks);
         let (uncompressed_length, checksum, block_data) =
-            get_raw_block_slice(mmap, meta, block_index).with_context(|| {
+            get_raw_block_slice(mmap, meta, block_index, will_need).with_context(|| {
                 format!(
                     "Failed to read raw block {} from {:08}.sst",
                     block_index, meta.sequence_number
@@ -891,13 +904,73 @@ fn get_or_read_block<'l>(
     ))
 }
 
+/// Asks the kernel to read `range` of the mapping ahead, if it spans more than one page.
+///
+/// Lookup mappings have `Random` advice, so without this hint the kernel faults in each page of a
+/// multi-page block separately. Readahead is best effort, and single-page ranges gain nothing.
+#[cfg(feature = "mmap")]
+fn will_need_range(mmap: &Mmap, range: Range<usize>) {
+    #[cfg(unix)]
+    if let Some(page_size) = page_size()
+        && spans_multiple_pages(&range, page_size)
+    {
+        #[cfg(test)]
+        will_need_log::record(range.clone());
+        let _ = mmap.advise_range(memmap2::Advice::WillNeed, range.start, range.len());
+    }
+    #[cfg(not(unix))]
+    let _ = (mmap, range);
+}
+
+/// Whether the non-empty `range` crosses a page boundary.
+#[cfg(all(feature = "mmap", unix))]
+fn spans_multiple_pages(range: &Range<usize>, page_size: usize) -> bool {
+    debug_assert!(!range.is_empty());
+    range.start / page_size != (range.end - 1) / page_size
+}
+
+/// The system page size, queried once. `None` if it can't be determined, in which case block hints
+/// are skipped.
+#[cfg(all(feature = "mmap", unix))]
+fn page_size() -> Option<usize> {
+    static PAGE_SIZE: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+    *PAGE_SIZE.get_or_init(|| {
+        // SAFETY: `sysconf` has no preconditions.
+        let size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+        usize::try_from(size).ok().filter(|&size| size > 0)
+    })
+}
+
+/// Records the ranges passed to `MADV_WILLNEED` on this thread, for tests.
+#[cfg(all(test, feature = "mmap", unix))]
+pub(crate) mod will_need_log {
+    use std::{cell::RefCell, ops::Range};
+
+    thread_local! {
+        static LOG: RefCell<Vec<Range<usize>>> = const { RefCell::new(Vec::new()) };
+    }
+
+    pub(crate) fn record(range: Range<usize>) {
+        LOG.with(|log| log.borrow_mut().push(range));
+    }
+
+    /// Returns and clears this thread's recorded ranges.
+    pub(crate) fn take() -> Vec<Range<usize>> {
+        LOG.with(|log| std::mem::take(&mut *log.borrow_mut()))
+    }
+}
+
 /// Gets the raw block slice directly from a memory-mapped file.
 /// Returns `(uncompressed_length, checksum, block_data)`.
+///
+/// With `will_need`, the caller is about to read the whole block, so the block (header included)
+/// is requested with `WillNeed` before any of its bytes is read; see [`will_need_range`].
 #[cfg(feature = "mmap")]
 fn get_raw_block_slice<'a>(
     mmap: &'a Mmap,
     meta: &StaticSortedFileMetaData,
     block_index: u16,
+    will_need: bool,
 ) -> Result<(u32, u32, &'a [u8])> {
     #[cfg(feature = "strict_checks")]
     if block_index >= meta.block_count {
@@ -941,11 +1014,18 @@ fn get_raw_block_slice<'a>(
         );
     }
     ensure!(
-        block_start + BLOCK_HEADER_SIZE <= block_end,
+        block_start
+            .checked_add(BLOCK_HEADER_SIZE)
+            .is_some_and(|header_end| header_end <= block_end),
         "block {} header truncated in {:08}.sst",
         block_index,
         meta.sequence_number
     );
+    // Only hint ranges inside the mapping; without `strict_checks` a corrupt end offset isn't
+    // rejected before the slicing below panics.
+    if will_need && block_end <= mmap.len() {
+        will_need_range(mmap, block_start..block_end);
+    }
     let uncompressed_length = be::read_u32(&mmap[block_start..]);
     let checksum = be::read_u32(&mmap[block_start + 4..]);
     let block = &mmap[block_start + BLOCK_HEADER_SIZE..block_end];
@@ -961,8 +1041,10 @@ fn get_raw_block<'a>(
     match backing {
         #[cfg(feature = "mmap")]
         StaticSortedFileBacking::Mmap(mmap) => {
+            // Every caller with an mmap backing reads the whole block: the index block once at
+            // open, and medium value blocks, which bypass the block cache, on every read.
             let (uncompressed_length, checksum, block) =
-                get_raw_block_slice(mmap, meta, block_index)?;
+                get_raw_block_slice(mmap, meta, block_index, true)?;
             Ok((uncompressed_length, checksum, Cow::Borrowed(block)))
         }
         StaticSortedFileBacking::File {
@@ -1048,6 +1130,17 @@ fn verify_checksum(
     Ok(())
 }
 
+/// Whether block `block_index`'s CRC has already been verified in this open. An out-of-range index
+/// counts as unverified; reading the block reports the error.
+#[cfg(feature = "mmap")]
+fn is_block_verified(block_index: u16, verified_blocks: &[AtomicU64]) -> bool {
+    let word_idx = block_index as usize / u64::BITS as usize;
+    let bit = 1u64 << (block_index as usize % u64::BITS as usize);
+    verified_blocks
+        .get(word_idx)
+        .is_some_and(|word| word.load(AtomicOrdering::Relaxed) & bit != 0)
+}
+
 /// Verifies a block's CRC using the `verified_blocks` bitmap to avoid redundant
 /// work. In practice each block is verified once, but concurrent first-time
 /// accesses may race and verify the same block more than once — this is harmless
@@ -1109,8 +1202,9 @@ fn get_raw_block_iter(
     match backing {
         #[cfg(feature = "mmap")]
         StaticSortedFileIterBacking::Mmap(mmap) => {
+            // Iteration mappings use `Sequential` advice, which already reads ahead.
             let (uncompressed_length, checksum, block) =
-                get_raw_block_slice(mmap, meta, block_index)?;
+                get_raw_block_slice(mmap, meta, block_index, false)?;
             // SAFETY: block points into mmap.
             Ok((uncompressed_length, checksum, unsafe {
                 RcBytes::from_mmap(mmap, block)
@@ -1871,5 +1965,31 @@ mod tests {
             size_of::<u64>()
         );
         assert_eq!(KeyBlockLayout::KeyOnly.hash_len(), 0);
+    }
+
+    /// Only ranges that cross a page boundary are hinted, including a small block that straddles
+    /// one, for both 4 KiB and 16 KiB pages.
+    #[cfg(all(feature = "mmap", unix))]
+    #[test]
+    fn spans_multiple_pages_detects_page_crossings() {
+        for page in [4096, 16384] {
+            assert!(!spans_multiple_pages(&(0..page), page), "one full page");
+            assert!(
+                !spans_multiple_pages(&(page..page + 100), page),
+                "inside a page"
+            );
+            assert!(spans_multiple_pages(&(0..page + 1), page), "one byte over");
+            assert!(
+                spans_multiple_pages(&(page - 8..page + 8), page),
+                "straddles a boundary"
+            );
+            assert!(
+                spans_multiple_pages(&(page / 2..3 * page), page),
+                "several pages"
+            );
+        }
+        // A 5 KiB block is one page at 16 KiB but two at 4 KiB.
+        assert!(spans_multiple_pages(&(0..5120), 4096));
+        assert!(!spans_multiple_pages(&(0..5120), 16384));
     }
 }

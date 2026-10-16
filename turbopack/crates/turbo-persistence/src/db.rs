@@ -1386,9 +1386,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut guard = self.acquire_write_operation("compaction")?;
 
         // Free block caches and SST mmaps before compaction. The block caches
-        // are not used during compaction (we iterate uncached), and any cached
-        // SST mmaps would use MADV_RANDOM which is wrong for sequential scans.
-        // Clearing them upfront frees memory for the merge work.
+        // are not used during compaction (we iterate uncached, through separate
+        // `MADV_SEQUENTIAL` mmaps), so clearing them upfront frees memory for
+        // the merge work.
         self.clear_cache();
 
         let mut sequence_number;

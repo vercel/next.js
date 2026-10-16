@@ -9100,6 +9100,7 @@ dependencies = [
  "either",
  "fs-err",
  "jiff",
+ "libc",
  "lz4_flex",
  "memmap2",
  "nohash-hasher",
