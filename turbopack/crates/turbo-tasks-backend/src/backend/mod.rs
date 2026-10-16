@@ -1,3 +1,4 @@
+mod activity;
 mod cell_data;
 mod counter_map;
 mod eviction;
@@ -8,10 +9,6 @@ mod snapshot_idle;
 mod storage;
 pub mod storage_schema;
 
-// Only the `verify_aggregation_graph` feature still uses atomics here; `stopping` is an
-// `RwLock<bool>` so that checking it and acting on it cannot be split (see the field's docs).
-#[cfg(feature = "verify_aggregation_graph")]
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
     fmt::Write,
@@ -64,6 +61,7 @@ pub use self::{
 };
 use crate::{
     backend::{
+        activity::{ActivityPublisher, BackendActivity},
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, LeafDistanceUpdateQueue,
             OutdatedEdge, TaskGuard, TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges,
@@ -71,7 +69,7 @@ use crate::{
             make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
-        snapshot_idle::SnapshotIdleState,
+        snapshot_idle::{IdleWait, SnapshotIdleState},
         storage::{Storage, StorageOptions, encode_snapshot_item},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
@@ -266,11 +264,9 @@ pub struct TurboTasksBackend {
     gc_enabled: bool,
 
     stopping: RwLock<bool>,
-    stopping_event: Event,
-    idle_start_event: Event,
-    idle_end_event: Event,
-    #[cfg(feature = "verify_aggregation_graph")]
-    is_idle: AtomicBool,
+    /// Whether the backend is idle, busy or stopping. See [`activity`] for why the idle hooks
+    /// sample the foreground-job counter instead of publishing their own kind.
+    activity: ActivityPublisher,
 
     task_statistics: TaskStatisticsApi,
 
@@ -370,11 +366,7 @@ impl TurboTasksBackend {
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(LastPersistenceStatus::Ok),
             stopping: RwLock::new(false),
-            stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
-            idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
-            idle_end_event: Event::new(|| || "TurboTasksBackend::idle_end_event".to_string()),
-            #[cfg(feature = "verify_aggregation_graph")]
-            is_idle: AtomicBool::new(false),
+            activity: ActivityPublisher::new(),
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
             gc_root_ttl,
@@ -1620,16 +1612,15 @@ impl TurboTasksBackend {
     fn stopping(&self) {
         // modify via a write guard so we synchronize with top level calls into try_execute_context
         *self.stopping.write() = true;
-        self.stopping_event.notify(usize::MAX);
+        self.activity.publish_stopping();
     }
 
     #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+        // `stopping` has already published `Stopping`, which makes a concurrent idle verification
+        // pass bail out.
         #[cfg(feature = "verify_aggregation_graph")]
-        {
-            self.is_idle.store(false, Ordering::Release);
-            self.verify_aggregation_graph(turbo_tasks, false);
-        }
+        self.verify_aggregation_graph(turbo_tasks, false);
         // eagerly drop the task cache before persisting
         self.storage.drop_task_cache();
         if self.should_persist()
@@ -1646,28 +1637,30 @@ impl TurboTasksBackend {
 
     #[allow(unused_variables)]
     fn idle_start(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        self.idle_start_event.notify(usize::MAX);
+        self.activity.publish_idle(|| turbo_tasks.is_idle());
 
         #[cfg(feature = "verify_aggregation_graph")]
         {
             use tokio::select;
 
-            self.is_idle.store(true, Ordering::Release);
             // The spawned task reaches the backend through the pinned `turbo_tasks` handle
             // rather than cloning `self`: pinning keeps the `TurboTasks` (and therefore the
             // backend it owns) alive for the task's lifetime.
             let turbo_tasks = turbo_tasks.pin();
             tokio::task::spawn(async move {
                 let backend = &turbo_tasks.backend();
+                let mut activity = backend.activity.subscribe();
                 select! {
                     _ = tokio::time::sleep(Duration::from_secs(5)) => {
                         // do nothing
                     }
-                    _ = backend.idle_end_event.listen() => {
+                    // Checks the current value first, so this also returns if we are already
+                    // busy or stopping.
+                    _ = activity.wait_for(|activity| !activity.is_idle()) => {
                         return;
                     }
                 }
-                if !backend.is_idle.load(Ordering::Relaxed) {
+                if !backend.activity.current().is_idle() {
                     return;
                 }
                 backend.verify_aggregation_graph(&turbo_tasks, true);
@@ -1675,10 +1668,8 @@ impl TurboTasksBackend {
         }
     }
 
-    fn idle_end(&self) {
-        #[cfg(feature = "verify_aggregation_graph")]
-        self.is_idle.store(false, Ordering::Release);
-        self.idle_end_event.notify(usize::MAX);
+    fn idle_end(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+        self.activity.publish_idle(|| turbo_tasks.is_idle());
     }
 
     fn get_or_create_task(
@@ -3023,8 +3014,7 @@ impl TurboTasksBackend {
                     });
 
                     let mut last_snapshot = self.start_time;
-                    let mut idle_start_listener = self.idle_start_event.listen();
-                    let mut idle_end_listener = self.idle_end_event.listen();
+                    let mut activity = self.activity.subscribe();
                     // Whether to immediately set an idle timeout if possible.
                     // Set to false if we don't persist anything in a cycle.
                     let mut fresh_idle = true;
@@ -3035,8 +3025,7 @@ impl TurboTasksBackend {
                     // The idle-snapshot timer and the accumulated compilation (non-idle) time
                     // since the last persisted snapshot, used to skip periodic snapshots that
                     // wouldn't save enough work to justify their fixed overhead. Both are
-                    // derived from the observed idle state; see `SnapshotIdleState` for why the
-                    // idle notifications alone can't be trusted.
+                    // derived from the observed activity; see `SnapshotIdleState`.
                     let mut idle_state = SnapshotIdleState::new(*IDLE_TIMEOUT);
                     'outer: loop {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
@@ -3047,43 +3036,46 @@ impl TurboTasksBackend {
                             (SNAPSHOT_INTERVAL, SnapshotReason::RegularSnapshotInterval)
                         };
 
-                        idle_state.begin_cycle(turbo_tasks.is_idle(), fresh_idle, Instant::now());
+                        // Peek at the latest activity without marking it seen. A change made
+                        // while the previous cycle was snapshotting stays pending, so the
+                        // `changed()` below still handles it as a new period. That matters
+                        // when `fresh_idle` is false: only the change re-arms the idle timer.
+                        let current = *activity.borrow();
+                        if current == BackendActivity::Stopping {
+                            return;
+                        }
+                        idle_state.begin_cycle(current.is_idle(), fresh_idle, Instant::now());
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
-                            let mut stop_listener = self.stopping_event.listen();
-                            if *self.stopping.read() {
-                                return;
-                            }
                             loop {
                                 let idle_deadline =
                                     idle_state.idle_deadline().unwrap_or_else(far_future);
                                 tokio::select! {
-                                    _ = &mut stop_listener => {
-                                        return;
-                                    },
-                                    // Re-create the listener before observing the idle state,
-                                    // so a transition after the observation isn't missed.
-                                    _ = &mut idle_start_listener => {
-                                        idle_start_listener = self.idle_start_event.listen();
-                                        idle_state
-                                            .on_idle_start(turbo_tasks.is_idle(), Instant::now());
-                                    },
-                                    _ = &mut idle_end_listener => {
-                                        idle_end_listener = self.idle_end_event.listen();
-                                        idle_state
-                                            .on_idle_end(turbo_tasks.is_idle(), Instant::now());
+                                    changed = activity.changed() => {
+                                        // Only fails once the sender (owned by the backend) is
+                                        // gone, i.e. the backend is being dropped.
+                                        if changed.is_err()
+                                            || idle_state
+                                                .on_activity_changed(&mut activity, Instant::now())
+                                                == IdleWait::Stop
+                                        {
+                                            return;
+                                        }
                                     },
                                     _ = tokio::time::sleep_until(until) => {
                                         break;
                                     },
                                     _ = tokio::time::sleep_until(idle_deadline) => {
-                                        if idle_state.on_idle_timer_fired(
-                                            turbo_tasks.is_idle(),
-                                            Instant::now(),
-                                        ) {
-                                            reason = SnapshotReason::IdleTimeout;
-                                            break;
+                                        match idle_state
+                                            .on_idle_deadline(&mut activity, Instant::now())
+                                        {
+                                            IdleWait::Continue => {}
+                                            IdleWait::Snapshot => {
+                                                reason = SnapshotReason::IdleTimeout;
+                                                break;
+                                            }
+                                            IdleWait::Stop => return,
                                         }
                                     },
                                 }
@@ -3144,20 +3136,11 @@ impl TurboTasksBackend {
                                 // running from now so time before this snapshot isn't counted.
                                 idle_state.reset_active_time(Instant::now());
 
-                                // Polls the idle-end event without blocking. Returns
-                                // `true` and refreshes the listener if idle has ended,
-                                // `false` if we are still idle.
+                                // Whether turbo-tasks has stopped being idle (busy or
+                                // stopping), from the latest published activity. Doesn't
+                                // block, and busy periods that already ended don't count.
                                 macro_rules! check_idle_ended {
-                                    () => {{
-                                        tokio::select! {
-                                            biased;
-                                            _ = &mut idle_end_listener => {
-                                                idle_end_listener = self.idle_end_event.listen();
-                                                true
-                                            },
-                                            _ = std::future::ready(()) => false,
-                                        }
-                                    }};
+                                    () => {{ !self.activity.current().is_idle() }};
                                 }
                                 // Evict persisted tasks from memory to reclaim space.
                                 // Like compaction, this runs after snapshot_and_persist
@@ -3525,7 +3508,7 @@ impl TurboTasksBackend {
                     );
                 }
                 let task = ctx.task(task_id, TaskDataCategory::All);
-                if idle && !self.is_idle.load(Ordering::Relaxed) {
+                if idle && !self.activity.current().is_idle() {
                     return;
                 }
 
@@ -3742,8 +3725,8 @@ impl Backend for TurboTasksBackend {
         self.idle_start(turbo_tasks);
     }
 
-    fn idle_end(&self, _turbo_tasks: &TurboTasks<Self>) {
-        self.idle_end();
+    fn idle_end(&self, turbo_tasks: &TurboTasks<Self>) {
+        self.idle_end(turbo_tasks);
     }
 
     fn get_or_create_task(

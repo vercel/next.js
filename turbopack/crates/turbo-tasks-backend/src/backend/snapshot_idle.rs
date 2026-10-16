@@ -1,24 +1,32 @@
 //! Idle bookkeeping for the background snapshot loop.
 //!
-//! The snapshot loop learns about idle transitions from the backend's `idle_start_event` and
-//! `idle_end_event`. Those are notified with `Event::notify`, which only wakes listeners that
-//! exist at that moment and doesn't queue. The loop re-creates each listener after handling it,
-//! so a transition in between reaches no listener. And when several transitions happen before
-//! the loop polls, it handles the ready listeners in arbitrary order. A notification therefore
-//! doesn't say anything reliable about the *current* state.
+//! The snapshot loop observes the backend's activity through a watch channel (see
+//! [`crate::backend::activity`]), which always yields the latest published value but may
+//! coalesce several publications into one change. [`SnapshotIdleState`] is fed every observed
+//! value and derives all of its state from it. An observed idle value always (re)starts the idle
+//! timeout: a busy period may have been coalesced away in between, so the system may not have
+//! been idle for the whole time since the previous observation.
 //!
-//! For example, idle-start, idle-end, idle-start all happen before the loop polls. The second
-//! idle-start is lost, and the loop may handle the idle-start and then the idle-end. Treating the
-//! idle-end as "now busy" would disarm the idle snapshot while turbo-tasks is idle, and no
-//! further notification arrives until the next transition.
-//!
-//! [`SnapshotIdleState`] treats every notification only as a cue to re-check whether turbo-tasks
-//! is idle, observed after the listener was re-created so later transitions aren't missed, and
-//! derives all of its state from that observation.
+//! For the same reason, when the idle timer fires while a change is still unread, the change is
+//! handled first instead of taking the snapshot.
 
-use tokio::time::{Duration, Instant};
+use tokio::{
+    sync::watch,
+    time::{Duration, Instant},
+};
 
-use crate::utils::stopwatch::Stopwatch;
+use crate::{backend::activity::BackendActivity, utils::stopwatch::Stopwatch};
+
+/// What the snapshot loop does next after handling a change or the idle timer.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum IdleWait {
+    /// Keep waiting.
+    Continue,
+    /// Take the idle snapshot.
+    Snapshot,
+    /// The backend is stopping (or gone): leave the loop.
+    Stop,
+}
 
 /// The idle-snapshot timer and the active-time accounting of the snapshot loop.
 ///
@@ -45,31 +53,63 @@ impl SnapshotIdleState {
     }
 
     /// Starts a wait cycle. The idle timer is armed only if turbo-tasks is idle and `fresh_idle`
-    /// is set, i.e. there may be something new to persist. Otherwise the next idle transition
-    /// arms it.
+    /// is set, i.e. there may be something new to persist. Otherwise the next observed change to
+    /// idle arms it.
     pub fn begin_cycle(&mut self, is_idle: bool, fresh_idle: bool, now: Instant) {
         self.sync_active_time(is_idle, now);
         self.idle_deadline = (is_idle && fresh_idle).then(|| now + self.idle_timeout);
     }
 
-    /// Handles an idle-start notification. `is_idle` must be observed after the listener was
-    /// re-created.
-    pub fn on_idle_start(&mut self, is_idle: bool, now: Instant) {
-        self.on_idle_transition(is_idle, now);
+    /// Handles an observed change of the backend's activity. Observing idle (re)starts the idle
+    /// timeout, even if the previous observation was idle too.
+    pub fn on_idle_changed(&mut self, is_idle: bool, now: Instant) {
+        self.sync_active_time(is_idle, now);
+        self.idle_deadline = is_idle.then(|| now + self.idle_timeout);
     }
 
-    /// Handles an idle-end notification. `is_idle` must be observed after the listener was
-    /// re-created. This can be idle when a later idle-start was lost.
-    pub fn on_idle_end(&mut self, is_idle: bool, now: Instant) {
-        self.on_idle_transition(is_idle, now);
+    /// Reads the latest value from `activity`, marking it seen, and handles it as a change.
+    pub fn on_activity_changed(
+        &mut self,
+        activity: &mut watch::Receiver<BackendActivity>,
+        now: Instant,
+    ) -> IdleWait {
+        // Copy the value out: the borrow must not outlive this statement.
+        let current = *activity.borrow_and_update();
+        if current == BackendActivity::Stopping {
+            return IdleWait::Stop;
+        }
+        self.on_idle_changed(current.is_idle(), now);
+        IdleWait::Continue
     }
 
-    /// Handles the idle timer firing. Returns whether to take the idle snapshot. If turbo-tasks
-    /// isn't idle (a pending idle-end, or a lost one), the timer is disarmed instead of firing
-    /// again immediately, and the next idle-start re-arms it.
-    pub fn on_idle_timer_fired(&mut self, is_idle: bool, now: Instant) -> bool {
+    /// Handles the idle deadline being reached. An unread change is handled first and the
+    /// snapshot isn't taken: the change may hide a busy period, after which the timeout starts
+    /// over (or it may be `Stopping`). This also keeps a pending change from depending on
+    /// which branch the loop's `select!` happens to poll first.
+    pub fn on_idle_deadline(
+        &mut self,
+        activity: &mut watch::Receiver<BackendActivity>,
+        now: Instant,
+    ) -> IdleWait {
+        match activity.has_changed() {
+            Err(_) => return IdleWait::Stop,
+            Ok(true) => return self.on_activity_changed(activity, now),
+            Ok(false) => {}
+        }
+        let is_idle = activity.borrow().is_idle();
+        if self.on_idle_timer_fired(is_idle, now) {
+            IdleWait::Snapshot
+        } else {
+            IdleWait::Continue
+        }
+    }
+
+    /// Handles the idle timer firing with no unread change. Returns whether to take the idle
+    /// snapshot. If turbo-tasks isn't idle, the timer is disarmed instead of firing again
+    /// immediately, and the next observed idle value re-arms it.
+    fn on_idle_timer_fired(&mut self, is_idle: bool, now: Instant) -> bool {
         if !is_idle {
-            self.on_idle_transition(false, now);
+            self.on_idle_changed(false, now);
         }
         is_idle
     }
@@ -88,13 +128,6 @@ impl SnapshotIdleState {
         self.active_time.reset_at(now.into_std());
     }
 
-    /// A transition of either kind happened. An idle period that is observed now (re)starts the
-    /// idle timeout, since the system may have been busy in between.
-    fn on_idle_transition(&mut self, is_idle: bool, now: Instant) {
-        self.sync_active_time(is_idle, now);
-        self.idle_deadline = is_idle.then(|| now + self.idle_timeout);
-    }
-
     fn sync_active_time(&mut self, is_idle: bool, now: Instant) {
         if is_idle {
             self.active_time.stop_at(now.into_std());
@@ -108,7 +141,8 @@ impl SnapshotIdleState {
 mod tests {
     use tokio::time::{Duration, Instant};
 
-    use super::SnapshotIdleState;
+    use super::{IdleWait, SnapshotIdleState};
+    use crate::backend::activity::ActivityPublisher;
 
     const TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -128,58 +162,26 @@ mod tests {
         assert_eq!(state.active_time(to) - state.active_time(from), to - from);
     }
 
-    /// The race this type exists to handle: idle-start, idle-end and idle-start again are all
-    /// notified before the loop polls. The second idle-start reaches no listener (the first one
-    /// was already notified), so the loop only handles the first idle-start and then the stale
-    /// idle-end, while turbo-tasks is idle.
     #[test]
-    fn idle_end_handled_while_idle_arms_the_timer() {
+    fn observing_idle_arms_the_timer_and_stops_active_time() {
         let at = clock();
         let mut state = SnapshotIdleState::new(TIMEOUT);
         state.begin_cycle(false, true, at(0));
 
-        state.on_idle_start(true, at(100));
-        state.on_idle_end(true, at(101));
-
-        assert_eq!(state.idle_deadline(), Some(at(101) + TIMEOUT));
-        assert_stopped(&state, at(101), at(5_000));
-    }
-
-    /// The mirror image: idle-end, idle-start and idle-end again, handled as end then a stale
-    /// start while turbo-tasks is busy. The timer must not fire for a busy system.
-    #[test]
-    fn idle_start_handled_while_busy_does_not_arm_the_timer() {
-        let at = clock();
-        let mut state = SnapshotIdleState::new(TIMEOUT);
-        state.begin_cycle(true, true, at(0));
-
-        state.on_idle_end(false, at(100));
-        state.on_idle_start(false, at(101));
-
-        assert_eq!(state.idle_deadline(), None);
-        assert_running(&state, at(101), at(5_000));
-    }
-
-    #[test]
-    fn idle_start_while_idle_arms_the_timer_and_stops_active_time() {
-        let at = clock();
-        let mut state = SnapshotIdleState::new(TIMEOUT);
-        state.begin_cycle(false, true, at(0));
-
-        state.on_idle_start(true, at(300));
+        state.on_idle_changed(true, at(300));
 
         assert_eq!(state.idle_deadline(), Some(at(300) + TIMEOUT));
         assert_eq!(state.active_time(at(1_000)), Duration::from_millis(300));
     }
 
     #[test]
-    fn idle_end_while_busy_disarms_the_timer_and_runs_active_time() {
+    fn observing_busy_disarms_the_timer_and_runs_active_time() {
         let at = clock();
         let mut state = SnapshotIdleState::new(TIMEOUT);
         state.begin_cycle(true, true, at(0));
         assert_eq!(state.idle_deadline(), Some(at(0) + TIMEOUT));
 
-        state.on_idle_end(false, at(200));
+        state.on_idle_changed(false, at(200));
 
         assert_eq!(state.idle_deadline(), None);
         assert_running(&state, at(200), at(700));
@@ -191,10 +193,113 @@ mod tests {
         let mut state = SnapshotIdleState::new(TIMEOUT);
         state.begin_cycle(true, true, at(0));
 
-        state.on_idle_end(false, at(1_000));
-        state.on_idle_start(true, at(1_500));
+        state.on_idle_changed(false, at(1_000));
+        state.on_idle_changed(true, at(1_500));
 
         assert_eq!(state.idle_deadline(), Some(at(1_500) + TIMEOUT));
+    }
+
+    /// The watch channel coalesced idle -> busy -> idle into one change, so the loop observes
+    /// idle twice in a row. The busy period in between means the idle timeout starts over.
+    #[test]
+    fn observing_idle_again_restarts_the_timeout() {
+        let at = clock();
+        let mut state = SnapshotIdleState::new(TIMEOUT);
+        state.begin_cycle(true, true, at(0));
+
+        state.on_idle_changed(true, at(4_000));
+
+        assert_eq!(state.idle_deadline(), Some(at(4_000) + TIMEOUT));
+        assert_stopped(&state, at(4_000), at(8_000));
+    }
+
+    /// A request comes and goes while the previous cycle is snapshotting. The loop only peeks at
+    /// the start of the next cycle, so the change is still pending for `changed()` and re-arms the
+    /// timer, even though the cycle isn't fresh. Marking it seen at the cycle start would lose the
+    /// idle snapshot for that request.
+    #[test]
+    fn change_during_snapshot_stays_pending_across_cycle_start() {
+        let at = clock();
+        let publisher = ActivityPublisher::new();
+        let mut receiver = publisher.subscribe();
+        let mut state = SnapshotIdleState::new(TIMEOUT);
+
+        publisher.publish_idle(|| false);
+        publisher.publish_idle(|| true);
+
+        let current = *receiver.borrow();
+        state.begin_cycle(current.is_idle(), false, at(0));
+        assert_eq!(state.idle_deadline(), None);
+
+        assert!(receiver.has_changed().unwrap());
+        assert_eq!(
+            state.on_activity_changed(&mut receiver, at(1)),
+            IdleWait::Continue
+        );
+        assert_eq!(state.idle_deadline(), Some(at(1) + TIMEOUT));
+    }
+
+    /// The idle deadline of an earlier idle period is reached while a coalesced busy -> idle
+    /// change is still unread (the loop's `select!` polled the timer first). The change is
+    /// handled and the timeout starts over instead of snapshotting right away.
+    #[test]
+    fn deadline_with_unread_change_restarts_the_timeout() {
+        let at = clock();
+        let publisher = ActivityPublisher::new();
+        let mut receiver = publisher.subscribe();
+        let mut state = SnapshotIdleState::new(TIMEOUT);
+        state.begin_cycle(true, true, at(0));
+
+        publisher.publish_idle(|| false);
+        publisher.publish_idle(|| true);
+
+        assert_eq!(
+            state.on_idle_deadline(&mut receiver, at(5_000)),
+            IdleWait::Continue
+        );
+        assert_eq!(state.idle_deadline(), Some(at(5_000) + TIMEOUT));
+        assert!(!receiver.has_changed().unwrap());
+    }
+
+    #[test]
+    fn deadline_with_unread_stopping_stops() {
+        let at = clock();
+        let publisher = ActivityPublisher::new();
+        let mut receiver = publisher.subscribe();
+        let mut state = SnapshotIdleState::new(TIMEOUT);
+        state.begin_cycle(true, true, at(0));
+
+        publisher.publish_stopping();
+
+        assert_eq!(
+            state.on_idle_deadline(&mut receiver, at(5_000)),
+            IdleWait::Stop
+        );
+    }
+
+    #[test]
+    fn deadline_without_change_snapshots_when_idle_and_disarms_when_busy() {
+        let at = clock();
+        let publisher = ActivityPublisher::new();
+        let mut receiver = publisher.subscribe();
+        let mut state = SnapshotIdleState::new(TIMEOUT);
+        state.begin_cycle(true, true, at(0));
+        assert_eq!(
+            state.on_idle_deadline(&mut receiver, at(5_000)),
+            IdleWait::Snapshot
+        );
+
+        // Busy, and the change was already handled by the loop.
+        publisher.publish_idle(|| false);
+        assert_eq!(
+            state.on_activity_changed(&mut receiver, at(6_000)),
+            IdleWait::Continue
+        );
+        assert_eq!(
+            state.on_idle_deadline(&mut receiver, at(7_000)),
+            IdleWait::Continue
+        );
+        assert_eq!(state.idle_deadline(), None);
     }
 
     #[test]
@@ -222,7 +327,7 @@ mod tests {
         let mut state = SnapshotIdleState::new(TIMEOUT);
         state.begin_cycle(false, true, at(0));
 
-        // Idle at the next cycle, without the loop having handled an idle-start.
+        // Idle at the next cycle, without the loop having handled the change.
         state.begin_cycle(true, true, at(400));
 
         assert_eq!(state.active_time(at(2_000)), Duration::from_millis(400));
