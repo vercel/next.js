@@ -288,6 +288,9 @@ is used (checksum verification and decompression). On Unix, the lookup mapping t
   the block cache). Without the hint, `MADV_RANDOM` would fault such a block in one page at a time.
   Blocks within a single page, and blocks whose checksum was already verified, get no hint.
 
+If the system page size can't be determined, block hints are skipped, so `MADV_RANDOM` isn't applied
+either and the mapping keeps the default advice.
+
 Compaction reads SST files through separate `MADV_SEQUENTIAL` mappings.
 
 ## Writing

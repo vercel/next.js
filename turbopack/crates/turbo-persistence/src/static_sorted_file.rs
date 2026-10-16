@@ -465,11 +465,14 @@ impl StaticSortedFile {
                 })?;
                 // Lookups touch only a few blocks of most SSTs, so `Random` stops the kernel from
                 // reading around every fault. In exchange, `get_raw_block_slice` asks for a
-                // multi-page block with `WillNeed` before its first full read. Every block access
-                // reads the block-offset table, so request that up front.
+                // multi-page block with `WillNeed` before its first full read. Those hints need the
+                // page size; without it, keep the default advice so read-around still prefetches.
+                // Every block access reads the block-offset table, so request that up front.
                 #[cfg(unix)]
                 {
-                    mmap.advise(memmap2::Advice::Random)?;
+                    if page_size().is_some() {
+                        mmap.advise(memmap2::Advice::Random)?;
+                    }
                     let offset = meta.block_offsets_start(mmap.len());
                     let _ = mmap.advise_range(
                         memmap2::Advice::WillNeed,
