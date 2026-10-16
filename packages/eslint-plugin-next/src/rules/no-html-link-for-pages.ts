@@ -107,12 +107,11 @@ export default defineRule({
       return {}
     }
 
-    const pageExtensions = context.settings?.next?.pageExtensions || [
-      'tsx',
-      'ts',
-      'jsx',
-      'js',
-    ]
+    const configuredExtensions = context.settings?.next?.pageExtensions
+    const pageExtensions =
+      Array.isArray(configuredExtensions) && configuredExtensions.length > 0
+        ? configuredExtensions
+        : ['tsx', 'ts', 'jsx', 'js']
     const pageUrls = cachedGetUrlFromPagesDirectories(
       '/',
       foundPagesDirs,
