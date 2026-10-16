@@ -17,11 +17,7 @@ import { isAppPageRoute } from '../lib/is-app-page-route'
 import { UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY } from '../shared/lib/entry-constants'
 import getAssetPathFromRoute from '../shared/lib/router/utils/get-asset-path-from-route'
 import { Bundler } from '../lib/bundler'
-import { wait } from '../lib/wait'
 import { getBuildDistDir } from '../export/utils'
-
-const DEV_STATIC_INFO_RETRY_TIMEOUT = 5_000
-const DEV_STATIC_INFO_RETRY_INTERVAL = 100
 
 export async function getStaticInfoIncludingLayouts({
   dir,
@@ -123,33 +119,23 @@ export async function getStaticInfoIncludingLayouts({
       }
       baseline = sort(baseline)
 
-      const retryUntil = Date.now() + DEV_STATIC_INFO_RETRY_TIMEOUT
-      while (true) {
-        let validationError: Error
-
-        try {
-          const turbopack = readStaticInfo()
-
-          if (JSON.stringify(baseline) === JSON.stringify(sort(turbopack))) {
-            return turbopack
-          }
-
-          validationError = new Error(
-            `Static info mismatch for ${pageFilePath}: ` +
-              JSON.stringify({ baseline, turbopack }, null, 2)
-          )
-        } catch (cause) {
-          validationError = new Error(
-            'Failed to read Turbopack static info from disk',
-            { cause }
-          )
-        }
-
-        if (!isDev || Date.now() >= retryUntil) {
-          throw validationError
-        }
-        await wait(DEV_STATIC_INFO_RETRY_INTERVAL)
+      let turbopack: PageStaticInfo
+      try {
+        turbopack = readStaticInfo()
+      } catch (cause) {
+        throw new Error('Failed to read Turbopack static info from disk', {
+          cause,
+        })
       }
+
+      if (JSON.stringify(baseline) !== JSON.stringify(sort(turbopack))) {
+        throw new Error(
+          `Static info mismatch for ${pageFilePath}: ` +
+            JSON.stringify({ baseline, turbopack }, null, 2)
+        )
+      }
+
+      return turbopack
     } else {
       return readStaticInfo()
     }

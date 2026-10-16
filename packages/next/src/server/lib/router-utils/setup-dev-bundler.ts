@@ -651,7 +651,8 @@ async function startWatcher(
           // static info may be missing or stale here.
           //
           // TODO switch this over to Turbopack emitted static-info.json once we have solved the
-          // double-watcher race condition situation.
+          // double-watcher race condition situation. This is an unfortunate dev vs builds
+          // discrepancy
           const getStaticInfoIncludingLayoutsFromSource = (
             require('../../../build/get-static-info-including-layouts') as typeof import('../../../build/get-static-info-including-layouts')
           ).getStaticInfoIncludingLayoutsFromSource
