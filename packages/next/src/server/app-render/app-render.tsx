@@ -169,7 +169,7 @@ import {
   getPostponedFromState,
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import type { ServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { getFlightStream } from './use-flight-response'
 import {
   StaticGenBailoutError,
@@ -221,7 +221,6 @@ import {
 } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
 import type { RequestErrorContext } from '../instrumentation/types'
-import { getIsPossibleServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../client/components/app-router-instance'
 import { getRevalidateReason } from '../instrumentation/utils'
@@ -2549,6 +2548,7 @@ function installGlobalModuleLoadingHandlers(
 }
 
 type PreparedAppPageRender = {
+  serverActionRequestMetadata: ServerActionRequestMetadata
   req: BaseNextRequest
   ctx: AppRenderContext
   metadata: AppPageRenderResultMetadata
@@ -2622,6 +2622,7 @@ async function prepareAppPageRender(
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -2729,8 +2730,6 @@ async function prepareAppPageRender(
     renderOpts.experimental.optimisticRouting
   )
 
-  const isPossibleActionRequest = getIsPossibleServerAction(req)
-
   const implicitTags = await getImplicitTags(
     workStore.page,
     routeMatch.resolvedPathname,
@@ -2751,7 +2750,7 @@ async function prepareAppPageRender(
     fallbackRouteParams,
     query,
     isPrefetch: isPrefetchRequest,
-    isPossibleServerAction: isPossibleActionRequest,
+    isPossibleServerAction: serverActionRequestMetadata.isPossibleServerAction,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
@@ -2769,6 +2768,7 @@ async function prepareAppPageRender(
   getTracer().setRootSpanAttribute('next.route', pagePath)
 
   return {
+    serverActionRequestMetadata,
     req,
     ctx,
     metadata,
@@ -2923,7 +2923,13 @@ async function prerenderAppPage({
 }
 
 async function renderAppPage(
-  { req, ctx, metadata, loaderTree }: PreparedAppPageRender,
+  {
+    req,
+    ctx,
+    metadata,
+    loaderTree,
+    serverActionRequestMetadata,
+  }: PreparedAppPageRender,
   postponedState: PostponedState | null,
   dev: DevRenderContext | undefined
 ) {
@@ -3060,6 +3066,7 @@ async function renderAppPage(
     // For action requests, we handle them differently with a special render result.
     const actionRequestResult = await handleAction({
       req,
+      serverActionRequestMetadata,
       res,
       ComponentMod,
       generateFlight: generateDynamicFlightRenderResult,
@@ -3215,6 +3222,7 @@ async function renderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   postponedState: PostponedState | null,
   dev: DevRenderContext | undefined,
   sharedContext: AppSharedContext,
@@ -3238,6 +3246,7 @@ async function renderToHTMLOrFlightImpl(
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
@@ -3266,6 +3275,7 @@ async function prerenderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -3288,6 +3298,7 @@ async function prerenderToHTMLOrFlightImpl(
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
@@ -3317,7 +3328,8 @@ export type AppPageRender = (
   dev: DevRenderContext | undefined,
   sharedContext: AppSharedContext,
   routeMatch: RouteMatch,
-  parsedRequestHeaders: ParsedRequestHeaders
+  parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3331,7 +3343,7 @@ type AppPagePreparation = {
 }
 
 function prepareAppPage(
-  req: BaseNextRequest,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   requestUrl: string,
   pagePath: string,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -3355,7 +3367,7 @@ function prepareAppPage(
   let postponedState: PostponedState | null = null
   if (typeof renderOpts.postponed === 'string') {
     if (fallbackRouteParams) {
-      if (!getServerActionRequestMetadata(req).isFetchAction) {
+      if (!serverActionRequestMetadata.isFetchAction) {
         throw new InvariantError(
           'postponed state should not be provided when fallback params are provided'
         )
@@ -3408,10 +3420,11 @@ export const renderToHTMLOrFlight: AppPageRender = (
   dev,
   sharedContext,
   routeMatch,
-  parsedRequestHeaders
+  parsedRequestHeaders,
+  serverActionRequestMetadata
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
-    req,
+    serverActionRequestMetadata,
     requestUrl,
     pagePath,
     fallbackRouteParams,
@@ -3442,6 +3455,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     postponedState,
     dev,
     sharedContext,
@@ -3462,10 +3476,11 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
   _dev,
   sharedContext,
   routeMatch,
-  parsedRequestHeaders
+  parsedRequestHeaders,
+  serverActionRequestMetadata
 ) => {
   const { url, interpolatedParams } = prepareAppPage(
-    req,
+    serverActionRequestMetadata,
     requestUrl,
     pagePath,
     fallbackRouteParams,
@@ -3496,6 +3511,7 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,

@@ -32,6 +32,7 @@ import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { RouteMatch } from '../../server/route-modules/app-page/module'
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 import {
   deflateResumeDataCache,
@@ -105,7 +106,8 @@ export async function exportAppPage(
       undefined, // dev
       sharedContext,
       routeMatch,
-      parsedRequestHeaders
+      parsedRequestHeaders,
+      getServerActionRequestMetadata(nextReq)
     )
 
     if ('error' in result) {
