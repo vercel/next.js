@@ -75,7 +75,15 @@ Before proposing an edit, record these items for each candidate. Mark an inappli
 
 For lazy interaction features, duplicate packages, server-rendered display work or other attributed assets, read the matching section in [Fix patterns](references/fix-patterns.md) before proposing an edit.
 
-**Done:** the paired pass and its target dispositions are recorded, or the narrow-scope skip reason or blocker is explicit. Every candidate has a completed checklist, exact source/importer, proposed edit and named behavior checks. Label heuristics as heuristics and qualify conclusions affected by evidence gaps; the report step completes **audit** mode.
+### Unexpected client dependencies
+
+The size ranking misses small modules intended for the server that end up in client code. In both modes, read [Client dependencies](references/client-dependencies.md) and use a streaming analysis script to:
+
+1. **Discover:** inspect emitted client modules, starting with sources also emitted on the server, then checking the remaining client modules, including async outputs.
+2. **Validate:** establish intended server ownership from source, callers or project documentation and confirm the relevant contents survive in emitted client code. Apply this test to every category. Record intentional client uses as suppressed matches and missing evidence as unverified matches.
+3. **Trace:** find the preferred client import chain, affected routes, loading conditions and attributed compressed bytes for each validated finding.
+
+**Done:** the paired pass accounts for every target, or records why it was skipped or blocked. Every candidate has a completed checklist, exact source/importer, proposed edit and named behavior checks. Every emitted client module in scope is checked, with coverage gaps recorded. Each source match is a heuristic finding, suppressed with a reason or unverified with an evidence gap. Audit mode ends after the report.
 
 ## 5. Verify one change — fix mode only
 
@@ -87,4 +95,6 @@ Make one small, cohesive change. Capture/export an after snapshot with a new nam
 
 Audit reports candidates; fix reports accepted edits and any reverted or unverified attempts. Include snapshot names, scoped attribution/deltas, exact source/importer, behavior-check results and blockers. For a graph cut, include its route/render conditions, roots/target and unknowns. Distinguish source facts, build evidence, heuristics and separately observed runtime facts.
 
-**Done:** every scoped candidate or attempted edit is accounted for, with evidence or a stated gap.
+Add a separate **Possible server-only leaks** section that marks every finding as heuristic and gives each one the same five labeled lines: **Module**, **Routes**, **Chain**, **Heuristics** and **Compressed bytes**. Include ownership evidence for every finding on the Heuristics line. Where you couldn't get a value, write the reason on that line instead. In fix mode, distinguish unresolved boundary concerns from accepted size edits, even when they involve the same file. If the pass found nothing, say that.
+
+**Done:** every scoped candidate, leak finding or attempted edit is accounted for, with evidence or a stated gap.
