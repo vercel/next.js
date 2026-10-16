@@ -42,13 +42,13 @@ wasi-sdk setup.
 
 ## What it provides
 
-| Import | Source |
-|---|---|
-| `wasi_snapshot_preview1.*` | `node:wasi` |
-| `wasi.thread-spawn` | `@emnapi/wasi-threads` over `node:worker_threads` (`spawn.mjs`) |
-| `env.memory` | a shared `WebAssembly.Memory` matching the explicit linker limits in `.cargo/config.toml` |
-| `env.read_custom_section` | `WebAssembly.Module.customSections` (`lib.mjs`) |
-| filesystem | working directory at `/`; the system `os.tmpdir()` at `/tmp`, also exported as `TMPDIR` |
+| Import                     | Source                                                                                    |
+| -------------------------- | ----------------------------------------------------------------------------------------- |
+| `wasi_snapshot_preview1.*` | `node:wasi`                                                                               |
+| `wasi.thread-spawn`        | `@emnapi/wasi-threads` over `node:worker_threads` (`spawn.mjs`)                           |
+| `env.memory`               | a shared `WebAssembly.Memory` matching the explicit linker limits in `.cargo/config.toml` |
+| `env.read_custom_section`  | `WebAssembly.Module.customSections` (`lib.mjs`)                                           |
+| filesystem                 | working directory at `/`; the system `os.tmpdir()` at `/tmp`, also exported as `TMPDIR`   |
 
 `@emnapi/wasi-threads` owns Worker lifecycle, compiled-module transfer, load/start ordering, and
 cleanup. A small local adapter remains because Rust imports the original one-argument
@@ -103,9 +103,9 @@ Some tests are marked `#[cfg_attr(target_family = "wasm", ignore = "…")]`, so 
 `ignored, <reason>` rather than disappearing. Each reason is a real platform limitation, not a
 workaround for this host:
 
-| Reason | Why |
-|---|---|
-| `no unwinding on wasm` | wasm is `panic = abort`, so `catch_unwind` never catches and a panic takes the whole instance down. Affects `#[should_panic]` tests and tests asserting panic isolation. |
+| Reason                             | Why                                                                                                                                                                                                                               |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no unwinding on wasm`             | wasm is `panic = abort`, so `catch_unwind` never catches and a panic takes the whole instance down. Affects `#[should_panic]` tests and tests asserting panic isolation.                                                          |
 | `parking_lot cannot block on wasm` | `parking_lot_core` only has a working thread parker behind its `nightly` feature, and the pinned version cannot compile it on current nightly. Blocking on a contended lock panics with "Parking not supported on this platform". |
 
 The `parking_lot` limitation is worth calling out: it is not only a test problem. Until it is fixed,
