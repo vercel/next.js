@@ -98,7 +98,10 @@ function generateParamTypes(routesManifest: RouteTypesManifest): string {
     const { groups } = routeInfo
 
     // For static routes (no dynamic segments), we can produce an empty parameter map.
-    if (!isDynamicRoute(route) || Object.keys(groups ?? {}).length === 0) {
+    if (
+      !isDynamicRoute(route, false) ||
+      Object.keys(groups ?? {}).length === 0
+    ) {
       paramTypes += `  ${JSON.stringify(route)}: {}\n`
       continue
     }
@@ -159,28 +162,22 @@ function generateLayoutSlotMap(routesManifest: RouteTypesManifest): string {
   return slotMap
 }
 
-// Helper function to format routes to route types (matches the plugin logic exactly)
+// Helper function to format routes to route types
 function formatRouteToRouteType(route: string) {
-  const isDynamic = isDynamicRoute(route)
-  if (isDynamic) {
-    route = route
-      .split('/')
-      .map((part) => {
-        if (part.startsWith('[') && part.endsWith(']')) {
-          if (part.startsWith('[...')) {
-            // /[...slug]
-            return `\${CatchAllSlug<T>}`
-          } else if (part.startsWith('[[...') && part.endsWith(']]')) {
-            // /[[...slug]]
-            return `\${OptionalCatchAllSlug<T>}`
-          }
-          // /[slug]
-          return `\${SafeSlug<T>}`
-        }
-        return part
-      })
-      .join('/')
-  }
+  const isDynamic = isDynamicRoute(route, false)
+  // Segments may be prefixed or suffixed (`/@[username]`, from rewrites)
+  route = route.replace(
+    /\[\[\.\.\.[^\]/]+\]\]|\[\.\.\.[^\]/]+\]|\[[^\]/]+\]/g,
+    (param) =>
+      param.startsWith('[[...')
+        ? // /[[...slug]]
+          `\${OptionalCatchAllSlug<T>}`
+        : param.startsWith('[...')
+          ? // /[...slug]
+            `\${CatchAllSlug<T>}`
+          : // /[slug]
+            `\${SafeSlug<T>}`
+  )
 
   return {
     isDynamic,
