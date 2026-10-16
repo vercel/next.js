@@ -182,7 +182,6 @@ Logically keys are ordered by hash (this is how we chose file and block assignme
 - **With hash (types 1 and 3):** sorted by `(key hash, key)`.
 - **No hash (types 2 and 4):** sorted by **key** alone.
 
-
 ##### Key-value tombstones
 
 A key-value tombstone names the exact pair to remove, so it must carry a copy of the deleted
@@ -272,7 +271,7 @@ files, from newest to oldest; there is no ordering dependency between families.
     - Key Block: find key by binary search, comparing `(hash, key)` in blocks that store a hash and
       the key alone in blocks that do not (see [Entry ordering](#entry-ordering))
       - found -> lookup value from value block, return
-          - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
+        - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
 
 ## Writing
