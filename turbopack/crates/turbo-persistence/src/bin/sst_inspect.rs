@@ -338,7 +338,7 @@ fn read_block(
         compressed_size
     };
 
-    let actual_checksum = checksum_block(compressed_data);
+    let actual_checksum = checksum_block(uncompressed_length, compressed_data);
     if actual_checksum != expected_checksum {
         bail!(
             "Cache corruption detected: checksum mismatch in block {} of {:08}.sst (expected \
@@ -1021,7 +1021,7 @@ mod tests {
 
     fn uncompressed_block(data: &[u8]) -> Vec<u8> {
         let mut block = 0_u32.to_be_bytes().to_vec();
-        block.extend_from_slice(&checksum_block(data).to_be_bytes());
+        block.extend_from_slice(&checksum_block(0, data).to_be_bytes());
         block.extend_from_slice(data);
         block
     }
@@ -1080,10 +1080,27 @@ mod tests {
         let data = b"compressible compressible compressible";
         let compressed = lz4_flex::block::compress(data);
         // Claim one more byte than the compressed data decodes to.
-        let mut block = (data.len() as u32 + 1).to_be_bytes().to_vec();
-        block.extend_from_slice(&checksum_block(&compressed).to_be_bytes());
+        let claimed_length = data.len() as u32 + 1;
+        let mut block = claimed_length.to_be_bytes().to_vec();
+        block.extend_from_slice(&checksum_block(claimed_length, &compressed).to_be_bytes());
         block.extend_from_slice(&compressed);
         let message = read_err(&sst_bytes(&[block]), 1, 0);
         assert!(message.contains("Decompressed length"), "{message}");
+    }
+
+    #[test]
+    fn read_block_rejects_corrupt_uncompressed_length() {
+        let data = b"compressible compressible compressible";
+        let compressed = lz4_flex::block::compress(data);
+        let mut block = (data.len() as u32).to_be_bytes().to_vec();
+        block.extend_from_slice(&checksum_block(data.len() as u32, &compressed).to_be_bytes());
+        block.extend_from_slice(&compressed);
+        for corrupt_length in [data.len() as u32 + 1, u32::MAX] {
+            // Corrupt only the length; the stored checksum no longer matches the header.
+            let mut block = block.clone();
+            block[..4].copy_from_slice(&corrupt_length.to_be_bytes());
+            let message = read_err(&sst_bytes(&[block]), 1, 0);
+            assert!(message.contains("checksum mismatch"), "{message}");
+        }
     }
 }

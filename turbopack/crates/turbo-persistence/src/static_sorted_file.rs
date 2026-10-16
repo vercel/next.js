@@ -504,6 +504,11 @@ impl IndexBlock {
                     block_index, meta.sequence_number
                 )
             })?;
+        // Verified here rather than through `verified_blocks`: this is the one and only read of
+        // this block's bytes, so the bitmap would never save any work for it. Verified before the
+        // length check, since the checksum also covers the length.
+        let data = &*block;
+        verify_checksum(meta, uncompressed_length, data, checksum, block_index)?;
         ensure!(
             uncompressed_length == 0,
             "index block {} of {:08}.sst is compressed, but index blocks are always written \
@@ -511,10 +516,6 @@ impl IndexBlock {
             block_index,
             meta.sequence_number
         );
-        // Verified here rather than through `verified_blocks`: this is the one and only read of
-        // this block's bytes, so the bitmap would never save any work for it.
-        let data = &*block;
-        verify_checksum(meta, data, checksum, block_index)?;
 
         ensure!(
             data.len() >= INDEX_BLOCK_HEADER_SIZE,
@@ -939,7 +940,14 @@ fn get_or_read_block<'l>(
         if uncompressed_length == 0 {
             // Uncompressed: borrow directly from the mmap, taking no refcount.
             // Verify CRC only once per file open.
-            verify_checksum_once(meta, block_data, checksum, block_index, verified_blocks)?;
+            verify_checksum_once(
+                meta,
+                uncompressed_length,
+                block_data,
+                checksum,
+                block_index,
+                verified_blocks,
+            )?;
             return Ok(BlockRef::Mmap(block_data));
         }
         Some((uncompressed_length, checksum, block_data))
@@ -969,14 +977,19 @@ fn get_or_read_block<'l>(
                     #[cfg(feature = "mmap")]
                     StaticSortedFileBacking::Mmap(_) => verify_checksum_once(
                         meta,
+                        uncompressed_length,
                         &block_data,
                         checksum,
                         block_index,
                         verified_blocks,
                     )?,
-                    StaticSortedFileBacking::File { .. } => {
-                        verify_checksum(meta, &block_data, checksum, block_index)?
-                    }
+                    StaticSortedFileBacking::File { .. } => verify_checksum(
+                        meta,
+                        uncompressed_length,
+                        &block_data,
+                        checksum,
+                        block_index,
+                    )?,
                 }
                 let block = if uncompressed_length == 0 {
                     ArcBytes::from(block_data.into_owned().into_boxed_slice())
@@ -1091,14 +1104,16 @@ fn pread(file: &std::fs::File, buf: &mut [u8], offset: u64) -> io::Result<()> {
     }
 }
 
-/// Verifies the CRC32 checksum of on-disk block data. Returns an error on mismatch.
+/// Verifies the CRC32 checksum of a block, which covers the header's `uncompressed_length` and the
+/// on-disk block data. Returns an error on mismatch.
 fn verify_checksum(
     meta: &StaticSortedFileMetaData,
+    uncompressed_length: u32,
     data: &[u8],
     expected: u32,
     block_index: u16,
 ) -> Result<()> {
-    let actual = checksum_block(data);
+    let actual = checksum_block(uncompressed_length, data);
     if actual != expected {
         bail!(
             "Cache corruption detected: checksum mismatch in block {} of {:08}.sst (expected \
@@ -1121,6 +1136,7 @@ fn verify_checksum(
 #[cfg_attr(not(feature = "mmap"), allow(dead_code))]
 fn verify_checksum_once(
     meta: &StaticSortedFileMetaData,
+    uncompressed_length: u32,
     data: &[u8],
     expected: u32,
     block_index: u16,
@@ -1131,7 +1147,7 @@ fn verify_checksum_once(
     if verified_blocks[word_idx].load(AtomicOrdering::Relaxed) & bit != 0 {
         return Ok(());
     }
-    verify_checksum(meta, data, expected, block_index)?;
+    verify_checksum(meta, uncompressed_length, data, expected, block_index)?;
     verified_blocks[word_idx].fetch_or(bit, AtomicOrdering::Relaxed);
     Ok(())
 }
@@ -1144,7 +1160,7 @@ fn read_block_lookup(
     compression: Compression,
 ) -> Result<ArcBytes> {
     let (uncompressed_length, checksum, block) = get_raw_block(backing, meta, block_index)?;
-    verify_checksum(meta, &block, checksum, block_index)?;
+    verify_checksum(meta, uncompressed_length, &block, checksum, block_index)?;
     if uncompressed_length == 0 {
         return match (backing, block) {
             #[cfg(feature = "mmap")]
@@ -1204,7 +1220,7 @@ fn read_block_iter(
     compression: Compression,
 ) -> Result<RcBytes> {
     let (uncompressed_length, checksum, block) = get_raw_block_iter(backing, meta, block_index)?;
-    verify_checksum(meta, &block, checksum, block_index)?;
+    verify_checksum(meta, uncompressed_length, &block, checksum, block_index)?;
     if uncompressed_length == 0 {
         return Ok(block);
     }
@@ -1998,7 +2014,7 @@ mod tests {
         // A valid CRC of an empty uncompressed block must still be rejected by both readers before
         // they read the index block header.
         let mut data = 0_u32.to_be_bytes().to_vec();
-        data.extend_from_slice(&checksum_block(&[]).to_be_bytes());
+        data.extend_from_slice(&checksum_block(0, &[]).to_be_bytes());
         assert_open_fails(1, &data, &[8], "too short");
     }
 
