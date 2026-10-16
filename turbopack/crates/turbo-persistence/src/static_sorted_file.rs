@@ -1,13 +1,12 @@
 #[cfg(feature = "mmap")]
 use std::ops::Range;
 use std::{
-    borrow::Cow,
     cmp::Ordering,
     hash::BuildHasherDefault,
     io,
     marker::PhantomData,
+    ops::Deref,
     path::Path,
-    rc::Rc,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering as AtomicOrdering},
@@ -850,9 +849,11 @@ fn get_or_read_block<'l>(
             GuardResult::Value(block) => block,
             GuardResult::Guard(guard) => {
                 let (uncompressed_length, checksum, block_data) = match mmap_block {
-                    Some((uncompressed_length, checksum, block_data)) => {
-                        (uncompressed_length, checksum, Cow::Borrowed(block_data))
-                    }
+                    Some((uncompressed_length, checksum, block_data)) => (
+                        uncompressed_length,
+                        checksum,
+                        RawBlock::Borrowed(block_data),
+                    ),
                     None => get_raw_block(backing, meta, block_index)?,
                 };
                 // A cached block may have been evicted, so re-reading still
@@ -871,7 +872,7 @@ fn get_or_read_block<'l>(
                     }
                 }
                 let block = if uncompressed_length == 0 {
-                    ArcBytes::from(block_data.into_owned().into_boxed_slice())
+                    block_data.into_arc_bytes()
                 } else {
                     ArcBytes::from_decompressed(compression, uncompressed_length, &block_data)
                         .with_context(|| {
@@ -952,48 +953,57 @@ fn get_raw_block_slice<'a>(
     Ok((uncompressed_length, checksum, block))
 }
 
+/// The on-disk bytes of a block after its header, still compressed unless the uncompressed length
+/// in the header is 0.
+enum RawBlock<'a> {
+    /// Borrowed from the mmap.
+    Borrowed(&'a [u8]),
+    /// Read from the file. The allocation also holds the header, which is sliced off.
+    Owned(ArcBytes),
+}
+
+impl RawBlock<'_> {
+    /// Returns the block as `ArcBytes`. Copies borrowed data, owned data is returned as is.
+    fn into_arc_bytes(self) -> ArcBytes {
+        match self {
+            RawBlock::Borrowed(block) => ArcBytes::from(Arc::<[u8]>::from(block)),
+            RawBlock::Owned(block) => block,
+        }
+    }
+}
+
+impl Deref for RawBlock<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        match self {
+            RawBlock::Borrowed(block) => block,
+            RawBlock::Owned(block) => block,
+        }
+    }
+}
+
 /// Reads a raw block from either backing. Mmap data remains borrowed; file data is owned.
 fn get_raw_block<'a>(
     backing: &'a StaticSortedFileBacking,
     meta: &StaticSortedFileMetaData,
     block_index: u16,
-) -> Result<(u32, u32, Cow<'a, [u8]>)> {
+) -> Result<(u32, u32, RawBlock<'a>)> {
     match backing {
         #[cfg(feature = "mmap")]
         StaticSortedFileBacking::Mmap(mmap) => {
             let (uncompressed_length, checksum, block) =
                 get_raw_block_slice(mmap, meta, block_index)?;
-            Ok((uncompressed_length, checksum, Cow::Borrowed(block)))
+            Ok((uncompressed_length, checksum, RawBlock::Borrowed(block)))
         }
         StaticSortedFileBacking::File {
             file,
             file_len,
             block_offsets,
         } => {
-            let index = block_index as usize;
-            #[cfg(feature = "strict_checks")]
-            ensure!(index < block_offsets.len(), "block index out of bounds");
-            let block_start = if index == 0 {
-                0
-            } else {
-                block_offsets[index - 1] as usize
-            };
-            let block_end = block_offsets[index] as usize;
-            #[cfg(feature = "strict_checks")]
-            ensure!(block_end <= *file_len, "block end out of bounds");
-            let _ = file_len;
-            ensure!(
-                block_start + BLOCK_HEADER_SIZE <= block_end,
-                "block {} header truncated in {:08}.sst",
-                block_index,
-                meta.sequence_number
-            );
-            let mut bytes = vec![0; block_end - block_start];
-            pread(file.file(), &mut bytes, block_start as u64)?;
-            let uncompressed_length = be::read_u32(&bytes);
-            let checksum = be::read_u32(&bytes[4..]);
-            let block = bytes.split_off(BLOCK_HEADER_SIZE);
-            Ok((uncompressed_length, checksum, Cow::Owned(block)))
+            let (uncompressed_length, checksum, block) =
+                pread_raw_block(file, *file_len, block_offsets, meta, block_index)?;
+            Ok((uncompressed_length, checksum, RawBlock::Owned(block)))
         }
     }
 }
@@ -1024,6 +1034,44 @@ fn pread(file: &std::fs::File, buf: &mut [u8], offset: u64) -> io::Result<()> {
     {
         use std::os::wasi::fs::FileExt;
         file.read_exact_at(buf, offset)
+    }
+}
+
+/// Like [`pread`], but reads into a possibly uninitialized buffer, filling all of it.
+fn pread_buf(file: &std::fs::File, buf: io::BorrowedCursor<'_, u8>, offset: u64) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileExt;
+        file.read_buf_exact_at(buf, offset)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::FileExt;
+        file.seek_read_buf_exact(buf, offset)
+    }
+    #[cfg(target_os = "wasi")]
+    {
+        // WASI has no exact variant, so loop like `read_buf_exact_at` does on unix.
+        use std::os::wasi::fs::FileExt;
+        let mut buf = buf;
+        let mut offset = offset;
+        while buf.capacity() > 0 {
+            let written = buf.written();
+            match file.read_buf_at(buf.reborrow(), offset) {
+                Ok(()) => {}
+                Err(err) if err.kind() == io::ErrorKind::Interrupted => {}
+                Err(err) => return Err(err),
+            }
+            let read = buf.written() - written;
+            if read == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "unexpected EOF",
+                ));
+            }
+            offset += read as u64;
+        }
+        Ok(())
     }
 }
 
@@ -1084,11 +1132,11 @@ fn read_block_lookup(
     if uncompressed_length == 0 {
         return match (backing, block) {
             #[cfg(feature = "mmap")]
-            (StaticSortedFileBacking::Mmap(mmap), Cow::Borrowed(block)) => {
+            (StaticSortedFileBacking::Mmap(mmap), RawBlock::Borrowed(block)) => {
                 // SAFETY: block points into mmap.
                 Ok(unsafe { ArcBytes::from_mmap(mmap, block) })
             }
-            (_, block) => Ok(ArcBytes::from(block.into_owned().into_boxed_slice())),
+            (_, block) => Ok(block.into_arc_bytes()),
         };
     }
     ArcBytes::from_decompressed(compression, uncompressed_length, &block).with_context(|| {
@@ -1106,51 +1154,50 @@ fn get_raw_block_iter(
     meta: &StaticSortedFileMetaData,
     block_index: u16,
 ) -> Result<(u32, u32, RcBytes)> {
-    match backing {
-        #[cfg(feature = "mmap")]
-        StaticSortedFileIterBacking::Mmap(mmap) => {
-            let (uncompressed_length, checksum, block) =
-                get_raw_block_slice(mmap, meta, block_index)?;
-            // SAFETY: block points into mmap.
-            Ok((uncompressed_length, checksum, unsafe {
-                RcBytes::from_mmap(mmap, block)
-            }))
-        }
-        StaticSortedFileIterBacking::File {
-            file,
-            file_len,
-            block_offsets,
-        } => {
-            let index = block_index as usize;
-            #[cfg(feature = "strict_checks")]
-            ensure!(index < block_offsets.len(), "block index out of bounds");
-            let block_start = if index == 0 {
-                0
-            } else {
-                block_offsets[index - 1] as usize
-            };
-            let block_end = block_offsets[index] as usize;
-            #[cfg(feature = "strict_checks")]
-            ensure!(block_end <= *file_len, "block end out of bounds");
-            let _ = file_len;
-            ensure!(
-                block_start + BLOCK_HEADER_SIZE <= block_end,
-                "block {} header truncated in {:08}.sst",
-                block_index,
-                meta.sequence_number
-            );
-            let mut bytes = vec![0; block_end - block_start];
-            pread(file.file(), &mut bytes, block_start as u64)?;
-            let uncompressed_length = be::read_u32(&bytes);
-            let checksum = be::read_u32(&bytes[4..]);
-            let block = bytes.split_off(BLOCK_HEADER_SIZE);
-            Ok((
-                uncompressed_length,
-                checksum,
-                RcBytes::from(block.into_boxed_slice()),
-            ))
-        }
-    }
+    let StaticSortedFileIterBacking {
+        file,
+        file_len,
+        block_offsets,
+    } = backing;
+    pread_raw_block(file, *file_len, block_offsets, meta, block_index)
+}
+
+/// Reads a block from the file, returning `(uncompressed_length, checksum, block)` where `block`
+/// is the on-disk data after the header. The block is read straight into the allocation of the
+/// result and the header is sliced off, so it is not copied again after the read.
+fn pread_raw_block<B: SharedBytes>(
+    file: &File,
+    file_len: usize,
+    block_offsets: &[u32],
+    meta: &StaticSortedFileMetaData,
+    block_index: u16,
+) -> Result<(u32, u32, B)> {
+    let index = block_index as usize;
+    #[cfg(feature = "strict_checks")]
+    ensure!(index < block_offsets.len(), "block index out of bounds");
+    let block_start = if index == 0 {
+        0
+    } else {
+        block_offsets[index - 1] as usize
+    };
+    let block_end = block_offsets[index] as usize;
+    #[cfg(feature = "strict_checks")]
+    ensure!(block_end <= file_len, "block end out of bounds");
+    let _ = file_len;
+    ensure!(
+        block_start + BLOCK_HEADER_SIZE <= block_end,
+        "block {} header truncated in {:08}.sst",
+        block_index,
+        meta.sequence_number
+    );
+    let bytes = B::read_filled(block_end - block_start, |buf| {
+        pread_buf(file.file(), buf, block_start as u64)
+    })?;
+    let uncompressed_length = be::read_u32(&bytes);
+    let checksum = be::read_u32(&bytes[4..]);
+    let len = bytes.len();
+    let block = bytes.slice(BLOCK_HEADER_SIZE..len);
+    Ok((uncompressed_length, checksum, block))
 }
 
 /// Reads an iteration block, decompresses it if needed, and verifies its checksum.
@@ -1214,14 +1261,17 @@ fn handle_key_match_generic<B: SharedBytes>(
     })
 }
 
-enum StaticSortedFileIterBacking {
-    #[cfg(feature = "mmap")]
-    Mmap(Rc<Mmap>),
-    File {
-        file: Rc<File>,
-        file_len: usize,
-        block_offsets: Rc<[u32]>,
-    },
+/// Iteration reads each block with `pread` into an owned buffer, regardless of the database's
+/// [`AccessMode`]. Iteration is used by compaction, which merges whole files: through a mmap every
+/// page it touches would stay mapped and count towards the process memory until the kernel
+/// reclaims it, and `MADV_SEQUENTIAL` doesn't make it drop them as the scan advances. Reading into
+/// owned buffers bounds the memory of an open iterator to the blocks it currently holds. Blocks are
+/// decompressed into owned buffers anyway, so a mmap would only save the copy of uncompressed and
+/// medium blocks.
+struct StaticSortedFileIterBacking {
+    file: File,
+    file_len: usize,
+    block_offsets: Box<[u32]>,
 }
 
 /// An iterator over all entries in a SST file in sorted order.
@@ -1311,49 +1361,30 @@ impl Iterator for StaticSortedFileIter {
 }
 
 impl StaticSortedFileIter {
-    /// Opens an SST file for sequential iteration.
+    /// Opens an SST file for sequential iteration. Blocks are read with `pread`, see
+    /// [`StaticSortedFileIterBacking`].
     pub fn open(
         db_path: &Path,
         meta: StaticSortedFileMetaData,
         compression: Compression,
-        access_mode: AccessMode,
     ) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
         let file = File::open(&path)?;
-        let backing = match access_mode {
-            #[cfg(feature = "mmap")]
-            AccessMode::Mmap => {
-                let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
-                    format!(
-                        "Failed to mmap SST file {} ({} bytes)",
-                        path.display(),
-                        file.metadata().map(|m| m.len()).unwrap_or(0)
-                    )
-                })?;
-                #[cfg(unix)]
-                mmap.advise(memmap2::Advice::Sequential)?;
-                advise_mmap_for_persistence(&mmap)?;
-                StaticSortedFileIterBacking::Mmap(Rc::new(mmap))
-            }
-            AccessMode::File => {
-                let file_len: usize = file.metadata()?.len().try_into()?;
-                let offset = meta.block_offsets_start(file_len);
-                let mut bytes = vec![0; file_len - offset];
-                pread(file.file(), &mut bytes, offset as u64)?;
-                let block_offsets = bytes
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|bytes| be::read_u32(bytes))
-                    .collect::<Vec<_>>()
-                    .into();
-                StaticSortedFileIterBacking::File {
-                    file: Rc::new(file),
-                    file_len,
-                    block_offsets,
-                }
-            }
+        let file_len: usize = file.metadata()?.len().try_into()?;
+        let offset = meta.block_offsets_start(file_len);
+        let mut bytes = vec![0; file_len - offset];
+        pread(file.file(), &mut bytes, offset as u64)?;
+        let block_offsets = bytes
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|bytes| be::read_u32(bytes))
+            .collect();
+        let backing = StaticSortedFileIterBacking {
+            file,
+            file_len,
+            block_offsets,
         };
         Self::new(backing, meta, compression)
             .with_context(|| format!("Unable to open static sorted file {filename}"))

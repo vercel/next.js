@@ -2497,9 +2497,7 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in
-                StaticSortedFileIter::open(path, sst, Compression::Lz4, crate::mmap_access_mode())?
-            {
+            for item in StaticSortedFileIter::open(path, sst, Compression::Lz4)? {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
