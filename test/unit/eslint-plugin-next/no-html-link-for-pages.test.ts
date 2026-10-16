@@ -551,4 +551,58 @@ describe('no-html-link-for-pages', function () {
       'Do not use an `<a>` element to navigate to `/list/foo/bar/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
+
+  it('detects nested static app routes with compound page extensions', function () {
+    const report = linters.withPageExtensionsApp.verify(
+      "<a href='/about'>About</a>",
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.equal(report.length, 1)
+    assert.ok(report[0].message.includes('/about/'))
+  })
+
+  it('does not treat colocated app components as routes', function () {
+    const report = linters.withPageExtensionsApp.verify(
+      "<a href='/list/foo/helper'>Helper</a>",
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
+
+  it('matches compound extensions before overlapping short extensions', function () {
+    const report = linters.withPageExtensionsPages.verify(
+      "<a href='/hello'>Hello</a>",
+      {
+        ...linterConfigWithPageExtensions,
+        settings: { next: { pageExtensions: ['tsx', 'page.tsx', 'page.ts'] } },
+      },
+      { filename: 'foo.js' }
+    )
+    assert.equal(report.length, 1)
+    assert.ok(report[0].message.includes('/hello/'))
+  })
+
+  it('does not register index.page.tsx as a separate index.page route', function () {
+    const report = linters.withPageExtensionsPages.verify(
+      "<a href='/index.page'>Wrong route</a>",
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
+
+  it('uses default extensions if settings.next.pageExtensions is empty', function () {
+    const report = linters.withApp.verify(
+      "<a href='/'>Home</a>",
+      {
+        ...linterConfig,
+        settings: { next: { pageExtensions: [] } },
+      },
+      { filename: 'foo.js' }
+    )
+    assert.equal(report.length, 1)
+  })
+
 })
