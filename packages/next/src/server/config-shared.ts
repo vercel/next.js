@@ -1284,6 +1284,18 @@ export interface ExperimentalConfig {
   blockingSSR?: boolean
 
   /**
+   * Opts the `app` directory into React's experimental release channel
+   * (`react@experimental`), which ships React's internal
+   * `enableHydrationChangeEvent` feature flag. This lets teams try that flag
+   * before it lands in React's canary channel. The name mirrors React's
+   * underlying feature flag.
+   *
+   * This flag has no effect of its own beyond selecting the experimental
+   * React build.
+   */
+  hydrationChangeEvent?: boolean
+
+  /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
    * the global process so that we can override the behavior, which in some
    * runtimes is to exit the process.
@@ -2467,6 +2479,7 @@ export const defaultConfig = Object.freeze({
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
     gestureTransition: false,
+    hydrationChangeEvent: false,
     inlineCss: false,
     useCache: undefined,
     useCacheStaticRootParamTracking: false,
