@@ -84,6 +84,8 @@ test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/pag
 
 # Symlink files
 readme.md
+# `readme.md` matches every README case-insensitively; opt these back in
+!turbopack/crates/turbo-persistence/README.md
 test/development/app-dir/hmr-symlink/app/symlink-chain/page.tsx
 test/development/app-dir/hmr-symlink/app/symlink-link/page.tsx
 test/development/app-dir/ssr-in-rsc/node_modules/random-react-library
