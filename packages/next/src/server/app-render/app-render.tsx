@@ -3587,7 +3587,7 @@ async function renderToStream(
   requestStore: RequestStore,
   res: BaseNextResponse,
   ctx: AppRenderContext,
-  dev: DevRenderContext | undefined,
+  devContext: DevRenderContext | undefined,
   tree: LoaderTree,
   formState: any,
   postponedState: PostponedState | null,
@@ -3678,7 +3678,7 @@ async function renderToStream(
     bootstrapScriptContent = `self.__next_r=${JSON.stringify(
       requestId ?? crypto.randomUUID()
     )}`
-    const initialHmrVersion = dev?.initialHmrVersion
+    const initialHmrVersion = devContext?.initialHmrVersion
     if (initialHmrVersion !== undefined) {
       // Only the dev server with Turbopack HMR supplies this captured baseline.
       bootstrapScriptContent += `;var __nextHmrInitialVersion=${htmlEscapeJsonString(
