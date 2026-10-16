@@ -101,6 +101,8 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
+import { createTurbopackBootstrapScriptStreamForPage } from '../../server/app-render/turbopack-bootstrap-script' with { 'turbopack-transition': 'next-server-utility' }
+import { getScriptNonceFromHeaders } from '../../server/app-render/get-script-nonce-from-header' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
 
@@ -893,6 +895,7 @@ export function createAppPageEntrypoint({
         const routeMatch: RouteMatch = { resolvedPathname }
         const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
+          requestUrl: req.url!,
           query,
           params,
           page: normalizedSrcPage,
@@ -1970,6 +1973,19 @@ export function createAppPageEntrypoint({
 
         const didPostpone = typeof cacheEntry.value.postponed === 'string'
 
+        // A static shell with postponed parts doesn't include the Turbopack
+        // bootstrap: the resume emits it with the request's CSP nonce. When
+        // such a shell is served without a resume, it has to be added.
+        const pushTurbopackBootstrapScript = (result: RenderResult) => {
+          if (!didPostpone) return
+          const bootstrapScript = createTurbopackBootstrapScriptStreamForPage(
+            buildManifest,
+            srcPage,
+            getScriptNonceFromHeaders(req.headers)
+          )
+          if (bootstrapScript) result.push(bootstrapScript)
+        }
+
         // Set the build ID header for RSC navigation requests when deploymentId is configured. This
         // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
         // from the RSC payload when deploymentId is set (relying on this header instead). Server
@@ -2292,8 +2308,11 @@ export function createAppPageEntrypoint({
           // Non-empty shell: the cookie-guarded bootstrap that sets
           // self.__next_instant_test is embedded in the prerendered shell via
           // `bootstrapScriptContent`, so it is already present (in the served
-          // shell for a fresh render, or in the cached prelude on deploy). Append
-          // the closing tags so the browser can parse a complete document.
+          // shell for a fresh render, or in the cached prelude on deploy). The
+          // Turbopack bootstrap is left out of the shell for the resume to
+          // emit, so add it here. Append the closing tags so the browser can
+          // parse a complete document.
+          pushTurbopackBootstrapScript(body)
           body.push(
             new ReadableStream({
               start(controller) {
@@ -2346,8 +2365,11 @@ export function createAppPageEntrypoint({
         // HTML will be the static shell so all the Dynamic API's will be used
         // during static generation.
         if (isDebugStaticShell || isDebugDynamicAccesses) {
-          // Since we're not resuming the render, we need to at least add the
-          // closing body and html tags to create valid HTML.
+          // The Turbopack bootstrap is left out of the shell for the resume to
+          // emit, so add it here. Since we're not resuming the render, we need
+          // to at least add the closing body and html tags to create valid
+          // HTML.
+          pushTurbopackBootstrapScript(body)
           body.push(
             new ReadableStream({
               start(controller) {

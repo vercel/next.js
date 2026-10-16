@@ -151,6 +151,7 @@ pub async fn analyze_module_index(module_graph: Vc<ModuleGraph>) -> Result<Vc<An
         },
         |_, _, _| Ok(()),
         true,
+        false,
     )?;
     let mut modules = Vec::with_capacity(all_modules.len());
     let mut by_ident = FxHashMap::default();
@@ -853,6 +854,7 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
         },
         |_, _, _| Ok(()),
         true,
+        false,
     )?;
 
     type ModulePair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);

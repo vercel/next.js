@@ -66,7 +66,7 @@ impl WellKnownObjectKind {
     }
 
     /// Returns a short display name and a longer explanation for this object,
-    /// used when rendering [`JsValue`][crate::analyzer::JsValue] explanations.
+    /// used when rendering [`JsValue`] explanations.
     pub fn explain(&self) -> (&'static str, &'static str) {
         match self {
             Self::Generator => (
@@ -235,7 +235,7 @@ impl WellKnownFunctionKind<'_> {
     }
 
     /// Returns a short display name and a longer explanation for this function,
-    /// used when rendering [`JsValue`][crate::analyzer::JsValue] explanations.
+    /// used when rendering [`JsValue`] explanations.
     pub fn explain(&self) -> (String, &'static str) {
         match self {
             Self::ArrayFilter => (

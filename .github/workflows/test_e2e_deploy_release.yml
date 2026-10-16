@@ -80,7 +80,7 @@ jobs:
 
       - name: Setup pnpm
         run: |
-          npm i -g corepack@0.31
+          npm i -g corepack@0.34.7
           corepack enable
 
       - id: nextPackageInfo
@@ -190,6 +190,7 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_WEBPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=0 \
+        NEXT_TEST_DEPLOY_TARGET_VERCEL=1 \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
@@ -240,6 +241,7 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_TURBOPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=0 \
+        NEXT_TEST_DEPLOY_TARGET_VERCEL="${{ github.event.inputs.deployScriptPath == '' && '1' || '' }}" \
         NEXT_TEST_CONTINUE_ON_ERROR="${{ github.event.inputs.continueOnError || false }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
@@ -292,6 +294,7 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_TURBOPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=1 \
+        NEXT_TEST_DEPLOY_TARGET_VERCEL=1 \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \

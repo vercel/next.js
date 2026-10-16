@@ -111,7 +111,7 @@ struct TurboBackingStorageInner {
 /// The higher-level backing storage passed to [`TurboTasksBackend::new`], used by
 /// [`crate::turbo_backing_storage`] and [`crate::noop_backing_storage`].
 ///
-/// Wraps a low-level [`TurboKeyValueDatabase`] and adapts it into the persistence operations the
+/// Wraps a low-level `TurboKeyValueDatabase` and adapts it into the persistence operations the
 /// backend needs (snapshots, task-candidate lookups, etc.).
 ///
 /// [`TurboTasksBackend::new`]: crate::TurboTasksBackend::new

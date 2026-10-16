@@ -6282,7 +6282,7 @@
             )),
           thenable.then(noop$1, noop$1),
           (thenable = index));
-      if (void 0 === thenable._debugInfo) {
+      if (void 0 === thenable._debugInfo && Object.isExtensible(thenable)) {
         thenableState = performance.now();
         trackedThenables = thenable.displayName;
         var ioInfo = {
@@ -24069,14 +24069,18 @@
               ? ((node._stashedText = node.nodeValue), (node.nodeValue = ""))
               : (node.nodeValue = node._stashedText || ""));
         if (nextNode && 8 === nextNode.nodeType)
-          if (((node = nextNode.data), node === SUSPENSE_END_DATA))
+          if (
+            ((node = nextNode.data),
+            node === SUSPENSE_END_DATA || node === ACTIVITY_END_DATA)
+          )
             if (0 === suspenseInstance) break;
             else suspenseInstance--;
           else
             (node !== SUSPENSE_START_DATA &&
               node !== SUSPENSE_PENDING_START_DATA &&
               node !== SUSPENSE_QUEUED_START_DATA &&
-              node !== SUSPENSE_FALLBACK_START_DATA) ||
+              node !== SUSPENSE_FALLBACK_START_DATA &&
+              node !== ACTIVITY_START_DATA) ||
               suspenseInstance++;
         node = nextNode;
       } while (node);
@@ -31149,11 +31153,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-b618bbb4-20261007" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-99c106c4-20261014" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-b618bbb4-20261007\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-99c106c4-20261014\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -31190,10 +31194,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-canary-b618bbb4-20261007",
+          version: "19.3.0-canary-99c106c4-20261014",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-canary-b618bbb4-20261007"
+          reconcilerVersion: "19.3.0-canary-99c106c4-20261014"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -31673,7 +31677,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-canary-b618bbb4-20261007";
+    exports.version = "19.3.0-canary-99c106c4-20261014";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

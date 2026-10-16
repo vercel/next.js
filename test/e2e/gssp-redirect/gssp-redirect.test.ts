@@ -8,7 +8,6 @@ describe('GS(S)P Redirect Support', () => {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
 
   it('should apply temporary redirect when visited directly for GSSP page', async () => {

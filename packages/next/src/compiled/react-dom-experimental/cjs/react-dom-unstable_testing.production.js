@@ -17497,11 +17497,15 @@ function hideOrUnhideDehydratedBoundary(suspenseInstance, isHidden) {
           ? ((node._stashedText = node.nodeValue), (node.nodeValue = ""))
           : (node.nodeValue = node._stashedText || ""));
     if (nextNode && 8 === nextNode.nodeType)
-      if (((node = nextNode.data), "/$" === node))
+      if (((node = nextNode.data), "/$" === node || "/&" === node))
         if (0 === suspenseInstance) break;
         else suspenseInstance--;
       else
-        ("$" !== node && "$?" !== node && "$~" !== node && "$!" !== node) ||
+        ("$" !== node &&
+          "$?" !== node &&
+          "$~" !== node &&
+          "$!" !== node &&
+          "&" !== node) ||
           suspenseInstance++;
     node = nextNode;
   } while (node);
@@ -20790,14 +20794,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2273 = React.version;
 if (
-  "19.3.0-experimental-b618bbb4-20261007" !==
+  "19.3.0-experimental-99c106c4-20261014" !==
   isomorphicReactPackageVersion$jscomp$inline_2273
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2273,
-      "19.3.0-experimental-b618bbb4-20261007"
+      "19.3.0-experimental-99c106c4-20261014"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20819,10 +20823,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2939 = {
   bundleType: 0,
-  version: "19.3.0-experimental-b618bbb4-20261007",
+  version: "19.3.0-experimental-99c106c4-20261014",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-b618bbb4-20261007"
+  reconcilerVersion: "19.3.0-experimental-99c106c4-20261014"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2940 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -21080,4 +21084,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.3.0-experimental-b618bbb4-20261007";
+exports.version = "19.3.0-experimental-99c106c4-20261014";

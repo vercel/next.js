@@ -285,6 +285,7 @@ futures-retry = "0.6.0"
 futures-util = "0.3.31"
 hashbrown = "0.15.4"
 image = { version = "0.25.8", default-features = false }
+imagesize = { version = "0.15.0", default-features = false }
 indexmap = "2.14.0"
 indoc = "2.0.0"
 itertools = "0.10.5"
@@ -337,7 +338,7 @@ rstest = "0.16.0"
 rustc-hash = "2.1.1"
 scattered-collect = "0.10.0"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.151"
 serde_path_to_error = "0.1.20"
 serde_qs = "1.1.1"
 serde_with = "3.18.0"

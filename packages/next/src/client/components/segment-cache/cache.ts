@@ -24,8 +24,9 @@ import {
 import {
   createFetch,
   createFromNextReadableStream,
-  decodeBufferedStage,
-  resolveShellStageResponse,
+  decodeBufferedResponse,
+  decodeResponsePrefix,
+  stripIsPartialByte,
   type RSCResponse,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
@@ -44,6 +45,7 @@ import {
   getFulfilledRouteVaryPath,
   getFulfilledSegmentVaryPath,
   getSegmentVaryPathForRequest,
+  getStaticSegmentVaryPathForRequest,
   getShellSegmentVaryPath,
   cloneVaryPathWithNewSearchParams,
   getPartialVaryPath,
@@ -85,6 +87,7 @@ import {
 import type {
   DynamicNavigationFlightResponse,
   FlightRouterState,
+  InitialRSCPayload,
   NavigationFlightResponse,
   PrefetchFlightResponse,
 } from '../../../shared/lib/app-router-types'
@@ -929,36 +932,40 @@ export function readOrCreateSegmentCacheEntry(
   // The map the calling task operates in (`PrefetchTask.segmentCacheMap`,
   // captured when the task was scheduled).
   map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>
+  // The vary path to read from (see getSegmentVaryPathForRequest). A shell
+  // prefetch reads from the shell vary path, because that's where its request
+  // writes. If it read from the concrete path, it might find a deeper entry
+  // for this URL and check the wrong one. Everything else reads from the
+  // concrete path, which still finds entries stored under a more generic key.
+  varyPath: VaryPath,
+  // The vary path to store a new entry under, which is the request's own.
+  varyPathForRequest: VaryPath
 ): SegmentCacheEntry {
   const existingEntry = getFromCacheMap(
     now,
     getCurrentSegmentCacheVersion(),
     map,
-    tree.varyPath,
+    varyPath,
     false,
     false
   )
   if (existingEntry !== null) {
     return existingEntry
   }
-  return insertEmptySegmentCacheEntry(now, map, fetchStrategy, tree)
+  return insertEmptySegmentCacheEntry(now, map, varyPathForRequest)
 }
 
 /**
  * Creates an empty segment cache entry and inserts it into the cache, keyed
- * at the vary path a request made with the given fetch strategy is stored
- * under. The stale time is set to a default value; the actual stale time will
- * be set when the entry is fulfilled with data from the server response.
+ * at the vary path the request's pending entry is stored under. The stale time
+ * is set to a default value; the actual stale time will be set when the entry
+ * is fulfilled with data from the server response.
  */
 function insertEmptySegmentCacheEntry(
   now: number,
   map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>
+  varyPathForRequest: VaryPath
 ): EmptySegmentCacheEntry {
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const emptyEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = false
   setInCacheMap(map, varyPathForRequest, emptyEntry, isRevalidation)
@@ -969,8 +976,10 @@ export function readOrCreateRevalidatingSegmentEntry(
   now: number,
   // The map the calling task operates in (`PrefetchTask.segmentCacheMap`).
   map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>
+  // The vary path to read from; see readOrCreateSegmentCacheEntry.
+  varyPath: VaryPath,
+  // Where to store the revalidation: the request's own vary path.
+  varyPathForRequest: VaryPath
 ): SegmentCacheEntry {
   // This function is called when we've already confirmed that a particular
   // segment is cached, but we want to perform another request anyway in case it
@@ -999,18 +1008,13 @@ export function readOrCreateRevalidatingSegmentEntry(
   // return a less generic entry upon revalidation. For now, though, this isn't
   // a concern because the keypath is based solely on the prefetch strategy,
   // not on data contained in the response.
-  const existingEntry = readRevalidatingSegmentCacheEntry(
-    now,
-    map,
-    tree.varyPath
-  )
+  const existingEntry = readRevalidatingSegmentCacheEntry(now, map, varyPath)
   if (existingEntry !== null) {
     return existingEntry
   }
   // Create a pending entry and add it to the cache. The stale time is set to a
   // default value; the actual stale time will be set when the entry is
   // fulfilled with data from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(map, varyPathForRequest, pendingEntry, isRevalidation)
@@ -1021,15 +1025,14 @@ export function overwriteRevalidatingSegmentCacheEntry(
   now: number,
   // The map the calling task operates in (`PrefetchTask.segmentCacheMap`).
   map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy: FetchStrategy,
-  tree: RouteTree<RSCSegmentData | null>
+  // Where to store the revalidation: the request's own vary path.
+  varyPathForRequest: VaryPath
 ) {
   // This function is called when we've already decided to replace an existing
   // revalidation entry. Create a new entry and write it into the cache,
   // overwriting the previous value. The stale time is set to a default value;
   // the actual stale time will be set when the entry is fulfilled with data
   // from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(map, varyPathForRequest, pendingEntry, isRevalidation)
@@ -1044,6 +1047,10 @@ export function overwriteRevalidatingSegmentCacheEntry(
  * whether an upsert may replace the entry at its own keypath, and when
  * deciding whether an entry at a more specific keypath may be evicted because
  * it shadows a just-inserted candidate (see `evictShadowingSegmentEntries`).
+ *
+ * When exactly one of the two entries is non-partial, it wins, whatever
+ * strategy fetched it: it has nothing left to fetch. Otherwise the entry
+ * fetched with the more specific strategy wins.
  *
  * Note that "less/more specific" in the comments below refers to fetch
  * strategy content tiers (how much content a strategy can produce), not the
@@ -1061,18 +1068,18 @@ function isExistingSegmentEntryPreferred(
     // in favor of an entry with nothing in it.)
     return false
   }
+  if (existingEntry.isPartial !== candidateEntry.isPartial) {
+    return !existingEntry.isPartial
+  }
+  // We fetched the new segment using a different, less specific fetch
+  // strategy than the segment we already have in the cache, so it can't have
+  // more content.
   return (
-    // We fetched the new segment using a different, less specific fetch
-    // strategy than the segment we already have in the cache, so it can't
-    // have more content.
-    (candidateEntry.fetchStrategy !== existingEntry.fetchStrategy &&
-      !canNewFetchStrategyProvideMoreContent(
-        existingEntry.fetchStrategy,
-        candidateEntry.fetchStrategy
-      )) ||
-    // The existing entry isn't partial, but the new one is.
-    // (TODO: can this be true if `candidateEntry.fetchStrategy >= existingEntry.fetchStrategy`?)
-    (!existingEntry.isPartial && candidateEntry.isPartial)
+    candidateEntry.fetchStrategy !== existingEntry.fetchStrategy &&
+    !canNewFetchStrategyProvideMoreContent(
+      existingEntry.fetchStrategy,
+      candidateEntry.fetchStrategy
+    )
   )
 }
 
@@ -1967,7 +1974,7 @@ export async function fetchRouteOnCacheMiss(
     const buffer = await bufferPrefetchResponseBody(response.body)
     closed.resolve()
     setSizeInCacheMap(entry, buffer.byteLength)
-    const serverData = await decodeBufferedStage<NavigationFlightResponse>(
+    const serverData = await decodeBufferedResponse<NavigationFlightResponse>(
       buffer,
       headers
     )
@@ -2253,7 +2260,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
   // Parse the response. Always a PrefetchFlightResponse. A connection drop
   // or malformed stream throws here, which propagates to the caller as a
   // non-retryable failure.
-  const serverResponse = await decodeBufferedStage<PrefetchFlightResponse>(
+  const serverResponse = await decodeBufferedResponse<PrefetchFlightResponse>(
     buffer,
     headers
   )
@@ -2341,7 +2348,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
     shellResponse = null
   } else {
     try {
-      shellResponse = await decodeBufferedStage<PrefetchFlightResponse>(
+      shellResponse = await decodeBufferedResponse<PrefetchFlightResponse>(
         buffer.subarray(0, shellOffset),
         headers
       )
@@ -2631,6 +2638,14 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     // paths, this is resolved immediately — see TODO in fetchRouteOnCacheMiss.
     const closed = createPromiseWithResolvers<void>()
 
+    // With Cached Navigations, the response's bytes are kept here as they're
+    // passed to the decoder, so prefixes (like the shell) can be cut from them.
+    let responseChunks: Array<Uint8Array> | null =
+      process.env.__NEXT_CACHE_COMPONENTS &&
+      process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+        ? []
+        : null
+
     let fulfilledEntries: Array<FulfilledSegmentCacheEntry> | null = null
     let bufferedResponseSize: number | null = null
     let serverDataPromise: Promise<DynamicNavigationFlightResponse>
@@ -2642,7 +2657,12 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       const prefetchStream = createIncrementalPrefetchResponseStream(
         response.body,
         closed.resolve,
-        function onResponseSizeUpdate(totalBytesReceivedSoFar) {
+        function onChunk(chunk, totalBytesReceivedSoFar) {
+          if (responseChunks !== null) {
+            responseChunks.push(chunk)
+          }
+
+          // Incrementally update the size of the cache entry in the LRU.
           // When processing a dynamic response, we don't know how large each
           // individual segment is, so approximate by assigning each segment
           // the average of the total response size.
@@ -2667,32 +2687,29 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       const buffer = await bufferPrefetchResponseBody(response.body)
       closed.resolve()
       bufferedResponseSize = buffer.byteLength
-      serverDataPromise = decodeBufferedStage<DynamicNavigationFlightResponse>(
-        buffer,
-        headers
-      )
+      if (responseChunks !== null) {
+        responseChunks.push(buffer)
+      }
+      serverDataPromise =
+        decodeBufferedResponse<DynamicNavigationFlightResponse>(buffer, headers)
     }
 
-    const [serverData, cacheData] = await Promise.all([
-      serverDataPromise,
-      response.cacheData,
-    ])
+    const serverData = await serverDataPromise
 
     const now = Date.now()
     const staleAt = await resolveStaleAt(now, serverData.s, response)
     const buildId =
       response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
 
-    // Extract the response's shell-stage payload, when it carries one. No
-    // shell can be extracted without cache metadata (only present when
-    // Cached Navigations is enabled); for responses without a distinct
-    // shell stage the extraction is a no-op anyway
-    // (`resolveShellStageResponse` returns null), so the null check just
-    // short-circuits that case.
+    // Cut the shell out of the response, if it has one. We can only do that
+    // if we kept the response's bytes, which we only do with Cached
+    // Navigations.
     const shellResponse =
-      cacheData !== null
-        ? await resolveShellStageResponse(cacheData, serverData, headers)
+      responseChunks !== null
+        ? await resolveShellStageResponse(responseChunks, serverData, headers)
         : null
+    // Every prefix has been cut, so stop keeping the response's bytes.
+    responseChunks = null
 
     // Runtime prefetch responses (PPRRuntime and RuntimeShell requests) are
     // partial when the server marks the response as '~' (Partial).
@@ -2700,7 +2717,7 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     const isFullResponsePartial =
       (fetchStrategy === FetchStrategy.PPRRuntime ||
         fetchStrategy === FetchStrategy.RuntimeShell) &&
-      (cacheData?.isResponsePartial ?? false)
+      response.isPartial
 
     // Aside from writing the data into the cache, this also returns the
     // entries that were fulfilled, so we can streamingly update their sizes
@@ -2754,7 +2771,8 @@ function rejectSegmentEntriesIfStillPending(
  * orchestration shared by the prefetch response kinds — per-segment
  * static responses (fetchAndWritePerSegmentPrefetchResponse) and
  * live-render responses (fetchSegmentPrefetchesUsingRuntimeRequest, and the
- * embedded runtime prefetch stream via writeRuntimePrefetchStreamIntoCache)
+ * prefetch response a navigation carries, via
+ * bufferAndWriteNavigationResponse)
  * — which differ in how they obtain their payloads but not in what must
  * happen to them.
  *
@@ -2978,7 +2996,7 @@ function writeResponsePayloadsIntoCache(
         // Navigation responses can be rewound into a *static* app shell.
         // On PPF routes they also contain a runtime prefetch stream which will give us
         // a runtime shell/prefetch, but that's handled separately from the main response.
-        // (see `writeRuntimePrefetchStreamIntoCache`)
+        // (see `bufferAndWriteNavigationResponse`)
         responseFetchStrategy = FetchStrategy.Full
         shellFetchStrategy = FetchStrategy.StaticShell
         break
@@ -3131,8 +3149,8 @@ function writeServerResponseIntoCache(
   // before side effects this layer can't undo — starting the fallback-retry
   // loop, writing the second (shell) payload — and then pass no buildId
   // here. This check owns it for the flows that don't: live-render prefetch
-  // responses and navigation static-stage writes, which pass their
-  // buildId through.
+  // responses and complete prerenders written from navigations, which pass
+  // their buildId through.
   if (buildId && buildId !== getNavigationBuildId()) {
     // The server build does not match the client. Treat as a 404. During
     // an actual navigation, the router will trigger an MPA navigation.
@@ -3476,21 +3494,14 @@ function writeSegmentDataIntoCache(
   // Decide whether to re-key the entry under a more generic vary path based on
   // which params the segment actually depends on.
   //
-  // Skip re-keying for Full prefetches: as of today, `varyParams` tracking only
-  // works within the static stage portion of a response. A Full prefetch
-  // response covers all stages, and we can't track params during the dynamic
-  // stage without dead-locking the Flight stream, so the server-reported set is
-  // incomplete and can't be trusted for the full response. Re-keying with an
-  // untrustworthy set could replace concrete params with Fallback and let
-  // unrelated URLs read each other's content from the cache.
-  //
   // Key the entry by which params the server said this segment depends on
   // (judged by the payload's CONTENT: contentFetchStrategy differs from
   // fetchStrategy exactly when a shell request's response turned out to
   // carry more — the coincident case). Reusing one copy across param values
   // is the point of the shell, but it requires knowing the content doesn't
   // depend on those params, and the server's report is the direct evidence
-  // of that.
+  // of that. This holds for every fetch strategy, Full included: if a report
+  // is wrong, the fix belongs on the server.
   //
   // Without that report, assume every param varies — a response without a
   // shell/full split is also what a page fully prerendered at concrete
@@ -3506,11 +3517,7 @@ function writeSegmentDataIntoCache(
   // evidence the key derivation below trusts, under the same condition, with
   // the same correction; otherwise null, and consumers assume every param.
   let recordedVaryParams: VaryParams | null = null
-  if (
-    process.env.__NEXT_VARY_PARAMS &&
-    payloadStrategy !== FetchStrategy.Full &&
-    segmentVaryParams !== null
-  ) {
+  if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
     // Read the reported set now, when the key is chosen. The payload is fully
     // buffered by the time it's written, so the source has settled; a read of
     // null means the report is unavailable and every param varies.
@@ -3561,16 +3568,22 @@ function writeSegmentDataIntoCache(
   // keying (this is load-bearing for entries spawned as revalidations:
   // without the re-key they'd stay in their Revalidation slot forever,
   // invisible to canonical reads, and the partial entry that prompted the
-  // revalidation would keep serving navigations). Full responses are
-  // excluded, matching the varyParams re-key: they're spawned as canonical
-  // entries at their final path, and their vary tracking can't be trusted
-  // for re-keying (see the fulfilledVaryPath derivation above).
-  const canonicalVaryPath =
-    fulfilledVaryPath !== null
-      ? fulfilledVaryPath
-      : payloadStrategy !== FetchStrategy.Full
-        ? getSegmentVaryPathForRequest(payloadStrategy, tree)
-        : null
+  // revalidation would keep serving navigations). Only a Full or PPRRuntime
+  // response can vary on search params.
+  let canonicalVaryPath: VaryPath
+  if (fulfilledVaryPath !== null) {
+    canonicalVaryPath = fulfilledVaryPath
+  } else if (
+    payloadStrategy === FetchStrategy.Full ||
+    payloadStrategy === FetchStrategy.PPRRuntime
+  ) {
+    canonicalVaryPath = getSegmentVaryPathForRequest(payloadStrategy, tree)
+  } else {
+    canonicalVaryPath = getStaticSegmentVaryPathForRequest(
+      payloadStrategy,
+      tree
+    )
+  }
 
   // We should only write into cache entries that are owned by us. Or create
   // a new one and write into that. We must never write over an entry that was
@@ -3584,7 +3597,6 @@ function writeSegmentDataIntoCache(
   const isOwned =
     ownedEntry !== undefined && ownedEntry.status === EntryStatus.Pending
   let fulfilledEntry: FulfilledSegmentCacheEntry
-  let insertVaryPath: VaryPath | null
   if (isOwned) {
     // We own this entry — fulfill it directly.
     fulfilledEntry = fulfillSegmentCacheEntry(
@@ -3596,14 +3608,9 @@ function writeSegmentDataIntoCache(
       isUpgradeableISRFallback,
       recordedFetchStrategy
     )
-    // Re-key the fulfilled entry at its canonical path. Owned Full entries
-    // are the exception (canonicalVaryPath is null): they were spawned as
-    // canonical entries at their final path, so no re-key happens.
-    insertVaryPath = canonicalVaryPath
   } else {
     // We don't own an entry for this segment. Create a detached one and
-    // attempt to insert it at the canonical path — or, for a Full response
-    // (which has no canonical re-key), at the request's own path.
+    // attempt to insert it at the canonical path.
     fulfilledEntry = fulfillSegmentCacheEntry(
       upgradeToPendingSegment(
         createDetachedSegmentCacheEntry(now),
@@ -3616,66 +3623,50 @@ function writeSegmentDataIntoCache(
       isUpgradeableISRFallback,
       recordedFetchStrategy
     )
-    insertVaryPath =
-      canonicalVaryPath !== null
-        ? canonicalVaryPath
-        : getSegmentVaryPathForRequest(fetchStrategy, tree)
   }
-  if (insertVaryPath !== null) {
-    // Insert through the upsert so the usual precedence rules apply — an
-    // existing entry with more complete content is never downgraded, and a
-    // shadowed Empty/Pending entry's blocked tasks are pinged. (In the
-    // common case the slot already holds the entry we just fulfilled, which
-    // the upsert replaces in place; but the re-key is load-bearing for
-    // entries whose spawn path differs from the canonical path — e.g.
-    // spawned revalidations, which would otherwise stay in their
-    // Revalidation slot forever, invisible to canonical reads, while the
-    // partial entry that prompted the revalidation kept serving
-    // navigations.)
-    //
-    // The concrete lookup path (tree.varyPath) is passed so that when the
-    // canonical path is more generic, any stale settled entry — or unclaimed
-    // Empty placeholder — at a more specific path that would shadow the
-    // fulfilled entry is evicted. Without this, a shadowed re-keyed entry is
-    // unreachable at the concrete read path: the scheduler would keep
-    // re-reading the stale entry and, for a revalidation, respawn it
-    // forever. See evictShadowingSegmentEntries.
-    const installedEntry = upsertSegmentEntry(
-      now,
-      map,
-      insertVaryPath,
-      fulfilledEntry,
-      tree.varyPath
-    )
-    if (installedEntry === null && !isOwned) {
-      // The upsert declined the detached candidate (an existing entry took
-      // precedence, or the candidate was already expired), so no cache slot
-      // holds this write's content — nothing for the caller to charge to
-      // the LRU. (An owned entry is returned regardless: it was fulfilled
-      // above and stays live for waiters that hold it, whether or not the
-      // re-key installed it.)
-      return null
-    }
+  // Insert through the upsert so the usual precedence rules apply — an
+  // existing entry with more complete content is never downgraded, and a
+  // shadowed Empty/Pending entry's blocked tasks are pinged. (In the
+  // common case the slot already holds the entry we just fulfilled, which
+  // the upsert replaces in place; but the re-key is load-bearing for
+  // entries whose spawn path differs from the canonical path — e.g.
+  // spawned revalidations, which would otherwise stay in their
+  // Revalidation slot forever, invisible to canonical reads, while the
+  // partial entry that prompted the revalidation kept serving
+  // navigations.)
+  //
+  // The concrete lookup path (tree.varyPath) is passed so that when the
+  // canonical path is more generic, any stale settled entry — or unclaimed
+  // Empty placeholder — at a more specific path that would shadow the
+  // fulfilled entry is evicted. Without this, a shadowed re-keyed entry is
+  // unreachable at the concrete read path: the scheduler would keep
+  // re-reading the stale entry and, for a revalidation, respawn it
+  // forever. See evictShadowingSegmentEntries.
+  const installedEntry = upsertSegmentEntry(
+    now,
+    map,
+    canonicalVaryPath,
+    fulfilledEntry,
+    tree.varyPath
+  )
+  if (installedEntry === null && !isOwned) {
+    // The upsert declined the detached candidate (an existing entry took
+    // precedence, or the candidate was already expired), so no cache slot
+    // holds this write's content — nothing for the caller to charge to
+    // the LRU. (An owned entry is returned regardless: it was fulfilled
+    // above and stays live for waiters that hold it, whether or not the
+    // re-key installed it.)
+    return null
   }
   return fulfilledEntry
 }
 
-async function fetchPrefetchResponse<T>(
+async function fetchPrefetchResponse(
   url: URL,
   headers: RequestHeaders
-): Promise<RSCResponse<T> | null> {
+): Promise<RSCResponse | null> {
   const fetchPriority = 'low'
-  // When issuing a prefetch request, don't immediately decode the response; we
-  // use the lower level `createFromResponse` API instead because we need to do
-  // some extra processing of the response stream. See
-  // `bufferPrefetchResponseBody` for more details.
-  const shouldImmediatelyDecode = false
-  const response = await createFetch<T>(
-    url,
-    headers,
-    fetchPriority,
-    shouldImmediatelyDecode
-  )
+  const response = await createFetch(url, headers, fetchPriority)
   if (!response.ok) {
     return null
   }
@@ -3702,7 +3693,7 @@ async function fetchPrefetchResponse<T>(
  * prerender, rather than the old prefetching flow. If this fails, it implies
  * that PPR is disabled on the route.
  */
-function wasServedFromPerSegmentCache(response: RSCResponse<unknown>): boolean {
+function wasServedFromPerSegmentCache(response: RSCResponse): boolean {
   return (
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '2' ||
     // In output: "export" mode, we can't rely on response headers. But if we
@@ -3713,15 +3704,15 @@ function wasServedFromPerSegmentCache(response: RSCResponse<unknown>): boolean {
 }
 
 /**
- * Reads a prefetch response body to completion — optionally truncating at
- * `byteLimit` — and returns the bytes as a single contiguous buffer.
+ * Reads a prefetch response body to completion and returns the bytes as a
+ * single contiguous buffer.
  *
  * Buffering the entire response before passing it to the Flight client
  * ensures that when Flight processes the stream, all model data is available
  * synchronously. This is what makes the decode boundary's thenable-status
  * reads (vary params, isPartial, staleTime — see decode-server-response)
  * sound: if data arrived in multiple network chunks, the thenables might not
- * yet be fulfilled. (`decodeBufferedStage` performs the matching
+ * yet be fulfilled. (`decodeBufferedResponse` performs the matching
  * single-chunk decode.)
  *
  * TODO: There are too many intermediate stream transformations in the
@@ -3730,27 +3721,15 @@ function wasServedFromPerSegmentCache(response: RSCResponse<unknown>): boolean {
  * once the cached navigations experiment lands.
  */
 export async function bufferPrefetchResponseBody(
-  body: ReadableStream<Uint8Array>,
-  byteLimit?: number
+  body: ReadableStream<Uint8Array>
 ): Promise<Uint8Array> {
-  // Read the response from the network, optionally truncating at byteLimit.
+  // Read the response from the network.
   const reader = body.getReader()
   const chunks: Uint8Array[] = []
   let size = 0
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
-    if (byteLimit !== undefined && size + value.byteLength >= byteLimit) {
-      const remaining = byteLimit - size
-      if (remaining > 0) {
-        chunks.push(
-          value.byteLength > remaining ? value.subarray(0, remaining) : value
-        )
-        size += remaining
-      }
-      reader.cancel()
-      break
-    }
     chunks.push(value)
     size += value.byteLength
   }
@@ -3788,10 +3767,10 @@ export async function bufferPrefetchResponseBody(
 function createIncrementalPrefetchResponseStream(
   originalFlightStream: ReadableStream<Uint8Array>,
   onStreamClose: () => void,
-  onResponseSizeUpdate: (size: number) => void
+  onChunk: (chunk: Uint8Array, totalByteLength: number) => void
 ): ReadableStream<Uint8Array> {
-  // While processing the original stream, we incrementally update the size
-  // of the cache entry in the LRU.
+  // Each chunk is passed to the caller along with the total byte length so
+  // far, so it can incrementally update the size of the cache entry in the LRU.
   let totalByteLength = 0
   const reader = originalFlightStream.getReader()
   return new ReadableStream({
@@ -3803,9 +3782,8 @@ function createIncrementalPrefetchResponseStream(
           // from the server.
           controller.enqueue(value)
 
-          // Incrementally update the size of the cache entry in the LRU.
           totalByteLength += value.byteLength
-          onResponseSizeUpdate(totalByteLength)
+          onChunk(value, totalByteLength)
           continue
         }
         controller.close()
@@ -3869,10 +3847,7 @@ export function canNewFetchStrategyProvideMoreContent(
   return currentStrategy < newStrategy
 }
 
-function getStaleAtFromHeader(
-  now: number,
-  response: RSCResponse<unknown>
-): number {
+function getStaleAtFromHeader(now: number, response: RSCResponse): number {
   const staleTimeSeconds = parseInt(
     response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER) ?? '',
     10
@@ -3904,7 +3879,7 @@ function getStaleAtFromHeader(
 export async function resolveStaleAt(
   now: number,
   staleTimeIterable: AsyncIterable<number> | undefined,
-  response?: RSCResponse<unknown>
+  response?: RSCResponse
 ): Promise<number> {
   if (staleTimeIterable !== undefined) {
     // Iterate the async iterable and take the last yielded value. The server
@@ -3932,136 +3907,88 @@ export async function resolveStaleAt(
 }
 
 /**
- * Fire-and-forget ("spawn"), unlike the synchronous cache-write family it
- * wraps (writeServerResponseIntoCache and below): the stage's staleTime must
- * be resolved asynchronously from the response's own `s` field before the
- * write can happen, and failures are swallowed — a failed cache write is not
- * fatal to the render that produced the response.
- *
- * Writes the static stage of a navigation response — or of the initial RSC
- * payload — into the segment cache, so subsequent navigations can serve
- * cached static segments instantly.
+ * Waits for the prefetch response that a navigation response, or the initial
+ * RSC payload, carries to finish arriving, then writes it into the segment
+ * cache, so later navigations can be served from the cache. A response
+ * carries at most one: an embedded runtime prefetch stream (`p`), from a live
+ * render, or the response itself, when it's a complete prerender. Either way,
+ * the full payload and its shell (when it has one) are written like any other
+ * prefetch response. This flow owns no pending entries, so every write is a
+ * detached upsert.
  */
-export function spawnStaticStageCacheWrite(
+export async function bufferAndWriteNavigationResponse(
   now: number,
   response: NavigationFlightResponse,
+  // Whether the response is partial. With Cached Navigations, a response that
+  // isn't partial is a complete prerender, which is itself a prefetch response.
+  // TODO: Temporary. Navigations read this from the response's partial marker,
+  // and the initial payload infers it from `u`. Once the response says
+  // directly whether it's a complete prerender, read that here instead.
   isResponsePartial: boolean,
-  // The navigation response's headers, used to derive the buildId for the
-  // write-layer build check (the deployment header, falling back to the
-  // response's `b` field). Null for the initial payload, which arrived in
-  // the HTML document and has no build-id check.
-  responseHeaders: Headers | null,
-  baseTree: FlightRouterState,
-  renderedSearch: string,
-  // The map the work that spawned this response's request is bound to. See
-  // writeServerResponseIntoCache.
-  map: CacheMap<SegmentCacheEntry>
-): void {
-  const buildId =
-    responseHeaders !== null
-      ? (responseHeaders.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? response.b)
-      : undefined
-  resolveStaleAt(now, response.s)
-    .then((staleAt) => {
-      // TODO: This entire write is legacy and will be deleted in a future
-      // PR: caching is organized around the conceptual shell vs not-shell
-      // distinction, not around the static vs runtime render stages, so a
-      // static-stage write has no place in the model. It's kept only until
-      // its removal PR lands — do not extend it (e.g. with shell
-      // extraction).
-      writeServerResponseIntoCache(
-        now,
-        FetchStrategy.PPR,
-        response,
-        baseTree,
-        // The base tree is the navigation's current tree, not a prediction;
-        // divergence from it carries no signal.
-        null,
-        // Navigation responses always include the param values in the tree,
-        // so there's no pathname to parse them from (nor a need to).
-        null,
-        renderedSearch,
-        buildId,
-        staleAt,
-        isResponsePartial,
-        null,
-        // No owned entries; every write is a detached upsert.
-        null,
-        null,
-        map
-      )
-    })
-    .catch(() => {
-      // The static stage processing failed. Not fatal — the render
-      // completed normally, we just won't write into the cache.
-    })
-}
-
-/**
- * Decodes an embedded runtime prefetch Flight stream and writes it into the
- * segment cache, so subsequent navigations can serve runtime-prefetchable
- * content from cache without a separate prefetch request.
- *
- * The stream is buffered before it's decoded, like every prefetch response
- * that carries cache metadata: the shell byte offset (`a`) and staleTime are
- * read synchronously off their thenable status, and extracting a distinct
- * shell stage requires re-decoding a truncated copy of the same bytes. The
- * writes go through the shared payload-pair orchestration
- * (writeResponsePayloadsIntoCache): the full payload is written at
- * PPRRuntime and a distinct shell stage at the shell tier (RuntimeShell),
- * like any other runtime prefetch response. This flow owns no pending
- * entries, so every write is a detached upsert.
- */
-export async function writeRuntimePrefetchStreamIntoCache(
-  now: number,
-  runtimePrefetchStream: ReadableStream<Uint8Array>,
+  // The response's bytes, when they were kept, so a shell can be cut from
+  // them. Null otherwise.
+  responseChunks: Array<Uint8Array> | null,
   baseTree: FlightRouterState,
   renderedSearch: string,
   // The map the work that spawned this response's request is bound to. See
   // writeServerResponseIntoCache.
   map: CacheMap<SegmentCacheEntry>
 ): Promise<void> {
-  const { stream, isPartial } = await stripIsPartialByte(runtimePrefetchStream)
-
-  const buffer = await bufferPrefetchResponseBody(stream)
-  const serverData = await decodeBufferedStage<NavigationFlightResponse>(
-    buffer,
-    undefined
-  )
-
-  // Extract the shell payload, when the response carries one. Same wire
-  // convention as the other live-render responses (see
-  // resolveShellStageResponse): `a` absent means the render wasn't staged —
-  // no shell exists; `null` means the shell IS the full response; a number
-  // is the byte boundary of a distinct shell prefix, which is re-decoded
-  // from a truncated copy of the buffer. An unreadable `a` — pending or
-  // rejected, which only an aborted render produces — conservatively reads
-  // as no shell: the full payload is still written, there's just no shell
-  // stage to extract from it.
-  let shellResponse: NavigationFlightResponse | null = null
-  if (serverData.a !== undefined) {
-    const shellByteLength = readFulfilledValue(serverData.a, undefined)
+  let prefetchResponse: NavigationFlightResponse
+  let shellResponse: NavigationFlightResponse | null
+  let staleAt: number
+  let isPartial: boolean
+  if (response.p != null) {
+    const stripped = await stripIsPartialByte(response.p)
+    const buffer = await bufferPrefetchResponseBody(stripped.stream)
+    prefetchResponse = await decodeBufferedResponse<NavigationFlightResponse>(
+      buffer,
+      undefined
+    )
+    isPartial = stripped.isPartial
+    // The stream is fully buffered, so its stale time and shell byte length
+    // are read synchronously. A shell byte length that can't be read (an
+    // aborted render errors it, and a cut-off stream leaves it pending) reads
+    // as no shell; the full payload is still written.
+    staleAt = readFulfilledStaleAt(now, prefetchResponse.s)
+    const shellByteLength =
+      prefetchResponse.a !== undefined
+        ? readFulfilledValue(prefetchResponse.a, undefined)
+        : undefined
     if (shellByteLength === null) {
-      shellResponse = serverData
-    } else if (shellByteLength !== undefined) {
-      try {
-        shellResponse = await decodeBufferedStage<NavigationFlightResponse>(
-          buffer.subarray(0, shellByteLength),
-          undefined
-        )
-      } catch {
-        // The truncated prefix couldn't be decoded. Treat it as if no shell
-        // exists; the full payload is still usable.
-        shellResponse = null
-      }
+      // The shell is the full response.
+      shellResponse = prefetchResponse
+    } else if (shellByteLength === undefined || shellByteLength === 0) {
+      shellResponse = null
+    } else {
+      shellResponse = await decodeResponsePrefix<NavigationFlightResponse>(
+        [buffer],
+        shellByteLength,
+        undefined
+      )
     }
+  } else if (
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
+    !isResponsePartial
+  ) {
+    prefetchResponse = response
+    isPartial = false
+    staleAt = await resolveStaleAt(now, response.s)
+    shellResponse =
+      responseChunks !== null
+        ? await resolveShellStageResponse(responseChunks, response, undefined)
+        : null
+  } else {
+    return
   }
 
   writeResponsePayloadsIntoCache(
     now,
-    // A runtime prefetch stream is by definition a runtime prefetch.
+    // Every prefetch response a navigation carries is cache complete, so it's
+    // written as a runtime prefetch.
     FetchStrategy.PPRRuntime,
-    serverData,
+    prefetchResponse,
     shellResponse,
     baseTree,
     // The base tree is the navigation's current tree, not a prediction;
@@ -4071,9 +3998,10 @@ export async function writeRuntimePrefetchStreamIntoCache(
     // there's no pathname to parse them from (nor a need to).
     null,
     renderedSearch,
-    serverData.b,
-    // The response is fully buffered, so staleTime is read synchronously.
-    readFulfilledStaleAt(now, serverData.s),
+    // A navigation to a different build is an MPA navigation, so there's no
+    // build to check.
+    undefined,
+    staleAt,
     isPartial,
     null,
     // This flow owns no pending entries; every write is a detached upsert.
@@ -4085,60 +4013,40 @@ export async function writeRuntimePrefetchStreamIntoCache(
 }
 
 /**
- * Strips the leading isPartial byte from an RSC response stream.
+ * Resolves the shell stage of a prerender response:
  *
- * The server prepends a single byte: '~' (0x7e) for partial, '#' (0x23) for
- * complete. These bytes cannot appear as the first byte of a valid RSC Flight
- * response (Flight rows start with a hex digit or ':').
- *
- * If the first byte is not a recognized marker, the stream is returned intact
- * and `isPartial` is determined by the cachedNavigations experimental flag.
+ * - `a === undefined` (server didn't emit shell stage info): no shell exists —
+ *   returns null.
+ * - `a` resolves to `null`: the shell IS the main response — returns
+ *   `flightResponse` itself (callers compare by reference).
+ * - `a` resolves to a number: the shell is a strict prefix of the response —
+ *   returns a separate Flight decode of that many bytes from `chunks`, the
+ *   response's bytes (see `decodeResponsePrefix`).
  */
-export async function stripIsPartialByte(
-  stream: ReadableStream<Uint8Array>
-): Promise<{ stream: ReadableStream<Uint8Array>; isPartial: boolean }> {
-  // When there is no recognized marker byte, the fallback depends on whether
-  // Cached Navigations is enabled. When enabled, dynamic navigation responses
-  // don't have a marker but may contain dynamic holes, so they are treated as
-  // partial. When disabled, unmarked responses are treated as non-partial.
-  const defaultIsPartial = !!process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
-
-  const reader = stream.getReader()
-  const { done, value } = await reader.read()
-
-  if (done || !value || value.byteLength === 0) {
-    return {
-      stream: new ReadableStream({ start: (c) => c.close() }),
-      isPartial: defaultIsPartial,
-    }
+async function resolveShellStageResponse<
+  T extends NavigationFlightResponse | InitialRSCPayload,
+>(
+  chunks: Array<Uint8Array>,
+  flightResponse: T,
+  headers: RequestHeaders | undefined
+): Promise<T | null> {
+  if (flightResponse.a === undefined) {
+    // The render wasn't staged — no shell exists.
+    return null
   }
 
-  const firstByte = value[0]
-  const hasMarker = firstByte === 0x23 || firstByte === 0x7e
-  const isPartial = hasMarker ? firstByte === 0x7e : defaultIsPartial
-
-  const remainder = hasMarker
-    ? value.byteLength > 1
-      ? value.subarray(1)
-      : null
-    : value
-
-  return {
-    isPartial,
-    stream: new ReadableStream<Uint8Array>({
-      start(controller) {
-        if (remainder) {
-          controller.enqueue(remainder)
-        }
-      },
-      async pull(controller) {
-        const result = await reader.read()
-        if (result.done) {
-          controller.close()
-        } else {
-          controller.enqueue(result.value)
-        }
-      },
-    }),
+  const shellByteLength = await flightResponse.a
+  if (shellByteLength === 0) {
+    return null
   }
+  if (shellByteLength === null) {
+    // The shell IS the full response (no shell/full split). Return the full
+    // response itself — callers detect this case by reference equality —
+    // rather than collapsing it into null, which would lose the distinction
+    // from "no shell exists". This mirrors the convention of the per-segment
+    // prefetch fetch (see fetchAndWritePerSegmentPrefetchResponse in cache.ts).
+    return flightResponse
+  }
+
+  return decodeResponsePrefix<T>(chunks, shellByteLength, headers)
 }

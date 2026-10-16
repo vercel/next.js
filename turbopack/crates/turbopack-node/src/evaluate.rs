@@ -22,7 +22,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSource, IssueStage, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph,
@@ -297,6 +297,37 @@ async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
     Ok(Vc::cell(filtered))
 }
 
+/// A Node.js process could not connect back to us over the loopback interface.
+///
+/// Backends return this from [`EvaluateOperation::operation`] so that it can be
+/// reported as an actionable issue. This is not a bug in the evaluated code and
+/// retrying will not help, it usually means a sandbox blocks local networking.
+#[derive(Debug)]
+pub struct NodeJsConnectError {
+    /// The error output of the child process, which contains the reason the
+    /// connection failed.
+    pub stderr: String,
+}
+
+impl std::fmt::Display for NodeJsConnectError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "The Node.js child process could not connect to the parent process\n{}",
+            self.stderr
+        )
+    }
+}
+
+impl std::error::Error for NodeJsConnectError {}
+
+impl NodeJsConnectError {
+    /// Finds a [`NodeJsConnectError`] anywhere in the cause chain of `err`.
+    pub fn find(err: &anyhow::Error) -> Option<&Self> {
+        err.chain().find_map(|cause| cause.downcast_ref::<Self>())
+    }
+}
+
 struct PoolErrorHandler;
 
 /// Number of attempts before we start slowing down the retry.
@@ -308,7 +339,8 @@ impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
     type OutError = anyhow::Error;
 
     fn handle(&mut self, attempt: usize, err: anyhow::Error) -> RetryPolicy<Self::OutError> {
-        if attempt >= MAX_ATTEMPTS {
+        // A process that cannot connect to us will not be able to on a retry either.
+        if attempt >= MAX_ATTEMPTS || NodeJsConnectError::find(&err).is_some() {
             RetryPolicy::ForwardError(err)
         } else if attempt >= MAX_FAST_ATTEMPTS {
             RetryPolicy::WaitRetry(Duration::from_secs(1))
@@ -330,6 +362,8 @@ pub trait EvaluateContext {
     }
     fn args(&self) -> &[ResolvedVc<JsonValue>];
     fn cwd(&self) -> Vc<FileSystemPath>;
+    /// The source that issues about this evaluation are attributed to.
+    fn context_source_for_issue(&self) -> ResolvedVc<Box<dyn Source>>;
     fn emit_error(
         &self,
         error: StructuredError,
@@ -381,7 +415,7 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
     // worker. So we retry picking workers from the pools until we succeed
     // sending the job.
 
-    let (mut operation, _) = FutureRetry::new(
+    let operation = FutureRetry::new(
         async || {
             let mut operation = pool.operation().await?;
             operation
@@ -395,8 +429,27 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
         },
         PoolErrorHandler,
     )
-    .await
-    .map_err(|(e, _)| e)?;
+    .await;
+    let mut operation = match operation {
+        Ok((operation, _)) => operation,
+        Err((err, _)) => {
+            if let Some(connect_error) = NodeJsConnectError::find(&err) {
+                NodeJsConnectIssue {
+                    source: IssueSource::from_source_only(
+                        evaluate_context.context_source_for_issue(),
+                    ),
+                    crash_context: evaluate_context.crash_context_prefix(),
+                    // Connection errors happen first thing on startup, so we shouldn't be too
+                    // worried about this being overly long.
+                    stderr: connect_error.stderr.as_str().trim().into(),
+                }
+                .resolved_cell()
+                .emit();
+                return Ok(Vc::cell(None));
+            }
+            return Err(err);
+        }
+    };
 
     // The evaluation sent an initial intermediate value without completing. We'll
     // need to spawn a new thread to continually pull data out of the process,
@@ -677,6 +730,10 @@ impl EvaluateContext for BasicEvaluateContext {
         self.cwd.clone().cell()
     }
 
+    fn context_source_for_issue(&self) -> ResolvedVc<Box<dyn Source>> {
+        self.context_source_for_issue
+    }
+
     fn keep_alive(&self) -> bool {
         !self.args.is_empty()
     }
@@ -767,5 +824,78 @@ impl Issue for EvaluationIssue {
 
     fn source(&self) -> Option<IssueSource> {
         Some(self.source)
+    }
+}
+
+/// Node.js child processes could not connect back to the parent process, which
+/// makes it impossible to run any Node.js code (webpack loaders, PostCSS, ...).
+#[turbo_tasks::value(shared)]
+pub struct NodeJsConnectIssue {
+    /// The source being transformed when the connection failed. The failure is
+    /// unrelated to its contents, but this tells the user which transform hit it.
+    pub source: IssueSource,
+    /// What was being evaluated, e.g. the loader chain.
+    pub crash_context: Option<RcStr>,
+    /// Error output of the child process, describing why the connection failed.
+    pub stderr: RcStr,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for NodeJsConnectIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Node.js worker processes could not connect to Turbopack"
+        )))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let mut first_line = vec![StyledString::Text(rcstr!(
+            "Turbopack is configured to run webpack loaders and PostCSS transforms in child \
+             processes that communicate with it over a loopback TCP connection, but the child \
+             process was unable to connect"
+        ))];
+
+        if let Some(crash_context) = &self.crash_context {
+            first_line.push(StyledString::Text(rcstr!(" while evaluating ")));
+            first_line.push(StyledString::Code(crash_context.clone()));
+        };
+        first_line.push(StyledString::Text(rcstr!(":")));
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(first_line),
+            StyledString::Code(self.stderr.clone()),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!(
+                    "This is likely caused by a sandbox or firewall that blocks connections. \
+                     Allow local connections, or run this code using worker threads by setting "
+                )),
+                StyledString::Code(rcstr!(
+                    "experimental.turbopackPluginRuntimeStrategy: 'workerThreads'"
+                )),
+                StyledString::Text(rcstr!(" in your Next.js config.")),
+            ]),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!(
+            "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackPluginRuntimeStrategy"
+        )
     }
 }

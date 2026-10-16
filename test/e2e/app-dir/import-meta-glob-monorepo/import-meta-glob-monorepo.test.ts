@@ -36,7 +36,6 @@ testFn('import-meta-glob-monorepo', () => {
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
   })
 
   it('should resolve a `/`-rooted pattern from the project directory, like a plain import', async () => {

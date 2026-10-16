@@ -36,16 +36,45 @@ commit and tag. That tag then triggers
 which builds the packages and publishes them to npm under the dist-tag matching
 the channel.
 
-Version bumps are restricted to the release branches listed in
-`scripts/release-branches.json`: `canary` and the two long-lived LTS branches
+Releases happen on `canary` and the two long-lived LTS branches
 `releases/lts/active` (the current major's release line) and
-`releases/lts/maintenance` (the previous major's). The LTS branches are created
-manually, once, and from then on a stable release moves the refs automatically:
+`releases/lts/maintenance` (the previous major's). The LTS branches are
+created manually, once, and from then on a stable release adjusts the refs
+automatically. The rules are purely version-based — it never matters which
+branch or tag the release was dispatched from:
 
-- `patch`: no ref moves — the release commit already advances the branch it was
-  cut on.
-- `minor`: the new tag is routed by its major against the latest published
-  major (the npm `latest` dist-tag) — equal moves `releases/lts/active` to the
-  tag; latest − 1 moves `releases/lts/maintenance` to the tag.
-- `major`: `releases/lts/maintenance` is moved to where `releases/lts/active`
-  pointed, and `releases/lts/active` is moved to the new tag.
+- The released version is on the latest published major (the npm `latest`
+  dist-tag) and newer than everything published in that line:
+  `releases/lts/active` moves to the new tag.
+- It is on the previous major and newer than everything published in that
+  line: `releases/lts/maintenance` moves to the new tag.
+- It starts a new major: `releases/lts/maintenance` moves to where
+  `releases/lts/active` pointed, and `releases/lts/active` moves to the new
+  tag.
+- Anything older (or a prerelease channel): no refs move. The "newer than
+  everything published in that line" check guards against rewinding a branch
+  to an older version of its line.
+
+### Releases based on older tags
+
+To make a change based on an older tag — e.g. a fix for the 15.4.x line once
+the 15.x line has moved on — create a branch from that tag. The branch name
+does not matter functionally; by convention we use the old
+`next-<major>-<minor>` pattern (`next-15-4`), and branches matching
+`next-*-*` are covered by the CI push filters, so such a branch needs no
+setup. Any maintainer can create it:
+
+```bash
+git push origin v15.4.8^{commit}:refs/heads/next-15-4
+```
+
+Backport the fix into the branch, then dispatch `Trigger Release` (stable,
+`patch`) on it. The release commit advances the branch itself, and no LTS
+refs move — newer versions of that major are already published. Publishing is
+gated on the tag, which only the release bot can create; since such a version
+is below npm `latest`, it is published under the `backport` dist-tag.
+
+For a one-shot release that needs no changes (e.g. a release cut from an
+older canary tag), no branch is needed: dispatching `Trigger Release` on a
+tag performs a tag-only release — the release commit lands only on the new
+tag — and the version-based rules above still move the LTS refs.

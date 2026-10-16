@@ -9,6 +9,11 @@ describe('use-cache-segment-configs', () => {
       skipStart: process.env.NEXT_TEST_MODE !== 'dev',
     })
 
+  // The deploy snapshots match Vercel's build-log format, which drops
+  // code-frame indentation, and `getBuildOutput()` stops at Vercel's
+  // `Error: Command "..." exited with N` line. Other hosts format their build
+  // logs differently.
+  // @force-gate !deploy || vercel
   it("it should error when using segment configs that aren't supported by useCache", async () => {
     if (isNextDev) {
       const browser = await next.browser('/runtime')
@@ -184,7 +189,7 @@ function getBuildOutput(cliOutput: string, isNextDeploy: boolean): string {
     // Package-manager command failures and inspect metadata are not compiler output.
     if (
       isNextDeploy &&
-      /^(?:ELIFECYCLE\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
+      /^(?:\[ELIFECYCLE\]\s|Error: (?:\[BUILD_UTILS_SPAWN_\d+\] )?Command .* exited with \d+$)/.test(
         stripAnsi(line).trim()
       )
     ) {

@@ -450,6 +450,11 @@ export default abstract class Server<
     return undefined
   }
 
+  /** Available only on the dev server with Turbopack HMR. */
+  protected getClientHmrVersion(): string | undefined {
+    return undefined
+  }
+
   protected abstract loadEnvConfig(params: {
     dev: boolean
     forceReload: boolean
@@ -2394,6 +2399,12 @@ export default abstract class Server<
     }: RequestContext<ServerRequest, ServerResponse>,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
+    if (this.dev && getRequestMeta(req, 'initialHmrVersion') === undefined) {
+      // Snapshot before rendering/streaming HTML. Reading the live version at
+      // script insertion or socket connection can hide an intervening CSS edit.
+      addRequestMeta(req, 'initialHmrVersion', this.getClientHmrVersion())
+    }
+
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
       pathname = '/404'
     }

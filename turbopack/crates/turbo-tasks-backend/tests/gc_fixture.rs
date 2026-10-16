@@ -16,6 +16,13 @@ pub fn create_selector(initial: bool) -> Vc<Selector> {
     Selector(State::new(initial)).cell()
 }
 
+/// A second, independent [`Selector`] starting at `false`, for a test that disconnects two
+/// subtrees at different times. `create_selector(false)` would return the same task.
+#[turbo_tasks::function(operation, root)]
+pub fn create_other_selector() -> Vc<Selector> {
+    Selector(State::new(false)).cell()
+}
+
 /// A never-changing State read by leaf tasks purely to make them mutable, so a reader records a
 /// real dependency edge (an immutable constant records none — see `add_cell_dependency`).
 #[turbo_tasks::value(transparent)]

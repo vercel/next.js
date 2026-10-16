@@ -123,6 +123,7 @@ async function requestHandler(
     AppPageRouteHandlerContext,
     'parsedRequestHeaders'
   > = {
+    requestUrl: baseReq.url,
     page: normalizedSrcPage,
     routeMatch,
     query,

@@ -22,8 +22,7 @@ import {
   type SegmentCacheEntry,
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
-  spawnStaticStageCacheWrite,
-  writeRuntimePrefetchStreamIntoCache,
+  bufferAndWriteNavigationResponse,
   type FulfilledRouteCacheEntry,
   createRootRouteTree,
 } from './segment-cache/cache'
@@ -508,9 +507,8 @@ async function navigateToUnknownRoute(
     supportsPerSegmentPrefetching,
     dynamicStaleTime,
     isResponsePartial,
-    staticStageResponse,
-    runtimePrefetchStream,
-    responseHeaders,
+    flightResponse,
+    responseChunks,
     debugInfo,
   } = result
 
@@ -556,30 +554,18 @@ async function navigateToUnknownRoute(
     false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
   )
 
-  if (staticStageResponse !== null) {
-    spawnStaticStageCacheWrite(
-      now,
-      staticStageResponse,
-      isResponsePartial,
-      responseHeaders,
-      currentFlightRouterState,
-      renderedSearch,
-      map
-    )
-  }
-
-  if (runtimePrefetchStream !== null) {
-    writeRuntimePrefetchStreamIntoCache(
-      now,
-      runtimePrefetchStream,
-      currentFlightRouterState,
-      renderedSearch,
-      map
-    ).catch(() => {
-      // The runtime prefetch cache write failed. Not fatal — the
-      // navigation completed normally, we just won't cache runtime data.
-    })
-  }
+  bufferAndWriteNavigationResponse(
+    now,
+    flightResponse,
+    isResponsePartial,
+    responseChunks,
+    currentFlightRouterState,
+    renderedSearch,
+    map
+  ).catch(() => {
+    // The cache write failed. Not fatal — the navigation completed normally,
+    // we just won't write into the cache.
+  })
 
   // In the streaming dev render, this single response's seed content may still
   // be streaming when we build the tree below. An unknown-route navigation
