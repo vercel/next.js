@@ -1,0 +1,60 @@
+@use '@carbon/react/scss/type' as *;
+
+@use '@carbon/react/scss/spacing' as *;
+@use '@carbon/react/scss/breakpoint' as *;
+@use '@carbon/react/scss/theme' as *;
+
+.info-section__heading {
+  @include type-style('heading-01');
+}
+
+.info-card {
+  margin-top: $spacing-09;
+  display: flex;
+  flex-direction: column;
+  padding-left: 1rem;
+
+  svg {
+    margin-top: $spacing-09;
+  }
+
+  // top border in only small breakpoints to prevent overrides
+  @include breakpoint-down(md) {
+    &:not(:nth-child(2)) {
+      border-top: 1px solid $border-subtle-01;
+      padding-top: $spacing-09;
+    }
+  }
+
+  // left border in just the 2nd column items
+  @include breakpoint(md) {
+    &:nth-child(odd) {
+      border-left: 1px solid $border-subtle-01;
+    }
+  }
+
+  // left border in all items
+  @include breakpoint(lg) {
+    margin-top: 0;
+    border-left: 1px solid $border-subtle-01;
+
+    svg {
+      margin-top: $spacing-12;
+    }
+  }
+}
+
+.info-card__heading {
+  @include type-style('productive-heading-03');
+}
+
+.info-card__body {
+  margin-top: $spacing-06;
+  flex-grow: 1; // fill space so icons are bottom aligned
+  @include type-style('body-long-01');
+
+  // prevent large line lengths between small and medium viewports
+  @include breakpoint-between(321px, md) {
+    max-width: 75%;
+  }
+}
