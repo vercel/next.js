@@ -889,8 +889,6 @@ describe('static App Shell prefetch attempt', () => {
     // says a runtime request would have more content, but only past the
     // prefetch stage. A link that asks for the prefetch stage stops after the
     // static prefetch.
-    // TODO: Test that a link that asks for the navigation stage sends a
-    // runtime request, once such a link exists.
     await act(async () => {
       await browser
         .elementByCss(
@@ -931,6 +929,45 @@ describe('static App Shell prefetch attempt', () => {
     expect(await browser.elementById('dynamic-content').text()).toBe(
       'Dynamic content'
     )
+  })
+
+  it('speculative: sends a runtime request for a link that asks for the navigation stage of a segment that calls runtime APIs after navigation()', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Same page as the previous test. The static prefetch is only cache
+    // complete up to the prefetch stage, so a link that asks for the
+    // navigation stage follows it with a runtime request. That request can
+    // read cookies, so it includes the content that reads them after
+    // navigation().
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-prefetch="navigation"][data-link-accordion="/uses-runtime-after-navigation"]'
+        )
+        .click()
+    }, [
+      { includes: 'Navigation content', kind: 'static' },
+      { includes: 'Dynamic content', kind: 'runtime' },
+    ])
+
+    // Everything was prefetched, so the navigation needs no requests.
+    await act(async () => {
+      await browser
+        .elementByCss('a[href="/uses-runtime-after-navigation"]')
+        .click()
+      expect(await browser.elementById('navigation-content').text()).toBe(
+        'Navigation content'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toBe(
+        'Dynamic content'
+      )
+    }, 'no-requests')
   })
 
   it('uses a static app shell for a partial segment that calls runtime APIs after prefetch()', async () => {

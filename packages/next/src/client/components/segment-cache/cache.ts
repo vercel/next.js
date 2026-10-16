@@ -14,6 +14,10 @@ import { readFulfilledValue } from '../../../shared/lib/rsc-transport'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
+  NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH,
+  NEXT_ROUTER_PREFETCH_RUNTIME_SHELL,
+  NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -1836,7 +1840,7 @@ export async function fetchRouteOnCacheMiss(
 
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+    [NEXT_ROUTER_PREFETCH_HEADER]: NEXT_ROUTER_PREFETCH_STATIC,
     [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: segmentPath,
   }
   if (nextUrl !== null) {
@@ -2216,7 +2220,7 @@ async function fetchAndWritePerSegmentPrefetchResponse(
 
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+    [NEXT_ROUTER_PREFETCH_HEADER]: NEXT_ROUTER_PREFETCH_STATIC,
     [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: normalizedRequestKey,
   }
   if (nextUrl !== null) {
@@ -2635,18 +2639,29 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
   if (completeness === Completeness.FullyComplete) {
     if (stage === AppStage.Shell) {
       // The legacy loading-boundary prefetch.
-      headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_STATIC
     } else {
       // We omit the prefetch header from a legacy full prefetch because it's
       // essentially just a navigation request that happens ahead of time —
       // it should include all the same data in the response.
     }
-  } else if (stage === AppStage.Shell) {
-    // A runtime prefetch of the shell.
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '3'
   } else {
-    // A runtime prefetch up to the prefetch stage.
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '2'
+    switch (stage) {
+      case AppStage.Shell:
+        headers[NEXT_ROUTER_PREFETCH_HEADER] =
+          NEXT_ROUTER_PREFETCH_RUNTIME_SHELL
+        break
+      case AppStage.Prefetch:
+        headers[NEXT_ROUTER_PREFETCH_HEADER] =
+          NEXT_ROUTER_PREFETCH_RUNTIME_PREFETCH
+        break
+      case AppStage.Navigation:
+        headers[NEXT_ROUTER_PREFETCH_HEADER] =
+          NEXT_ROUTER_PREFETCH_RUNTIME_NAVIGATION
+        break
+      default:
+        stage satisfies never
+    }
   }
 
   try {
@@ -2797,14 +2812,16 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
     if (
       completeness === Completeness.CacheComplete &&
       fullPayloadReadRuntimeData &&
-      prefetchStageReadRuntimeData
+      (stage === AppStage.Navigation || prefetchStageReadRuntimeData)
     ) {
       // We sent a runtime request, but got back a static prerender that
       // still needs runtime data, for example a stale prerender. A runtime
       // request that comes back short of what it asked for is a failed
       // attempt. We reject the spawned entries, so their backoff limits how
       // often we retry. The payload is still written, but it doesn't replace a
-      // rejected entry.
+      // rejected entry. A link that asked for the navigation stage can't use a
+      // prerender that read runtime data at all, even if its prefetch stage is
+      // cache complete.
       rejectSegmentEntriesIfStillPending(
         spawnedEntries,
         now + REJECTION_BACKOFF_MS

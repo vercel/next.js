@@ -28,6 +28,7 @@ import type { ParsedRequestHeaders } from './parse-request-headers'
 import type { ServerActionRequestMetadata } from '../../lib/server-action-request-meta'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
@@ -152,7 +153,7 @@ export class AppPageRouteModule extends RouteModule<
 
       // Mark the request as a router prefetch request.
       req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_STATIC
       req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
 
       addRequestMeta(req, 'isRSCRequest', true)

@@ -111,6 +111,14 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
+          <LinkAccordion
+            href="/uses-runtime-after-navigation"
+            prefetch="navigation"
+          >
+            Uses runtime APIs after navigation() (prefetch=navigation)
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/uses-navigation-static">
             Uses navigation() on a static page
           </LinkAccordion>
