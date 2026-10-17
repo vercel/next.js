@@ -14,6 +14,10 @@ import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
 import type { RevalidateFn } from './lib/router-utils/router-server-context'
 import type { NextRequest } from './web/exports'
+import type {
+  PrerenderedRoute,
+  PrerenderRouteMatcher,
+} from '../build/static-paths/types'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -346,6 +350,8 @@ export interface RequestMeta {
    * source also uses this map as `stagedFallbackParams`.
    */
   fallbackRouteParams?: OpaqueFallbackRouteParams | null
+
+  devPrerenderedRouteMatch?: PrerenderedRoute | PrerenderRouteMatcher
 
   /** DEV only: parameter matching rejected this request as not found. */
   devParamMatchingRejected?: boolean
