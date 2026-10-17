@@ -3165,6 +3165,30 @@ export async function cache(
               }
             }
 
+            // A fill that started before one of its tags was expired, by an
+            // `updateTag()` or `revalidateTag()` in another request, holds data
+            // the expiration replaced. The leader path would discard its stored
+            // entry, so regenerate instead. The leader's registration is gone by
+            // now, so the retry becomes the leader.
+            if (
+              await isJoinedInvocationOutdated(
+                metadata,
+                kind,
+                workStore,
+                workUnitStore,
+                implicitTags,
+                logPrefix
+              )
+            ) {
+              debug?.(
+                logPrefix,
+                'cross-request invocation outdated, regenerating',
+                cacheHandlerKey
+              )
+              cacheSignal?.endRead()
+              continue
+            }
+
             // Key matches — safe to fork.
             debug?.(
               logPrefix,
@@ -3291,35 +3315,13 @@ export async function cache(
         }
 
         if (entry) {
-          let implicitTagsExpiration = 0
-
-          if (workUnitStore.implicitTags) {
-            const lazyExpiration =
-              workUnitStore.implicitTags.expirationsByCacheKind.get(kind)
-
-            if (lazyExpiration) {
-              const expiration = isResolvedLazyResult(lazyExpiration)
-                ? lazyExpiration.value
-                : await lazyExpiration
-
-              // If a cache handler returns an expiration time of Infinity, it
-              // signals to Next.js that it handles checking cache entries for
-              // staleness based on the expiration of the implicit tags passed
-              // into the `get` method. In this case, we keep the default of 0,
-              // which means that the implicit tags are not considered expired.
-              if (expiration < Infinity) {
-                implicitTagsExpiration = expiration
-              }
-            }
-          }
-
           if (
             shouldDiscardCacheEntry(
               entry,
               workStore,
               workUnitStore,
               implicitTags,
-              implicitTagsExpiration,
+              await getImplicitTagsExpiration(workUnitStore, kind),
               logPrefix
             )
           ) {
@@ -4009,6 +4011,73 @@ function shouldForceRevalidate(
   }
 
   return false
+}
+
+async function getImplicitTagsExpiration(
+  workUnitStore: WorkUnitStore,
+  kind: string
+): Promise<number> {
+  const lazyExpiration =
+    workUnitStore.implicitTags?.expirationsByCacheKind.get(kind)
+
+  if (!lazyExpiration) {
+    return 0
+  }
+
+  const expiration = isResolvedLazyResult(lazyExpiration)
+    ? lazyExpiration.value
+    : await lazyExpiration
+
+  // If a cache handler returns an expiration time of Infinity, it signals to
+  // Next.js that it handles checking cache entries for staleness based on the
+  // expiration of the implicit tags passed into the `get` method. In this case,
+  // we keep the default of 0, which means that the implicit tags are not
+  // considered expired.
+  return expiration < Infinity ? expiration : 0
+}
+
+/**
+ * Whether a cross-request invocation this request joined was outdated by a tag
+ * expiration after it started. A joined result never goes through
+ * `cacheHandler.get`, so it gets the checks a handler hit gets on the leader
+ * path: `shouldDiscardCacheEntry`, and the handler's expiration for each of the
+ * entry's tags.
+ */
+async function isJoinedInvocationOutdated(
+  metadata: CacheResultMetadata,
+  kind: string,
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore,
+  implicitTags: string[],
+  logPrefix: string
+): Promise<boolean> {
+  if (
+    shouldDiscardCacheEntry(
+      metadata,
+      workStore,
+      workUnitStore,
+      implicitTags,
+      await getImplicitTagsExpiration(workUnitStore, kind),
+      logPrefix
+    )
+  ) {
+    return true
+  }
+
+  const handler = getCacheHandler(kind)
+
+  if (!handler) {
+    return false
+  }
+
+  const now = performance.timeOrigin + performance.now()
+  const expirations = await Promise.all(
+    metadata.tags.map((tag) => handler.getExpiration([tag]))
+  )
+
+  return expirations.some(
+    (expiration) => expiration > metadata.timestamp && expiration <= now
+  )
 }
 
 function shouldDiscardCacheEntry(
