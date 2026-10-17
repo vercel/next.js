@@ -3,7 +3,6 @@ use std::hash::Hash;
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
-use num_bigint::BigInt;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use swc_core::{
@@ -34,29 +33,26 @@ use crate::{
     references::{early_value_visitor, esm::EsmAssetReference},
 };
 
-const STRING_INLINE_THRESHOLD: usize = 6;
-const NUMBER_INLINE_THRESHOLD: f64 = 1_000_000.0;
-const BIGINT_INLINE_THRESHOLD: i64 = 1_000_000;
+const INLINE_THRESHOLD: usize = 6;
 
 #[derive(Clone, Copy)]
 enum AutomaticInlineStatus {
     Inline,
     TooLong,
     HasIdentity,
+    Unsupported,
 }
 
 fn automatic_inline_status(value: &ConstantValue) -> AutomaticInlineStatus {
     match value {
-        ConstantValue::Str(s) if s.as_str().len() > STRING_INLINE_THRESHOLD => {
+        ConstantValue::Str(s) if s.as_str().len() > INLINE_THRESHOLD => {
             AutomaticInlineStatus::TooLong
         }
-        ConstantValue::Num(n) if n.0.abs() > NUMBER_INLINE_THRESHOLD => {
+        ConstantValue::Num(n) if !n.0.is_finite() => AutomaticInlineStatus::Unsupported,
+        ConstantValue::Num(n) if n.0.to_string().len() > INLINE_THRESHOLD => {
             AutomaticInlineStatus::TooLong
         }
-        ConstantValue::BigInt(n)
-            if **n > BigInt::from(BIGINT_INLINE_THRESHOLD)
-                || **n < BigInt::from(-BIGINT_INLINE_THRESHOLD) =>
-        {
+        ConstantValue::BigInt(n) if n.to_string().len() + 1 > INLINE_THRESHOLD => {
             AutomaticInlineStatus::TooLong
         }
         ConstantValue::Regex(_) => AutomaticInlineStatus::HasIdentity,
@@ -174,6 +170,12 @@ impl ConstantsModule {
                                             JsValue::unknown_empty(
                                                 false,
                                                 rcstr!("regex not inlined"),
+                                            )
+                                        }
+                                        AutomaticInlineStatus::Unsupported => {
+                                            JsValue::unknown_empty(
+                                                false,
+                                                rcstr!("constant not supported"),
                                             )
                                         }
                                     }
