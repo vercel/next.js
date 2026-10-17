@@ -75,12 +75,15 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
 }
 
 const internalHandler: EdgeHandler = async (opts) => {
+  let emitInstrumentationSpans: (() => void) | undefined
+  let requestStartTime: number | undefined
   if (process.env.NEXT_RUNTIME !== 'edge') {
     // This mirrors what `RouteModule#prepare` does for routes
     // edge runtime handles loading instrumentation at the edge adapter level
+    requestStartTime = performance.timeOrigin + performance.now()
     const { join, relative } =
       require('node:path') as typeof import('node:path')
-    const { ensureInstrumentationRegistered } =
+    const { ensureInstrumentationRegisteredForRequest } =
       require('../../server/lib/router-utils/instrumentation-globals.external') as typeof import('../../server/lib/router-utils/instrumentation-globals.external')
     const absoluteProjectDir = join(
       /* turbopackIgnore: true */
@@ -92,7 +95,12 @@ const internalHandler: EdgeHandler = async (opts) => {
       ? relative(absoluteProjectDir, absoluteDistDir)
       : '.next'
 
-    await ensureInstrumentationRegistered(absoluteProjectDir, distDir)
+    // When this request registers `instrumentation.ts`, the adapter emits its
+    // lifecycle spans in the request's trace.
+    emitInstrumentationSpans = await ensureInstrumentationRegisteredForRequest(
+      absoluteProjectDir,
+      distDir
+    )
   }
 
   return adapter({
@@ -101,6 +109,8 @@ const internalHandler: EdgeHandler = async (opts) => {
     incrementalCacheHandler,
     page,
     handler: errorHandledHandler(handlerUserland),
+    emitInstrumentationSpans,
+    requestStartTime,
   })
 }
 

@@ -639,7 +639,9 @@ export abstract class RouteModule<
    *
    * The span is started before `fn` calls `prepare`, so everything done for
    * the request, including route module preparation, belongs to the request's
-   * trace. When the handler is wrapped by next-server, which already started
+   * trace. When the request triggers registering `instrumentation.ts`, the
+   * span is backdated to cover it and its lifecycle spans are children of the
+   * span. When the handler is wrapped by next-server, which already started
    * the request span, `fn` runs inside that active span instead.
    *
    * `fn` receives the request span, and the span that was active when the
@@ -677,11 +679,18 @@ export abstract class RouteModule<
       return fn(activeSpan, undefined)
     }
 
+    // The request span covers everything done for the request, including
+    // registering `instrumentation.ts` below, so it is backdated to now (on
+    // the same clock as the instrumentation lifecycle spans).
+    const startTime = performance.timeOrigin + performance.now()
+    let emitInstrumentationSpans: (() => void) | undefined
     if (!isWrappedByNextServer) {
       // On the first request, registering `instrumentation.ts` usually installs
       // the tracer provider. Do it before starting the request span: a span
-      // started earlier would not be recorded.
-      await this.prepareRuntime(req, res)
+      // started earlier would not be recorded. When this request triggered
+      // registration, its lifecycle spans are emitted inside the request span.
+      emitInstrumentationSpans = (await this.prepareRuntime(req, res, true))
+        .emitInstrumentationSpans
     }
 
     const parentSpan = tracer.getActiveScopeSpan()
@@ -693,12 +702,16 @@ export abstract class RouteModule<
           {
             spanName,
             kind: SpanKind.SERVER,
+            startTime,
             attributes: {
               'http.method': req.method || 'GET',
               'http.target': httpTarget,
             },
           },
-          (span) => fn(span, parentSpan)
+          (span) => {
+            emitInstrumentationSpans?.()
+            return fn(span, parentSpan)
+          }
         ),
       undefined,
       !isWrappedByNextServer
@@ -726,12 +739,22 @@ export abstract class RouteModule<
    * per request. Returns the absolute project directory (`undefined` in the
    * edge runtime, which handles loading instrumentation at the edge adapter
    * level).
+   *
+   * With `deferInstrumentationSpans`, when this call triggered registration,
+   * the lifecycle spans of `instrumentation.ts` are not emitted yet but
+   * returned as `emitInstrumentationSpans`, to be called inside the request
+   * span.
    */
   private async prepareRuntime(
     req: IncomingMessage | BaseNextRequest,
-    res: ServerResponse | null
-  ): Promise<string | undefined> {
+    res: ServerResponse | null,
+    deferInstrumentationSpans = false
+  ): Promise<{
+    absoluteProjectDir: string | undefined
+    emitInstrumentationSpans?: () => void
+  }> {
     let absoluteProjectDir: string | undefined
+    let emitInstrumentationSpans: (() => void) | undefined
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
       if (res) {
@@ -752,7 +775,10 @@ export abstract class RouteModule<
       if (absoluteDistDir) {
         this.distDir = relative(absoluteProjectDir, absoluteDistDir)
       }
-      const { ensureInstrumentationRegistered } = await import(
+      const {
+        ensureInstrumentationRegistered,
+        ensureInstrumentationRegisteredForRequest,
+      } = await import(
         '../lib/router-utils/instrumentation-globals.external.js'
       )
       // ensure instrumentation is registered and pass
@@ -760,10 +786,18 @@ export abstract class RouteModule<
       // that bypasses `BaseServer.handleRequest` (where this is also awaited
       // via `prepareImpl`) still observes the instrumentation hook completing
       // before the userland route handler runs.
-      await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+      if (deferInstrumentationSpans) {
+        emitInstrumentationSpans =
+          await ensureInstrumentationRegisteredForRequest(
+            absoluteProjectDir,
+            this.distDir
+          )
+      } else {
+        await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+      }
     }
 
-    return absoluteProjectDir
+    return { absoluteProjectDir, emitInstrumentationSpans }
   }
 
   private async prepareImpl(
@@ -820,7 +854,7 @@ export abstract class RouteModule<
       }
     | undefined
   > {
-    const absoluteProjectDir = await this.prepareRuntime(req, res)
+    const { absoluteProjectDir } = await this.prepareRuntime(req, res)
     const manifests = getTracer().trace(
       RouteModuleSpan.loadManifests,
       { spanName: 'load route manifests' },

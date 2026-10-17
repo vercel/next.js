@@ -11,7 +11,9 @@ import type {
 // Node.js and Edge runtimes and when deployed, where no collector is reachable.
 
 interface RecordedSpan {
+  traceId: string
   parentSpanId: string | undefined
+  parentTraceId: string | undefined
   type: string | undefined
 }
 
@@ -33,8 +35,11 @@ export const parentRecorder: SpanProcessor = {
       spans.delete(spans.keys().next().value!)
     }
     const type = span.attributes['next.span_type']
+    const parentSpanContext = trace.getSpanContext(parentContext)
     spans.set(span.spanContext().spanId, {
-      parentSpanId: trace.getSpanContext(parentContext)?.spanId,
+      traceId: span.spanContext().traceId,
+      parentSpanId: parentSpanContext?.spanId,
+      parentTraceId: parentSpanContext?.traceId,
       type: typeof type === 'string' ? type : undefined,
     })
   },
@@ -66,6 +71,29 @@ export function getRequestSpanId(span: Span | undefined) {
     spanId = getParentSpanId(spanId)
   }
   return undefined
+}
+
+/**
+ * The `instrumentation.ts` lifecycle spans (`Instrumentation.*`) started in
+ * this process, with their parent's span and trace ID, and its type when the
+ * parent was started here too.
+ */
+export function getInstrumentationLifecycleSpans() {
+  const spans = getRecordedSpans()
+  return [...spans.values()]
+    .filter((span) => span.type?.startsWith('Instrumentation.'))
+    .map((span) => {
+      const parent = span.parentSpanId
+        ? spans.get(span.parentSpanId)
+        : undefined
+      return {
+        type: span.type,
+        traceId: span.traceId,
+        parentSpanId: span.parentSpanId ?? null,
+        parentTraceId: span.parentTraceId ?? null,
+        parentType: parent?.type ?? null,
+      }
+    })
 }
 
 /**
