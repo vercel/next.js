@@ -12,7 +12,7 @@ The `notFound` function throws an error that renders a Next.js 404 page. It's us
 
 Invoking `notFound()` throws a `NEXT_HTTP_ERROR_FALLBACK;404` error and terminates rendering of the route segment where it was thrown. Next.js also injects a `<meta name="robots" content="noindex" />` tag so the page is not indexed. Because it works by throwing, call it in the render path: a component, or a function a component `await`s. A call left in an un-awaited promise throws where nothing catches it, and no not-found UI renders (in development the server logs `⨯ unhandledRejection: NEXT_HTTP_ERROR_FALLBACK;404`).
 
-`notFound()` can be invoked in [Server Components](/docs/app/getting-started/server-and-client-components), [Server Functions](/docs/app/getting-started/mutating-data), and [Route Handlers](/docs/app/api-reference/file-conventions/route).
+`notFound()` can be invoked in [Server Components and Client Components](/docs/app/getting-started/server-and-client-components), [Server Functions](/docs/app/getting-started/mutating-data), and [Route Handlers](/docs/app/api-reference/file-conventions/route).
 
 ```tsx filename="app/user/[id]/page.tsx" switcher
 import { notFound } from 'next/navigation'
@@ -79,6 +79,76 @@ return <Profile user={user} />
 Like any exception, it travels up the call stack until something catches it. A `try/catch` around the call suppresses it, and the not-found UI won't render. If you need to catch errors near the call, use [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) to let the interrupt through first.
 
 ## Examples
+
+### Calling `notFound()` in a Client Component
+
+Client Components can call `notFound()` during rendering. The error is handled by the nearest [`not-found`](/docs/app/api-reference/file-conventions/not-found) boundary.
+
+```tsx filename="app/items/[id]/item.tsx" switcher highlight={11}
+'use client'
+
+import { notFound, useParams } from 'next/navigation'
+
+const validIds = new Set(['alpha', 'beta'])
+
+export default function Item() {
+  const { id } = useParams<{ id: string }>()
+
+  if (!validIds.has(id)) {
+    notFound()
+  }
+
+  return <h1>Item: {id}</h1>
+}
+```
+
+```jsx filename="app/items/[id]/item.js" switcher highlight={11}
+'use client'
+
+import { notFound, useParams } from 'next/navigation'
+
+const validIds = new Set(['alpha', 'beta'])
+
+export default function Item() {
+  const { id } = useParams()
+
+  if (!validIds.has(id)) {
+    notFound()
+  }
+
+  return <h1>Item: {id}</h1>
+}
+```
+
+When [Cache Components](/docs/app/getting-started/caching) is enabled, [`useParams()`](/docs/app/api-reference/functions/use-params) can suspend if the route params are not known at build time. Wrap the Client Component in `<Suspense>` so Next.js can prerender a fallback:
+
+```tsx filename="app/items/[id]/page.tsx" switcher
+import { Suspense } from 'react'
+import Item from './item'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading item...</p>}>
+      <Item />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/items/[id]/page.js" switcher
+import { Suspense } from 'react'
+import Item from './item'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading item...</p>}>
+      <Item />
+    </Suspense>
+  )
+}
+```
+
+On client-side navigation, the not-found UI renders when the Client Component calls `notFound()`. On an initial page load, the `<Suspense>` fallback can be streamed before the missing resource is detected. In that case, the response keeps its `200` status, Next.js adds a `noindex` tag, and the not-found UI replaces the fallback after hydration. To return a `404` status for the initial request, check for the missing resource in a Server Component before streaming starts.
 
 ### Calling `notFound()` after streaming has started
 
