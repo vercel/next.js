@@ -99,7 +99,7 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
     },
   );
 
-  let sortedFeatures = state.features.sort((a, b) => {
+  let sortedFeatures = [...state.features].sort((a, b) => {
     // First, compare by score in descending order
     if (Number(a.score) > Number(b.score)) return -1;
     if (Number(a.score) < Number(b.score)) return 1;
