@@ -1,14 +1,88 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
+const CONTENT_SIGNALS_POLICY = `# As a condition of accessing this website, you agree to abide by the following content signals:
+#
+# (a)  If a content-signal = yes, you may collect content for the corresponding use.
+# (b)  If a content-signal = no, you may not collect content for the corresponding use.
+# (c)  If the website operator does not include a content signal for a corresponding use, the website operator neither grants nor restricts permission via content signal with respect to the corresponding use.
+#
+# The content signals and their meanings are:
+#
+# search: building a search index and providing search results (e.g., returning hyperlinks and short excerpts from your website's contents).  Search does not include providing AI-generated search summaries.
+# ai-input: inputting content into one or more AI models (e.g., retrieval augmented generation, grounding, or other real-time taking of content for generative AI search answers).
+# ai-train: training or fine-tuning AI models.
+#
+# ANY RESTRICTIONS EXPRESSED VIA CONTENT SIGNALS ARE EXPRESS RESERVATIONS OF RIGHTS UNDER ARTICLE 4 OF THE EUROPEAN UNION DIRECTIVE 2019/790 ON COPYRIGHT AND RELATED RIGHTS IN THE DIGITAL SINGLE MARKET.
+`
+
+type ContentSignalInput = NonNullable<MetadataRoute.Robots['contentSignal']>
+
+function formatContentSignalPairs(
+  signal: MetadataRoute.ContentSignal
+): string | null {
+  const pairs: string[] = []
+  if (typeof signal.search === 'boolean') {
+    pairs.push(`search=${signal.search ? 'yes' : 'no'}`)
+  }
+  if (typeof signal.aiInput === 'boolean') {
+    pairs.push(`ai-input=${signal.aiInput ? 'yes' : 'no'}`)
+  }
+  if (typeof signal.aiTrain === 'boolean') {
+    pairs.push(`ai-train=${signal.aiTrain ? 'yes' : 'no'}`)
+  }
+  return pairs.length > 0 ? pairs.join(', ') : null
+}
+
+function resolveContentSignalPaths(
+  path: MetadataRoute.ContentSignalRule['path']
+): Array<string | undefined> {
+  if (
+    path == null ||
+    path === '' ||
+    (Array.isArray(path) && path.length === 0)
+  ) {
+    return [undefined]
+  }
+  return resolveArray(path).filter((p) => typeof p === 'string' && p.length > 0)
+}
+
+function resolveContentSignal(input: ContentSignalInput): string {
+  const rules = Array.isArray(input) ? input : [input]
+  let content = ''
+  for (const rule of rules) {
+    if (rule == null || typeof rule !== 'object') continue
+    const pairs = formatContentSignalPairs(rule)
+    if (!pairs) continue
+    for (const path of resolveContentSignalPaths(rule.path)) {
+      if (path) {
+        content += `Content-Signal: ${path} ${pairs}\n`
+      } else {
+        content += `Content-Signal: ${pairs}\n`
+      }
+    }
+  }
+  return content
+}
+
 // convert robots data to txt string
 export function resolveRobots(data: MetadataRoute.Robots): string {
   let content = ''
+  if (data.contentSignalsPolicy) {
+    content += CONTENT_SIGNALS_POLICY
+    if (!content.endsWith('\n')) content += '\n'
+    content += '\n'
+  }
   const rules = Array.isArray(data.rules) ? data.rules : [data.rules]
   for (const rule of rules) {
     const userAgent = resolveArray(rule.userAgent || ['*'])
     for (const agent of userAgent) {
       content += `User-Agent: ${agent}\n`
+    }
+    const contentSignal =
+      rule.contentSignal !== undefined ? rule.contentSignal : data.contentSignal
+    if (contentSignal !== undefined) {
+      content += resolveContentSignal(contentSignal)
     }
     if (rule.allow) {
       const allow = resolveArray(rule.allow)
