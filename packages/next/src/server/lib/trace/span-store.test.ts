@@ -1,11 +1,16 @@
 import {
   clearRequestInsightsForTest,
   getRequestInsightsSnapshot,
+  registerRequestInsightsExporter,
 } from './request-insights'
 import {
   isLocalSpanRecordingEnabled,
+  captureLocalSpanRecorder,
   isRequestInsightsEnabled,
   recordSpan,
+  recordSpans,
+  setLocalSpanExporter,
+  runWithLocalSpanSink,
   setSpanRecorderForTest,
   type SpanStoreRecord,
 } from './span-store'
@@ -31,6 +36,7 @@ describe('span recording', () => {
     restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
     restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
     setSpanRecorderForTest(undefined)
+    setLocalSpanExporter(undefined)
     clearRequestInsightsForTest()
   })
 
@@ -63,6 +69,7 @@ describe('span recording', () => {
 
   it('forwards request spans directly to request insights', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    registerRequestInsightsExporter()
 
     recordSpan({
       name: 'render route (app) /dashboard',
@@ -90,6 +97,63 @@ describe('span recording', () => {
     })
   })
 
+  it('scopes forwarded span recording without retaining it locally', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const records: SpanStoreRecord[] = []
+
+    runWithLocalSpanSink(
+      (span) => records.push(span),
+      () => {
+        recordSpan({ name: 'worker span', requestId: 'req_worker' })
+      }
+    )
+
+    expect(records).toEqual([
+      expect.objectContaining({
+        name: 'worker span',
+        requestId: 'req_worker',
+      }),
+    ])
+    expect(getRequestInsightsSnapshot()).toEqual({ requests: [] })
+  })
+
+  it('keeps concurrent local span sinks isolated', async () => {
+    const firstRecords: SpanStoreRecord[] = []
+    const secondRecords: SpanStoreRecord[] = []
+    let resumeFirst!: () => void
+    let firstStarted!: () => void
+    const firstPaused = new Promise<void>((resolve) => {
+      resumeFirst = resolve
+    })
+    const firstReady = new Promise<void>((resolve) => {
+      firstStarted = resolve
+    })
+
+    const first = runWithLocalSpanSink(
+      (span) => firstRecords.push(span),
+      async () => {
+        recordSpan({ name: 'first before pause' })
+        firstStarted()
+        await firstPaused
+        recordSpan({ name: 'first after pause' })
+      }
+    )
+
+    await firstReady
+    const second = runWithLocalSpanSink(
+      (span) => secondRecords.push(span),
+      async () => recordSpan({ name: 'second' })
+    )
+    resumeFirst()
+    await Promise.all([first, second])
+
+    expect(firstRecords.map((span) => span.name)).toEqual([
+      'first before pause',
+      'first after pause',
+    ])
+    expect(secondRecords.map((span) => span.name)).toEqual(['second'])
+  })
+
   it('does not record spans outside the dev server', () => {
     const recorder = jest.fn()
     delete process.env.__NEXT_DEV_SERVER
@@ -102,6 +166,52 @@ describe('span recording', () => {
     recordSpan({ name: 'test.production', requestId: 'req_2' })
     expect(recorder).not.toHaveBeenCalled()
     expect(getRequestInsightsSnapshot()).toEqual({ requests: [] })
+  })
+
+  it('captures the destination before a stream resumes in another context', () => {
+    const first: SpanStoreRecord[] = []
+    const second: SpanStoreRecord[] = []
+    const record = runWithLocalSpanSink(
+      (span) => first.push(span),
+      captureLocalSpanRecorder
+    )
+    const span = { name: 'React render interval', timestamp: 1 }
+    runWithLocalSpanSink(
+      (recorded) => second.push(recorded),
+      () => record([span])
+    )
+
+    expect(first).toEqual([span])
+    expect(second).toEqual([])
+    delete process.env.__NEXT_DEV_SERVER
+    record([span])
+    expect(first).toHaveLength(1)
+  })
+
+  it('exports a completed batch once without requiring Request Insights', () => {
+    const exportSpans = jest.fn()
+    setLocalSpanExporter({ isEnabled: () => true, export: exportSpans })
+    const spans = [
+      { name: 'first', timestamp: 1 },
+      { name: 'second', timestamp: 2 },
+    ]
+
+    recordSpans(spans)
+
+    expect(exportSpans).toHaveBeenCalledTimes(1)
+    expect(exportSpans).toHaveBeenCalledWith(spans)
+    expect(getRequestInsightsSnapshot()).toEqual({ requests: [] })
+  })
+
+  it('does not let a failing exporter interrupt application work', () => {
+    setLocalSpanExporter({
+      isEnabled: () => true,
+      export() {
+        throw new Error('failed exporter')
+      },
+    })
+
+    expect(() => recordSpan({ name: 'render' })).not.toThrow()
   })
 
   it('treats boolean define-env request insights values as enabled', () => {
