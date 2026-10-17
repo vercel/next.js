@@ -109,7 +109,7 @@ export default class FileSystemCache implements CacheHandler {
       return
     }
 
-    const now = Date.now()
+    const now = Math.floor(performance.timeOrigin + performance.now())
 
     for (const tag of tags) {
       const existingEntry = tagsManifest.get(tag) || {}
@@ -619,7 +619,7 @@ export default class FileSystemCache implements CacheHandler {
 
     FileSystemCache.memoryCache?.set(key, {
       value: data,
-      lastModified: Date.now(),
+      lastModified: Math.floor(performance.timeOrigin + performance.now()),
       cacheControl,
     })
 
