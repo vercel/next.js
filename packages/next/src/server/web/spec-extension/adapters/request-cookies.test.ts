@@ -1,4 +1,9 @@
 import type { RequestStore } from '../../../app-render/work-unit-async-storage.external'
+import type { WorkStore } from '../../../app-render/work-async-storage.external'
+import {
+  ActionDidRevalidateDynamicOnly,
+  ActionDidRevalidateStaticAndDynamic,
+} from '../../../../shared/lib/action-revalidation-kind'
 import { RequestCookies, ResponseCookies } from '../cookies'
 import {
   ReadonlyRequestCookiesError,
@@ -165,6 +170,253 @@ describe('wrapWithMutableAccessCheck', () => {
         cookies.delete('foo')
       }).toThrow(EXPECTED_ERROR)
       expect(cookies.get('foo')?.value).toEqual('1')
+    })
+  })
+})
+
+describe('cookie mutation revalidation opt-out', () => {
+  let workAsyncStorage: typeof import('../../../app-render/work-async-storage.external').workAsyncStorage
+  let requestCookiesModule: typeof import('./request-cookies')
+
+  beforeAll(() => {
+    ;(globalThis as any).AsyncLocalStorage ??= (
+      require('node:async_hooks') as typeof import('node:async_hooks')
+    ).AsyncLocalStorage
+    jest.resetModules()
+    workAsyncStorage = (
+      require('../../../app-render/work-async-storage.external') as typeof import('../../../app-render/work-async-storage.external')
+    ).workAsyncStorage
+    requestCookiesModule =
+      require('./request-cookies') as typeof import('./request-cookies')
+  })
+
+  const createMockWorkStore = () =>
+    ({ pathWasRevalidated: undefined }) as unknown as WorkStore
+
+  const wrapCookies = (onUpdateCookies?: (cookies: string[]) => void) =>
+    requestCookiesModule.MutableRequestCookiesAdapter.wrap(
+      new RequestCookies(new Headers({})),
+      onUpdateCookies
+    )
+
+  it('marks the path as revalidated when set() is called', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      const cookies = wrapCookies()
+      cookies.set('foo', '1')
+
+      expect(workStore.pathWasRevalidated).toBe(
+        ActionDidRevalidateStaticAndDynamic
+      )
+      expect(
+        requestCookiesModule.didMutatedCookiesRequestRevalidation(cookies)
+      ).toBe(true)
+    })
+  })
+
+  it('does not mark the path as revalidated when set() is called with revalidate: false', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      const onUpdateCookies = jest.fn<void, [string[]]>()
+      const cookies = wrapCookies(onUpdateCookies)
+      cookies.set('foo', '1', { revalidate: false })
+
+      expect(workStore.pathWasRevalidated).toBeUndefined()
+      expect(
+        requestCookiesModule.didMutatedCookiesRequestRevalidation(cookies)
+      ).toBe(false)
+
+      // The cookie must still be set and emitted to the response.
+      expect(cookies.get('foo')?.value).toBe('1')
+      expect(onUpdateCookies).toHaveBeenCalledWith([
+        expect.stringContaining('foo=1'),
+      ])
+
+      // The cookie must still be recorded as modified, so that route
+      // handlers and redirects emit it via `appendMutableCookies`.
+      expect(requestCookiesModule.getModifiedCookieValues(cookies)).toEqual([
+        expect.objectContaining({ name: 'foo', value: '1' }),
+      ])
+
+      // The `revalidate` option must not be stored on the cookie.
+      expect(cookies.get('foo')).not.toHaveProperty('revalidate')
+    })
+  })
+
+  it('supports revalidate: false in the single options object form of set()', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      const cookies = wrapCookies()
+      cookies.set({ name: 'foo', value: '1', path: '/x', revalidate: false })
+
+      expect(workStore.pathWasRevalidated).toBeUndefined()
+      expect(cookies.get('foo')).toMatchObject({
+        name: 'foo',
+        value: '1',
+        path: '/x',
+      })
+      expect(cookies.get('foo')).not.toHaveProperty('revalidate')
+    })
+  })
+
+  it('marks the path as revalidated when delete() is called with a name', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      const cookies = wrapCookies()
+      cookies.delete('foo')
+
+      expect(workStore.pathWasRevalidated).toBe(
+        ActionDidRevalidateStaticAndDynamic
+      )
+      expect(
+        requestCookiesModule.didMutatedCookiesRequestRevalidation(cookies)
+      ).toBe(true)
+    })
+  })
+
+  it('does not mark the path as revalidated when delete() is called with revalidate: false', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      const onUpdateCookies = jest.fn<void, [string[]]>()
+      const cookies = wrapCookies(onUpdateCookies)
+      cookies.delete({ name: 'foo', revalidate: false })
+
+      expect(workStore.pathWasRevalidated).toBeUndefined()
+      expect(
+        requestCookiesModule.didMutatedCookiesRequestRevalidation(cookies)
+      ).toBe(false)
+
+      // The deletion must still be emitted to the response and recorded as a
+      // modified cookie.
+      expect(onUpdateCookies).toHaveBeenCalledWith([
+        expect.stringContaining('foo=;'),
+      ])
+      expect(requestCookiesModule.getModifiedCookieValues(cookies)).toEqual([
+        expect.objectContaining({ name: 'foo', value: '' }),
+      ])
+
+      // The `revalidate` option must not be stored on the expired cookie.
+      expect(cookies.get('foo')).not.toHaveProperty('revalidate')
+    })
+  })
+
+  it('preserves cookie objects whose properties are inherited accessors', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      const cookies = wrapCookies()
+
+      class AccessorCookie {
+        httpOnly = true
+        get name() {
+          return 'sid'
+        }
+        get value() {
+          return 'token'
+        }
+      }
+
+      // Without the `revalidate` option, the object is forwarded untouched.
+      cookies.set(new AccessorCookie())
+      expect(cookies.get('sid')).toMatchObject({
+        name: 'sid',
+        value: 'token',
+        httpOnly: true,
+      })
+      expect(workStore.pathWasRevalidated).toBe(
+        ActionDidRevalidateStaticAndDynamic
+      )
+
+      class AccessorCookieOptOut extends AccessorCookie {
+        revalidate = false
+      }
+
+      // With the option, `name` and `value` must survive the stripping even
+      // though they aren't own enumerable properties.
+      workStore.pathWasRevalidated = undefined
+      const otherCookies = wrapCookies()
+      otherCookies.set(new AccessorCookieOptOut())
+      expect(otherCookies.get('sid')).toMatchObject({
+        name: 'sid',
+        value: 'token',
+        httpOnly: true,
+      })
+      expect(otherCookies.get('sid')).not.toHaveProperty('revalidate')
+      expect(workStore.pathWasRevalidated).toBeUndefined()
+    })
+  })
+
+  it('does not undo a requested revalidation with a later opted-out mutation', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      const cookies = wrapCookies()
+      cookies.set('foo', '1')
+      cookies.set('bar', '2', { revalidate: false })
+
+      expect(workStore.pathWasRevalidated).toBe(
+        ActionDidRevalidateStaticAndDynamic
+      )
+      expect(
+        requestCookiesModule.didMutatedCookiesRequestRevalidation(cookies)
+      ).toBe(true)
+    })
+  })
+
+  it('requests revalidation when an opted-out mutation is followed by a normal one', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      const cookies = wrapCookies()
+      cookies.set('foo', '1', { revalidate: false })
+
+      expect(
+        requestCookiesModule.didMutatedCookiesRequestRevalidation(cookies)
+      ).toBe(false)
+
+      cookies.set('bar', '2')
+
+      expect(workStore.pathWasRevalidated).toBe(
+        ActionDidRevalidateStaticAndDynamic
+      )
+      expect(
+        requestCookiesModule.didMutatedCookiesRequestRevalidation(cookies)
+      ).toBe(true)
+    })
+  })
+
+  it('does not overwrite a revalidation kind set by another API', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      // Simulate a preceding refresh() call.
+      workStore.pathWasRevalidated = ActionDidRevalidateDynamicOnly
+
+      const cookies = wrapCookies()
+      cookies.set('foo', '1', { revalidate: false })
+
+      expect(workStore.pathWasRevalidated).toBe(ActionDidRevalidateDynamicOnly)
+    })
+  })
+
+  it('honors revalidate: false through the userspace mutable cookies proxy', () => {
+    const workStore = createMockWorkStore()
+    workAsyncStorage.run(workStore, () => {
+      const requestStore = {
+        type: 'request',
+        phase: 'action',
+        mutableCookies: wrapCookies(),
+      } as RequestStore
+      const cookies =
+        requestCookiesModule.createCookiesWithMutableAccessCheck(requestStore)
+
+      cookies.set('foo', '1', { revalidate: false })
+      cookies.delete({ name: 'bar', revalidate: false })
+
+      expect(workStore.pathWasRevalidated).toBeUndefined()
+      expect(cookies.get('foo')?.value).toBe('1')
+
+      cookies.set('baz', '2')
+
+      expect(workStore.pathWasRevalidated).toBe(
+        ActionDidRevalidateStaticAndDynamic
+      )
     })
   })
 })
