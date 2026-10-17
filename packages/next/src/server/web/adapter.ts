@@ -39,6 +39,7 @@ import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import { setRequestMeta } from '../request-meta'
+import type { __ApiPreviewProps } from '../api-utils'
 
 // The proxy (middleware) does not support `'use cache'`, so this work store
 // never reaches the code that reads `cacheLife` (and `'use cache'` is
@@ -93,12 +94,18 @@ export type AdapterOptions = {
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
+  /**
+   * Preview settings supplied by the Node.js server. Edge callers use the
+   * settings injected into their runtime environment.
+   */
+  previewProps?: __ApiPreviewProps
 }
 
 // This has to be compatible with what the Vercel builder does as well:
 // https://github.com/vercel/vercel/blob/0e0a6eb9f12216202ae2f5ee37e4ada1796361fd/packages/next/src/edge-function-source/get-edge-function.ts#L112-L136
 export type EdgeHandler = (opts: {
   request: AdapterOptions['request']
+  previewProps?: AdapterOptions['previewProps']
 }) => Promise<FetchEventResult>
 
 let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
@@ -129,6 +136,8 @@ export async function adapter(
 ): Promise<FetchEventResult> {
   ensureTestApisIntercepted()
   await ensureInstrumentationRegistered()
+
+  const previewProps = params.previewProps ?? getEdgePreviewProps()
 
   // TODO-APP: use explicit marker for this
   const isEdgeRendering =
@@ -243,13 +252,13 @@ export async function adapter(
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
 
-      previewProps: getEdgePreviewProps(),
+      previewProps,
       prerenderManifest: {
         version: -1 as any, // letting us know this doesn't conform to spec
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
-        preview: getEdgePreviewProps(),
+        preview: previewProps,
       },
     })
   }
@@ -297,7 +306,6 @@ export async function adapter(
             const onUpdateCookies = (cookies: Array<string>) => {
               cookiesFromResponse = cookies
             }
-            const previewProps = getEdgePreviewProps()
             const page = '/' // Fake Work
             const fallbackRouteParams = null
 
