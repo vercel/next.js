@@ -16,9 +16,9 @@ These Next.js optimizations are enabled by default and require no configuration:
 
 - **[Server Components](/docs/app/getting-started/server-and-client-components):** Next.js uses Server Components by default. Server Components run on the server, and don't require JavaScript to render on the client. As such, they have no impact on the size of your client-side JavaScript bundles. You can then use [Client Components](/docs/app/getting-started/server-and-client-components) as needed for interactivity.
 - **[Code-splitting](/docs/app/getting-started/linking-and-navigating#how-navigation-works):** Server Components enable automatic code-splitting by route segments. You may also consider [lazy loading](/docs/app/guides/lazy-loading) Client Components and third-party libraries, where appropriate.
-- **[Prefetching](/docs/app/getting-started/linking-and-navigating#prefetching):** When a link to a new route enters the user's viewport, Next.js prefetches the route in background. This makes navigation to new routes almost instant. You can opt out of prefetching, where appropriate.
-- **[Prerendering](/docs/app/glossary#prerendering):** Next.js prerenders Server and Client Components on the server at build time and caches the rendered result to improve your application's performance. You can opt into [Dynamic Rendering](/docs/app/glossary#dynamic-rendering) for specific routes, where appropriate. {/* TODO: Update when PPR is stable */}
-- **[Caching](/docs/app/getting-started/caching):** Next.js caches data requests, the rendered result of Server and Client Components, static assets, and more, to reduce the number of network requests to your server, database, and backend services. You may opt out of caching, where appropriate.
+- **[Prefetching](/docs/app/getting-started/linking-and-navigating#prefetching):** When a link to a new route enters the user's viewport, Next.js prefetches the route in the background. With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), Next.js prefetches the reusable App Shell for the route by default. You can adjust or disable prefetching where appropriate.
+- **[Prerendering](/docs/app/glossary#prerendering):** Without Cache Components, Next.js prerenders static routes and renders routes that use Request-time APIs at request time. With [Cache Components](/docs/app/getting-started/caching), Next.js uses [Partial Prerendering](/docs/app/getting-started/caching#prerendering) to combine a static shell with dynamic content that streams at request time.
+- **[Caching](/docs/app/getting-started/caching):** Next.js caches prerendered output and static assets to reduce requests to your server and backend services. With Cache Components, use the [`use cache` directive](/docs/app/api-reference/directives/use-cache) to cache async functions and components that can be reused across requests.
 
 </AppOnly>
 
@@ -44,9 +44,16 @@ While building your application, we recommend using the following features to en
 - **[`<Link>` component](/docs/app/api-reference/components/link):** Use the `<Link>` component for [client-side navigation and prefetching](/docs/app/getting-started/linking-and-navigating#how-navigation-works).
 - **[Error Handling](/docs/app/getting-started/error-handling):** Gracefully handle [catch-all errors](/docs/app/getting-started/error-handling) and [404 errors](/docs/app/api-reference/file-conventions/not-found) in production by creating custom error pages.
 - **[Client and Server Components](/docs/app/getting-started/server-and-client-components#examples):** Follow the recommended composition patterns for Server and Client Components, and check the placement of your [`"use client"` boundaries](/docs/app/getting-started/server-and-client-components#reducing-js-bundle-size) to avoid unnecessarily increasing your client-side JavaScript bundle.
-- **Request-time APIs:** Be aware that Request-time APIs like [`cookies`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop will opt the entire route into [Dynamic Rendering](/docs/app/glossary#dynamic-rendering) (or your whole application if used in the [Root Layout](/docs/app/api-reference/file-conventions/layout#root-layout)). Ensure Request-time API usage is intentional and wrap them in `<Suspense>` boundaries where appropriate.
 
-> **Good to know**: [Partial Prerendering (experimental)](/blog/next-14#partial-prerendering-preview) will allow parts of a route to be dynamic without opting the whole route into dynamic rendering.
+#### Without Cache Components
+
+- **Request-time APIs:** APIs like [`cookies`](/docs/app/api-reference/functions/cookies) and the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop opt the entire route into [Dynamic Rendering](/docs/app/glossary#dynamic-rendering), or the whole application when used in the [Root Layout](/docs/app/api-reference/file-conventions/layout#root-layout). Ensure Request-time API usage is intentional, and wrap slow operations in `<Suspense>` boundaries to stream their output.
+
+#### With Cache Components
+
+- **Request-time APIs:** Access request-time data inside a component wrapped in `<Suspense>`. The fallback becomes part of the [prerendered static shell](/docs/app/getting-started/caching#prerendering), while the request-time content streams in without making the entire route dynamic.
+- **Caching:** Add [`use cache`](/docs/app/api-reference/directives/use-cache) to async functions or components whose results can be reused across requests. Cached content can become part of the static shell.
+- **Partial Prefetching:** With [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, `<Link>` prefetches a reusable App Shell for each route. Review links that need URL-specific cached content before navigation and use [per-link prefetching](/docs/app/guides/optimizing-prefetching) where appropriate.
 
 </AppOnly>
 
@@ -142,7 +149,10 @@ Before going to production, you can run `next build` to build your application l
 
 ### Analyzing bundles
 
-Use the [`@next/bundle-analyzer` plugin](/docs/app/guides/package-bundling#nextbundle-analyzer-for-webpack) to analyze the size of your JavaScript bundles and identify large modules and dependencies that might be impacting your application's performance.
+Choose the bundle analyzer that matches your bundler:
+
+- **Turbopack (default):** Run [`next analyze`](/docs/app/guides/package-bundling#nextjs-bundle-analyzer) to inspect client and server modules with the built-in Next.js Bundle Analyzer.
+- **Webpack:** Use the [`@next/bundle-analyzer` plugin](/docs/app/guides/package-bundling#nextbundle-analyzer-for-webpack) to generate visual reports for your JavaScript bundles.
 
 Additionally, the following tools can help you understand the impact of adding new dependencies to your application:
 
