@@ -49,6 +49,56 @@ describe('default use cache handler', () => {
   })
 })
 
+describe('default use cache handler tag expiration', () => {
+  it('keeps an entry created after a revalidation once its expire window has passed', async () => {
+    const handler = createDefaultCacheHandler(1024 * 1024)
+    await handler.set('before', Promise.resolve(createTaggedEntry(['window'])))
+    await wait(5)
+    await handler.updateTags(['window'], { expire: 0.1 })
+    await wait(5)
+    await handler.set('after', Promise.resolve(createTaggedEntry(['window'])))
+    await wait(150)
+
+    expect(await handler.get('before', [])).toBeUndefined()
+    expect(await handler.get('after', [])).toBeDefined()
+  })
+
+  it('expires an entry created between a revalidation with an expire window and an immediate one', async () => {
+    const handler = createDefaultCacheHandler(1024 * 1024)
+    await handler.updateTags(['immediate'], { expire: 3600 })
+    await wait(5)
+    await handler.set(
+      'between',
+      Promise.resolve(createTaggedEntry(['immediate']))
+    )
+    await wait(5)
+    await handler.updateTags(['immediate'])
+    await wait(5)
+
+    expect(await handler.get('between', [])).toBeUndefined()
+  })
+})
+
+function createTaggedEntry(tags: string[]): CacheEntry {
+  return {
+    value: new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('cached value'))
+        controller.close()
+      },
+    }),
+    tags,
+    stale: 3600,
+    timestamp: performance.timeOrigin + performance.now(),
+    expire: 7200,
+    revalidate: 3600,
+  }
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 async function runInRequestContext(
   callback: () => Promise<void>
 ): Promise<WeakRef<object>> {
