@@ -6,6 +6,7 @@ import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express'
 
 type TestGlobal = typeof globalThis & {
   __nextTestEarlyTracer?: Tracer
+  __nextTestRegistrationTracer?: Tracer
 }
 
 // Acquire this before sdk.start() to reproduce how instrumentation libraries
@@ -25,3 +26,9 @@ const sdk = new NodeSDK({
 })
 
 sdk.start()
+
+// Acquired after sdk.start() but still inside register(), like instrumentations
+// that resolve a concrete tracer while they are being enabled.
+;(globalThis as TestGlobal).__nextTestRegistrationTracer = trace.getTracer(
+  'next-test-registration-tracer'
+)
