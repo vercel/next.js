@@ -4,19 +4,14 @@
 //! [`SnapshotCoordinator`] that enforces the protocol:
 //!
 //! - When no exclusive phase is in flight,
-//!   [`begin_operation`](SnapshotCoordinator::begin_operation) is one atomic increment on a counter
-//!   stripe chosen per thread, plus a load of the shared phase flags. Every backend operation
-//!   passes through here, so a single shared counter would be one cache line written by every
-//!   worker; the stripes keep that traffic per thread. The active count is the sum of the stripes.
+//!   [`begin_operation`](SnapshotCoordinator::begin_operation) increments a striped counter.
 //! - A phase waits for a zero-active boundary while new operations remain free to enter. An
 //!   operation can depend on work started by another operation, so closing admission before all
 //!   active work completes could deadlock graph propagation.
 //! - At that boundary the phase atomically closes admission, does its work, then wakes new
-//!   operations. No partially propagated graph work needs to be saved for replay.
-//! - The waiting phase polls for that boundary rather than having operations notify it: finding out
-//!   whether an ending operation was the last one means reading every stripe, which on a many-core
-//!   machine would put cross-core traffic back on every operation's end for as long as the phase
-//!   waits.
+//!   operations.
+//! - The waiting phase polls for zero rather than having operations notify it, with striped
+//!   counters a single operation completing cannot detect that all are complete.
 //! - Because admission stays open while waiting, a busy graph may not reach a boundary for a long
 //!   time. [`begin_snapshot`](SnapshotCoordinator::begin_snapshot) reports long waits to its
 //!   caller, and [`try_begin_snapshot`](SnapshotCoordinator::try_begin_snapshot) doesn't wait at
@@ -71,16 +66,9 @@ struct State {
 }
 
 /// Coordinates operation/snapshot/GC interleaving.
-///
-/// Admission is a store-load handshake between [`Self::begin_operation`] (increment its stripe,
-/// then load `flags`) and a closing phase (set [`SNAPSHOT_RUNNING_BIT`], then sum the stripes),
-/// all `SeqCst`. Either the operation sees the bit and waits for the phase under the mutex, or
-/// the phase counts the operation and reopens admission. Ending an operation only decrements its
-/// stripe; a waiting phase retries the close on a timer.
 pub struct SnapshotCoordinator {
-    /// Active operations, split over cache-line-padded stripes; an operation increments and
-    /// decrements the same stripe.
-    stripes: Box<[CachePadded<AtomicUsize>]>,
+    /// Active operations; an operation increments and decrements the same stripe.
+    active_operations: Box<[CachePadded<AtomicUsize>]>,
     /// [`SNAPSHOT_WAITING_BIT`] and [`SNAPSHOT_RUNNING_BIT`]. Written only by phases (under
     /// `state`), read by every operation.
     flags: AtomicUsize,
@@ -103,9 +91,8 @@ impl SnapshotCoordinator {
         Self::new_with_custom_slow_settle_report_timeout(DEFAULT_SLOW_SETTLE_REPORT_TIME)
     }
     fn new_with_custom_slow_settle_report_timeout(slow_settle_report_timeout: Duration) -> Self {
-        // Twice the parallelism: thread ids keep growing as threads are created (e.g. by
-        // `block_in_place`), so once they wrap around the stripes, active threads land on stripes
-        // at random. Spare stripes keep them mostly apart.
+        // Oversize the stripes.  it is a small amount of ram and zero contention is the goal.
+        // Being too large makes waiting for settling slightly more expensive.
         let stripes = (available_parallelism().map_or(1, |n| n.get()) * 2)
             .next_power_of_two()
             .min(MAX_STRIPES);
@@ -116,7 +103,7 @@ impl SnapshotCoordinator {
     fn new_with_stripes(slow_settle_report_timeout: Duration, stripes: usize) -> Self {
         debug_assert!(stripes.is_power_of_two());
         Self {
-            stripes: (0..stripes)
+            active_operations: (0..stripes)
                 .map(|_| CachePadded::new(AtomicUsize::new(0)))
                 .collect(),
             flags: AtomicUsize::new(0),
@@ -129,21 +116,18 @@ impl SnapshotCoordinator {
         }
     }
 
-    /// The calling thread's stripe, picked by its [`ThreadId`](thread::ThreadId). Ids are handed
-    /// out in order and never reused, so threads spread over the stripes round-robin. Reading the
-    /// current id is a single thread-local access.
-    fn stripe(&self) -> &AtomicUsize {
+    /// The calling thread's counter, picked by its [`ThreadId`](thread::ThreadId).
+    fn current_thread_counter(&self) -> &AtomicUsize {
         let id = thread::current_id().as_u64().get() as usize;
         // the stripe count is a power of two
-        &self.stripes[id & (self.stripes.len() - 1)]
+        &self.active_operations[id & (self.active_operations.len() - 1)]
     }
 
-    /// Active operations: the sum of the stripes, read one stripe at a time. With admission
-    /// open it is only a hint (it can read zero while operations are active, when one starts on
-    /// a stripe already read and another ends on a stripe not yet read); only a sum taken with
-    /// [`SNAPSHOT_RUNNING_BIT`] set decides (`try_close_admission`).
     fn active_operations(&self) -> usize {
-        self.stripes.iter().map(|s| s.load(Ordering::SeqCst)).sum()
+        self.active_operations
+            .iter()
+            .map(|s| s.load(Ordering::SeqCst))
+            .sum()
     }
 
     /// Begin an operation. Returns a guard that decrements on drop.
@@ -151,14 +135,12 @@ impl SnapshotCoordinator {
     /// If a snapshot is in flight, blocks until the snapshot finishes before
     /// returning the guard.
     pub fn begin_operation(&self) -> OperationGuard<'_> {
-        let stripe = self.stripe();
+        let stripe = self.current_thread_counter();
         // Fast path: no snapshot in flight, one atomic increment on this thread's stripe.
         //
-        // Unlike `Arc::clone`, this increment can't be `Relaxed`: it is the store half of the
-        // store-load handshake with a closing phase, so it must be visible before the load of
-        // `flags` below decides that admission is open. Otherwise a phase could sum the stripes
-        // without seeing it, and this operation could see the running bit still clear. Both
-        // sides must be `SeqCst`. (The decrement has no such obligation; see `OperationGuard`.)
+        // SeqCst because it must be visible before the load of `flags` below decides that admission
+        // is open. Otherwise a phase could sum the stripes without seeing it, and this
+        // operation could see the running bit still clear. Both sides must be `SeqCst`.
         stripe.fetch_add(1, Ordering::SeqCst);
         if (self.flags.load(Ordering::SeqCst) & SNAPSHOT_RUNNING_BIT) == 0 {
             return OperationGuard {
@@ -200,14 +182,14 @@ impl SnapshotCoordinator {
         }
     }
 
-    /// Under the state mutex, with no phase in flight: close admission if no operation is
-    /// active (the running bit stays set and `Ok` is returned), else leave `flags` at `keep` and
-    /// return how many operations were still active.
+    /// Must be called under the state mutex: close admission if no operation is active (the running
+    /// bit stays set and `Ok` is returned), else leave `flags` at `keep` and return how many
+    /// operations were still active.
     ///
-    /// With a nonzero `grace`, admission stays closed for up to that long while operations that
-    /// are already active finish. Operations arriving meanwhile wait for the mutex without being
-    /// counted. That can delay an active operation that depends on one of them, but only until
-    /// the grace period ends, so it cannot deadlock.
+    /// `grace` is how long to keep admission closed while re-scanning for zero. Under load, some
+    /// thread almost always has an operation open, so a single scan rarely sees zero even though
+    /// each operation is short. Holding admission closed briefly stops new operations from
+    /// replacing the ones that finish, so the in-flight ones can drain.
     fn try_close_admission(&self, keep: usize, grace: Duration) -> Result<(), usize> {
         self.flags
             .store(keep | SNAPSHOT_RUNNING_BIT, Ordering::SeqCst);
