@@ -275,6 +275,24 @@ files, from newest to oldest; there is no ordering dependency between families.
           - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
 
+### Memory map advice
+
+Lookups usually touch only some blocks of an SST file, and a block is read in full the first time it
+is used (checksum verification and decompression). On Unix, the lookup mapping therefore uses:
+
+- `MADV_RANDOM` for the whole file, so a fault doesn't read around into neighboring blocks.
+- `MADV_WILLNEED` for the block offset table when the file is opened, since every block access
+  reads it.
+- A best-effort `MADV_WILLNEED` for a block that spans more than one page, before any of its bytes is
+  read: on its first full read in this open, and on every read of a medium value block (those bypass
+  the block cache). Without the hint, `MADV_RANDOM` would fault such a block in one page at a time.
+  Blocks within a single page, and blocks whose checksum was already verified, get no hint.
+
+If the system page size can't be determined, block hints are skipped, so `MADV_RANDOM` isn't applied
+either and the mapping keeps the default advice.
+
+Compaction reads SST files through separate `MADV_SEQUENTIAL` mappings.
+
 ## Writing
 
 Writing starts by creating a new WriteBatch. It maintains an atomic counter of the next free sequence number.

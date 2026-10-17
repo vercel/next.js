@@ -912,15 +912,21 @@ describe('static App Shell prefetch attempt', () => {
       expect(await browser.elementById('page-content').text()).toBe(
         'Runtime APIs called after prefetch()'
       )
-      // The static prefetch includes both the shell and static prefetch data.
-      expect(await browser.elementById('prefetch-content').text()).toBe(
-        'Prefetch content'
+      // The static response has both the shell and the prefetch content, but
+      // we only keep the shell. The full payload read runtime data (after
+      // prefetch()), so it needs a runtime request, but its shell is cache
+      // complete. A more complete entry wins over a deeper one, so the shell
+      // replaces the full payload right away. That's fine. A link that asks
+      // for more than the shell would replace the full payload with a runtime
+      // prefetch anyway, and a shell link only needs the shell.
+      //
+      // TODO: When the full static payload needs runtime but its shell
+      // doesn't, the client never keeps the full payload. collect-segment-data
+      // should send only the shell in that case, with no extra bytes.
+      expect(await browser.elementById('prefetch-loading').text()).toBe(
+        'Loading prefetch content...'
       )
-      // Runtime data is not included.
-      expect(await browser.elementById('runtime-loading').text()).toBe(
-        'Loading runtime content...'
-      )
-    }, [{ includes: 'Runtime content' }])
+    }, [{ includes: 'Prefetch content' }, { includes: 'Runtime content' }])
   })
 
   it('speculative: uses a runtime prefetch for a partial segment that calls runtime APIs after prefetch()', async () => {
@@ -1714,15 +1720,17 @@ describe('static App Shell prefetch attempt', () => {
               )
               .click()
 
-            // We did a static prefetch for this link, so we should have param-dependent
-            // data, but not runtime data.
-            expect(await browser.elementById('param-content').text()).toBe(
-              'Slug: yes-cookies-in-prefetch'
+            // Only the shell is kept from the static prefetch, so the
+            // param-dependent content isn't here yet. See the comment in
+            // "uses a static app shell for a partial segment that calls
+            // runtime APIs after prefetch()".
+            expect(await browser.elementById('param-loading').text()).toBe(
+              'Loading param content...'
             )
-            expect(
-              await browser.elementById('maybe-runtime-content-fallback').text()
-            ).toBe('Loading runtime data...')
-          }, [{ includes: 'Dynamic content' }])
+          }, [
+            { includes: 'Slug: yes-cookies-in-prefetch' },
+            { includes: 'Dynamic content' },
+          ])
 
           // The missing runtime content should arrive in the navigation response.
           expect(
@@ -2115,7 +2123,7 @@ describe('static App Shell prefetch attempt', () => {
           'no-requests'
         )
 
-        // When we navigate, we should show the static prefetch.
+        // When we navigate, we should show the shell.
         await act(async () => {
           await browser
             .elementByCss(
@@ -2123,14 +2131,17 @@ describe('static App Shell prefetch attempt', () => {
             )
             .click()
 
-          // We have param-dependent content, but not runtime data.
-          expect(await browser.elementById('param-content').text()).toBe(
-            'Slug: yes-cookies-in-prefetch-not-prerendered'
+          // Only the shell is kept from the static prefetch, so the
+          // param-dependent content isn't here yet. See the comment in
+          // "uses a static app shell for a partial segment that calls runtime
+          // APIs after prefetch()".
+          expect(await browser.elementById('param-loading').text()).toBe(
+            'Loading param content...'
           )
-          expect(
-            await browser.elementById('maybe-runtime-content-fallback').text()
-          ).toBe('Loading runtime data...')
-        }, [{ includes: 'Dynamic content' }])
+        }, [
+          { includes: 'Slug: yes-cookies-in-prefetch-not-prerendered' },
+          { includes: 'Dynamic content' },
+        ])
 
         // The missing runtime data should arrive in the navigation response.
         expect(await browser.elementById('maybe-runtime-content').text()).toBe(

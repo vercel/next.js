@@ -108,7 +108,6 @@ async function requestHandler(
   // INJECT_RAW:cacheHandlerRegistration
 
   const serverActionRequestMetadata = getServerActionRequestMetadata(baseReq)
-  const { isPossibleServerAction } = serverActionRequestMetadata
   const userAgent = req.headers.get('User-Agent') || ''
   const botType = getBotType(userAgent)
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
@@ -166,7 +165,6 @@ async function requestHandler(
       botType,
       isDraftMode: false,
       isOnDemandRevalidate,
-      isPossibleServerAction,
       assetPrefix: nextConfig.assetPrefix,
       nextConfigOutput: nextConfig.output,
       crossOrigin: nextConfig.crossOrigin,
