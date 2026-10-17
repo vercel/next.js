@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod mutable_cell_tests;
+
 use std::{
     iter,
     path::{Path, PathBuf},
@@ -44,9 +47,10 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent, turbo_tasks,
+    Completion, Completions, FxIndexMap, InvalidationReason, MutableCell, NonLocalValue,
+    OperationValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent,
+    turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -420,12 +424,27 @@ struct ProjectFileSystemState {
     output_file_system: OperationVc<DiskFileSystem>,
 }
 
+// These distinct payload types give the root constructor a fixed per-type cell layout.
+// Allocate each payload unconditionally so reruns preserve the owner's cell identities.
+#[turbo_tasks::value(cell = "mutable", operation)]
+#[derive(Clone)]
+struct ProjectOptionsCell(Option<ProjectOptions>);
+
+#[turbo_tasks::value(cell = "mutable", operation)]
+#[derive(Clone)]
+struct ProjectFileSystemsCell(Option<ProjectFileSystemState>);
+
+#[turbo_tasks::value(cell = "mutable", operation)]
+#[derive(Clone)]
+struct ProjectAdditionalRootsCell(Vec<(RcStr, AdditionalDiskFileSystem)>);
+
 #[turbo_tasks::value(evict = "never", eq = "manual", cell = "new")]
 pub struct ProjectContainer {
     name: RcStr,
-    options_state: State<Option<ProjectOptions>>,
-    file_systems_state: State<Option<ProjectFileSystemState>>,
-    additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
+    // The owning new_operation is an existing root; these handles do not root it themselves.
+    options_state: MutableCell<ProjectOptionsCell>,
+    file_systems_state: MutableCell<ProjectFileSystemsCell>,
+    additional_roots_state: MutableCell<ProjectAdditionalRootsCell>,
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     fs_map_init_lock: tokio::sync::Mutex<()>,
@@ -445,9 +464,9 @@ impl ProjectContainer {
             } else {
                 None
             },
-            options_state: State::new(None),
-            file_systems_state: State::new(None),
-            additional_roots_state: State::new(Vec::new()),
+            options_state: ProjectOptionsCell(None).mutable_cell(),
+            file_systems_state: ProjectFileSystemsCell(None).mutable_cell(),
+            additional_roots_state: ProjectAdditionalRootsCell(Vec::new()).mutable_cell(),
             fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
@@ -497,7 +516,9 @@ async fn prepare_project_container_state(
     // `project_root_path_operation` reads `options_state`, so publish it first. This operation
     // cannot depend on `fs_map_init_lock` because we must eagerly resolve `project_fs_op` to
     // create `config_path`.
-    container.options_state.set(Some(options));
+    container
+        .options_state
+        .set(ProjectOptionsCell(Some(options)))?;
 
     // Wrap `options.root_path` in an `OperationVc`
     // Note: It's important that the identity of this operation is stable, so that we don't end up
@@ -523,10 +544,10 @@ async fn prepare_project_container_state(
     // The filesystem only stores (and does not resolve) the filesystem map.
     container
         .file_systems_state
-        .set(Some(ProjectFileSystemState {
+        .set(ProjectFileSystemsCell(Some(ProjectFileSystemState {
             project_file_system: project_fs_op,
             output_file_system: output_fs_op,
-        }));
+        })))?;
     let project_fs_vc = project_fs_op.resolve().strongly_consistent().await?;
     let project_fs = project_fs_op.read_strongly_consistent().await?;
 
@@ -560,7 +581,9 @@ async fn prepare_project_container_state(
     // filesystem map are first resolved.
     container
         .additional_roots_state
-        .set(additional_roots.roots_by_name.into_iter().collect());
+        .set(ProjectAdditionalRootsCell(
+            additional_roots.roots_by_name.into_iter().collect(),
+        ))?;
     drop(fs_map_init_guard);
 
     // perform complete invalidations of all paths and watcher setup after finalizing the `map`
@@ -629,7 +652,8 @@ async fn project_root_path_operation(container: ResolvedVc<ProjectContainer>) ->
     let container = container.await?;
     let root_path = container
         .options_state
-        .get()
+        .get()?
+        .0
         .as_ref()
         .context("Unexpected: ProjectContainer is uninitialized")?
         .root_path
@@ -644,8 +668,9 @@ pub(crate) async fn additional_root_path_operation(
 ) -> Result<Vc<RcStr>> {
     let container = container.await?;
     let _guard = container.fs_map_init_lock.lock().await;
-    let roots = container.additional_roots_state.get();
+    let roots = container.additional_roots_state.get()?;
     let root = roots
+        .0
         .iter()
         .find_map(|(name, root)| (name == &key).then_some(root))
         .with_context(|| format!("Unexpected: additional root {key} is missing"))?;
@@ -659,15 +684,17 @@ async fn disk_file_system_map_operation(
     let (project_file_system, additional_file_systems) = {
         let container = container.await?;
         let _guard = container.fs_map_init_lock.lock().await;
-        let file_systems = container.file_systems_state.get();
+        let file_systems = container.file_systems_state.get()?;
         let file_systems = file_systems
+            .0
             .as_ref()
             .context("Unexpected: ProjectContainer is uninitialized")?;
         (
             file_systems.project_file_system,
             container
                 .additional_roots_state
-                .get()
+                .get()?
+                .0
                 .iter()
                 .map(|(_, root)| root.file_system)
                 .collect::<Vec<_>>(),
@@ -836,52 +863,57 @@ impl ProjectContainer {
 
             // Filesystem roots and watcher options are initialization-only. Changing them requires
             // restarting the process so their process-local watchers can be recreated safely.
-            let mut new_options = this
-                .options_state
-                .get_untracked()
-                .clone()
+            let mut define_env_change = None;
+            // Read/clone/edit/publication are serialized by the mutable cell, so disjoint partial
+            // updates cannot overwrite one another. The closure only edits its private payload;
+            // reporting and task work remain outside the bounded critical section.
+            this.options_state.update(|state| {
+                let Some(new_options) = state.0.as_mut() else {
+                    return;
+                };
+                let old_define_env = new_options.define_env.clone();
+
+                if let Some(next_config) = next_config {
+                    new_options.next_config = next_config;
+                }
+                if let Some(env) = env {
+                    new_options.env = env;
+                }
+                if let Some(define_env) = define_env {
+                    new_options.define_env = define_env;
+                }
+                if let Some(dev) = dev {
+                    new_options.dev = dev;
+                }
+                if let Some(encryption_key) = encryption_key {
+                    new_options.encryption_key = encryption_key;
+                }
+                if let Some(build_id) = build_id {
+                    new_options.build_id = build_id;
+                }
+                if let Some(preview_props) = preview_props {
+                    new_options.preview_props = preview_props;
+                }
+                if let Some(browserslist_query) = browserslist_query {
+                    new_options.browserslist_query = browserslist_query;
+                }
+                if let Some(no_mangling) = no_mangling {
+                    new_options.no_mangling = no_mangling;
+                }
+                if let Some(write_routes_hashes_manifest) = write_routes_hashes_manifest {
+                    new_options.write_routes_hashes_manifest = write_routes_hashes_manifest;
+                }
+                if let Some(debug_build_paths) = debug_build_paths {
+                    new_options.debug_build_paths = Some(debug_build_paths);
+                }
+                define_env_change = Some((old_define_env, new_options.define_env.clone()));
+            })?;
+            let (old_define_env, new_define_env) = define_env_change
                 .context("ProjectContainer need to be initialized with initialize()")?;
-            let old_define_env = new_options.define_env.clone();
-
-            if let Some(next_config) = next_config {
-                new_options.next_config = next_config;
-            }
-            if let Some(env) = env {
-                new_options.env = env;
-            }
-            if let Some(define_env) = define_env {
-                new_options.define_env = define_env;
-            }
-            if let Some(dev) = dev {
-                new_options.dev = dev;
-            }
-            if let Some(encryption_key) = encryption_key {
-                new_options.encryption_key = encryption_key;
-            }
-            if let Some(build_id) = build_id {
-                new_options.build_id = build_id;
-            }
-            if let Some(preview_props) = preview_props {
-                new_options.preview_props = preview_props;
-            }
-            if let Some(browserslist_query) = browserslist_query {
-                new_options.browserslist_query = browserslist_query;
-            }
-            if let Some(no_mangling) = no_mangling {
-                new_options.no_mangling = no_mangling;
-            }
-            if let Some(write_routes_hashes_manifest) = write_routes_hashes_manifest {
-                new_options.write_routes_hashes_manifest = write_routes_hashes_manifest;
-            }
-            if let Some(debug_build_paths) = debug_build_paths {
-                new_options.debug_build_paths = Some(debug_build_paths);
-            }
-
             span.record(
                 "env_diff",
-                define_env_diff_report(&old_define_env, &new_options.define_env).as_str(),
+                define_env_diff_report(&old_define_env, &new_define_env).as_str(),
             );
-            this.options_state.set(Some(new_options));
 
             Ok(())
         }
@@ -916,12 +948,14 @@ impl ProjectContainer {
         let output_file_system;
         let additional_roots;
         {
-            let options = self.options_state.get();
+            let options = self.options_state.get()?;
             let options = options
+                .0
                 .as_ref()
                 .context("ProjectContainer need to be initialized with initialize()")?;
-            let file_systems = self.file_systems_state.get();
+            let file_systems = self.file_systems_state.get()?;
             let file_systems = file_systems
+                .0
                 .as_ref()
                 .context("ProjectContainer need to be initialized with initialize()")?;
             env_map = Vc::cell(options.env.iter().cloned().collect());
@@ -949,7 +983,13 @@ impl ProjectContainer {
             server_hmr = options.server_hmr;
             project_file_system = file_systems.project_file_system;
             output_file_system = file_systems.output_file_system;
-            additional_roots = self.additional_roots_state.get().iter().cloned().collect();
+            additional_roots = self
+                .additional_roots_state
+                .get()?
+                .0
+                .iter()
+                .cloned()
+                .collect();
         }
 
         let root_path = ResolvedVc::cell(root_path_str);
