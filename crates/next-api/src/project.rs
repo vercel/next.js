@@ -106,7 +106,7 @@ use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 pub use crate::additional_roots::AdditionalRootConfig;
 use crate::{
     additional_roots::{AdditionalDiskFileSystem, create_additional_root_file_systems},
-    aggregate_hmr::ServerHmrChunkLists,
+    aggregate_hmr::{ServerHmrChunkLists, ServerHmrEntryKey, ServerHmrEntryMap},
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
@@ -116,8 +116,8 @@ use crate::{
     pages::PagesProject,
     path_utils::convention_file_base_name,
     route::{
-        Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
-        Route,
+        Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups,
+        EndpointOutput, Endpoints, Route,
     },
     versioned_content_map::VersionedContentMap,
 };
@@ -430,6 +430,7 @@ pub struct ProjectContainer {
     #[bincode(skip)]
     fs_map_init_lock: tokio::sync::Mutex<()>,
     versioned_content_map: Option<ResolvedVc<VersionedContentMap>>,
+    server_hmr_entry_map: Option<ResolvedVc<ServerHmrEntryMap>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -445,6 +446,7 @@ impl ProjectContainer {
             } else {
                 None
             },
+            server_hmr_entry_map: dev.then(ServerHmrEntryMap::new),
             options_state: State::new(None),
             file_systems_state: State::new(None),
             additional_roots_state: State::new(Vec::new()),
@@ -971,6 +973,7 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
+            server_hmr_entry_map: self.server_hmr_entry_map,
             build_id,
             encryption_key,
             preview_props,
@@ -1028,6 +1031,8 @@ pub struct Project {
     /// a Unix path.
     /// E.g. `apps/my-app`
     project_path: RcStr,
+
+    server_hmr_entry_map: Option<ResolvedVc<ServerHmrEntryMap>>,
 
     /// A path where to emit the build outputs, relative to [`Project::project_path`], always a
     /// Unix path. Corresponds to next.config.js's `distDir`.
@@ -1092,6 +1097,36 @@ pub struct Project {
     output_file_system: OperationVc<DiskFileSystem>,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub(crate) additional_roots: FxIndexMap<RcStr, AdditionalDiskFileSystem>,
+}
+
+impl Project {
+    pub async fn register_server_hmr_entry(
+        &self,
+        entry_key: ServerHmrEntryKey,
+        output: OperationVc<EndpointOutput>,
+    ) -> Result<()> {
+        if let Some(server_hmr_entry_map) = self.server_hmr_entry_map {
+            server_hmr_entry_map.await?.set(entry_key, output);
+        }
+        Ok(())
+    }
+
+    pub async fn server_hmr_chunk_lists(
+        &self,
+        entry_key: &ServerHmrEntryKey,
+    ) -> Result<ReadRef<ServerHmrChunkLists>> {
+        let output = if let Some(server_hmr_entry_map) = self.server_hmr_entry_map {
+            server_hmr_entry_map.await?.get(entry_key)
+        } else {
+            None
+        };
+        if let Some(output) = output
+            && let Some(chunk_lists) = output.connect().await?.server_hmr_chunks
+        {
+            return chunk_lists.await;
+        }
+        Ok(ReadRef::new_owned(ServerHmrChunkLists::new(vec![])))
+    }
 }
 
 #[turbo_tasks::value]
@@ -2593,11 +2628,6 @@ impl Project {
         .await
     }
 
-    #[turbo_tasks::function]
-    async fn server_hmr_root_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.node_root().await?.join("server/app")?.cell())
-    }
-
     /// Get client HMR content by chunk_name.
     #[turbo_tasks::function]
     async fn hmr_content(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<OptionVersionedContent>> {
@@ -2670,27 +2700,6 @@ impl Project {
         } else {
             Ok(Update::Missing.cell())
         }
-    }
-
-    /// Server entry chunks shared by all pull baselines.
-    #[turbo_tasks::function]
-    pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
-        let Some(map) = self.await?.versioned_content_map else {
-            bail!("must be in dev mode to hmr")
-        };
-        let root = self.server_hmr_root_path().owned().await?;
-        Ok(map.server_hmr_chunks_in_path(root))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn server_hmr_chunks_for_entries(
-        self: Vc<Self>,
-        entry_paths: Vec<RcStr>,
-    ) -> Result<Vc<ServerHmrChunkLists>> {
-        let mut chunk_lists =
-            ServerHmrChunkLists::new(self.server_hmr_chunks().await?.as_slice().to_vec());
-        chunk_lists.retain_entry_paths(&entry_paths.into_iter().collect());
-        Ok(chunk_lists.cell())
     }
 
     /// Gets a list of all client HMR chunk names that can be subscribed to.
