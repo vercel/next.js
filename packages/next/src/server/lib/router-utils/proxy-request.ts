@@ -13,7 +13,8 @@ export async function proxyRequest(
   parsedUrl: NextUrlWithParsedQuery,
   upgradeHead?: Buffer,
   reqBody?: any,
-  proxyTimeout?: number | null
+  proxyTimeout?: number | null,
+  keepAlive?: boolean
 ) {
   const { query } = parsedUrl
   delete (parsedUrl as any).query
@@ -32,6 +33,7 @@ export async function proxyRequest(
     changeOrigin: true,
     ignorePath: true,
     ws: true,
+    agent: keepAlive === false ? false : undefined,
     // we limit proxy requests to 30s by default, in development
     // we don't time out WebSocket requests to allow proxying
     proxyTimeout: proxyTimeout === null ? undefined : proxyTimeout || 30_000,
