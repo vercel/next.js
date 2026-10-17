@@ -138,6 +138,7 @@ import {
   deleteReactDebugChannelForHtmlRequest,
   setReactDebugChannelForHtmlRequest,
 } from './debug-channel'
+import { ParkedEntries } from './parked-entries'
 import {
   getVersionInfo,
   matchNextPageBundleRequest,
@@ -892,7 +893,8 @@ export async function createHotReloaderTurbopack(
     Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
       ? new Map<string, RuntimeErrorStateMessage>()
       : null
-  const cacheStatusesByHtmlRequestId = new Map<string, ServerCacheStatus>()
+  // Cache statuses of HTML requests whose HMR client hasn't connected yet.
+  const cacheStatusesByHtmlRequestId = new ParkedEntries<ServerCacheStatus>()
   const clientStates = new WeakMap<ws, ClientState>()
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
@@ -1607,13 +1609,12 @@ export async function createHotReloaderTurbopack(
           const enableCacheComponents = nextConfig.cacheComponents
           if (enableCacheComponents) {
             onUpgrade(client, { isLegacyClient: false })
-            const cacheStatus = cacheStatusesByHtmlRequestId.get(htmlRequestId)
+            const cacheStatus = cacheStatusesByHtmlRequestId.take(htmlRequestId)
             if (cacheStatus !== undefined) {
               sendToClient(client, {
                 type: HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR,
                 state: cacheStatus,
               })
-              cacheStatusesByHtmlRequestId.delete(htmlRequestId)
             }
           } else {
             onUpgrade(client, { isLegacyClient: true })

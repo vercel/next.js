@@ -4,8 +4,13 @@ import {
 } from './hot-reloader-types'
 import type { AnyStream } from '../app-render/stream-ops'
 import { streamToUint8Array } from '../stream-utils/node-web-streams-helper'
+import { ParkedEntries, releaseParkedStream } from './parked-entries'
 
-const errorsRscStreamsByHtmlRequestId = new Map<string, AnyStream>()
+// Errors of HTML requests whose HMR client hasn't connected yet. A stream that
+// isn't claimed in time is released.
+const errorsRscStreamsByHtmlRequestId = new ParkedEntries<AnyStream>(
+  releaseParkedStream
+)
 
 export function sendSerializedErrorsToClient(
   errorsRscStream: AnyStream,
@@ -28,13 +33,11 @@ export function sendSerializedErrorsToClientForHtmlRequest(
   htmlRequestId: string,
   sendToClient: (message: HmrMessageSentToBrowser) => void
 ) {
-  const errorsRscStream = errorsRscStreamsByHtmlRequestId.get(htmlRequestId)
+  const errorsRscStream = errorsRscStreamsByHtmlRequestId.take(htmlRequestId)
 
   if (!errorsRscStream) {
     return
   }
-
-  errorsRscStreamsByHtmlRequestId.delete(htmlRequestId)
 
   sendSerializedErrorsToClient(errorsRscStream, sendToClient)
 }
@@ -43,8 +46,6 @@ export function setErrorsRscStreamForHtmlRequest(
   htmlRequestId: string,
   errorsRscStream: AnyStream
 ) {
-  // TODO: Clean up after a timeout, in case the client never connects, e.g.
-  // when CURL'ing the page, or loading the page with JavaScript disabled etc.
   errorsRscStreamsByHtmlRequestId.set(htmlRequestId, errorsRscStream)
 }
 
