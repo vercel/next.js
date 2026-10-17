@@ -26,6 +26,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
+  STATIC_PARAMS_CHANGED = 'staticParamsChanged',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
   CLIENT_CHANGES = 'clientChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
@@ -40,7 +41,9 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   CACHE_INDICATOR = 'cacheIndicator',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+  VULNERABILITY_INSIGHT = 'vulnerabilityInsight',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
+  RUNTIME_ERRORS = 'runtimeErrors',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
   REQUEST_INSIGHTS_UPDATE = 'requestInsightsUpdate',
 
@@ -52,6 +55,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
 export const enum HMR_MESSAGE_SENT_TO_SERVER {
   // JSON messages:
   MCP_ERROR_STATE_RESPONSE = 'mcp-error-state-response',
+  RUNTIME_ERRORS = 'runtimeErrors',
   MCP_PAGE_METADATA_RESPONSE = 'mcp-page-metadata-response',
   PING = 'ping',
 }
@@ -64,6 +68,7 @@ export interface ServerErrorMessage {
 export interface TurbopackMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate | TurbopackUpdate[]
+  hmrVersion: string
 }
 
 export interface BuildingMessage {
@@ -84,6 +89,7 @@ export interface SyncMessage {
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
   versionInfo: VersionInfo
+  hasVulnerabilityInsight: boolean
   updatedModules?: ReadonlyArray<string>
   debug?: DebugInfo
   devIndicator: DevIndicatorServerState
@@ -116,7 +122,15 @@ export interface ReloadPageMessage {
 
 export interface ServerComponentChangesMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
-  hash: string
+  hmrVersion?: string
+}
+
+/**
+ * Sent in dev when a route's set of statically-known params changed, e.g.
+ * because `generateStaticParams` was added, removed, or edited.
+ */
+export interface StaticParamsChangedMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED
 }
 
 export interface MiddlewareChangesMessage {
@@ -143,7 +157,7 @@ export interface DevPagesManifestUpdateMessage {
 
 export interface TurbopackConnectedMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-  data: { sessionId: number }
+  data: { sessionId: number; hmrVersion: string }
 }
 
 export interface AppIsrManifestMessage {
@@ -175,6 +189,68 @@ export interface RequestCurrentErrorStateMessage {
   requestId: string
 }
 
+export type RuntimeErrorBoundary = {
+  kind: 'default-global' | 'custom-global' | 'custom'
+  name?: string
+}
+
+export interface RuntimeErrorMetadata {
+  fatal: boolean
+  boundary?: RuntimeErrorBoundary
+}
+
+export interface FormattedRuntimeError {
+  type: string
+  errorName: string
+  message: string
+  /** A React root failure or a Next.js unrecoverable rendering path. */
+  fatal: boolean
+  boundary?: RuntimeErrorBoundary
+  stack: Array<{
+    file: string
+    methodName: string
+    line: number | null
+    column: number | null
+  }>
+}
+
+export interface RuntimeErrorStateError {
+  id: number
+  error: {
+    name?: string
+    message?: string
+    stack?: string
+    source: 'server' | 'edge-server' | null
+  } | null
+  frames: readonly {
+    file: string | null
+    methodName: string
+    line1: number | null
+    column1: number | null
+  }[]
+  type: 'runtime' | 'recoverable' | 'console'
+  fatal: boolean
+  boundary?: RuntimeErrorBoundary
+}
+
+export interface RuntimeErrorStateUpdate {
+  event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS
+  pathname: string
+  errorState: {
+    errors: readonly RuntimeErrorStateError[]
+    routerType: 'app' | 'pages'
+  }
+}
+
+export interface RuntimeErrorStateMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS
+  clientId: string
+  /** The producer document's existing HMR request ID, when available. */
+  htmlRequestId?: string | null
+  pathname: string
+  errors: FormattedRuntimeError[]
+}
+
 export interface RequestPageMetadataMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA
   requestId: string
@@ -190,6 +266,11 @@ export interface RequestInsightsUpdateMessage {
   insight: RequestInsight
 }
 
+export interface VulnerabilityInsightMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT
+  hasVulnerabilityInsight: boolean
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -200,6 +281,7 @@ export type HmrMessageSentToBrowser =
   | RemovedPageMessage
   | ReloadPageMessage
   | ServerComponentChangesMessage
+  | StaticParamsChangedMessage
   | ClientChangesMessage
   | MiddlewareChangesMessage
   | ServerOnlyChangesMessage
@@ -210,9 +292,11 @@ export type HmrMessageSentToBrowser =
   | ErrorsToShowInBrowserMessage
   | ReactDebugChunkMessage
   | RequestCurrentErrorStateMessage
+  | RuntimeErrorStateMessage
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
   | RequestInsightsUpdateMessage
+  | VulnerabilityInsightMessage
 
 export type BinaryHmrMessageSentToBrowser = Extract<
   HmrMessageSentToBrowser,
@@ -223,10 +307,15 @@ export type TurbopackMessageSentToBrowser =
   | {
       type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
       data: any
+      hmrVersion: string
     }
   | {
       type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-      data: { sessionId: number }
+      data: { sessionId: number; hmrVersion: string }
+    }
+  | {
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+      hmrVersion?: string
     }
 
 export interface NextJsHotReloaderInterface {
@@ -249,6 +338,18 @@ export interface NextJsHotReloaderInterface {
    * and App Router clients that don't have Cache Components enabled.
    */
   sendToLegacyClients(action: HmrMessageSentToBrowser): void
+  /**
+   * Identifies the current generation of the compiled server components. It is
+   * included in `"use cache"` cache keys so that cached entries are revalidated
+   * after an edit, for every client, regardless of whether it runs the HMR
+   * client. It is present from the first request on, so that entries created
+   * before the first edit are keyed by it too, and it differs between dev
+   * server runs, so that a cache handler that persists entries doesn't serve
+   * them for code that changed while the server was down.
+   */
+  getServerComponentsHmrRefreshHash(): string
+  /** The client HMR baseline, available only with Turbopack HMR. */
+  getClientHmrVersion?(): string
   setCacheStatus(status: ServerCacheStatus, htmlRequestId: string): void
   setReactDebugChannel(
     debugChannel: ReactDebugChannelForBrowser,
@@ -266,6 +367,13 @@ export interface NextJsHotReloaderInterface {
       context: { isLegacyClient: boolean }
     ) => void
   ): void
+  /**
+   * Rebuilds so that a changed configuration reaches the bundles. Pass
+   * `reloadAfterInvalidation` only when the change can also affect what a
+   * render produces: it makes connected clients refetch server components, and
+   * advances `getServerComponentsHmrRefreshHash`, discarding `"use cache"`
+   * entries.
+   */
   invalidate({
     reloadAfterInvalidation,
   }: {
@@ -287,7 +395,6 @@ export interface NextJsHotReloaderInterface {
     isApp?: boolean
     definition?: RouteDefinition
     url?: string
-    rscOnly?: boolean
     /**
      * Whether to wire HMR change subscriptions for the compiled entry.
      * Defaults to true (the dev server uses these to push updates to

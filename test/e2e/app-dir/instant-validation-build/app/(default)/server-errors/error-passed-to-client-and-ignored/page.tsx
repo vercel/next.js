@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { IgnoreServerContent } from './client'
 
 export const instant = { level: 'experimental-error' }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default function Page() {
   return (

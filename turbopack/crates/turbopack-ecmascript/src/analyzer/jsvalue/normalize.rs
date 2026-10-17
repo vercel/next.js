@@ -80,6 +80,11 @@ impl<'a> JsValue<'a> {
                     }
                 }
             }
+            JsValue::Promise(_, inner) | JsValue::Awaited(_, inner) => {
+                if resolve_promises(inner) {
+                    self.update_total_nodes();
+                }
+            }
             JsValue::Concat(_, v) => {
                 // TODO(kdy1): Remove duplicate
                 let taken = take(v);
@@ -183,6 +188,46 @@ impl<'a> JsValue<'a> {
             true
         });
         self.normalize_shallow(arena);
+    }
+}
+
+/// Replaces `value` with what awaiting it produces, returning whether it changed.
+///
+/// ```text
+/// Promise<Promise<null>>       -> null
+/// Promise<null | Promise<0>>   -> null | 0
+/// c ? Promise<null> : Promise<0> -> c ? null : 0
+/// null                         -> null
+/// ```
+pub(crate) fn resolve_promises<'a>(value: &mut JsValue<'a>) -> bool {
+    match value {
+        JsValue::Promise(_, inner) => {
+            let mut inner = take(&mut **inner);
+            resolve_promises(&mut inner);
+            *value = inner;
+            true
+        }
+        // Awaiting a branching value awaits whichever branch is taken, so the promises are inside
+        // the branches rather than around them.
+        JsValue::Tenary(_, _, cons, alt) => {
+            let modified = resolve_promises(cons) | resolve_promises(alt);
+            if modified {
+                value.update_total_nodes();
+            }
+            modified
+        }
+        JsValue::Alternatives { values, .. } => {
+            let mut modified = false;
+            for alternative in values.iter_mut() {
+                modified |= resolve_promises(alternative);
+            }
+            if modified {
+                let values = take(values);
+                *value = JsValue::alternatives(values);
+            }
+            modified
+        }
+        _ => false,
     }
 }
 

@@ -135,13 +135,12 @@ export function getFlightStream<T>(
         return responseOnNextTick
       case 'prerender':
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never

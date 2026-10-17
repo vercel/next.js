@@ -66,7 +66,7 @@ async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>>
             ),
             _ => None,
         })
-        .map(|v| async move { v.to_resolved().await })
+        .map(|v| v.to_resolved())
         .try_join()
         .await?;
     Ok(Vc::<RouteTrees>::cell(routes).merge())

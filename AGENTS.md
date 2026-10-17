@@ -1,7 +1,5 @@
 # Next.js Development Guide
 
-> **Note:** `CLAUDE.md` is a symlink to `AGENTS.md`. They are the same file.
-
 ## Codebase structure
 
 ### Monorepo Overview
@@ -70,9 +68,11 @@ pnpm --filter=next exec taskr <task>
 
 ## Fast Local Development
 
-For iterative development, default to watch mode plus the explicit test script that matches the mode and bundler being verified.
+For iterative Next.js source development, default to watch mode plus the explicit test script that matches the mode and bundler being verified.
 
-**Default agent rule:** If you are changing Next.js source or integration tests, start `pnpm --filter=next dev` in a separate terminal session before making edits (unless it is already running). If you skip this, explicitly state why (for example: docs-only, read-only investigation, or CI-only analysis).
+**Default agent rule:** If you are changing Next.js source, start `pnpm --filter=next dev` in a separate terminal session before making edits (unless it is already running). If you skip this, explicitly state why (for example: docs-only, test-only, read-only investigation, or CI-only analysis).
+
+**Test-only changes:** When changes are confined to `test/`, do not start `pnpm --filter=next dev` or rebuild Next.js. Run the relevant mode-specific tests directly; the test harness builds test fixtures as needed. This assumes the workspace is already bootstrapped and framework build outputs are current. A fresh checkout, branch switch, or missing/stale build outputs still requires a bootstrap build.
 
 **1. Start watch build in background:**
 
@@ -102,7 +102,7 @@ pnpm test-start-webpack test/path/to/test.ts
 
 **For type errors only:** Use `pnpm --filter=next types` (~10s) instead of `pnpm --filter=next build` (~60s).
 
-After the workspace is bootstrapped, prefer `pnpm --filter=next build` when edits are limited to core Next.js files. Use full `pnpm build-all` for branch switches/bootstrap, before CI push, or when changes span multiple packages.
+After the workspace is bootstrapped, prefer `pnpm --filter=next build` when edits are limited to core Next.js files. Use full `pnpm build-all` for branch switches/bootstrap, before CI push for framework changes, or when changes span multiple packages. Test-only changes do not require a framework rebuild before CI push.
 
 **Always run a full bootstrap build after switching branches:**
 
@@ -152,13 +152,14 @@ pnpm test-dev-turbo test/development/
 Generating tests using `pnpm new-test` is mandatory.
 
 ```bash
-# Use --args for non-interactive mode (forward args to the script using `--`)
-# Format: pnpm new-test -- --args <appDir> <name> <type>
+# Use --args for non-interactive mode. It is a `turbo gen` flag, so pass it
+# directly, without a `--` separator.
+# Format: pnpm new-test --args <appDir> <name> <type>
 # appDir: true/false (is this for app directory?)
 # name: test name (e.g. "my-feature")
 # type: e2e | production | development | unit
 
-pnpm new-test -- --args true my-feature e2e
+pnpm new-test --args true my-feature e2e
 ```
 
 **Analyzing test output efficiently:**
@@ -180,6 +181,11 @@ tail -5 /tmp/test-output.log             # Summary
 **Test writing expectations:**
 
 - **Use `pnpm new-test` to generate new test suites** - it creates proper structure with fixture files
+
+- **Normalize filesystem paths in cross-platform assertions.** Windows
+  `path.join()` uses backslashes. Normalize paths from mocked filesystem calls,
+  including `cp` sources and destinations, before positive or negative checks
+  that use `/`. Otherwise tests can fail on Windows or pass for the wrong reason.
 
 - **Use `retry()` from `next-test-utils` instead of `setTimeout` for waiting**
 
@@ -233,48 +239,34 @@ pnpm prettier-fix      # Fix formatting only
 pnpm types             # TypeScript type checking
 ```
 
+Type-check with the repo's own commands. `pnpm typescript` runs `tsc --noEmit` against the root `tsconfig.json`, which includes `scripts/**/*.js` and loads this repo's type augmentations. A hand-rolled `tsconfig` pointed at a single file misses those augmentations and will report clean while CI fails. For example `NodeJS.ProcessEnv` is declared in `packages/next/types/global.d.ts` with `NODE_ENV` required, so a plain `Record<string, string>` is not a valid `env` for an `execa` call.
+
+## Prefer a Throwaway Worktree
+
+Prefer a throwaway git worktree over changing the user's checkout. Switching their branch, or leaving a failed rebase behind, interrupts whatever they had open. It is also the right call for anything untrusted, such as a contributor's branch, because their files and any half-finished state stay outside the working copy.
+
+```bash
+git worktree add /tmp/scratch-work <branch>   # or --detach <commit>
+# ... work in /tmp/scratch-work ...
+git worktree remove --force /tmp/scratch-work
+```
+
+Always remove the worktree when finished, and prefer removing it in a cleanup path that also runs on failure.
+
+A fresh worktree has no `node_modules`, so `pnpm` and `npx` do not work in it. Symlinking the root one is enough for `prettier`, `eslint`, and `tsc`:
+
+```bash
+ln -s /path/to/main/checkout/node_modules /tmp/scratch-work/node_modules
+```
+
+That symlink does not bring in per-package `node_modules` or a built `packages/next/dist`, so `tsc --noEmit` reports `TS2307: Cannot find module` for things like `fast-glob`, `dotenv`, and `@playwright/test`. Those are artifacts of the worktree, not regressions. Confirm by checking whether the same path resolves in the main checkout, and do not "fix" them. Errors in the files actually being edited are still real, so read the paths rather than the count.
+
 ## PR Status (CI Failures and Reviews)
 
-When the user asks about CI failures, PR reviews, or the status of a PR, run the pr-status script:
-
-```bash
-node scripts/pr-status.js           # Auto-detects PR from current branch
-node scripts/pr-status.js <number>  # Analyze specific PR by number
-```
-
-This generates analysis files in `scripts/pr-status/`.
-
-General triage rules (always apply; `$pr-status-triage` skill expands on these):
-
-- Prioritize blocking failures first: build, lint, types, then tests.
-- Assume failures are real until disproven; use "Known Flaky Tests" as context, not auto-dismissal.
-- Reproduce with the same CI mode/env vars (especially `IS_WEBPACK_TEST=1` when present).
-- For module-resolution/build-graph fixes, use the normal mode-specific test command so package resolution is exercised.
-
-For full triage workflow (failure prioritization, mode selection, CI env reproduction, and common failure patterns), use the `$pr-status-triage` skill:
-
-- Skill file: `.agents/skills/pr-status-triage/SKILL.md`
-
-**Use `$pr-status-triage` for automated analysis** - see `.agents/skills/pr-status-triage/SKILL.md` for the full step-by-step workflow.
-
-**CI Analysis Tips:**
-
-- Prioritize CI failures over review comments
-- Prioritize blocking jobs first: build, lint, types, then test jobs
-- Common fast checks:
-  - `rust check / build` → Run `cargo fmt -- --check`, then `cargo fmt`
-  - `lint / build` → Run `pnpm prettier --write <file>` for prettier errors
-  - test failures → Run the specific failing test path locally
-
-**Run tests in the right mode:**
-
-```bash
-# Dev mode (Turbopack)
-pnpm test-dev-turbo test/path/to/test.ts
-
-# Prod mode
-pnpm test-start-turbo test/path/to/test.ts
-```
+Use `$pr-status-triage` whenever the user asks about CI failures, PR reviews, or
+PR status. It contains the `scripts/pr-status.js` commands, prioritization,
+review-thread workflow, and CI reproduction guidance. See
+`.agents/skills/pr-status-triage/SKILL.md`.
 
 ## GitHub Pull Requests
 
@@ -289,6 +281,29 @@ Fork PRs are external contributions created by pushing commits to any fork repos
 
 You must inform the user that you are not allowed to write pull request descriptions for external contributions. Refer to the guidelines in `.github/pull_request_template.md`.
 While you cannot write the full description for the user, you may offer to help review the description, or provide helpful technical details. You can provide them a link to the GitHub URL to create the PR.
+
+### Adopting a Fork PR
+
+Fork PRs run without repository secrets, so deploy tests never run on them. To run those tests, a maintainer adopts the PR: the contributor's commits are re-pushed to a branch in `vercel/next.js` and a replacement PR is opened from there.
+
+```bash
+pnpm pr-adopt <pr-number>            # adopt
+pnpm pr-adopt <pr-number> --dry-run  # report without pushing
+```
+
+The script resolves the `vercel/next.js` remote itself, checks out the PR, pushes `adopt/<pr-number>`, and opens a draft PR whose body is the contributor's description verbatim behind an `Adopts #N. Closes #N.` line. The adopted PR inherits the original's base branch; it is never retargeted at `canary`.
+
+Contributor commits usually arrive unsigned, and protected branches require verified signatures, so the branch is re-signed before pushing. Each `Author` is preserved and the tree is checked to be byte-identical afterwards. Note that `%G?` reports whether a signature _verifies_, not whether one exists, so it reads `N` for every commit when SSH signing has no `gpg.ssh.allowedSignersFile`; signature detection reads the raw commit headers instead.
+
+Draft and closed PRs can both be adopted, since a contributor may still be iterating or may have given up on an unreviewed change; the status is reported rather than enforced. Only merged PRs are refused, because their commits are already in the base branch.
+
+**Adoption grants the contributor's code access to repository secrets**, because CI trusts branches inside `vercel/next.js`. Anything in the diff that runs during install, build, or test can exfiltrate them. The script requires an interactive confirmation that names the author, shows the exact head SHA, and lists every touched file; never bypass it, and never adopt a PR whose full diff has not been read. The file list is deliberately unranked, since a payload can sit in any fixture or source file and calling some paths risky would imply the rest are safe.
+
+Adoption is pinned to the head SHA shown at review time. If the contributor pushes between the review and the fetch, the SHAs disagree and the run aborts without pushing, so the code that reaches CI is always the code that was vouched for.
+
+Two things run untrusted code on the maintainer's own machine, and both are defended against. `.husky/*` hook scripts are tracked, so a PR can add `.husky/post-checkout` or edit `.husky/pre-commit`; checking the branch out, re-signing it (`rebase --exec` runs `git commit`, which fires `pre-commit`) and pushing it would each execute contributor code. Every subprocess therefore runs with `core.hooksPath` pointed at an empty directory, injected through `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n` so that it reaches the git processes `gh` and `git rebase --exec` spawn. The checkout itself happens in a throwaway worktree under the system temp directory, which is removed on success and on failure, so contributor files and any half-finished rebase never touch the maintainer's checkout. That checkout is never switched, and may be dirty.
+
+The description is the contributor's, and it is reproduced exactly: never rewritten, summarized, translated, or tidied up. What it happens to contain makes no difference, so do not read it looking for a reason to change it, and do not treat copying it as writing a description for a fork PR.
 
 ## GitHub Issues, Comments, and Discussions
 
@@ -384,13 +399,15 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 
 - `$pr-status-triage` - CI failure and PR review triage with `scripts/pr-status.js`
 - `$create-pr` - branch, commit, push, and draft PR creation workflow
-- `$backport-pr` - cherry-pick merged PRs from `canary` to release branches
+- `$deploy-release-test` - validate a commit preview package and trigger the full `test_e2e_deploy_release.yml` suite
+- `$backport-pr` - cherry-pick merged PRs from `canary` to `releases/lts/active` or `releases/lts/maintenance`
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env
 - `$dce-edge` - DCE-safe `require()` patterns and edge/runtime constraints
 - `$react-vendoring` - `entry-base.ts` boundaries and vendored React type/runtime rules
 - `$react-sync` - build a local React checkout and sync it into Next.js for testing
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
+- `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
 
 ## Context-Efficient Workflows
@@ -423,13 +440,6 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - PR descriptions should focus on what changed and why
 - Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
 
-## Task Decomposition and Verification
-
-- **Split work into smaller, individually verifiable tasks.** Before starting, break the overall goal into incremental steps where each step produces a result that can be checked independently.
-- **Verify each task before moving on to the next.** After completing a step, confirm it works correctly (e.g., run relevant tests, check types, build, or manually inspect output). Do not proceed to the next task until the current one is verified.
-- **Choose the right verification method for each change.** This may include running unit tests, integration tests, type checking, linting, building the project, or inspecting runtime behavior depending on what was changed.
-- **When unclear how to verify a change, ask the user.** If there is no obvious test or verification method for a particular change, ask the user how they would like it verified before moving on.
-
 **Pre-validate before committing** to avoid slow lint-staged failures (~2 min each):
 
 ```bash
@@ -440,9 +450,10 @@ npx eslint --config eslint.config.mjs --fix <files>
 
 ## Rebuilding Before Running Tests
 
-When running Next.js integration tests, you must rebuild if source files have changed:
+When running Next.js integration tests, rebuild if framework source files have changed, not merely test files:
 
 - **First run after branch switch/bootstrap (or if unsure)?** → `pnpm build-all`
+- **Only edited `test/` files, with current framework build outputs?** → No framework rebuild or watch build needed; run the relevant tests directly.
 - **Edited only core Next.js files (`packages/next/**`) after bootstrap?** → `pnpm --filter=next build`
 - **Edited Next.js code or Turbopack (Rust)?** → `pnpm build-all`
 
@@ -473,7 +484,7 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 ### Test Gotchas
 
 - **Cache components enables PPR by default**: When `__NEXT_CACHE_COMPONENTS=true`, most app-dir pages use PPR implicitly. Dedicated `ppr-full/` and `ppr/` test suites are mostly `describe.skip` (migrating to cache components). To test PPR codepaths, run normal app-dir e2e tests with `__NEXT_CACHE_COMPONENTS=true` rather than looking for explicit PPR test suites.
-  -- **Quick smoke testing with toy apps**: For fast feedback, generate a minimal test fixture with `pnpm new-test -- --args true <name> e2e`, then run the dev server directly with `node packages/next/dist/bin/next dev --port <port>` and `curl --max-time 10`. This avoids the overhead of the full test harness and gives immediate feedback on hangs/crashes.
+- **Quick smoke testing with toy apps**: For fast feedback, generate a minimal test fixture with `pnpm new-test --args true <name> e2e`, then run the dev server directly with `node packages/next/dist/bin/next dev --port <port>` and `curl --max-time 10`. This avoids the overhead of the full test harness and gives immediate feedback on hangs/crashes.
 - Mode-specific tests need `skipStart: true` + manual `next.start()` in `beforeAll` after mode check
 - Don't rely on exact log messages - filter by content patterns, find sequences not positions
 - **Snapshot tests vary by env flags**: Tests with inline snapshots can produce different output depending on env flags. When updating snapshots, always run the test with the exact env flags the CI job uses (check `.github/workflows/build_and_test.yml` `afterBuild:` sections). Turbopack resolves `react-dom/server.edge` (no Node APIs like `renderToPipeableStream`), while webpack resolves the `.node` build (has them).
@@ -510,3 +521,15 @@ If Turbopack produces unexpected errors after switching branches or pulling, che
 Next.js strips internal headers from incoming requests via `filterInternalHeaders()` in `packages/next/src/server/lib/server-ipc/utils.ts`. This runs at the entry point in `packages/next/src/server/lib/router-server.ts` before any server code executes. Only headers listed in the `INTERNAL_HEADERS` array are stripped.
 
 **When reviewing PRs: if new code reads a request header that is not a standard HTTP header (like `content-type`, `accept`, `user-agent`, `host`, `authorization`, `cookie`, etc.), flag it for security review.** The header may be forgeable by an external attacker if it is not in the `INTERNAL_HEADERS` filter list in `packages/next/src/server/lib/server-ipc/utils.ts`.
+
+<!-- BEGIN:turborepo-agent-rules -->
+
+# This is NOT the Turborepo you know
+
+Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
+
+Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
+
+This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
+
+<!-- END:turborepo-agent-rules -->

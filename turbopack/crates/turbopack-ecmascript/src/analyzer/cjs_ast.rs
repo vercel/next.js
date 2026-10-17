@@ -1,7 +1,14 @@
 use swc_core::{
     common::Mark,
-    ecma::ast::{Expr, Ident, MemberExpr, MemberProp},
+    ecma::{
+        ast::{
+            AssignExpr, AssignOp, AssignTarget, CallExpr, Callee, Expr, Ident, Lit, MemberExpr,
+            MemberProp, ObjectLit, Prop, PropOrSpread, SimpleAssignTarget,
+        },
+        utils::prop_name_eq,
+    },
 };
+use turbo_rcstr::RcStr;
 
 use crate::utils::unparen;
 
@@ -41,6 +48,83 @@ pub(crate) fn is_module_exports_chain(expr: &Expr, unresolved_mark: Mark) -> boo
                 || is_module_exports_chain(&m.obj, unresolved_mark)
         }
         _ => false,
+    }
+}
+
+/// The exported name and descriptor of `Object.defineProperty(exports, "<name>", { … })` —
+/// the shape transpilers emit for named exports and the `__esModule` marker.
+pub(crate) fn as_exports_define_property(
+    call: &CallExpr,
+    unresolved_mark: Mark,
+) -> Option<(RcStr, &ObjectLit)> {
+    let Callee::Expr(callee) = &call.callee else {
+        return None;
+    };
+    let Expr::Member(member) = unparen(callee) else {
+        return None;
+    };
+    let Expr::Ident(obj) = unparen(&member.obj) else {
+        return None;
+    };
+    if !is_global(obj, "Object", unresolved_mark) || !prop_is(&member.prop, "defineProperty") {
+        return None;
+    }
+    let [target, name, descriptor] = &call.args[..] else {
+        return None;
+    };
+    if target.spread.is_some() || name.spread.is_some() || descriptor.spread.is_some() {
+        return None;
+    }
+    if !is_exports_object(&target.expr, unresolved_mark) {
+        return None;
+    }
+    let Expr::Lit(Lit::Str(name)) = unparen(&name.expr) else {
+        return None;
+    };
+    let Expr::Object(descriptor) = unparen(&descriptor.expr) else {
+        return None;
+    };
+    Some((
+        RcStr::from(name.value.to_string_lossy().into_owned()),
+        descriptor,
+    ))
+}
+
+/// Whether the `Object.defineProperty` descriptor sets `value: true` (the
+/// `__esModule` interop marker).
+pub(crate) fn define_property_sets_es_module(call: &CallExpr) -> bool {
+    let Some(descriptor) = call.args.get(2) else {
+        return false;
+    };
+    let Expr::Object(descriptor) = unparen(&descriptor.expr) else {
+        return false;
+    };
+    descriptor.props.iter().any(|prop| {
+        matches!(prop, PropOrSpread::Prop(prop)
+            if matches!(&**prop, Prop::KeyValue(kv)
+                if prop_name_eq(&kv.key, "value")
+                    && matches!(unparen(&kv.value), Expr::Lit(Lit::Bool(b)) if b.value)))
+    })
+}
+
+/// The object literal of a `module.exports = { … }` whole-exports assignment,
+/// whose properties are the module's named exports.
+pub(crate) fn as_module_exports_object_literal(
+    n: &AssignExpr,
+    unresolved_mark: Mark,
+) -> Option<&ObjectLit> {
+    if n.op != AssignOp::Assign {
+        return None;
+    }
+    let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &n.left else {
+        return None;
+    };
+    if !is_module_dot_exports(member, unresolved_mark) {
+        return None;
+    }
+    match unparen(&n.right) {
+        Expr::Object(obj) => Some(obj),
+        _ => None,
     }
 }
 

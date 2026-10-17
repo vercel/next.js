@@ -24,6 +24,7 @@ const createSegmentNode = ({
 }
 
 describe('Segment Explorer', () => {
+  let act: typeof import('@testing-library/react').act
   let cleanup: typeof import('@testing-library/react').cleanup
   let renderHook: typeof import('@testing-library/react').renderHook
   let useSegmentTree: typeof SegmentExplorer.useSegmentTree
@@ -42,6 +43,7 @@ describe('Segment Explorer', () => {
     const rtl = require('@testing-library/react/pure')
     renderHook = rtl.renderHook
     cleanup = rtl.cleanup
+    act = rtl.act
   })
 
   afterEach(() => {
@@ -154,9 +156,11 @@ describe('Segment Explorer', () => {
       value: undefined,
     })
 
-    removeSegmentNode(
-      createSegmentNode({ pagePath: '/constructor/page.js', type: 'page' })
-    )
+    act(() => {
+      removeSegmentNode(
+        createSegmentNode({ pagePath: '/constructor/page.js', type: 'page' })
+      )
+    })
 
     expect(result.current).toEqual({
       children: {
@@ -274,9 +278,11 @@ describe('Segment Explorer', () => {
       value: undefined,
     })
 
-    removeSegmentNode(
-      createSegmentNode({ pagePath: '/a/b/layout.js', type: 'layout' })
-    )
+    act(() => {
+      removeSegmentNode(
+        createSegmentNode({ pagePath: '/a/b/layout.js', type: 'layout' })
+      )
+    })
 
     expect(result.current).toEqual({
       children: {
@@ -339,5 +345,39 @@ describe('Segment Explorer', () => {
       },
       value: undefined,
     })
+  })
+
+  test('gives changed nodes a new identity so consumers can memoize on them', () => {
+    insertSegmentNode(
+      createSegmentNode({ pagePath: '/a/layout.js', type: 'layout' })
+    )
+
+    const { result } = renderHook(useSegmentTree)
+
+    // `pagePath` splits on '/', so the leading slash produces an empty segment.
+    const rootBefore = result.current
+    const aBefore = rootBefore.children['']!.children['a']!
+
+    act(() => {
+      insertSegmentNode(
+        createSegmentNode({ pagePath: '/a/page.js', type: 'page' })
+      )
+    })
+
+    const rootAfter = result.current
+    const aAfter = rootAfter.children['']!.children['a']!
+
+    // Consumers memoize on `node.children`, so every node along the mutated
+    // path must be a fresh object. Reusing them would leave newly inserted
+    // segments invisible until the consumer remounted.
+    expect(rootAfter).not.toBe(rootBefore)
+    expect(rootAfter.children).not.toBe(rootBefore.children)
+    expect(aAfter).not.toBe(aBefore)
+    expect(aAfter.children).not.toBe(aBefore.children)
+    expect(Object.keys(aAfter.children)).toEqual(['layout.js', 'page.js'])
+
+    // Untouched subtrees stay shared, and the previous snapshot is not mutated.
+    expect(Object.keys(aBefore.children)).toEqual(['layout.js'])
+    expect(aAfter.children['layout.js']).toBe(aBefore.children['layout.js'])
   })
 })

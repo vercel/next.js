@@ -1,7 +1,8 @@
 import findUp from 'find-up'
 import execa from 'execa'
 import { execSync } from 'node:child_process'
-import { basename } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { basename, join } from 'node:path'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
@@ -54,20 +55,43 @@ export function getPnpmMajorVersion(): number | null {
 
 export function getPkgManager(baseDir: string): PackageManager {
   try {
+    // The app's declared manager takes precedence over the command launcher.
+    const manifestPath = join(baseDir, 'package.json')
+    if (existsSync(manifestPath)) {
+      const { packageManager } = JSON.parse(readFileSync(manifestPath, 'utf8'))
+      const match =
+        typeof packageManager === 'string'
+          ? packageManager.match(/^(npm|pnpm|yarn|bun)@/)
+          : null
+      if (match) {
+        return match[1] as PackageManager
+      }
+    }
+
+    const userAgent = process.env.npm_config_user_agent
+    if (userAgent) {
+      if (userAgent.startsWith('yarn')) {
+        return 'yarn'
+      } else if (userAgent.startsWith('pnpm')) {
+        return 'pnpm'
+      } else if (userAgent.startsWith('bun')) {
+        return 'bun'
+      } else if (userAgent.startsWith('npm')) {
+        return 'npm'
+      }
+    }
     const lockFile = findUp.sync(
       [
-        'package-lock.json',
         'yarn.lock',
         'pnpm-lock.yaml',
         'bun.lock',
         'bun.lockb',
+        'package-lock.json',
       ],
       { cwd: baseDir }
     )
     if (lockFile) {
       switch (basename(lockFile)) {
-        case 'package-lock.json':
-          return 'npm'
         case 'yarn.lock':
           return 'yarn'
         case 'pnpm-lock.yaml':
@@ -75,6 +99,8 @@ export function getPkgManager(baseDir: string): PackageManager {
         case 'bun.lock':
         case 'bun.lockb':
           return 'bun'
+        case 'package-lock.json':
+          return 'npm'
         default:
           return 'npm'
       }

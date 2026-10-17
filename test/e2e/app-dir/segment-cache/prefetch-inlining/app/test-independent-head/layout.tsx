@@ -14,7 +14,7 @@ export const instant = {
     },
   ],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 async function LayoutContent({ children }: { children: ReactNode }) {
   const cookieStore = await cookies()

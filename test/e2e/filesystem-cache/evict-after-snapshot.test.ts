@@ -1,34 +1,29 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
+import { getPnpmRealpathWorkaround } from '../../lib/pnpm-realpath-workaround'
 import { retry, waitFor } from 'next-test-utils'
 
 // Eviction requires the dev server (HMR) and persistent caching (Turbopack).
 // Skip entirely in prod/start mode.
-;(isNextDev ? describe : describe.skip)('evict-after-snapshot', () => {
-  const envVars = [
-    'ENABLE_CACHING=1',
-    'TURBO_ENGINE_IGNORE_DIRTY=1',
-    'TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000',
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
+// @force-gate dev
+describe('evict-after-snapshot', () => {
+  const env = {
+    ENABLE_CACHING: '1',
+    TURBO_ENGINE_IGNORE_DIRTY: '1',
+    TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
     // Persist even tiny snapshots so the test doesn't depend on the
     // minimum-compilation-time threshold.
-    'TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0',
-    'ENABLE_EVICTION=1',
-  ].join(' ')
-
-  const { skipped, next } = nextTestSetup({
-    files: __dirname,
-    skipDeployment: true,
-    packageJson: {
-      scripts: {
-        dev: `${envVars} next dev`,
-      },
-    },
-    installCommand: 'npm i',
-    startCommand: 'npm run dev',
-  })
-
-  if (skipped) {
-    return
+    TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+    ENABLE_EVICTION: '1',
   }
+
+  const { next } = nextTestSetup({
+    files: __dirname,
+    overrideFiles: getPnpmRealpathWorkaround(),
+    env,
+  })
 
   async function waitForSnapshotAndEviction() {
     // The idle timeout is 1s, give extra time for snapshot + eviction to complete

@@ -7,7 +7,7 @@ const exec = promisify(execOrig)
 
 /**
  * Gets git repository information from the environment
- * @returns {Promise<{branchName: string, remoteUrl: string, commitSha: string, isCanary: boolean}>}
+ * @returns {Promise<{branchName: string, remoteUrl: string, commitSha: string}>}
  */
 export async function getGitInfo() {
   let eventData = {}
@@ -34,10 +34,7 @@ export async function getGitInfo() {
     process.env.GITHUB_SHA ||
     (await exec('git rev-parse HEAD')).stdout.trim()
 
-  const isCanary =
-    branchName === 'canary' && remoteUrl.includes('vercel/next.js')
-
-  return { branchName, remoteUrl, commitSha, isCanary }
+  return { branchName, remoteUrl, commitSha }
 }
 
 /**
@@ -45,19 +42,23 @@ export async function getGitInfo() {
  * @returns {Promise<string>} The git revision to diff against
  */
 export async function getDiffRevision() {
-  if (
-    process.env.GITHUB_ACTIONS === 'true' &&
-    process.env.GITHUB_EVENT_NAME === 'pull_request'
-  ) {
-    // GH Actions for `pull_request` run on the merge commit so HEAD~1:
-    // 1. includes all changes in the PR
-    //    e.g. in
-    //    A-B-C-main - F
-    //     \          /
-    //      D-E-branch
-    //    GH actions for `branch` runs on F, so a diff for HEAD~1 includes the diff of D and E combined
-    // 2. Includes all changes of the commit for pushes
-    return 'HEAD~1'
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    const eventName = process.env.GITHUB_EVENT_NAME
+    switch (eventName) {
+      // GH Actions for `pull_request` run on the merge commit by default so HEAD~1:
+      // 1. includes all changes in the PR
+      //    e.g. in
+      //    A-B-C-main - F
+      //     \          /
+      //      D-E-branch
+      //    GH actions for `branch` runs on F, so a diff for HEAD~1 includes the diff of D and E combined
+      // 2. Includes all changes of the commit for pushes (assuming the push event is from a squash merge)
+      case 'pull_request':
+      case 'push':
+        return 'HEAD~1'
+      default:
+        throw new Error(`Unsupported GITHUB_EVENT_NAME: ${eventName}`)
+    }
   } else {
     try {
       await exec('git remote set-branches --add origin canary')

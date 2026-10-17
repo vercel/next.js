@@ -1,0 +1,19 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input/index.js:13:15  Module not found: Can't resolve '/input/dir/foo.js'
+  
+       9 |   expect(() => require('/package.json')).toThrow()
+      10 | })
+      11 | 
+      12 | it('should not resolve one below the importing directory either', () => {
+         +                v--------------------------v
+      13 +   expect(() => require('/input/dir/foo.js')).toThrow()
+         +                ^--------------------------^
+      14 | })
+      15 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: server relative '/input/dir/foo.js'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input/index.js
+  | Type of request: commonjs request
+  |

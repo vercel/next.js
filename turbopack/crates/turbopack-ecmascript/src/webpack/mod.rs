@@ -88,7 +88,7 @@ impl Module for WebpackModuleAsset {
 #[derive(ValueToString)]
 #[value_to_string("webpack chunk {}", self.chunk_id())]
 pub struct WebpackChunkAssetReference {
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     #[bincode(with_serde)]
     pub chunk_id: Lit,
     pub runtime: ResolvedVc<WebpackRuntime>,
@@ -207,7 +207,7 @@ impl ModuleReference for WebpackRuntimeAssetReference {
 
         Ok(resolved
             .await?
-            .map_module(|source| async move {
+            .map_module(async |source| {
                 Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
                     WebpackModuleAsset::new(
                         *source,

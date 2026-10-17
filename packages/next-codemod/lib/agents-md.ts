@@ -2,7 +2,7 @@
  * agents-md: Generate Next.js documentation index for AI coding agents.
  *
  * Downloads docs from GitHub via git sparse-checkout, builds a compact
- * index of all doc files, and injects it into CLAUDE.md or AGENTS.md.
+ * index of all doc files, and injects it into AGENTS.md.
  */
 
 import execa from 'execa'
@@ -19,8 +19,7 @@ const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 
 /**
  * After an upgrade, refresh the managed agent-rules block in
- * AGENTS.md / CLAUDE.md so its content matches the Next.js version
- * that is now installed.
+ * AGENTS.md so its content matches the Next.js version that is now installed.
  *
  * Delegates to the installed package's own generator
  * (`next/dist/server/lib/generate-agent-files`), so the block text is
@@ -34,18 +33,15 @@ const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 export function refreshAgentRulesBlock(
   cwd: string
 ): 'refreshed' | 'current' | 'skipped' {
-  const hostsBlock = ['AGENTS.md', 'CLAUDE.md'].some((file) => {
-    try {
-      return fs
-        .readFileSync(path.join(cwd, file), 'utf-8')
-        .includes(AGENT_RULES_START_MARKER)
-    } catch {
-      return false
-    }
-  })
-  if (!hostsBlock) return 'skipped'
+  let agentsMdContent: string
+  try {
+    agentsMdContent = fs.readFileSync(path.join(cwd, 'AGENTS.md'), 'utf-8')
+  } catch {
+    return 'skipped'
+  }
+  if (!agentsMdContent.includes(AGENT_RULES_START_MARKER)) return 'skipped'
 
-  let writeAgentFiles: (dir: string) => { agentsMd: string; claudeMd: string }
+  let writeAgentFiles: (dir: string) => { agentsMd: string }
   try {
     const generatorPath = require.resolve(
       'next/dist/server/lib/generate-agent-files',
@@ -58,9 +54,7 @@ export function refreshAgentRulesBlock(
   }
 
   const result = writeAgentFiles(cwd)
-  return result.agentsMd === 'updated' || result.claudeMd === 'updated'
-    ? 'refreshed'
-    : 'current'
+  return result.agentsMd === 'updated' ? 'refreshed' : 'current'
 }
 
 export function getNextjsVersion(cwd: string): NextjsVersionResult {
@@ -94,37 +88,121 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
 interface BundledDocsInfo {
   docsPath: string
   version: string
+  /** Directory `next` was resolved from. */
+  resolvedFrom: string
 }
 
 /**
  * Next.js ships its documentation inside the published package (at
- * `dist/docs`) since 16.2.0. When the install resolved from `cwd` has
- * bundled docs, the index can point at them directly instead of
- * downloading a copy into `.next-docs`.
+ * `dist/docs`) since 16.2.0. When an installed `next` of the requested
+ * `version` has bundled docs, the index can point at them directly instead
+ * of downloading a copy into `.next-docs`.
+ *
+ * The install resolved from `cwd` wins; otherwise the workspace packages are
+ * searched.
  */
-export function getBundledDocsInfo(cwd: string): BundledDocsInfo | null {
+export function getBundledDocsInfo(
+  cwd: string,
+  version: string
+): BundledDocsInfo | null {
+  const fromCwd = getBundledDocsInfoFrom(cwd)
+  if (fromCwd?.version === version) {
+    return fromCwd
+  }
+
+  // Mirror getNextjsVersion: with isolated installs (pnpm), `next` is often
+  // only resolvable from the workspace package that depends on it, not from
+  // the repo root. Use the first package, in workspace order, that ships
+  // bundled docs for the requested version.
+  const workspace = detectWorkspace(cwd)
+  if (workspace.isMonorepo) {
+    for (const pkgPath of expandWorkspacePatterns(cwd, workspace.packages)) {
+      const info = getBundledDocsInfoFrom(pkgPath)
+      if (info?.version === version) {
+        return info
+      }
+    }
+  }
+
+  return null
+}
+
+function getBundledDocsInfoFrom(dir: string): BundledDocsInfo | null {
   try {
-    const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
+    const nextPkgPath = require.resolve('next/package.json', { paths: [dir] })
     const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
     const docsPath = path.join(path.dirname(nextPkgPath), 'dist', 'docs')
     if (!pkg.version || collectDocFiles(docsPath).length === 0) {
       return null
     }
-    return { docsPath, version: pkg.version }
+    return { docsPath, version: pkg.version, resolvedFrom: dir }
   } catch {
     return null
   }
 }
 
-export function getBundledDocsLinkPath(cwd: string, docsPath: string): string {
-  // Prefer the conventional path when it resolves from the project
-  // (covers hoisted installs; pnpm exposes next via a node_modules symlink).
-  const conventional = path.join(cwd, 'node_modules', 'next', 'dist', 'docs')
-  if (fs.existsSync(conventional)) {
-    return './node_modules/next/dist/docs'
+/**
+ * Returns `target` as a `./`- or `../`-prefixed, forward-slash path relative
+ * to `fromDir`. Agents resolve paths in the index from the directory of the
+ * output file, so `fromDir` must be that directory, not the cwd.
+ */
+export function getRelativeLinkPath(fromDir: string, target: string): string {
+  const relative = path.relative(fromDir, target).replace(/\\/g, '/')
+  if (relative === '') return './'
+  if (relative === '..') return '../'
+  // A dot-directory such as `.next-docs` still needs the `./` prefix.
+  return relative.startsWith('../') ? relative : `./${relative}`
+}
+
+/**
+ * Canonical spelling of `p`: symlinks resolved and, on Windows, 8.3 short
+ * names (e.g. `C:\Users\RUNNER~1`) expanded. `process.cwd()` can keep a
+ * non-canonical spelling while module resolution returns the canonical one,
+ * so compare and relate paths only in this form. Falls back to the resolved
+ * path when `p` cannot be canonicalized (e.g. it does not exist).
+ */
+function canonicalPath(p: string): string {
+  try {
+    return fs.realpathSync.native(p)
+  } catch {
+    return path.resolve(p)
   }
-  const relative = path.relative(cwd, docsPath).replace(/\\/g, '/')
-  return relative.startsWith('.') ? relative : `./${relative}`
+}
+
+/**
+ * Link to the bundled docs of the install resolved from `resolvedFrom`,
+ * relative to `fromDir` (the directory of the output file).
+ */
+export function getBundledDocsLinkPath(
+  fromDir: string,
+  docsPath: string,
+  resolvedFrom: string
+): string {
+  // Prefer the conventional path of the resolved install over its realpath:
+  // pnpm's `.pnpm/next@x.y.z/...` realpath changes on every upgrade, while
+  // the `node_modules/next` symlink stays stable. Check it under the
+  // directory `next` was resolved from, not under `fromDir`, which may see a
+  // different `next` install.
+  //
+  // Paths are related in canonical form (see canonicalPath) so a cwd or
+  // --output spelled differently than the resolved install still produces a
+  // clean link. Only the parent of the `node_modules/next` symlink is
+  // canonicalized, never the symlink itself, so the stable path is kept.
+  const outputDir = canonicalPath(fromDir)
+  const conventional = path.join(
+    canonicalPath(resolvedFrom),
+    'node_modules',
+    'next',
+    'dist',
+    'docs'
+  )
+  if (
+    fs.existsSync(conventional) &&
+    canonicalPath(conventional) === canonicalPath(docsPath)
+  ) {
+    return getRelativeLinkPath(outputDir, conventional)
+  }
+  return getRelativeLinkPath(outputDir, canonicalPath(docsPath))
 }
 
 function versionToGitHubTag(version: string): string {
@@ -325,13 +403,13 @@ export function buildDocTree(files: { relativePath: string }[]): DocSection[] {
   return sortedSections
 }
 
-interface ClaudeMdIndexData {
+interface AgentsMdIndexData {
   docsPath: string
   sections: DocSection[]
   outputFile?: string
 }
 
-export function generateClaudeMdIndex(data: ClaudeMdIndexData): string {
+export function generateAgentsMdIndex(data: AgentsMdIndexData): string {
   const { docsPath, sections, outputFile } = data
 
   const parts: string[] = []
@@ -341,9 +419,9 @@ export function generateClaudeMdIndex(data: ClaudeMdIndexData): string {
   parts.push(
     'STOP. What you remember about Next.js is WRONG for this project. Always search docs and read before any task.'
   )
-  const targetFile = outputFile || 'CLAUDE.md'
+  const targetFile = outputFile || 'AGENTS.md'
   parts.push(
-    `If docs missing, run this command first: npx @next/codemod agents-md --output ${targetFile}`
+    `If docs missing, run this command from this file's directory: npx @next/codemod agents-md --output ${targetFile}`
   )
 
   const allFiles = collectAllFilesFromSections(sections)
@@ -402,25 +480,25 @@ function wrapWithMarkers(content: string): string {
   return `${START_MARKER}${content}${END_MARKER}`
 }
 
-export function injectIntoClaudeMd(
-  claudeMdContent: string,
+export function injectIntoAgentsMd(
+  agentsMdContent: string,
   indexContent: string
 ): string {
   const wrappedContent = wrapWithMarkers(indexContent)
 
-  if (hasExistingIndex(claudeMdContent)) {
-    const startIdx = claudeMdContent.indexOf(START_MARKER)
-    const endIdx = claudeMdContent.indexOf(END_MARKER) + END_MARKER.length
+  if (hasExistingIndex(agentsMdContent)) {
+    const startIdx = agentsMdContent.indexOf(START_MARKER)
+    const endIdx = agentsMdContent.indexOf(END_MARKER) + END_MARKER.length
 
     return (
-      claudeMdContent.slice(0, startIdx) +
+      agentsMdContent.slice(0, startIdx) +
       wrappedContent +
-      claudeMdContent.slice(endIdx)
+      agentsMdContent.slice(endIdx)
     )
   }
 
-  const separator = claudeMdContent.endsWith('\n') ? '\n' : '\n\n'
-  return claudeMdContent + separator + wrappedContent + '\n'
+  const separator = agentsMdContent.endsWith('\n') ? '\n' : '\n\n'
+  return agentsMdContent + separator + wrappedContent + '\n'
 }
 
 interface GitignoreStatus {

@@ -33,6 +33,12 @@ export default function Page() {
           <Link href="/mixed/en/x">/mixed/en/x</Link>
         </li>
         <li>
+          <Link href="/partial/en/123">/partial/en/123</Link>
+        </li>
+        <li>
+          <Link href="/partial/fr/123">/partial/fr/123</Link>
+        </li>
+        <li>
           <Link href="/sync-io/static">/sync-io/static</Link>
         </li>
         <li>

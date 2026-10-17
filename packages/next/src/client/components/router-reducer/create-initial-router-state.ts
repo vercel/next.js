@@ -4,47 +4,43 @@ import { createHrefFromUrl } from './create-href-from-url'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 import type { AppRouterState } from './router-reducer-types'
-import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
-import { createInitialCacheNodeForHydration } from './ppr-navigations'
+import { transportNodeToFlightRouterState } from '../../../shared/lib/rsc-transport'
+import { createInitialRenderTreeForHydration } from '../render-tree'
 import {
-  convertRootFlightRouterStateToRouteTree,
-  getStaleAt,
-  processRuntimePrefetchStream,
-  writeDynamicRenderResponseIntoCache,
-  writePrerenderResponseIntoCache,
+  bufferAndWriteNavigationResponse,
+  segmentCacheMap,
+  createRootRouteTree,
 } from '../segment-cache/cache'
-import { FetchStrategy } from '../segment-cache/types'
-import {
-  UnknownDynamicStaleTime,
-  computeDynamicStaleAt,
-} from '../segment-cache/bfcache'
-import { decodeStageUntilBoundary } from './fetch-server-response'
+import { createNavigationSeed } from '../segment-cache/decode-server-response'
+import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
   initialRSCPayload: InitialRSCPayload
-  initialFlightStreamForCache?: ReadableStream<Uint8Array> | null
+  // The initial Flight stream's bytes, when they were kept, so a shell can be
+  // cut from them. Null otherwise.
+  initialRSCPayloadChunks: Array<Uint8Array> | null
   location: Location | null
 }
 
 export function createInitialRouterState({
   navigatedAt,
   initialRSCPayload,
-  initialFlightStreamForCache,
+  initialRSCPayloadChunks,
   location,
 }: InitialRouterStateParameters): AppRouterState {
   const {
     c: initialCanonicalUrlParts,
-    f: initialFlightData,
+    t: initialTransportData,
     q: initialRenderedSearch,
     i: initialCouldBeIntercepted,
     S: initialSupportsPerSegmentPrefetching,
     s: initialStaleTime,
-    l: initialStaticStageByteLength,
-    h: initialHeadVaryParams,
+    u: initialRuntimeDataAccessed,
     r: initialRootVaryParams,
+    a: initialShellByteLength,
     p: initialRuntimePrefetchStream,
     d: initialDynamicStaleTimeSeconds,
   } = initialRSCPayload
@@ -54,14 +50,11 @@ export function createInitialRouterState({
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
 
-  const normalizedFlightData = getFlightDataPartsFromPath(initialFlightData[0])
-  const {
-    tree: initialTree,
-    seedData: initialSeedData,
-    head: initialHead,
-  } = normalizedFlightData
-  // For the SSR render, seed data should always be available (we only send back a `null` response
-  // in the case of a `loading` segment, pre-PPR.)
+  // The initial router state tree, derived from the transport tree.
+  const initialTree = transportNodeToFlightRouterState(
+    initialTransportData.t,
+    initialRenderedSearch
+  )
 
   const canonicalUrl =
     // location.href is read as the initial value for canonicalUrl in the browser
@@ -71,38 +64,51 @@ export function createInitialRouterState({
         createHrefFromUrl(location)
       : initialCanonicalUrl
 
-  // Convert the initial FlightRouterState into the RouteTree type.
-  // NOTE: The metadataVaryPath isn't used for anything currently because the
-  // head is embedded into the CacheNode tree, but eventually we'll lift it out
-  // and store it on the top-level state object.
+  // Decode the initial transport data into the RouteTree type, with the
+  // payload's render output embedded on each node and the head as its own
+  // one-node tree. (discoverKnownRoute below stores the route tree in the
+  // route cache, which strips the data on write — see stripDataFromRouteTree.)
   //
-  // For statically-generated-at-build-time HTML pages, the FlightRouterState
-  // baked into the initial RSC payload won't have the correct segment inlining
-  // hints because those are computed after the pre-render. The server marks
-  // these trees with InliningHintsStale, which causes the route cache entry
-  // to be immediately expired. The next prefetch will re-fetch the tree with
+  // For statically-generated-at-build-time HTML pages, the tree baked into
+  // the initial RSC payload won't have the correct segment inlining hints
+  // because those are computed after the pre-render. The server marks these
+  // trees with InliningHintsStale, which causes the route cache entry to be
+  // immediately expired. The next prefetch will re-fetch the tree with
   // correct hints from the /_tree response.
-  const acc = { metadataVaryPath: null }
-  const initialRouteTree = convertRootFlightRouterStateToRouteTree(
-    initialTree,
-    initialRenderedSearch as NormalizedSearch,
-    acc
-  )
-  const metadataVaryPath = acc.metadataVaryPath
-  const initialTask = createInitialCacheNodeForHydration(
+  const initialSeed = createNavigationSeed(
     navigatedAt,
-    initialRouteTree,
-    initialSeedData,
-    initialHead,
-    computeDynamicStaleAt(
-      navigatedAt,
-      initialDynamicStaleTimeSeconds ?? UnknownDynamicStaleTime
-    )
+    // There's no base tree to overlay onto; the initial payload is a full
+    // render from the root.
+    null,
+    initialTransportData,
+    // The initial payload may still be streaming in while we hydrate, so its
+    // vary params can't be drained here; they decode as null. The
+    // segment-cache write below re-decodes the transport data with the
+    // payload's root params once the stale time has resolved.
+    null,
+    // Same for partiality: only segment-cache writes consume it, and the
+    // write below re-decodes with the payload's actual response-level value.
+    // Pass the conservative value here.
+    true,
+    // The initial payload always includes the param values in the tree
+    // (fallback shells are patched with the parsed values before this runs —
+    // see createInitialRSCPayloadFromFallbackPrerender), so there's no
+    // pathname to parse them from.
+    null,
+    initialRenderedSearch,
+    null,
+    initialDynamicStaleTimeSeconds ?? UnknownDynamicStaleTime
+  )
+  const initialRoot = initialSeed.root
+  const initialNavigation = createInitialRenderTreeForHydration(
+    navigatedAt,
+    initialRoot,
+    initialSeed.dynamicStaleAt
   )
 
   // The following only applies in the browser (location !== null) since neither
   // route learning nor segment cache state persists from SSR to client.
-  if (location !== null && metadataVaryPath !== null) {
+  if (location !== null) {
     // Learn the route pattern so we can predict it for future navigations.
     discoverKnownRoute(
       Date.now(),
@@ -110,125 +116,44 @@ export function createInitialRouterState({
       location.search as NormalizedSearch,
       null, // nextUrl — initial render is never an interception
       null, // No pending entry
-      initialRouteTree,
-      metadataVaryPath,
+      initialRoot,
       initialCouldBeIntercepted,
       canonicalUrl,
+      initialSeed.renderedSearch,
       initialSupportsPerSegmentPrefetching,
       false // hasDynamicRewrite
     )
 
-    // TODO: Implement Shell extraction as part of Cached Navigations.
-    // Intentionally holding off on doing this until we decide how the Cached
-    // Navigations behavior should work in combination with App Shells.
-
-    // Write the initial seed data into the segment cache so subsequent
-    // navigations to the initial page can serve cached segments instantly.
-    if (initialSeedData !== null && initialStaleTime !== undefined) {
-      if (
-        initialStaticStageByteLength !== undefined &&
-        initialFlightStreamForCache != null
-      ) {
-        // Partially static page — truncate the cloned Flight stream at the
-        // static stage byte boundary, decode, and cache the static subset.
-        // Promise.resolve wraps the Flight-deserialized thenable into a
-        // native Promise so we can chain `.then` on it safely.
-        Promise.resolve(initialStaticStageByteLength)
-          .then(async (byteLength) => {
-            const staticStageResponse =
-              await decodeStageUntilBoundary<InitialRSCPayload>(
-                initialFlightStreamForCache,
-                byteLength,
-                undefined
-              )
-            const now = Date.now()
-            const staleAt = await getStaleAt(now, staticStageResponse.s)
-
-            writePrerenderResponseIntoCache(
-              now,
-              FetchStrategy.PPR,
-              staticStageResponse.f,
-              undefined, // no build ID mismatch check for initial HTML
-              staticStageResponse.h,
-              staticStageResponse.r ?? null,
-              staleAt,
-              initialTree,
-              initialRenderedSearch,
-              true // isResponsePartial
-            )
-          })
-          .catch(() => {
-            // The static stage processing failed. Not fatal — the page
-            // rendered normally, we just won't write into the cache.
-          })
-      } else {
-        // Fully static page — cache the entire decoded seed data as-is. We're
-        // not using the initial response here (which would allow us to combine
-        // the two branches) to avoid unnecessary decoding of the Flight data,
-        // since we can just take the seed data that we already decoded during
-        // hydration and write it into the cache directly.
-        const now = Date.now()
-
-        getStaleAt(now, initialStaleTime)
-          .then((staleAt) => {
-            writePrerenderResponseIntoCache(
-              now,
-              FetchStrategy.PPR,
-              initialFlightData,
-              undefined, // buildId — not applicable for initial HTML
-              initialHeadVaryParams,
-              initialRootVaryParams ?? null,
-              staleAt,
-              initialTree,
-              initialRenderedSearch,
-              false // isResponsePartial
-            )
-          })
-          .catch(() => {
-            // The static stage processing failed. Not fatal — the page
-            // rendered normally, we just won't write into the cache.
-          })
-
-        // Cancel the stream clone — fully static path doesn't need it.
-        initialFlightStreamForCache?.cancel()
-      }
-    } else {
-      // No caching — cancel the unused stream clone.
-      initialFlightStreamForCache?.cancel()
-    }
-
-    // If the initial RSC payload includes an embedded runtime prefetch stream,
-    // decode it and write the runtime data into the segment cache. This allows
-    // subsequent navigations to serve runtime-prefetchable content from cache
-    // without a separate prefetch request.
-    if (initialRuntimePrefetchStream != null) {
-      processRuntimePrefetchStream(
-        Date.now(),
-        initialRuntimePrefetchStream,
-        initialTree,
-        initialRenderedSearch
-      )
-        .then((processed) => {
-          if (processed !== null) {
-            writeDynamicRenderResponseIntoCache(
-              Date.now(),
-              FetchStrategy.PPRRuntime,
-              processed.flightDatas,
-              processed.buildId,
-              processed.isResponsePartial,
-              processed.headVaryParams,
-              processed.rootVaryParamsIterable,
-              processed.staleAt,
-              processed.navigationSeed,
-              null
-            )
-          }
-        })
-        .catch(() => {
-          // Runtime prefetch cache write failed. Not fatal — the page rendered
-          // normally, we just won't cache runtime data.
-        })
-    }
+    // Write the initial page into the segment cache, so navigating back to it
+    // later doesn't need a request. We reuse the payload that hydration
+    // already decoded instead of decoding it again. Every Cache Components
+    // prerender includes `u`, but the initial Flight stream is the
+    // prerender's own payload only when the prerender is complete. For a
+    // partial prerender, the payload comes from the render that resumes it at
+    // request time, and that render doesn't include `u`. So if `u` is
+    // missing, we treat the payload as partial. (See the TODO on
+    // bufferAndWriteNavigationResponse.)
+    bufferAndWriteNavigationResponse(
+      Date.now(),
+      // Only the fields the write reads. `u` is left out on purpose, so the
+      // write treats the payload like a live render's.
+      {
+        t: initialTransportData,
+        r: initialRootVaryParams,
+        s: initialStaleTime,
+        a: initialShellByteLength,
+        p: initialRuntimePrefetchStream,
+      },
+      initialStaleTime === undefined ||
+        initialRuntimeDataAccessed === undefined,
+      initialRSCPayloadChunks,
+      initialTree,
+      initialRenderedSearch,
+      segmentCacheMap // hydration writes are bound to the shared map
+    ).catch(() => {
+      // The cache write failed. Not fatal — the page rendered normally, we
+      // just won't write into the cache.
+    })
   }
 
   // NOTE: We intentionally don't check if any data needs to be fetched from the
@@ -247,8 +172,11 @@ export function createInitialRouterState({
   // complete tree.)
 
   const initialState = {
-    tree: initialTask.route,
-    cache: initialTask.node,
+    tree: initialNavigation.tree.route,
+    root: createRootRouteTree(
+      initialNavigation.tree.node,
+      initialNavigation.head.node
+    ),
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,
@@ -256,7 +184,7 @@ export function createInitialRouterState({
       // to avoid it being overwritten on navigation back/forward with MPA Navigation.
       preserveCustomHistoryState: true,
     },
-    focusAndScrollRef: {
+    scrollRef: {
       scrollRef: null,
       forceScroll: false,
       onlyHashChange: false,

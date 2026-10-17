@@ -5,13 +5,11 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
+// Deploy mode exclusion: This suite intentionally fails the build, so there is no successful deployment to exercise.
+// @force-gate !deploy
 describe('next/font/google fetch error', () => {
   const isDev = (global as any).isNextDev
-
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
+  const isTurbopack = !!process.env.IS_TURBOPACK_TEST
 
   const { next } = nextTestSetup({
     files: {
@@ -50,14 +48,18 @@ describe('next/font/google fetch error', () => {
       expect(sizeAdjust).toMatchInlineSnapshot(`"107.12%"`)
 
       expect(next.cliOutput.slice(outputIndex)).toInclude(
-        'Failed to download `Inter` from Google Fonts. Using fallback font instead.'
+        isTurbopack
+          ? 'Failed to download Inter from Google Fonts. Using a fallback font instead.'
+          : 'Failed to download `Inter` from Google Fonts. Using fallback font instead.'
       )
     })
   } else {
     it('should error when not in dev', async () => {
       await expect(next.start()).rejects.toThrow('next build failed')
       expect(next.cliOutput).toInclude(
-        'Failed to fetch `Inter` from Google Fonts.'
+        isTurbopack
+          ? 'Failed to fetch Inter from Google Fonts.'
+          : 'Failed to fetch `Inter` from Google Fonts.'
       )
     })
   }

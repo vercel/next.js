@@ -38,7 +38,7 @@ pub type AnalyzedRefs = (
 
 /// Returns `(all_references, urls)`.
 pub async fn analyze_references(
-    stylesheet: &mut StyleSheet<'static, 'static>,
+    stylesheet: &mut StyleSheet<'static>,
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     import_context: Option<ResolvedVc<ImportContext>>,

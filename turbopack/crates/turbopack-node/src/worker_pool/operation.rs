@@ -301,6 +301,8 @@ impl Operation for WorkerOperation {
         if self.on_drop.is_some() {
             self.state.stats.lock().remove_worker();
             self.on_drop = None;
+            // Clearing the return-to-pool callback does not stop the underlying Node.js worker.
+            let _ = terminate_worker(self.worker_options.clone(), self.worker_id);
         }
     }
 }

@@ -53,7 +53,6 @@ describe('Error overlay - RSC runtime errors', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "code": "E251",
        "description": "\`cookies\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context",
        "environmentLabel": null,
        "label": "Runtime Error",

@@ -108,7 +108,7 @@ To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/
 
 The behavior of [`next/script`](/docs/app/api-reference/components/script) has been updated to support both `pages` and `app`, but some changes need to be made to ensure a smooth migration:
 
-- Move any `beforeInteractive` scripts you previously included in `_document.js` to the root layout file (`app/layout.tsx`).
+- Move any `beforeInteractive` scripts you previously included in `_document.js` to a [root layout](/docs/app/api-reference/file-conventions/layout#root-layout), such as `app/layout.tsx` or `app/[locale]/layout.tsx`.
 - The experimental `worker` strategy does not yet work in `app` and scripts denoted with this strategy will either have to be removed or modified to use a different strategy (e.g. `lazyOnload`).
 - `onLoad`, `onReady`, and `onError` handlers will not work in Server Components so make sure to move them to a [Client Component](/docs/app/getting-started/server-and-client-components) or remove them altogether.
 
@@ -506,7 +506,7 @@ export default function ExampleClientComponent() {
 In addition, the new `useRouter` hook has the following changes:
 
 - `isFallback` has been removed because `fallback` has [been replaced](#replacing-fallback).
-- The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/guides/internationalization).
+- The `locale`, `locales`, `defaultLocale`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/guides/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
 - `isReady` has been removed because it is no longer necessary. During [prerendering](/docs/app/glossary#prerendering), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.

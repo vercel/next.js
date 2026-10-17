@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { setTimeout } from 'timers/promises'
 import { cacheLife } from 'next/cache'
 
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 // A distinct slug per test keys a separate cache entry (so the first request
 // for each slug is a genuine cold miss), while both tests share this one

@@ -3,7 +3,6 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
-const process = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -44,6 +43,18 @@ export async function copy_docs(task, opts) {
       }
     })
     .target('dist/docs')
+
+  // The agent-feedback protocol is intentionally kept out of dist/docs so
+  // agents globbing the bundled docs don't read its instructions out of
+  // context. `next internal agent-feedback-instructions` prints it on demand.
+  await task
+    .source(join(__dirname, 'src/agent-feedback/protocol.md'))
+    .target('dist/agent-feedback')
+
+  // Keep upgrade workflow instructions outside the public docs bundle.
+  await task
+    .source(join(__dirname, 'src/lib/upgrade/*.md'))
+    .target('dist/lib/upgrade')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -145,17 +156,34 @@ export async function ncc_busboy(task, opts) {
 
 externals['@mswjs/interceptors/ClientRequest'] =
   'next/dist/compiled/@mswjs/interceptors/ClientRequest'
+// Otherwise NCC emits `eval('require')('next/dist/compiled/@mswjs/interceptors/ClientRequest')`
+externals['next/dist/shared/lib/promise-with-resolvers'] =
+  'next/dist/shared/lib/promise-with-resolvers'
 export async function ncc_mswjs_interceptors(task, opts) {
   await task
-    .source(
-      relative(__dirname, require.resolve('@mswjs/interceptors/ClientRequest'))
-    )
+    // @mswjs/interceptors is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/mswjs-interceptors/index.js')
     .ncc({
       packageName: '@mswjs/interceptors/ClientRequest',
       externals,
       target: 'es5',
+      esm: false,
     })
     .target('src/compiled/@mswjs/interceptors/ClientRequest')
+  // The interceptor reads its HTTP parser WASM at runtime relative to the
+  // bundle. ncc cannot trace that file access, so copy the file explicitly.
+  const llhttpWasmTarget = join(
+    __dirname,
+    'src/compiled/@mswjs/interceptors/ClientRequest/llhttp'
+  )
+  await fs.mkdir(llhttpWasmTarget, { recursive: true })
+  await fs.copyFile(
+    join(
+      dirname(require.resolve('@mswjs/interceptors/ClientRequest')),
+      '../../llhttp/llhttp.wasm'
+    ),
+    join(llhttpWasmTarget, 'llhttp.wasm')
+  )
 }
 
 export async function capsize_metrics() {
@@ -1202,17 +1230,13 @@ export async function ncc_gzip_size(task, opts) {
     .ncc({ packageName: 'gzip-size', externals })
     .target('src/compiled/gzip-size')
 }
-externals['http-proxy'] = 'next/dist/compiled/http-proxy'
-// The patched http-proxy (patches/http-proxy@1.18.1.patch) uses Next.js'
-// parseUrl instead of the deprecated url.parse. Keep that import pointing at
-// next's own dist instead of bundling a copy.
-externals['next/dist/shared/lib/router/utils/parse-url'] =
-  'next/dist/shared/lib/router/utils/parse-url'
-export async function ncc_http_proxy(task, opts) {
+externals['httpxy'] = 'next/dist/compiled/httpxy'
+export async function ncc_httpxy(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('http-proxy')))
-    .ncc({ packageName: 'http-proxy', externals })
-    .target('src/compiled/http-proxy')
+    // httpxy is ESM-only, compile to CJS through a stub entry
+    .source('src/bundles/httpxy/index.js')
+    .ncc({ packageName: 'httpxy', externals, esm: false })
+    .target('src/compiled/httpxy')
 }
 externals['ignore-loader'] = 'next/dist/compiled/ignore-loader'
 export async function ncc_ignore_loader(task, opts) {
@@ -1890,6 +1914,29 @@ export async function ncc_string_hash(task, opts) {
     .ncc({ packageName: 'string-hash', externals })
     .target('src/compiled/string-hash')
 }
+// Bundle only SHA-256, using browser entrypoints so this is safe in Edge.
+export async function ncc_hash_sha256(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('hash.js/lib/hash/sha/256')))
+    .ncc({
+      packageName: 'hash.js',
+      bundleName: 'hash.js/sha256',
+      externals,
+      mainFields: ['browser', 'main'],
+    })
+    .target('src/compiled/hash.js/sha256')
+
+  // hash.js publishes its license in the README rather than a LICENSE file.
+  const readme = await fs.readFile(require.resolve('hash.js/README.md'), 'utf8')
+  const license = readme.split('#### LICENSE\n')[1]
+  if (!license) {
+    throw new Error('Missing hash.js license')
+  }
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/hash.js/sha256/LICENSE'),
+    `${license.trim()}\n`
+  )
+}
 externals['strip-ansi'] = 'next/dist/compiled/strip-ansi'
 externals['next/dist/compiled/strip-ansi'] = 'next/dist/compiled/strip-ansi'
 export async function ncc_strip_ansi(task, opts) {
@@ -2291,7 +2338,7 @@ export async function ncc(task, opts) {
         'ncc_fresh',
         'ncc_glob',
         'ncc_gzip_size',
-        'ncc_http_proxy',
+        'ncc_httpxy',
         'ncc_ignore_loader',
         'ncc_is_animated',
         'ncc_ipaddr_js',
@@ -2327,6 +2374,7 @@ export async function ncc(task, opts) {
         'ncc_source_map08',
         'ncc_serve_handler',
         'ncc_string_hash',
+        'ncc_hash_sha256',
         'ncc_strip_ansi',
         'ncc_superstruct',
         'ncc_zod',
@@ -2713,10 +2761,7 @@ export async function diagnostics(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(
-    ['precompile', 'compile', 'check_error_codes', 'generate_types'],
-    opts
-  )
+  await task.serial(['precompile', 'compile', 'generate_types'], opts)
 }
 
 export async function generate_types(task, opts) {
@@ -2734,25 +2779,6 @@ export async function generate_types(task, opts) {
   // But taskr needs to know that it can start watching the files for the task it has to manually restart.
   if (!watchmode) {
     await typesPromise
-  }
-}
-
-export async function check_error_codes(task, opts) {
-  try {
-    await execa.command('pnpm -w run check-error-codes', {
-      stdio: 'inherit',
-    })
-  } catch (err) {
-    if (process.env.CI) {
-      await execa.command(
-        'echo check_error_codes FAILED: There are new errors introduced but no corresponding error codes are found in errors.json file, so make sure you run `pnpm build` or `pnpm update-error-codes` and then commit the change in errors.json.',
-        {
-          stdio: 'inherit',
-        }
-      )
-      process.exit(1)
-    }
-    await task.start('compile', opts)
   }
 }
 
@@ -3030,10 +3056,10 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
-// The `app-worker` bundle currently has only one entry, the use-cache probe
-// worker, which is dev-only. We therefore build just the four dev variants
-// (turbo × experimental). If a future worker entry needs to run in prod,
-// add the matching prod tasks then.
+// The `app-worker` bundle holds the dev-only worker entries (the use-cache
+// probe worker and the dev validation worker). We therefore build just the four
+// dev variants (turbo × experimental). If a future worker entry needs to run in
+// prod, add the matching prod tasks then.
 export async function next_bundle_app_worker_dev(task, opts) {
   await task.source('dist').webpack({
     watch: opts.dev,

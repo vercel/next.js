@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 export const instant = {
   unstable_samples: [{ searchParams: { myParam: 'testValue' } }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 

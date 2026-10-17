@@ -132,7 +132,7 @@ pub async fn resolve_url_reference(
     Ok(Vc::cell(None))
 }
 
-pub fn replace_url_references<'i, 'o>(ss: &mut StyleSheet<'i, 'o>, urls: &FxHashMap<RcStr, RcStr>) {
+pub fn replace_url_references<'i>(ss: &mut StyleSheet<'i>, urls: &FxHashMap<RcStr, RcStr>) {
     let mut replacer = AssetReferenceReplacer { urls };
     ss.visit(&mut replacer).unwrap();
 }

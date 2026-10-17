@@ -4,7 +4,7 @@ describe('mdx-font-preload', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
       '@mdx-js/loader': '^2.2.1',
       '@mdx-js/react': '^2.2.1',
     },

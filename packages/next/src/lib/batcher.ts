@@ -1,6 +1,6 @@
 import type { SchedulerFn } from './scheduler'
 
-import { DetachedPromise } from './detached-promise'
+import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
 
 type CacheKeyFn<K, C extends string | number | null> = (
   key: K
@@ -72,7 +72,7 @@ export class Batcher<K, V, C extends string | number | null> {
     const pending = this.pending.get(cacheKey)
     if (pending) return pending
 
-    const { promise, resolve, reject } = new DetachedPromise<V>()
+    const { promise, resolve, reject } = createPromiseWithResolvers<V>()
     this.pending.set(cacheKey, promise)
 
     this.schedulerFn(async () => {

@@ -128,11 +128,6 @@ export const CODE_FRAME_STYLES = `
     flex-shrink: 0;
   }
 
-  [data-with-open-in-editor-link-source-file] svg {
-    width: var(--size-14);
-    height: var(--size-14);
-  }
-
   .code-frame-lines {
     min-width: max-content;
   }
@@ -140,6 +135,8 @@ export const CODE_FRAME_STYLES = `
   .code-frame-link [data-text] {
     font-size: var(--size-12);
     text-align: left;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .code-frame-header {
@@ -149,27 +146,7 @@ export const CODE_FRAME_STYLES = `
   }
 
   [data-with-open-in-editor-link-source-file] {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--size-24);
-    height: var(--size-24);
-    padding: 4px;
     margin-left: auto;
-    border-radius: var(--rounded-full);
-
-    &:focus-visible {
-      outline: var(--focus-ring);
-      outline-offset: -2px;
-    }
-
-    &:hover {
-      background: var(--color-gray-alpha-100);
-    }
-
-    &:active {
-      background: var(--color-gray-alpha-200);
-    }
   }
 
   [data-nextjs-codeframe]::selection,
@@ -177,7 +154,7 @@ export const CODE_FRAME_STYLES = `
     background-color: var(--color-ansi-selection);
   }
 
-  [data-nextjs-codeframe] *:not(a) {
+  [data-nextjs-codeframe] *:not(a):not(.open-in-editor-button):not(.open-in-editor-button *) {
     color: inherit;
     background-color: transparent;
     font-family: var(--font-stack-monospace);

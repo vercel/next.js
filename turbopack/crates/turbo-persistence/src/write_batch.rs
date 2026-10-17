@@ -6,7 +6,7 @@ use std::{
     sync::atomic::{AtomicU32, AtomicU64, Ordering},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
 use fs_err::File;
@@ -15,16 +15,17 @@ use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::{
-    FamilyConfig, ValueBuffer,
+    FamilyConfig, FamilyKind, ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
-    compression::{checksum_block, compress_into_buffer},
-    constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    compression::{Compressor, checksum_block},
+    constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     db::WriteOperationGuard,
     key::StoreKey,
     meta_file::MetaEntryFlags,
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
+    shard::ShardBits,
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
 };
 
@@ -49,10 +50,6 @@ struct ThreadLocalState<K: StoreKey + Send, const FAMILIES: usize> {
     new_blob_files: Vec<NewFile>,
 }
 
-const COLLECTOR_SHARDS: usize = 4;
-const COLLECTOR_SHARD_SHIFT: usize =
-    u64::BITS as usize - COLLECTOR_SHARDS.trailing_zeros() as usize;
-
 /// The result of a `WriteBatch::finish` operation.
 pub(crate) struct FinishResult {
     pub(crate) sequence_number: u32,
@@ -63,12 +60,17 @@ pub(crate) struct FinishResult {
     pub(crate) keys_written: u64,
 }
 
+/// The most leading key hash bits that split a family's entries into collectors in memory as part
+/// of a commit.
+const MAX_COLLECTOR_SHARD_BITS: ShardBits = ShardBits::new(2);
+
 enum GlobalCollectorState<K: StoreKey + Send> {
-    /// Initial state. Single collector. Once the collector is full, we switch to sharded mode.
+    /// Initial state. Single collector. Once the collector is full, we switch to sharded mode. When
+    /// written, its entries are split into one SST file per shard.
     Unsharded(Collector<K>),
-    /// Sharded mode.
-    /// We use multiple collectors, and select one based on the first bits of the key hash.
-    Sharded([Collector<K>; COLLECTOR_SHARDS]),
+    /// Sharded mode. One collector per key hash prefix of the given bits (see
+    /// [`WriteBatch::collector_bits`]).
+    Sharded(ShardBits, Box<[Collector<K>]>),
 }
 
 /// A write batch.
@@ -79,9 +81,11 @@ pub struct WriteBatch<'db, K: StoreKey + Send, S: ParallelScheduler, const FAMIL
     parallel_scheduler: S,
     /// The database path
     db_path: PathBuf,
-    /// Per-family configuration (kind: SingleValue/MultiValue).
+    /// Per-family storage configuration.
     #[cfg_attr(not(feature = "verify_sst_content"), allow(dead_code))]
     family_configs: [FamilyConfig; FAMILIES],
+    /// The shards of each family. SST files are split at shard boundaries.
+    shard_bits: [ShardBits; FAMILIES],
     /// The current sequence number counter. Increased for every new SST file or blob file.
     current_sequence_number: AtomicU32,
     /// The thread local state.
@@ -104,6 +108,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         current: u32,
         parallel_scheduler: S,
         family_configs: [FamilyConfig; FAMILIES],
+        shard_bits: [ShardBits; FAMILIES],
     ) -> Self {
         const {
             assert!(FAMILIES <= usize_from_u32(u32::MAX));
@@ -113,6 +118,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             parallel_scheduler,
             db_path: path,
             family_configs,
+            shard_bits,
             current_sequence_number: AtomicU32::new(current),
             thread_locals: ThreadLocal::new(),
             collectors: [(); FAMILIES]
@@ -172,26 +178,34 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     GlobalCollectorState::Unsharded(collector) => {
                         collector.add_entry(entry);
                         if collector.is_full() {
-                            // When full, split the entries into shards.
-                            let mut shards: [Collector<K>; 4] =
-                                [(); COLLECTOR_SHARDS].map(|_| Collector::new());
-                            for entry in collector.drain() {
-                                let shard = (entry.key.hash >> COLLECTOR_SHARD_SHIFT) as usize;
-                                shards[shard].add_entry(entry);
-                            }
-                            // There is a rare edge case where all entries are in the same shard,
-                            // and the collector is full after the split.
-                            for collector in shards.iter_mut() {
-                                if collector.is_full() {
-                                    full_collectors
-                                        .push(replace(&mut *collector, Collector::new()));
+                            let collector_bits = self.collector_bits(family);
+                            if collector_bits.count() == 1 {
+                                full_collectors.push(replace(collector, Collector::new()));
+                            } else {
+                                // When full, split the entries by key hash prefix.
+                                let mut shards = (0..collector_bits.count())
+                                    .map(|_| Collector::new())
+                                    .collect::<Box<[_]>>();
+                                for entry in collector.drain() {
+                                    let shard = collector_bits.shard_of(entry.key.hash) as usize;
+                                    shards[shard].add_entry(entry);
                                 }
+                                // There is a rare edge case where all entries are in the same
+                                // shard, and the collector is full
+                                // after the split.
+                                for collector in shards.iter_mut() {
+                                    if collector.is_full() {
+                                        full_collectors
+                                            .push(replace(&mut *collector, Collector::new()));
+                                    }
+                                }
+                                *global_collector_state =
+                                    GlobalCollectorState::Sharded(collector_bits, shards);
                             }
-                            *global_collector_state = GlobalCollectorState::Sharded(shards);
                         }
                     }
-                    GlobalCollectorState::Sharded(shards) => {
-                        let shard = (entry.key.hash >> COLLECTOR_SHARD_SHIFT) as usize;
+                    GlobalCollectorState::Sharded(collector_bits, shards) => {
+                        let shard = collector_bits.shard_of(entry.key.hash) as usize;
                         let collector = &mut shards[shard];
                         collector.add_entry(entry);
                         if collector.is_full() {
@@ -220,12 +234,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         // these operations async, or we could integrate with the parallel::map operation that is
         // driving the work to slow down task submission in this case.
         for mut global_collector in full_collectors {
-            // When the global collector is full, we create a new SST file.
-            let sst = self.create_sst_file(
+            // When the global collector is full, we create new SST files, one per shard.
+            let ssts = self.create_sst_files(
                 family,
                 global_collector.sorted(self.family_configs[usize_from_u32(family)].kind),
             )?;
-            self.new_sst_files.lock().push(sst);
+            self.new_sst_files.lock().extend(ssts);
             drop(global_collector);
         }
         Ok(())
@@ -238,18 +252,55 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         if value.len() <= MAX_MEDIUM_VALUE_SIZE {
             collector.put(key, value);
         } else {
-            let blob = self.create_blob(&value)?;
+            let blob = self.create_blob(family, &value)?;
             collector.put_blob(key, blob.seq);
             state.new_blob_files.push(blob);
         }
         Ok(())
     }
 
-    /// Puts a delete operation into the write batch.
+    /// Puts a delete operation into the write batch. This deletes *all* values for `key`.
+    ///
+    /// Combining this with a [`WriteBatch::put`] of the same key in the same batch is **not
+    /// supported**: which one wins is undefined, and callers are expected to resolve the intent
+    /// themselves before writing.
     pub fn delete(&self, family: u32, key: K) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
         collector.delete(key);
+        Ok(())
+    }
+
+    /// Deletes a single key-value pair, leaving any other values for `key` intact.
+    ///
+    /// Only valid for [`FamilyKind::MultiValue`] families: in a `SingleValue` family a key has one
+    /// value and [`WriteBatch::delete`] already removes it exactly.
+    ///
+    /// Deleting a pair that is written in the same batch — by this or any other operation on the
+    /// key — is **not supported**, for the reason given on [`WriteBatch::delete`]: which one wins
+    /// is undefined, and it is the caller's job to resolve that before writing.
+    ///
+    /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way.  This is a
+    /// simplifying limitation that could be relaxed if needed. Of course in general the storage
+    /// overhead of deleting large values by value makes it apriori inefficient.
+    pub fn delete_value(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
+        let family_config = &self.family_configs[usize_from_u32(family)];
+        if family_config.kind != FamilyKind::MultiValue {
+            bail!(
+                "delete_value is only valid for MultiValue families, but family {} is SingleValue",
+                family_config.name
+            );
+        }
+        if value.len() > MAX_INLINE_VALUE_SIZE {
+            bail!(
+                "delete_value only supports values of at most {MAX_INLINE_VALUE_SIZE} bytes, got \
+                 {} bytes",
+                value.len()
+            );
+        }
+        let state = self.thread_local_state();
+        let collector = self.thread_local_collector_mut(state, family)?;
+        collector.delete_value(key, &value);
         Ok(())
     }
 
@@ -281,20 +332,22 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             })?;
 
         // Now we flush the global collector(s).
-        let mut collector_state = self.collectors[usize_from_u32(family)].lock();
+        let family_usize = usize_from_u32(family);
+        let mut collector_state = self.collectors[family_usize].lock();
+        let family_config = self.family_configs[family_usize];
         match &mut *collector_state {
             GlobalCollectorState::Unsharded(collector) => {
                 if !collector.is_empty() {
-                    let sst = self.create_sst_file(
-                        family,
-                        collector.sorted(self.family_configs[usize_from_u32(family)].kind),
-                    )?;
+                    // A collector that never filled up was never split into shards, so its
+                    // entries can span all shards.
+                    let ssts =
+                        self.create_sst_files(family, collector.sorted(family_config.kind))?;
                     collector.clear();
-                    self.new_sst_files.lock().push(sst);
+                    self.new_sst_files.lock().extend(ssts);
                 }
             }
-            GlobalCollectorState::Sharded(_) => {
-                let GlobalCollectorState::Sharded(mut shards) = replace(
+            GlobalCollectorState::Sharded(..) => {
+                let GlobalCollectorState::Sharded(_, mut shards) = replace(
                     &mut *collector_state,
                     GlobalCollectorState::Unsharded(Collector::new()),
                 ) else {
@@ -303,13 +356,10 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 self.parallel_scheduler
                     .try_parallel_for_each_mut(&mut shards, |collector| {
                         if !collector.is_empty() {
-                            let sst = self.create_sst_file(
-                                family,
-                                collector.sorted(self.family_configs[usize_from_u32(family)].kind),
-                            )?;
-                            collector.clear();
-                            self.new_sst_files.lock().push(sst);
-                            collector.drop_contents();
+                            let ssts = self
+                                .create_sst_files(family, collector.sorted(family_config.kind))?;
+                            collector.clear_and_drop_capacity();
+                            self.new_sst_files.lock().extend(ssts);
                         }
                         anyhow::Ok(())
                     })?;
@@ -380,7 +430,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     GlobalCollectorState::Unsharded(collector) => {
                         Either::Left([(family, collector)].into_iter())
                     }
-                    GlobalCollectorState::Sharded(shards) => {
+                    GlobalCollectorState::Sharded(_, shards) => {
                         Either::Right(shards.into_iter().map(move |collector| (family, collector)))
                     }
                 }
@@ -391,13 +441,13 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             |(family, mut collector)| {
                 let family = family as u32;
                 if !collector.is_empty() {
-                    let sst = self.create_sst_file(
+                    let ssts = self.create_sst_files(
                         family,
                         collector.sorted(self.family_configs[usize_from_u32(family)].kind),
                     )?;
                     collector.clear();
                     drop(collector);
-                    shared_new_sst_files.lock().push(sst);
+                    shared_new_sst_files.lock().extend(ssts);
                 }
                 anyhow::Ok(())
             },
@@ -420,7 +470,11 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 |(family, sst_files)| {
                     let family = family as u32;
                     let mut entries = 0;
-                    let mut builder = MetaFileBuilder::new(family);
+                    let mut builder = MetaFileBuilder::new(
+                        family,
+                        self.family_configs[usize_from_u32(family)].compression,
+                        self.shard_bits[usize_from_u32(family)],
+                    );
                     for (seq, sst) in sst_files {
                         entries += sst.entries;
                         builder.add(seq, sst);
@@ -447,10 +501,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
 
     /// Creates a new blob file with the given value.
     #[tracing::instrument(level = "trace", skip(self, value), fields(value_len = value.len()))]
-    fn create_blob(&self, value: &[u8]) -> Result<NewFile> {
+    fn create_blob(&self, family: u32, value: &[u8]) -> Result<NewFile> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut compressed = Vec::new();
-        compress_into_buffer(value, &mut compressed)
+        let compression = self.family_configs[usize_from_u32(family)].compression;
+        Compressor::new(compression)?
+            .compress_into_buffer(value, &mut compressed)
             .context("Compression of value for blob file failed")?;
 
         let mut buffer = Vec::with_capacity(8 + compressed.len());
@@ -466,20 +522,48 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         Ok(NewFile { seq, file, size })
     }
 
-    /// Creates a new SST file with the given collector data.
-    #[tracing::instrument(level = "trace", skip(self, collector_data), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
-    fn create_sst_file(
+    /// The key hash bits that split the entries of `family` into collectors in memory: the shard
+    /// bits of the family, but at most [`MAX_COLLECTOR_SHARD_BITS`].
+    fn collector_bits(&self, family: u32) -> ShardBits {
+        self.shard_bits[usize_from_u32(family)].min(MAX_COLLECTOR_SHARD_BITS)
+    }
+
+    #[tracing::instrument(level = "trace", skip(self, entries), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
+    /// Writes sorted entries that can span multiple shards into one SST file per shard.
+    fn create_sst_files(
         &self,
         family: u32,
-        collector_data: (&[CollectorEntry<K>], usize),
-    ) -> Result<NewFile> {
-        let (entries, _total_key_size) = collector_data;
+        entries: &[CollectorEntry<K>],
+    ) -> Result<SmallVec<[NewFile; 1]>> {
+        let shard_bits = self.shard_bits[usize_from_u32(family)];
+        let mut files = SmallVec::new();
+        let mut rest = entries;
+        while let Some(first) = rest.first() {
+            // Entries are sorted by key hash, so each shard is a contiguous range.
+            let shard = shard_bits.shard_of(first.key.hash);
+            let len = rest.partition_point(|e| shard_bits.shard_of(e.key.hash) == shard);
+            let (chunk, remaining) = rest.split_at(len);
+            files.push(self.create_sst_file(family, chunk)?);
+            rest = remaining;
+        }
+        Ok(files)
+    }
+
+    /// Creates a new SST file with the given collector data.
+    fn create_sst_file(&self, family: u32, entries: &[CollectorEntry<K>]) -> Result<NewFile> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
         let path = self.db_path.join(format!("{seq:08}.sst"));
         let (meta, file) = self
             .parallel_scheduler
-            .block_in_place(|| write_static_stored_file(entries, &path, MetaEntryFlags::FRESH))
+            .block_in_place(|| {
+                write_static_stored_file(
+                    entries,
+                    &path,
+                    MetaEntryFlags::FRESH,
+                    self.family_configs[usize_from_u32(family)].compression,
+                )
+            })
             .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
 
         #[cfg(feature = "verify_sst_content")]
@@ -503,6 +587,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     sequence_number: seq,
                     block_count: meta.block_count,
                 },
+                self.family_configs[usize_from_u32(family)].compression,
+                crate::mmap_access_mode(),
             )?;
             let cache2 = BlockCache::with(
                 10,
@@ -547,10 +633,22 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                                     "we wrote a blob but did not read it"
                                 );
                             }
-                            CollectorEntryValue::Deleted => assert!(
-                                values.first() == Some(&LookupValue::Deleted),
-                                "we wrote a deleted tombstone but it was not first in results"
+                            // Key tombstones sort last within a key group, so a same-batch
+                            // `put(K, v); delete(K)` reads back as [v, KeyDeleted].
+                            CollectorEntryValue::KeyDeleted => assert!(
+                                values.last() == Some(&LookupValue::KeyDeleted),
+                                "we wrote a key tombstone but it was not last in results"
                             ),
+                            CollectorEntryValue::KeyValueDeleted { value, len } => {
+                                let expected = &value[..*len as usize];
+                                assert!(
+                                    values.iter().any(|lv| matches!(
+                                        lv,
+                                        LookupValue::KeyValueDeleted { value } if &**value == expected
+                                    )),
+                                    "we wrote a key-value tombstone but did not read it back"
+                                )
+                            }
                             v => {
                                 assert!(
                                     values.into_iter().any(|lv| {
@@ -584,7 +682,7 @@ const fn usize_from_u32(value: u32) -> usize {
     // This should always be true, as we assume at least a 32-bit width architecture for Turbopack.
     // Since this is a const expression, we expect it to be compiled away.
     const {
-        assert!(u32::BITS < usize::BITS);
+        assert!(u32::BITS <= usize::BITS);
     };
     value as usize
 }

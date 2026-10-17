@@ -4,7 +4,7 @@ export const instant = {
   unstable_samples: [{ cookies: [] }],
   unstable_disableValidation: true,
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   await connection()

@@ -4,17 +4,18 @@ import { waitForNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
   onData = onData || (() => {})
-  await new Promise((resolve) => {
-    response.body.on('data', (chunk) => {
-      result += chunk.toString()
-      onData(chunk.toString(), result)
-    })
 
-    response.body.on('end', resolve)
-  })
+  const decoder = new TextDecoder()
+  for await (const chunk of response.body) {
+    const text = decoder.decode(chunk, { stream: true })
+    result += text
+    onData(text, result)
+  }
+  result += decoder.decode()
   return result
 }
 
+// @force-gate !deploy
 describe('app dir - external dependency', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
@@ -32,7 +33,6 @@ describe('app dir - external dependency', () => {
     installCommand: 'pnpm i',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
-    skipDeployment: true,
   })
 
   if (skipped) {

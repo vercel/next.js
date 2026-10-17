@@ -13,6 +13,14 @@ import type {
   TraceQueryOptions,
   TraceQueryResult,
   MemoryEvictionMode,
+  NapiTurbopackGcOptions,
+  ServerHmrVersion as NativeServerHmrVersion,
+  projectCompilationEventsSubscribe,
+  projectFeatureUsage,
+  projectInvalidateFileSystemCache,
+  projectOnExit,
+  projectShutdown,
+  projectUpdateInfoSubscribe,
 } from './generated-native'
 
 export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
@@ -20,6 +28,8 @@ export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export type { MemoryEvictionMode }
+
+export type { NapiTurbopackGcOptions as TurbopackGcOptions }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 
@@ -34,7 +44,7 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
-    ): Promise<Project>
+    ): Promise<TurbopackResult<Project>>
     startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined
@@ -58,13 +68,14 @@ export interface Binding {
   parse(src: string, options: any): Promise<string>
 
   getTargetTriple(): string | undefined
+  turbopackCacheVersion(nextVersion: string): string | undefined
 
   initCustomTraceSubscriber?(traceOutFilePath?: string): ExternalObject<RefCell>
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
   css: {
     lightning: {
-      transform(transformOptions: any): Promise<any>
-      transformStyleAttr(transformAttrOptions: any): Promise<any>
+      transform(transformOptions: any): any
+      transformStyleAttr(transformAttrOptions: any): any
       featureNamesToMask(names: string[]): number
     }
   }
@@ -175,7 +186,8 @@ export interface BuildFeatureUsage {
   invocationCount: number
 }
 
-export type TurbopackResult<T = {}> = T & {
+export type TurbopackResult<T> = {
+  value: T
   issues: Issue[]
 }
 
@@ -234,26 +246,43 @@ export type Update = IssuesUpdate | PartialUpdate
  * The runtime file cannot import from this ES module without triggering module semantics,
  * so we maintain a copy there. Please keep both definitions in sync.
  */
-export interface NodeJsPartialHmrUpdate extends BaseUpdate {
+export interface NodeJsEcmascriptMergedUpdate {
+  type: 'EcmascriptMergedUpdate'
+  entries?: Record<
+    string,
+    { code: string; url: string; map?: string | undefined }
+  >
+  chunks?: Record<
+    string,
+    | { type: 'added' | 'deleted'; modules?: string[] }
+    | { type: 'partial'; added?: string[]; deleted?: string[] }
+  >
+}
+
+export interface NodeJsChunkListUpdate {
+  type: 'ChunkListUpdate'
+  merged?: NodeJsEcmascriptMergedUpdate[]
+  chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
+}
+
+/** In-process update; unlike wire updates, it has no resource or issues. */
+export interface NodeJsPartialHmrUpdate {
   type: 'partial'
-  instruction: {
-    type: 'EcmascriptMergedUpdate'
-    entries: Record<
-      string,
-      { code: string; url: string; map?: string | undefined }
-    >
-    chunks?: Record<string, { type: 'partial' }>
-  }
+  instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
-export interface NodeJsRestartHmrUpdate {
-  type: 'restart'
-}
+/** Opaque baseline for the next pull. */
+export type ServerHmrVersion = ExternalObject<NativeServerHmrVersion>
 
-export type NodeJsHmrUpdate =
-  | IssuesUpdate
-  | NodeJsPartialHmrUpdate
-  | NodeJsRestartHmrUpdate
+/** Restores the union flattened by napi. */
+export type ServerHmrUpdate =
+  | { kind: 'none'; version?: ServerHmrVersion }
+  | { kind: 'restart'; version: ServerHmrVersion }
+  | {
+      kind: 'partial'
+      version: ServerHmrVersion
+      instruction: NodeJsPartialHmrUpdate['instruction']
+    }
 
 export interface HmrChunkNames {
   /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
@@ -298,6 +327,8 @@ export interface UpdateInfo {
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
 
+  activateLazyChunk(chunkPath: string): Promise<boolean>
+
   writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
 
   getAllCompilationIssues(): Promise<TurbopackResult<void>>
@@ -314,6 +345,8 @@ export interface Project {
    * end of the build, after `writeAllEntrypointsToDisk`. The Rust implementation
    * walks the whole-app module graph and will error if invoked from a
    * development project, because dev builds do not produce a complete graph.
+   *
+   * @see {@link projectFeatureUsage}
    */
   featureUsage(): Promise<BuildFeatureUsage[]>
 
@@ -321,22 +354,23 @@ export interface Project {
     TurbopackResult<RawEntrypoints | {}>
   >
 
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Client
-  ): AsyncIterableIterator<TurbopackResult<Update>>
-  hmrEvents(
-    identifier: string,
-    target: import('./index').HmrTarget.Server
-  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+  getServerHmrUpdate(
+    from: ServerHmrVersion | undefined,
+    entryPaths: string[]
+  ): Promise<TurbopackResult<ServerHmrUpdate>>
 
-  hmrChunkNamesSubscribe(
-    target: import('./index').HmrTarget
-  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
+  clientHmrEvents(
+    identifier: string
+  ): AsyncIterableIterator<TurbopackResult<Update>>
+
+  clientHmrChunkNamesSubscribe(): AsyncIterableIterator<
+    TurbopackResult<HmrChunkNames>
+  >
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
   getSourceMap(filePath: string): Promise<string | null>
+
   getSourceMapSync(filePath: string): string | null
 
   traceSource(
@@ -344,19 +378,24 @@ export interface Project {
     currentDirectoryFileUrl: string
   ): Promise<TurbopackStackFrame | null>
 
+  /** @see {@link projectUpdateInfoSubscribe} */
   updateInfoSubscribe(
     aggregationMs: number
-  ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+  ): AsyncIterableIterator<UpdateMessage>
 
+  /** @see {@link projectCompilationEventsSubscribe} */
   compilationEventsSubscribe(
     eventTypes?: string[]
-  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
+  ): AsyncIterableIterator<CompilationEvent>
 
+  /** @see {@link projectInvalidateFileSystemCache} */
   invalidateFileSystemCache(): Promise<void>
 
-  shutdown(): Promise<void>
+  /** @see {@link projectShutdown} */
+  shutdown(): ReturnType<typeof projectShutdown>
 
-  onExit(): Promise<void>
+  /** @see {@link projectOnExit} */
+  onExit(): ReturnType<typeof projectOnExit>
 }
 
 export type Route =
@@ -374,6 +413,7 @@ export type Route =
   | {
       type: 'app-route'
       originalName: string
+      hasActionManifest: boolean
       endpoint: Endpoint
     }
   | {
@@ -387,21 +427,15 @@ export type Route =
     }
 
 export interface Endpoint {
-  /**
-   * Write files for the endpoint to disk.
-   *
-   * `rscOnly` must only be passed for app page HTML endpoints. When true,
-   * the page is compiled without its Client Component SSR chunks unless it
-   * has previously been written for a document render.
-   */
-  writeToDisk(rscOnly?: boolean): Promise<TurbopackResult<WrittenEndpoint>>
+  /** Write files for the endpoint to disk. */
+  writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
 
   /**
    * Listen to client-side changes to the endpoint.
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<void>>>
 
   /**
    * Listen to server-side changes to the endpoint.
@@ -410,7 +444,7 @@ export interface Endpoint {
    */
   serverChanged(
     includeIssues: boolean
-  ): Promise<AsyncIterableIterator<TurbopackResult>>
+  ): Promise<AsyncIterableIterator<TurbopackResult<void>>>
 }
 
 interface EndpointConfig {
@@ -439,6 +473,8 @@ export type WrittenEndpoint =
       type: 'nodejs'
       /** The entry path for the endpoint. */
       entryPath: string
+      /** Server HMR entry chunk lists owned by this endpoint. */
+      serverHmrEntryPaths: string[]
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
       /** All server paths that have been written for the endpoint. */
@@ -447,6 +483,7 @@ export type WrittenEndpoint =
     }
   | {
       type: 'edge'
+      serverHmrEntryPaths: []
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
       /** All server paths that have been written for the endpoint. */
@@ -455,13 +492,14 @@ export type WrittenEndpoint =
     }
   | {
       type: 'none'
+      serverHmrEntryPaths: []
       clientPaths: []
       serverPaths: []
       config: EndpointConfig
     }
 
 export interface ProjectOptions
-  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
+  extends Omit<NapiProjectOptions, 'nextConfig' | 'additionalRoots' | 'env'> {
   /**
    * The next.config.js contents.
    */
@@ -475,8 +513,6 @@ export interface ProjectOptions
 
 export interface PartialProjectOptions
   extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
-  rootPath: NapiProjectOptions['rootPath']
-  projectPath: NapiProjectOptions['projectPath']
   /**
    * The next.config.js contents.
    */
@@ -524,6 +560,7 @@ export type AppRoute =
     }
   | {
       type: 'app-route'
+      hasActionManifest: boolean
       endpoint: Endpoint
     }
 

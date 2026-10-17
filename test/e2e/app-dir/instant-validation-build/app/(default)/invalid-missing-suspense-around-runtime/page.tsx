@@ -5,7 +5,7 @@ export const instant = {
   level: 'experimental-error',
   unstable_samples: [{ cookies: [{ name: 'auth', value: '1' }] }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   const c = await cookies()

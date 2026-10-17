@@ -611,7 +611,7 @@
               ((didWarnAboutMessageChannel = !0),
               "undefined" === typeof MessageChannel &&
                 console.error(
-                  "This browser does not have a MessageChannel implementation, so enqueuing tasks via await act(async () => ...) will fail. Please file an issue at https://github.com/facebook/react/issues if you encounter this warning."
+                  "This browser does not have a MessageChannel implementation, so enqueuing tasks via await act(async () => ...) will fail. Please file an issue at https://github.com/react/react/issues if you encounter this warning."
                 ));
             var channel = new MessageChannel();
             channel.port1.onmessage = callback;
@@ -739,7 +739,7 @@
       ],
       replaceState: [
         "replaceState",
-        "Refactor your code to use setState instead (see https://github.com/facebook/react/issues/3236)."
+        "Refactor your code to use setState instead (see https://github.com/react/react/issues/3236)."
       ]
     };
     for (fnName in deprecatedAPIs)
@@ -1322,7 +1322,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.3.0-canary-172742b4-20260716";
+    exports.version = "19.3.0-canary-99c106c4-20261014";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

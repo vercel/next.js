@@ -33,7 +33,12 @@ export function getTypeScriptPackageInfo(
   const packageDir = path.dirname(packageJsonPath)
   const apiPath = path.join(packageDir, 'lib', 'typescript.js')
   const tscBin =
-    typeof packageJson.bin === 'string' ? packageJson.bin : packageJson.bin?.tsc
+    typeof packageJson.bin === 'string'
+      ? packageJson.bin
+      : (packageJson.bin?.tsc ??
+        Object.entries(packageJson.bin ?? {}).find(([name]) =>
+          /^tsc\d+$/.test(name)
+        )?.[1])
   const tscBinPath = tscBin ? path.resolve(packageDir, tscBin) : undefined
   let tscPath = tscBinPath
 
@@ -73,7 +78,7 @@ export function hasNativeTypeScriptPreview(baseDir: string): boolean {
 export function getTypeScriptApiMissingError(version: string): Error {
   return new Error(
     `TypeScript ${version} does not provide the compiler API required by Next.js. ` +
-      `Enable ${bold('experimental.useTypeScriptCli')} in your Next.js config to use the TypeScript CLI, ` +
+      `Set ${bold('experimental.useTypeScriptCli')} back to true in your Next.js config to use the TypeScript CLI, ` +
       `or install TypeScript 6 instead.`
   )
 }

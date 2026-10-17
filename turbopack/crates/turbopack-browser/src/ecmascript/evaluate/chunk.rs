@@ -4,7 +4,7 @@ use anyhow::Result;
 use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -15,6 +15,7 @@ use turbopack_core::{
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
+    json::RcJsonRawValue,
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
@@ -83,7 +84,7 @@ impl EcmascriptBrowserEvaluateChunk {
     /// The emitted evaluate-chunk file ([`Self::code`]) reuses these same params,
     /// wrapping them as `push([selfPath, params])`. Next.js inlines them in production.
     #[turbo_tasks::function]
-    pub(crate) async fn chunk_group_bootstrap_params(self: Vc<Self>) -> Result<Vc<RcStr>> {
+    pub(crate) async fn chunk_group_bootstrap_params(self: Vc<Self>) -> Result<Vc<RcJsonRawValue>> {
         let this = self.await?;
 
         let other_chunks_data = self.chunks_data().await?;
@@ -124,7 +125,7 @@ impl EcmascriptBrowserEvaluateChunk {
             runtime_module_ids,
         };
 
-        Ok(Vc::cell(serde_json::to_string(&params)?.into()))
+        Ok(RcJsonRawValue::from_serialize(&params)?.cell())
     }
 
     #[turbo_tasks::function]
@@ -174,7 +175,7 @@ impl EcmascriptBrowserEvaluateChunk {
             "#,
             chunk_loading_global = StringifyJs(&chunk_loading_global),
             script_or_path = script_or_path,
-            params = &**params,
+            params = params.get(),
         }?;
 
         // When the runtime is not shared across routes, inline the full browser runtime into this
@@ -191,7 +192,7 @@ impl EcmascriptBrowserEvaluateChunk {
             let runtime_type = *this.chunking_context.runtime_type().await?;
             // Detect async modules from the whole-app graph in production. In development the graph
             // is per-page, so always include the machinery.
-            let has_async_modules = if matches!(runtime_type, RuntimeType::Production) {
+            let include_async_module_runtime = if matches!(runtime_type, RuntimeType::Production) {
                 !this.module_graph.async_module_info().await?.is_empty()
             } else {
                 true
@@ -208,7 +209,7 @@ impl EcmascriptBrowserEvaluateChunk {
                         this.chunking_context.chunk_loading_global(),
                         this.chunking_context.cross_origin(),
                         this.chunking_context.chunk_load_retry(),
-                        has_async_modules,
+                        include_async_module_runtime,
                         this.chunking_context.chunk_loading(),
                         *this.chunking_context.generate_component_chunks().await?,
                     );

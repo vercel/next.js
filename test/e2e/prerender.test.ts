@@ -15,8 +15,10 @@ import {
   retry,
   waitFor,
   getCacheHeader,
+  expectDirectives,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('Prerender', () => {
   const { next } = nextTestSetup({
@@ -57,10 +59,13 @@ describe('Prerender', () => {
       const lastRetry = i === retries - 1
       const jsonPath = join(
         next.testDir,
-        '.next',
-        'server',
-        'pages',
-        `${prerenderPath}.html`
+        next.getPrerenderFilePath(prerenderPath, '.html', {
+          router: 'pages',
+          route: {
+            kind: RouteKind.PAGES,
+            sourceRoute: '/blocking-fallback/[slug]',
+          },
+        })
       )
       try {
         const jsonStats = await fs.stat(jsonPath)
@@ -93,6 +98,22 @@ describe('Prerender', () => {
     'x-next-revalidated-tags',
     'x-next-revalidate-tag-token',
   ]
+
+  const completeStaticPageClassification = {
+    routeType: 'page',
+    response: 'complete',
+    compute: 'static',
+  }
+  const initialStaticFallbackClassification = {
+    routeType: 'fallback',
+    response: 'initial',
+    compute: 'static',
+  }
+  const emptyBlockingPageClassification = {
+    routeType: 'page',
+    response: 'empty',
+    compute: 'blocking',
+  }
 
   const expectedManifestRoutes = () => ({
     '/': {
@@ -363,17 +384,21 @@ describe('Prerender', () => {
 
   const navigateTest = (isDev = false) => {
     it('should navigate between pages successfully', async () => {
-      // TODO: Compiling this many pages in parallel hits some race condition
-      // causing "SyntaxError: Unexpected non-whitespace character after JSON at position 614"
-      // which persists throughout Next.js Server instance lifetime.
-      // Compiling in batches to avoid that unknown bug.
-      const toBuildBatches = [
-        ['/', '/another', '/something', '/normal'],
-        ['/blog/post-1', '/blog/post-1/comment-1', '/catchall/first'],
+      // Parallel dev warmup has triggered JSON parsing failures that persist
+      // for the lifetime of the server. Warm these routes serially so this
+      // test can exercise navigation after compilation.
+      const toBuild = [
+        '/',
+        '/another',
+        '/something',
+        '/normal',
+        '/blog/post-1',
+        '/blog/post-1/comment-1',
+        '/catchall/first',
       ]
 
-      for (const toBuild of toBuildBatches) {
-        await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      for (const page of toBuild) {
+        await renderViaHTTP(next.url, page)
       }
 
       const browser = await next.browser('/')
@@ -667,20 +692,22 @@ describe('Prerender', () => {
     if (!isDev) {
       it('should use correct caching headers for a revalidate page', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/')
-        expect(initialRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          initialRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=2', 'stale-while-revalidate=31535998']
         )
       })
 
       it('should use correct caching headers for a fallback-true page (prerendered)', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/fallback-true/first')
         expect(initialRes.status).toBe(200)
-        expect(initialRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          initialRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=2', 'stale-while-revalidate=31535998']
         )
         expect(await initialRes.text()).not.toContain('hi fallback')
 
@@ -689,19 +716,21 @@ describe('Prerender', () => {
           `/_next/data/${next.buildId}/fallback-true/first.json`
         )
         expect(dataRes.status).toBe(200)
-        expect(dataRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          dataRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=2', 'stale-while-revalidate=31535998']
         )
 
         await retry(async () => {
           const finalRes = await fetchViaHTTP(next.url, `/fallback-true/first`)
           expect(finalRes.status).toBe(200)
-          expect(finalRes.headers.get('cache-control')).toBe(
+          expectDirectives(
+            finalRes.headers.get('cache-control'),
             isDeploy
-              ? 'public, max-age=0, must-revalidate'
-              : 's-maxage=2, stale-while-revalidate=31535998'
+              ? ['public', 'max-age=0', 'must-revalidate']
+              : ['s-maxage=2', 'stale-while-revalidate=31535998']
           )
           expect(await finalRes.text()).not.toContain('hi fallback')
         })
@@ -710,10 +739,17 @@ describe('Prerender', () => {
       it('should use correct caching headers for a fallback-true page (lazy)', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/fallback-true/second')
         expect(initialRes.status).toBe(200)
-        expect(initialRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          initialRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 'private, no-cache, no-store, max-age=0, must-revalidate'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : [
+                'private',
+                'no-cache',
+                'no-store',
+                'max-age=0',
+                'must-revalidate',
+              ]
         )
         expect(await initialRes.text()).toContain('hi fallback')
 
@@ -722,19 +758,21 @@ describe('Prerender', () => {
           `/_next/data/${next.buildId}/fallback-true/second.json`
         )
         expect(dataRes.status).toBe(200)
-        expect(dataRes.headers.get('cache-control')).toBe(
+        expectDirectives(
+          dataRes.headers.get('cache-control'),
           isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate=31535998'
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=2', 'stale-while-revalidate=31535998']
         )
 
         await retry(async () => {
           const finalRes = await fetchViaHTTP(next.url, `/fallback-true/second`)
           expect(finalRes.status).toBe(200)
-          expect(finalRes.headers.get('cache-control')).toBe(
+          expectDirectives(
+            finalRes.headers.get('cache-control'),
             isDeploy
-              ? 'public, max-age=0, must-revalidate'
-              : 's-maxage=2, stale-while-revalidate=31535998'
+              ? ['public', 'max-age=0', 'must-revalidate']
+              : ['s-maxage=2', 'stale-while-revalidate=31535998']
           )
           expect(await finalRes.text()).not.toContain('hi fallback')
         })
@@ -1368,8 +1406,11 @@ describe('Prerender', () => {
     } else {
       it('should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/something')
-        expect(initialRes.headers.get('cache-control')).toBe(
-          isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=31536000'
+        expectDirectives(
+          initialRes.headers.get('cache-control'),
+          isDeploy
+            ? ['public', 'max-age=0', 'must-revalidate']
+            : ['s-maxage=31536000']
         )
         const initialHtml = await initialRes.text()
         expect(initialHtml).toMatch(/hello.*?world/)
@@ -1721,9 +1762,22 @@ describe('Prerender', () => {
           })
 
           expect(manifest.version).toBe(4)
-          expect(manifest.routes).toEqual(expectedManifestRoutes())
+          expect(manifest.routes).toEqual(
+            Object.fromEntries(
+              Object.entries(expectedManifestRoutes()).map(
+                ([pathname, route]) => [
+                  pathname,
+                  {
+                    ...route,
+                    ...completeStaticPageClassification,
+                  },
+                ]
+              )
+            )
+          )
           expect(manifest.dynamicRoutes).toEqual({
             '/api-docs/[...slug]': {
+              ...initialStaticFallbackClassification,
               dataRoute: `/_next/data/${next.buildId}/api-docs/[...slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/api\\-docs\\/(.+?)\\.json$`
@@ -1733,6 +1787,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blocking-fallback-once/[slug]': {
+              ...emptyBlockingPageClassification,
               dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\-once\\/([^\\/]+?)\\.json$`
@@ -1744,6 +1799,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blocking-fallback-some/[slug]': {
+              ...emptyBlockingPageClassification,
               dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\-some\\/([^\\/]+?)\\.json$`
@@ -1755,6 +1811,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blocking-fallback/[slug]': {
+              ...emptyBlockingPageClassification,
               dataRoute: `/_next/data/${next.buildId}/blocking-fallback/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\/([^\\/]+?)\\.json$`
@@ -1766,6 +1823,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blog/[post]': {
+              ...initialStaticFallbackClassification,
               fallback: '/blog/[post].html',
               dataRoute: `/_next/data/${next.buildId}/blog/[post].json`,
               dataRouteRegex: normalizeRegEx(
@@ -1775,6 +1833,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blog/[post]/[comment]': {
+              ...initialStaticFallbackClassification,
               fallback: '/blog/[post]/[comment].html',
               dataRoute: `/_next/data/${next.buildId}/blog/[post]/[comment].json`,
               dataRouteRegex: normalizeRegEx(
@@ -1795,6 +1854,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/fallback-only/[slug]': {
+              ...initialStaticFallbackClassification,
               dataRoute: `/_next/data/${next.buildId}/fallback-only/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
@@ -1806,6 +1866,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/fallback-true/[slug]': {
+              ...initialStaticFallbackClassification,
               allowHeader,
               dataRoute: `/_next/data/${next.buildId}/fallback-true/[slug].json`,
               dataRouteRegex: normalizeRegEx(
@@ -1828,6 +1889,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/non-json-blocking/[p]': {
+              ...emptyBlockingPageClassification,
               dataRoute: `/_next/data/${next.buildId}/non-json-blocking/[p].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\-blocking\\/([^\\/]+?)\\.json$`
@@ -1839,6 +1901,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/non-json/[p]': {
+              ...initialStaticFallbackClassification,
               dataRoute: `/_next/data/${next.buildId}/non-json/[p].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\/([^\\/]+?)\\.json$`
@@ -1850,6 +1913,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/user/[user]/profile': {
+              ...initialStaticFallbackClassification,
               fallback: '/user/[user]/profile.html',
               dataRoute: `/_next/data/${next.buildId}/user/[user]/profile.json`,
               dataRouteRegex: normalizeRegEx(
@@ -1862,6 +1926,7 @@ describe('Prerender', () => {
             },
 
             '/catchall/[...slug]': {
+              ...initialStaticFallbackClassification,
               fallback: '/catchall/[...slug].html',
               routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
               dataRoute: `/_next/data/${next.buildId}/catchall/[...slug].json`,

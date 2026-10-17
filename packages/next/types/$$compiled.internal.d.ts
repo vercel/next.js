@@ -682,8 +682,8 @@ declare module 'next/dist/compiled/gzip-size' {
   import m from 'gzip-size'
   export = m
 }
-declare module 'next/dist/compiled/http-proxy' {
-  import m from 'http-proxy'
+declare module 'next/dist/compiled/httpxy' {
+  import * as m from 'httpxy'
   export = m
 }
 declare module 'next/dist/compiled/is-docker' {
@@ -741,6 +741,10 @@ declare module 'next/dist/compiled/source-map08' {
 declare module 'next/dist/compiled/string-hash' {
   import m from 'string-hash'
   export = m
+}
+declare module 'next/dist/compiled/hash.js/sha256' {
+  import { sha256 } from 'hash.js'
+  export = sha256
 }
 declare module 'next/dist/compiled/ua-parser-js' {
   import m from 'ua-parser-js'

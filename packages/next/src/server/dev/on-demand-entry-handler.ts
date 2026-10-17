@@ -31,7 +31,6 @@ import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
   COMPILER_INDEXES,
   COMPILER_NAMES,
-  RSC_MODULE_TYPES,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
@@ -48,6 +47,7 @@ import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
+import { createRuntimeErrorStateHandler } from './runtime-error-state'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -146,7 +146,7 @@ function getEntrypointsFromTree(
     ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
     : segment
 
-  const isPageSegment = currentSegment.startsWith(PAGE_SEGMENT_KEY)
+  const isPageSegment = currentSegment === PAGE_SEGMENT_KEY
 
   const currentPath = [...parentPath, isPageSegment ? '' : currentSegment]
 
@@ -927,9 +927,6 @@ export function onDemandEntryHandler({
       })
 
       const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
-      const isServerComponent =
-        isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-
       let pageRuntime = staticInfo.runtime
 
       runDependingOnPageType({
@@ -937,8 +934,8 @@ export function onDemandEntryHandler({
         pageRuntime,
         pageType: pageBundleType,
         onClient: () => {
-          // Skip adding the client entry for app / Server Components.
-          if (isServerComponent || isInsideAppDir) {
+          // Skip adding the client entry for app pages.
+          if (isInsideAppDir) {
             return
           }
           added.set(COMPILER_NAMES.client, addEntry(COMPILER_NAMES.client))
@@ -1078,11 +1075,23 @@ export function onDemandEntryHandler({
         })
       })
     },
-    onHMR(client: ws, getHmrServerError: () => Error | null) {
+    onHMR(
+      client: ws,
+      getHmrServerError: () => Error | null,
+      htmlRequestId: string | null
+    ) {
       let bufferedHmrServerError: Error | null = null
+      const runtimeErrorStateHandler =
+        nextConfig.experimental.exposeRuntimeErrorsToHMR ||
+        Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+          ? createRuntimeErrorStateHandler((message) =>
+              hotReloader.send({ ...message, htmlRequestId })
+            )
+          : undefined
 
       client.addEventListener('close', () => {
         bufferedHmrServerError = null
+        runtimeErrorStateHandler?.dispose()
       })
       client.addEventListener('message', ({ data }) => {
         try {
@@ -1107,6 +1116,10 @@ export function onDemandEntryHandler({
             } else {
               handlePing(parsedData.page)
             }
+          } else if (
+            parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS
+          ) {
+            void runtimeErrorStateHandler?.handle(parsedData).catch(() => {})
           } else if (
             parsedData.event ===
             HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE

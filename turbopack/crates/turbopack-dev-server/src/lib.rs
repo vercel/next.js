@@ -32,7 +32,7 @@ use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TurboTasksApi,
     Vc, read_strongly_consistent_and_apply_effects, run_once_with_reason, take_effects,
-    trace::TraceRawVcs, util::FormatDuration,
+    util::FormatDuration,
 };
 use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
 
@@ -84,19 +84,19 @@ async fn apply_side_effects_operation(
     Ok(Completion::new())
 }
 
-#[derive(TraceRawVcs, Debug, NonLocalValue)]
+#[derive(Debug, NonLocalValue)]
 pub struct DevServerBuilder {
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     pub addr: SocketAddr,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     server: Builder<AddrIncoming>,
 }
 
-#[derive(TraceRawVcs, NonLocalValue)]
+#[derive(NonLocalValue)]
 pub struct DevServer {
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     pub addr: SocketAddr,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     pub future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
 }
 
@@ -139,7 +139,7 @@ impl DevServerBuilder {
     pub fn serve(
         self,
         turbo_tasks: Arc<dyn TurboTasksApi>,
-        source_provider: impl SourceProvider + NonLocalValue + TraceRawVcs + Sync,
+        source_provider: impl SourceProvider + NonLocalValue + Sync,
         get_issue_reporter: Arc<dyn Fn() -> Vc<Box<dyn IssueReporter>> + Send + Sync>,
     ) -> DevServer {
         let ongoing_side_effects = Arc::new(Mutex::new(VecDeque::<

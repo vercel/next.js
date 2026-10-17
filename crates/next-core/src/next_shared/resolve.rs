@@ -77,9 +77,9 @@ pub(crate) struct NextExternalResolvePlugin {
 #[turbo_tasks::value_impl]
 impl NextExternalResolvePlugin {
     #[turbo_tasks::function]
-    pub async fn new(project_path: FileSystemPath) -> Result<Vc<Self>> {
+    pub async fn new() -> Result<Vc<Self>> {
         let condition = AfterResolvePluginCondition::new_with_glob(
-            project_path.root().owned().await?,
+            None,
             Glob::new(
                 rcstr!("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"),
                 GlobOptions::default(),
@@ -134,12 +134,9 @@ pub(crate) struct NextNodeSharedRuntimeResolvePlugin {
 #[turbo_tasks::value_impl]
 impl NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    pub async fn new(
-        root: FileSystemPath,
-        server_context_type: ServerContextType,
-    ) -> Result<Vc<Self>> {
+    pub async fn new(server_context_type: ServerContextType) -> Result<Vc<Self>> {
         let condition = AfterResolvePluginCondition::new_with_glob(
-            root.root().owned().await?,
+            None,
             Glob::new(
                 rcstr!("**/next/dist/**/*.shared-runtime.js"),
                 GlobOptions::default(),
@@ -215,9 +212,9 @@ pub(crate) struct NextSharedRuntimeResolvePlugin {
 #[turbo_tasks::value_impl]
 impl NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    pub async fn new(root: FileSystemPath) -> Result<Vc<Self>> {
+    pub async fn new() -> Result<Vc<Self>> {
         let condition = AfterResolvePluginCondition::new_with_glob(
-            root.root().owned().await?,
+            None,
             Glob::new(
                 rcstr!("**/next/dist/esm/**/*.shared-runtime.js"),
                 GlobOptions::default(),

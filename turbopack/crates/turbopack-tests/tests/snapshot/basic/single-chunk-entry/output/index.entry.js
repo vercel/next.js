@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_single-chunk-entry_input_0085tus._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_basic_single-chunk-entry_input_0085tusi5ga5v._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/dep1.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -37,7 +37,7 @@ Promise.resolve().then(()=>__turbopack_context__.i("[project]/turbopack/crates/t
 });
 }),
 ]);(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
-    "output/1i9t_crates_turbopack-tests_tests_snapshot_basic_single-chunk-entry_input_1gjyv-z._.js",
+    "output/0rv8_turbopack-tests_tests_snapshot_basic_single-chunk-entry_input_1gjyv-zw3163t._.js",
     {"otherChunks":[],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/single-chunk-entry/input/index.js [test] (ecmascript)"]}
 ]);
 // Dummy runtime

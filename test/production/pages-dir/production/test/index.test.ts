@@ -155,11 +155,6 @@ describe('Production Usage', () => {
     ).toBe(true)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/render.js')
-      )
-    ).toBe(true)
-    expect(
-      serverTrace.files.some((file) =>
         file.includes('next/dist/server/load-components.js')
       )
     ).toBe(true)
@@ -408,7 +403,12 @@ describe('Production Usage', () => {
       const etag = (await fetchViaHTTP(url, '/')).headers.get('ETag')
 
       const headers = { 'If-None-Match': etag }
-      const res2 = await fetchViaHTTP(url, '/', undefined, { headers })
+      const res2 = await fetchViaHTTP(url, '/', undefined, {
+        headers,
+        // undici injects Cache-Control: no-cache into requests with
+        // conditional headers, which would defeat the etag freshness check.
+        cache: 'force-cache',
+      })
       expect(res2.status).toBe(304)
     })
 
@@ -421,6 +421,9 @@ describe('Production Usage', () => {
       const headers = { 'If-None-Match': etag }
       const res2 = await fetchViaHTTP(url, '/fully-static', undefined, {
         headers,
+        // undici injects Cache-Control: no-cache into requests with
+        // conditional headers, which would defeat the etag freshness check.
+        cache: 'force-cache',
       })
       expect(res2.status).toBe(304)
     })

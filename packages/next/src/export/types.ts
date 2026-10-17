@@ -60,6 +60,8 @@ export interface ExportPageInput {
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   debugOutput?: boolean
   nextConfigOutput?: NextConfigComplete['output']
+  /** Write build-time response artifacts to their route-scoped cache keys. */
+  useScopedBuildArtifacts: boolean
   enableExperimentalReact?: boolean
   sriEnabled: boolean
   renderResumeDataCache: RenderResumeDataCache | undefined
@@ -72,6 +74,8 @@ export type ExportRouteResult =
       ssgNotFound?: boolean
       hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
+      hasPendingUi?: boolean
+      htmlSize?: number
       hasStaticRsc?: boolean
       fetchMetrics?: FetchMetrics
       renderResumeDataCache?: string
@@ -150,6 +154,14 @@ export type ExportAppResult = {
        * If the page has postponed when using PPR.
        */
       hasPostponed?: boolean
+      /**
+       * If the prerender has UI that will resolve after the initial HTML.
+       */
+      hasPendingUi?: boolean
+      /**
+       * The byte size of the HTML returned by the prerender.
+       */
+      htmlSize?: number
       /**
        * If the page emitted a static RSC payload.
        */

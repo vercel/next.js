@@ -1,0 +1,20 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js:22:2  Module not found: Can't resolve './correct-not-inlined'
+  
+      18 | import { nonConstant } from './non-constant' with { turbopackConstants: 'true' }
+      19 | if (nonConstant.v === 1234) {
+      20 |   console.log('x')
+      21 | } else {
+         +   v------------------------------v
+      22 +   require('./correct-not-inlined')
+         +   ^------------------------------^
+      23 | }
+      24 | console.log(nonConstant)
+      25 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './correct-not-inlined'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-attribute/input/index.js
+  | Type of request: commonjs request
+  |

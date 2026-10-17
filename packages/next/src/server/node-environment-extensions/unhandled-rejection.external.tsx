@@ -615,12 +615,11 @@ function filteringUnhandledRejectionHandler(
         }
         break
       }
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never

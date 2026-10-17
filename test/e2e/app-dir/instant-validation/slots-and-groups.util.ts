@@ -7,7 +7,13 @@ import { type InstantValidationCaseContext } from './harness.util'
 const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
 export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
-  const { isNextDev, navigateTo, expectNoDevValidationErrors, prerender } = ctx
+  const {
+    isNextDev,
+    navigateTo,
+    expectNoDevValidationErrors,
+    getInstantInsight,
+    prerender,
+  } = ctx
 
   describe('invalid - missing suspense in parallel slot', () => {
     // The "caused by" source differs between bundlers due to parallel
@@ -18,10 +24,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -35,7 +40,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -54,7 +58,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -91,10 +94,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -108,7 +110,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -127,7 +128,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -164,10 +164,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -181,7 +180,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -200,7 +198,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -238,10 +235,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -255,7 +251,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -274,7 +269,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -310,10 +304,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -327,7 +320,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -346,7 +338,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -383,10 +374,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -400,7 +390,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -419,7 +408,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -456,10 +444,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -473,7 +460,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -492,7 +478,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -529,10 +514,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -546,7 +530,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -565,7 +548,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -609,10 +591,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -626,7 +607,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -645,7 +625,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -696,10 +675,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -713,7 +691,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -732,7 +709,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -777,10 +753,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -794,7 +769,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -813,7 +787,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -860,10 +833,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
       )
       if (partialPrefetching) {
         // This page uses a runtime shell, so it can use cookies
-        // TODO(app-shells): missing "allow-runtime"
         await expectNoDevValidationErrors(browser, await browser.url())
       } else {
-        await expect(browser).toDisplayCollapsedRedbox(`
+        expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -877,7 +849,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1402",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -896,7 +867,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
       )
       if (partialPrefetching) {
         // This page uses a runtime shell, so it can use cookies
-        // TODO(app-shells): missing "allow-runtime"
         expectNoBuildValidationErrors(result)
       } else {
         expect(extractBuildValidationError(result.cliOutput))
@@ -931,7 +901,7 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
 
     it('invalid - deeper children config preferred over shallower slot config', async () => {
       // children has config deep (deeper/still/deep/page.tsx, depth 2)
-      // @anotherSlot has config shallow (page.tsx, depth 0)
+      // @anotherSlot has config shallow (default.tsx, depth 0)
       // @slot blocks with no config — cause should be children's deep config
       if (isNextDev) {
         const browser = await navigateTo(
@@ -939,10 +909,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -956,7 +925,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -996,10 +964,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1013,7 +980,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1032,7 +998,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -1071,10 +1036,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1088,7 +1052,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1107,7 +1070,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           expectNoBuildValidationErrors(result)
         } else {
           expect(extractBuildValidationError(result.cliOutput))
@@ -1147,10 +1109,9 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
         )
         if (partialPrefetching) {
           // This page uses a runtime shell, so it can use cookies
-          // TODO(app-shells): missing "allow-runtime"
           await expectNoDevValidationErrors(browser, await browser.url())
         } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+          expect(await getInstantInsight(browser)).toMatchInlineSnapshot(`
            {
              "cause": [
                {
@@ -1164,7 +1125,6 @@ export function registerSlotsAndGroupsTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",

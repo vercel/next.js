@@ -29,7 +29,7 @@ Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full docume
 
 The Next.js community can be found on [GitHub Discussions](https://github.com/vercel/next.js/discussions) where you can ask questions, voice ideas, and share your projects with other people.
 
-To chat with other community members you can join the Next.js [Discord](https://nextjs.org/discord) server.
+To chat with other community members, you can join the Next.js [Discord](https://nextjs.org/discord) server.
 
 Do note that our [Code of Conduct](https://github.com/vercel/next.js/blob/canary/CODE_OF_CONDUCT.md) applies to all Next.js community channels. Users are **highly encouraged** to read and adhere to it to avoid repercussions.
 
@@ -46,4 +46,4 @@ We have a list of **[good first issues](https://github.com/vercel/next.js/labels
 
 If you believe you have found a security vulnerability in Next.js, we encourage you to **_responsibly disclose this and NOT open a public issue_**.
 
-To participate in our Open Source Software Bug Bounty program, please email [responsible.disclosure@vercel.com](mailto:responsible.disclosure@vercel.com). We will add you to the program and provide further instructions for submitting your report.
+To participate in our Open Source Software Bug Bounty program, please visit [https://hackerone.com/vercel](https://hackerone.com/vercel).

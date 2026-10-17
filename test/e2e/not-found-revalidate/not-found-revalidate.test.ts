@@ -94,9 +94,7 @@ describe('SSG notFound revalidate', () => {
         let $ = await next.render$('/fallback-blocking/hello')
 
         expect(res.headers.get('cache-control')).toBe(
-          isNextDev
-            ? 'no-cache, must-revalidate'
-            : 's-maxage=1, stale-while-revalidate=31535999'
+          isNextDev ? 'no-store' : 's-maxage=1, stale-while-revalidate=31535999'
         )
         expect(res.status).toBe(404)
         expect(JSON.parse($('#props').text()).notFound).toBe(true)
@@ -106,7 +104,7 @@ describe('SSG notFound revalidate', () => {
           $ = await next.render$('/fallback-blocking/hello')
           expect(res.headers.get('cache-control')).toBe(
             isNextDev
-              ? 'no-cache, must-revalidate'
+              ? 'no-store'
               : 's-maxage=1, stale-while-revalidate=31535999'
           )
           expect(res.status).toBe(200)
@@ -124,7 +122,7 @@ describe('SSG notFound revalidate', () => {
           const p = JSON.parse($r('#props').text())
           expect(r.headers.get('cache-control')).toBe(
             isNextDev
-              ? 'no-cache, must-revalidate'
+              ? 'no-store'
               : 's-maxage=1, stale-while-revalidate=31535999'
           )
           expect(r.status).toBe(200)
@@ -143,7 +141,7 @@ describe('SSG notFound revalidate', () => {
           const res = await next.fetch('/fallback-true/world')
           expect(res.headers.get('cache-control')).toBe(
             isNextDev
-              ? 'no-cache, must-revalidate'
+              ? 'no-store'
               : 's-maxage=1, stale-while-revalidate=31535999'
           )
           expect(res.status).toBe(404)
@@ -157,7 +155,7 @@ describe('SSG notFound revalidate', () => {
           const props = JSON.parse($('#props').text())
           expect(res.headers.get('cache-control')).toBe(
             isNextDev
-              ? 'no-cache, must-revalidate'
+              ? 'no-store'
               : 's-maxage=1, stale-while-revalidate=31535999'
           )
           expect(res.status).toBe(200)
@@ -175,7 +173,7 @@ describe('SSG notFound revalidate', () => {
           const props3 = JSON.parse($r('#props').text())
           expect(r.headers.get('cache-control')).toBe(
             isNextDev
-              ? 'no-cache, must-revalidate'
+              ? 'no-store'
               : 's-maxage=1, stale-while-revalidate=31535999'
           )
           expect(r.status).toBe(200)

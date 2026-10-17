@@ -269,7 +269,7 @@ async fn resolve_source_mapping(
 pub struct StructuredError {
     pub name: String,
     pub message: String,
-    #[turbo_tasks(trace_ignore)]
+    #[turbo_tasks(unsafe_ignore)]
     stack: Vec<StackFrame<'static>>,
     cause: Option<Box<StructuredError>>,
 }

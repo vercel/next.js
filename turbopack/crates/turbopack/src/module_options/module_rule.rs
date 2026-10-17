@@ -3,7 +3,7 @@ use std::fmt::Display;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment, reference_type::ReferenceType, source::Source,
@@ -12,13 +12,13 @@ use turbopack_core::{
 use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptOptions, bytes_source_transform::BytesSourceTransform,
-    json_source_transform::JsonSourceTransform,
+    json_source_transform::JsonSourceTransform, text_source_transform::TextSourceTransform,
 };
 use turbopack_wasm::source::WebAssemblySourceType;
 
 use crate::module_options::{CustomModuleType, RuleCondition, match_mode::MatchMode};
 
-#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct ModuleRule {
     condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
@@ -99,7 +99,6 @@ pub enum ModuleType {
         main: ResolvedVc<EcmascriptInputTransforms>,
         /// Transforms to run last: JSX, preset-env, scan for imports, ...
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
-        #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Typescript {
@@ -113,7 +112,6 @@ pub enum ModuleType {
         tsx: bool,
         // follow references to imported types.
         analyze_types: bool,
-        #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     TypescriptDeclaration {
@@ -123,7 +121,6 @@ pub enum ModuleType {
         main: ResolvedVc<EcmascriptInputTransforms>,
         /// Transforms to run last: JSX, preset-env, scan for imports, ...
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
-        #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     EcmascriptExtensionless {
@@ -133,7 +130,6 @@ pub enum ModuleType {
         main: ResolvedVc<EcmascriptInputTransforms>,
         /// Transforms to run last: JSX, preset-env, scan for imports, ...
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
-        #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Raw,
@@ -143,6 +139,7 @@ pub enum ModuleType {
         ty: CssModuleType,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: turbopack_css::LightningCssFeatureFlags,
+        module_css_debuggable_idents: bool,
     },
     StaticUrlJs {
         /// The tag that is passed to ChunkingContext::asset_url
@@ -193,11 +190,17 @@ pub enum ConfiguredModuleType {
     /// Implemented as a source transform, not a ModuleType.
     Json,
     Wasm,
+    /// An alias of [`ConfiguredModuleType::Text`].
     Raw,
     Node,
     /// Converts any file to an ES module exporting its contents as a Uint8Array.
     /// Implemented as a source transform, not a ModuleType.
     Bytes,
+    /// Converts any file to an ES module exporting its contents as a string.
+    /// Implemented as a source transform, not a ModuleType.
+    ///
+    /// `Raw` is an alias of this.
+    Text,
 }
 
 impl ConfiguredModuleType {
@@ -214,9 +217,10 @@ impl ConfiguredModuleType {
             "raw" => ConfiguredModuleType::Raw,
             "node" => ConfiguredModuleType::Node,
             "bytes" => ConfiguredModuleType::Bytes,
+            "text" => ConfiguredModuleType::Text,
             _ => bail!(
                 "Unknown module type: {type_str:?}. Valid types are: asset, ecmascript, \
-                 typescript, css, css-module, json, wasm, raw, node, bytes"
+                 typescript, css, css-module, json, wasm, raw, node, bytes, text"
             ),
         })
     }
@@ -240,6 +244,15 @@ impl ConfiguredModuleType {
                 // which gets picked up by the standard Ecmascript rules
                 ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
                     BytesSourceTransform::new().to_resolved().await?,
+                )]))
+            }
+            // `raw` has always been documented as returning the contents as a string, so it
+            // is an alias of `text` rather than a way to get an opaque module.
+            ConfiguredModuleType::Text | ConfiguredModuleType::Raw => {
+                // Same as `Bytes`: a source transform that produces .mjs, which is then
+                // picked up by the standard Ecmascript rules.
+                ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
+                    TextSourceTransform::new().to_resolved().await?,
                 )]))
             }
             ConfiguredModuleType::Asset => {
@@ -267,6 +280,8 @@ impl ConfiguredModuleType {
                 ty: CssModuleType::Default,
                 environment,
                 lightningcss_features,
+                // This is global CSS, so the CSS Module naming pattern is unused.
+                module_css_debuggable_idents: false,
             }),
             ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
             ConfiguredModuleType::Json => {
@@ -278,7 +293,6 @@ impl ConfiguredModuleType {
             ConfiguredModuleType::Wasm => ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
                 source_ty: WebAssemblySourceType::Binary,
             }),
-            ConfiguredModuleType::Raw => ModuleRuleEffect::ModuleType(ModuleType::Raw),
             ConfiguredModuleType::Node => ModuleRuleEffect::ModuleType(ModuleType::NodeAddon),
         })
     }

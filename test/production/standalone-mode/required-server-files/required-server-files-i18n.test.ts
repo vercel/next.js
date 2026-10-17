@@ -14,7 +14,6 @@ import {
   waitFor,
   withInvocationId,
 } from 'next-test-utils'
-import nodeFetch from 'node-fetch'
 import { ChildProcess } from 'child_process'
 
 describe('required server files i18n', () => {
@@ -67,7 +66,7 @@ describe('required server files i18n', () => {
   beforeAll(async () => {
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
-    const res = await nodeFetch(
+    const res = await fetch(
       `https://registry.npmjs.com/@next/swc-wasm-nodejs/-/swc-wasm-nodejs-${
         require('next/package.json').version
       }.tgz`,
@@ -932,6 +931,70 @@ describe('required server files i18n', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
     expect($('#index').text()).toBe('index page')
+  })
+
+  it('should remove a locale captured as a dynamic route param', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/fr',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/[slug]',
+          'x-now-route-matches': createNowRouteMatches(
+            {
+              slug: 'fr',
+            },
+            {
+              nextLocale: 'fr',
+            }
+          ).toString(),
+        },
+        redirect: 'manual',
+      })
+    )
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#index').text()).toBe('index page')
+    expect(JSON.parse($('#router').text())).toMatchObject({
+      locale: 'fr',
+      query: {},
+    })
+  })
+
+  it('should preserve a route param that looks like another locale', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/fr/nl-NL',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/fr/[slug]',
+          'x-now-route-matches': createNowRouteMatches(
+            {
+              slug: 'nl-NL',
+            },
+            {
+              nextLocale: 'fr',
+            }
+          ).toString(),
+        },
+        redirect: 'manual',
+      })
+    )
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($('#router').text())).toMatchObject({
+      locale: 'fr',
+      query: {
+        slug: 'nl-NL',
+      },
+    })
   })
 
   it('should match the root dyanmic page correctly', async () => {

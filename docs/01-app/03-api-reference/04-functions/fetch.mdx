@@ -98,7 +98,7 @@ fetch(url, { signal })
 
 ## Troubleshooting
 
-### Fetch default `auto no store` and `cache: 'no-store'` not showing fresh data in development
+### Fetch default `auto no cache` and `cache: 'no-store'` not showing fresh data in development
 
 Next.js caches `fetch` responses in Server Components across Hot Module Replacement (HMR) in local development for faster responses and to reduce costs for billed API calls.
 

@@ -4,9 +4,7 @@
 const nextConfig = {
   output: 'export',
   deploymentId: 'test-deployment-id',
-  experimental: {
-    supportsImmutableAssets: true,
-  },
+  adapterPath: require.resolve('./my-adapter.mjs'),
 }
 
 module.exports = nextConfig

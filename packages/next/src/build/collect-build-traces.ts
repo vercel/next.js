@@ -226,6 +226,15 @@ export async function collectBuildTraces({
         '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
+        // Upgrade workflows are CLI-only and are not needed by production servers.
+        '**/next/dist/lib/upgrade/**/*',
+        // The testmode interceptors bundle reads its HTTP parser WASM with a
+        // dynamic path, making nft trace the bundle's whole directory. Test
+        // proxying is not supported in standalone output, so keep the parser
+        // asset (and the license file picked up by the directory glob) out of
+        // production traces.
+        '**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE',
+        '**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**/*',
         'next/dist/compiled/semver/semver/**/*.js',
 
         ...(ciEnvironment.hasNextSupport
@@ -233,6 +242,7 @@ export async function collectBuildTraces({
               // only ignore image-optimizer code when
               // this is being handled outside of next-server
               '**/next/dist/server/image-optimizer.js',
+              '**/next/dist/server/image-optimizer/**/*',
             ]
           : []),
 

@@ -11,7 +11,7 @@ use swc_core::{
 };
 use turbopack_ecmascript::{
     TURBOPACK_HELPER,
-    annotations::{ANNOTATION_TRANSITION, with_clause},
+    annotations::{ANNOTATION_EXPORT_USAGE, ANNOTATION_TRANSITION, with_clause},
     runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
 };
 
@@ -29,6 +29,7 @@ pub fn create_proxy_module(transition_name: &str, target_import: &str) -> Progra
                 with: Some(with_clause(&[
                     (TURBOPACK_HELPER.as_str(), "true"),
                     (ANNOTATION_TRANSITION, transition_name),
+                    (ANNOTATION_EXPORT_USAGE, "passthrough"),
                 ])),
                 span: DUMMY_SP,
                 phase: Default::default(),

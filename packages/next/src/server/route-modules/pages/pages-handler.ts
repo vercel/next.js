@@ -42,6 +42,7 @@ import { RedirectStatusCode } from '../../../client/components/redirect-status-c
 import { isBot } from '../../../shared/lib/router/utils/is-bot'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
+import { isRouteCacheOwner } from '../../lib/route-cache-key'
 import type { PagesRouteModule } from './module.compiled'
 import type {
   GetServerSideProps,
@@ -116,6 +117,21 @@ export const getHandler = ({
     const render404 = async () => {
       // TODO: should route-module itself handle rendering the 404
       if (routerServerContext?.render404) {
+        // When the Pages and App Routers coexist, a Pages Router 404 renders
+        // the App Router not-found page. A direct route-module invocation
+        // cannot provide the postponed state needed to resume that App Router
+        // output, so an empty postponed state signals that the renderer must
+        // perform a complete dynamic render instead.
+        //
+        // TODO: Re-enter routing with the App Router not-found output so its
+        // prerender and postponed state can be selected and resumed.
+        if (
+          nextConfig.cacheComponents &&
+          !routerServerContext.isWrappedByNextServer &&
+          typeof getRequestMeta(req, 'postponed') !== 'string'
+        ) {
+          addRequestMeta(req, 'postponed', '')
+        }
         await routerServerContext.render404(req, res, parsedUrl, false)
       } else {
         res.end('This page could not be found')
@@ -135,6 +151,7 @@ export const getHandler = ({
       serverFilesManifest,
       reactLoadableManifest,
       prerenderManifest,
+      previewProps,
       isDraftMode,
       isOnDemandRevalidate,
       revalidateOnlyGenerated,
@@ -189,8 +206,18 @@ export const getHandler = ({
           : resolvedPathname
       )
       const isPrerendered =
-        Boolean(prerenderManifest.routes[decodedPathname]) ||
-        prerenderManifest.notFoundRoutes.includes(decodedPathname)
+        (Boolean(prerenderManifest.routes[decodedPathname]) ||
+          prerenderManifest.notFoundRoutes.includes(decodedPathname)) &&
+        // A sibling's positive or negative prerender cannot admit parameters
+        // that this route excluded. Development computes static paths on demand
+        // instead of reading build-time prerender metadata.
+        (routeModule.isDev ||
+          isRouteCacheOwner(
+            decodedPathname,
+            routeModule.cacheOwner,
+            prerenderManifest.routes[decodedPathname],
+            nextConfig.i18n?.locales
+          ))
 
       const prerenderInfo = prerenderManifest.dynamicRoutes[srcPage]
 
@@ -290,8 +317,11 @@ export const getHandler = ({
                   nextFontManifest,
                   reactLoadableManifest,
 
-                  assetPrefix: nextConfig.assetPrefix,
-                  previewProps: prerenderManifest.preview,
+                  assetPrefix: routeModule.getAssetPrefixForRender(
+                    routerServerContext,
+                    nextConfig.assetPrefix
+                  ),
+                  previewProps,
                   images: nextConfig.images as any,
                   nextConfigOutput: nextConfig.output,
                   optimizeCss: Boolean(nextConfig.experimental.optimizeCss),
@@ -461,12 +491,17 @@ export const getHandler = ({
               incrementalCache: await routeModule.getIncrementalCache(
                 req,
                 nextConfig,
+                previewProps,
                 prerenderManifest,
                 isMinimalMode
               ),
               waitUntil: ctx.waitUntil,
             }
           )
+          if (fallbackResponse !== null && 'error' in fallbackResponse) {
+            throw fallbackResponse.error
+          }
+
           if (fallbackResponse) {
             // Remove the cache control from the response to prevent it from being
             // used in the surrounding cache.
@@ -523,9 +558,14 @@ export const getHandler = ({
           revalidateOnlyGenerated,
           waitUntil: ctx.waitUntil,
           responseGenerator: responseGenerator,
+          previewProps,
           prerenderManifest,
           isMinimalMode,
         })
+
+        if (result !== null && 'error' in result) {
+          throw result.error
+        }
 
         // if we got a cache hit this wasn't an ISR fallback
         // but it wasn't generated during build so isn't in the
@@ -672,9 +712,14 @@ export const getHandler = ({
           )
         }
 
-        // In dev, we should not cache pages for any reason.
+        // Documents and data responses must not be stored in development.
+        // Browsers reuse a stored response for a history navigation without
+        // revalidating it, so a back navigation would restore a page from
+        // before the latest edit. Static assets never reach this code. They
+        // keep a revalidatable `Cache-Control`, so the browser caches them
+        // between page loads.
         if (routeModule.isDev) {
-          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+          res.setHeader('Cache-Control', 'no-store')
         }
 
         // Draft mode should never be cached

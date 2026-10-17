@@ -61,11 +61,11 @@ impl Completions {
         } else {
             self.0
                 .iter()
-                .map(|&c| async move {
-                    // Wraps the completion in a new completion. This makes it cheaper to restore
-                    // since it doesn't need to restore the original task resp task chain.
-                    wrap(*c).await?;
-                    Ok(())
+                .map(|&c| {
+                    // Wraps the completion in a new completion. This makes it cheaper to
+                    // restore since it doesn't need to restore the
+                    // original task resp task chain.
+                    wrap(*c)
                 })
                 .try_join()
                 .await?;

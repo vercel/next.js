@@ -2,28 +2,20 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 describe('app-dir edge SSR invalid reexport', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: {
+      'app/layout.tsx': new FileRef(path.join(__dirname, 'app', 'layout.tsx')),
       'app/export': new FileRef(path.join(__dirname, 'app', 'export')),
       'app/export/inherit/page.tsx':
         "export { default, runtime, preferredRegion } from '../basic/page'",
     },
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
-
   it('should warn or error about the re-export of a pages runtime/preferredRegion config', async () => {
-    try {
-      await next.start()
-    } catch (_) {
-      // We expect the build to fail
-    }
-
     if (isNextDev) {
+      await next.start()
+
       const browser = await next.browser('/export/inherit')
       // Turbopack is stricter and disallows reexports completely
       // webpack merely warns in the CLI and still serves the page wuthout a redbox
@@ -41,6 +33,11 @@ describe('app-dir edge SSR invalid reexport', () => {
          }
         `)
       }
+    } else if (isTurbopack) {
+      // Turbopack fails the build, webpack only warns.
+      await expect(next.start()).rejects.toThrow()
+    } else {
+      await next.start()
     }
 
     expect(next.cliOutput).toInclude(
@@ -49,5 +46,5 @@ describe('app-dir edge SSR invalid reexport', () => {
     expect(next.cliOutput).toInclude(
       `Next.js can't recognize the exported \`preferredRegion\` field in`
     )
-  })
+  }, 240_000)
 })

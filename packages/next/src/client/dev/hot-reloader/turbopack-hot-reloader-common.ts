@@ -1,5 +1,6 @@
 import type { TurbopackMessage } from '../../../server/dev/hot-reloader-types'
 import type { Update as TurbopackUpdate } from '../../../build/swc/types'
+import { DeferredEmit } from '../../../shared/lib/turbopack/deferred-emit'
 
 declare global {
   interface Window {
@@ -22,53 +23,46 @@ export class TurbopackHmr {
   #updatedModules: Set<string>
   #startMsSinceEpoch: number | undefined
   #lastUpdateMsSinceEpoch: number | undefined
-  #deferredReportHmrStartId: ReturnType<typeof setTimeout> | undefined
-  #reportedHmrStart: boolean
-
-  constructor() {
-    this.#updatedModules = new Set()
-    this.#reportedHmrStart = false
-  }
-
   // HACK: Turbopack tends to generate a lot of irrelevant "BUILDING" actions,
   // as it reports *any* compilation, including fully no-op/cached compilations
   // and those unrelated to HMR. Fixing this would require significant
   // architectural changes.
   //
-  // Work around this by deferring any "rebuilding" message by 100ms. If we get
-  // a BUILT event within that threshold and nothing has changed, just suppress
-  // the message entirely.
-  #runDeferredReportHmrStart() {
-    if (this.#deferredReportHmrStartId != null) {
-      console.log('[Fast Refresh] rebuilding')
-      this.#reportedHmrStart = true
-      this.#cancelDeferredReportHmrStart()
-    }
-  }
+  // Work around this by deferring the `[Fast Refresh] rebuilding` message by
+  // 100ms. If we get a BUILT event within that threshold and nothing has
+  // changed, just suppress the message entirely. (The dev server applies the
+  // same defer to the BUILDING HMR message itself; see `DeferredEmit` usage in
+  // hot-reloader-turbopack.ts.)
+  #deferredReportHmrStart: DeferredEmit
+  #reportedHmrStart: boolean
 
-  #cancelDeferredReportHmrStart() {
-    clearTimeout(this.#deferredReportHmrStartId)
-    this.#deferredReportHmrStartId = undefined
+  constructor() {
+    this.#updatedModules = new Set()
+    this.#deferredReportHmrStart = new DeferredEmit()
+    this.#reportedHmrStart = false
   }
 
   onBuilding() {
     this.#lastUpdateMsSinceEpoch = undefined
-    this.#cancelDeferredReportHmrStart()
+    this.#deferredReportHmrStart.cancel()
     this.#startMsSinceEpoch = Date.now()
 
     // report the HMR start after a short delay
-    this.#deferredReportHmrStartId = setTimeout(
-      () => this.#runDeferredReportHmrStart(),
+    this.#deferredReportHmrStart.schedule(
       // debugging feature: don't defer/suppress noisy no-op HMR update messages
       self.__NEXT_HMR_TURBOPACK_REPORT_NOISY_NOOP_EVENTS
         ? 0
-        : TURBOPACK_HMR_START_DELAY_MS
+        : TURBOPACK_HMR_START_DELAY_MS,
+      () => {
+        console.log('[Fast Refresh] rebuilding')
+        this.#reportedHmrStart = true
+      }
     )
   }
 
   /** Helper for other `onEvent` methods. */
   #onUpdate() {
-    this.#runDeferredReportHmrStart()
+    this.#deferredReportHmrStart.flush()
     this.#lastUpdateMsSinceEpoch = Date.now()
   }
 
@@ -107,10 +101,10 @@ export class TurbopackHmr {
       this.#lastUpdateMsSinceEpoch != null && this.#startMsSinceEpoch != null
     if (!hasUpdates && !this.#reportedHmrStart) {
       // suppress the update entirely
-      this.#cancelDeferredReportHmrStart()
+      this.#deferredReportHmrStart.cancel()
       return null
     }
-    this.#runDeferredReportHmrStart()
+    this.#deferredReportHmrStart.flush()
 
     const result = {
       hasUpdates,

@@ -3,8 +3,8 @@ import {
   parseValidationMessages,
   waitForValidationEnd,
   waitForValidationStart,
-  type ValidationEvent,
 } from 'e2e-utils/instant-validation'
+import type { ValidationEvent } from 'next/dist/server/app-render/dev-validation-events'
 import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 import type * as Playwright from 'playwright'

@@ -3,9 +3,7 @@ use std::mem::replace;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc};
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -16,14 +14,14 @@ use turbopack_core::{
 
 use crate::compressed_size::compressed_size_bytes;
 
-#[derive(Clone, Debug, Eq, NonLocalValue, PartialEq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Eq, NonLocalValue, PartialEq, Encode, Decode)]
 pub struct ChunkPartRange {
     pub line: u32,
     pub start_column: u32,
     pub end_column: u32,
 }
 
-#[derive(Clone, Debug, Eq, NonLocalValue, PartialEq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Eq, NonLocalValue, PartialEq, Encode, Decode)]
 pub struct ChunkPart {
     pub source: RcStr,
     pub real_size: u32,
