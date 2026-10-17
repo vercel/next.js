@@ -66,22 +66,57 @@ const CACHE_VERSION = 4
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
+// Maximum number of concurrent filesystem operations while scanning the disk
+// cache during LRU initialization. `stat()` calls are cheap metadata
+// lookups, but scanning thousands of entries one at a time still adds up;
+// bounding the concurrency keeps the scan fast without overwhelming the fs.
+const INIT_CACHE_ENTRIES_CONCURRENCY = 32
+
 async function initCacheEntries(
   cacheDir: string
 ): Promise<Array<{ key: string; size: number; expireAt: number }>> {
   const cacheKeys = await promises.readdir(cacheDir).catch(() => [])
   const entries: Array<{ key: string; size: number; expireAt: number }> = []
 
-  for (const cacheKey of cacheKeys) {
-    try {
-      const { expireAt, buffer } = await readFromCacheDir(cacheDir, cacheKey)
-      entries.push({
-        key: cacheKey,
-        size: buffer.byteLength,
-        expireAt,
+  // Get entry sizes with `stat()` instead of reading every file's contents:
+  // the filename already encodes `expireAt`, so a full read is unnecessary
+  // and made every cache HIT wait for the whole scan (see #100179).
+  // Entries are processed with bounded concurrency, and entries that can't
+  // be statted (deleted mid-scan, unreadable, 0-byte, not a regular file)
+  // are skipped.
+  for (let i = 0; i < cacheKeys.length; i += INIT_CACHE_ENTRIES_CONCURRENCY) {
+    const chunk = cacheKeys.slice(i, i + INIT_CACHE_ENTRIES_CONCURRENCY)
+    const chunkEntries = await Promise.all(
+      chunk.map(async (cacheKey) => {
+        try {
+          const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
+          const files = await promises.readdir(dir)
+          const file = files[0]
+          if (!file) {
+            return null
+          }
+          const [, expireAtSt] = file.split('.', 5)
+          const stats = await promises.stat(
+            join(/* turbopackIgnore: true */ dir, file)
+          )
+          if (!stats.isFile() || stats.size <= 0) {
+            return null
+          }
+          return {
+            key: cacheKey,
+            size: stats.size,
+            expireAt: Number(expireAtSt),
+          }
+        } catch {
+          // Skip entries that can't be read from disk
+          return null
+        }
       })
-    } catch {
-      // Skip entries that can't be read from disk
+    )
+    for (const entry of chunkEntries) {
+      if (entry) {
+        entries.push(entry)
+      }
     }
   }
 
@@ -431,9 +466,17 @@ export class ImageOptimizerCache {
       const { maxAge, expireAt, etag, upstreamEtag, buffer, extension } =
         await readFromCacheDir(this.cacheDir, cacheKey)
 
-      // Promote entry in LRU (mark as recently used)
-      const lru = await this.cacheDiskLRU
-      lru?.get(cacheKey)
+      // Promote entry in LRU (mark as recently used) without blocking the
+      // response: awaiting LRU initialization here made every cache HIT wait
+      // for the full disk scan after a server restart (see #100179).
+      // Promotion is best-effort; a failure must not affect the response.
+      void this.cacheDiskLRU
+        ?.then((lru) => {
+          lru.get(cacheKey)
+        })
+        .catch(() => {
+          // Ignore LRU errors — the cached response is already on its way.
+        })
 
       return {
         value: {
