@@ -1,12 +1,15 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextStart, isNextDeploy } from 'e2e-utils'
 import { BUILD_ID_FILE, BUILD_MANIFEST } from 'next/constants'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('distDir', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    buildCommand: 'pnpm build-and-check',
+    packageJson: {
+      scripts: {
+        'build-and-check': 'next build && node check-build.js',
+      },
+    },
   })
 
   it('should render the page', async () => {
@@ -15,7 +18,10 @@ describe('distDir', () => {
   })
 
   it('should build the app within the given `dist` directory', async () => {
-    if (isNextDev) {
+    if (isNextDeploy) {
+      // The build runs remotely, so inspect the checks from that filesystem.
+      expect(next.cliOutput).toContain('Found dist/BUILD_ID')
+    } else if (isNextDev) {
       expect(await next.hasFile(`dist/dev/${BUILD_MANIFEST}`)).toBe(true)
     } else {
       expect(await next.hasFile(`dist/${BUILD_ID_FILE}`)).toBe(true)
@@ -23,7 +29,11 @@ describe('distDir', () => {
   })
 
   it('should not build the app within the default `.next` directory', async () => {
-    expect(await next.hasFile('.next')).toBe(false)
+    if (isNextDeploy) {
+      expect(next.cliOutput).toContain('No .next directory')
+    } else {
+      expect(await next.hasFile('.next')).toBe(false)
+    }
   })
 })
 

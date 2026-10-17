@@ -1,6 +1,34 @@
 import { runInNewContext } from 'vm'
 import { getDeploymentTestEnvAssignments } from '../../lib/e2e-utils/deployment-test-env'
 
+describe('deployment test mode', () => {
+  beforeEach(() => {
+    jest.replaceProperty(process, 'env', {
+      ...process.env,
+      __NEXT_CACHE_COMPONENTS: '',
+      __NEXT_PARTIAL_PREFETCHING: '',
+      __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS: '',
+    })
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it.each([undefined, 'jest', 'e2e'])(
+    'sets e2e test mode without a remote alias when the local mode is %j',
+    (value) => {
+      if (value === undefined) delete process.env.__NEXT_TEST_MODE
+      else process.env.__NEXT_TEST_MODE = value
+      const env: Record<string, string> = {}
+
+      runInNewContext(getDeploymentTestEnvAssignments(), { process: { env } })
+
+      expect(env).toEqual({ __NEXT_TEST_MODE: 'e2e' })
+    }
+  )
+})
+
 describe.each([
   '__NEXT_CACHE_COMPONENTS',
   '__NEXT_PARTIAL_PREFETCHING',
@@ -27,12 +55,12 @@ describe.each([
 
       runInNewContext(getDeploymentTestEnvAssignments(), { process: { env } })
 
-      expect(env).toEqual({ [flag]: value })
+      expect(env).toEqual({ __NEXT_TEST_MODE: 'e2e', [flag]: value })
     }
   )
 
   it.each(['', undefined])(
-    'leaves the deployed environment unchanged when the local flag is %j',
+    'leaves the deployed flag unchanged when the local flag is %j',
     (value) => {
       if (value === undefined) delete process.env[flag]
       else process.env[flag] = value
@@ -40,7 +68,10 @@ describe.each([
 
       runInNewContext(getDeploymentTestEnvAssignments(), { process: { env } })
 
-      expect(env).toEqual({ [flag]: 'deployment-value' })
+      expect(env).toEqual({
+        __NEXT_TEST_MODE: 'e2e',
+        [flag]: 'deployment-value',
+      })
     }
   )
 

@@ -1,12 +1,13 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import {
+  nextTestSetup,
+  isNextDev,
+  patchFileWithDeployEnvAssignments,
+} from 'e2e-utils'
 import { readFileSync, writeFileSync } from 'fs'
 
-// This suite mutates the workspace config and runs custom local build/start
-// commands.
-// @force-gate !deploy
 describe('TypeScript Features', () => {
   describe.each([
     { label: '', testBaseUrl: true },
@@ -56,6 +57,11 @@ describe('TypeScript Features', () => {
           }
         : undefined,
       files: join(__dirname, '../../../'),
+      overrideFiles: {
+        'packages/www/next.config.js': patchFileWithDeployEnvAssignments(
+          join(__dirname, '../next.config.js')
+        ),
+      },
       buildCommand: 'pnpm next build packages/www',
       startCommand:
         'pnpm next ' + (isNextDev ? 'dev' : 'start') + ' packages/www',

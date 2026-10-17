@@ -5,11 +5,12 @@ const deploymentTestFlags = [
 ]
 
 /**
- * Capture test flags in the deployed config because Vercel environment variable
- * names cannot start with an underscore. This runs in the local test harness.
+ * Capture experimental test flags and set e2e test mode in the deployed config
+ * because Vercel environment variable names cannot start with an underscore.
+ * This runs in the local test harness.
  */
 export function getDeploymentTestEnvAssignments(): string {
-  let assignments = ''
+  let assignments = "process.env.__NEXT_TEST_MODE = 'e2e'\n"
   for (const flag of deploymentTestFlags) {
     const value = process.env[flag]
     if (value) {
