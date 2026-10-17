@@ -13,6 +13,7 @@ import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { dispatchAppRouterAction } from './use-action-queue'
 import {
   ACTION_SERVER_PATCH,
+  type ScrollBehavior,
   type ServerPatchAction,
 } from './router-reducer/router-reducer-types'
 import { isNavigatingToNewRootLayout } from './router-reducer/is-navigating-to-new-root-layout'
@@ -1341,6 +1342,10 @@ export function spawnDynamicRequests(
   // server-patch retry logic so it can inherit the intent if the original
   // transition hasn't committed yet.
   navigateType: 'push' | 'replace',
+  // The original navigation's scroll behavior. Threaded through to the
+  // server-patch retry logic so that `scroll: false` is preserved across an
+  // async retry.
+  scrollBehavior: ScrollBehavior,
   navigationLock: NavigationLock | null,
   // The segment cache map this navigation is bound to. See `segmentCacheMap`
   // in cache.ts.
@@ -1451,7 +1456,8 @@ export function spawnDynamicRequests(
     primaryRequestPromise,
     refreshRequestPromises,
     routeCacheEntry,
-    navigateType
+    navigateType,
+    scrollBehavior
   )
   // `finishNavigationTask` is responsible for error handling, so we can attach
   // noop callbacks to this promise.
@@ -1466,7 +1472,8 @@ async function finishNavigationTask(
     ReturnType<typeof fetchMissingDynamicData>
   > | null,
   routeCacheEntry: FulfilledRouteCacheEntry | null,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  scrollBehavior: ScrollBehavior
 ): Promise<void> {
   // Wait for all the requests to finish, or for the first one to fail.
   let exitStatus = await waitForRequestsToFinish(
@@ -1526,6 +1533,7 @@ async function finishNavigationTask(
         navigation,
         routeCacheEntry,
         navigateType,
+        scrollBehavior,
         FreshnessPolicy.RefreshAll
       )
       return
@@ -1545,6 +1553,7 @@ async function finishNavigationTask(
         navigation,
         routeCacheEntry,
         navigateType,
+        scrollBehavior,
         FreshnessPolicy.HistoryTraversal
       )
       return
@@ -1568,6 +1577,7 @@ async function finishNavigationTask(
         navigation,
         routeCacheEntry,
         navigateType,
+        scrollBehavior,
         FreshnessPolicy.RefreshAll
       )
       return
@@ -1639,6 +1649,9 @@ function dispatchRetryDueToTreeMismatch(
   routeCacheEntry: FulfilledRouteCacheEntry | null,
   // The original navigation's push/replace intent.
   originalNavigateType: 'push' | 'replace',
+  // The original navigation's scroll behavior. Preserved on the retry so that
+  // `scroll: false` is not lost.
+  originalScrollBehavior: ScrollBehavior,
   // Freshness policy for the retry navigation. `RefreshAll` re-fetches the
   // tree's dynamic data (used for genuine tree mismatches). `HistoryTraversal`
   // reuses the data already in the tree (used when only the URL needs
@@ -1720,6 +1733,7 @@ function dispatchRetryDueToTreeMismatch(
     seed,
     mpa: isHardRetry,
     navigateType: retryNavigateType,
+    scrollBehavior: originalScrollBehavior,
     freshnessPolicy: retryFreshnessPolicy,
   }
   dispatchAppRouterAction(retryAction)

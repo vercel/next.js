@@ -363,6 +363,7 @@ export function navigateToKnownRoute(
         accumulation,
         routeCacheEntry,
         navigateType,
+        scrollBehavior,
         navigationLock,
         map,
         signal
