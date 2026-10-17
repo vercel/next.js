@@ -2013,11 +2013,24 @@ export default class Router implements BaseRouter {
 
     if (method !== 'pushState' || getURL() !== as) {
       this._shallow = options.shallow
+
+      // A shallow `replaceState` must not turn the history entry into a
+      // shallow one: the entry keeps whatever `shallow` value it had before
+      // the replace. Otherwise, navigating back/forward to this entry later
+      // would be treated as a shallow navigation and skip fetching data.
+      const historyOptions: TransitionOptions =
+        method === 'replaceState' && options.shallow
+          ? {
+              ...options,
+              shallow: window.history.state?.options?.shallow ?? false,
+            }
+          : options
+
       window.history[method](
         {
           url,
           as,
-          options,
+          options: historyOptions,
           __N: true,
           key: (this._key = method !== 'pushState' ? this._key : createKey()),
         } as HistoryState,
