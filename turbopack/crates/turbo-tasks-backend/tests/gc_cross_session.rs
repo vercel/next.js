@@ -598,10 +598,10 @@ async fn parentless_connect_of_an_evicted_operation_does_not_abort() {
 
 // --- Root map TTL vs. residency ---
 //
-// A prior-session root must keep its TTL until something re-anchors it, no matter what makes it
-// resident in the meantime (in a real session, startup invalidation propagating through the
-// aggregation graph restores most of them). And a root that is pinned must never be dropped from
-// the map, even when eviction has dropped its `Meta`.
+// A prior-session root must keep its TTL until a pass observes it as a root again (pinned or
+// re-connected), no matter what makes it resident in the meantime (in a real session, startup
+// invalidation propagating through the aggregation graph restores most of them). And a root that
+// is pinned must never be dropped from the map, even when eviction has dropped its `Meta`.
 
 fn in_root_map(tt: &Arc<TurboTasks<TurboTasksBackend>>, id: TaskId) -> bool {
     tt.backend()
@@ -611,8 +611,8 @@ fn in_root_map(tt: &Arc<TurboTasks<TurboTasksBackend>>, id: TaskId) -> bool {
 }
 
 /// Session 1 of the cross-session tests below: computes `root_with_child(n)` and keeps it pinned
-/// through shutdown, so the shutdown pass persists it in the root map as live. Returns its id; the
-/// later sessions never call the op function again, since looking it up would restore it.
+/// through shutdown, so the shutdown pass persists it in the root map as `MostRecent`. Returns its
+/// id; the later sessions never call the op function again, since looking it up would restore it.
 async fn persist_pinned_root(dir: &tempfile::TempDir, n: u32) -> TaskId {
     let tt = reopen_tt_with_gc(dir);
     let op = turbo_tasks::run_once(tt.clone(), async move {
@@ -652,19 +652,20 @@ async fn rerun_leaf_executions(dir: &tempfile::TempDir, n: u32) -> u32 {
 /// A prior-session root that becomes resident without being re-pinned or re-connected is still
 /// within its TTL, so it must not be collected. It only goes once it ages out.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn resident_unanchored_prior_root_survives_until_ttl() {
+async fn resident_prior_root_survives_until_ttl() {
     const N: u32 = 3;
-    let dir = create_persistence_dir("resident_unanchored_prior_root_survives_until_ttl");
+    let dir = create_persistence_dir("resident_prior_root_survives_until_ttl");
     let root = persist_pinned_root(&dir, N).await;
 
-    // Session 2: restore the root without anchoring it, then collect. The TTL is far away.
+    // Session 2: restore the root without pinning or re-connecting it, then collect. The TTL is
+    // far away.
     {
         let tt = reopen_tt_with_gc_ttl(&dir, Duration::from_secs(3600));
         tt.backend().assert_task_exists_for_testing(root, &tt);
         let collected = tt.backend().gc_for_testing(&tt);
         assert_eq!(
             collected, 0,
-            "a resident but unanchored prior root is protected by its TTL"
+            "a resident prior root that is not a current root is protected by its TTL"
         );
         assert!(
             in_root_map(&tt, root),
@@ -673,7 +674,8 @@ async fn resident_unanchored_prior_root_survives_until_ttl() {
         tt.stop_and_wait().await;
     }
 
-    // Session 3: the TTL has expired and nothing re-anchored it, so it ages out with its leaf.
+    // Session 3: the TTL has expired and nothing pinned or re-connected it, so it ages out with its
+    // leaf.
     {
         let tt = reopen_tt_with_gc_ttl(&dir, Duration::ZERO);
         let collected = gc_until_collected(&tt, 2).await;
@@ -691,8 +693,8 @@ async fn resident_unanchored_prior_root_survives_until_ttl() {
     );
 }
 
-/// A pinned root whose `Meta` was evicted after a snapshot is still live: it must stay in the root
-/// map, even though a pass cannot judge an evicted task as a root.
+/// A pinned root whose `Meta` was evicted after a snapshot is still a current root: it must stay in
+/// the root map, even though a pass cannot judge an evicted task as a root.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pinned_root_with_evicted_meta_stays_in_root_map() {
     const N: u32 = 4;
