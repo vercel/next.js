@@ -2116,6 +2116,8 @@ importers:
         specifier: 0.13.1
         version: 0.13.1(debug@4.4.3(supports-color@9.4.0))
 
+  packages/next-upgrade: {}
+
   packages/react-refresh-utils:
     devDependencies:
       react-refresh:
