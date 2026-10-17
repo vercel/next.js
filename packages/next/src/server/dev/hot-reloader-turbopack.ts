@@ -138,6 +138,7 @@ import {
   deleteReactDebugChannelForHtmlRequest,
   setReactDebugChannelForHtmlRequest,
 } from './debug-channel'
+import { forEachInFreshAsyncContext } from './for-each-in-fresh-async-context'
 import {
   getVersionInfo,
   matchNextPageBundleRequest,
@@ -1119,7 +1120,7 @@ export async function createHotReloaderTurbopack(
     try {
       const changed = await changedPromise
 
-      for await (const change of changed) {
+      await forEachInFreshAsyncContext(changed, async (change) => {
         processIssues(currentEntryIssues, key, change, false, true)
         // TODO: Get an actual content hash from Turbopack.
         const message = await createMessage(
@@ -1129,7 +1130,7 @@ export async function createHotReloaderTurbopack(
         if (message) {
           sendHmr(key, message)
         }
-      }
+      })
     } catch (e) {
       changeSubscriptions.delete(key)
       const payload = await onError?.(e as Error)
@@ -1174,12 +1175,12 @@ export async function createHotReloaderTurbopack(
         sendTurbopackMessage(initial.value.value)
       }
 
-      for await (const data of subscription) {
+      await forEachInFreshAsyncContext(subscription, (data) => {
         processIssues(state.clientIssues, key, data, false, true)
         if (data.value.type !== 'issues') {
           sendTurbopackMessage(data.value)
         }
-      }
+      })
     } catch (e) {
       // The client might be using an HMR session from a previous server, tell them
       // to fully reload the page to resolve the issue. We can't use
@@ -1209,106 +1210,108 @@ export async function createHotReloaderTurbopack(
   }
 
   async function handleEntrypointsSubscription() {
-    for await (const entrypoints of entrypointsSubscription) {
-      if (!currentEntriesHandlingResolve) {
-        currentEntriesHandling = new Promise(
-          // eslint-disable-next-line no-loop-func
-          (resolve) => (currentEntriesHandlingResolve = resolve)
-        )
-      }
+    await forEachInFreshAsyncContext(
+      entrypointsSubscription,
+      async (entrypoints) => {
+        if (!currentEntriesHandlingResolve) {
+          currentEntriesHandling = new Promise(
+            (resolve) => (currentEntriesHandlingResolve = resolve)
+          )
+        }
 
-      // Always process issues/diagnostics, even if there are no entrypoints yet
-      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+        // Always process issues/diagnostics, even if there are no entrypoints yet
+        processTopLevelIssues(currentTopLevelIssues, entrypoints)
 
-      // Certain crtical issues prevent any entrypoints from being constructed so return early
-      if (!('routes' in entrypoints.value)) {
-        printBuildErrors(entrypoints, true, {
-          strictRouteMatchingDefaultWarning:
-            getStrictRouteMatchingDefaultWarning(nextConfig),
+        // Certain crtical issues prevent any entrypoints from being constructed so return early
+        if (!('routes' in entrypoints.value)) {
+          printBuildErrors(entrypoints, true, {
+            strictRouteMatchingDefaultWarning:
+              getStrictRouteMatchingDefaultWarning(nextConfig),
+          })
+
+          currentEntriesHandlingResolve!()
+          currentEntriesHandlingResolve = undefined
+          return
+        }
+
+        const routes = entrypoints.value.routes
+        const prevRouteKeys = previousRouteKeys
+        const addedRoutes = prevRouteKeys
+          ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
+          : []
+        const removedRoutes = prevRouteKeys
+          ? [...prevRouteKeys].filter((route) => !routes.has(route))
+          : []
+        previousRouteKeys = new Set(routes.keys())
+
+        await handleEntrypoints({
+          entrypoints: entrypoints as any,
+
+          currentEntrypoints,
+
+          currentEntryIssues,
+          manifestLoader,
+          devRewrites: opts.fsChecker.rewrites,
+          productionRewrites: undefined,
+          logErrors: true,
+
+          dev: {
+            assetMapper,
+            changeSubscriptions,
+            clients: [
+              ...clientsWithoutHtmlRequestId,
+              ...clientsByHtmlRequestId.values(),
+            ],
+            clientStates,
+            serverFields,
+
+            hooks: {
+              handleWrittenEndpoint: (id, result, forceDeleteCache) => {
+                currentWrittenEntrypoints.set(id, result.value)
+                return clearRequireCache(id, result.value, {
+                  force: forceDeleteCache,
+                })
+              },
+              propagateServerField: propagateServerField.bind(null, opts),
+              sendHmr,
+              startBuilding,
+              subscribeToChanges: subscribeToClientChanges,
+              unsubscribeFromChanges: unsubscribeFromClientChanges,
+              unsubscribeFromHmrEvents: unsubscribeFromClientHmrEvents,
+            },
+          },
         })
+
+        if (addedRoutes.length > 0 || removedRoutes.length > 0) {
+          // When the list of routes changes a new manifest should be fetched for Pages Router.
+          hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+            data: [
+              {
+                devPagesManifest: true,
+              },
+            ],
+          })
+        }
+
+        for (const route of addedRoutes) {
+          hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+            data: [route],
+          })
+        }
+
+        for (const route of removedRoutes) {
+          hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+            data: [route],
+          })
+        }
 
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
-        continue
       }
-
-      const routes = entrypoints.value.routes
-      const prevRouteKeys = previousRouteKeys
-      const addedRoutes = prevRouteKeys
-        ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
-        : []
-      const removedRoutes = prevRouteKeys
-        ? [...prevRouteKeys].filter((route) => !routes.has(route))
-        : []
-      previousRouteKeys = new Set(routes.keys())
-
-      await handleEntrypoints({
-        entrypoints: entrypoints as any,
-
-        currentEntrypoints,
-
-        currentEntryIssues,
-        manifestLoader,
-        devRewrites: opts.fsChecker.rewrites,
-        productionRewrites: undefined,
-        logErrors: true,
-
-        dev: {
-          assetMapper,
-          changeSubscriptions,
-          clients: [
-            ...clientsWithoutHtmlRequestId,
-            ...clientsByHtmlRequestId.values(),
-          ],
-          clientStates,
-          serverFields,
-
-          hooks: {
-            handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-              currentWrittenEntrypoints.set(id, result.value)
-              return clearRequireCache(id, result.value, {
-                force: forceDeleteCache,
-              })
-            },
-            propagateServerField: propagateServerField.bind(null, opts),
-            sendHmr,
-            startBuilding,
-            subscribeToChanges: subscribeToClientChanges,
-            unsubscribeFromChanges: unsubscribeFromClientChanges,
-            unsubscribeFromHmrEvents: unsubscribeFromClientHmrEvents,
-          },
-        },
-      })
-
-      if (addedRoutes.length > 0 || removedRoutes.length > 0) {
-        // When the list of routes changes a new manifest should be fetched for Pages Router.
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
-          data: [
-            {
-              devPagesManifest: true,
-            },
-          ],
-        })
-      }
-
-      for (const route of addedRoutes) {
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
-          data: [route],
-        })
-      }
-
-      for (const route of removedRoutes) {
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
-          data: [route],
-        })
-      }
-
-      currentEntriesHandlingResolve!()
-      currentEntriesHandlingResolve = undefined
-    }
+    )
   }
 
   await mkdir(join(distDir, 'server'), { recursive: true })
@@ -2285,106 +2288,109 @@ export async function createHotReloaderTurbopack(
 
   async function handleProjectUpdates() {
     const BUILDING_MESSAGE_DEFER_MS = 100
-    for await (const updateMessage of project.updateInfoSubscribe(30)) {
-      switch (updateMessage.updateType) {
-        case 'start': {
-          updateInProgress = true
-          pendingBuilding.schedule(BUILDING_MESSAGE_DEFER_MS, () => {
-            hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
-          })
-          // Mark that HMR has started and we need to call the callback after it settles
-          // This ensures onBeforeDeferredEntries will be called again during HMR
-          if (hasDeferredEntriesConfig) {
-            hmrPendingDeferredCallback = true
-            onBeforeDeferredEntriesCalled = false
-            onBeforeDeferredEntriesPromise = null
+    await forEachInFreshAsyncContext(
+      project.updateInfoSubscribe(30),
+      (updateMessage) => {
+        switch (updateMessage.updateType) {
+          case 'start': {
+            updateInProgress = true
+            pendingBuilding.schedule(BUILDING_MESSAGE_DEFER_MS, () => {
+              hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
+            })
+            // Mark that HMR has started and we need to call the callback after it settles
+            // This ensures onBeforeDeferredEntries will be called again during HMR
+            if (hasDeferredEntriesConfig) {
+              hmrPendingDeferredCallback = true
+              onBeforeDeferredEntriesCalled = false
+              onBeforeDeferredEntriesPromise = null
+            }
+            break
           }
-          break
-        }
-        case 'end': {
-          updateInProgress = false
-          pendingBuilding.cancel()
-          if (pendingServerComponentChanges) {
-            pendingServerComponentChanges = false
-            notifyServerComponentChanges()
-          }
-          sendEnqueuedMessages()
+          case 'end': {
+            updateInProgress = false
+            pendingBuilding.cancel()
+            if (pendingServerComponentChanges) {
+              pendingServerComponentChanges = false
+              notifyServerComponentChanges()
+            }
+            sendEnqueuedMessages()
 
-          function addToErrorsMap(
-            errorsMap: Map<string, CompilationError>,
-            issueMap: IssuesMap
-          ) {
-            for (const [key, issue] of issueMap) {
-              if (issue.severity === 'warning') continue
-              if (errorsMap.has(key)) continue
+            function addToErrorsMap(
+              errorsMap: Map<string, CompilationError>,
+              issueMap: IssuesMap
+            ) {
+              for (const [key, issue] of issueMap) {
+                if (issue.severity === 'warning') continue
+                if (errorsMap.has(key)) continue
 
-              const message = formatIssue(issue)
+                const message = formatIssue(issue)
 
-              errorsMap.set(key, {
-                message,
-                details: issue.detail
-                  ? renderStyledStringToErrorAnsi(issue.detail)
-                  : undefined,
+                errorsMap.set(key, {
+                  message,
+                  details: issue.detail
+                    ? renderStyledStringToErrorAnsi(issue.detail)
+                    : undefined,
+                })
+              }
+            }
+
+            function addErrors(
+              errorsMap: Map<string, CompilationError>,
+              issues: EntryIssuesMap
+            ) {
+              for (const issueMap of issues.values()) {
+                addToErrorsMap(errorsMap, issueMap)
+              }
+            }
+
+            const errors = new Map<string, CompilationError>()
+            addToErrorsMap(errors, currentTopLevelIssues)
+            addErrors(errors, currentEntryIssues)
+
+            for (const client of [
+              ...clientsWithoutHtmlRequestId,
+              ...clientsByHtmlRequestId.values(),
+            ]) {
+              const state = clientStates.get(client)
+              if (!state) {
+                continue
+              }
+
+              const clientErrors = new Map(errors)
+              addErrors(clientErrors, state.clientIssues)
+
+              sendToClient(client, {
+                type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
+                // Report the current version without advancing it: a completed
+                // compilation is not itself an edit, and this hash is not
+                // consumed by the Turbopack client.
+                hash: String(serverComponentsHmrRefreshVersion),
+                errors: [...clientErrors.values()],
+                warnings: [],
               })
             }
-          }
 
-          function addErrors(
-            errorsMap: Map<string, CompilationError>,
-            issues: EntryIssuesMap
-          ) {
-            for (const issueMap of issues.values()) {
-              addToErrorsMap(errorsMap, issueMap)
+            if (hmrEventHappened) {
+              const time = updateMessage.value.duration
+              const timeMessage =
+                time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
+              Log.event(`Compiled in ${timeMessage}`)
+              hmrEventHappened = false
             }
-          }
+            clientHmrEventHappened = false
 
-          const errors = new Map<string, CompilationError>()
-          addToErrorsMap(errors, currentTopLevelIssues)
-          addErrors(errors, currentEntryIssues)
-
-          for (const client of [
-            ...clientsWithoutHtmlRequestId,
-            ...clientsByHtmlRequestId.values(),
-          ]) {
-            const state = clientStates.get(client)
-            if (!state) {
-              continue
+            // Call onBeforeDeferredEntries after compilation completes during HMR
+            // This ensures the callback is invoked even when non-deferred entries change
+            // Use debounced function to prevent rapid-fire calls from turbopack updates
+            if (hasDeferredEntriesConfig) {
+              callOnBeforeDeferredEntriesAfterHMR()
             }
-
-            const clientErrors = new Map(errors)
-            addErrors(clientErrors, state.clientIssues)
-
-            sendToClient(client, {
-              type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
-              // Report the current version without advancing it: a completed
-              // compilation is not itself an edit, and this hash is not
-              // consumed by the Turbopack client.
-              hash: String(serverComponentsHmrRefreshVersion),
-              errors: [...clientErrors.values()],
-              warnings: [],
-            })
+            break
           }
-
-          if (hmrEventHappened) {
-            const time = updateMessage.value.duration
-            const timeMessage =
-              time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
-            Log.event(`Compiled in ${timeMessage}`)
-            hmrEventHappened = false
-          }
-          clientHmrEventHappened = false
-
-          // Call onBeforeDeferredEntries after compilation completes during HMR
-          // This ensures the callback is invoked even when non-deferred entries change
-          // Use debounced function to prevent rapid-fire calls from turbopack updates
-          if (hasDeferredEntriesConfig) {
-            callOnBeforeDeferredEntriesAfterHMR()
-          }
-          break
+          default:
         }
-        default:
       }
-    }
+    )
   }
 
   handleProjectUpdates().catch((err) => {
