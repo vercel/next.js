@@ -1311,6 +1311,7 @@
       "app-dir static/dynamic handling should log fetch metrics to the diagnostics directory",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
+      "app-dir static/dynamic handling should not cache similar iterable request bodies",
       "app-dir static/dynamic handling should not encode dynamic parameters as search parameters in RSC data",
       "app-dir static/dynamic handling should not error with dynamic server usage with force-static",
       "app-dir static/dynamic handling should not error with force-dynamic and catch-all routes",
@@ -1426,6 +1427,7 @@
       "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
+      "app-dir static/dynamic handling should not cache similar iterable request bodies",
       "app-dir static/dynamic handling should not encode dynamic parameters as search parameters in RSC data",
       "app-dir static/dynamic handling should not error with dynamic server usage with force-static",
       "app-dir static/dynamic handling should not error with force-dynamic and catch-all routes",
@@ -1446,6 +1448,7 @@
       "app-dir static/dynamic handling should respond correctly for partially dynamic route with dynamicParams false in layout",
       "app-dir static/dynamic handling should revalidate all fetches during on-demand revalidate",
       "app-dir static/dynamic handling should revalidate correctly with config and fetch revalidate",
+      "app-dir static/dynamic handling should serve Flight and HTML for a static fallback first requested via RSC",
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should skip fetch cache when accessing request properties",
       "app-dir static/dynamic handling should skip fetch cache when an authorization header is present after dynamic usage",
@@ -6729,6 +6732,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/rsc-basic/rsc-basic-blocking-ssr.test.ts": {
+    "passed": [],
+    "failed": [
+      "react@experimental - blockingSSR should opt into the react@experimental channel when blockingSSR is enabled"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/rsc-basic/rsc-basic-react-experimental.test.ts": {
     "passed": [],
     "failed": [
@@ -7243,7 +7255,6 @@
   },
   "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
     "passed": [
-      "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values",
       "searchparams-reuse-loading Without Middleware should correctly return different RSC data for full prefetches with different searchParam values",
       "searchparams-reuse-loading should properly render root page with searchParams when prefetch is aliased",
       "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
@@ -7258,7 +7269,9 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values"
+    ],
     "runtimeError": false
   },
   "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts": {
@@ -9160,6 +9173,35 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/edge-runtime-configurable-guards/edge-runtime-configurable-guards.test.ts": {
+    "passed": [
+      "Edge runtime configurable guards production mode Edge API with use of Function as a type build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Middleware with use of Function as a type build and does not warn at runtime"
+    ],
+    "failed": [
+      "Edge runtime configurable guards production mode Edge API using lib with allowed, unused dynamic code build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Edge API using lib with unallowed, used dynamic code fails to build because of dynamic code evaluation",
+      "Edge runtime configurable guards production mode Edge API with allowed, unused dynamic code build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Middleware using lib with allowed, unused dynamic code build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Middleware using lib with unallowed, used dynamic code fails to build because of dynamic code evaluation",
+      "Edge runtime configurable guards production mode Middleware with allowed, unused dynamic code build and does not warn at runtime",
+      "Edge runtime configurable guards production mode Multiple functions with different configurations fails to build because of unallowed code"
+    ],
+    "pending": [
+      "Edge runtime configurable guards development mode Edge API using lib with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards development mode Edge API using lib with unallowed, used dynamic code warns in dev at runtime",
+      "Edge runtime configurable guards development mode Edge API with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards development mode Edge API with use of Function as a type does not warn in dev at runtime",
+      "Edge runtime configurable guards development mode Middleware using lib with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards development mode Middleware using lib with unallowed, used dynamic code warns in dev at runtime",
+      "Edge runtime configurable guards development mode Middleware with allowed, used dynamic code still warns in dev at runtime",
+      "Edge runtime configurable guards development mode Middleware with use of Function as a type does not warn in dev at runtime",
+      "Edge runtime configurable guards development mode Multiple functions with different configurations warns in dev for allowed code",
+      "Edge runtime configurable guards development mode Multiple functions with different configurations warns in dev for unallowed code"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/edge-runtime-pages-api-route/edge-runtime-pages-api-route.test.ts": {
     "passed": [
       "Edge runtime pages-api route should work edge runtime",
@@ -10656,14 +10698,16 @@
   },
   "test/e2e/next-form/default/app-dir.test.ts": {
     "passed": [
-      "next-form - app dir does not navigate if preventDefault is called in onSubmit",
-      "next-form - app dir does not push a new history entry if `replace` is passed",
       "next-form - app dir functions passed to action runs client action",
       "next-form - app dir functions passed to action runs server action",
       "next-form - app dir functions passed to action runs server action (closure)",
       "next-form - app dir functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
       "next-form - app dir functions passed to formAction runs server action (closure) from submitter and doesn't warn about unsupported attributes",
-      "next-form - app dir functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes",
+      "next-form - app dir functions passed to formAction runs server action from submitter and doesn't warn about unsupported attributes"
+    ],
+    "failed": [
+      "next-form - app dir does not navigate if preventDefault is called in onSubmit",
+      "next-form - app dir does not push a new history entry if `replace` is passed",
       "next-form - app dir should soft-navigate on submit and show the prefetched loading state",
       "next-form - app dir should soft-navigate to the formAction url of the submitter",
       "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
@@ -10671,27 +10715,28 @@
       "next-form - app dir unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
       "next-form - app dir url-encodes file inputs, but warns about them"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/next-form/default/next-form-prefetch.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - form prefetching should not prefetch when prefetch is set to false`",
       "app dir - form prefetching should prefetch a loading state for the form's target"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/next-form/default/pages-dir.test.ts": {
     "passed": [
+      "next-form - pages dir functions passed to action runs client action",
+      "next-form - pages dir functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes"
+    ],
+    "failed": [
       "next-form - pages dir does not navigate if preventDefault is called in onSubmit",
       "next-form - pages dir does not push a new history entry if `replace` is passed",
-      "next-form - pages dir functions passed to action runs client action",
-      "next-form - pages dir functions passed to formAction runs client action from submitter and doesn't warn about unsupported attributes",
       "next-form - pages dir should soft-navigate on submit",
       "next-form - pages dir should soft-navigate to the formAction url of the submitter",
       "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formEncType\" to an unsupported value and fall back to default submit behavior",
@@ -10699,7 +10744,6 @@
       "next-form - pages dir unsupported attributes on submitter should warn if submitter sets \"formTarget\" to an unsupported value and fall back to default submit behavior",
       "next-form - pages dir url-encodes file inputs, but warns about them"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10731,6 +10775,91 @@
       "next-image-legacy-src-with-query-without-local-patterns should throw error for relative image with query without localPatterns for legacy Image"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-image-new/default/default-static.test.ts": {
+    "passed": [
+      "Build Error Tests should throw build error when import statement is used with missing file"
+    ],
+    "failed": [
+      "Static Image Component Tests Should allow an image with a static src to omit height and width",
+      "Static Image Component Tests Should automatically provide an image height and width",
+      "Static Image Component Tests Should use immutable cache-control header even when unoptimized",
+      "Static Image Component Tests Should use immutable cache-control header for static import",
+      "Static Image Component Tests should add a blur placeholder a statically imported jpg",
+      "Static Image Component Tests should add a blur placeholder a statically imported png",
+      "Static Image Component Tests should add a blur placeholder a statically imported png with fill",
+      "Static Image Component Tests should add a data URL placeholder to an image",
+      "Static Image Component Tests should add placeholder even when blurDataURL aspect ratio does not match width/height ratio",
+      "Static Image Component Tests should add placeholder with blurDataURL and fill",
+      "Static Image Component Tests should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
+      "Static Image Component Tests should load direct imported image",
+      "Static Image Component Tests should load staticprops imported image",
+      "Static Image Component Tests should use height prop to adjust both width and height",
+      "Static Image Component Tests should use width and height prop to override import",
+      "Static Image Component Tests should use width prop to adjust both width and height"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-image-new/default/default.test.ts": {
+    "passed": [],
+    "failed": [
+      "Image Component Default Tests Fill-mode tests should add 100% width and height to fill images",
+      "Image Component Default Tests Fill-mode tests should add position styles to fill images",
+      "Image Component Default Tests Fill-mode tests should add position:absolute to fill images",
+      "Image Component Default Tests Fill-mode tests should include a data-attribute on fill images",
+      "Image Component Default Tests should apply filter style after image loads",
+      "Image Component Default Tests should apply style inheritance for img elements but not wrapper elements",
+      "Image Component Default Tests should be valid HTML",
+      "Image Component Default Tests should callback native onError even when error before hydration",
+      "Image Component Default Tests should callback native onError when error occurred while loading image",
+      "Image Component Default Tests should callback native onLoad with sythetic event",
+      "Image Component Default Tests should callback onLoadingComplete when image is fully loaded",
+      "Image Component Default Tests should correctly ignore prose styles",
+      "Image Component Default Tests should correctly rotate image",
+      "Image Component Default Tests should create images folder in static/media for edge runtime",
+      "Image Component Default Tests should emit image for next/dynamic with non ssr case",
+      "Image Component Default Tests should handle the styles prop appropriately",
+      "Image Component Default Tests should have blurry placeholder when enabled",
+      "Image Component Default Tests should have data url placeholder when enabled",
+      "Image Component Default Tests should lazy load with placeholder=blur",
+      "Image Component Default Tests should load the images",
+      "Image Component Default Tests should not create an image folder in server/chunks",
+      "Image Component Default Tests should not pass through user-provided srcset (causing a flash)",
+      "Image Component Default Tests should preload priority images",
+      "Image Component Default Tests should remove blurry placeholder after image loads",
+      "Image Component Default Tests should remove data url placeholder after image loads",
+      "Image Component Default Tests should render as unoptimized with empty string src prop",
+      "Image Component Default Tests should render as unoptimized with missing src prop",
+      "Image Component Default Tests should render correct objectFit when blurDataURL and fill",
+      "Image Component Default Tests should render correct objectFit when data url placeholder and fill",
+      "Image Component Default Tests should render no wrappers or sizers",
+      "Image Component Default Tests should render picture via getImageProps",
+      "Image Component Default Tests should update the image on src change",
+      "Image Component Default Tests should warn when legacy prop layout=fill",
+      "Image Component Default Tests should warn when legacy prop layout=responsive",
+      "Image Component Default Tests should work when using flexbox",
+      "Image Component Default Tests should work when using overrideSrc prop",
+      "Image Component Default Tests should work with image with blob src",
+      "Image Component Default Tests should work with preload prop",
+      "Image Component Default Tests should work with sizes and automatically use responsive srcset"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-image-new/loader-config-edge-runtime/loader-config-edge-runtime.test.ts": {
+    "passed": [],
+    "failed": [
+      "Image Loader Config with Edge Runtime should add \"src\" to img1 based on the loader config",
+      "Image Loader Config with Edge Runtime should add \"src\" to img2 based on the loader prop",
+      "Image Loader Config with Edge Runtime should add \"srcset\" to img1 based on the loader config",
+      "Image Loader Config with Edge Runtime should add \"srcset\" to img2 based on the loader prop"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10804,10 +10933,10 @@
     "runtimeError": false
   },
   "test/e2e/node-cli-args/node-cli-args.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "node-cli-args should start server with --experimental-network-inspection"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11235,6 +11364,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/react-current-version/react-current-version.test.ts": {
+    "passed": [
+      "react-current-version Basics hydrates correctly for normal page",
+      "react-current-version Basics no warnings for image related link props",
+      "react-current-version Basics should contain dynamicIds in next data for dynamic imports",
+      "react-current-version Basics should only render once in SSR",
+      "react-current-version Basics useId() values should match on hydration",
+      "react-current-version Concurrent mode in the nodejs runtime <RouteAnnouncer /> should not have the initial route announced",
+      "react-current-version Concurrent mode in the nodejs runtime flushes styled-jsx styles as the page renders",
+      "react-current-version Concurrent mode in the nodejs runtime should not have invalid config warning",
+      "react-current-version React 18 deprecation warning warns during next build only when using React 18 but not during next start"
+    ],
+    "failed": [
+      "react-current-version Concurrent mode in the experimental-edge runtime <RouteAnnouncer /> should not have the initial route announced",
+      "react-current-version Concurrent mode in the experimental-edge runtime flushes styled-jsx styles as the page renders",
+      "react-current-version Concurrent mode in the experimental-edge runtime should not have invalid config warning"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/react-dnd-compile/react-dnd-compile.test.ts": {
     "passed": [
       "react-dnd-compile should work",
@@ -11473,6 +11623,50 @@
     ],
     "flakey": [],
     "runtimeError": true
+  },
+  "test/e2e/telemetry/config.test.ts": {
+    "passed": [
+      "config telemetry production mode detects i18n and image configs for session start",
+      "config telemetry production mode detects output config for session start",
+      "config telemetry production mode emits telemetry for configured React Compiler options",
+      "config telemetry production mode emits telemetry for default React Compiler options",
+      "config telemetry production mode emits telemetry for enabled React Compiler",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
+      "config telemetry production mode emits telemetry for usage of @vercel/og",
+      "config telemetry production mode emits telemetry for usage of `adapterPath`",
+      "config telemetry production mode emits telemetry for usage of swc plugins"
+    ],
+    "failed": [
+      "config telemetry production mode detects rewrites, headers, and redirects for next build",
+      "config telemetry production mode emits telemery for usage of image, script & dynamic",
+      "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for middleware related options",
+      "config telemetry production mode emits telemetry for transpilePackages",
+      "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
+      "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
+      "config telemetry production mode emits telemetry for usage of `optimizeCss`",
+      "config telemetry production mode emits telemetry for usage of middleware",
+      "config telemetry production mode emits telemetry for usage of next/legacy/image",
+      "config telemetry production mode emits telemetry for usage of swc",
+      "config telemetry production mode emits telemetry for useCache directive"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/telemetry/page-features.test.ts": {
+    "passed": [
+      "page features telemetry detects correctly for `next dev` stopped (no turbo)"
+    ],
+    "failed": [
+      "page features telemetry production mode detect with reportWebVitals correctly for `next build`",
+      "page features telemetry production mode detect without reportWebVitals correctly for `next build`",
+      "page features telemetry production mode detects reportWebVitals with no _app correctly for `next build`",
+      "page features telemetry production mode should detect app page counts"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
   },
   "test/e2e/test-template/{{ toFileName name }}/{{ toFileName name }}.test.ts": {
     "passed": [
@@ -22482,6 +22676,29 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/css-features/css-compilation.test.ts": {
+    "passed": [
+      "CSS Property Ordering with lightningcss should have the border width (property ordering)",
+      "CSS Property Ordering without lightningcss should have the border width (property ordering)",
+      "CSS Support CSS Compilation and Prefixing without lightningcss should've compiled and prefixed",
+      "CSS Support Good CSS Import from node_modules with lightningcss should've emitted a single CSS file",
+      "CSS Support Good CSS Import from node_modules without lightningcss should've emitted a single CSS file",
+      "CSS Support Good Nested CSS Import from node_modules with lightningcss should've emitted a single CSS file",
+      "CSS Support Good Nested CSS Import from node_modules without lightningcss should've emitted a single CSS file",
+      "CSS Support Has CSS in computed styles in Production with lightningcss should have CSS for page",
+      "CSS Support Has CSS in computed styles in Production with lightningcss should've preloaded the CSS file and injected it in <head>",
+      "CSS Support Has CSS in computed styles in Production without lightningcss should have CSS for page",
+      "CSS Support Has CSS in computed styles in Production without lightningcss should've preloaded the CSS file and injected it in <head>",
+      "CSS Support React Lifecyce Order (production) with lightningcss should have the correct color on mount after navigation",
+      "CSS Support React Lifecyce Order (production) without lightningcss should have the correct color on mount after navigation"
+    ],
+    "failed": [
+      "CSS Support CSS Compilation and Prefixing with lightningcss should've compiled and prefixed"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/css-url-deployment-id/css-url-deployment-id.test.ts": {
     "passed": [
       "css-url-deployment-id should include dpl query in CSS module url() references",
@@ -22576,6 +22793,7 @@
   "test/production/deployment-id-handling/deployment-id-handling.test.ts": {
     "passed": [],
     "failed": [
+      "deployment-id-handling disabled generates a build ID without a configured callback",
       "deployment-id-handling disabled should not append dpl query to all assets for /",
       "deployment-id-handling disabled should not append dpl query to all assets for /from-app",
       "deployment-id-handling disabled should not append dpl query to all assets for /from-app/edge",
@@ -22587,6 +22805,7 @@
       "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
       "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in prefetch request",
       "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should have deployment id env available",
+      "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID uses the constant build ID when generateBuildId is not configured",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should append dpl query to all assets correctly for /",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should append dpl query to all assets correctly for /from-app",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should append dpl query to all assets correctly for /from-app/edge",
@@ -22594,13 +22813,16 @@
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should contain deployment id in RSC payload request headers",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should contain deployment id in prefetch request",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId should have deployment id env available",
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID and runtimeServerDeploymentId uses the constant build ID when generateBuildId is not configured",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in prefetch request",
-      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should have deployment id env available"
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should have deployment id env available",
+      "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID uses the constant build ID when generateBuildId is not configured",
+      "deployment-id-handling with generateBuildId uses the explicitly configured build ID"
     ],
     "pending": [
       "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID_IMMUTABLE skip for webpack"
