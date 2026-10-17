@@ -45,6 +45,26 @@ describe('app dir - next/dynamic', () => {
     expect($('h1').text()).toBe('hello')
   })
 
+  it.each(['/dynamic/async-import', '/legacy/async-import'])(
+    'should only reference emitted chunks when the next/dynamic component has an async import on %s',
+    async (pathname) => {
+      const $ = await next.render$(pathname)
+      expect($('#async-import-target').text()).toBe(
+        'next-dynamic async import target'
+      )
+
+      const chunks = new Set(
+        $('link[rel="preload"][as="script"], script[src]')
+          .toArray()
+          .map((el) => el.attribs.href ?? el.attribs.src)
+      )
+      for (const chunk of chunks) {
+        const { status } = await next.fetch(chunk)
+        expect({ chunk, status }).toEqual({ chunk, status: 200 })
+      }
+    }
+  )
+
   it('should render loading by default if loading is specified and loader is slow', async () => {
     const $ = await next.render$('/default-loading')
 
