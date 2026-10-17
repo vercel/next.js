@@ -14,15 +14,20 @@
 //!   race freely. It re-executes the collector right after its previous execution completed, which
 //!   also covers that the completion's cleanup can't remove the left-over dependencies of the next
 //!   execution. Its overlap depends on timing: a `State` invalidates its readers one by one, so the
-//!   collector could in principle read the source before the source was invalidated, see the old
-//!   collectibles, and then legitimately re-execute when the new ones arrive.
+//!   collector can read the source before the source was invalidated, see the old collectibles, and
+//!   then legitimately re-execute when the new ones arrive. So it allows re-executions after seeing
+//!   old collectibles, and only fails if the collector re-executes after it has already seen the
+//!   new ones.
 //! - [`gated_collector_is_not_re_executed_for_collectibles_it_has_not_read_yet`] stages the overlap
 //!   explicitly with [`Gates`], so it doesn't depend on that order.
 
 use std::{
     future::{Future, poll_fn},
     pin::pin,
-    sync::atomic::{AtomicBool, AtomicUsize, Ordering},
+    sync::{
+        Mutex,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+    },
     task::Poll,
 };
 
@@ -54,9 +59,11 @@ impl ValueToString for Thing {
     }
 }
 
+/// The number of collectibles each execution of [`collector`] saw, in order.
 #[derive(NonLocalValue, Default)]
-struct ExecutionCounter {
-    executions: AtomicUsize,
+struct ExecutionLog {
+    #[turbo_tasks(unsafe_ignore)] // holds no `Vc`
+    collectibles_seen: Mutex<Vec<usize>>,
 }
 
 #[turbo_tasks::function]
@@ -85,9 +92,8 @@ async fn source(input: ResolvedVc<Input>) -> Result<Vc<()>> {
 async fn collector(
     input: ResolvedVc<Input>,
     take: bool,
-    counter: TransientInstance<ExecutionCounter>,
+    log: TransientInstance<ExecutionLog>,
 ) -> Result<Vc<u32>> {
-    counter.executions.fetch_add(1, Ordering::AcqRel);
     // Depend on the input directly, so that a change re-executes the collector right away, while
     // the source is still emitting.
     let _ = *input.await?.count.get();
@@ -98,34 +104,51 @@ async fn collector(
     } else {
         source.peek_collectibles::<Box<dyn ValueToString>>()
     };
+    log.collectibles_seen
+        .lock()
+        .unwrap()
+        .push(collectibles.len());
     Ok(Vc::cell(collectibles.len() as u32))
 }
 
-async fn executions_after_change(take: bool) -> Result<usize> {
+/// Returns the number of collectibles each execution after the input change saw.
+async fn collectibles_seen_after_change(take: bool) -> Result<Vec<usize>> {
     let input = ReadRef::new_owned(Input {
         count: State::new(5),
     });
     let input_vc = ReadRef::resolved_cell(input.clone());
-    let counter = TransientInstance::new(ExecutionCounter::default());
-    let collector = collector(input_vc, take, counter.clone());
+    let log = TransientInstance::new(ExecutionLog::default());
+    let collector = collector(input_vc, take, log.clone());
 
     assert_eq!(*collector.read_strongly_consistent().await?, 5);
-    let initial = counter.executions.load(Ordering::Acquire);
-    assert_eq!(initial, 1, "take={take}: initial executions");
+    assert_eq!(
+        *log.collectibles_seen.lock().unwrap(),
+        [5],
+        "take={take}: initial executions"
+    );
 
     input.count.set(200);
     assert_eq!(*collector.read_strongly_consistent().await?, 200);
-    Ok(counter.executions.load(Ordering::Acquire) - initial)
+    let mut seen = std::mem::take(&mut *log.collectibles_seen.lock().unwrap());
+    seen.remove(0);
+    Ok(seen)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn collector_is_not_re_executed_for_collectibles_it_has_not_read_yet() {
     run_once(&REGISTRATION, async || {
         for take in [false, true] {
-            assert_eq!(
-                executions_after_change(take).await?,
-                1,
-                "take={take}: executions after the input change"
+            let seen = collectibles_seen_after_change(take).await?;
+            // Only the last execution may see the new collectibles. An earlier one that saw the
+            // old collectibles read the source before the source was invalidated, and is
+            // legitimately re-executed when the new ones arrive.
+            let (last, earlier) = seen
+                .split_last()
+                .expect("the input change must re-execute the collector");
+            assert_eq!(*last, 200, "take={take}: collectibles seen: {seen:?}");
+            assert!(
+                earlier.iter().all(|&n| n != 200),
+                "take={take}: re-executed after seeing the new collectibles: {seen:?}"
             );
         }
         anyhow::Ok(())
