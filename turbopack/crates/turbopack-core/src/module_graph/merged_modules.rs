@@ -1,4 +1,4 @@
-use std::collections::hash_map::Entry;
+use std::{collections::hash_map::Entry, hash::Hash};
 
 use anyhow::{Context, Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -69,6 +69,22 @@ impl MergedModuleInfo {
             .as_deref()
             .copied())
     }
+}
+
+/// Assigns each distinct bitmap a dense id, starting at 0, so that callers can hash and compare a
+/// `u32` instead of a whole bitmap (hashing a [`RoaringBitmapWrapper`] serializes it). Equal
+/// bitmaps get the same id. Returns the id of every key and the number of distinct bitmaps.
+fn intern_bitmaps<'a, K: Eq + Hash>(
+    entries: impl IntoIterator<Item = (K, &'a RoaringBitmapWrapper)>,
+    capacity: usize,
+) -> (FxHashMap<K, u32>, usize) {
+    let mut ids: FxHashMap<&'a RoaringBitmapWrapper, u32> = FxHashMap::default();
+    let mut result = FxHashMap::with_capacity_and_hasher(capacity, Default::default());
+    for (key, bitmap) in entries {
+        let next_id = ids.len() as u32;
+        result.insert(key, *ids.entry(bitmap).or_insert(next_id));
+    }
+    (result, ids.len())
 }
 
 /// Determine which modules can be merged together:
@@ -254,6 +270,26 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         )?;
 
         drop(inner_span);
+
+        // The traversals below look up and compare the bitmaps of many modules (once per visit),
+        // so use a dense id per distinct bitmap instead of the bitmaps themselves.
+        let module_bitmap_ids = {
+            let _inner_span = tracing::info_span!("intern bitmaps").entered();
+            intern_bitmaps(
+                module_merged_groups
+                    .iter()
+                    .map(|(&module, bitmap)| (module, bitmap)),
+                module_merged_groups.len(),
+            )
+            .0
+        };
+        let bitmap_id = |module: ResolvedVc<Box<dyn Module>>| {
+            module_bitmap_ids
+                .get(&module)
+                .copied()
+                .context("every module should have a bitmap")
+        };
+
         let inner_span = tracing::info_span!("chunk group collection").entered();
 
         span.record("visit_count", visit_count);
@@ -337,7 +373,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         // A partition of all modules in the chunk into several execution traces
                         // (orderings), stored in the top-level lists and referenced here by
                         // index.
-                        let mut chunk_lists: FxHashMap<&RoaringBitmapWrapper, usize> =
+                        // Keyed by bitmap id.
+                        let mut chunk_lists: FxHashMap<u32, usize> =
                             FxHashMap::with_capacity_and_hasher(
                                 module_merged_groups.len() / chunk_group_info.chunk_groups.len(),
                                 Default::default(),
@@ -362,9 +399,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             },
                             |parent_info, node, _| {
                                 let module = node;
-                                let bitmap = module_merged_groups
-                                    .get(&module)
-                                    .context("every module should have a bitmap")?;
+                                let bitmap = bitmap_id(module)?;
 
                                 if mergeable.contains(&module) {
                                     let mergeable_module =
@@ -406,12 +441,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 }
 
                                 if let Some((parent, _)) = parent_info {
-                                    let same_bitmap = module_merged_groups
-                                        .get(&parent)
-                                        .context("every module should have a bitmap")?
-                                        == module_merged_groups
-                                            .get(&module)
-                                            .context("every module should have a bitmap")?;
+                                    let same_bitmap = bitmap_id(parent)? == bitmap;
 
                                     if same_bitmap {
                                         intra_group_references_rev
@@ -500,12 +530,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 let module = node;
 
                 if let Some((parent, _)) = parent_info {
-                    let same_bitmap = module_merged_groups
-                        .get(&parent)
-                        .context("every module should have a bitmap")?
-                        == module_merged_groups
-                            .get(&module)
-                            .context("every module should have a bitmap")?;
+                    let same_bitmap = bitmap_id(parent)? == bitmap_id(module)?;
 
                     if same_bitmap {
                         intra_group_references
@@ -517,14 +542,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
                 if match parent_info {
                     None => true,
-                    Some((parent, _)) => {
-                        module_merged_groups
-                            .get(&parent)
-                            .context("every module should have a bitmap")?
-                            != module_merged_groups
-                                .get(&module)
-                                .context("every module should have a bitmap")?
-                    }
+                    Some((parent, _)) => bitmap_id(parent)? != bitmap_id(module)?,
                 } {
                     // This module needs to be exposed:
                     // - referenced from another group or
@@ -804,4 +822,46 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
     }
     .instrument(span_outer)
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use roaring::RoaringBitmap;
+
+    use super::*;
+
+    fn bitmap(bits: &[u32]) -> RoaringBitmapWrapper {
+        RoaringBitmapWrapper(bits.iter().copied().collect::<RoaringBitmap>())
+    }
+
+    #[test]
+    fn intern_bitmaps_gives_equal_bitmaps_equal_ids() {
+        let a = bitmap(&[1, 5, 100_000]);
+        let a_reordered = bitmap(&[100_000, 1, 5]);
+        let b = bitmap(&[1, 5]);
+        let empty = bitmap(&[]);
+        let empty2 = bitmap(&[]);
+        let entries = [
+            ("a", &a),
+            ("b", &b),
+            ("a_reordered", &a_reordered),
+            ("empty", &empty),
+            ("empty2", &empty2),
+        ];
+
+        let (ids, distinct) = intern_bitmaps(entries.iter().copied(), entries.len());
+
+        assert_eq!(distinct, 3);
+        assert_eq!(ids.len(), entries.len());
+        assert_eq!(ids["a"], ids["a_reordered"]);
+        assert_eq!(ids["empty"], ids["empty2"]);
+        assert_ne!(ids["a"], ids["b"]);
+        assert_ne!(ids["a"], ids["empty"]);
+        assert_ne!(ids["b"], ids["empty"]);
+        // Ids are dense and start at zero.
+        let mut all = ids.values().copied().collect::<Vec<_>>();
+        all.sort_unstable();
+        all.dedup();
+        assert_eq!(all, vec![0, 1, 2]);
+    }
 }
