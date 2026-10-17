@@ -702,6 +702,34 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     );
 
+    /// Initialize a canonical first-value-wins mutable cell.
+    fn initialize_mutable_cell(
+        &self,
+        task: TaskId,
+        cell: CellId,
+        value: SharedReference,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<()>;
+
+    /// Synchronously read canonical mutable content with optional normal cell tracking.
+    fn read_mutable_cell(
+        &self,
+        task: TaskId,
+        cell: CellId,
+        reader: Option<TaskId>,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<SharedReference>;
+
+    /// Serialize clone/edit/comparison/publication as one operation. The callback runs once;
+    /// `None` preserves existing content, dependencies, and payload persistence state.
+    fn mutate_mutable_cell(
+        &self,
+        task: TaskId,
+        cell: CellId,
+        update: &mut dyn FnMut(SharedReference) -> Result<Option<SharedReference>>,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<()>;
+
     fn update_task_cell(
         &self,
         task: TaskId,

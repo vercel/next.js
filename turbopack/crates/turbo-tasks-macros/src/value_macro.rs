@@ -22,6 +22,7 @@ enum CellMode {
     KeyedCompare,
     Compare,
     New,
+    Mutable,
 }
 
 impl Parse for CellMode {
@@ -39,9 +40,10 @@ impl TryFrom<LitStr> for CellMode {
             "keyed" => Ok(CellMode::KeyedCompare),
             "compare" => Ok(CellMode::Compare),
             "new" => Ok(CellMode::New),
+            "mutable" => Ok(CellMode::Mutable),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"new\", \"keyed\", or \"compare\"",
+                "expected \"new\", \"keyed\", \"compare\", or \"mutable\"",
             )),
         }
     }
@@ -275,6 +277,22 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         task_input,
     } = parse_macro_input!(args as ValueArguments);
 
+    let mutable = matches!(cell_mode, CellMode::Mutable);
+    if mutable
+        && (transparent
+            || matches!(
+                serialization_mode,
+                SerializationMode::Skip | SerializationMode::Hash
+            ))
+    {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "cell = \"mutable\" requires a non-transparent persistable value",
+        )
+        .to_compile_error()
+        .into();
+    }
+
     // `serialization = "hash"` only makes sense with `cell = "compare"` (the default).
     if matches!(serialization_mode, SerializationMode::Hash)
         && !matches!(cell_mode, CellMode::Compare)
@@ -410,6 +428,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let cell_mode = match cell_mode {
+        CellMode::Mutable => quote! { turbo_tasks::VcCellMutableMode<#ident> },
         CellMode::New => quote! {
             turbo_tasks::VcCellNewMode<#ident>
         },
@@ -424,22 +443,33 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         },
     };
 
-    let cell_struct = quote! {
-        /// Places a value in a cell of the current task.
-        ///
-        /// Cell is selected based on the value type and call order of `cell`.
-        #cell_prefix fn cell(self) -> turbo_tasks::Vc<Self> {
-            let content = self;
-            turbo_tasks::Vc::cell_private(#cell_access_content)
+    let cell_struct = if mutable {
+        quote! {
+            /// Initializes a task-owned experimental mutable cell on first creation.
+            /// Subsequent executions preserve its canonical value. Identity follows
+            /// per-type construction order; see [`MutableCell`][turbo_tasks::MutableCell].
+            pub fn mutable_cell(self) -> turbo_tasks::MutableCell<Self> {
+                turbo_tasks::MutableCell::cell_private(self)
+            }
         }
+    } else {
+        quote! {
+            /// Places a value in a cell of the current task.
+            ///
+            /// Cell is selected based on the value type and call order of `cell`.
+            #cell_prefix fn cell(self) -> turbo_tasks::Vc<Self> {
+                let content = self;
+                turbo_tasks::Vc::cell_private(#cell_access_content)
+            }
 
-        /// Places a value in a cell of the current task. Returns a
-        /// [`ResolvedVc`][turbo_tasks::ResolvedVc].
-        ///
-        /// Cell is selected based on the value type and call order of `cell`.
-        #cell_prefix fn resolved_cell(self) -> turbo_tasks::ResolvedVc<Self> {
-            let content = self;
-            turbo_tasks::ResolvedVc::cell_private(#cell_access_content)
+            /// Places a value in a cell of the current task. Returns a
+            /// [`ResolvedVc`][turbo_tasks::ResolvedVc].
+            ///
+            /// Cell is selected based on the value type and call order of `cell`.
+            #cell_prefix fn resolved_cell(self) -> turbo_tasks::ResolvedVc<Self> {
+                let content = self;
+                turbo_tasks::ResolvedVc::cell_private(#cell_access_content)
+            }
         }
     };
 
