@@ -23,7 +23,7 @@ const IndexPage = () => {
 
   if (data && data.error) {
     console.error(data.error);
-    return <p>An error occurred: ${data.error}</p>;
+    return <p>An error occurred: {data.error}</p>;
   }
   const movies = data ? data.data.movies : null;
 
@@ -83,7 +83,7 @@ const IndexPage = () => {
           font-family: sans-serif;
         }
         .status {
-          text-color: red;
+          color: red;
           text-align: center;
         }
       `}</style>
