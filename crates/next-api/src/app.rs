@@ -1246,7 +1246,7 @@ impl AppEndpoint {
         // assets to add to the middleware manifest (to be loaded in the edge runtime).
         let mut middleware_assets = fxindexset![];
 
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+        let runtime = app_entry.config.await?.entry.runtime.unwrap_or_default();
 
         let rsc_entry = app_entry.rsc_entry;
 
@@ -1750,6 +1750,7 @@ impl AppEndpoint {
                         regions: app_entry
                             .config
                             .await?
+                            .entry
                             .preferred_region
                             .as_ref()
                             .map(|region| Regions::Multiple(region.to_vec())),
@@ -1900,7 +1901,7 @@ impl AppEndpoint {
         let this = self.await?;
         let project = this.app_project.project();
         let app_entry = self.app_endpoint_entry().await?;
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+        let runtime = app_entry.config.await?.entry.runtime.unwrap_or_default();
 
         let chunking_context = project.runtime_chunking_context(process_client_assets, runtime);
 
@@ -2453,7 +2454,7 @@ impl Endpoint for AppEndpoint {
         let this = self.await?;
         let app_entry = self.app_endpoint_entry().await?;
         let rsc_entry = app_entry.rsc_entry;
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+        let runtime = app_entry.config.await?.entry.runtime.unwrap_or_default();
 
         let actions = ServerActionsGraphs::new(
             graph,
