@@ -345,6 +345,19 @@ export function createAppPageEntrypoint({
       return null
     }
 
+    // Mirrors `BaseServer`, which treats both the not-found route and a `/404`
+    // page as the 404 page.
+    const is404Page =
+      normalizedSrcPage === UNDERSCORE_NOT_FOUND_ROUTE ||
+      normalizedSrcPage === '/404'
+
+    // Ensure the 404 status when the 404 page is invoked directly (e.g. by an
+    // adapter). This mirrors `BaseServer`, which sets it before invoking this
+    // handler.
+    if (is404Page && !isRSCRequest) {
+      res.statusCode = 404
+    }
+
     /**
      * If the route being rendered is an app page, and the ppr feature has been
      * enabled, then the given route _could_ support PPR.
@@ -441,6 +454,42 @@ export function createAppPageEntrypoint({
       const postponed = body.toString('utf8')
 
       addRequestMeta(req, 'postponed', postponed)
+    }
+
+    // Method guards. These mirror the ones in `BaseServer` so that adapters
+    // that invoke this handler directly (without `NextServer`) reject the same
+    // requests before anything is rendered.
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      // Static pages only support GET and HEAD. Server actions and resume
+      // requests can use other methods.
+      const isStaticPage =
+        Boolean(req.headers['x-now-route-matches']) ||
+        (!routeModule.isDev &&
+          Boolean(prerenderManifest.routes[normalizedSrcPage]))
+
+      // Like `BaseServer`, the 404 and 500 pages are exempt. (`BaseServer` also
+      // exempts `/_error`, which only exists in the Pages Router.)
+      if (
+        isStaticPage &&
+        !isPossibleServerAction &&
+        typeof getRequestMeta(req, 'postponed') !== 'string' &&
+        !is404Page &&
+        normalizedSrcPage !== '/500'
+      ) {
+        res.statusCode = 405
+        res.setHeader('Allow', ['GET', 'HEAD'])
+        res.end('Method Not Allowed')
+        ctx.waitUntil?.(Promise.resolve())
+        return null
+      }
+
+      // An OPTIONS request to a page handler is invalid.
+      if (req.method === 'OPTIONS' && !is404Page) {
+        res.statusCode = 400
+        res.end()
+        ctx.waitUntil?.(Promise.resolve())
+        return null
+      }
     }
 
     // When enabled, this will allow the use of the `?__nextppronly` query to
