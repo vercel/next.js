@@ -236,6 +236,11 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok || !res.body) {
+      if (res && res.body) {
+        try {
+          res.body.cancel().catch(() => {})
+        } catch {}
+      }
       // in case the original URL came with a hash, preserve it before redirecting to the new URL
       if (url.hash) {
         responseUrl.hash = url.hash
@@ -698,7 +703,11 @@ export async function createFetch(
       //
       // Append the cache busting search param to the redirected URL and
       // fetch again.
-      // TODO: We should abort the previous request.
+      if (browserResponse.body) {
+        try {
+          browserResponse.body.cancel().catch(() => {})
+        } catch {}
+      }
       fetchUrl = new URL(responseUrl)
       await setCacheBustingSearchParam(fetchUrl, headers)
       browserResponse = await fetch(fetchUrl, fetchOptions)
