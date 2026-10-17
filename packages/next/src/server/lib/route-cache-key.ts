@@ -97,17 +97,31 @@ export function getRouteCacheKey(
   if (!owner) {
     throw new InvariantError('Response cache requires a source route')
   }
-  const { sourceRoute } = owner
-  let source: string
+  const source = sha256Hex(owner.sourceRoute)
+  return `/${ROUTE_CACHE_DIRECTORY}/${owner.kind}/${source}/$${normalizePagePath(pathname)}`
+}
+
+/**
+ * Runtime entries on disk belong to the build that wrote them. A configured
+ * deployment ID replaces the generated build ID with a constant, so both
+ * identify the build.
+ */
+export function getRouteCacheBuildDirectory(
+  buildId: string,
+  deploymentId: string
+): string {
+  return sha256Hex(`${buildId}\n${deploymentId}`)
+}
+
+function sha256Hex(value: string): string {
+  let hash: string
   if (process.env.NEXT_RUNTIME === 'edge') {
     const sha256 =
       require('next/dist/compiled/hash.js/sha256') as typeof import('next/dist/compiled/hash.js/sha256')
-    source = sha256()
-      .update(new TextEncoder().encode(sourceRoute))
-      .digest('hex')
+    hash = sha256().update(new TextEncoder().encode(value)).digest('hex')
   } else {
     const { createHash } = require('crypto') as typeof import('crypto')
-    source = createHash('sha256').update(sourceRoute).digest('hex')
+    hash = createHash('sha256').update(value).digest('hex')
   }
-  return `/${ROUTE_CACHE_DIRECTORY}/${owner.kind}/${source}/$${normalizePagePath(pathname)}`
+  return hash
 }
