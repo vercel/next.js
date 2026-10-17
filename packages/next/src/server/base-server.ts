@@ -879,106 +879,131 @@ export default abstract class Server<
     const method = req.method.toUpperCase()
     const tracer = getTracer()
 
-    const handleRequest = () =>
-      tracer.withPropagatedContext(req.headers, () => {
-        // Capture the parent span before creating the handleRequest span.
-        // When deployed with an adapter, the platform's runtime may create its
-        // own OTEL HTTP server span before Next.js runs. We propagate http.route
-        // to this parent span so APM tools (e.g. Datadog) can derive the
-        // resource name correctly.
-        const parentSpan = tracer.getActiveScopeSpan()
+    const handleRequest = () => {
+      // The render pass after a middleware invocation continues the trace
+      // context on the request, even when another span is active (e.g. a
+      // custom server or APM HTTP span). That is the context the
+      // middleware-invoke pass wrote onto the request, so the middleware span
+      // and the render are siblings under that pass's span, or a `traceparent`
+      // the middleware explicitly set as a request-header override.
+      const forcePropagation =
+        !getRequestMeta(req, 'middlewareInvoke') &&
+        getRequestMeta(req, 'middlewareInvokeTraceparent') !== undefined
+      // With forced propagation the active (host) span isn't the parent, so
+      // capture it before propagating to keep propagating `http.route` to it.
+      const hostSpan = forcePropagation
+        ? tracer.getActiveScopeSpan()
+        : undefined
 
-        return tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      return tracer.withPropagatedContext(
+        req.headers,
+        () => {
+          // Capture the parent span before creating the handleRequest span.
+          // When deployed with an adapter, the platform's runtime may create its
+          // own OTEL HTTP server span before Next.js runs. We propagate http.route
+          // to this parent span so APM tools (e.g. Datadog) can derive the
+          // resource name correctly.
+          const parentSpan = forcePropagation
+            ? hostSpan
+            : tracer.getActiveScopeSpan()
+
+          return tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          async (span) => {
-            if (getRequestMeta(req, 'middlewareInvoke')) {
-              // When middleware lets the request continue, the router server
-              // calls `handleRequest` twice: once to run middleware (this pass)
-              // and once to render. Publish this span's W3C trace context on
-              // the request, so the middleware span (including the Edge
-              // sandbox, which extracts it from the request headers) is a
-              // child of this span instead of starting a new trace. The
-              // middleware forwards its own span's context to the render pass
-              // via request-header overrides, which replace this value; it
-              // only stays when there is no middleware span to forward (e.g.
-              // OpenTelemetry isn't registered in the Edge runtime), keeping
-              // the render in this trace.
-              const traceContext = tracer.getTraceContextHeaders()
-              if (traceContext) {
-                Object.assign(req.headers, traceContext)
-              }
-            }
-
-            return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
-              if (!span) return
-
-              const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
-              span.setAttributes({
-                'http.status_code': res.statusCode,
-                'next.rsc': isRSCRequest,
-              })
-
-              if (res.statusCode && res.statusCode >= 500) {
-                // For 5xx status codes: SHOULD be set to 'Error' span status.
-                // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
-                span.setStatus({
-                  code: SpanStatusCode.ERROR,
-                })
-                // For span status 'Error', SHOULD set 'error.type' attribute.
-                span.setAttribute('error.type', res.statusCode.toString())
-              }
-
-              const rootSpanAttributes = tracer.getRootSpanAttributes()
-              // We were unable to get attributes, probably OTEL is not enabled
-              if (!rootSpanAttributes) return
-
-              if (
-                rootSpanAttributes.get('next.span_type') !==
-                BaseServerSpan.handleRequest
-              ) {
-                console.warn(
-                  `Unexpected root span type '${rootSpanAttributes.get(
-                    'next.span_type'
-                  )}'. Please report this Next.js issue https://github.com/vercel/next.js`
-                )
-                return
-              }
-
-              const route = rootSpanAttributes.get('next.route')
-              if (route) {
-                const name = isRSCRequest
-                  ? `RSC ${method} ${route}`
-                  : `${method} ${route}`
-
-                span.setAttributes({
-                  'next.route': route,
-                  'http.route': route,
-                  'next.span_name': name,
-                })
-                span.updateName(name)
-
-                // Propagate http.route to the parent span if one exists and
-                // is different from the handleRequest span. This ensures APM
-                // tools that read attributes from the outermost span (e.g.
-                // a platform-created HTTP span) can derive the resource name.
-                if (parentSpan && parentSpan !== span) {
-                  parentSpan.setAttribute('http.route', route)
+            async (span) => {
+              if (getRequestMeta(req, 'middlewareInvoke')) {
+                // When middleware lets the request continue, the router server
+                // calls `handleRequest` twice: once to run middleware (this pass)
+                // and once to render. Publish this span's W3C trace context on
+                // the request, so the middleware span (including the Edge
+                // sandbox, which extracts it from the request headers) and the
+                // render pass are both children of this span (siblings) instead
+                // of starting new traces.
+                const traceContext = tracer.getTraceContextHeaders()
+                if (traceContext) {
+                  Object.assign(req.headers, traceContext)
+                  addRequestMeta(
+                    req,
+                    'middlewareInvokeTraceparent',
+                    traceContext.traceparent
+                  )
                 }
-              } else {
-                span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
               }
-            })
-          }
-        )
-      })
+
+              return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+                if (!span) return
+
+                const isRSCRequest =
+                  getRequestMeta(req, 'isRSCRequest') ?? false
+                span.setAttributes({
+                  'http.status_code': res.statusCode,
+                  'next.rsc': isRSCRequest,
+                })
+
+                if (res.statusCode && res.statusCode >= 500) {
+                  // For 5xx status codes: SHOULD be set to 'Error' span status.
+                  // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+                  span.setStatus({
+                    code: SpanStatusCode.ERROR,
+                  })
+                  // For span status 'Error', SHOULD set 'error.type' attribute.
+                  span.setAttribute('error.type', res.statusCode.toString())
+                }
+
+                const rootSpanAttributes = tracer.getRootSpanAttributes()
+                // We were unable to get attributes, probably OTEL is not enabled
+                if (!rootSpanAttributes) return
+
+                if (
+                  rootSpanAttributes.get('next.span_type') !==
+                  BaseServerSpan.handleRequest
+                ) {
+                  console.warn(
+                    `Unexpected root span type '${rootSpanAttributes.get(
+                      'next.span_type'
+                    )}'. Please report this Next.js issue https://github.com/vercel/next.js`
+                  )
+                  return
+                }
+
+                const route = rootSpanAttributes.get('next.route')
+                if (route) {
+                  const name = isRSCRequest
+                    ? `RSC ${method} ${route}`
+                    : `${method} ${route}`
+
+                  span.setAttributes({
+                    'next.route': route,
+                    'http.route': route,
+                    'next.span_name': name,
+                  })
+                  span.updateName(name)
+
+                  // Propagate http.route to the parent span if one exists and
+                  // is different from the handleRequest span. This ensures APM
+                  // tools that read attributes from the outermost span (e.g.
+                  // a platform-created HTTP span) can derive the resource name.
+                  if (parentSpan && parentSpan !== span) {
+                    parentSpan.setAttribute('http.route', route)
+                  }
+                } else {
+                  span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
+                }
+              })
+            }
+          )
+        },
+        undefined,
+        forcePropagation
+      )
+    }
 
     if (!isRequestInsightsEnabled()) {
       return handleRequest()
