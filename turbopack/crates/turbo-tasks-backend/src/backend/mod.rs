@@ -154,8 +154,6 @@ pub struct BackendOptions {
     pub eviction_mode: EvictionMode,
 
     /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
-    ///
-    /// In Next.js this is driven by the `experimental.turbopackGc` config option.
     pub gc: Option<bool>,
 
     /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
@@ -277,6 +275,14 @@ pub struct TurboTasksBackend {
     /// How long a GC root may go un-anchored before it ages out.
     gc_root_ttl: Duration,
 
+    /// Current roots: tasks a GC pass in this session has observed as roots (reported by
+    /// `gc_scan_roots`, or found pinned while refreshing the roots map). Never persisted.
+    ///
+    /// A persisted root that is not a current root is from an earlier session and keeps its TTL,
+    /// even while resident. A current root that is later released was let go in this session, so a
+    /// pass may collect it right away. See `TurboTasksBackend::gc_roots_refresh_and_age_out`.
+    gc_current_roots: Mutex<FxHashSet<TaskId>>,
+
     /// How long a GC pass runs before it will honour an interrupt
     gc_min_progress: Duration,
 
@@ -377,6 +383,7 @@ impl TurboTasksBackend {
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
             gc_root_ttl,
+            gc_current_roots: Default::default(),
             gc_min_progress,
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
@@ -1409,12 +1416,30 @@ impl TurboTasksBackend {
         // but never modified don't need re-persisting since the on-disk version is still valid.
         // Captured tasks that were modified again before being persisted were already encoded by
         // `track_modification` (see `Storage::snapshots`), and are yielded without calling this.
+        // Roots in the map are protected by their TTL, so a collectible one is still persisted.
+        #[cfg(debug_assertions)]
+        let gc_protected_roots: FxHashSet<TaskId> = if !self.gc_enabled {
+            FxHashSet::default()
+        } else if let Some(roots) = &gc_roots_to_persist {
+            roots.iter().map(|(id, _)| *id).collect()
+        } else {
+            self.backing_storage
+                .roots()
+                .expect("reading gc roots should not fail")
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect()
+        };
         let process = |task_id: TaskId,
                        inner: &TaskStorage,
                        category: TaskDataCategory,
                        buffer: &mut TurboBincodeBuffer| {
+            #[cfg(debug_assertions)]
             debug_assert!(
-                !self.gc_enabled || inner.flags.deleted() || !inner.gc_collectible(),
+                !self.gc_enabled
+                    || inner.flags.deleted()
+                    || !inner.gc_collectible()
+                    || gc_protected_roots.contains(&task_id),
                 "tasks scheduled for persistent must not be collectible, this implies a missed \
                  task during GC"
             );
