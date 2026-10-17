@@ -83,11 +83,39 @@ async function getCodeHashes(
         expect(cacheWorkers).toBeGreaterThan(0)
       })
 
+      it('only discovers imports used by each cache implementation', async () => {
+        const data = await getCodeHashes(next, ['app/import-fragments/page'])
+        expect(data).toHaveLength(3)
+        const dependencies = data.map((entry) => ({
+          read: entry.runtimeEnvVarsRead.filter((name) =>
+            name.startsWith('CACHE_FRAGMENT_')
+          ),
+          existence: entry.runtimeEnvVarsExistence.filter((name) =>
+            name.startsWith('CACHE_FRAGMENT_')
+          ),
+        }))
+        expect(dependencies).toEqual(
+          expect.arrayContaining([
+            { read: ['CACHE_FRAGMENT_FIRST'], existence: [] },
+            { read: [], existence: ['CACHE_FRAGMENT_SECOND'] },
+            // The shared module-scope binding deopts: keep the broader graph.
+            {
+              read: ['CACHE_FRAGMENT_FIRST', 'CACHE_FRAGMENT_UNRELATED'],
+              existence: ['CACHE_FRAGMENT_SECOND'],
+            },
+          ])
+        )
+        const $ = await next.render$('/import-fragments')
+        expect($('p').text()).toMatch(/^first:second:shared-\d+:unrelated$/)
+      })
+
       it('lists non-inlined runtime env vars', async () => {
         const data = await getCodeHashes(next)
         expect(
           Object.fromEntries(
             data
+              // Multiple references on this page are checked individually above.
+              .filter((d) => d.page !== 'app/import-fragments/page')
               .filter((d) => d.runtimeEnvVarsRead || d.runtimeEnvVarsExistence)
               .map((d) => [
                 d.page,

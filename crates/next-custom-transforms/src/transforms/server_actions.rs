@@ -27,8 +27,12 @@ use swc_core::{
     ecma::{
         ast::*,
         codegen::{self, Emitter, text_writer::JsWriter},
+        transforms::typescript::strip,
         utils::{ExprFactory, prepend_stmts, private_ident, quote_ident},
-        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
+        visit::{
+            Visit, VisitMut, VisitMutWith, VisitWith, noop_visit_mut_type, noop_visit_type,
+            visit_mut_pass,
+        },
     },
     quote,
 };
@@ -188,6 +192,8 @@ pub fn server_actions<C: Comments>(
         annotations: Default::default(),
         extra_items: Default::default(),
         hoisted_extra_items: Default::default(),
+        cache_fragment_imports: Default::default(),
+        cache_fragment_references: Default::default(),
         reference_ids_by_export_name: Default::default(),
         server_reference_exports: Default::default(),
 
@@ -257,6 +263,8 @@ struct ServerActions<C: Comments> {
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
     hoisted_extra_items: Vec<ModuleItem>,
+    cache_fragment_imports: Vec<ImportDecl>,
+    cache_fragment_references: Vec<ModuleItem>,
 
     /// A map of all server references (inline + exported): export_name -> reference_id
     reference_ids_by_export_name: FxIndexMap<ModuleExportName, Atom>,
@@ -780,6 +788,124 @@ impl<C: Comments> ServerActions<C> {
         }
     }
 
+    /// Keep cache implementations in separate modules when their only free bindings are
+    /// imports. In particular, don't copy module-local state or helpers: that could change
+    /// binding identity, initialization order, or mutations shared with non-cache code.
+    fn maybe_split_cache_function(&mut self, start: usize, ident: &Ident, reference_id: &Atom) {
+        if !matches!(self.mode, ServerActionsMode::Turbopack) || !self.config.is_react_server_layer
+        {
+            return;
+        }
+
+        let items = &self.hoisted_extra_items[start..];
+        let mut bindings = CacheFragmentBindings::default();
+        items.visit_with(&mut bindings);
+        if bindings.unsupported {
+            return;
+        }
+
+        let mut imports = self.cache_fragment_imports.clone();
+        imports.extend(cache_fragment_runtime_imports());
+        let mut imported_ids = FxHashSet::default();
+        imports.retain_mut(|import| {
+            if import.type_only {
+                return false;
+            }
+            import.specifiers.retain(|specifier| {
+                let id = specifier.local().to_id();
+                if matches!(specifier, ImportSpecifier::Named(named) if named.is_type_only)
+                    || !bindings.used.contains(&id)
+                {
+                    return false;
+                }
+                imported_ids.insert(id);
+                true
+            });
+            !import.specifiers.is_empty()
+        });
+
+        if bindings.used.iter().any(|id| {
+            !bindings.declared.contains(id)
+                && !imported_ids.contains(id)
+                && id.1 != self.unresolved_ctxt
+                // SWC quote emits the wrapper's implicit arguments binding without
+                // a resolver mark. It is local to the generated function, not shared state.
+                && !(id.0 == *"arguments" && id.1 == SyntaxContext::empty())
+        }) {
+            return;
+        }
+
+        let mut program = Program::Module(Module {
+            body: self.hoisted_extra_items.split_off(start),
+            ..Default::default()
+        });
+        // The data URL is JavaScript, even when the source is TypeScript. JSX is
+        // handled by the generated module's regular React transform.
+        program.mutate(strip(self.unresolved_ctxt.outer(), Mark::new()));
+        let Program::Module(module) = program else {
+            unreachable!()
+        };
+        let mut body = imports
+            .into_iter()
+            .map(|import| ModuleItem::ModuleDecl(ModuleDecl::Import(import)))
+            .collect::<Vec<_>>();
+        body.extend(module.body);
+        let name = ident.sym.clone();
+        let url = program_to_data_url(
+            &self.file_name,
+            &self.cm,
+            body,
+            Some(&self.comments),
+            Comment {
+                span: DUMMY_SP,
+                kind: CommentKind::Block,
+                text: generate_server_references_comment(
+                    &std::iter::once((
+                        reference_id,
+                        ServerReferenceExportInfo { name: name.clone() },
+                    ))
+                    .collect(),
+                    Some((&self.file_name, self.file_query.as_ref().map_or("", |v| v))),
+                )
+                .into(),
+            },
+        );
+
+        self.cache_fragment_references
+            .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                    local: ident.clone(),
+                    imported: Some(ModuleExportName::Ident(name.clone().into())),
+                    span: DUMMY_SP,
+                    is_type_only: false,
+                })],
+                src: Box::new(url.into()),
+                span: DUMMY_SP,
+                type_only: false,
+                with: None,
+                phase: Default::default(),
+            })));
+        self.hoisted_extra_items
+            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                NamedExport {
+                    specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
+                        span: DUMMY_SP,
+                        orig: ModuleExportName::Ident(ident.clone()),
+                        exported: None,
+                        is_type_only: false,
+                    })],
+                    span: DUMMY_SP,
+                    src: None,
+                    type_only: false,
+                    with: None,
+                },
+            )));
+        // Only the implementation module should advertise this reference. Advertising
+        // the re-export as well would reintroduce the source module's dependencies.
+        self.reference_ids_by_export_name
+            .swap_remove(&ModuleExportName::Ident(name.into()));
+    }
+
     fn maybe_hoist_and_create_proxy_for_cache_arrow_expr(
         &mut self,
         ids_from_closure: Vec<Name>,
@@ -845,6 +971,7 @@ impl<C: Comments> ServerActions<C> {
             }),
         };
 
+        let cache_items_start = self.hoisted_extra_items.len();
         let cache_ident = create_and_hoist_cache_function(
             cache_kind.as_str(),
             reference_id.clone(),
@@ -866,6 +993,8 @@ impl<C: Comments> ServerActions<C> {
                     self.unresolved_ctxt,
                 )));
         }
+
+        self.maybe_split_cache_function(cache_items_start, &cache_ident, &reference_id);
 
         let bound_args: Vec<_> = ids_from_closure
             .iter()
@@ -939,6 +1068,7 @@ impl<C: Comments> ServerActions<C> {
         let function_body = function.body.take();
         let function_span = function.span;
 
+        let cache_items_start = self.hoisted_extra_items.len();
         let cache_ident = create_and_hoist_cache_function(
             cache_kind.as_str(),
             reference_id.clone(),
@@ -967,6 +1097,8 @@ impl<C: Comments> ServerActions<C> {
                     self.unresolved_ctxt,
                 )));
         }
+
+        self.maybe_split_cache_function(cache_items_start, &cache_ident, &reference_id);
 
         let bound_args: Vec<_> = ids_from_closure
             .iter()
@@ -1536,7 +1668,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
     fn visit_mut_module(&mut self, m: &mut Module) {
         self.start_pos = m.span.lo;
+        self.cache_fragment_imports = m
+            .body
+            .iter()
+            .filter_map(|item| {
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = item {
+                    Some(import.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
         m.visit_mut_children_with(self);
+        // Evaluate the original imports before initializing the generated wrappers,
+        // including imports that appeared after a cache declaration in the source.
+        m.body.append(&mut self.cache_fragment_references);
     }
 
     fn visit_mut_stmt(&mut self, n: &mut Stmt) {
@@ -2782,6 +2928,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             &self.file_name,
                                             &self.cm,
                                             module_items,
+                                            None,
                                             Comment {
                                                 span: DUMMY_SP,
                                                 kind: CommentKind::Block,
@@ -3979,21 +4126,145 @@ fn strip_export_name_span(export_name: &ModuleExportName) -> ModuleExportName {
     }
 }
 
+/// Binding identities are resolved before this transform. Collect declarations inside
+/// the implementation as well as uses, so a shadowed import isn't a dependency.
+#[derive(Default)]
+struct CacheFragmentBindings {
+    used: FxHashSet<Id>,
+    declared: FxHashSet<Id>,
+    unsupported: bool,
+}
+
+impl Visit for CacheFragmentBindings {
+    noop_visit_type!();
+
+    fn visit_ident(&mut self, ident: &Ident) {
+        if matches!(
+            ident.sym.as_ref(),
+            "eval" | "require" | "module" | "exports" | "__dirname" | "__filename"
+        ) {
+            self.unsupported = true;
+        }
+        self.used.insert(ident.to_id());
+    }
+
+    fn visit_binding_ident(&mut self, ident: &BindingIdent) {
+        self.declared.insert(ident.to_id());
+        ident.visit_children_with(self);
+    }
+
+    fn visit_fn_decl(&mut self, function: &FnDecl) {
+        self.declared.insert(function.ident.to_id());
+        function.visit_children_with(self);
+    }
+
+    fn visit_fn_expr(&mut self, function: &FnExpr) {
+        if let Some(ident) = &function.ident {
+            self.declared.insert(ident.to_id());
+        }
+        function.visit_children_with(self);
+    }
+
+    fn visit_class(&mut self, _: &Class) {
+        // Decorators and class transforms have source-module-specific settings.
+        self.unsupported = true;
+    }
+
+    fn visit_expr(&mut self, expr: &Expr) {
+        if matches!(expr, Expr::MetaProp(_)) {
+            self.unsupported = true;
+        }
+        expr.visit_children_with(self);
+    }
+
+    fn visit_call_expr(&mut self, call: &CallExpr) {
+        // Keep eval's implicit scope dependencies and import magic comments in the
+        // source module. CommonJS also depends on the source module's identity.
+        if matches!(&call.callee, Callee::Import(_))
+            || matches!(&call.callee, Callee::Expr(expr) if matches!(&**expr, Expr::Ident(ident) if ident.sym == *"eval" || ident.sym == *"require"))
+        {
+            self.unsupported = true;
+        }
+        call.visit_children_with(self);
+    }
+}
+
+fn cache_fragment_runtime_imports() -> Vec<ImportDecl> {
+    [
+        ("private-next-rsc-cache-wrapper", "cache", "$$cache__"),
+        ("react", "cache", "$$reactCache__"),
+        (
+            "private-next-rsc-server-reference",
+            "registerServerReference",
+            "registerServerReference",
+        ),
+    ]
+    .into_iter()
+    .map(|(source, imported, local)| ImportDecl {
+        specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+            local: quote_ident!(local).into(),
+            imported: Some(ModuleExportName::Ident(quote_ident!(imported).into())),
+            span: DUMMY_SP,
+            is_type_only: false,
+        })],
+        src: Box::new(source.into()),
+        span: DUMMY_SP,
+        type_only: false,
+        with: None,
+        phase: Default::default(),
+    })
+    .collect()
+}
+
+// Preserve source annotations (e.g. pure calls) on statements moved into a fragment.
+struct CacheFragmentComments<'a> {
+    original: &'a dyn Comments,
+    copied: &'a SingleThreadedComments,
+    leading: FxHashSet<BytePos>,
+    trailing: FxHashSet<BytePos>,
+}
+
+impl Visit for CacheFragmentComments<'_> {
+    fn visit_span(&mut self, span: &Span) {
+        if span.is_dummy() {
+            return;
+        }
+        if self.leading.insert(span.lo)
+            && let Some(comments) = self.original.get_leading(span.lo)
+        {
+            self.copied.add_leading_comments(span.lo, comments);
+        }
+        if self.trailing.insert(span.hi)
+            && let Some(comments) = self.original.get_trailing(span.hi)
+        {
+            self.copied.add_trailing_comments(span.hi, comments);
+        }
+    }
+}
+
 fn program_to_data_url(
     file_name: &str,
     cm: &Arc<SourceMap>,
     body: Vec<ModuleItem>,
+    original_comments: Option<&dyn Comments>,
     prepend_comment: Comment,
 ) -> String {
     let module_span = Span::dummy_with_cmt();
     let comments = SingleThreadedComments::default();
-    comments.add_leading(module_span.lo, prepend_comment);
-
     let program = &Program::Module(Module {
         span: module_span,
         body,
         shebang: None,
     });
+    if let Some(original) = original_comments {
+        program.visit_with(&mut CacheFragmentComments {
+            original,
+            copied: &comments,
+            leading: FxHashSet::default(),
+            trailing: FxHashSet::default(),
+        });
+    }
+    comments.add_leading(module_span.lo, prepend_comment);
 
     let mut output = vec![];
     let mut mappings = vec![];
@@ -4002,7 +4273,12 @@ fn program_to_data_url(
         cm: cm.clone(),
         wr: Box::new(JsWriter::new(
             cm.clone(),
-            " ",
+            // Source line comments must terminate before the next statement.
+            if original_comments.is_some() {
+                "\n"
+            } else {
+                " "
+            },
             &mut output,
             Some(&mut mappings),
         )),
