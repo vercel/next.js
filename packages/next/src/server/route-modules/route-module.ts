@@ -648,6 +648,9 @@ export abstract class RouteModule<
    * `tracer` must be the caller's tracer: route modules are bundled with their
    * own copy of the tracer, whose root span bookkeeping (e.g.
    * `getRootSpanAttributes`) the caller can't see.
+   *
+   * @internal - only called by the Next.js build templates. Kept out of the
+   * published type declarations, which can't reference the tracer's types.
    */
   public async traceRequest<T>(
     req: IncomingMessage,
