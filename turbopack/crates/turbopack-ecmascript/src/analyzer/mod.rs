@@ -294,7 +294,10 @@ mod tests {
     };
     use crate::{
         AnalyzeMode, SpecifiedModuleType,
-        analyzer::{Bump, ThreadLocal, graph::AssignmentScopes, imports::ImportAttributes},
+        analyzer::{
+            Bump, ThreadLocal,
+            imports::{AssignmentScopes, ImportAttributes},
+        },
     };
 
     #[fixture("tests/analyzer/graph/**/input.js")]
