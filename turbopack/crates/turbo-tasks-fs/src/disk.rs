@@ -35,15 +35,17 @@ use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
 #[cfg(windows)]
 use crate::windows::{is_link_junction_point, to_verbatim_with_case_folded_disk};
 use crate::{
-    AnyhowWrapper, DiskFileSystemMap, File, FileComparison, FileContent, FileMeta, FileSystem,
-    FileSystemPath, FileSystemPathOption, LinkContent, LinkTarget, PersistedFileContent,
-    RawDirectoryContent, RawDirectoryEntry, WriteLinkContent, WriteLinkTargetType,
+    AnyhowWrapper, CellRope, DiskFileSystemMap, File, FileComparison, FileContent, FileMeta,
+    FileSystem, FileSystemPath, FileSystemPathOption, LinkContent, LinkTarget,
+    PersistedFileContent, RawDirectoryContent, RawDirectoryEntry, WriteLinkContent,
+    WriteLinkTargetType,
     canonicalized_path_cache::CanonicalizedPathWalkCache,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
     mutex_map::MutexMap,
     path_map::OrderedPathMapExt,
     retry::{can_retry, retry_blocking, retry_blocking_custom},
+    rope::Rope,
     watcher::{DiskWatcher, DiskWatcherConfig},
 };
 
@@ -1194,190 +1196,40 @@ impl FileSystem for DiskFileSystem {
         // content is available in the persistent cache (via PersistedFileContent) and does not
         // require recomputing the content on cache restore — avoiding unnecessary downstream
         // recomputation.
+        //
+        // Files composed from other cells (`File::from_cell_rope`) are the exception: only their
+        // `CellRope` (inline bytes plus references) is persisted, because the referenced cells
+        // persist the bytes already. The hash is the same one computed for a flat write of the
+        // same bytes, so switching a path between the two doesn't rewrite an unchanged file.
+        //
+        // `File`'s equality ignores its composition, so a cell can keep an older `File` with the
+        // same bytes whose `CellRope` no longer reads them (its cells changed since). The rope is
+        // only used if it still reads exactly the file's bytes; otherwise the file is written
+        // flat. The read is untracked: tracking it would persist a dependency on every referenced
+        // cell. If the cells change later, capturing the effect fails its hash check and retries,
+        // which reruns this check against the new bytes.
+        if let FileContent::Content(file) = &*content.await?
+            && let Some(rope) = file.composed_from()
+            && file.meta == FileMeta::default()
+            && rope.untracked().await?.read_untracked().await? == *file.content()
+        {
+            WriteEffect {
+                full_path: Arc::new(full_path),
+                fs: self,
+                content: WriteEffectContent::Composed(rope),
+                content_hash: composed_content_hash(file.content()),
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(());
+        }
         let content = content.persist().to_resolved().await?;
         let content_hash = hash_xxh3_hash128(&*content.await?);
-
-        #[turbo_tasks::value(eq = "manual", cell = "new")]
-        struct WriteEffect {
-            full_path: Arc<PathBuf>,
-            fs: ResolvedVc<DiskFileSystem>,
-            content: ResolvedVc<PersistedFileContent>,
-            content_hash: u128,
-        }
-
-        #[async_trait]
-        #[turbo_tasks::value_impl]
-        impl Effect for WriteEffect {
-            async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
-                // Untracked, a tracked read of this cell occurred in the write effect so if it
-                // somehow changes the effect will be re-emitted
-                let inner = (*self.fs).untracked().await?.inner.clone();
-
-                // If the per-key effect state already records `Applied { value_hash }` matching
-                // our hash, skip materializing the content (avoids a possible disk read +
-                // decompression via the persistent cache). The apply-time state machine will
-                // dedup-hit before touching content. If state diverged between this read and
-                // apply, `Effects::apply` will fire our producer's invalidator via the Retry
-                // pathway and the producer will rerun with a fresh capture.
-                let key_bytes: Box<[u8]> = self.full_path.as_os_str().as_encoded_bytes().into();
-                let content = if inner
-                    .effect_state_storage
-                    .matches_applied(&key_bytes, self.content_hash)
-                {
-                    None
-                } else {
-                    // Untracked: the content cell is already captured via `content_hash`, and
-                    // we don't want this `capture` to take a tracked dependency on the content
-                    // cell — that would pin it and defeat the eviction this refactor enables.
-                    Some((*self.content).untracked().await?)
-                };
-                Ok(Box::new(CapturedWriteEffect {
-                    full_path: self.full_path.clone(),
-                    inner,
-                    content,
-                    content_hash: self.content_hash,
-                }) as Box<dyn CapturedEffect>)
-            }
-        }
-
-        #[derive(NonLocalValue, Clone)]
-        struct CapturedWriteEffect {
-            full_path: Arc<PathBuf>,
-            inner: Arc<DiskFileSystemInner>,
-            content: Option<ReadRef<PersistedFileContent>>,
-            content_hash: u128,
-        }
-
-        #[async_trait]
-        impl CapturedEffect for CapturedWriteEffect {
-            fn key(&self) -> Box<[u8]> {
-                self.full_path.as_os_str().as_encoded_bytes().into()
-            }
-
-            fn value_hash(&self) -> u128 {
-                self.content_hash
-            }
-
-            async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
-                let body = self.content.as_ref().map(|content| {
-                    async || self.apply_inner(content).await.map_err(AnyhowWrapper::from)
-                });
-                self.inner
-                    .effect_state_storage
-                    .run_apply::<AnyhowWrapper, _, _>(self.key(), self.content_hash, body)
-                    .await
-            }
-        }
-
-        impl CapturedWriteEffect {
-            async fn apply_inner(
-                &self,
-                content: &ReadRef<PersistedFileContent>,
-            ) -> anyhow::Result<()> {
-                let full_path = &self.full_path;
-
-                let _lock = self.inner.lock_path(full_path.clone()).await;
-
-                // We perform an untracked comparison here, so that this write is not dependent
-                // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
-                // be freed immediately. Given this is an output file, it's unlikely any Turbo
-                // code will need to read the file from disk into a Vc<FileContent>, so we're
-                // not wasting cycles.
-                let compare = content
-                    .streaming_compare(full_path)
-                    .instrument(tracing::info_span!(
-                        "read file before write",
-                        name = ?full_path,
-                    ))
-                    .concurrency_limited(&self.inner.read_semaphore)
-                    .await?;
-                if compare == FileComparison::Equal {
-                    return Ok(());
-                }
-
-                match &**content {
-                    PersistedFileContent::Content(..) => {
-                        let content = content.clone();
-
-                        let mut missing_parent_dir = false;
-                        let do_write = || {
-                            if missing_parent_dir && let Some(parent) = full_path.parent() {
-                                std::fs::create_dir_all(parent)?;
-                                missing_parent_dir = false;
-                            }
-                            let mut f = std::fs::File::create(&**full_path).inspect_err(|err| {
-                                if err.kind() == ErrorKind::NotFound {
-                                    // create the parent dirs in the next attempt
-                                    missing_parent_dir = true;
-                                }
-                            })?;
-                            let PersistedFileContent::Content(file) = &*content else {
-                                unreachable!()
-                            };
-                            std::io::copy(&mut file.read(), &mut f)?;
-                            #[cfg(unix)]
-                            f.set_permissions(file.meta.permissions.into())?;
-                            f.flush()?;
-
-                            static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
-                                std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
-                                    .is_some_and(|v| v == "1" || v == "true")
-                            });
-                            if *WRITE_VERSION {
-                                let mut full_path = (**full_path).clone();
-                                let hash = hash_xxh3_hash64(file);
-                                let orig_ext = full_path.extension();
-                                let mut ext = OsString::from(format!("{hash:016x}"));
-                                if let Some(orig_ext) = orig_ext {
-                                    ext.push(".");
-                                    ext.push(orig_ext);
-                                }
-                                full_path.set_extension(ext);
-                                validate_path_length(&full_path)?;
-                                let mut f = std::fs::File::create(&*full_path)?;
-                                std::io::copy(&mut file.read(), &mut f)?;
-                                #[cfg(unix)]
-                                f.set_permissions(file.meta.permissions.into())?;
-                                f.flush()?;
-                            }
-                            Ok::<(), io::Error>(())
-                        };
-                        fn can_retry_write(err: &io::Error) -> bool {
-                            err.kind() == ErrorKind::NotFound || can_retry(err)
-                        }
-                        retry_blocking_custom(do_write, can_retry_write)
-                            .instrument(tracing::info_span!("write file", name = ?full_path))
-                            .concurrency_limited(&self.inner.write_semaphore)
-                            .await
-                            .with_context(|| format!("failed to write to {full_path:?}"))?;
-                    }
-                    PersistedFileContent::NotFound => {
-                        retry_blocking(|| std::fs::remove_file(&**full_path))
-                            .instrument(tracing::info_span!("remove file", name = ?full_path))
-                            .concurrency_limited(&self.inner.write_semaphore)
-                            .await
-                            .or_else(|err| {
-                                if err.kind() == ErrorKind::NotFound {
-                                    Ok(())
-                                } else {
-                                    Err(err)
-                                }
-                            })
-                            .with_context(|| format!("removing {full_path:?} failed"))?;
-                    }
-                }
-
-                // Invalidate any read tasks tracking this path so they re-read the new content
-                self.inner.invalidate_from_write(&self.full_path);
-
-                Ok(())
-            }
-        }
 
         WriteEffect {
             full_path: Arc::new(full_path),
             fs: self,
-            content,
+            content: WriteEffectContent::Flat(content),
             content_hash,
         }
         .resolved_cell()
@@ -1697,6 +1549,220 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
     }
 }
 
+/// The content a [`WriteEffect`] writes.
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+enum WriteEffectContent {
+    /// Bytes persisted as a whole ([`DiskFileSystem::write`]).
+    Flat(ResolvedVc<PersistedFileContent>),
+    /// A [`CellRope`] whose bytes are persisted by the cells it references (a
+    /// [`File::from_cell_rope`] file).
+    Composed(ResolvedVc<CellRope>),
+}
+
+/// The hash [`DiskFileSystem::write`] computes for a file with these bytes and default
+/// metadata, so that composed and flat writes of the same bytes share effect state.
+fn composed_content_hash(rope: &Rope) -> u128 {
+    hash_xxh3_hash128(PersistedFileContent::Content(File::from(rope.clone())))
+}
+
+#[turbo_tasks::value(eq = "manual", cell = "new")]
+struct WriteEffect {
+    full_path: Arc<PathBuf>,
+    fs: ResolvedVc<DiskFileSystem>,
+    content: WriteEffectContent,
+    content_hash: u128,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Effect for WriteEffect {
+    async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
+        // Untracked, a tracked read of this cell occurred in the write effect so if it
+        // somehow changes the effect will be re-emitted
+        let inner = (*self.fs).untracked().await?.inner.clone();
+
+        // If the per-key effect state already records `Applied { value_hash }` matching
+        // our hash, skip materializing the content (avoids a possible disk read +
+        // decompression via the persistent cache). The apply-time state machine will
+        // dedup-hit before touching content. If state diverged between this read and
+        // apply, `Effects::apply` will fire our producer's invalidator via the Retry
+        // pathway and the producer will rerun with a fresh capture.
+        let key_bytes: Box<[u8]> = self.full_path.as_os_str().as_encoded_bytes().into();
+        let content = if inner
+            .effect_state_storage
+            .matches_applied(&key_bytes, self.content_hash)
+        {
+            None
+        } else {
+            // Untracked: the content cell is already captured via `content_hash`, and
+            // we don't want this `capture` to take a tracked dependency on the content
+            // cell — that would pin it and defeat the eviction this refactor enables.
+            match &self.content {
+                WriteEffectContent::Flat(content) => Some((*content).untracked().await?),
+                WriteEffectContent::Composed(rope) => capture_composed(*rope, self.content_hash)
+                    .await
+                    .map(ReadRef::new_owned),
+            }
+        };
+        Ok(Box::new(CapturedWriteEffect {
+            full_path: self.full_path.clone(),
+            inner,
+            content,
+            content_hash: self.content_hash,
+        }) as Box<dyn CapturedEffect>)
+    }
+}
+
+/// Reads a composed write's bytes for [`WriteEffect::capture`]. The captured bytes only live in
+/// memory until the effect is applied.
+///
+/// The referenced cells may have changed since the producer composed the rope (a `CellRope` points
+/// at the cells' *current* values) or may fail to read. In both cases, this returns `None`: no
+/// content is captured, so applying the effect takes the `ApplyError::Retry` path, which
+/// invalidates the producer. Stale or mixed bytes are never written.
+async fn capture_composed(
+    rope: ResolvedVc<CellRope>,
+    content_hash: u128,
+) -> Option<PersistedFileContent> {
+    let bytes = async { rope.untracked().await?.read_untracked().await }
+        .await
+        .ok()?;
+    (composed_content_hash(&bytes) == content_hash)
+        .then(|| PersistedFileContent::Content(File::from(bytes)))
+}
+
+#[derive(NonLocalValue, Clone)]
+struct CapturedWriteEffect {
+    full_path: Arc<PathBuf>,
+    inner: Arc<DiskFileSystemInner>,
+    content: Option<ReadRef<PersistedFileContent>>,
+    content_hash: u128,
+}
+
+#[async_trait]
+impl CapturedEffect for CapturedWriteEffect {
+    fn key(&self) -> Box<[u8]> {
+        self.full_path.as_os_str().as_encoded_bytes().into()
+    }
+
+    fn value_hash(&self) -> u128 {
+        self.content_hash
+    }
+
+    async fn apply(&self) -> Result<(), turbo_tasks::ApplyError> {
+        let body = self
+            .content
+            .as_ref()
+            .map(|content| async || self.apply_inner(content).await.map_err(AnyhowWrapper::from));
+        self.inner
+            .effect_state_storage
+            .run_apply::<AnyhowWrapper, _, _>(self.key(), self.content_hash, body)
+            .await
+    }
+}
+
+impl CapturedWriteEffect {
+    async fn apply_inner(&self, content: &ReadRef<PersistedFileContent>) -> anyhow::Result<()> {
+        let full_path = &self.full_path;
+
+        let _lock = self.inner.lock_path(full_path.clone()).await;
+
+        // We perform an untracked comparison here, so that this write is not dependent
+        // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
+        // be freed immediately. Given this is an output file, it's unlikely any Turbo
+        // code will need to read the file from disk into a Vc<FileContent>, so we're
+        // not wasting cycles.
+        let compare = content
+            .streaming_compare(full_path)
+            .instrument(tracing::info_span!(
+                "read file before write",
+                name = ?full_path,
+            ))
+            .concurrency_limited(&self.inner.read_semaphore)
+            .await?;
+        if compare == FileComparison::Equal {
+            return Ok(());
+        }
+
+        match &**content {
+            PersistedFileContent::Content(..) => {
+                let content = content.clone();
+
+                let mut missing_parent_dir = false;
+                let do_write = || {
+                    if missing_parent_dir && let Some(parent) = full_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                        missing_parent_dir = false;
+                    }
+                    let mut f = std::fs::File::create(&**full_path).inspect_err(|err| {
+                        if err.kind() == ErrorKind::NotFound {
+                            // create the parent dirs in the next attempt
+                            missing_parent_dir = true;
+                        }
+                    })?;
+                    let PersistedFileContent::Content(file) = &*content else {
+                        unreachable!()
+                    };
+                    std::io::copy(&mut file.read(), &mut f)?;
+                    #[cfg(unix)]
+                    f.set_permissions(file.meta.permissions.into())?;
+                    f.flush()?;
+
+                    static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
+                        std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
+                            .is_some_and(|v| v == "1" || v == "true")
+                    });
+                    if *WRITE_VERSION {
+                        let mut full_path = (**full_path).clone();
+                        let hash = hash_xxh3_hash64(file);
+                        let orig_ext = full_path.extension();
+                        let mut ext = OsString::from(format!("{hash:016x}"));
+                        if let Some(orig_ext) = orig_ext {
+                            ext.push(".");
+                            ext.push(orig_ext);
+                        }
+                        full_path.set_extension(ext);
+                        validate_path_length(&full_path)?;
+                        let mut f = std::fs::File::create(&*full_path)?;
+                        std::io::copy(&mut file.read(), &mut f)?;
+                        #[cfg(unix)]
+                        f.set_permissions(file.meta.permissions.into())?;
+                        f.flush()?;
+                    }
+                    Ok::<(), io::Error>(())
+                };
+                fn can_retry_write(err: &io::Error) -> bool {
+                    err.kind() == ErrorKind::NotFound || can_retry(err)
+                }
+                retry_blocking_custom(do_write, can_retry_write)
+                    .instrument(tracing::info_span!("write file", name = ?full_path))
+                    .concurrency_limited(&self.inner.write_semaphore)
+                    .await
+                    .with_context(|| format!("failed to write to {full_path:?}"))?;
+            }
+            PersistedFileContent::NotFound => {
+                retry_blocking(|| std::fs::remove_file(&**full_path))
+                    .instrument(tracing::info_span!("remove file", name = ?full_path))
+                    .concurrency_limited(&self.inner.write_semaphore)
+                    .await
+                    .or_else(|err| {
+                        if err.kind() == ErrorKind::NotFound {
+                            Ok(())
+                        } else {
+                            Err(err)
+                        }
+                    })
+                    .with_context(|| format!("removing {full_path:?} failed"))?;
+            }
+        }
+
+        // Invalidate any read tasks tracking this path so they re-read the new content
+        self.inner.invalidate_from_write(&self.full_path);
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
@@ -1709,6 +1775,336 @@ mod tests {
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
         Ok(take_effects(op).await?.cell())
+    }
+
+    mod composed_write {
+        use std::{fs::read_to_string, io::Write};
+
+        use anyhow::{Result, bail};
+        use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::{ResolvedVc, State, Vc, read_strongly_consistent_and_apply_effects};
+        use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+        use super::extract_effects_operation;
+        use crate::{
+            CellRope, CellRopeBuilder, DiskFileSystem, File, FileContent, FileSystemPath,
+            rope::Rope,
+        };
+
+        #[turbo_tasks::value]
+        struct Switch {
+            fail: State<bool>,
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn switch_operation() -> Vc<Switch> {
+            Switch {
+                fail: State::new(false),
+            }
+            .cell()
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn disk_fs_operation(root: RcStr) -> Vc<DiskFileSystem> {
+            DiskFileSystem::new(rcstr!("test"), Vc::cell(root))
+        }
+
+        #[turbo_tasks::function]
+        async fn item(switch: ResolvedVc<Switch>, text: RcStr) -> Result<Vc<Rope>> {
+            if *switch.await?.fail.get() {
+                bail!("item {text} failed");
+            }
+            Ok(Rope::from(text.to_string()).cell())
+        }
+
+        /// Composes `a<bc>d<ef>` the way a chunk does: reading each item's task output.
+        #[turbo_tasks::function]
+        async fn compose(switch: ResolvedVc<Switch>) -> Result<Vc<CellRope>> {
+            let mut builder = CellRopeBuilder::default();
+            builder += "a";
+            for (text, separator) in [("bc", "d"), ("ef", "")] {
+                let cell = item(*switch, text.into()).to_resolved().await?;
+                cell.await?;
+                builder.push_cell(cell);
+                builder.push_static_bytes(separator.as_bytes());
+            }
+            Ok(builder.build().cell())
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_operation(
+            fs: ResolvedVc<DiskFileSystem>,
+            switch: ResolvedVc<Switch>,
+        ) -> Result<()> {
+            let path = FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: rcstr!("out.js"),
+            };
+            let rope = compose(*switch).to_resolved().await?;
+            let file = File::from_cell_rope(rope).await?;
+            assert_eq!(file.composed_from(), Some(rope));
+            path.write(FileContent::Content(file).cell()).await?;
+            Ok(())
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn writes_composed_bytes_and_surfaces_item_errors() {
+            let scratch = tempfile::tempdir().unwrap();
+            let out = scratch.path().join("out.js");
+            let root: RcStr = scratch.path().to_str().unwrap().into();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async move {
+                let fs = disk_fs_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let switch_op = switch_operation();
+                let switch = switch_op.resolve().strongly_consistent().await?;
+
+                read_strongly_consistent_and_apply_effects(
+                    extract_effects_operation(write_operation(fs, switch)),
+                    |e| e,
+                )
+                .await?;
+                assert_eq!(read_to_string(&out).unwrap(), "abcdef");
+
+                // An item error fails the write; the previous file is left untouched (no partial
+                // or stale content is written).
+                switch_op.read_strongly_consistent().await?.fail.set(true);
+                let Err(err) = read_strongly_consistent_and_apply_effects(
+                    extract_effects_operation(write_operation(fs, switch)),
+                    |e| e,
+                )
+                .await
+                else {
+                    panic!("the write must fail when an item fails");
+                };
+                assert!(
+                    format!("{err:?}").contains("item bc failed"),
+                    "unexpected error: {err:?}"
+                );
+                assert_eq!(read_to_string(&out).unwrap(), "abcdef");
+
+                // Once the item recovers, the write succeeds again.
+                switch_op.read_strongly_consistent().await?.fail.set(false);
+                read_strongly_consistent_and_apply_effects(
+                    extract_effects_operation(write_operation(fs, switch)),
+                    |e| e,
+                )
+                .await?;
+                assert_eq!(read_to_string(&out).unwrap(), "abcdef");
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+
+        #[turbo_tasks::value]
+        struct Choice {
+            use_second: State<bool>,
+            first_text: State<RcStr>,
+            /// Bumped to re-run the write operation, which captures its effects again.
+            generation: State<u32>,
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn choice_operation() -> Vc<Choice> {
+            Choice {
+                use_second: State::new(false),
+                first_text: State::new(rcstr!("same")),
+                generation: State::new(0),
+            }
+            .cell()
+        }
+
+        #[turbo_tasks::function]
+        async fn first_rope(choice: ResolvedVc<Choice>) -> Result<Vc<CellRope>> {
+            let mut builder = CellRopeBuilder::default();
+            builder
+                .write_all(choice.await?.first_text.get().as_bytes())
+                .unwrap();
+            Ok(builder.build().cell())
+        }
+
+        #[turbo_tasks::function]
+        fn second_rope() -> Vc<CellRope> {
+            let mut builder = CellRopeBuilder::default();
+            builder += "same";
+            builder.build().cell()
+        }
+
+        #[turbo_tasks::function]
+        async fn chosen_file(choice: ResolvedVc<Choice>) -> Result<Vc<FileContent>> {
+            let rope = if *choice.await?.use_second.get() {
+                second_rope().to_resolved().await?
+            } else {
+                first_rope(*choice).to_resolved().await?
+            };
+            Ok(FileContent::Content(File::from_cell_rope(rope).await?).cell())
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_chosen_operation(
+            fs: ResolvedVc<DiskFileSystem>,
+            choice: ResolvedVc<Choice>,
+        ) -> Result<()> {
+            let path = FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: rcstr!("chosen.js"),
+            };
+            let _ = *choice.await?.generation.get();
+            path.write(chosen_file(*choice)).await?;
+            Ok(())
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn chosen_file_operation(choice: ResolvedVc<Choice>) -> Vc<FileContent> {
+            chosen_file(*choice)
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn first_rope_operation(choice: ResolvedVc<Choice>) -> Vc<CellRope> {
+            first_rope(*choice)
+        }
+
+        #[turbo_tasks::function]
+        fn stale_rope() -> Vc<CellRope> {
+            let mut builder = CellRopeBuilder::default();
+            builder += "stale";
+            builder.build().cell()
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_stale_composition_operation(fs: ResolvedVc<DiskFileSystem>) -> Result<()> {
+            let path = FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: rcstr!("stale.js"),
+            };
+            let file = File::from("same").with_stale_composition(stale_rope().to_resolved().await?);
+            path.write(FileContent::Content(file).cell()).await?;
+            Ok(())
+        }
+
+        /// A file whose composition no longer reads its bytes is written with its own bytes
+        /// (flat). Using the composition would capture other bytes, fail the hash check and retry
+        /// without ever succeeding.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn mismatched_composition_is_written_flat() {
+            let scratch = tempfile::tempdir().unwrap();
+            let out = scratch.path().join("stale.js");
+            let root: RcStr = scratch.path().to_str().unwrap().into();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async move {
+                let fs = disk_fs_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                read_strongly_consistent_and_apply_effects(
+                    extract_effects_operation(write_stale_composition_operation(fs)),
+                    |e| e,
+                )
+                .await?;
+                assert_eq!(read_to_string(&out).unwrap(), "same");
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_flat_operation(fs: ResolvedVc<DiskFileSystem>) -> Result<()> {
+            let path = FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: rcstr!("chosen.js"),
+            };
+            path.write(FileContent::Content(File::from("other")).cell())
+                .await?;
+            Ok(())
+        }
+
+        /// Recomposing a file from different cells with the same bytes keeps the old `File` value
+        /// (`File`'s equality ignores its composition), so the file can keep referencing cells it
+        /// no longer reads. A later write must still produce the right bytes once those cells
+        /// change.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn stale_composition_still_writes_the_file_bytes() {
+            let scratch = tempfile::tempdir().unwrap();
+            let out = scratch.path().join("chosen.js");
+            let root: RcStr = scratch.path().to_str().unwrap().into();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async move {
+                let fs = disk_fs_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let choice_op = choice_operation();
+                let choice = choice_op.resolve().strongly_consistent().await?;
+                let choice_ref = choice_op.read_strongly_consistent().await?;
+                let write = || {
+                    read_strongly_consistent_and_apply_effects(
+                        extract_effects_operation(write_chosen_operation(fs, choice)),
+                        |e| e,
+                    )
+                };
+
+                write().await?;
+                assert_eq!(read_to_string(&out).unwrap(), "same");
+
+                // Same bytes, composed by a different task. The file value is kept, so it still
+                // refers to the first composition.
+                choice_ref.use_second.set(true);
+                write().await?;
+                let first = first_rope_operation(choice)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let FileContent::Content(file) = &*chosen_file_operation(choice)
+                    .read_strongly_consistent()
+                    .await?
+                else {
+                    panic!("expected file content");
+                };
+                assert_eq!(file.composed_from(), Some(first));
+
+                // The cells the file no longer reads change.
+                choice_ref.first_text.set(rcstr!("stale"));
+                assert_eq!(
+                    first_rope_operation(choice)
+                        .read_strongly_consistent()
+                        .await?
+                        .read()
+                        .await?
+                        .to_str()?,
+                    "stale"
+                );
+
+                // Move the path's effect state away, so writing the composed file again has to
+                // capture its content.
+                read_strongly_consistent_and_apply_effects(
+                    extract_effects_operation(write_flat_operation(fs)),
+                    |e| e,
+                )
+                .await?;
+                assert_eq!(read_to_string(&out).unwrap(), "other");
+                // Re-run the write operation, so its effect is captured again from the (stale)
+                // composition.
+                choice_ref.generation.set(1);
+                write().await?;
+                assert_eq!(read_to_string(&out).unwrap(), "same");
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
