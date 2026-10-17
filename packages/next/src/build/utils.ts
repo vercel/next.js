@@ -1415,7 +1415,7 @@ export async function copyTracedFiles(
     distDir: `./${path.relative(dir, distDir)}`,
   }
   try {
-    const packageJsonPath = path.join(distDir, '../package.json')
+    const packageJsonPath = path.join(dir, 'package.json')
     const packageJsonContent = await fs.readFile(
       /* turbopackIgnore: true */ packageJsonPath,
       'utf8'
