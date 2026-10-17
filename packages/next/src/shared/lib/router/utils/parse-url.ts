@@ -1,5 +1,6 @@
 import type { ParsedUrlQuery } from 'querystring'
 
+import { DecodeError } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
 import { parseRelativeUrl } from './parse-relative-url'
 
@@ -22,7 +23,12 @@ export function parseUrl(url: string): ParsedUrl {
     return parseRelativeUrl(url)
   }
 
-  const parsedURL = new URL(url)
+  let parsedURL: URL
+  try {
+    parsedURL = new URL(url)
+  } catch {
+    throw new DecodeError()
+  }
   const username = parsedURL.username
   const password = parsedURL.password
   const auth = username
