@@ -576,7 +576,15 @@ export function processMessage(
         }),
         { findSourceMapURL }
       ).then(
-        ({ errors }) => {
+        async ({ errors }) => {
+          if (!process.env.TURBOPACK) {
+            // These errors come from the server (e.g. instant validation that
+            // runs after a navigation to a freshly compiled route) and can
+            // arrive while the client is still applying the corresponding
+            // webpack hot update. Wait for it, so that the Fast Refresh at the
+            // end of the update doesn't clear the errors from the dev overlay.
+            await waitForWebpackRuntimeHotUpdate()
+          }
           for (const error of errors) {
             // These errors originated on the server and were already logged
             // there. Mark them so the browser-to-terminal log forwarding
