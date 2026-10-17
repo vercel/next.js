@@ -7,9 +7,10 @@ title: Prerender Error with Next.js
 While prerendering a page during `next build`, an error occurred. This can happen for various reasons, including:
 
 1. Incorrect file structure or non-page files in the `pages/` directory
-2. Expecting props to be populated which are not available during prerendering
-3. Using browser-only APIs in components without proper checks
-4. Incorrect configuration in `getStaticProps` or `getStaticPaths`
+2. Colocating generic components named after reserved metadata file conventions in the `app/` directory (e.g., `icon.js`, `apple-icon.js`, `opengraph-image.js`)
+3. Expecting props to be populated which are not available during prerendering
+4. Using browser-only APIs in components without proper checks
+5. Incorrect configuration in `getStaticProps` or `getStaticPaths`
 
 ## Possible Ways to Fix It
 
@@ -49,6 +50,21 @@ Example folder structure:
       ├── layout.tsx
       └── page.tsx
 ```
+
+##### Avoid naming generic components after reserved metadata file conventions
+
+While the App Router supports colocation, certain file names within the `app` directory are [special metadata file conventions](/docs/app/api-reference/file-conventions/metadata). These include `icon.js` / `icon.tsx`, `apple-icon.js` / `apple-icon.tsx`, `opengraph-image.js` / `opengraph-image.tsx`, `twitter-image.js` / `twitter-image.tsx`, `sitemap.js` / `sitemap.ts`, and `robots.js` / `robots.ts`.
+
+If you colocate a generic UI component with one of these reserved names (for example, creating `app/icon.tsx` or `app/shop/icon.tsx` for an SVG icon component):
+
+- Next.js will treat the file as a dynamic app icon route rather than a standard component.
+- During `next build`, Next.js will attempt to prerender it as a metadata image. If the component does not export the required `ImageResponse` or icon configuration, a prerender error will occur.
+
+**How to fix:**
+
+- Rename your component to something that does not conflict with metadata conventions (e.g., `IconComponent.tsx` or `LogoIcon.tsx`).
+- Or place reusable components outside the `app/` directory in a dedicated root `components/` folder.
+- If you intentionally want to generate a dynamic favicon or icon, ensure the file exports a default function returning an `ImageResponse` as documented in [App Icons](/docs/app/api-reference/file-conventions/metadata/app-icons).
 
 ### 2. Handle undefined props and missing data
 
@@ -146,5 +162,6 @@ This provides unminified stack traces with source maps, making it easier to pinp
 - [Handling Errors in Next.js](/docs/app/getting-started/error-handling)
 - [Data Fetching in Next.js](/docs/app/getting-started/fetching-data)
 - [Debugging prerender errors](/docs/app/api-reference/cli/next#debugging-prerender-errors)
+- [App Icons and Metadata Files](/docs/app/api-reference/file-conventions/metadata/app-icons)
 
 If you continue to experience issues after trying these solutions, consider checking your server logs for more detailed error messages or reaching out to the Next.js community for support.
