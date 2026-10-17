@@ -3767,22 +3767,20 @@ export async function cache(
                 if (result.type === 'cached') {
                   const { stream: ignoredStream, pendingCacheResult } = result
 
-                  const savedCacheResult = saveToResumeDataCache(
-                    resumeDataCache,
-                    serializedCacheKey,
-                    pendingCacheResult,
-                    logPrefix
-                  )
-
+                  // Background revalidation updates the persistent cache for
+                  // subsequent requests. Keep this request's Resume Data Cache
+                  // pinned to the stale entry it already rendered, so later
+                  // renders in the same request don't wait for regeneration or
+                  // observe a different value.
                   const pendingWrite = cacheHandler
                     ? saveToCacheHandler(
                         cacheHandler,
                         id,
                         cacheHandlerKeyBase,
-                        savedCacheResult,
+                        pendingCacheResult,
                         rootParams
                       )
-                    : savedCacheResult.then(() => {})
+                    : pendingCacheResult.then(() => {})
 
                   for (const completion of await Promise.allSettled([
                     ignoredStream.cancel(),

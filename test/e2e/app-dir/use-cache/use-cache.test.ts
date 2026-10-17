@@ -455,6 +455,36 @@ describe('use-cache', () => {
     expect(secondValue).not.toBe(firstValue)
   })
 
+  if (isNextStart) {
+    it('keeps stale use-cache values stable within a single request', async () => {
+      const browser = await next.browser('/stale-resume-data-stability')
+      const initialValues = (await browser.elementById('values').text()).split('|')
+      expect(initialValues[0]).toBe(initialValues[1])
+
+      // Let the cached entry pass its one-second revalidation interval.
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+      await browser.refresh()
+
+      const staleResponseValues = (
+        await browser.elementById('values').text()
+      ).split('|')
+
+      // Background revalidation may update persistent storage, but the current
+      // request must keep returning the entry it started with.
+      expect(staleResponseValues[0]).toBe(initialValues[0])
+      expect(staleResponseValues[1]).toBe(initialValues[0])
+
+      await retry(async () => {
+        await browser.refresh()
+        const refreshedValues = (
+          await browser.elementById('values').text()
+        ).split('|')
+        expect(refreshedValues[0]).not.toBe(initialValues[0])
+        expect(refreshedValues[0]).toBe(refreshedValues[1])
+      })
+    })
+  }
+
   it('should revalidate caches during on-demand revalidation', async () => {
     const browser = await next.browser('/on-demand-revalidate')
     const initial = await browser.elementById('value').text()
