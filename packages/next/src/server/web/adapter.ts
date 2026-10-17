@@ -28,6 +28,8 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import { createWorkStore } from '../async-storage/work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { NEXT_VARIANTS_HEADER } from '../../lib/constants'
+import { getProxyTarget } from '../variants/target'
 import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
@@ -107,6 +109,50 @@ let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
 ) => {
   const tracer = getTracer()
   return tracer.withPropagatedContext(request.headers, fn, headersGetter)
+}
+
+/**
+ * Sends one request header to the origin, from code that runs after a proxy.
+ *
+ * `x-middleware-override-headers` is not additive. It names the complete set of
+ * request headers that the origin receives, and the origin drops every header
+ * that the list omits. Where a proxy overrode nothing, this function therefore
+ * names every incoming header as well as the new one.
+ * `NextResponse.next({ request })` builds the same list when user code sets a
+ * request header.
+ */
+function setRequestHeaderOverride(
+  response: Response,
+  requestHeaders: Headers,
+  name: string,
+  value: string
+): void {
+  const existingOverrides = response.headers.get(
+    'x-middleware-override-headers'
+  )
+
+  if (existingOverrides) {
+    response.headers.set(
+      'x-middleware-override-headers',
+      `${existingOverrides},${name}`
+    )
+  } else {
+    const names: string[] = []
+
+    for (const [key, headerValue] of requestHeaders) {
+      response.headers.set(`x-middleware-request-${key}`, headerValue)
+      names.push(key)
+    }
+
+    response.headers.set(
+      'x-middleware-override-headers',
+      [...names, name].join(',')
+    )
+  }
+
+  // This is written last, so that the value replaces an incoming header of the
+  // same name, whichever branch above named it.
+  response.headers.set(`x-middleware-request-${name}`, value)
 }
 
 let testApisIntercepted = false
@@ -452,6 +498,35 @@ export async function adapter(
           NEXT_REWRITTEN_QUERY_HEADER,
           // remove the leading ? from the search string
           destination.search.slice(1)
+        )
+      }
+    }
+  }
+
+  if (response) {
+    /**
+     * The variants that a proxy resolved for this request.
+     *
+     * The wrapper sets them on its response. This code removes that header and
+     * sends the values as a request header override instead. The values then
+     * reach the origin, and neither the CDN nor the browser receives them.
+     */
+    const encodedVariants = response.headers.get(NEXT_VARIANTS_HEADER)
+
+    if (encodedVariants) {
+      response.headers.delete(NEXT_VARIANTS_HEADER)
+
+      const target = getProxyTarget(requestURL, response)
+
+      // The target is null when the proxy rewrote the request to another
+      // origin. That origin renders no route of this application, and it does
+      // not remove an internal header, so this code drops the values.
+      if (target) {
+        setRequestHeaderOverride(
+          response,
+          requestHeaders,
+          NEXT_VARIANTS_HEADER,
+          encodedVariants
         )
       }
     }
