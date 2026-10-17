@@ -256,4 +256,52 @@ describe.each([
     })
     expectNoInternalHeaders(res)
   })
+
+  // The `instrumentation.ts` lifecycle spans (`load instrumentation module`,
+  // `register instrumentation`) of the instance serving the request.
+  it('traces instrumentation registration in the triggering request', async () => {
+    const res = await next.fetch('/instrumentation-spans')
+    expect(res.status).toBe(200)
+    const { spans } = (await res.json()) as {
+      spans: {
+        type: string
+        traceId: string
+        parentSpanId: string | null
+        parentTraceId: string | null
+        parentType: string | null
+      }[]
+    }
+    expect([...new Set(spans.map((span) => span.type))].sort()).toEqual([
+      'Instrumentation.loadModule',
+      'Instrumentation.register',
+    ])
+    for (const span of spans) {
+      if (isNextDeploy) {
+        // Deployed functions register instrumentation lazily, in the first
+        // request they handle: the lifecycle spans are children of that
+        // request's span (a route or page entrypoint), of the root inserted by
+        // the middleware adapter (a Node.js middleware entrypoint), or of the
+        // incoming / platform span (started outside this instance), in its
+        // trace.
+        expect(span.traceId).toMatch(TRACE_ID)
+        expect(span.parentSpanId).toMatch(SPAN_ID)
+        expect(span.parentTraceId).toBe(span.traceId)
+        if (span.parentType !== null) {
+          expect(['BaseServer.handleRequest', 'Middleware.request']).toContain(
+            span.parentType
+          )
+        }
+      } else {
+        // `next start` / `next dev` register instrumentation at startup,
+        // outside of any request, so the lifecycle spans are roots.
+        expect(span).toEqual({
+          type: span.type,
+          traceId: expect.stringMatching(TRACE_ID),
+          parentSpanId: null,
+          parentTraceId: null,
+          parentType: null,
+        })
+      }
+    }
+  })
 })

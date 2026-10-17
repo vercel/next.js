@@ -101,6 +101,16 @@ export type AdapterOptions = {
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
+  /**
+   * When the Node.js middleware entrypoint registered `instrumentation.ts` for
+   * this request: emits its lifecycle spans, in the request's trace.
+   */
+  emitInstrumentationSpans?: () => void
+  /**
+   * When the request was received (epoch milliseconds), if before the
+   * adapter ran (e.g. while registering `instrumentation.ts`).
+   */
+  requestStartTime?: number
 }
 
 // This has to be compatible with what the Vercel builder does as well:
@@ -317,7 +327,9 @@ export async function adapter(
         // siblings: they share the currently active context as their parent.
         // That is the request's `traceparent` (incoming, or written by
         // next-server's middleware-invoke pass), an active host span, or the
-        // root span inserted below.
+        // root span inserted below. The lifecycle spans of `instrumentation.ts`,
+        // when this request registered it, are children of that parent too.
+        params.emitInstrumentationSpans?.()
         const receivedHeaders = new Headers(request.headers)
         forwardedTraceContext = getSharedParentTraceContext(
           receivedHeaders,
@@ -425,12 +437,14 @@ export async function adapter(
         // context (no incoming `traceparent`, no host span): insert a root
         // span for the request. Its context is forwarded to the render, so the
         // middleware and the render are siblings in one trace instead of two
-        // independent root spans.
+        // independent root spans. It is backdated to when the request was
+        // received, to cover registering `instrumentation.ts`.
         return tracer.trace(
           MiddlewareSpan.request,
           {
             spanName: `${request.method} ${request.nextUrl.pathname}`,
             kind: SpanKind.SERVER,
+            startTime: params.requestStartTime,
             attributes: {
               'http.target': request.nextUrl.pathname,
               'http.method': request.method,
