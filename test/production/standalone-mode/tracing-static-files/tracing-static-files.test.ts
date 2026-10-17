@@ -7,6 +7,9 @@ describe('standalone mode - tracing-static-files', () => {
     files: __dirname,
     dependencies,
     skipStart: true,
+    // asserts on `node_modules/foo` in the top-level `files` list, which excludes
+    // the virtual store
+    pnpmGlobalVirtualStore: false,
   })
 
   it('should trace process.cwd calls in node_modules', async () => {

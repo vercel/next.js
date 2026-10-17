@@ -78,12 +78,18 @@ async function findConfigFile(fileName, installDir, isolationRoot) {
  *
  * @param {string} installDir
  * @param {string} isolationRoot
+ * @param {boolean} pnpmGlobalVirtualStore
  * @returns {Promise<void>}
  */
-async function applyInstallSecuritySettings(installDir, isolationRoot) {
+async function applyInstallSecuritySettings(
+  installDir,
+  isolationRoot,
+  pnpmGlobalVirtualStore
+) {
   const pnpmSettings = {
     ...getPnpmSecuritySettings(),
     ...PNPM_TEST_DIR_SETTINGS,
+    enableGlobalVirtualStore: pnpmGlobalVirtualStore,
   }
   const workspaceFile = await findConfigFile(
     'pnpm-workspace.yaml',
@@ -252,6 +258,8 @@ async function packPackages(parentSpan) {
  * @param {object} [param0.packageJson]
  * @param {string} [param0.subDir]
  * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} [param0.beforeInstall]
+ * @param {boolean} [param0.pnpmGlobalVirtualStore] Install packages into
+ *   pnpm's global virtual store, so that they live outside of the project root.
  * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>}>}
  */
 async function createNextInstall({
@@ -262,6 +270,7 @@ async function createNextInstall({
   packageJson = {},
   subDir = '',
   beforeInstall,
+  pnpmGlobalVirtualStore = true,
 }) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
 
@@ -422,7 +431,11 @@ async function createNextInstall({
           : installCommand
         : null
 
-      await applyInstallSecuritySettings(installDir, isolationRoot)
+      await applyInstallSecuritySettings(
+        installDir,
+        isolationRoot,
+        pnpmGlobalVirtualStore
+      )
       await applyWorkspaceOverrides(installDir, isolationRoot, {
         ...workspacePkgOverrides,
         ...(resolutions || {}),
