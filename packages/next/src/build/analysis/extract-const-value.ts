@@ -4,6 +4,7 @@ import type {
   ExportDeclaration,
   Identifier,
   KeyValueProperty,
+  MemberExpression,
   Module,
   Node,
   NullLiteral,
@@ -11,6 +12,7 @@ import type {
   ObjectExpression,
   RegExpLiteral,
   StringLiteral,
+  TaggedTemplateExpression,
   TemplateLiteral,
   TsAsExpression,
   TsConstAssertion,
@@ -65,6 +67,12 @@ function isRegExpLiteral(node: Node): node is RegExpLiteral {
 
 function isTemplateLiteral(node: Node): node is TemplateLiteral {
   return node.type === 'TemplateLiteral'
+}
+
+function isTaggedTemplateExpression(
+  node: Node
+): node is TaggedTemplateExpression {
+  return node.type === 'TaggedTemplateExpression'
 }
 
 function isTsAsExpression(node: Node): node is TsAsExpression {
@@ -211,6 +219,32 @@ function extractValue(node: Node, path?: string[]): ExtractValueResult {
     const [{ cooked, raw }] = node.quasis
 
     return { value: cooked ?? raw }
+  } else if (isTaggedTemplateExpression(node)) {
+    // e.g. String.raw`/api/:path*`
+    // Only support String.raw with no expressions
+    const { tag, template } = node
+    if (
+      tag.type === 'MemberExpression' &&
+      (tag as MemberExpression).object.type === 'Identifier' &&
+      ((tag as MemberExpression).object as Identifier).value === 'String' &&
+      (tag as MemberExpression).property.type === 'Identifier' &&
+      ((tag as MemberExpression).property as Identifier).value === 'raw'
+    ) {
+      if (template.expressions.length !== 0) {
+        return {
+          unsupported:
+            'Unsupported String.raw template literal with expressions',
+          path: formatCodePath(path),
+        }
+      }
+      // String.raw returns the raw string without processing escape sequences
+      const [{ raw }] = template.quasis
+      return { value: raw }
+    }
+    return {
+      unsupported: `Unsupported tagged template expression`,
+      path: formatCodePath(path),
+    }
   } else if (
     isTsSatisfiesExpression(node) ||
     isTsAsExpression(node) ||
