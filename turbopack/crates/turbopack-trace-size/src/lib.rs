@@ -1,6 +1,7 @@
 //! Size analysis for Turbopack trace files (`trace-turbopack.bin`).
 //!
-//! A trace file is a `TRACEv0` magic header followed by a stream of
+//! A trace file is a [`TRACE_HEADER`] (magic bytes with the format version)
+//! followed by a stream of
 //! [`postcard`]-serialized [`TraceRow`]s, optionally gzip or zstd compressed.
 //! [`TraceSizeAnalyzer`] decodes that stream and attributes the bytes of every
 //! row to its row type and span, and the bytes of attributes and strings to
@@ -20,10 +21,9 @@ use std::{
 use anyhow::{Context, Result, bail};
 use flate2::bufread::MultiGzDecoder;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbopack_trace_utils::tracing::{Allocations, TimestampDecoder, TraceRow, TraceValue};
-
-/// The magic bytes at the start of every (uncompressed) trace file.
-pub const TRACE_HEADER: &[u8] = b"TRACEv0";
+use turbopack_trace_utils::tracing::{
+    Allocations, TRACE_HEADER, TimestampDecoder, TraceRow, TraceValue, check_trace_header,
+};
 
 const READ_CHUNK_SIZE: usize = 16 * 1024 * 1024;
 
@@ -213,7 +213,7 @@ pub struct TraceSizeAnalyzer {
     pub compression: Compression,
     /// Size of the decompressed trace stream, including the header.
     pub uncompressed_size: u64,
-    /// Bytes of the `TRACEv0` header.
+    /// Bytes of the [`TRACE_HEADER`].
     pub header_bytes: u64,
     /// Bytes at the end of the stream that don't form a complete row (e.g.
     /// when the process was killed while writing the trace).
@@ -291,11 +291,9 @@ impl TraceSizeAnalyzer {
                 if buffer.len() < TRACE_HEADER.len() && !eof {
                     continue;
                 }
-                // Old trace files don't have a header
-                if buffer.starts_with(TRACE_HEADER) {
-                    start = TRACE_HEADER.len();
-                    self.header_bytes = TRACE_HEADER.len() as u64;
-                }
+                check_trace_header(&buffer)?;
+                start = TRACE_HEADER.len();
+                self.header_bytes = TRACE_HEADER.len() as u64;
                 header_checked = true;
             }
             loop {
@@ -1219,15 +1217,24 @@ mod tests {
     }
 
     #[test]
-    fn reads_files_without_header() {
+    fn rejects_files_with_missing_or_unsupported_header() {
         let (data, _) = encode(&sample_rows());
-        let mut analyzer = TraceSizeAnalyzer::new();
-        analyzer
+        let err = TraceSizeAnalyzer::new()
             .analyze_reader(&data[TRACE_HEADER.len()..])
-            .unwrap();
-        assert_eq!(analyzer.header_bytes, 0);
-        assert_eq!(analyzer.row_count(), sample_rows().len() as u64);
-        assert_eq!(analyzer.row_bytes(), analyzer.uncompressed_size);
+            .unwrap_err();
+        assert!(err.to_string().contains("missing TRACEv1 header"), "{err}");
+
+        let mut old = b"TRACEv0".to_vec();
+        old.extend_from_slice(&data[TRACE_HEADER.len()..]);
+        let err = TraceSizeAnalyzer::new()
+            .analyze_reader(&old[..])
+            .unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "Unsupported trace file version: expected TRACEv1, found TRACEv0"
+        );
+
+        assert!(TraceSizeAnalyzer::new().analyze_reader(&b""[..]).is_err());
     }
 
     #[test]

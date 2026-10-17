@@ -497,7 +497,7 @@ pub(crate) mod tests {
     use crate::{
         raw_trace::{RawTraceLayer, RawTraceLayerOptions},
         trace_writer::TraceWriter,
-        tracing::{Allocations, TimestampDecoder, TraceRow},
+        tracing::{Allocations, TRACE_HEADER, TimestampDecoder, TraceRow},
     };
 
     thread_local! {
@@ -598,7 +598,7 @@ pub(crate) mod tests {
     /// Decodes all rows of a trace file including [`TraceRow::TimestampBase`] rows, skipping the
     /// header. Timestamps are resolved to absolute values.
     pub(crate) fn decode_all(data: &[u8]) -> Vec<TraceRow<'_, u64>> {
-        let header = b"TRACEv0";
+        let header = TRACE_HEADER;
         assert!(data.starts_with(header), "missing trace header");
         let mut remaining = &data[header.len()..];
         let mut decoder = TimestampDecoder::default();
