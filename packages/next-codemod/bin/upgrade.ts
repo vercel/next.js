@@ -16,6 +16,10 @@ import {
   addPackageDependency,
   runInstallation,
 } from '../lib/handle-package'
+import {
+  eslintSpecifierSatisfiesPeer,
+  resolveEslintUpgradeVersion,
+} from '../lib/resolve-eslint-upgrade'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 import { refreshAgentRulesBlock } from '../lib/agents-md'
@@ -417,18 +421,33 @@ export async function runUpgrade(
           : JSON.parse(eslintConfigNextPeerDepsJSON)
       const eslintRange = eslintConfigNextPeerDeps?.eslint
       if (eslintRange) {
-        // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
-        // eslint-plugin-react, support its API removals (e.g. context.getFilename).
-        const cappedRange = eslintRange
-          .split('||')
-          .map((range) => `${range.trim()} <10`)
-          .join(' || ')
-        const targetEslintVersion = await loadHighestNPMVersionMatching(
-          `eslint@${cappedRange}`
-        )
-        versionMapping['eslint'] = {
-          version: targetEslintVersion,
-          required: false,
+        const currentEslint = allDependencies['eslint']
+        if (!eslintSpecifierSatisfiesPeer(currentEslint, eslintRange)) {
+          // TODO: Target ESLint 10 once eslint-config-next's plugins, especially
+          // eslint-plugin-react, support its API removals (e.g. context.getFilename).
+          const cappedRange = eslintRange
+            .split('||')
+            .map((range) => `${range.trim()} <10`)
+            .join(' || ')
+          const versionsJSON = execSync(
+            `npm --silent view "eslint@${cappedRange}" --json --field version`,
+            { encoding: 'utf-8' }
+          )
+          const versionOrVersions = JSON.parse(versionsJSON)
+          const versionsMatchingPeer = Array.isArray(versionOrVersions)
+            ? versionOrVersions
+            : [versionOrVersions]
+          const targetEslintVersion = resolveEslintUpgradeVersion(
+            currentEslint,
+            eslintRange,
+            versionsMatchingPeer
+          )
+          if (targetEslintVersion) {
+            versionMapping['eslint'] = {
+              version: targetEslintVersion,
+              required: false,
+            }
+          }
         }
       }
     } catch (e) {
