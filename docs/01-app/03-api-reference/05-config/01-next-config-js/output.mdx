@@ -159,6 +159,7 @@ module.exports = {
 >
 > - Prefer forward slashes (`/`) in patterns for cross-platform compatibility.
 > - Keep patterns as narrow as possible to avoid oversized traces (avoid `**/*` at the repo root).
+> - When using `output: 'standalone'` in a monorepo setup with `outputFileTracingRoot`, the output directory mirrors your repository structure. The generated `server.js` will not be at `.next/standalone/server.js`, but rather nested under the path of your app relative to the monorepo root (for example, `.next/standalone/packages/web-app/server.js`).
 
 Common include patterns for native/runtime assets:
 
