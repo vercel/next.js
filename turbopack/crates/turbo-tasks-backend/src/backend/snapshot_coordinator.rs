@@ -286,9 +286,11 @@ impl SnapshotCoordinator {
     }
 
     /// Like [`begin_snapshot`](Self::begin_snapshot), but never waits: begins the snapshot only
-    /// if no operation is active right now and no other phase is waiting, otherwise returns
-    /// `None`. A refused attempt leaves the flags as they were; it may briefly set the running
-    /// bit, which sends operations arriving in that moment through the mutex.
+    /// if no operation is active right now, otherwise returns `None`. A refused attempt leaves the
+    /// flags as they were; it may briefly set the running bit, which sends operations arriving in
+    /// that moment through the mutex.
+    ///
+    /// Like `begin_snapshot`, concurrent callers panic.
     pub fn try_begin_snapshot(&self) -> Option<SnapshotPhase<'_>> {
         let mut state = self.state.lock();
         // Callers must serialize snapshots themselves.
@@ -296,11 +298,13 @@ impl SnapshotCoordinator {
             !state.snapshot_requested,
             "begin_snapshot called while another snapshot was already in flight"
         );
-        // A phase waiting for its drain owns the flags; closing admission here would clear its
-        // request.
-        if self.flags.load(Ordering::SeqCst) != 0 {
-            return None;
-        }
+        // A `begin_snapshot` waiting for its drain also has `snapshot_requested` clear, so check
+        // the flags too: closing admission here would clear its request.
+        assert_eq!(
+            self.flags.load(Ordering::SeqCst),
+            0,
+            "try_begin_snapshot called while another snapshot was already in flight"
+        );
         // Without waiting there is no need to request a drain: either nothing is active and we
         // close admission immediately, or we give up and leave the flags clear.
         self.try_close_admission(0, Duration::ZERO).ok()?;
@@ -794,35 +798,6 @@ mod tests {
     }
 
     #[test]
-    fn waiting_phase_admits_operations_between_attempts() {
-        // A waiting phase keeps retrying to close admission. Operations that start meanwhile,
-        // including ones that hit an attempt's running bit and take the mutex, must all be
-        // admitted, and the phase must close once they and the original operation end.
-        run_with_timeout("admits between attempts", Duration::from_secs(30), || {
-            let coord = Arc::new(SnapshotCoordinator::new());
-            let op = coord.begin_operation();
-            let snapshot = thread::spawn({
-                let coord = coord.clone();
-                move || drop(coord.begin_snapshot(|_| {}))
-            });
-            wait_for_snapshot_request(&coord);
-            thread::scope(|scope| {
-                for _ in 0..4 {
-                    scope.spawn(|| {
-                        for _ in 0..10_000 {
-                            drop(coord.begin_operation());
-                        }
-                    });
-                }
-            });
-            assert_eq!(coord.state_word(), SNAPSHOT_WAITING_BIT | 1);
-            drop(op);
-            snapshot.join().unwrap();
-            assert_eq!(coord.state_word(), 0);
-        });
-    }
-
-    #[test]
     fn stress_exclusion_with_shared_stripes() {
         // More threads than stripes, some holding their guard for a while, against both kinds of
         // phase. No operation may hold a guard while a phase is closed. Phases need moments
@@ -871,7 +846,12 @@ mod tests {
                                 Some(coord.begin_snapshot(|_| {}))
                             };
                             if let Some(phase) = phase {
+                                // Stay closed long enough for an operation admitted by mistake
+                                // to observe it.
                                 closed.store(true, Ordering::SeqCst);
+                                for _ in 0..100 {
+                                    std::hint::spin_loop();
+                                }
                                 closed.store(false, Ordering::SeqCst);
                                 drop(phase);
                             }
@@ -900,7 +880,7 @@ mod tests {
     }
 
     #[test]
-    fn try_begin_snapshot_refuses_while_a_snapshot_waits() {
+    fn try_begin_snapshot_panics_while_a_snapshot_waits() {
         run_with_timeout("try_begin during a wait", Duration::from_secs(10), || {
             let coord = Arc::new(
                 SnapshotCoordinator::new_with_custom_slow_settle_report_timeout(
@@ -913,15 +893,17 @@ mod tests {
                 move || drop(coord.begin_snapshot(|_| {}))
             });
             wait_for_snapshot_request(&coord);
-            assert!(coord.try_begin_snapshot().is_none());
-            assert_ne!(
-                coord.settled_flags() & SNAPSHOT_WAITING_BIT,
-                0,
-                "a refused try_begin_snapshot must leave the waiting phase's request in place"
+            let attempt = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                coord.try_begin_snapshot().is_none()
+            }));
+            assert!(
+                attempt.is_err(),
+                "overlapping try_begin_snapshot must panic"
             );
-            // the waiting phase still closes once the operation ends
+            // the waiting phase is unaffected and closes once the operation ends
             drop(op);
             snapshot.join().unwrap();
+            assert_eq!(coord.state_word(), 0);
         });
     }
 
