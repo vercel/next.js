@@ -144,7 +144,7 @@ impl SnapshotCoordinator {
         stripe.fetch_add(1, Ordering::SeqCst);
         if (self.flags.load(Ordering::SeqCst) & SNAPSHOT_RUNNING_BIT) == 0 {
             return OperationGuard {
-                stripe,
+                active_operation_counter: stripe,
                 _not_send: PhantomData,
             };
         }
@@ -177,7 +177,7 @@ impl SnapshotCoordinator {
         }
         wait_for_admission(self, stripe);
         OperationGuard {
-            stripe,
+            active_operation_counter: stripe,
             _not_send: PhantomData,
         }
     }
@@ -312,14 +312,11 @@ impl SnapshotCoordinator {
     }
 }
 
-/// Guard returned by [`SnapshotCoordinator::begin_operation`]. Decrements its stripe on drop.
-///
-/// `!Send`, so an operation ends on the thread that began it and each stripe is only written by
-/// the threads that map to it. Moving a guard would still be correct here, since stripes are
-/// updated with atomic read-modify-writes, but nothing needs to, and it keeps the door open for
-/// counters that only their own thread writes.
+/// Guard returned by [`SnapshotCoordinator::begin_operation`]. Decrements `active_operations` on
+/// drop.
 pub struct OperationGuard<'a> {
-    stripe: &'a AtomicUsize,
+    active_operation_counter: &'a AtomicUsize,
+    // Ensures the thread that increments the counter is also the one that decrements it
     _not_send: PhantomData<*const ()>,
 }
 
@@ -328,7 +325,9 @@ impl Drop for OperationGuard<'_> {
         // `Release` is enough: only the increment takes part in the store-load handshake with a
         // closing phase. A phase whose `SeqCst` sum reads this decrement acquires the
         // operation's writes.
-        let prev = self.stripe.fetch_sub(1, Ordering::Release);
+        let prev = self
+            .active_operation_counter
+            .fetch_sub(1, Ordering::Release);
         // Underflow means a guard was dropped without a matching increment;
         // promoted from debug_assert because the alternative is silently
         // wrapping to usize::MAX and breaking every subsequent snapshot.
