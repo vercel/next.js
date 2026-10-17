@@ -77,5 +77,7 @@ function encodeToFilesystemAndURLSafeString(value: string) {
 export function convertSegmentPathToStaticExportFilename(
   segmentPath: string
 ): string {
-  return `__next${segmentPath.replace(/\//g, '.')}.txt`
+  // Replace both forward slashes and backslashes with dots to ensure
+  // a flat filename regardless of platform path separators.
+  return `__next${segmentPath.replace(/[/\\]/g, '.')}.txt`
 }
