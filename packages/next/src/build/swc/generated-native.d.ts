@@ -779,7 +779,7 @@ export declare function teardownTraceSubscriber(
 
 /** Aggregate view of a span's TurboMalloc memory samples. */
 export interface TraceMemorySummary {
-  /** Number of samples in the span's range, after downsampling. */
+  /** Number of captured readings in the span's range, without downsampling. */
   count: number
   /** Live bytes at the first sample in the range. */
   start: number
@@ -833,6 +833,11 @@ export interface TraceQueryOptions {
   page?: number
   /** Spans per page. Default `20`, capped at `500`. */
   pageSize?: number
+  /**
+   * Optional maximum values per sample series, including counts above 200.
+   * Must be a nonnegative safe integer. Zero requests empty arrays.
+   */
+  samples?: number
 }
 
 /** The result of a `query_trace_spans` call. */
@@ -876,7 +881,7 @@ export interface TraceSpanInfo {
   avgCorrectedDuration?: number
   /**
    * Raw span ID of the group's example span, whose `cpuDuration`,
-   * `correctedDuration` and `memorySamples` are the ones reported here.
+   * `correctedDuration`, `memorySummary` and `sampleSeries` are reported here.
    * First in execution order — *not* the largest, so it can badly understate
    * a group's allocations. Use `heaviestSpanId` for those.
    */
@@ -890,8 +895,9 @@ export interface TraceSpanInfo {
    * Total bytes allocated by this span and all its children.
    *
    * For aggregated groups this is the group total, unlike `cpuDuration`,
-   * `correctedDuration` and `memorySamples`, which describe the example span
-   * only. Every allocation field below follows this field, not those.
+   * `correctedDuration`, `memorySummary` and `sampleSeries`, which describe
+   * the example span only. Every allocation field below follows this field,
+   * not those.
    */
   allocations: number
   /**
@@ -945,29 +951,38 @@ export interface TraceSpanInfo {
    */
   selfAllocationCount: number
   /**
-   * Process samples recorded while this span (or its example span, for
-   * aggregated groups) was live.
+   * Summary of TurboMalloc readings while this span (or its example span,
+   * for aggregated groups) was live; absent when its range holds none.
    *
    * **Process-wide, not per-span.** One global series is sliced by the
-   * span's time range, so spans that overlap in time report identical values
-   * no matter what each allocated. Rank concurrent work by the allocation
-   * fields instead.
-   *
-   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
-   * active_worker_threads]`: `bytes` is TurboMalloc memory usage,
-   * `pressure` is the memory-pressure byte (0 = no pressure, higher = more
-   * pressure), and `active_worker_threads` counts non-parked Tokio scheduler
-   * workers. `100 ticks = 1 µs`. Capped and downsampled by the store.
-   */
-  memorySamples: Array<Array<number>>
-  /**
-   * Summary of `memorySamples`; absent when the span's range holds none.
-   * Unlike the allocation counters these are absolute live-heap readings, so
+   * span's time range, so overlapping ranges report the same readings no
+   * matter what each allocated. Rank concurrent work by allocation fields;
    * `peak` is the figure to quote for memory actually in use.
+   *
+   * Computed directly from all captured readings in the span's range,
+   * independently of whether or how many sample values are requested.
    */
   memorySummary?: TraceMemorySummary
+  /**
+   * Requested value arrays; absent unless `samples` was supplied.
+   * MCP flattens this internal object to the four optional value arrays.
+   */
+  sampleSeries?: TraceSpanSampleSeries
   /** Descendants of this span, populated only when `depth > 1`. */
   children: Array<TraceSpanInfo>
+}
+
+/**
+ * Requested process/global value series. Captured memory/pressure/workers
+ * are grouped by recorded timestamps; concurrency uses equal-time segments.
+ * Memory is TurboMalloc live bytes, pressure is the recorded pressure byte,
+ * and workers are non-parked Tokio scheduler workers (not the blocking pool).
+ */
+export interface TraceSpanSampleSeries {
+  memorySamples: Array<number>
+  memoryPressureSamples: Array<number>
+  activeWorkerThreadsSamples: Array<number>
+  concurrencySamples: Array<number>
 }
 
 export declare function transform(

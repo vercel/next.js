@@ -53,14 +53,19 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
         bytes.len()
     );
 
-    let samples = store
-        .read()
-        .memory_samples_for_range_with_ts(Timestamp::from_micros(10), Timestamp::from_micros(30));
+    let samples = store.read().memory_samples_for_range_with_ts(
+        Timestamp::from_micros(10),
+        Timestamp::from_micros(30),
+        200,
+    );
     assert_eq!(samples[0].1, 1234);
     assert_eq!(samples[0].2, 7);
     assert_eq!(samples[0].3, 2);
 
-    for aggregated in [false, true] {
+    for (aggregated, limit) in [false, true]
+        .into_iter()
+        .flat_map(|aggregated| [None, Some(0), Some(1)].map(|limit| (aggregated, limit)))
+    {
         let result = query_spans(
             &store,
             QueryOptions {
@@ -72,10 +77,35 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
                 depth: 1,
                 page: 1,
                 page_size: None,
+                samples: limit,
             },
         );
         assert_eq!(result.spans.len(), 1);
-        assert_eq!(result.spans[0].memory_samples, vec![(1000, 1234, 7, 2)]);
+        let span = &result.spans[0];
+        let summary = span.memory_summary.expect("summary remains available");
+        assert_eq!(summary.count, 1);
+        assert_eq!(summary.start, 1234);
+        assert_eq!(summary.end, 1234);
+        assert_eq!(summary.min, 1234);
+        assert_eq!(summary.peak, 1234);
+        assert_eq!(summary.max_pressure, 7);
+        match limit {
+            None => assert!(span.sample_series.is_none()),
+            Some(limit) => {
+                let series = span.sample_series.as_ref().unwrap();
+                if limit == 0 {
+                    assert!(series.memory_samples.is_empty());
+                    assert!(series.memory_pressure_samples.is_empty());
+                    assert!(series.active_worker_threads_samples.is_empty());
+                    assert!(series.concurrency_samples.is_empty());
+                } else {
+                    assert_eq!(series.memory_samples, vec![1234]);
+                    assert_eq!(series.memory_pressure_samples, vec![7]);
+                    assert_eq!(series.active_worker_threads_samples, vec![2]);
+                    assert_eq!(series.concurrency_samples, vec![1.0]);
+                }
+            }
+        }
     }
 }
 
@@ -174,8 +204,11 @@ fn blocking_duration_events_keep_ranges_without_inflating_work() {
     assert_eq!(root.corrected_total_time(), Timestamp::from_micros(20));
     assert_eq!(root.end(), Timestamp::from_micros(110));
     assert_eq!(
-        store
-            .concurrency_samples_for_range(Timestamp::from_micros(10), Timestamp::from_micros(100)),
+        store.concurrency_samples_for_range(
+            Timestamp::from_micros(10),
+            Timestamp::from_micros(100),
+            200
+        ),
         vec![0.0; 200]
     );
     let mut count = 0;
@@ -226,7 +259,7 @@ fn blocking_events_do_not_change_counted_work_correction() {
     assert_eq!(root.total_time(), Timestamp::from_micros(100));
     assert_eq!(root.corrected_total_time(), Timestamp::from_micros(100));
     assert_eq!(
-        store.concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_micros(100)),
+        store.concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_micros(100), 200),
         vec![1.0; 200]
     );
 }
@@ -261,7 +294,11 @@ fn non_blocking_and_legacy_duration_events_still_count() {
     assert_eq!(root.total_time(), Timestamp::from_micros(200));
     assert!(root.corrected_self_time() < root.self_time());
     assert_eq!(
-        store.concurrency_samples_for_range(Timestamp::from_micros(30), Timestamp::from_micros(80)),
+        store.concurrency_samples_for_range(
+            Timestamp::from_micros(30),
+            Timestamp::from_micros(80),
+            200
+        ),
         vec![3.0; 200]
     );
     for event in root.children() {
@@ -330,14 +367,15 @@ fn blocking_entered_spans_ignore_own_work_but_count_children() {
         );
         assert_eq!(parent.corrected_total_time(), parent.total_time(), "{name}");
         assert_eq!(
-            store.concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_micros(10)),
+            store.concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_micros(10), 200),
             vec![if ignored { 0.0 } else { 1.0 }; 200],
             "{name}"
         );
         assert_eq!(
             store.concurrency_samples_for_range(
                 Timestamp::from_micros(10),
-                Timestamp::from_micros(20)
+                Timestamp::from_micros(20),
+                200
             ),
             vec![1.0; 200],
             "{name}"
