@@ -132,7 +132,8 @@ export function registerSyncIoAndBlockingTests(
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/sync-io/sync-io-after-navigation" in your browser to investigate the error.
            - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Error occurred prerendering page "/suspense-in-root/sync-io/sync-io-after-navigation". Read more: https://nextjs.org/docs/messages/prerender-error
-         Export encountered an error on /suspense-in-root/sync-io/sync-io-after-navigation/page: /suspense-in-root/sync-io/sync-io-after-navigation, exiting the build."
+
+         > Export encountered an error on /suspense-in-root/sync-io/sync-io-after-navigation/page: /suspense-in-root/sync-io/sync-io-after-navigation, exiting the build."
         `)
         expect(result.exitCode).toBe(1)
       }
@@ -190,7 +191,8 @@ export function registerSyncIoAndBlockingTests(
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/sync-io/sync-io-after-prefetch" in your browser to investigate the error.
            - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Error occurred prerendering page "/suspense-in-root/sync-io/sync-io-after-prefetch". Read more: https://nextjs.org/docs/messages/prerender-error
-         Export encountered an error on /suspense-in-root/sync-io/sync-io-after-prefetch/page: /suspense-in-root/sync-io/sync-io-after-prefetch, exiting the build."
+
+         > Export encountered an error on /suspense-in-root/sync-io/sync-io-after-prefetch/page: /suspense-in-root/sync-io/sync-io-after-prefetch, exiting the build."
         `)
         expect(result.exitCode).toBe(1)
       }
@@ -259,7 +261,8 @@ export function registerSyncIoAndBlockingTests(
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input" in your browser to investigate the error.
            - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Error occurred prerendering page "/suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input". Read more: https://nextjs.org/docs/messages/prerender-error
-         Export encountered an error on /suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input/page: /suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input, exiting the build."
+
+         > Export encountered an error on /suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input/page: /suspense-in-root/sync-io/sync-io-after-cache-with-cookie-input, exiting the build."
         `)
         expect(result.exitCode).toBe(1)
       }

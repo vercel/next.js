@@ -176,7 +176,8 @@ export function registerDynamicRootAndBoundaryTests(
                - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /dynamic-root/page: /dynamic-root, exiting the build."
+
+             > Export encountered an error on /dynamic-root/page: /dynamic-root, exiting the build."
             `)
           }
         } else {
@@ -307,7 +308,8 @@ export function registerDynamicRootAndBoundaryTests(
                - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /dynamic-root/page: /dynamic-root, exiting the build."
+
+             > Export encountered an error on /dynamic-root/page: /dynamic-root, exiting the build."
             `)
           }
         }

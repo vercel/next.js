@@ -38,13 +38,18 @@ describe('CPU Profiling - next build', () => {
     // Main profile should always exist
     expect(cpuProfiles.some((f) => f.startsWith('build-main-'))).toBe(true)
 
+    // Static worker profile should always exist
+    expect(cpuProfiles.some((f) => f.startsWith('build-static-worker-'))).toBe(
+      true
+    )
+
     if (isTurbopack) {
-      // Turbopack builds in the main build process, so `build-main` is the only
-      // profile.
-      expect(cpuProfiles.length).toBe(1)
+      // Turbopack builds in the main build process, so it generates:
+      // build-main, build-static-worker
+      expect(cpuProfiles.length).toBe(2)
     } else {
-      // Webpack mode generates: build-main, build-webpack-client, build-webpack-server, build-webpack-edge-server
-      expect(cpuProfiles.length).toBe(4)
+      // Webpack mode generates: build-main, build-webpack-client, build-webpack-server, build-webpack-edge-server, build-static-worker
+      expect(cpuProfiles.length).toBe(5)
       expect(
         cpuProfiles.some((f) => f.startsWith('build-webpack-client-'))
       ).toBe(true)

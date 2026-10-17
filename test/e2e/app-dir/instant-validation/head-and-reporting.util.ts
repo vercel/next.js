@@ -1449,7 +1449,8 @@ export function registerHeadAndReportingTests(
                  - Start the app in development mode by running \`next dev\`, then open "/shells/ensure-static/navigation/session-data-without-suspense" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/shells/ensure-static/navigation/session-data-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /shells/(default)/ensure-static/navigation/session-data-without-suspense/page: /shells/ensure-static/navigation/session-data-without-suspense, exiting the build."
+
+               > Export encountered an error on /shells/(default)/ensure-static/navigation/session-data-without-suspense/page: /shells/ensure-static/navigation/session-data-without-suspense, exiting the build."
               `)
               expect(result.exitCode).toBe(1)
             }

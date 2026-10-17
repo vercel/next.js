@@ -125,7 +125,8 @@ export function registerUseCachePrivateTests(
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+
+                 > Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
@@ -138,7 +139,8 @@ export function registerUseCachePrivateTests(
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+
+               > Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
               `)
             }
           }
@@ -252,7 +254,8 @@ export function registerUseCachePrivateTests(
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
+
+                 > Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
                 `)
             } else {
               expect(output).toMatchInlineSnapshot(`
@@ -270,7 +273,8 @@ export function registerUseCachePrivateTests(
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
+
+               > Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
               `)
             }
           }
@@ -360,7 +364,8 @@ export function registerUseCachePrivateTests(
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
+
+               > Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
               `)
             }
           } else {
@@ -420,7 +425,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                  - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
+
+               > Export encountered an error on /use-cache-private-without-suspense/page: /use-cache-private-without-suspense, exiting the build."
               `)
             }
           }

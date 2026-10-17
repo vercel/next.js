@@ -298,7 +298,6 @@ fn next_owned_ignores(
         rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE"),
         rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**"),
         rcstr!("**/next/dist/compiled/semver/semver/**/*.js"),
-        rcstr!("**/next/dist/compiled/jest-worker/**/*"),
         // -- The following were added for Turbopack specifically --
         // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
         rcstr!("**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js"),
@@ -328,6 +327,9 @@ fn next_owned_ignores(
         globs.extend([
             rcstr!("**/*/next/dist/server/next.js"),
             rcstr!("**/*/next/dist/bin/next"),
+            // The worker pool's child entrypoints are only needed when the
+            // standalone server spawns workers (matches `collect-build-traces.ts`).
+            rcstr!("**/next/dist/lib/worker/worker-*-child*"),
         ]);
     }
 

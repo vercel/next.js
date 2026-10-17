@@ -77,7 +77,8 @@ export function registerMetadataAndViewportTests(
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
            Error occurred prerendering page "/dynamic-metadata-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /dynamic-metadata-static-route/page: /dynamic-metadata-static-route, exiting the build."
+
+           > Export encountered an error on /dynamic-metadata-static-route/page: /dynamic-metadata-static-route, exiting the build."
           `)
         }
       })
@@ -167,7 +168,8 @@ export function registerMetadataAndViewportTests(
                - Start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /dynamic-metadata-error-route/page: /dynamic-metadata-error-route, exiting the build."
+
+             > Export encountered an error on /dynamic-metadata-error-route/page: /dynamic-metadata-error-route, exiting the build."
             `)
           }
         } else {
@@ -238,7 +240,8 @@ export function registerMetadataAndViewportTests(
                - Start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
              Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
-             Export encountered an error on /dynamic-metadata-error-route/page: /dynamic-metadata-error-route, exiting the build."
+
+             > Export encountered an error on /dynamic-metadata-error-route/page: /dynamic-metadata-error-route, exiting the build."
             `)
           }
         }
@@ -310,7 +313,8 @@ export function registerMetadataAndViewportTests(
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
            Error occurred prerendering page "/dynamic-metadata-static-with-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /dynamic-metadata-static-with-suspense/page: /dynamic-metadata-static-with-suspense, exiting the build."
+
+           > Export encountered an error on /dynamic-metadata-static-with-suspense/page: /dynamic-metadata-static-with-suspense, exiting the build."
           `)
         }
       })
@@ -381,7 +385,8 @@ export function registerMetadataAndViewportTests(
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
            Error occurred prerendering page "/dynamic-metadata-static-with-suspense-above-body". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /dynamic-metadata-static-with-suspense-above-body/page: /dynamic-metadata-static-with-suspense-above-body, exiting the build."
+
+           > Export encountered an error on /dynamic-metadata-static-with-suspense-above-body/page: /dynamic-metadata-static-with-suspense-above-body, exiting the build."
           `)
         }
       })
@@ -452,7 +457,8 @@ export function registerMetadataAndViewportTests(
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime
            Error occurred prerendering page "/dynamic-metadata-static-with-instant-false". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /dynamic-metadata-static-with-instant-false/page: /dynamic-metadata-static-with-instant-false, exiting the build."
+
+           > Export encountered an error on /dynamic-metadata-static-with-instant-false/page: /dynamic-metadata-static-with-instant-false, exiting the build."
           `)
         }
       })
@@ -548,7 +554,8 @@ export function registerMetadataAndViewportTests(
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime
            Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /dynamic-viewport-static-route/page: /dynamic-viewport-static-route, exiting the build."
+
+           > Export encountered an error on /dynamic-viewport-static-route/page: /dynamic-viewport-static-route, exiting the build."
           `)
         }
       })
@@ -657,7 +664,8 @@ export function registerMetadataAndViewportTests(
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime
            Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /dynamic-viewport-dynamic-route/page: /dynamic-viewport-dynamic-route, exiting the build."
+
+           > Export encountered an error on /dynamic-viewport-dynamic-route/page: /dynamic-viewport-dynamic-route, exiting the build."
           `)
         }
       })
