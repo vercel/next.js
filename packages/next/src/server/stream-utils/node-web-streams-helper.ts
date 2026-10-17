@@ -34,6 +34,52 @@ function voidCatch() {
 // when handling streaming data
 const encoder = new TextEncoder()
 
+/** Encode only when a consumer requires bytes; retain binary views as-is. */
+export function encodeTextChunk(chunk: string | Uint8Array): Uint8Array {
+  return typeof chunk === 'string' ? encoder.encode(chunk) : chunk
+}
+
+/** Adapt a Node stream to the byte contract used by Web response consumers. */
+export function nodeToWebByteStream(
+  stream: import('node:stream').Readable
+): ReadableStream<Uint8Array> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error('nodeToWebByteStream cannot be used in the edge runtime')
+  } else {
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+
+    const webStream = Readable.toWeb(stream) as ReadableStream<
+      string | Uint8Array
+    >
+    // Readable.toWeb preserves object-mode strings; it does not encode them.
+    // Already-byte streams need no additional transform.
+    if (!stream.readableObjectMode && stream.readableEncoding === null) {
+      return webStream as ReadableStream<Uint8Array>
+    }
+    return webStream.pipeThrough(
+      new TransformStream<string | Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          controller.enqueue(encodeTextChunk(chunk))
+        },
+      })
+    )
+  }
+}
+
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
 ): ReadableStream<T> {

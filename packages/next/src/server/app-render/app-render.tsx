@@ -73,6 +73,7 @@ import {
   createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
+import { encodeTextChunk } from '../stream-utils/node-web-streams-helper'
 import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
@@ -6391,7 +6392,11 @@ async function accumulateStreamChunksInto(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        collectStageChunk(accumulator, stageController.currentStage, value)
+        collectStageChunk(
+          accumulator,
+          stageController.currentStage,
+          encodeTextChunk(value)
+        )
       }
     } catch (err) {
       if (!cancelled) {
@@ -6473,7 +6478,7 @@ async function countStageBytesUntilAbortNode(
       increaseChunkByteLengths(
         byteLengths,
         stageController.currentStage,
-        (value as Uint8Array).byteLength
+        typeof value === 'string' ? Buffer.byteLength(value) : value.byteLength
       )
     }
   } catch (err) {
@@ -11062,7 +11067,7 @@ async function iterateStreamingPrerenderChunks(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        onChunk(value)
+        onChunk(encodeTextChunk(value))
       }
     } catch (err) {
       if (!cancelled) {
