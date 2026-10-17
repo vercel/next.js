@@ -18,7 +18,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -107,7 +107,7 @@ impl InstrumentationEndpoint {
         let edge_chunking_context = this.project.edge_chunking_context(false);
         Ok(edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            ChunkGroup::Entry(vec![module]),
+            ChunkGroupKey::Entry(vec![module]),
             module_graph,
             OutputAssets::empty(),
             AvailabilityInfo::root(),
@@ -129,7 +129,7 @@ impl InstrumentationEndpoint {
                     .node_root()
                     .await?
                     .join("server/instrumentation.js")?,
-                ChunkGroup::Entry(vec![userland_module]),
+                ChunkGroupKey::Entry(vec![userland_module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),

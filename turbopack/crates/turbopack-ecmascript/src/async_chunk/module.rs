@@ -11,7 +11,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
+        ModuleGraph, chunk_group_info::ChunkGroupKey, module_batch::ChunkableModuleOrBatch,
     },
     output::OutputAssetsWithReferenced,
     reference::ModuleReferences,
@@ -85,7 +85,7 @@ impl AsyncLoaderModule {
         }
         Ok(self.chunking_context.chunk_group_assets(
             self.inner.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
+            ChunkGroupKey::Async(ResolvedVc::upcast(self.inner)),
             module_graph,
             self.availability_info,
         ))

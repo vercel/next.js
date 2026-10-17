@@ -13,7 +13,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupKey},
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -75,7 +75,7 @@ impl WorkerLoaderModule {
                     .into_vc();
                 chunking_context.evaluated_chunk_group_assets(
                     ident,
-                    ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)),
+                    ChunkGroupKey::Isolated(ResolvedVc::upcast(this.inner)),
                     module_graph,
                     OutputAssets::empty(),
                     AvailabilityInfo::root(),
@@ -103,7 +103,7 @@ impl WorkerLoaderModule {
                 let entry_result = chunking_context
                     .root_entry_chunk_group(
                         worker_path,
-                        ChunkGroup::Isolated(ResolvedVc::upcast(evaluatable)),
+                        ChunkGroupKey::Isolated(ResolvedVc::upcast(evaluatable)),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),
