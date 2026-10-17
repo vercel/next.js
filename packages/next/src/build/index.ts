@@ -2632,7 +2632,10 @@ export default async function build(
                             staticPageGenerationTimeout:
                               config.staticPageGenerationTimeout,
                             cacheHandler: config.cacheHandler,
-                            cacheHandlers: config.cacheHandlers,
+                            cacheHandlers: {
+                              ...config.cacheHandlers,
+                              ...config.buildCacheHandlers,
+                            },
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
                               : config.experimental.isrFlushToDisk,
