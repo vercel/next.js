@@ -13,7 +13,7 @@ use turbopack_core::{
         OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
         OutputAssetsWithReferenced,
     },
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
     version::VersionedContent,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
@@ -172,6 +172,7 @@ impl EcmascriptBuildNodeEntryChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new_fixed(
             this.path.clone(),
+            this.chunking_context.emitted_source_map_type(),
             Vc::upcast(self),
         ))
     }
@@ -246,7 +247,7 @@ impl EcmascriptBuildNodeEntryChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: Vc<SourceMapType>) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }

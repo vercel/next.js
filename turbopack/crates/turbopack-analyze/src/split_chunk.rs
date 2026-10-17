@@ -9,7 +9,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     file_source::FileSource,
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OriginalToken, SourceMap, Token},
+    source_map::{GenerateSourceMap, OriginalToken, SourceMap, SourceMapType, Token},
 };
 
 use crate::compressed_size::compressed_size_bytes;
@@ -99,7 +99,9 @@ pub async fn split_output_asset_into_parts(
     else {
         return self_mapped(asset.path().to_string().owned().await?, content, lines_vc).await;
     };
-    let source_map = generate_source_map.generate_source_map().await?;
+    let source_map = generate_source_map
+        .generate_source_map(SourceMapType::Partial.cell())
+        .await?;
     let Some(source_map) = source_map.as_content() else {
         return self_mapped(asset.path().to_string().owned().await?, content, lines_vc).await;
     };

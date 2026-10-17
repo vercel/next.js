@@ -36,7 +36,10 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{structured::StructuredSourceMap, utils::add_default_ignore_list},
+    source_map::{
+        SourceMapGenerationOptions, SourceMaps, structured::StructuredSourceMap,
+        utils::add_default_ignore_list,
+    },
     source_pos::SourcePos,
 };
 
@@ -49,7 +52,7 @@ use crate::{
     },
 };
 
-pub type CssOutput = (ToCssResult, Option<StructuredSourceMap>);
+pub type CssOutput = (ToCssResult, SourceMaps<StructuredSourceMap>);
 
 #[turbo_tasks::value(transparent)]
 struct LightningCssTargets(
@@ -104,13 +107,13 @@ async fn stylesheet_to_css(
     ss: &StyleSheet<'_>,
     code: &str,
     minify_type: MinifyType,
-    enable_srcmap: bool,
+    generation: SourceMapGenerationOptions,
     handle_nesting: bool,
     mut origin_source_map: Option<parcel_sourcemap::SourceMap>,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<CssOutput> {
-    let mut srcmap = if enable_srcmap {
+    let mut srcmap = if generation.any() {
         Some(parcel_sourcemap::SourceMap::new(""))
     } else {
         None
@@ -131,23 +134,41 @@ async fn stylesheet_to_css(
         ..Default::default()
     })?;
 
-    if let Some(srcmap) = &mut srcmap {
-        debug_assert_eq!(ss.sources.len(), 1);
-
-        if let Some(origin_source_map) = origin_source_map.as_mut() {
-            let _ = srcmap.extends(origin_source_map);
+    let partial_source_map = if generation.partial {
+        let mut partial_map = if generation.full {
+            srcmap.as_ref().unwrap().clone()
         } else {
-            srcmap.add_sources(ss.sources.clone());
-            srcmap.set_source_content(0, code)?;
-        }
-    }
-
-    let srcmap = match srcmap {
-        Some(srcmap) => Some(generate_css_source_map(&srcmap)?),
-        None => None,
+            srcmap.take().unwrap()
+        };
+        let map = &mut partial_map;
+        map.add_sources(ss.sources.clone());
+        map.set_source_content(0, code)?;
+        Some(generate_css_source_map(map)?)
+    } else {
+        None
     };
 
-    Ok((result, srcmap))
+    let source_map = if generation.full {
+        let map = srcmap.as_mut().unwrap();
+        debug_assert_eq!(ss.sources.len(), 1);
+        if let Some(origin_source_map) = origin_source_map.as_mut() {
+            let _ = map.extends(origin_source_map);
+        } else {
+            map.add_sources(ss.sources.clone());
+            map.set_source_content(0, code)?;
+        }
+        Some(generate_css_source_map(map)?)
+    } else {
+        None
+    };
+
+    Ok((
+        result,
+        SourceMaps {
+            full: source_map,
+            partial: partial_source_map,
+        },
+    ))
 }
 
 /// Multiple [ModuleReference]s
@@ -195,7 +216,7 @@ pub enum FinalCssResult {
     Ok {
         output_code: String,
 
-        source_map: Option<StructuredSourceMap>,
+        source_maps: SourceMaps<StructuredSourceMap>,
     },
     Unparsable,
     NotFound,
@@ -229,7 +250,7 @@ pub async fn process_css_with_placeholder(
                 stylesheet,
                 &code,
                 MinifyType::NoMinify,
-                false,
+                SourceMapGenerationOptions::NONE,
                 false,
                 None,
                 environment,
@@ -314,11 +335,11 @@ pub async fn finalize_css(
                 None
             };
 
-            let (result, srcmap) = stylesheet_to_css(
+            let (result, source_maps) = stylesheet_to_css(
                 &stylesheet,
                 &code,
                 minify_type,
-                true,
+                *chunking_context.source_map_generation_options().await?,
                 true,
                 origin_source_map,
                 environment,
@@ -328,7 +349,7 @@ pub async fn finalize_css(
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
-                source_map: srcmap,
+                source_maps,
             }
             .cell())
         }
