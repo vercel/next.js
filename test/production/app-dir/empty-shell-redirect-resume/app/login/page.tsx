@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
+export const instant = false
+
 export default async function LoginPage() {
   const session = (await cookies()).get('session')
 
