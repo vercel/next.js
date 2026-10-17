@@ -148,6 +148,7 @@ export function createInitialRouterState({
         initialRuntimeDataAccessed === undefined,
       initialRSCPayloadChunks,
       initialTree,
+      null, // renderedPathname — the initial payload has param values
       initialRenderedSearch,
       segmentCacheMap // hydration writes are bound to the shared map
     ).catch(() => {

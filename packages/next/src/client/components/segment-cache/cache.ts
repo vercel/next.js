@@ -2791,9 +2791,14 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
       shellResponse,
       dynamicRequestTree,
       predictedFrom,
-      // Navigation responses always include the param values in the tree, so
-      // there's no pathname to parse them from (nor a need to).
-      null,
+      // A response rendered from a fallback shell carries opaque
+      // placeholders for unknown params, which are parsed from the rendered
+      // pathname. In output: "export" mode the response URL has the `.txt`
+      // suffix appended, so derive the pathname from the page URL (rewrites
+      // don't exist there).
+      isOutputExportMode
+        ? getPathnameFromRequestURL(url)
+        : getRenderedPathname(response),
       renderedSearch,
       buildId,
       staleAt,
@@ -3122,8 +3127,10 @@ function writeServerResponseIntoCache(
   // of whether the prediction matched.
   predictedFrom: KnownRoutePart | null,
   // The pathname the response was rendered for, used to resolve dynamic
-  // segments the server sent without a param value (`k: null`). Null for
-  // responses that always carry concrete values (navigation responses).
+  // segments the server sent without a param value (`k: null`, per-segment
+  // prefetch responses) or with an opaque fallback placeholder (responses
+  // rendered from a fallback shell). Null for responses that always carry
+  // concrete values (the initial payload and server action responses).
   renderedPathname: string | null,
   renderedSearch: string,
   buildId: string | undefined,
@@ -3809,6 +3816,11 @@ export async function bufferAndWriteNavigationResponse(
   // them. Null otherwise.
   responseChunks: Array<Uint8Array> | null,
   baseTree: FlightRouterState,
+  // The pathname the response was rendered for, used to resolve dynamic
+  // segments that have no concrete param value (see
+  // writeServerResponseIntoCache). Null when the response always carries
+  // concrete values (the initial payload).
+  renderedPathname: string | null,
   renderedSearch: string,
   // The map the work that spawned this response's request is bound to. See
   // writeServerResponseIntoCache.
@@ -3874,9 +3886,7 @@ export async function bufferAndWriteNavigationResponse(
     // The base tree is the navigation's current tree, not a prediction;
     // divergence from it carries no signal.
     null,
-    // Navigation responses always include the param values in the tree, so
-    // there's no pathname to parse them from (nor a need to).
-    null,
+    renderedPathname,
     renderedSearch,
     // A navigation to a different build is an MPA navigation, so there's no
     // build to check.

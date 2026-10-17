@@ -33,6 +33,7 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import { isOpaqueFallbackParamKey } from '../../../shared/lib/router/utils/opaque-fallback-param'
 import {
   doesStaticSegmentAppearInURL,
   getCacheKeyForDynamicParam,
@@ -120,9 +121,10 @@ export function createNavigationSeed(
   // written to the cache may pass the conservative value (true).
   isResponsePartial: boolean,
   // The pathname the response was rendered for. Required to resolve dynamic
-  // segments the server sent without a param value (`k: null`); see
-  // decodeTransportTreeIntoRouteTree. Callers whose responses always carry
-  // concrete values (navigation responses) may pass null.
+  // segments the server sent without a param value (`k: null`) or with an
+  // opaque fallback placeholder; see decodeTransportTreeIntoRouteTree.
+  // Callers whose responses always carry concrete values (the initial
+  // payload, server action responses) may pass null.
   renderedPathname: string | null,
   // Already normalized by the response reader (see getRenderedSearch); the
   // router state stores it as a plain string, so it is re-branded here.
@@ -334,8 +336,10 @@ export function decodeTransportTreeIntoRouteTree(
   // Required to resolve dynamic segments the server sent without a param
   // value (`k: null` — per-segment prefetch responses omit the value to stay
   // cacheable across param values); the client parses the value from the
-  // pathname instead. Callers whose responses always carry concrete values
-  // (navigation responses) may pass null.
+  // pathname instead. The same applies to opaque fallback placeholder keys
+  // (see resolveTransportSegment). Callers whose responses always carry
+  // concrete values (the initial payload, server action responses) may pass
+  // null.
   renderedPathname: string | null,
   renderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
@@ -365,6 +369,11 @@ export function decodeTransportTreeIntoRouteTree(
  * URL position this segment occupies (tracked by the tree walk: incremented
  * only for segments that appear in the URL, so route groups and other
  * virtual segments don't consume a part).
+ *
+ * A key that is an opaque fallback placeholder is resolved the same way. A
+ * response rendered from a fallback shell carries placeholders for the params
+ * the shell doesn't know, and a platform may serve that response for every
+ * param value (e.g. when it strips the param before invoking the function).
  */
 function resolveTransportSegment(
   transportSegment: TransportSegment,
@@ -375,7 +384,12 @@ function resolveTransportSegment(
     return transportSegment
   }
   const paramKey = transportSegment.k
-  if (paramKey !== null) {
+  if (
+    paramKey !== null &&
+    // Without a pathname, keep the placeholder rather than throwing: the
+    // callers that pass none decode responses with concrete values.
+    (pathnameParts === null || !isOpaqueFallbackParamKey(paramKey))
+  ) {
     return [
       transportSegment.n,
       paramKey,

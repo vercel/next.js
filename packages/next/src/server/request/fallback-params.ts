@@ -5,6 +5,7 @@ import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createOpaqueFallbackParamValue } from '../../shared/lib/router/utils/opaque-fallback-param'
 
 /**
  * Maps unknown param names to internal placeholders. The parameter wrappers
@@ -34,7 +35,7 @@ export function createOpaqueFallbackRouteParams(
   // Generate a unique key for the fallback route param, if this key is found
   // in the static output, it represents a bug in cache components.
   for (const { paramName } of fallbackRouteParams) {
-    keys.set(paramName, `%%drp:${paramName}:${uniqueID}%%`)
+    keys.set(paramName, createOpaqueFallbackParamValue(paramName, uniqueID))
   }
 
   return keys

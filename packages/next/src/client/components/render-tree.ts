@@ -1769,9 +1769,10 @@ async function fetchMissingDynamicData(
       // can't be drained here; they decode as null.
       null,
       result.isResponsePartial,
-      // Navigation responses always include the param values in the tree, so
-      // there's no pathname to parse them from (nor a need to).
-      null,
+      // A response rendered from a fallback shell carries opaque
+      // placeholders for unknown params, which are parsed from the rendered
+      // pathname.
+      result.renderedPathname,
       result.renderedSearch,
       null,
       result.dynamicStaleTime
@@ -1791,6 +1792,7 @@ async function fetchMissingDynamicData(
         result.isResponsePartial,
         result.responseChunks,
         dynamicRequestTree,
+        result.renderedPathname,
         result.renderedSearch,
         map
       ).catch(() => {
