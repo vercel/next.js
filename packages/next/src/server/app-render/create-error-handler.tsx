@@ -13,6 +13,10 @@ import { getProperError } from '../../lib/is-error'
 import { isReactLargeShellError } from './react-large-shell-error'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { isNextBrowserBailoutError } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
+import {
+  isHTTPAccessFallbackError,
+  getAccessFallbackHTTPStatus,
+} from '../../client/components/http-access-fallback/http-access-fallback'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -57,11 +61,16 @@ export function createReactServerErrorHandler(
   isBuildTimePrerendering: boolean,
   reactServerErrors: Map<string, DigestedError>,
   onReactServerRenderError: (err: DigestedError, silenceLog: boolean) => void,
-  spanToRecordOn?: any
+  spanToRecordOn?: any,
+  onHTTPAccessFallback?: (status: number) => void
 ): RSCErrorHandler {
   return (thrownValue: unknown) => {
     // If the response was closed, we don't need to log the error.
     if (isAbortError(thrownValue)) return
+
+    if (isHTTPAccessFallbackError(thrownValue)) {
+      onHTTPAccessFallback?.(getAccessFallbackHTTPStatus(thrownValue))
+    }
 
     const digest = getDigestForWellKnownError(thrownValue)
 
@@ -154,7 +163,8 @@ export function createHTMLErrorHandler(
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
   onHTMLRenderSSRError: (err: DigestedError, errorInfo?: ErrorInfo) => void,
-  spanToRecordOn?: any
+  spanToRecordOn?: any,
+  onHTTPAccessFallback?: (status: number) => void
 ): SSRErrorHandler {
   return (thrownValue: unknown, errorInfo?: ErrorInfo) => {
     if (isReactLargeShellError(thrownValue)) {
@@ -175,6 +185,10 @@ export function createHTMLErrorHandler(
     // as a userland render error here.
     if (reactBrowserBailout && isNextBrowserBailoutError(thrownValue)) {
       return
+    }
+
+    if (isHTTPAccessFallbackError(thrownValue)) {
+      onHTTPAccessFallback?.(getAccessFallbackHTTPStatus(thrownValue))
     }
 
     const digest = getDigestForWellKnownError(thrownValue)
