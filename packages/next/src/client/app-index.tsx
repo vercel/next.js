@@ -15,6 +15,7 @@ import {
 } from './react-client-callbacks/error-boundary-callbacks'
 import { callServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
+import { isInitialHydrationConnectionClosed } from './initial-hydration-error'
 import {
   type AppRouterActionQueue,
   createMutableActionQueue,
@@ -366,7 +367,47 @@ export async function hydrate(
     staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(staticIndicatorState)
   }
-  const initialRSCPayload = await initialServerResponse
+  let initialRSCPayload: InitialRSCPayload
+  try {
+    initialRSCPayload = await initialServerResponse
+    // A successful initial response means a prior recovery reload worked.
+    try {
+      window.sessionStorage.removeItem('__next_initial_hydration_reload')
+    } catch {
+      // Storage may be unavailable in restricted browser contexts.
+    }
+  } catch (error) {
+    if (!isInitialHydrationConnectionClosed(error)) {
+      throw error
+    }
+
+    // A truncated document can leave static HTML on screen without hydration.
+    // Reload once to request a complete document, but do not enter a reload loop
+    // if the response is consistently truncated.
+    try {
+      if (
+        window.sessionStorage.getItem('__next_initial_hydration_reload') ===
+        '1'
+      ) {
+        console.error(
+          'The initial server response was incomplete after a recovery reload.',
+          error
+        )
+        return
+      }
+
+      window.sessionStorage.setItem('__next_initial_hydration_reload', '1')
+      window.location.reload()
+      return
+    } catch {
+      // Without a usable session storage guard, avoid reloading indefinitely.
+      console.error(
+        'The initial server response was incomplete and automatic recovery is unavailable.',
+        error
+      )
+      return
+    }
+  }
 
   // Initialize the offline module to register browser event listeners
   // (offline/online) before any components hydrate.
