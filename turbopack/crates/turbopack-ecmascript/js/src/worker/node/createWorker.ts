@@ -1,5 +1,6 @@
 // Embedded worker-runtime helper. This file is bundled as a regular module and
-// `__turbopack_require__`d by the generated Node.js worker-thread loader code.
+// `__turbopack_require__`d by the module containing the worker call. That module
+// passes this helper's default export to its generated Node.js worker-thread loader.
 //
 // The list of globals to forward is baked into this module at build time by
 // `turbopack-ecmascript` replacing the `_TURBOPACK_WORKER_FORWARDED_GLOBALS_`
@@ -42,9 +43,9 @@ function createWorker(
 }
 
 /**
- * Returns a function, that when called with the constructor + any options calls `createWorker()`.
- * The worker configuration (`entrypoint`) is passed by `turbopack-ecmascript` at build time,
- * leaving the runtime caller to only supply the constructor and options.
+ * Returns a function that calls `createWorker()` with the constructor and options.
+ * The generated loader supplies `entrypoint` when the originating module calls it
+ * with this helper's default export, constructor, and options.
  */
 export default function generateCreateWorker(entrypoint: string) {
   return (

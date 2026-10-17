@@ -214,6 +214,8 @@ pub enum ChunkGroup {
     /// An isolated chunk group. Corresponds to an incoming [ChunkingType::Isolated] reference with
     /// `merge_tag: None`
     Isolated(ResolvedVc<Box<dyn Module>>),
+    /// A worker chunk group. Corresponds to an incoming [ChunkingType::Worker] reference.
+    Worker(ResolvedVc<Box<dyn Module>>),
     /// An isolated chunk group. Corresponds to an incoming [ChunkingType::Isolated] reference with
     /// `merge_tag: Some(_)`
     IsolatedMerged {
@@ -255,6 +257,7 @@ impl ChunkGroup {
         match self {
             ChunkGroup::Async(e)
             | ChunkGroup::Isolated(e)
+            | ChunkGroup::Worker(e)
             | ChunkGroup::Shared(e)
             | ChunkGroup::Collected(e) => Either::Left(std::iter::once(*e)),
             ChunkGroup::Entry(entries)
@@ -275,6 +278,7 @@ impl ChunkGroup {
             ChunkGroup::Entry(entries) => ChunkGroupKey::Entry(entries.clone()),
             ChunkGroup::Async(module) => ChunkGroupKey::Async(*module),
             ChunkGroup::Isolated(module) => ChunkGroupKey::Isolated(*module),
+            ChunkGroup::Worker(module) => ChunkGroupKey::Worker(*module),
             ChunkGroup::IsolatedMerged {
                 parent, merge_tag, ..
             } => ChunkGroupKey::IsolatedMerged {
@@ -297,6 +301,7 @@ impl ChunkGroup {
         match self {
             ChunkGroup::Async(_)
             | ChunkGroup::Isolated(_)
+            | ChunkGroup::Worker(_)
             | ChunkGroup::Shared(_)
             | ChunkGroup::Collected(_) => 1,
             ChunkGroup::Entry(entries)
@@ -323,6 +328,9 @@ impl ChunkGroup {
                 .await?
                 .to_string(),
             ChunkGroup::Isolated(entry) => turbofmt!("ChunkGroup::Isolated({:?})", entry.ident())
+                .await?
+                .to_string(),
+            ChunkGroup::Worker(entry) => turbofmt!("ChunkGroup::Worker({:?})", entry.ident())
                 .await?
                 .to_string(),
             ChunkGroup::Shared(entry) => turbofmt!("ChunkGroup::Shared({:?})", entry.ident())
@@ -381,6 +389,7 @@ pub enum ChunkGroupKey {
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
     Async(ResolvedVc<Box<dyn Module>>),
     Isolated(ResolvedVc<Box<dyn Module>>),
+    Worker(ResolvedVc<Box<dyn Module>>),
     IsolatedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
@@ -418,6 +427,9 @@ impl ChunkGroupKey {
             ChunkGroupKey::Isolated(module) => turbofmt!("Isolated({:?})", module.ident())
                 .await?
                 .to_string(),
+            ChunkGroupKey::Worker(module) => {
+                turbofmt!("Worker({:?})", module.ident()).await?.to_string()
+            }
             ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
                 format!(
                     "IsolatedMerged {{ parent: {}, merge_tag: {:?} }}",
@@ -643,6 +655,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
                             ChunkGroupKey::Isolated(node),
                         ))),
+                        ChunkingType::Worker { .. } => ChunkGroupInheritance::ChunkGroup(
+                            Either::Left(std::iter::once(ChunkGroupKey::Worker(node))),
+                        ),
                         ChunkingType::Shared {
                             merge_tag: None, ..
                         } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
@@ -950,6 +965,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
                     ChunkGroupKey::Collected(module) => ChunkGroup::Collected(module),
                     ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
+                    ChunkGroupKey::Worker(module) => ChunkGroup::Worker(module),
                     ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
                         ChunkGroup::IsolatedMerged {
                             parent: parent.0 as usize,
