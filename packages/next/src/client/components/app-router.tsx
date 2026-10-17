@@ -167,7 +167,16 @@ function HistoryUpdater({
 }
 
 function copyNextJsInternalHistoryState(data: any) {
-  if (data == null) data = {}
+  // Serializable primitives cannot hold the router's internal history keys.
+  if (
+    data == null ||
+    typeof data === 'string' ||
+    typeof data === 'number' ||
+    typeof data === 'boolean' ||
+    typeof data === 'bigint'
+  ) {
+    data = {}
+  }
   const currentState = window.history.state
   const __NA = currentState?.__NA
   if (__NA) {
