@@ -1,0 +1,305 @@
+[
+    (
+        "cjsFilename",
+        FreeVar(
+            "__filename",
+        ),
+    ),
+    (
+        "cjsWorkerPath",
+        Call(
+            10,
+            Member(
+                3,
+                Module(
+                    ModuleValue {
+                        module: "node:path",
+                        annotations: None,
+                        analyze_for_constants: false,
+                        reference: Some(
+                            ModuleReferenceIndex(
+                                3,
+                            ),
+                        ),
+                    },
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "join",
+                        ),
+                    ),
+                ),
+            ),
+            [
+                Call(
+                    5,
+                    Member(
+                        3,
+                        Module(
+                            ModuleValue {
+                                module: "node:path",
+                                annotations: None,
+                                analyze_for_constants: false,
+                                reference: Some(
+                                    ModuleReferenceIndex(
+                                        2,
+                                    ),
+                                ),
+                            },
+                        ),
+                        Constant(
+                            Str(
+                                Atom(
+                                    "dirname",
+                                ),
+                            ),
+                        ),
+                    ),
+                    [
+                        FreeVar(
+                            "__filename",
+                        ),
+                    ],
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "worker.cjs",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "filename",
+        Call(
+            7,
+            Member(
+                3,
+                Module(
+                    ModuleValue {
+                        module: "node:url",
+                        annotations: None,
+                        analyze_for_constants: false,
+                        reference: Some(
+                            ModuleReferenceIndex(
+                                7,
+                            ),
+                        ),
+                    },
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "fileURLToPath",
+                        ),
+                    ),
+                ),
+            ),
+            [
+                Member(
+                    3,
+                    WellKnownObject(
+                        ImportMeta,
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "url",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "namespaced",
+        MemberCall(
+            6,
+            Module(
+                ModuleValue {
+                    module: "node:url",
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            5,
+                        ),
+                    ),
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "fileURLToPath",
+                    ),
+                ),
+            ),
+            [
+                Member(
+                    3,
+                    WellKnownObject(
+                        ImportMeta,
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "url",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "nonConstant",
+        Call(
+            7,
+            Member(
+                3,
+                Module(
+                    ModuleValue {
+                        module: "node:url",
+                        annotations: None,
+                        analyze_for_constants: false,
+                        reference: Some(
+                            ModuleReferenceIndex(
+                                7,
+                            ),
+                        ),
+                    },
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "fileURLToPath",
+                        ),
+                    ),
+                ),
+            ),
+            [
+                Member(
+                    3,
+                    FreeVar(
+                        "globalThis",
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "foo",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "workerPath",
+        Call(
+            16,
+            Member(
+                3,
+                Module(
+                    ModuleValue {
+                        module: "node:path",
+                        annotations: None,
+                        analyze_for_constants: false,
+                        reference: Some(
+                            ModuleReferenceIndex(
+                                3,
+                            ),
+                        ),
+                    },
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "join",
+                        ),
+                    ),
+                ),
+            ),
+            [
+                Call(
+                    11,
+                    Member(
+                        3,
+                        Module(
+                            ModuleValue {
+                                module: "node:path",
+                                annotations: None,
+                                analyze_for_constants: false,
+                                reference: Some(
+                                    ModuleReferenceIndex(
+                                        2,
+                                    ),
+                                ),
+                            },
+                        ),
+                        Constant(
+                            Str(
+                                Atom(
+                                    "dirname",
+                                ),
+                            ),
+                        ),
+                    ),
+                    [
+                        Call(
+                            7,
+                            Member(
+                                3,
+                                Module(
+                                    ModuleValue {
+                                        module: "node:url",
+                                        annotations: None,
+                                        analyze_for_constants: false,
+                                        reference: Some(
+                                            ModuleReferenceIndex(
+                                                7,
+                                            ),
+                                        ),
+                                    },
+                                ),
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "fileURLToPath",
+                                        ),
+                                    ),
+                                ),
+                            ),
+                            [
+                                Member(
+                                    3,
+                                    WellKnownObject(
+                                        ImportMeta,
+                                    ),
+                                    Constant(
+                                        Str(
+                                            Atom(
+                                                "url",
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "worker.cjs",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

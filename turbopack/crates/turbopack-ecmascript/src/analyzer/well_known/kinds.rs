@@ -187,6 +187,7 @@ pub enum WellKnownFunctionKind<'a> {
     FsReadMethod(Atom),
     FsReadDir,
     PathToFileUrl,
+    FileUrlToPath,
     CreateRequire,
     ChildProcessSpawnMethod(Atom),
     ChildProcessFork,
@@ -307,6 +308,10 @@ impl WellKnownFunctionKind<'_> {
             Self::PathToFileUrl => (
                 "url.pathToFileURL".to_string(),
                 "The Node.js url.pathToFileURL method: https://nodejs.org/api/url.html#urlpathtofileurlpath",
+            ),
+            Self::FileUrlToPath => (
+                "url.fileURLToPath".to_string(),
+                "The Node.js url.fileURLToPath method: https://nodejs.org/api/url.html#urlfileurltopathurl-options",
             ),
             Self::CreateRequire => (
                 "module.createRequire".to_string(),
