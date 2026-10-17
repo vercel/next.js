@@ -344,6 +344,7 @@ export function navigateToKnownRoute(
     now,
     currentUrl,
     currentRenderedSearch,
+    state.previousNextUrl,
     currentRoot,
     navigationSeed.root,
     freshnessPolicy,

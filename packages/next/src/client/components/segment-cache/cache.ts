@@ -227,6 +227,10 @@ export type RouteTree<TData> = {
 export type RefreshState = {
   canonicalUrl: string
   renderedSearch: NormalizedSearch
+  // The Next-Url header used when this URL was originally rendered. Parallel
+  // routes may need to fetch from this URL later, after the active route's
+  // Next-Url context has changed.
+  nextUrl?: string | null
 }
 
 // A route's complete render structure. The head is fetched, cached, and
@@ -1746,6 +1750,7 @@ export function convertFlightRouterStateToRouteTree(
       ? {
           canonicalUrl: compressedRefreshState[0] as string,
           renderedSearch: compressedRefreshState[1] as NormalizedSearch,
+          nextUrl: compressedRefreshState[2] ?? null,
         }
       : null
   // Use the incoming search params, even if the response has no new data for
