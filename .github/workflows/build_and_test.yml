@@ -60,6 +60,26 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
+      # Size the new-test shard matrices to the number of changed test files so
+      # empty groups don't spin up large runners just to print "No added/changed
+      # tests detected". Mirrors scripts/get-changed-tests.mjs; any manifest
+      # change falls back to all five deploy groups.
+      - name: plan new-test shards
+        id: new-tests
+        run: |
+          set -euo pipefail
+          rev=$(node --input-type=module -e "import { getDiffRevision } from './scripts/git-info.mjs'; console.log(await getDiffRevision())")
+          files=$(git diff "$rev" --name-only --diff-filter=d | grep -E '^test/.*\.test\.(js|ts|tsx)$' || true)
+          count() { printf '%s\n' "$files" | grep -cE "$1" || true; }
+          groups() { jq -cn --argjson n "$(( $1 < 5 ? $1 : 5 ))" '[range(1; $n + 1) | "\(.)/5"]'; }
+          deploy=$(count '^test/e2e/')
+          if git diff "$rev" --name-only | grep -qE '^test/(deploy|cache-components)-tests-manifest\.json$'; then deploy=5; fi
+          {
+            echo "dev=$(groups "$(count '^test/(e2e|development)/')")"
+            echo "start=$(groups "$(count '^test/(e2e|production)/')")"
+            echo "deploy=$(groups "$deploy")"
+          } >> "$GITHUB_OUTPUT"
+
       - name: check for release
         id: is-release
         run: |
@@ -73,6 +93,9 @@ jobs:
     outputs:
       docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
+      new-tests-dev: ${{ steps.new-tests.outputs.dev }}
+      new-tests-start: ${{ steps.new-tests.outputs.start }}
+      new-tests-deploy: ${{ steps.new-tests.outputs.deploy }}
       # Pull requests only, so canary and release run all Webpack tests.
       turbopack-only: >-
         ${{
@@ -802,12 +825,12 @@ jobs:
   test-new-tests-dev:
     name: Test new and changed tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.new-tests-dev != '[]' }}
 
     strategy:
       fail-fast: false
       matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: ${{ fromJSON(needs.changes.outputs.new-tests-dev) }}
 
     permissions:
       contents: read
@@ -828,12 +851,12 @@ jobs:
   test-new-tests-start:
     name: Test new and changed tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.new-tests-start != '[]' }}
 
     strategy:
       fail-fast: false
       matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: ${{ fromJSON(needs.changes.outputs.new-tests-start) }}
 
     permissions:
       contents: read
@@ -896,12 +919,12 @@ jobs:
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.new-tests-deploy != '[]' }}
 
     strategy:
       fail-fast: false
       matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: ${{ fromJSON(needs.changes.outputs.new-tests-deploy) }}
 
     permissions:
       contents: read
@@ -927,12 +950,12 @@ jobs:
   test-new-tests-deploy-cache-components:
     name: Test new and changed tests when deployed (cache components)
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.new-tests-deploy != '[]' }}
 
     strategy:
       fail-fast: false
       matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: ${{ fromJSON(needs.changes.outputs.new-tests-deploy) }}
 
     permissions:
       contents: read
