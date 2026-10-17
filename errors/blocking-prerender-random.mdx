@@ -55,8 +55,8 @@ Other unpredictable APIs ([`Date.now()`](https://developer.mozilla.org/en-US/doc
     href="#render-on-the-client"
     snippets={[
       { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const id = Math.random()' },
+      { text: 'use(browser())' },
+      { text: 'return <Dots seed={Math.random()} />' },
     ]}
   />
 </FixCardGrid>
@@ -183,9 +183,42 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the random value belongs to the client experience. A canvas seed for a confetti animation, a random color for an avatar placeholder, a UI nonce that only matters in the browser. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration, not during prerender.
+Choose this fix when the random value belongs to the client experience, such as a canvas seed or random placeholder color. Move the value into a [Client Component](/docs/app/getting-started/server-and-client-components), then render it only in the browser or compute it after hydration.
 
 ### Patterns
+
+#### Render only in the browser with `use(browser())`
+
+Call [`use(browser())`](https://react.dev/reference/react-dom/browser) when the random value should never be rendered on the server. The component suspends during static prerendering and dynamic server rendering, then generates the value in the browser.
+
+```jsx filename="app/confetti.js"
+'use client'
+
+import { use } from 'react'
+import { browser } from 'react-dom'
+
+export function Confetti() {
+  use(browser())
+  return <Canvas seed={Math.random()} />
+}
+```
+
+Wrap the Client Component from its parent:
+
+```jsx filename="app/page.js"
+import { Suspense } from 'react'
+import { Confetti } from './confetti'
+
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <Confetti />
+    </Suspense>
+  )
+}
+```
+
+Learn more: [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 #### Compute the value inside `useEffect`
 
@@ -210,19 +243,17 @@ export function Avatar() {
 }
 ```
 
-#### Inline render with a parent `<Suspense>` boundary
-
-If the random value needs to be part of the server-rendered HTML (not deferred to after hydration), the component can call [`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random) during render as long as a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary wraps it from the parent. Next.js prerenders the fallback and fills in the real component at request time. See [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) for the full recipe.
-
 Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components), [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client).
 
 ### Trade-off
 
-The first paint shows the SSR fallback or initial state, and the random value appears only after the browser hydrates the component. That's fine for UI flourishes but wrong for content that has to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+With `use(browser())`, every server render contains the fallback and the random value appears in the browser. With `useEffect`, the initial render shows the placeholder and the random value appears after hydration. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
 
 ### Gotchas
 
-- A Client Component that produces a random value inline during render still trips this error during SSR. See the dedicated [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
+- Adding [`use client`](/docs/app/api-reference/directives/use-client) does not make a random value browser-only. A parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary can contain the static prerender interruption, but a dynamic request can still produce the value on the server. See the dedicated [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) page for browser-only, effect, and server-rendering guidance.
+- `use(io())` only interrupts static prerendering. During request-time server rendering, `io()` resolves and an uncached random value can differ from the value produced during hydration. Use `use(io())` in a Client Component only when a library preserves the server value for the first client render.
+- If the value must appear in server-rendered HTML, generate it in a Server Component and pass the serialized result to the Client Component.
 
 ## Verifying the fix
 
