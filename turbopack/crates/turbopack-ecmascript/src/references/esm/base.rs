@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
@@ -29,8 +31,8 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
-        BindingUsage, ExportUsage, ExternalType, ImportUsage, ModulePart, ModuleResolveResult,
-        ModuleResolveResultItem, RequestKey, ResolveErrorMode,
+        BindingUsage, ExportUsage, ExternalType, ImportUsage, MemberUsage, ModulePart,
+        ModuleResolveResult, ModuleResolveResultItem, RequestKey, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
         resolve,
@@ -491,6 +493,9 @@ struct EsmReferenceExtras {
     export_usage_passthrough: Option<bool>,
     /// See [`EsmAssetReferenceOptions::namespace_reexport_exports`].
     namespace_reexport_exports: Option<SmallVec<[RcStr; 1]>>,
+    /// For a namespace import that is only destructured (`const { a, b } = ns`), the (possibly
+    /// nested) members read from the namespace object.
+    namespace_members: Option<BTreeMap<RcStr, MemberUsage>>,
     /// A module to resolve to directly, bypassing resolution (from a matched inner asset).
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
@@ -526,6 +531,7 @@ impl EsmReferenceExtras {
                 annotations.is_some_and(|a| a.export_usage_passthrough()),
             ),
             namespace_reexport_exports,
+            namespace_members: None,
             resolve_override,
         };
         (extras != EsmReferenceExtras::default()).then(|| Box::new(extras))
@@ -654,6 +660,26 @@ impl EsmAssetReference {
         }
     }
 
+    /// Builds a copy of this namespace import reference for a namespace object of which only
+    /// `members` are read (`import * as ns from 'foo'; const { a, b } = ns`). It still resolves to
+    /// the whole namespace object.
+    pub fn rewrite_for_namespace_members(&self, members: BTreeMap<RcStr, MemberUsage>) -> Self {
+        let mut extras = self.extras.as_deref().cloned().unwrap_or_default();
+        extras.namespace_members = Some(members);
+        EsmAssetReference {
+            module: self.module,
+            origin: self.origin,
+            request: self.request.clone(),
+            issue_source: self.issue_source,
+            export_name: self.export_name.clone(),
+            import_usage: self.import_usage.clone(),
+            import_externals: self.import_externals,
+            module_fragments_enabled: self.module_fragments_enabled,
+            is_pure_import: self.is_pure_import,
+            extras: Some(Box::new(extras)),
+        }
+    }
+
     pub(crate) fn get_referenced_asset(
         self: Vc<Self>,
     ) -> impl Future<Output = Result<ReferencedAsset>> {
@@ -777,6 +803,7 @@ impl ModuleReference for EsmAssetReference {
         let export_usage_passthrough = extras.and_then(|extras| extras.export_usage_passthrough);
         let namespace_reexport_exports =
             extras.and_then(|extras| extras.namespace_reexport_exports.as_ref());
+        let namespace_members = extras.and_then(|extras| extras.namespace_members.as_ref());
         BindingUsage {
             import: self.import_usage.clone(),
             export: match (&self.export_name, export_usage_passthrough) {
@@ -796,11 +823,18 @@ impl ModuleReference for EsmAssetReference {
                     // reads on the resolved target.
                     ExportUsage::named_members(export.clone(), members.clone())
                 }
-                (None, _) => match namespace_reexport_exports {
-                    Some(exports) => ExportUsage::NamespaceReexport {
+                (None, _) => match (namespace_members, namespace_reexport_exports) {
+                    (Some(members), _) => {
+                        if members.values().all(|m| matches!(m, MemberUsage::All)) {
+                            ExportUsage::PartialNamespaceObject(members.keys().cloned().collect())
+                        } else {
+                            ExportUsage::NamespaceMembers(members.clone())
+                        }
+                    }
+                    (None, Some(exports)) => ExportUsage::NamespaceReexport {
                         exports: exports.clone(),
                     },
-                    None => ExportUsage::All,
+                    (None, None) => ExportUsage::All,
                 },
                 _ => ExportUsage::All,
             },

@@ -44,7 +44,10 @@ use crate::{
         esm::{EsmAssetReference, EsmExport, Liveness},
         util::{SpecifiedChunkingType, parse_chunking_type_annotation},
     },
-    utils::{extract_name_from_member_prop, extract_names_from_object_pat, unparen},
+    utils::{
+        extract_member_usage_from_object_pat, extract_name_from_member_prop,
+        extract_names_from_object_pat, unparen,
+    },
 };
 
 #[turbo_tasks::value]
@@ -1706,6 +1709,19 @@ impl Visit for Analyzer<'_> {
 
     fn visit_var_declarator(&mut self, node: &VarDeclarator) {
         self.record_require_usage_var(node);
+        // `const { a, b } = ns` only reads statically known members of a namespace import, like
+        // `ns.a` does. Skip `visit_expr` for `ns` so that it isn't added to `full_star_imports`.
+        if let Some(init) = &node.init
+            && let Expr::Ident(ident) = &**init
+            && self
+                .namespace_imports_to_specifier
+                .contains_key(&ident.to_id())
+            && extract_member_usage_from_object_pat(&node.name).is_some_and(|m| !m.is_empty())
+        {
+            node.name.visit_with(self);
+            ident.visit_with(self);
+            return;
+        }
         node.visit_children_with(self);
     }
 
