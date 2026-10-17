@@ -177,6 +177,7 @@ export function createInitialRenderTreeForHydration(
     scrollRef: null,
   }
   const parentNeedsDynamicRequest = false
+  const parentRefreshState = null
   const restrictToShell = false
   // Hydration is bound to the shared map.
   const map = segmentCacheMap
@@ -186,6 +187,7 @@ export function createInitialRenderTreeForHydration(
     FreshnessPolicy.Hydration,
     seedDynamicStaleAt,
     parentNeedsDynamicRequest,
+    parentRefreshState,
     accumulation,
     map,
     restrictToShell
@@ -196,6 +198,7 @@ export function createInitialRenderTreeForHydration(
     FreshnessPolicy.Hydration,
     seedDynamicStaleAt,
     parentNeedsDynamicRequest,
+    parentRefreshState,
     accumulation,
     map,
     restrictToShell
@@ -379,6 +382,7 @@ function updateRenderTreeOnNavigation(
       freshness,
       seedDynamicStaleAt,
       parentNeedsDynamicRequest,
+      parentRefreshState,
       accumulation,
       map,
       restrictToShell
@@ -724,6 +728,7 @@ function createRenderTreeOnNavigation(
   freshness: FreshnessPolicy,
   seedDynamicStaleAt: number,
   parentNeedsDynamicRequest: boolean,
+  parentRefreshState: RefreshState | null,
   accumulation: NavigationRequestAccumulation,
   map: CacheMap<SegmentCacheEntry>,
   // Instant Navigation Testing API only — restricts segment reads to shell
@@ -733,7 +738,8 @@ function createRenderTreeOnNavigation(
   // Same traversal as updateRenderTreeOnNavigation, but simpler. We switch to this
   // path once we reach the part of the tree that was not in the previous route.
   // We don't need to diff against the old tree, we just need to create a new
-  // one. We also don't need to worry about any refresh-related logic.
+  // one. A history restore can still contain inactive parallel routes, whose
+  // refresh context must be preserved even though their structure is new.
   //
   // For the most part, this is a subset of updateRenderTreeOnNavigation, so any
   // change that happens in this function likely needs to be applied to that
@@ -755,6 +761,14 @@ function createRenderTreeOnNavigation(
   )
   const newRenderTree = result.node
   const needsDynamicRequest = result.needsDynamicRequest
+
+  const refreshState = newRouteTree.refreshState ?? parentRefreshState
+  newRenderTree.refreshState = refreshState
+  if (needsDynamicRequest && refreshState !== null) {
+    // A restored inactive branch may no longer be in the BFCache. Fetch its
+    // missing data from the URL that originally rendered it.
+    accumulateRefreshUrl(accumulation, refreshState)
+  }
 
   const isLeafSegment = newSlots === null
   if (isLeafSegment) {
@@ -782,6 +796,7 @@ function createRenderTreeOnNavigation(
         freshness,
         seedDynamicStaleAt,
         parentNeedsDynamicRequest || needsDynamicRequest,
+        refreshState,
         accumulation,
         map,
         restrictToShell
@@ -803,9 +818,6 @@ function createRenderTreeOnNavigation(
     }
   }
 
-  // This route is not part of the current tree, so there's no reason to
-  // track the refresh URL.
-  const refreshState = null
   const newFlightRouterState = createRouterStateForSegment(
     newRouteTree,
     patchedRouterStateChildren,
