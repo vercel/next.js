@@ -73,6 +73,27 @@ type FallbackPrerenderedRoute = {
 export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
 
 /**
+ * The subset of prerender metadata needed to select a shell during build-time
+ * Instant Validation.
+ */
+export type BuildValidationCandidate = Pick<
+  PrerenderedRoute,
+  | 'pathname'
+  | 'fallbackRouteParams'
+  | 'remainingPrerenderableParams'
+  | 'throwOnEmptyStaticShell'
+>
+
+/**
+ * Metadata needed to reproduce staged fallback semantics during build-time
+ * Instant Validation.
+ */
+export type BuildValidationMetadata = {
+  readonly candidates: readonly BuildValidationCandidate[]
+  readonly explicitFallbackRouteParams?: readonly FallbackRouteParam[]
+}
+
+/**
  * Describes how a dynamic pathname is matched when no concrete build-time
  * output matches it. It describes the logical route independently of any
  * artifacts produced for it, and is not itself something to render.
@@ -108,8 +129,8 @@ export type StaticPathsResult = {
   paramMatching?: ParamMatching
 
   /**
-   * DEV only: the first explicitly configured fallback parameter and every
-   * parameter after it remain unknown during staged rendering and validation.
+   * The first explicitly configured fallback parameter and every parameter
+   * after it remain unknown during staged rendering and validation.
    */
   explicitFallbackRouteParams?: readonly FallbackRouteParam[]
 }
