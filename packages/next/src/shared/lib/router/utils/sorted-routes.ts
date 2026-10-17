@@ -25,9 +25,9 @@ class UrlNode {
       childrenPaths.splice(childrenPaths.indexOf('[[...]]'), 1)
     }
 
-    const routes = childrenPaths
-      .map((c) => this.children.get(c)!._smoosh(`${prefix}${c}/`))
-      .reduce((prev, curr) => [...prev, ...curr], [])
+    const routes = childrenPaths.flatMap((c) =>
+      this.children.get(c)!._smoosh(`${prefix}${c}/`)
+    )
 
     if (this.slugName !== null) {
       routes.push(
