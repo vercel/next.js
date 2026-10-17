@@ -129,9 +129,14 @@ export async function pipeToNodeResponse(
   clientComponentLoadTracker?: ClientComponentLoadTracker
 ) {
   try {
-    // If the response has already errored, then just return now.
+    // If the response has already errored, then just return now. Cancel the
+    // readable so that its source is released and anything waiting for it to
+    // end (e.g. deferred revalidations) can settle.
     const { errored, destroyed } = res
-    if (errored || destroyed) return
+    if (errored || destroyed) {
+      readable.cancel().catch(() => {})
+      return
+    }
 
     // Create a new AbortController so that we can abort the readable if the
     // client disconnects.
