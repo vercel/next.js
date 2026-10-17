@@ -549,5 +549,46 @@ describe('deployment lifecycle', () => {
       expect(inspectCalls.length).toBeGreaterThan(1)
       expect(next.cliOutput).toContain('Compiled successfully')
     })
+
+    it('reports when inspect returned no build-log lines at all', async () => {
+      installClock()
+      logs = ok(cliHeader)
+      const next = await instance()
+      const error = await next.start().catch((err: Error) => err)
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).message).toMatch(
+        /^Failed to get buildId from logs of https:\/\/fixture\.vercel\.app\/? after \d+ attempt\(s\) in \d+ms: `vercel inspect --logs` returned no build-log lines/
+      )
+    })
+
+    it('names every marker missing from the build logs', async () => {
+      installClock()
+      logs = ok(`${cliHeader}${buildOutput}`)
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow(
+        /^Failed to get buildId from logs .*: the build logs are missing the BUILD_ID, DEPLOYMENT_ID, NEXT_SUPPORTS_IMMUTABLE_ASSETS marker\(s\)/
+      )
+    })
+
+    it('names only the markers that are missing', async () => {
+      installClock()
+      logs = ok(
+        `${cliHeader}${buildOutput}BUILD_ID: build-id\nDEPLOYMENT_ID: deployment-id\n`
+      )
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow(
+        'the build logs are missing the NEXT_SUPPORTS_IMMUTABLE_ASSETS marker(s)'
+      )
+    })
+
+    it('includes why the last inspect call failed', async () => {
+      process.env.NEXT_E2E_TEST_TIMEOUT = '60000'
+      const clock = installClock()
+      inspectResults = Array.from({ length: 10 }, () => hungInspect(clock))
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow(
+        /The last vercel inspect call timed out after \d+ms/
+      )
+    })
   })
 })

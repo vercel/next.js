@@ -322,15 +322,18 @@ export class NextDeployInstance extends NextInstance {
     // attempt that times out or comes back empty must not discard it.
     let transcript = ''
     let lastOutput = ''
+    let failure: string | undefined
+    let attempt = 0
 
-    for (let attempt = 1; ; attempt++) {
+    for (;;) {
+      attempt++
       const remainingMs = deadline - Date.now()
       const timeout =
         remainingMs > 0
           ? Math.min(BUILD_LOGS_INSPECT_TIMEOUT_MS, remainingMs)
           : BUILD_LOGS_INSPECT_TIMEOUT_MS
 
-      let failure: string | undefined
+      failure = undefined
       try {
         const buildLogs = await execa(
           'vercel',
@@ -374,9 +377,23 @@ export class NextDeployInstance extends NextInstance {
       }
     }
 
-    // The markers never appeared within the deadline; return the best
-    // transcript so `parseIdsFromCliOutput` throws a descriptive error with it.
-    return transcript || lastOutput
+    // The markers never appeared within the deadline. Keep the best transcript
+    // for callers that catch start(), and say why it can't be parsed.
+    const output = transcript || lastOutput
+    this._cliOutput = output
+    const missingMarkers = BUILD_LOG_MARKERS.filter(
+      (marker) => !hasBuildLogMarker(output, marker)
+    )
+    const reason = !hasBuildLogLines(output)
+      ? '`vercel inspect --logs` returned no build-log lines, only its own output; the build logs are likely not available from Vercel yet'
+      : missingMarkers.length > 0
+        ? `the build logs are missing the ${missingMarkers.join(', ')} marker(s)`
+        : 'the vercel inspect call that printed the markers did not succeed'
+    throw new Error(
+      `Failed to get buildId from logs of ${url} after ${attempt} attempt(s) in ${Date.now() - pollStartedAt}ms: ${reason}.` +
+        (failure ? `\nThe last vercel inspect call ${failure}` : '') +
+        `\n${output}`
+    )
   }
 
   public async setup(parentSpan: Span) {
