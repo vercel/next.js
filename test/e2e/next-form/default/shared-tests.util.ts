@@ -38,6 +38,7 @@ export function runSharedTests(type: 'app' | 'pages') {
           .waitForElementByCss('#search-results')
           .text()
         expect(result).toMatch(/query: "my search"/)
+        expect(result).toContain('text: "line1\\r\\nline2"')
 
         expect(await navigationTracker.didMpaNavigate()).toBe(false)
       }
