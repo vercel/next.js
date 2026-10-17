@@ -467,6 +467,9 @@ export interface CacheFs {
   writeFileAtomic?(f: string, d: any): Promise<boolean>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
+  readdir?(dir: string): Promise<string[]>
+  /** Remove a file or directory tree. */
+  rm?(f: string): Promise<void>
 }
 
 export function stringifyError(error: Error) {
