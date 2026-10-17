@@ -9134,16 +9134,22 @@ async function prerenderToStream(
   let reactServerRenderChunks: Array<Uint8Array> | null = null
   let reactServerResumeDataCache: ResumeDataCache | null = null
   let reactServerPrerenderStore: null | PrerenderStore = null
-  const setMetadataHeader = (name: string) => {
+  // During a background revalidation `res` belongs to a request that has
+  // already been answered, and header writes to it are dropped
+  // (patchSetHeaderWithCookieSupport). Reading them back would give nothing,
+  // or the value of the stale entry, so record what this render wrote.
+  const setMetadataHeader = (name: string, written?: string | string[]) => {
     metadata.headers ??= {}
-    metadata.headers[name] = res.getHeader(name)
+    metadata.headers[name] =
+      res.sent && written !== undefined ? written : res.getHeader(name)
   }
   const setHeader = (name: string, value: string | string[]) => {
     res.setHeader(name, value)
-    setMetadataHeader(name)
+    setMetadataHeader(name, value)
     return res
   }
   const appendHeader = (name: string, value: string | string[]) => {
+    const previous = metadata.headers?.[name]
     if (Array.isArray(value)) {
       value.forEach((item) => {
         res.appendHeader(name, item)
@@ -9151,7 +9157,16 @@ async function prerenderToStream(
     } else {
       res.appendHeader(name, value)
     }
-    setMetadataHeader(name)
+    const appended = [previous, value]
+      .flat()
+      .filter((v) => v !== undefined)
+      .map(String)
+    setMetadataHeader(
+      name,
+      appended.length === 1 && name.toLowerCase() !== 'set-cookie'
+        ? appended[0]
+        : appended
+    )
   }
 
   const selectStaleTime = createSelectStaleTime(experimental)
