@@ -1468,10 +1468,13 @@ impl Visit for Analyzer<'_> {
         n.visit_children_with(self);
     }
 
+    /// check if `new Worker()` or `new URL()` contains magic comments, e.g.
+    /// - new Worker(/* turbopackIgnore: true */ new URL("./worker.js", import.meta.url))
+    /// - new URL(/* turbopackIgnore: true */ url, import.meta.url)
     fn visit_new_expr(&mut self, n: &NewExpr) {
         if let Some(comments) = self.comments {
             let callee_span = match &*n.callee {
-                Expr::Ident(Ident { sym, .. }) if sym == "Worker" => Some(n.span),
+                Expr::Ident(Ident { sym, .. }) if sym == "Worker" || sym == "URL" => Some(n.span),
                 _ => None,
             };
 
