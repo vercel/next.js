@@ -73,6 +73,10 @@ import {
   createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
+import {
+  FlightRenderPass,
+  getFlightIdentifierPrefix,
+} from './flight-identifier-prefix'
 import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
@@ -887,6 +891,7 @@ async function generateDynamicFlightRenderResult(
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
         signal: requestAbortSignal,
+        identifierPrefix: getFlightIdentifierPrefix(requestId),
       }
     )
 
@@ -923,6 +928,7 @@ async function generateDynamicFlightRenderResult(
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
         signal: requestAbortSignal,
+        identifierPrefix: getFlightIdentifierPrefix(requestId),
       }
     )
 
@@ -1086,7 +1092,11 @@ async function generateStagedDynamicFlightRenderResultNode(
         ctx.componentMod,
         rscPayload,
         clientModules,
-        { onError, filterStackFrame }
+        {
+          onError,
+          filterStackFrame,
+          identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
+        }
       ) as Readable
 
       const replayable = new ReplayableNodeStream(sourceStream)
@@ -1161,7 +1171,10 @@ async function spawnRuntimePrefetchWithFilledCaches(
       // This path is only reached on the production Cache Components + Cached
       // Navigations renders (the staged Flight response and the HTML hydration
       // payload), which set up no React debug channel.
-      undefined
+      undefined,
+      // This prefetch is embedded in the payload of the render that spawned it,
+      // so it needs a prefix of its own.
+      getFlightIdentifierPrefix(ctx.requestId, FlightRenderPass.Prefetch)
     )
 
     await result.prelude.pipeTo(writable)
@@ -1428,6 +1441,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     const result = await stagedRenderWithCachesInDev({
       prefetchMode,
       ctx,
+      identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
       requestStore: initialRequestStore,
       createRequestStore,
       getPayload,
@@ -1459,6 +1473,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       initialRequestStore,
       getPayload,
       {
+        identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
         onError: onError,
         filterStackFrame,
         debugChannel: debugChannel?.serverSide,
@@ -1567,7 +1582,8 @@ async function generateRuntimePrefetchResult(
     requestStore.draftMode,
     onError,
     staleTimeIterable,
-    debugChannel?.serverSide
+    debugChannel?.serverSide,
+    getFlightIdentifierPrefix(requestId)
   )
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -1768,7 +1784,8 @@ async function finalRuntimeServerPrerender(
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined,
   staleTimeIterable: StaleTimeIterable,
-  debugChannel: RenderToReadableStreamServerOptions['debugChannel']
+  debugChannel: RenderToReadableStreamServerOptions['debugChannel'],
+  identifierPrefix: string
 ) {
   const { implicitTags, renderOpts } = ctx
   const { ComponentMod, experimental, isDebugDynamicAccesses } = renderOpts
@@ -1902,6 +1919,7 @@ async function finalRuntimeServerPrerender(
         finalRSCPayload,
         clientModules,
         {
+          identifierPrefix,
           filterStackFrame,
           onError,
           signal: finalServerController.signal,
@@ -3849,6 +3867,7 @@ async function renderToStream(
             await stagedRenderWithCachesInDev({
               prefetchMode,
               ctx,
+              identifierPrefix: '',
               requestStore,
               createRequestStore,
               getPayload,
@@ -5558,6 +5577,8 @@ function getEnvironmentNameForStage(stage: RenderStage) {
 interface StagedDevRenderOptions {
   prefetchMode: PrefetchingMode
   ctx: AppRenderContext
+  /** Empty for the initial document, whose ids are the tree the client starts from. */
+  identifierPrefix: string
   requestStore: RequestStore
   onError: (error: unknown) => void
   navigationKind: DevNavigationKind
@@ -5622,6 +5643,7 @@ interface StreamStagedRenderInDevOptions extends StagedDevRenderOptions {
 async function streamStagedRenderInDev({
   prefetchMode,
   ctx,
+  identifierPrefix,
   requestStore,
   rscPayload,
   stageController,
@@ -5784,6 +5806,7 @@ async function streamStagedRenderInDev({
           rscPayload,
           clientModules,
           {
+            identifierPrefix,
             onError,
             environmentName,
             startTime,
@@ -6189,6 +6212,7 @@ function abortInRenderContext(
 async function stagedRenderWithCachesInDev({
   prefetchMode,
   ctx,
+  identifierPrefix,
   requestStore,
   createRequestStore,
   getPayload,
@@ -6233,6 +6257,7 @@ async function stagedRenderWithCachesInDev({
     const { stream, resultPromise } = await streamStagedRenderInDev({
       prefetchMode,
       ctx,
+      identifierPrefix,
       requestStore,
       rscPayload,
       stageController,
