@@ -2,18 +2,21 @@ use std::collections::hash_map::Entry;
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{JoinIterExt, NonLocalValue, OperationVc, ReadRef, ResolvedVc, Vc};
 
 use crate::{
     chunk::chunking_context::UnusedReferences,
-    module::Module,
+    module::{ExportBinding, ExportBindings, Module},
     module_graph::{
         GraphEdgeIndex, GraphTraversalAction, ModuleGraph,
         side_effect_module_info::compute_side_effect_free_module_info,
     },
+    reference::ModuleReference,
     resolve::{ExportUsage, ImportUsage},
 };
 
@@ -35,6 +38,27 @@ pub struct ExportCircuitBreakers(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct PartialNamespaceModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
+/// A used export whose value can be read once into a local, instead of through the exporting
+/// module's namespace at every use.
+#[derive(Clone, Hash, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub struct CapturableExport {
+    /// The module that declares the binding, after following re-exports.
+    pub origin_module: ResolvedVc<Box<dyn Module>>,
+    /// The name `origin_module` exports the binding under.
+    pub origin_export: RcStr,
+    /// Whether calling the value could observe the receiver it is called with.
+    pub maybe_uses_this: bool,
+}
+
+/// The [`CapturableExport`]s of one module, by the name that module exports them under.
+#[turbo_tasks::value(transparent)]
+pub struct CapturableExports(FrozenMap<RcStr, CapturableExport>);
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct CapturableExportsMap(
+    FxHashMap<ResolvedVc<Box<dyn Module>>, FrozenMap<RcStr, CapturableExport>>,
+);
+
 #[turbo_tasks::value]
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
@@ -44,6 +68,127 @@ pub struct BindingUsageInfo {
     used_exports: ResolvedVc<UsedExportsMap>,
     export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
     partial_namespace_modules: ResolvedVc<PartialNamespaceModules>,
+    capturable_exports: ResolvedVc<CapturableExportsMap>,
+}
+
+/// Where each used reference leads. `None` when a reference leads to more than one module.
+type ReferenceTargets =
+    FxHashMap<ResolvedVc<Box<dyn ModuleReference>>, Option<ResolvedVc<Box<dyn Module>>>>;
+
+/// What following an export through its re-exports found.
+#[derive(Clone)]
+enum Resolution {
+    /// The module does not export the name at all.
+    NotExported,
+    /// The export ends at something that cannot be captured: a binding that can be reassigned, a
+    /// namespace, a module that doesn't describe its exports, or a cycle of re-exports.
+    Opaque,
+    Capturable(CapturableExport),
+}
+
+/// Follows exports through re-exports to the binding that declares them, across the whole graph.
+///
+/// This runs inside [`compute_binding_usage_info`] as plain code rather than as turbo tasks, so a
+/// cycle of re-exports is caught here rather than becoming a cycle between tasks.
+struct ExportResolver<'a> {
+    export_bindings: &'a FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<ExportBindings>>,
+    reference_targets: &'a ReferenceTargets,
+    resolved: FxHashMap<(ResolvedVc<Box<dyn Module>>, RcStr), Resolution>,
+}
+
+impl ExportResolver<'_> {
+    fn resolve(&mut self, module: ResolvedVc<Box<dyn Module>>, name: &RcStr) -> Resolution {
+        let key = (module, name.clone());
+        if let Some(resolution) = self.resolved.get(&key) {
+            return resolution.clone();
+        }
+        // Seen again before this lookup finishes means a cycle of re-exports, which is opaque.
+        self.resolved.insert(key.clone(), Resolution::Opaque);
+        let resolution = self.resolve_uncached(module, name);
+        self.resolved.insert(key, resolution.clone());
+        resolution
+    }
+
+    fn resolve_uncached(
+        &mut self,
+        module: ResolvedVc<Box<dyn Module>>,
+        name: &RcStr,
+    ) -> Resolution {
+        let Some(bindings) = self.export_bindings.get(&module) else {
+            return Resolution::Opaque;
+        };
+        match bindings.exports.get(name) {
+            Some(ExportBinding::Local {
+                is_constant: true,
+                maybe_uses_this,
+            }) => Resolution::Capturable(CapturableExport {
+                origin_module: module,
+                origin_export: name.clone(),
+                maybe_uses_this: *maybe_uses_this,
+            }),
+            Some(ExportBinding::Local { .. } | ExportBinding::Opaque) => Resolution::Opaque,
+            Some(ExportBinding::Reexport {
+                reference,
+                name: forwarded,
+            }) => match self.target(*reference) {
+                Some(target) => self.resolve(target, forwarded),
+                None => Resolution::Opaque,
+            },
+            // `export *` never forwards `default`.
+            None if name == "default" => Resolution::NotExported,
+            None => {
+                // The first `export *` that exports the name wins.
+                for star_reference in &bindings.star_reexports {
+                    let Some(target) = self.target(*star_reference) else {
+                        // It might have been the one to export the name.
+                        return Resolution::Opaque;
+                    };
+                    match self.resolve(target, name) {
+                        Resolution::NotExported => continue,
+                        resolution => return resolution,
+                    }
+                }
+                Resolution::NotExported
+            }
+        }
+    }
+
+    /// Every name `module` exports, including through `export *`.
+    fn exported_names(&self, module: ResolvedVc<Box<dyn Module>>) -> FxHashSet<RcStr> {
+        let mut names = FxHashSet::default();
+        let mut visited = FxHashSet::default();
+        let mut queue = vec![(module, true)];
+        while let Some((module, include_default)) = queue.pop() {
+            if !visited.insert(module) {
+                continue;
+            }
+            let Some(bindings) = self.export_bindings.get(&module) else {
+                continue;
+            };
+            names.extend(
+                bindings
+                    .exports
+                    .keys()
+                    .filter(|name| include_default || *name != "default")
+                    .cloned(),
+            );
+            queue.extend(
+                bindings
+                    .star_reexports
+                    .iter()
+                    .filter_map(|reference| self.target(*reference))
+                    .map(|target| (target, false)),
+            );
+        }
+        names
+    }
+
+    fn target(
+        &self,
+        reference: ResolvedVc<Box<dyn ModuleReference>>,
+    ) -> Option<ResolvedVc<Box<dyn Module>>> {
+        self.reference_targets.get(&reference).copied().flatten()
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -58,6 +203,9 @@ pub struct ModuleExportUsage {
     /// Whether this module is read through a namespace value somewhere, which means one of those
     /// reads may still use an original export name. See [`PartialNamespaceModules`].
     pub namespace_object_may_escape: bool,
+    /// The used exports of this module whose value can be captured, found by following re-exports
+    /// to the binding each one forwards. Empty when export usage analysis did not run.
+    pub capturable_exports: ResolvedVc<CapturableExports>,
 }
 #[turbo_tasks::value_impl]
 impl ModuleExportUsage {
@@ -67,6 +215,7 @@ impl ModuleExportUsage {
             export_usage: ModuleExportUsageInfo::all().to_resolved().await?,
             is_circuit_breaker: true,
             namespace_object_may_escape: true,
+            capturable_exports: ResolvedVc::cell(FrozenMap::default()),
         }
         .cell())
     }
@@ -90,10 +239,17 @@ impl BindingUsageInfo {
         };
         let namespace_object_may_escape =
             self.partial_namespace_modules.contains_key(&module).await?;
+        let capturable_exports = self
+            .capturable_exports
+            .get(&module)
+            .await?
+            .map(|exports| (*exports).clone())
+            .unwrap_or_default();
         Ok(ModuleExportUsage {
             export_usage: (*exports).clone().resolved_cell(),
             is_circuit_breaker,
             namespace_object_may_escape,
+            capturable_exports: ResolvedVc::cell(capturable_exports),
         }
         .cell())
     }
@@ -131,6 +287,8 @@ pub async fn compute_binding_usage_info(
         let mut unused_references_edges = FxHashSet::default();
         let mut unused_references =
             FxHashMap::<_, FxHashSet<ResolvedVc<Box<dyn Module>>>>::default();
+        // Recorded as the traversal goes, so re-exports can be followed below.
+        let mut reference_targets = ReferenceTargets::default();
 
         let graph = graph.connect();
         let graph_ref = graph.await?;
@@ -258,6 +416,17 @@ pub async fn compute_binding_usage_info(
                     }
                 }
 
+                match reference_targets.entry(ref_data.reference) {
+                    Entry::Vacant(entry) => {
+                        entry.insert(Some(target));
+                    }
+                    Entry::Occupied(mut entry) => {
+                        if *entry.get() != Some(target) {
+                            entry.insert(None);
+                        }
+                    }
+                }
+
                 let is_first_visit = !used_exports.contains_key(&target);
                 let changed = match &ref_data.binding_usage.export {
                     ExportUsage::Passthrough {
@@ -337,6 +506,43 @@ pub async fn compute_binding_usage_info(
         span.record("visit_count", visit_count);
         span.record("unused_reference_count", unused_references.len());
 
+        let export_bindings = used_exports
+            .iter()
+            .filter(|(_, usage)| !matches!(usage, ModuleExportUsageInfo::Evaluation))
+            .map(async |(module, _)| Ok((*module, module.export_bindings().await?)))
+            .join()
+            .await
+            .into_iter()
+            .collect::<Result<FxHashMap<_, _>>>()?;
+        let capturable_exports = {
+            let mut resolver = ExportResolver {
+                export_bindings: &export_bindings,
+                reference_targets: &reference_targets,
+                resolved: FxHashMap::default(),
+            };
+            used_exports
+                .iter()
+                .filter_map(|(module, usage)| {
+                    let names = match usage {
+                        ModuleExportUsageInfo::Evaluation => return None,
+                        ModuleExportUsageInfo::Exports(names) => names.iter().cloned().collect(),
+                        ModuleExportUsageInfo::All => resolver.exported_names(*module),
+                    };
+                    let capturable = names
+                        .into_iter()
+                        .filter_map(|name| {
+                            let Resolution::Capturable(export) = resolver.resolve(*module, &name)
+                            else {
+                                return None;
+                            };
+                            Some((name, export))
+                        })
+                        .collect::<Vec<_>>();
+                    (!capturable.is_empty()).then(|| (*module, FrozenMap::from(capturable)))
+                })
+                .collect::<FxHashMap<_, _>>()
+        };
+
         #[cfg(debug_assertions)]
         {
             use std::sync::LazyLock;
@@ -383,6 +589,7 @@ pub async fn compute_binding_usage_info(
             used_exports: ResolvedVc::cell(used_exports),
             export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
             partial_namespace_modules: ResolvedVc::cell(partial_namespace_modules),
+            capturable_exports: ResolvedVc::cell(capturable_exports),
         }
         .cell())
     }

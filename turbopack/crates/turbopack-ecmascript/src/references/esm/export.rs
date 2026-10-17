@@ -19,7 +19,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, analyze::AnalyzeIssue},
-    module::{Module, ModuleSideEffects},
+    module::{ExportBinding, ExportBindings, Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReference,
     resolve::ModulePart,
@@ -567,6 +567,41 @@ pub struct ExpandedExports {
     pub dynamic_exports: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
+/// Describes `exports` for [`Module::export_bindings`], which the whole-graph export usage analysis
+/// uses to follow re-exports to the binding they forward.
+///
+/// A plain function rather than a turbo task: every caller is already the `export_bindings` task of
+/// one module, so caching this as well would only add a second task per module.
+pub async fn esm_export_bindings(exports: Vc<EcmascriptExports>) -> Result<ExportBindings> {
+    let EcmascriptExports::EsmExports(exports) = &*exports.await? else {
+        return Ok(ExportBindings::default());
+    };
+    let exports = exports.await?;
+    Ok(ExportBindings {
+        exports: FrozenMap::from(
+            exports
+                .exports
+                .iter()
+                .map(|(name, export)| {
+                    let binding = match export {
+                        EsmExport::LocalBinding(binding) => ExportBinding::Local {
+                            is_constant: binding.liveness == Liveness::Constant,
+                            maybe_uses_this: binding.maybe_uses_this,
+                        },
+                        EsmExport::ImportedBinding(reference, name, _) => ExportBinding::Reexport {
+                            reference: *reference,
+                            name: name.clone(),
+                        },
+                        EsmExport::ImportedNamespace(_) | EsmExport::Error => ExportBinding::Opaque,
+                    };
+                    (name.clone(), binding)
+                })
+                .collect::<Vec<_>>(),
+        ),
+        star_reexports: exports.star_exports.clone(),
+    })
+}
+
 #[turbo_tasks::value_impl]
 impl EsmExports {
     /// Creates an EsmExports that re-exports all exports from another module.
@@ -788,6 +823,7 @@ async fn build_compact_reexports(
             ctxt,
             export: Some(imported_key),
             import_source: ImportSource::Module { asset },
+            ..
         }) = referenced_asset
             .get_ident(
                 chunking_context,
@@ -1044,10 +1080,10 @@ impl EsmExports {
             };
 
             for dynamic_export_asset in &expanded.dynamic_exports {
-                let ident = ReferencedAsset::get_ident_from_placeable(
-                    dynamic_export_asset,
-                    chunking_context,
-                )
+                let ident = ImportSource::Module {
+                    asset: *dynamic_export_asset,
+                }
+                .get_namespace_ident(chunking_context)
                 .await?;
 
                 if let Some(id) = &id {
