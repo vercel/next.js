@@ -97,6 +97,8 @@ describe('Unoptimized Image Tests', () => {
   })
 
   if (!isNextDev) {
+    // Deployment mode has no local generated manifest to read.
+    // @force-gate !deploy
     it('should build correct images-manifest.json', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/images-manifest.json')
