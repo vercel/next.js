@@ -1,7 +1,9 @@
+use std::collections::BTreeMap;
+
 use bumpalo::boxed::Box as BumpBox;
 use swc_core::{atoms::Atom, common::Span, ecma::visit::fields::*};
 use turbo_rcstr::RcStr;
-use turbopack_core::resolve::ExportUsage;
+use turbopack_core::resolve::{ExportUsage, MemberUsage};
 
 use crate::{
     analyzer::{Bump, BumpVec, JsValue},
@@ -171,8 +173,11 @@ pub enum Effect<'a> {
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
-        /// A single member read from a named import (`z.member`), used only to narrow the part.
-        member: Option<RcStr>,
+        /// The static members read on the imported value, used only to narrow the part:
+        /// `{ a: { b } }` for `z.a.b` with a named import `z`, or for `ns.export.a.b` with a
+        /// namespace import `ns` (where `export` is already `Some("export")`). Empty if the
+        /// value is read as a whole.
+        members: BTreeMap<RcStr, MemberUsage>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },

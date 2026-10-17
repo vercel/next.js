@@ -77,10 +77,10 @@ async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-    // The namespace member is only applied if this export resolves to a namespace object.
-    let (export, namespace_member) = match &part {
+    // The namespace members are only applied if this export resolves to a namespace object.
+    let (export, namespace_members) = match &part {
         ModulePart::Export(export) => (export, None),
-        ModulePart::PartialExport { export, member } => (export, Some(member)),
+        ModulePart::PartialExport { export, members } => (export, Some(members)),
         _ => return Ok(module),
     };
 
@@ -93,6 +93,8 @@ async fn apply_reexport_tree_shaking(
         if *new_export == *export {
             **final_module
         } else {
+            // The rename module forwards the usage of `export` (including member usage) to
+            // `new_export`, see `EcmascriptModuleRenameModule::module_reference`.
             Vc::upcast(EcmascriptModuleRenameModule::new(
                 **final_module,
                 ModulePart::renamed_export(new_export.clone(), export.clone()),
@@ -101,9 +103,9 @@ async fn apply_reexport_tree_shaking(
     } else {
         Vc::upcast(EcmascriptModuleRenameModule::new(
             **final_module,
-            match namespace_member {
-                Some(member) => {
-                    ModulePart::renamed_partial_namespace(export.clone(), member.clone())
+            match namespace_members {
+                Some(members) => {
+                    ModulePart::renamed_partial_namespace(export.clone(), members.clone())
                 }
                 None => ModulePart::renamed_namespace(export.clone()),
             },

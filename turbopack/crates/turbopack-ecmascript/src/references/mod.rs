@@ -224,7 +224,11 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     esm_references_free_var: FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>,
     // Ad-hoc created import references that are resolved `import * as x from ...; x.foo` accesses
     // This caches repeated access because EsmAssetReference::new is not a turbo task function.
-    esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
+    /// Rewritten references per original import, keyed by the part they request (the export and
+    /// any static members read on it, which narrow usage when that export resolves to a namespace
+    /// object).
+    esm_references_rewritten:
+        FxHashMap<usize, FxIndexMap<ModulePart, ResolvedVc<EsmAssetReference>>>,
 
     esm_bindings: EsmBindingsBuilder,
 
@@ -386,14 +390,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     pub fn add_esm_reference_namespace_resolved(
         &mut self,
         esm_reference_idx: usize,
-        export: RcStr,
+        part: ModulePart,
         on_insert: impl FnOnce() -> ResolvedVc<EsmAssetReference>,
     ) -> ResolvedVc<EsmAssetReference> {
         *self
             .esm_references_rewritten
             .entry(esm_reference_idx)
             .or_default()
-            .entry(export)
+            .entry(part)
             .or_insert_with(on_insert)
     }
 
@@ -1412,7 +1416,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::ImportedBinding {
                     esm_reference_index,
                     export,
-                    member,
+                    members,
                     ast_path,
                     span: _,
                 } => {
@@ -1468,15 +1472,22 @@ async fn analyze_ecmascript_module_internal(
                             {
                                 // Rewrite `import * as ns from 'foo'; foo.bar()` to behave like
                                 // `import {bar} from 'foo'; bar()` for tree shaking purposes.
+                                //
+                                // For `ns.bar.baz.qux`, behave like
+                                // `import {bar} from 'foo'; bar.baz.qux` and only ask for
+                                // `baz.qux` if `bar` resolves to a namespace object.
+                                let part = if members.is_empty() {
+                                    ModulePart::export(export.clone())
+                                } else {
+                                    ModulePart::partial_export(export.clone(), members)
+                                };
                                 let named_reference = analysis
                                     .add_esm_reference_namespace_resolved(
                                         esm_reference_index,
-                                        export.clone(),
+                                        part.clone(),
                                         || {
                                             original_reference
-                                                .rewrite_for_export(ModulePart::export(
-                                                    export.clone(),
-                                                ))
+                                                .rewrite_for_export(part)
                                                 .resolved_cell()
                                         },
                                     );
@@ -1490,20 +1501,18 @@ async fn analyze_ecmascript_module_internal(
 
                             if let Some(ModulePart::Export(export_name)) =
                                 &original_reference.export_name
-                                && let Some(member) = member
+                                && !members.is_empty()
                             {
-                                // Ask for just the static member if the named export resolves to a
-                                // namespace object.
+                                // Ask for just the static members if the named export resolves to
+                                // a namespace object.
+                                let part = ModulePart::partial_export(export_name.clone(), members);
                                 let narrowed_reference = analysis
                                     .add_esm_reference_namespace_resolved(
                                         esm_reference_index,
-                                        member.clone(),
+                                        part.clone(),
                                         || {
                                             original_reference
-                                                .rewrite_for_export(ModulePart::partial_export(
-                                                    export_name.clone(),
-                                                    member.clone(),
-                                                ))
+                                                .rewrite_for_export(part)
                                                 .resolved_cell()
                                         },
                                     );
@@ -3865,6 +3874,7 @@ async fn handle_free_var_reference(
                             import_externals: state.import_externals,
                             module_fragments_enabled: state.module_fragments_enabled,
                             export_usage_passthrough: None,
+                            namespace_reexport_exports: None,
                             resolve_override: None,
                         },
                     )
