@@ -480,7 +480,9 @@ async function startWatcher(
     // Startup only waits this long for Watchpack to observe the files found by
     // the snapshot above, so a file it never reports cannot stall the server.
     const initialScanDeadline = initialWatchTime + 30_000
-    wp.on('aggregated', async () => {
+    let initialScanFallback: NodeJS.Timeout | undefined
+
+    const processAggregation = async () => {
       const isInitialScan = !hadInitialScan
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
@@ -501,7 +503,17 @@ async function startWatcher(
       ) {
         return
       }
+
+      // Watchpack treats EPERM from an initial directory scan as a removal,
+      // so include files from the pre-watch snapshot that still exist.
+      const snapshotPageFiles = initialPageFiles.filter(
+        (file) => fs.existsSync(file) && !knownFiles.has(file)
+      )
       hadInitialScan = true
+      if (initialScanFallback) {
+        clearTimeout(initialScanFallback)
+        initialScanFallback = undefined
+      }
 
       const appPaths: Record<string, string[]> = {}
       const defaultAppPaths = new Set<string>()
@@ -532,9 +544,10 @@ async function startWatcher(
       staticMetadataFiles.clear()
       devPageFiles.clear()
 
-      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
-        sortByPageExts(nextConfig.pageExtensions)
-      )
+      const sortedKnownFiles: string[] = [
+        ...knownFiles.keys(),
+        ...snapshotPageFiles,
+      ].sort(sortByPageExts(nextConfig.pageExtensions))
 
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
@@ -1488,7 +1501,23 @@ async function startWatcher(
           Log.warn('Failed to reload dynamic routes:', e)
         }
       }
-    })
+    }
+
+    wp.on('aggregated', processAggregation)
+
+    if (!resolved) {
+      initialScanFallback = setTimeout(
+        () => {
+          if (!resolved && !hadInitialScan) {
+            void processAggregation()
+          }
+        },
+        Math.max(
+          0,
+          initialScanDeadline - (performance.now() + performance.timeOrigin)
+        )
+      )
+    }
 
     wp.watch({ directories: [dir], startTime: 0 })
   })
