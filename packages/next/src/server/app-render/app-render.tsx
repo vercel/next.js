@@ -82,6 +82,7 @@ import {
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_URL,
 } from '../../client/components/app-router-headers'
+import { AppStage } from '../../client/components/segment-cache/types'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import {
   createRequestStore as createRequestStoreFromInputs,
@@ -1478,7 +1479,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 async function generateRuntimePrefetchResult(
   ctx: AppRenderContext,
   requestStore: RequestStore,
-  isShellPrefetch: boolean
+  // The stage the runtime prefetch asks for.
+  stage: AppStage
 ): Promise<RenderResult> {
   const { workStore, renderOpts, htmlRequestId, requestId } = ctx
   const {
@@ -1523,12 +1525,24 @@ async function generateRuntimePrefetchResult(
     requestStore.resumeDataCache ?? undefined
   )
 
-  const mode: RuntimePrerenderMode = isShellPrefetch
-    ? { type: 'session-shell-only' }
-    : {
+  let mode: RuntimePrerenderMode
+  switch (stage) {
+    case AppStage.Shell:
+      mode = { type: 'session-shell-only' }
+      break
+    case AppStage.Prefetch:
+      mode = {
         type: 'rewindable-session-shell',
         stageByteLengthsDeferred: createPromiseWithResolvers(),
       }
+      break
+    case AppStage.Navigation:
+      mode = {
+        type: 'navigation',
+        stageByteLengthsDeferred: createPromiseWithResolvers(),
+      }
+      break
+  }
 
   await prospectiveRuntimeServerPrerender(
     ctx,
@@ -1556,9 +1570,9 @@ async function generateRuntimePrefetchResult(
       // A runtime shell render stops at the shell stage, so the shell ends
       // at the end of the response.
       stageByteLengthsPromise:
-        mode.type === 'rewindable-session-shell'
-          ? mode.stageByteLengthsDeferred.promise
-          : Promise.resolve([]),
+        mode.type === 'session-shell-only'
+          ? Promise.resolve([])
+          : mode.stageByteLengthsDeferred.promise,
     }),
     prerenderResumeDataCache,
     rootParams,
@@ -2950,8 +2964,7 @@ async function renderAppPage(
     isHmrRefresh,
     isPrefetchRequest,
     isRSCRequest,
-    isRuntimePrefetchRequest,
-    isAppShellPrefetchRequest,
+    runtimePrefetchStage,
     isRouteTreePrefetchRequest,
   } = parsedRequestHeaders
   const isPossibleActionRequest = ctx.isPossibleServerAction
@@ -2996,8 +3009,7 @@ async function renderAppPage(
     !cacheComponents &&
     !isPossibleActionRequest &&
     !isPrefetchRequest &&
-    !isRuntimePrefetchRequest &&
-    !isAppShellPrefetchRequest &&
+    runtimePrefetchStage === null &&
     !isRouteTreePrefetchRequest
       ? setIsrStatus
       : undefined
@@ -3014,12 +3026,12 @@ async function renderAppPage(
 
   // MARK: RSC request
   if (isRSCRequest) {
-    if (isRuntimePrefetchRequest) {
+    if (runtimePrefetchStage !== null) {
       // MARK: RSC runtimePrefetch
       return generateRuntimePrefetchResult(
         ctx,
         requestStore,
-        isAppShellPrefetchRequest
+        runtimePrefetchStage
       )
     } else {
       if (
@@ -9841,8 +9853,9 @@ async function prerenderToStream(
           // which is scheduled in a (fast) immediate, so we do this in a separate task
           // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
-          // List where the shell ends, if new chunks were emitted after
-          // unblocking link data or navigation().
+          // If anything was emitted after the shell, list where the shell
+          // ends. Then, if anything was emitted after `navigation()` resolved,
+          // list where the prefetch stage ends.
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
           const stageByteLengths: Array<number> = []
@@ -9855,6 +9868,16 @@ async function prerenderToStream(
                 collectedChunksByStage[RenderStage.ShellStatic]
               )
             )
+            if (
+              collectedChunksByStage[RenderStage.Static].length >
+              collectedChunksByStage[RenderStage.PrefetchStatic].length
+            ) {
+              stageByteLengths.push(
+                getTotalByteLength(
+                  collectedChunksByStage[RenderStage.PrefetchStatic]
+                )
+              )
+            }
           }
 
           // Now that the prerendering is complete, we know the final stale

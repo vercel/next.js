@@ -25,7 +25,7 @@ export interface NavigateOptions {
 }
 
 export interface PrefetchOptions {
-  kind?: 'auto' | 'full'
+  kind?: 'auto' | 'full' | 'shell' | 'prefetch' | 'navigation'
   onInvalidate?: () => void
 }
 
