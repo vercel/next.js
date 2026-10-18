@@ -1,9 +1,20 @@
 import os from 'os'
 import path from 'path'
-import { existsSync, promises as fs, rmSync, readFileSync } from 'fs'
+import { randomBytes } from 'crypto'
+import {
+  existsSync,
+  promises as fs,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy, PatchedFileRef } from '../e2e-utils'
+import { getDeploymentTestEnvAssignments } from '../e2e-utils/deployment-test-env'
 import { ChildProcess } from 'child_process'
 import spawn from 'cross-spawn'
 import { quote as shellQuote } from 'shell-quote'
@@ -13,6 +24,11 @@ import {
   previewTarballUrl,
 } from '../../../scripts/wait-for-preview-tarball.mjs'
 import { Span } from 'next/dist/trace'
+import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
+import {
+  getRouteCacheKey,
+  type ResponseCacheOwner,
+} from 'next/dist/server/lib/route-cache-key'
 import webdriver from '../next-webdriver'
 import {
   renderViaHTTP,
@@ -85,7 +101,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.3.0";
+const nextjsReactPeerVersion = "19.3.1";
 
 const ROOT_PACKAGE_MANAGER: string =
   require('../../../package.json').packageManager
@@ -364,7 +380,9 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + ((process.env.VERCEL_IMMUTABLE_STATIC_FILES_ENABLED && process.env.NEXT_ENABLE_ADAPTER==="1") ? 1 : 0))'`,
+                        // Read the deployed fixture's config after its files have
+                        // been written, using the same output directory as Vercel.
+                        'post-build': `node -e 'const config = fs.existsSync("vercel.json") ? JSON.parse(fs.readFileSync("vercel.json", "utf8")) : {}; console.log("BUILD" + "_ID: " + fs.readFileSync((config.outputDirectory ?? "${this.distDir}") + "/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + ((process.env.VERCEL_IMMUTABLE_STATIC_FILES_ENABLED && process.env.NEXT_ENABLE_ADAPTER==="1") ? 1 : 0))'`,
                       }
                     : {}),
                   ...pkgScripts,
@@ -421,6 +439,9 @@ export class NextInstance {
           await fs.rm(path.join(this.testDir, 'pnpm-workspace.yaml'), {
             force: true,
           })
+          // Keep pnpm from reinstalling and recreating the workspace marker
+          // after we remove the YAML that normally disables this behavior.
+          this.env.pnpm_config_verify_deps_before_run = 'false'
         }
 
         const testDirFiles = await fs.readdir(this.testDir)
@@ -531,19 +552,12 @@ export class NextInstance {
           await fs.writeFile(
             fileName,
             `${content}\n` +
+              getDeploymentTestEnvAssignments() +
               `
           // alias __NEXT_TEST_MODE for next-deploy as "_" is not a valid
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
-          }
-
-          // alias experimental feature flags for deployment compatibility
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
-            process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
-          }
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS) {
-            process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS
           }
         `
           )
@@ -564,7 +578,7 @@ export class NextInstance {
               path.join(this.testDir, 'vercel.json'),
               JSON.stringify({
                 installCommand:
-                  'mv node_modules node_modules.bak && npm i && cp -r node_modules.bak/* node_modules',
+                  'mv node_modules node_modules.bak && pnpm i && cp -r node_modules.bak/* node_modules',
               })
             )
 
@@ -664,6 +678,7 @@ export class NextInstance {
       'package.json',
       'yarn.lock',
       'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
     ]
     for (const file of await fs.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
@@ -1016,6 +1031,33 @@ export class NextInstance {
     return existsSync(path.join(this.testDir, filename))
   }
 
+  /** Resolve a response artifact without assuming the cache key is its URL. */
+  public getPrerenderFilePath(
+    pathname: string,
+    extension: string,
+    {
+      router = 'app',
+      distDir = this.distDir,
+      route,
+    }: {
+      router?: 'app' | 'pages'
+      distDir?: string
+      /** Supply the source for an entry generated only at runtime. */
+      route?: ResponseCacheOwner
+    } = {}
+  ): string {
+    pathname = `/${pathname.replace(/^\/+/, '')}`
+    // Build artifacts retain their historical layout. A caller supplies an
+    // owner only when it is intentionally addressing a scoped runtime entry.
+    const cacheKey = route ? getRouteCacheKey(pathname, route) : undefined
+    const filename = normalizePagePath(pathname)
+    return path.join(
+      distDir,
+      'server',
+      `${cacheKey ?? `/${router}${filename}`}${extension}`
+    )
+  }
+
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
@@ -1069,28 +1111,48 @@ export class NextInstance {
     runWithTempContent?: (context: { newFile: boolean }) => Promise<void>
   ): Promise<{ newFile: boolean }> {
     const outputPath = path.join(this.testDir, filename)
-    const newFile = !existsSync(outputPath)
-    await fs.mkdir(path.dirname(outputPath), { recursive: true })
-    const previousContent = newFile ? undefined : await this.readFile(filename)
+    const originalStat = statSync(outputPath, { throwIfNoEntry: false })
+    const newFile = originalStat === undefined
+    mkdirSync(path.dirname(outputPath), { recursive: true })
 
-    await fs.writeFile(
-      outputPath,
-      typeof content === 'function' ? content(previousContent) : content,
-      {
-        flush: true,
+    let patchedContent: string
+    if (typeof content === 'function') {
+      let previousContent: string | undefined
+      if (!newFile) {
+        previousContent = this.readFileSync(filename)
       }
-    )
+      patchedContent = content(previousContent)
+    } else {
+      patchedContent = content
+    }
 
-    if (runWithTempContent) {
-      try {
+    let backupPath: string | undefined
+    if (!newFile && runWithTempContent) {
+      backupPath = `${outputPath}.${randomBytes(4).toString('hex')}.bak`
+    }
+
+    // Never modify files in place: pnpm installs hard links, so a patch could
+    // corrupt its shared store and affect other fixtures. Keep the original
+    // inode for temporary patches and write the replacement as a new file.
+    if (backupPath) {
+      renameSync(outputPath, backupPath)
+    } else if (!newFile) {
+      rmSync(outputPath, { force: true })
+    }
+
+    try {
+      writeFileSync(outputPath, patchedContent, {
+        flush: true,
+        mode: originalStat?.mode,
+      })
+      if (runWithTempContent) {
         await runWithTempContent({ newFile })
-      } finally {
-        if (previousContent === undefined) {
-          await fs.rm(outputPath)
-        } else {
-          await fs.writeFile(outputPath, previousContent, {
-            flush: true,
-          })
+      }
+    } finally {
+      if (runWithTempContent) {
+        rmSync(outputPath, { force: true })
+        if (backupPath) {
+          renameSync(backupPath, outputPath)
         }
       }
     }

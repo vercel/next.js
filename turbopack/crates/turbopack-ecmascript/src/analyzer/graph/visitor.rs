@@ -486,7 +486,7 @@ mod analyzer_state {
                         start_ast_path,
                     } => {
                         self.effects = prev_effects;
-                        if self.analyze_mode.is_code_gen() {
+                        if self.analyze_mode.is_codegen {
                             self.effects
                                 .push(self.arena, Effect::Unreachable { start_ast_path });
                         }
@@ -1444,7 +1444,7 @@ impl<'a> Analyzer<'a, '_> {
     }
 
     fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
-        if self.analyze_mode.is_code_gen() {
+        if self.analyze_mode.is_codegen {
             let path = self.ast_paths.intern(ast_path.kinds().iter().copied());
             self.code_gens
                 .push(EsmModuleItem::new(path, self.supports_block_scoping).into());
@@ -2468,14 +2468,25 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
                     export: Some(prop_str.into()),
+                    member: None,
                     // point to the MemberExpression instead
                     ast_path: as_parent_path_skip_in(self.arena, ast_path, 1),
                     span: member.span(),
                 });
             } else {
+                // ast_path stays on the ident, so `.exportName` remains in the emitted code.
+                let mut member = None;
+                if export.is_some()
+                    && let Some(access) = member_access_parent(ast_path)
+                    && let Some(prop) = self.eval_context.eval_member_prop(self.arena, &access.prop)
+                    && let Some(prop_str) = prop.as_str()
+                {
+                    member = Some(RcStr::from(prop_str));
+                }
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
                     export: export.map(|e| RcStr::from(e.as_str())),
+                    member,
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span: ident.span(),
                 })
@@ -2484,7 +2495,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         }
 
         // If this identifier is free, produce an effect so we can potentially replace it later.
-        if self.analyze_mode.is_code_gen()
+        if self.analyze_mode.is_codegen
             && let JsValue::FreeVar(var) = self.eval_context.eval_id(self.arena, ident.to_id())
         {
             // TODO(lukesandberg): we should consider filtering effects here, e.g. there is no
@@ -2502,7 +2513,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         node: &'ast ThisExpr,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        if !self.analyze_mode.is_code_gen() {
+        if !self.analyze_mode.is_codegen {
             return;
         }
 
@@ -2550,7 +2561,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         expr: &'ast MetaPropExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() && expr.kind == MetaPropKind::ImportMeta {
+        if self.analyze_mode.is_codegen && expr.kind == MetaPropKind::ImportMeta {
             // MetaPropExpr also covers `new.target`. Only consider `import.meta`
             // an effect.
             self.add_effect(Effect::ImportMeta {
@@ -2801,7 +2812,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         n: &'ast UnaryExpr,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        if n.op == UnaryOp::TypeOf && self.analyze_mode.is_code_gen() {
+        if n.op == UnaryOp::TypeOf && self.analyze_mode.is_codegen {
             let arg_value = BumpBox::new_in(self.eval_context.eval(self.arena, &n.arg), self.arena);
 
             self.add_effect(Effect::TypeOf {

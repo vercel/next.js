@@ -6,7 +6,7 @@ use next_custom_transforms::transforms::server_actions::{
 };
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
@@ -14,7 +14,7 @@ use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 use crate::{mode::NextMode, next_config::CacheKinds};
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode)]
 pub enum ActionsTransform {
     /// Browser and SSR
     Client,

@@ -8,7 +8,7 @@ import {
 import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
 import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
-import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
+import type { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
@@ -19,7 +19,8 @@ const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
 
 function createWriterFromResponse(
   res: ServerResponse,
-  waitUntilForEnd?: Promise<unknown>
+  waitUntilForEnd?: Promise<unknown>,
+  clientComponentLoadTracker?: ClientComponentLoadTracker
 ): WritableStream<Uint8Array> {
   let started = false
 
@@ -55,7 +56,7 @@ function createWriterFromResponse(
         started = true
 
         if (HAS_CLIENT_COMPONENT_METRICS_ENABLED) {
-          const metrics = getClientComponentLoaderMetrics()
+          const metrics = clientComponentLoadTracker?.snapshot()
           if (metrics) {
             performance.measure(
               `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
@@ -124,7 +125,8 @@ function createWriterFromResponse(
 export async function pipeToNodeResponse(
   readable: ReadableStream<Uint8Array>,
   res: ServerResponse,
-  waitUntilForEnd?: Promise<unknown>
+  waitUntilForEnd?: Promise<unknown>,
+  clientComponentLoadTracker?: ClientComponentLoadTracker
 ) {
   try {
     // If the response has already errored, then just return now.
@@ -135,7 +137,11 @@ export async function pipeToNodeResponse(
     // client disconnects.
     const controller = createAbortController(res)
 
-    const writer = createWriterFromResponse(res, waitUntilForEnd)
+    const writer = createWriterFromResponse(
+      res,
+      waitUntilForEnd,
+      clientComponentLoadTracker
+    )
 
     await readable.pipeTo(writer, { signal: controller.signal })
   } catch (err: any) {
@@ -149,7 +155,8 @@ export async function pipeToNodeResponse(
 export async function pipeNodeReadableToNodeResponse(
   readable: Readable,
   res: ServerResponse,
-  waitUntilForEnd?: Promise<unknown>
+  waitUntilForEnd?: Promise<unknown>,
+  clientComponentLoadTracker?: ClientComponentLoadTracker
 ) {
   try {
     const { errored, destroyed } = res
@@ -201,7 +208,7 @@ export async function pipeNodeReadableToNodeResponse(
           'performance' in globalThis &&
           process.env.NEXT_OTEL_PERFORMANCE_PREFIX
         ) {
-          const metrics = getClientComponentLoaderMetrics()
+          const metrics = clientComponentLoadTracker?.snapshot()
           if (metrics) {
             performance.measure(
               `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,

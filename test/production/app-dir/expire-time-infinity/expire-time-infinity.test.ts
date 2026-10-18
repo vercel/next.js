@@ -1,18 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('expire-time-infinity', () => {
   if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
     it.skip('the route segment config is not compatible with cacheComponents', () => {})
     return
   }
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('serves a well-formed cache-control header for an Infinity expireTime', async () => {
     await next.start()

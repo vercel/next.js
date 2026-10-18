@@ -9,7 +9,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
-    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
+    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
@@ -72,7 +72,7 @@ impl AppDirModules {
 }
 
 /// A single metadata file plus an optional "alt" text file.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum MetadataWithAltItem {
     Static {
         path: FileSystemPath,
@@ -85,7 +85,7 @@ pub enum MetadataWithAltItem {
 
 /// A single metadata file.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 pub enum MetadataItem {
     Static { path: FileSystemPath },
     Dynamic { path: FileSystemPath },
@@ -127,7 +127,7 @@ impl From<MetadataWithAltItem> for MetadataItem {
 }
 
 /// Metadata file that can be placed in any segment of the app directory.
-#[derive(Default, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub struct Metadata {
     pub icon: Vec<MetadataWithAltItem>,
     pub apple: Vec<MetadataWithAltItem>,
@@ -228,7 +228,7 @@ struct PlainDirectoryTree {
 /// ```
 ///
 /// This makes it easy to find all siblings at a given URL level.
-#[derive(Clone, Debug, Default, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 struct UrlSegmentTree {
     pub children: BTreeMap<RcStr, UrlSegmentTree>,
 }
@@ -682,7 +682,7 @@ impl ValueDefault for FileSystemPathVec {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, PartialEq, Eq, Hash, TraceRawVcs, ValueDebugFormat, Debug, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, Hash, ValueDebugFormat, Debug, Encode, Decode)]
 pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,
@@ -693,7 +693,6 @@ pub enum Entrypoint {
     AppRoute {
         page: AppPage,
         path: FileSystemPath,
-        root_layouts: ResolvedVc<FileSystemPathVec>,
         root_params: ResolvedVc<RootParamVecOption>,
     },
     AppMetadata {
@@ -854,7 +853,6 @@ fn add_app_route(
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: FileSystemPath,
-    root_layouts: ResolvedVc<FileSystemPathVec>,
     root_params: ResolvedVc<RootParamVecOption>,
 ) {
     let e = match result.entry(page.clone().into()) {
@@ -863,7 +861,6 @@ fn add_app_route(
             e.insert(Entrypoint::AppRoute {
                 page,
                 path,
-                root_layouts,
                 root_params,
             });
             return;
@@ -2266,7 +2263,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             &mut result,
             app_page.complete(PageType::Route)?,
             route.clone(),
-            root_layouts,
             root_params,
         );
     }
@@ -2378,6 +2374,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     segment: rcstr!("/_not-found"),
                     parallel_routes: fxindexmap! {
                         rcstr!("children") => AppPageLoaderTree {
+                            // Keep the root identity so the synthetic leaf does not contribute
+                            // runtime or deployment config, matching webpack's layout inheritance.
                             page: app_page.clone(),
                             segment: rcstr!("__PAGE__"),
                             parallel_routes: FxIndexMap::default(),
@@ -2607,7 +2605,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 Entrypoint::AppRoute {
                     page,
                     path,
-                    root_layouts,
                     root_params,
                 } => {
                     add_app_route(
@@ -2615,7 +2612,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         &mut result,
                         page.clone(),
                         path.clone(),
-                        *root_layouts,
                         *root_params,
                     );
                 }

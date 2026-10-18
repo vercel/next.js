@@ -66,7 +66,6 @@ turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-esregex = { workspace = true }
 turbo-tasks = { workspace = true }
-turbo-tasks-bytes = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fetch = { workspace = true }
 turbo-tasks-fs = { workspace = true }
@@ -97,7 +96,6 @@ default = ["process_pool"]
 process_pool = ["turbopack-node/process_pool"]
 worker_pool = ["turbopack-node/worker_pool"]
 next-font-local = []
-image-webp = ["turbopack-image/webp"]
 image-avif = ["turbopack-image/avif"]
 
 # enable "HMR" for embedded assets

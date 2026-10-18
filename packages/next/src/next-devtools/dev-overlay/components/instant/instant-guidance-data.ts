@@ -11,12 +11,15 @@ export type FixCardGroup =
   | 'measure'
   | 'ignore'
   | 'render'
+  | 'mark'
   | 'upgrade'
   | 'disable'
+  | 'remove'
 
 export type FixCardIcon =
   | 'align-left'
   | 'arrow-up'
+  | 'check'
   | 'database'
   | 'history'
   | 'layout'
@@ -42,8 +45,10 @@ export const FIX_CARD_GROUPS: Record<
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
   ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
   render: { label: 'Render', color: 'gray', icon: 'layout' },
+  mark: { label: 'Mark', color: 'amber', icon: 'check' },
   upgrade: { label: 'Upgrade', color: 'amber', icon: 'arrow-up' },
   disable: { label: 'Disable', color: 'gray', icon: 'minus' },
+  remove: { label: 'Remove', color: 'red', icon: 'minus' },
 }
 
 export type FixCard = {
@@ -98,13 +103,12 @@ const linkCards: FixCard[] = [
   },
 ]
 
-// TODO(cache-stages): docs link
-const navigationCards: FixCard[] = [
+const cacheStageCards: FixCard[] = [
   {
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/instant-navigation-stage#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
@@ -116,7 +120,7 @@ const navigationCards: FixCard[] = [
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
-    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route',
+    link: 'https://nextjs.org/docs/messages/instant-navigation-stage#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -320,32 +324,36 @@ const metadataRuntimeCards: FixCard[] = [
   },
 ]
 
-// TODO(cache-stages): docs link
-const metadataNavigationCards: FixCard[] = [
-  {
-    id: 'use-static-metadata',
-    title: 'Use static metadata',
-    group: 'static',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata',
-    snippets: [
-      { text: 'export const metadata = {', highlight: true },
-      { text: '  title: "My Page"' },
-      { text: '}' },
-    ],
-    copyable: true,
-  },
-  {
-    id: 'mark-the-route-as-dynamic',
-    title: 'Mark the route as dynamic',
-    group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#mark-the-route-as-dynamic',
-    snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: 'await connection()', highlight: true },
-    ],
-    copyable: true,
-  },
-]
+function getMetadataCacheStageCards(
+  variant: 'prefetch' | 'navigation'
+): FixCard[] {
+  const api = variant === 'prefetch' ? 'prefetch' : 'navigation'
+
+  return [
+    {
+      id: 'remove-the-api-call',
+      title: 'Remove the API call',
+      group: 'remove',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#remove-the-api-call',
+      snippets: [
+        { text: 'async function generateMetadata() {' },
+        { text: `-  await ${api}()`, highlight: true },
+        { text: '}' },
+      ],
+    },
+    {
+      id: 'confirm-the-metadata-delay',
+      title: 'Confirm the metadata delay',
+      group: 'mark',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#confirm-the-metadata-delay',
+      snippets: [
+        { text: '// page.tsx or layout.tsx' },
+        { text: `await ${api}()`, highlight: true },
+      ],
+      copyable: true,
+    },
+  ]
+}
 
 // URL data in `generateMetadata()` shares the same fixes as runtime data.
 const metadataLinkCards = metadataRuntimeCards
@@ -402,32 +410,36 @@ const viewportRuntimeCards: FixCard[] = [
   },
 ]
 
-// TODO(cache-stages): docs link
-const viewportNavigationCards: FixCard[] = [
-  {
-    id: 'use-static-viewport',
-    title: 'Use static viewport',
-    group: 'static',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport',
-    snippets: [
-      { text: 'export const viewport = {', highlight: true },
-      { text: '  themeColor: "#000"' },
-      { text: '}' },
-    ],
-    copyable: true,
-  },
-  {
-    id: 'allow-blocking-route',
-    title: 'Allow blocking route',
-    group: 'block',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route',
-    snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
-    ],
-    copyable: true,
-  },
-]
+function getViewportCacheStageCards(
+  variant: 'prefetch' | 'navigation'
+): FixCard[] {
+  const api = variant === 'prefetch' ? 'prefetch' : 'navigation'
+
+  return [
+    {
+      id: 'remove-the-api-call',
+      title: 'Remove the API call',
+      group: 'remove',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#remove-the-api-call',
+      snippets: [
+        { text: 'async function generateViewport() {' },
+        { text: `-  await ${api}()`, highlight: true },
+        { text: '}' },
+      ],
+    },
+    {
+      id: 'disable-validation-on-this-route',
+      title: 'Disable validation on this route',
+      group: 'ignore',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#disable-validation-on-this-route',
+      snippets: [
+        { text: '// page.tsx or layout.tsx' },
+        { text: 'export const instant = false', highlight: true },
+      ],
+      copyable: true,
+    },
+  ]
+}
 
 // URL data in `generateViewport()` shares the same fixes as runtime data.
 const viewportLinkCards = viewportRuntimeCards
@@ -680,7 +692,178 @@ const syncClientCryptoCards: FixCard[] = [
   },
 ]
 
+const staticRouteRuntimeCards: FixCard[] = [
+  {
+    id: 'remove-the-data-access',
+    title: 'Remove the data access',
+    group: 'remove',
+    snippets: [
+      { text: 'async function Page() {' },
+      { text: '- const store = await cookies()', highlight: true },
+      { text: '  return <Content />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-runtime#remove-the-data-access',
+  },
+  {
+    id: 'read-the-data-on-the-client',
+    title: 'Read the data on the client',
+    group: 'client',
+    snippets: [
+      { text: "'use client'" },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const value = readBrowserData()' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-runtime#read-the-data-on-the-client',
+  },
+]
+
+const staticRouteDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-data',
+    title: 'Cache the data',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function getData() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await db.query(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#cache-the-data',
+  },
+  {
+    id: 'remove-the-data-access',
+    title: 'Remove the data access',
+    group: 'remove',
+    snippets: [
+      { text: 'async function Page() {' },
+      { text: '- await connection()', highlight: true },
+      { text: '  return <Content />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#remove-the-data-access',
+  },
+  {
+    id: 'read-the-data-on-the-client',
+    title: 'Read the data on the client',
+    group: 'client',
+    snippets: [
+      { text: "'use client'" },
+      { text: "const data = useSWR('/api')", highlight: true },
+      { text: 'return <Content data={data} />' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-route-dynamic#read-the-data-on-the-client',
+  },
+]
+const staticMetadataRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    snippets: [
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-metadata-runtime#use-static-metadata',
+  },
+]
+
+const staticMetadataDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-metadata',
+    title: 'Cache the metadata',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function generateMetadata() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await cms.getMeta(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-metadata-dynamic#cache-the-metadata',
+  },
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    snippets: [
+      { text: 'export const metadata = {', highlight: true },
+      { text: "  title: 'My page'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-metadata-dynamic#use-static-metadata',
+  },
+]
+const staticViewportRuntimeCards: FixCard[] = [
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    snippets: [
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-viewport-runtime#use-static-viewport',
+  },
+]
+
+const staticViewportDynamicCards: FixCard[] = [
+  {
+    id: 'cache-the-viewport',
+    title: 'Cache the viewport',
+    group: 'cache',
+    snippets: [
+      {
+        text: 'async function generateViewport() {',
+      },
+      {
+        text: '  "use cache"',
+        highlight: true,
+      },
+      {
+        text: '  return await cms.getViewport(\u2026)',
+      },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-viewport-dynamic#cache-the-viewport',
+  },
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    snippets: [
+      { text: 'export const viewport = {', highlight: true },
+      { text: "  themeColor: 'black'" },
+      { text: '}' },
+    ],
+    copyable: true,
+    link: 'https://nextjs.org/docs/messages/static-viewport-dynamic#use-static-viewport',
+  },
+]
 export type GuidanceKind =
+  | 'static-route'
+  | 'static-metadata'
+  | 'static-viewport'
   | 'blocking-route'
   | 'client-hook'
   | 'metadata'
@@ -690,9 +873,17 @@ export type GuidanceKind =
   | 'unrendered-segment'
   | 'link-prefetch-partial'
 
-export type GuidanceVariant = 'link' | 'runtime' | 'navigation' | 'dynamic'
+export type GuidanceVariant =
+  | 'link'
+  | 'runtime'
+  | 'prefetch'
+  | 'navigation'
+  | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
+  'static-viewport': 'https://nextjs.org/docs/messages/static-viewport',
+  'static-metadata': 'https://nextjs.org/docs/messages/static-metadata',
+  'static-route': 'https://nextjs.org/docs/messages/static-route',
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
   'client-hook':
     'https://nextjs.org/docs/messages/blocking-prerender-client-hook',
@@ -712,8 +903,8 @@ export const BLOCKING_ROUTE_DOCS_URLS: Record<GuidanceVariant, string> = {
   runtime: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
   link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
-  // TODO(cache-stages): dedicated docs for navigation errors (reuses runtime for now)
-  navigation: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
+  prefetch: 'https://nextjs.org/docs/messages/instant-navigation-stage',
+  navigation: 'https://nextjs.org/docs/messages/instant-navigation-stage',
   dynamic: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic',
 }
 
@@ -722,9 +913,10 @@ export const BLOCKING_METADATA_DOCS_URLS: Record<GuidanceVariant, string> = {
     'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
   link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
-  // TODO(cache-stages): dedicated docs for navigation errors (reuses runtime for now)
+  prefetch:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-metadata',
   navigation:
-    'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
+    'https://nextjs.org/docs/messages/instant-navigation-stage-metadata',
   dynamic:
     'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic',
 }
@@ -734,9 +926,10 @@ export const BLOCKING_VIEWPORT_DOCS_URLS: Record<GuidanceVariant, string> = {
     'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
   link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
-  // TODO(cache-stages): dedicated docs for navigation errors (reuses runtime for now)
+  prefetch:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-viewport',
   navigation:
-    'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
+    'https://nextjs.org/docs/messages/instant-navigation-stage-viewport',
   dynamic:
     'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic',
 }
@@ -798,6 +991,12 @@ export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
 }
 
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
+  'static-viewport':
+    'This route is configured to be fully static, but some data requires rendering at request time.',
+  'static-metadata':
+    'This route is configured to be fully static, but some data requires rendering at request time.',
+  'static-route':
+    'This route is configured to be fully static, but some data requires rendering at request time.',
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   'client-hook':
@@ -820,6 +1019,12 @@ export const BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION =
 
 export const BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION =
   'This may prevent the navigation from being instant, leading to a slower user experience.'
+
+export const CACHE_STAGE_METADATA_EXPLANATION =
+  'Metadata can already stream, so delaying it may be unintentional.'
+
+export const CACHE_STAGE_VIEWPORT_EXPLANATION =
+  'This prevents Next.js from creating the App Shell, leading to a slower user experience.'
 
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
@@ -869,14 +1074,30 @@ export function getCards(
   cause?: string
 ): FixCard[] {
   switch (kind) {
+    case 'static-viewport':
+      return variant === 'runtime'
+        ? staticViewportRuntimeCards
+        : filterCacheForConnection(staticViewportDynamicCards, variant, cause)
+
+    case 'static-metadata':
+      return variant === 'runtime'
+        ? staticMetadataRuntimeCards
+        : filterCacheForConnection(staticMetadataDynamicCards, variant, cause)
+
+    case 'static-route':
+      return variant === 'runtime'
+        ? staticRouteRuntimeCards
+        : filterCacheForConnection(staticRouteDynamicCards, variant, cause)
+
     case 'blocking-route': {
       switch (variant) {
         case 'link':
           return linkCards
         case 'runtime':
           return runtimeCards
+        case 'prefetch':
         case 'navigation':
-          return navigationCards
+          return cacheStageCards
         case 'dynamic':
           return filterCacheForConnection(dynamicCards, variant, cause)
         default:
@@ -891,8 +1112,9 @@ export function getCards(
           return metadataLinkCards
         case 'runtime':
           return metadataRuntimeCards
+        case 'prefetch':
         case 'navigation':
-          return metadataNavigationCards
+          return getMetadataCacheStageCards(variant)
         case 'dynamic':
           return filterCacheForConnection(metadataDynamicCards, variant, cause)
         default:
@@ -905,8 +1127,9 @@ export function getCards(
           return viewportLinkCards
         case 'runtime':
           return viewportRuntimeCards
+        case 'prefetch':
         case 'navigation':
-          return viewportNavigationCards
+          return getViewportCacheStageCards(variant)
         case 'dynamic':
           return filterCacheForConnection(viewportDynamicCards, variant, cause)
         default:
@@ -924,4 +1147,14 @@ export function getCards(
     default:
       return kind satisfies never
   }
+}
+
+export function getStaticRouteDocsUrl(
+  kind: GuidanceKind,
+  variant: GuidanceVariant
+): string {
+  if (variant === 'runtime' || variant === 'dynamic') {
+    return `${DOCS_URLS[kind]}-${variant}`
+  }
+  return DOCS_URLS[kind]
 }

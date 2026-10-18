@@ -196,6 +196,12 @@ describe('@gate runtime', () => {
       expect(await gate((c) => c.mode === 'start' && c.webpack)).toBe(true)
     })
 
+    it('reports the host platform', async () => {
+      expect(await gate((c) => c.linux)).toBe(process.platform === 'linux')
+      expect(await gate((c) => c.macos)).toBe(process.platform === 'darwin')
+      expect(await gate((c) => c.windows)).toBe(process.platform === 'win32')
+    })
+
     it('reads a lazy condition from the running fixture', async () => {
       const getResolvedConfig = fixtureWith({ cacheComponents: true })
       expect(await gate((c) => c.cacheComponents)).toBe(true)
@@ -267,6 +273,89 @@ describe('@gate runtime', () => {
       const gate = parseGate('!dev', true)
       expect(gate.force).toBe(true)
       expect(gate.needsResolvedConfig).toBe(false)
+    })
+
+    it('skips only the deployed Node.js middleware variant', async () => {
+      const original = process.env.TEST_NODE_MIDDLEWARE
+      const gate = parseGate('!deploy || !nodeMiddleware', true)
+
+      try {
+        for (const [mode, nodeMiddleware, type] of [
+          ['deploy', true, 'force-pass'],
+          ['start', true, 'run'],
+          ['deploy', false, 'run'],
+        ] as const) {
+          if (nodeMiddleware) {
+            process.env.TEST_NODE_MIDDLEWARE = '1'
+          } else {
+            delete process.env.TEST_NODE_MIDDLEWARE
+          }
+          setGateTestContext({
+            mode,
+            bundler: 'webpack',
+            react18: false,
+            wasm: false,
+          })
+          await expect(__testing.decideGates([gate])).resolves.toMatchObject({
+            type,
+          })
+        }
+      } finally {
+        if (original === undefined) {
+          delete process.env.TEST_NODE_MIDDLEWARE
+        } else {
+          process.env.TEST_NODE_MIDDLEWARE = original
+        }
+      }
+    })
+
+    it('runs `vercel` only for a deploy declared as Vercel', async () => {
+      const original = process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+      const vercelOnly = parseGate('vercel', true)
+      const notOtherHosts = parseGate('!deploy || vercel', true)
+
+      const results: [string, string, string][] = []
+      try {
+        for (const [mode, target] of [
+          ['deploy', '1'],
+          ['deploy', undefined],
+          ['deploy', '0'],
+          ['start', '1'],
+          ['start', undefined],
+        ] as const) {
+          if (target === undefined) {
+            delete process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+          } else {
+            process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL = target
+          }
+          setGateTestContext({
+            mode,
+            bundler: 'turbopack',
+            react18: false,
+            wasm: false,
+          })
+          results.push([
+            `${mode}, ${target ?? 'unset'}`,
+            (await __testing.decideGates([vercelOnly])).type,
+            (await __testing.decideGates([notOtherHosts])).type,
+          ])
+        }
+      } finally {
+        if (original === undefined) {
+          delete process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL
+        } else {
+          process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL = original
+        }
+      }
+
+      // [mode + NEXT_TEST_DEPLOY_TARGET_VERCEL, `@force-gate vercel`, `@force-gate !deploy || vercel`]
+      expect(results).toEqual([
+        ['deploy, 1', 'run', 'run'],
+        ['deploy, unset', 'force-pass', 'force-pass'],
+        ['deploy, 0', 'force-pass', 'force-pass'],
+        ['start, 1', 'force-pass', 'run'],
+        ['start, unset', 'force-pass', 'run'],
+      ])
     })
 
     it('skips the test for real when the condition is false', () => {

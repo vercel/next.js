@@ -171,9 +171,13 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     .record(
       z.string(),
       z.union([
+        z.literal(false),
         z.string(),
         z.array(z.string()),
-        z.record(z.string(), z.union([z.string(), z.array(z.string())])),
+        z.record(
+          z.string(),
+          z.union([z.literal(false), z.string(), z.array(z.string())])
+        ),
       ])
     )
     .optional(),
@@ -193,8 +197,11 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
-  agenticAutoUpgrade: z
-    .union([z.enum(['security', 'latest', 'future']), z.literal(false)])
+  agentUpgrade: z
+    .union([
+      z.enum(['security', 'latest', 'experimental-future']),
+      z.literal(false),
+    ])
     .optional(),
   agentFeedback: z.boolean().optional(),
   turbopackAdditionalRoots: z
@@ -442,6 +449,7 @@ export const experimentalSchema = {
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackLazyDynamicImports: z.boolean().optional(),
+  turbopackLazyDynamicImportsSSR: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
@@ -450,6 +458,7 @@ export const experimentalSchema = {
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
   turbopackMangleExportNames: z.boolean().optional(),
+  turbopackMangleViaMaterializedNamespaceObject: z.boolean().optional(),
   turbopackCjsScopeHoisting: z.boolean().optional(),
   turbopackCrossModuleConstants: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
@@ -495,6 +504,7 @@ export const experimentalSchema = {
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
   durableUseCacheEntries: z.boolean().optional(),
+  useCacheStaticRootParamTracking: z.boolean().optional(),
   useCacheTimeout: z.number().positive().optional(),
   slowModuleDetection: z
     .object({
@@ -850,6 +860,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       z
         .object({
           compilationMode: z.enum(['infer', 'annotation', 'all']).optional(),
+          environment: z
+            .object({
+              enablePreserveExistingMemoizationGuarantees: z
+                .boolean()
+                .optional(),
+            })
+            .optional(),
           panicThreshold: z
             .enum(['none', 'critical_errors', 'all_errors'])
             .optional(),

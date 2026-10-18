@@ -8,9 +8,6 @@ function expectedTimeoutErrorMessage(route: string) {
   return `Route "${route}": ${timeoutErrorMessage}`
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('use-cache-configured-timeout', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -65,11 +62,7 @@ describe('use-cache-configured-timeout', () => {
   } else {
     describe('when `experimental.useCacheTimeout` exceeds `staticPageGenerationTimeout` during prerendering', () => {
       it('should clamp the build timeout and fail both pages with a timeout error', async () => {
-        try {
-          await next.start()
-        } catch {
-          // expected
-        }
+        await expect(next.start()).rejects.toThrow()
 
         expect(next.cliOutput).toContain(timeoutErrorMessage)
         expect(next.cliOutput).toContain(
@@ -78,7 +71,7 @@ describe('use-cache-configured-timeout', () => {
         expect(next.cliOutput).toContain(
           'Error occurred prerendering page "/above-dev-timeout"'
         )
-      })
+      }, 240_000)
     })
   }
 })

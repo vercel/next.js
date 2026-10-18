@@ -7,7 +7,6 @@ use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
-    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -36,7 +35,7 @@ use crate::{
 };
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Default, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Encode, Decode)]
 pub enum RewriteSourcePath {
     AbsoluteFilePath(FileSystemPath),
     RelativeFilePath(FileSystemPath, RcStr),
@@ -196,7 +195,7 @@ impl EcmascriptChunkItemContent {
     }
 }
 
-#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, NonLocalValue, Encode, Decode)]
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
@@ -215,7 +214,7 @@ pub struct EcmascriptChunkItemOptions {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,

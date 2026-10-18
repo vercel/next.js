@@ -11,6 +11,79 @@ describe('segment cache (search params)', () => {
     return
   }
 
+  it('prefetches new vary data for a query-only navigation from the active page', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser(
+      '/search-params/target-page?searchParam=initial',
+      {
+        beforePageLoad(page) {
+          act = createRouterAct(page)
+        },
+      }
+    )
+    expect(
+      await browser.elementById('target-page-with-search-param').text()
+    ).toContain('Search param: initial')
+    await act(
+      async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/search-params/target-page?searchParam=query_only"]'
+          )
+          .click()
+      },
+      { includes: 'Search param: query_only' }
+    )
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'a[href="/search-params/target-page?searchParam=query_only"]'
+        )
+        .click()
+    }, 'no-requests')
+    expect(
+      await browser.elementById('target-page-with-search-param').text()
+    ).toContain('Search param: query_only')
+  })
+
+  it('navigates to a prefetched page with encoded and repeated search params', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser(
+      '/search-params/target-page?searchParam=initial',
+      {
+        beforePageLoad(page) {
+          act = createRouterAct(page)
+        },
+      }
+    )
+
+    // Prefetch the shell before navigating. This URL uses both space encodings,
+    // unescaped punctuation, a bare key, and interleaved repeated values.
+    await act(async () => {
+      await browser
+        .elementByCss(
+          'input[data-link-accordion="/search-params/target-page?searchParam=hello+world,/x&unused&searchParam=another%20value"]'
+        )
+        .click()
+    })
+    await act(
+      async () => {
+        await browser
+          .elementByCss(
+            'a[href="/search-params/target-page?searchParam=hello+world,/x&unused&searchParam=another%20value"]'
+          )
+          .click()
+      },
+      { includes: 'Search param: hello world,/x,another value' }
+    )
+    expect(
+      await browser.elementById('target-page-with-search-param').text()
+    ).toBe('Search param: hello world,/x,another value')
+    expect(new URL(await browser.url()).search).toBe(
+      '?searchParam=hello+world,/x&unused&searchParam=another%20value'
+    )
+  })
+
   it('when fetching with PPR, does not include search params in the cache key', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/search-params', {

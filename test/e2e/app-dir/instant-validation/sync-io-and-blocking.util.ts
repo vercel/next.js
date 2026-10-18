@@ -181,7 +181,7 @@ export function registerSyncIoAndBlockingTests(
          Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at a (app/suspense-in-root/sync-io/sync-io-after-prefetch/page.tsx:27:15)
            25 | async function SyncIOAfterPrefetch() {
-           26 |   await unstable_prefetch()
+           26 |   await prefetch()
          > 27 |   return Date.now()
               |               ^
            28 | }

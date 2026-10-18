@@ -1,4 +1,4 @@
-/// <reference path="../../shared/runtime-types.d.ts" />
+/// <reference path="../../shared/runtime/runtime-types.d.ts" />
 
 /**
  * Global type definitions for Node.js Turbopack runtime.
@@ -20,6 +20,13 @@ declare global {
 
   var __turbopack_server_hmr_handlers__:
     | Map<string, { handler: (update: any) => void; chunkPrefix: string }>
+    | undefined
+  /**
+   * Compiles an on-demand chunk before the runtime requires it.
+   *  Used together with EcmascriptOptionsContext.lazy_compilation
+   */
+  var __turbopack_ensure_chunk__:
+    | ((chunkPath: ChunkPath) => void | Promise<void>)
     | undefined
 }
 

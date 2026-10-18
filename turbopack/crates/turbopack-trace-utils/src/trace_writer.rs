@@ -15,12 +15,22 @@ const WRITE_BUFFER_SIZE: usize = 100 * 1024 * 1024;
 
 struct TraceInfoBuffer {
     buffer: Vec<u8>,
+    /// The marker of the last marked row in the buffer, see [`WriteGuard::mark`].
+    last_row_marker: Option<u64>,
+    /// The offset where the last marked row starts in `buffer`.
+    last_row_start: usize,
+    /// The offset where the last marked row ends in `buffer`. It's only still the last row in
+    /// the buffer when this is the length of the buffer.
+    last_row_end: usize,
 }
 
 impl TraceInfoBuffer {
     fn new(capacity: usize) -> Self {
         Self {
             buffer: Vec::with_capacity(capacity),
+            last_row_marker: None,
+            last_row_start: 0,
+            last_row_end: 0,
         }
     }
 
@@ -34,6 +44,9 @@ impl TraceInfoBuffer {
 
     fn clear(&mut self) {
         self.buffer.clear();
+        self.last_row_marker = None;
+        self.last_row_start = 0;
+        self.last_row_end = 0;
     }
 }
 
@@ -70,7 +83,13 @@ impl TraceWriter {
         ) {
             for state in thread_locals.iter() {
                 let mut buffer = state.lock();
-                if let Some(buffer) = buffer.take() {
+                // Empty buffers (e.g. after the only row was removed again) are left in place.
+                // An empty buffer would be interpreted as exit signal.
+                if buffer
+                    .as_ref()
+                    .is_some_and(|buffer| !buffer.buffer.is_empty())
+                    && let Some(buffer) = buffer.take()
+                {
                     stolen_buffers.push(buffer);
                 }
             }
@@ -228,9 +247,8 @@ impl<'l> WriteGuard<'l> {
         trace_writer: &'l TraceWriter,
     ) -> Self {
         // Safety: The buffer must not be None, so we initialize it here
-        if buffer.is_none() {
-            *buffer = Some(trace_writer.get_empty_buffer(THREAD_LOCAL_INITIAL_BUFFER_SIZE));
-        };
+        buffer
+            .get_or_insert_with(|| trace_writer.get_empty_buffer(THREAD_LOCAL_INITIAL_BUFFER_SIZE));
         Self {
             buffer,
             trace_writer,
@@ -249,6 +267,31 @@ impl<'l> WriteGuard<'l> {
     pub fn extend(&mut self, data: &[u8]) {
         self.buffer().extend(data);
     }
+
+    /// Marks exactly what `write` writes with this guard as a row with `marker`. As long as
+    /// nothing else is written on this thread and the row wasn't sent to the writer thread in
+    /// between, it can be removed again with [`WriteGuard::remove_last_row`].
+    pub fn mark(&mut self, marker: u64, write: impl FnOnce(&mut Self)) {
+        let start = self.buffer().buffer.len();
+        write(self);
+        let buffer = self.buffer();
+        buffer.last_row_marker = Some(marker);
+        buffer.last_row_start = start;
+        buffer.last_row_end = buffer.buffer.len();
+    }
+
+    /// Removes the last row written on this thread, if it was marked with `marker` by
+    /// [`WriteGuard::mark`] and is still at the end of the thread local buffer. Returns whether
+    /// it was removed.
+    pub fn remove_last_row(&mut self, marker: u64) -> bool {
+        let buffer = self.buffer();
+        if buffer.last_row_marker != Some(marker) || buffer.last_row_end != buffer.buffer.len() {
+            return false;
+        }
+        buffer.last_row_marker = None;
+        buffer.buffer.truncate(buffer.last_row_start);
+        true
+    }
 }
 
 impl Drop for WriteGuard<'_> {
@@ -259,5 +302,121 @@ impl Drop for WriteGuard<'_> {
             let buffer = std::mem::replace(self.buffer(), new_buffer);
             self.trace_writer.send(buffer);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        io::{self, Write},
+        sync::{Arc, Mutex},
+    };
+
+    use crate::trace_writer::{THREAD_LOCAL_INITIAL_BUFFER_SIZE, TraceWriter};
+
+    #[derive(Clone, Default)]
+    struct SharedBuffer(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for SharedBuffer {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    fn with_writer(f: impl FnOnce(&TraceWriter)) -> Vec<u8> {
+        let buffer = SharedBuffer::default();
+        let (writer, guard) = TraceWriter::new(buffer.clone());
+        f(&writer);
+        drop(writer);
+        drop(guard);
+        let data = Arc::try_unwrap(buffer.0).unwrap().into_inner().unwrap();
+        data.strip_prefix(b"TRACEv0").unwrap().to_vec()
+    }
+
+    #[test]
+    fn removes_marked_last_row() {
+        let data = with_writer(|writer| {
+            writer.start_write().extend(b"aa");
+            writer.start_write().mark(1, |guard| guard.extend(b"bbb"));
+            let mut guard = writer.start_write();
+            assert!(guard.remove_last_row(1));
+            guard.extend(b"c");
+        });
+        assert_eq!(data, b"aac");
+    }
+
+    /// The mark covers exactly what is written in the callback, not what this guard wrote
+    /// before or after it.
+    #[test]
+    fn marks_only_the_callback() {
+        let data = with_writer(|writer| {
+            let mut guard = writer.start_write();
+            guard.extend(b"aa");
+            guard.mark(1, |guard| guard.extend(b"bbb"));
+            drop(guard);
+            let mut guard = writer.start_write();
+            assert!(guard.remove_last_row(1));
+            guard.extend(b"c");
+        });
+        assert_eq!(data, b"aac");
+
+        let data = with_writer(|writer| {
+            let mut guard = writer.start_write();
+            guard.mark(1, |guard| guard.extend(b"a"));
+            guard.extend(b"b");
+            drop(guard);
+            assert!(!writer.start_write().remove_last_row(1));
+        });
+        assert_eq!(data, b"ab");
+    }
+
+    #[test]
+    fn requires_a_matching_marker() {
+        let data = with_writer(|writer| {
+            writer.start_write().mark(1, |guard| guard.extend(b"a"));
+            assert!(!writer.start_write().remove_last_row(2));
+            // The row is still marked
+            assert!(writer.start_write().remove_last_row(1));
+            // Already removed
+            assert!(!writer.start_write().remove_last_row(1));
+        });
+        assert_eq!(data, b"");
+    }
+
+    #[test]
+    fn marker_is_invalidated_by_the_next_write() {
+        let data = with_writer(|writer| {
+            writer.start_write().mark(1, |guard| guard.extend(b"a"));
+            writer.start_write().extend(b"b");
+            assert!(!writer.start_write().remove_last_row(1));
+        });
+        assert_eq!(data, b"ab");
+    }
+
+    #[test]
+    fn marker_is_dropped_when_buffer_is_sent() {
+        // Just below the threshold where the buffer is sent to the writer thread
+        let fill = THREAD_LOCAL_INITIAL_BUFFER_SIZE * 2 / 3 - 10;
+        let data = with_writer(|writer| {
+            writer.start_write().extend(&vec![0; fill]);
+            // This exceeds the threshold, so the buffer is sent when the guard is dropped
+            writer.start_write().mark(1, |guard| guard.extend(&[1; 20]));
+            assert!(!writer.start_write().remove_last_row(1));
+        });
+        assert_eq!(data.len(), fill + 20);
+    }
+
+    #[test]
+    fn removing_the_only_row_leaves_an_empty_buffer() {
+        let data = with_writer(|writer| {
+            writer.start_write().mark(1, |guard| guard.extend(b"a"));
+            assert!(writer.start_write().remove_last_row(1));
+        });
+        assert_eq!(data, b"");
     }
 }

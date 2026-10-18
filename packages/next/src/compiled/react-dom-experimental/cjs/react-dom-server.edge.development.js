@@ -273,31 +273,39 @@
       });
     }
     function writeChunk(destination, chunk) {
-      if (0 !== chunk.byteLength)
-        if (4096 < chunk.byteLength)
-          0 < writtenBytes &&
-            (destination.enqueue(
-              new Uint8Array(currentView.buffer, 0, writtenBytes)
+      if (0 === chunk.byteLength)
+        if (supportsArrayBufferDetached) {
+          if (chunk.buffer.detached)
+            throw Error(
+              "Cannot transport a detached buffer. This usually happens when trying to transport multiple buffer-spanning views on the same underyling buffer. Either reuse the exact same view by identity or copy the underlying buffer manually via `view.slice()`."
+            );
+        } else
+          didWarnAboutMissingArrayBufferDetached ||
+            (console.error(
+              "React encountered an empty buffer when writing in an environment that does not support ArrayBuffer.prototype.detached. This could be a security issue if the buffer was not actually empty. Please use a modern Edge runtime that supports ArrayBuffer.prototype.detached."
             ),
-            (currentView = new Uint8Array(4096)),
-            (writtenBytes = 0)),
-            destination.enqueue(chunk);
-        else {
-          var allowableBytes = currentView.length - writtenBytes;
-          allowableBytes < chunk.byteLength &&
-            (0 === allowableBytes
-              ? destination.enqueue(currentView)
-              : (currentView.set(
-                  chunk.subarray(0, allowableBytes),
-                  writtenBytes
-                ),
-                destination.enqueue(currentView),
-                (chunk = chunk.subarray(allowableBytes))),
-            (currentView = new Uint8Array(4096)),
-            (writtenBytes = 0));
-          currentView.set(chunk, writtenBytes);
-          writtenBytes += chunk.byteLength;
-        }
+            (didWarnAboutMissingArrayBufferDetached = !0));
+      else if (4096 < chunk.byteLength)
+        0 < writtenBytes &&
+          (destination.enqueue(
+            new Uint8Array(currentView.buffer, 0, writtenBytes)
+          ),
+          (currentView = new Uint8Array(4096)),
+          (writtenBytes = 0)),
+          destination.enqueue(chunk);
+      else {
+        var allowableBytes = currentView.length - writtenBytes;
+        allowableBytes < chunk.byteLength &&
+          (0 === allowableBytes
+            ? destination.enqueue(currentView)
+            : (currentView.set(chunk.subarray(0, allowableBytes), writtenBytes),
+              destination.enqueue(currentView),
+              (chunk = chunk.subarray(allowableBytes))),
+          (currentView = new Uint8Array(4096)),
+          (writtenBytes = 0));
+        currentView.set(chunk, writtenBytes);
+        writtenBytes += chunk.byteLength;
+      }
     }
     function writeChunkAndReturn(destination, chunk) {
       writeChunk(destination, chunk);
@@ -9886,11 +9894,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-59aff3e1-20260918" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-99c106c4-20261014" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-59aff3e1-20260918\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-99c106c4-20261014\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -9920,6 +9928,12 @@
       jsxPropsParents = new WeakMap(),
       jsxChildrenParents = new WeakMap(),
       CLIENT_REFERENCE_TAG = Symbol.for("react.client.reference"),
+      hasOwnProperty = Object.prototype.hasOwnProperty,
+      supportsArrayBufferDetached = hasOwnProperty.call(
+        ArrayBuffer.prototype,
+        "detached"
+      ),
+      didWarnAboutMissingArrayBufferDetached = !1,
       LocalPromise = Promise,
       scheduleMicrotask =
         "function" === typeof queueMicrotask
@@ -9933,7 +9947,6 @@
       writtenBytes = 0,
       textEncoder = new TextEncoder(),
       assign = Object.assign,
-      hasOwnProperty = Object.prototype.hasOwnProperty,
       VALID_ATTRIBUTE_NAME_REGEX = RegExp(
         "^[:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD][:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD\\-.0-9\\u00B7\\u0300-\\u036F\\u203F-\\u2040]*$"
       ),
@@ -11683,5 +11696,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-experimental-59aff3e1-20260918";
+    exports.version = "19.3.0-experimental-99c106c4-20261014";
   })();

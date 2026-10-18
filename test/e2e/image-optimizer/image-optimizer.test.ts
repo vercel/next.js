@@ -13,14 +13,15 @@ function toQueryString(query: Record<string, any>): string {
 
 const largeSize = 1080
 
+// Preserve the file-wide deploy exclusion previously imposed by skipDeployment's it.only.
+// @force-gate !deploy
 describe('Image Optimizer', () => {
+  // These checks inspect local build errors and cannot run against a deployment.
   describe('config checks', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     const configChecks: Array<{
       name: string
@@ -286,7 +287,6 @@ describe('Image Optimizer', () => {
       const size = 96
       const { next, skipped } = nextTestSetup({
         files: join(__dirname, 'app'),
-        skipDeployment: true,
       })
       if (skipped) return
 
@@ -378,7 +378,6 @@ describe('Image Optimizer', () => {
             path: 'https://example.com/act123/',
           },
         },
-        skipDeployment: true,
       })
       if (skipped) return
 
@@ -402,7 +401,6 @@ describe('Image Optimizer', () => {
         nextConfig: {
           images: { unoptimized: true },
         },
-        skipDeployment: true,
       })
       if (skipped) return
 
@@ -426,7 +424,6 @@ describe('Image Optimizer', () => {
         nextConfig: {
           experimental: { imgOptMaxInputPixels: 100 },
         },
-        skipDeployment: true,
       })
       if (skipped) return
 
@@ -459,7 +456,6 @@ describe('Image Optimizer', () => {
             ]
           },
         },
-        skipDeployment: true,
       })
       if (skipped) return
 
@@ -513,7 +509,6 @@ describe('Image Optimizer', () => {
             imageSizes: [],
           },
         },
-        skipDeployment: true,
       })
       if (skipped) return
 

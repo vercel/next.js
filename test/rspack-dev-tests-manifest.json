@@ -11723,27 +11723,51 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/filesystem-cache/filesystem-cache.test.ts": {
+  "test/e2e/filesystem-cache/filesystem-cache-app-changes.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
       "filesystem-caching with cache disabled should allow to change files while stopped (Pages change)",
       "filesystem-caching with cache disabled should allow to change files while stopped (RCC change)",
       "filesystem-caching with cache disabled should allow to change files while stopped (RSC change)",
-      "filesystem-caching with cache disabled should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
-      "filesystem-caching with cache disabled should allow to change files while stopped (env var change)",
-      "filesystem-caching with cache disabled should allow to change files while stopped (loader change)",
-      "filesystem-caching with cache disabled should allow to change files while stopped (next config change)",
       "filesystem-caching with cache disabled should allow to change files while stopped (rename app page)",
-      "filesystem-caching with cache disabled should cache or not cache loaders",
       "filesystem-caching with cache enabled should allow to change files while stopped (Pages change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (RCC change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (RSC change)",
-      "filesystem-caching with cache enabled should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (rename app page)"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/filesystem-cache/filesystem-cache-combined-changes.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "filesystem-caching with cache disabled should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/filesystem-cache/filesystem-cache-config-changes.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "filesystem-caching with cache disabled should allow to change files while stopped (env var change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (loader change)",
+      "filesystem-caching with cache disabled should allow to change files while stopped (next config change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (env var change)",
       "filesystem-caching with cache enabled should allow to change files while stopped (loader change)",
-      "filesystem-caching with cache enabled should allow to change files while stopped (next config change)",
-      "filesystem-caching with cache enabled should allow to change files while stopped (rename app page)",
+      "filesystem-caching with cache enabled should allow to change files while stopped (next config change)"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/filesystem-cache/filesystem-cache-loaders.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "filesystem-caching with cache disabled should cache or not cache loaders",
       "filesystem-caching with cache enabled should cache or not cache loaders",
       "filesystem-caching with cache enabled should emit turbopack-persistence trace spans"
     ],
@@ -13031,7 +13055,7 @@
     "runtimeError": false
   },
   "test/e2e/next-analyze/next-analyze.test.ts": {
-    "passed": ["next experimental-analyze skips in non-Turbopack tests"],
+    "passed": ["next analyze skips in non-Turbopack tests"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -15289,8 +15313,8 @@
   },
   "test/integration/create-next-app/index.test.ts": {
     "passed": [
-      "create-next-app should create AGENTS.md and CLAUDE.md with --agents-md flag",
-      "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
+      "create-next-app should create AGENTS.md with --agents-md flag",
+      "create-next-app should not create AGENTS.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
       "create-next-app should not install dependencies if --skip-install",

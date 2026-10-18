@@ -33,7 +33,6 @@ import type { WaitUntil } from './after/builtin-request-context'
 import type { AppPageModule } from './route-modules/app-page/module'
 import type { AppRouteModule } from './route-modules/app-route/module.compiled'
 import type { ErrorModule } from './load-default-error-components'
-import type { PagesModule } from './route-modules/pages/module.compiled'
 
 import fs from 'fs'
 import { join, relative } from 'path'
@@ -67,7 +66,6 @@ import type {
   MiddlewareRoutingItem,
   RequestContext,
   NormalizedRouteManifest,
-  LoadedRenderOpts,
   RouteHandler,
   NextEnabledDirectories,
   BaseRequestHandler,
@@ -111,11 +109,6 @@ import { createRequestResponseMocks, MockedResponse } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { loadManifest } from './load-manifest.external'
-import {
-  lazyPrerenderAppPage,
-  lazyRenderAppPage,
-} from './route-modules/app-page/module.render'
-import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
@@ -126,7 +119,11 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
-import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
+import {
+  initializeCacheHandlers,
+  registerCustomCacheHandlers,
+  setCacheHandler,
+} from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
@@ -242,7 +239,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     if (!this.minimalMode) {
-      this.imageResponseCache = new ResponseCache(this.minimalMode)
+      this.imageResponseCache = new ResponseCache({
+        minimalMode: this.minimalMode,
+        route: 'image',
+      })
     }
 
     if (
@@ -250,7 +250,10 @@ export default class NextNodeServer extends BaseServer<
       !this.minimalMode &&
       this.nextConfig.experimental.preloadEntriesOnStart
     ) {
-      this.unstable_preloadEntries()
+      // Preloading may join a failing registration started by a request.
+      void this.unstable_preloadEntries().catch((err) => {
+        Log.error('Failed to preload entries:', err)
+      })
     }
 
     if (!options.dev) {
@@ -412,22 +415,21 @@ export default class NextNodeServer extends BaseServer<
     const { cacheMaxMemorySize, cacheHandlers } = this.nextConfig
     if (!cacheHandlers) return
 
-    // If we've already initialized the cache handlers interface, don't do it
-    // again.
-    if (!initializeCacheHandlers(cacheMaxMemorySize)) return
+    initializeCacheHandlers(cacheMaxMemorySize)
+    await registerCustomCacheHandlers(async () => {
+      for (const [kind, handler] of Object.entries(cacheHandlers)) {
+        if (!handler) continue
 
-    for (const [kind, handler] of Object.entries(cacheHandlers)) {
-      if (!handler) continue
-
-      setCacheHandler(
-        kind,
-        interopDefault(
-          await dynamicImportEsmDefault(
-            formatDynamicImportPath(this.distDir, handler)
+        setCacheHandler(
+          kind,
+          interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, handler)
+            )
           )
         )
-      )
-    }
+      }
+    })
   }
 
   protected async getIncrementalCache({
@@ -466,6 +468,7 @@ export default class NextNodeServer extends BaseServer<
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       previewProps: this.getPreviewProps(),
       prerenderManifest: this.getPrerenderManifest(),
+      locales: this.nextConfig.i18n?.locales,
       CurCacheHandler: CacheHandler,
     })
   }
@@ -626,93 +629,6 @@ export default class NextNodeServer extends BaseServer<
       },
     })
     return true
-  }
-
-  protected async renderHTML(
-    req: NodeNextRequest,
-    res: NodeNextResponse,
-    pathname: string,
-    query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts
-  ): Promise<RenderResult> {
-    return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
-      this.renderHTMLImpl(req, res, pathname, query, renderOpts)
-    )
-  }
-
-  private async renderHTMLImpl(
-    req: NodeNextRequest,
-    res: NodeNextResponse,
-    pathname: string,
-    query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts
-  ): Promise<RenderResult> {
-    if (process.env.NEXT_MINIMAL) {
-      throw new Error(
-        'Invariant: renderHTML should not be called in minimal mode'
-      )
-      // the `else` branch is needed for tree-shaking
-    } else {
-      // Due to the way we pass data by mutating `renderOpts`, we can't extend the
-      // object here but only updating its `nextFontManifest` field.
-      // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-      renderOpts.nextFontManifest = this.nextFontManifest
-
-      if (this.enabledDirectories.app && renderOpts.isAppPath) {
-        const renderAppPage =
-          !renderOpts.supportsDynamicResponse &&
-          !renderOpts.isDraftMode &&
-          !renderOpts.isPossibleServerAction
-            ? lazyPrerenderAppPage
-            : lazyRenderAppPage
-
-        return renderAppPage(
-          req,
-          res,
-          pathname,
-          query,
-          // This code path does not service revalidations for unknown param
-          // shells. As a result, we don't need to pass in the unknown params.
-          null,
-          renderOpts as LoadedRenderOpts<AppPageModule>,
-          this.getServerComponentsHmrCache(),
-          {
-            buildId: this.buildId,
-            deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.supportsImmutableAssets
-              ? ''
-              : this.deploymentId,
-          }
-        )
-      } else {
-        // TODO: re-enable this once we've refactored to use implicit matches
-        // throw new Error('Invariant: render should have used routeModule')
-
-        return lazyRenderPagesPage(
-          req.originalRequest,
-          res.originalResponse,
-          pathname,
-          query,
-          renderOpts as LoadedRenderOpts<PagesModule>,
-          {
-            buildId: this.buildId,
-            deploymentId: this.deploymentId,
-            clientAssetToken: this.nextConfig.supportsImmutableAssets
-              ? undefined
-              : this.deploymentId,
-            customServer: this.serverOptions.customServer || undefined,
-          },
-          {
-            isFallback: false,
-            isDraftMode: renderOpts.isDraftMode,
-            developmentNotFoundSourcePage: getRequestMeta(
-              req,
-              'developmentNotFoundSourcePage'
-            ),
-          }
-        )
-      }
-    }
   }
 
   protected async imageOptimizer(
@@ -1067,6 +983,10 @@ export default class NextNodeServer extends BaseServer<
           }
         )
 
+        if (cacheEntry !== null && 'error' in cacheEntry) {
+          throw cacheEntry.error
+        }
+
         if (cacheEntry?.value?.kind !== CachedRouteKind.IMAGE) {
           throw new Error(
             'invariant did not get entry from image response cache'
@@ -1124,6 +1044,7 @@ export default class NextNodeServer extends BaseServer<
     if (!existingServerContext) {
       routerServerGlobal[RouterServerContextSymbol][relativeProjectDir] = {
         render404: this.render404.bind(this),
+        getAssetPrefix: this.getAssetPrefix.bind(this),
       }
     }
     routerServerGlobal[RouterServerContextSymbol][

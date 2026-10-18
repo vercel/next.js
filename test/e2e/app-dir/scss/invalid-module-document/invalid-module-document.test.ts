@@ -1,27 +1,23 @@
 /* eslint-env jest */
 
-import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 // Importing module CSS in _document is allowed in Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid SCSS in _document',
   () => {
-    const { next, skipped, isRspack } = nextTestSetup({
+    const { next, isRspack } = nextTestSetup({
       files: __dirname,
-      skipStart: isNextStart,
-      skipDeployment: true,
+      skipStart: !isNextDev,
       dependencies: { sass: '1.54.0' },
     })
 
-    if (skipped) {
-      return
-    }
-
-    if (isNextStart) {
+    if (!isNextDev) {
       it('should fail to build', async () => {
-        const { exitCode, cliOutput } = await next.build()
-        expect(exitCode).not.toBe(0)
+        await expect(next.start()).rejects.toThrow()
+        const cliOutput = next.cliOutput
+
         expect(cliOutput).toContain('Failed to compile')
         expect(cliOutput).toContain('styles.module.scss')
         expect(cliOutput).toMatch(
@@ -31,7 +27,7 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
         if (!process.env.NEXT_RSPACK) {
           expect(cliOutput).toMatch(/Location:.*pages[\\/]_document\.js/)
         }
-      })
+      }, 240_000)
     } else {
       it('should show a build error', async () => {
         const browser = await next.browser('/')

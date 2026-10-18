@@ -2,7 +2,8 @@ name: build-and-test
 
 on:
   push:
-    branches: ['canary']
+    branches:
+      ['canary', 'releases/lts/active', 'releases/lts/maintenance', 'next-*-*']
   pull_request:
     types: [opened, synchronize]
 
@@ -17,16 +18,21 @@ concurrency:
 # of that workflow. Environment variables are not automatically passed to
 # reusable workflows.
 env:
+  COREPACK_VERSION: 0.34.7
   NODE_MAINTENANCE_VERSION: 20
   NODE_LTS_VERSION: 22
 
 jobs:
   optimize-ci:
+    permissions:
+      checks: read
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/pr_stack_optimizer.yml
-    secrets: inherit
 
   changes:
     name: Determine changes
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -157,6 +163,7 @@ jobs:
 
   build-next:
     name: build-next
+    needs: ['optimize-ci']
     permissions:
       contents: read
       id-token: write
@@ -182,7 +189,7 @@ jobs:
 
       - name: Setup pnpm
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - name: Checkout
@@ -203,7 +210,7 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-root-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
           # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - name: Install dependencies
@@ -251,11 +258,16 @@ jobs:
         # `*.browser.{ts,tsx}` sibling was added/removed without running
         # `pnpm generate-browser-variant-aliases` and committing the result.
         pnpm generate-browser-variant-aliases
+        pnpm --dir .github/actions/pr-stack-ci-gate install --frozen-lockfile --ignore-scripts
+        pnpm --dir .github/actions/pr-stack-ci-gate types
+        pnpm --dir .github/actions/pr-stack-ci-gate build
+        pnpm --dir .github/actions/pr-stack-ci-gate test
         git diff --exit-code
       stepName: 'lint'
     secrets: inherit
 
   validate-docs-links:
+    needs: ['optimize-ci']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -267,7 +279,7 @@ jobs:
           package-manager-cache: false
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
       - name: 'Run link checker'
         run: node ./.github/actions/validate-docs-links/dist/index.js
@@ -321,6 +333,9 @@ jobs:
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
@@ -639,6 +654,12 @@ jobs:
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
+  # Guards that Turbopack keeps compiling for wasm, so the wasm fallback Next.js loads when the
+  # native bindings are unavailable can eventually support Turbopack and not just SWC.
+  # See https://github.com/vercel/next.js/issues/96960.
+  #
+  # This compiles the bindings and runs the wasm test suites with the pinned emnapi v2 prerelease.
+  # A linked build is gated by the first stack layer that provides every required runtime hook.
   test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
@@ -650,14 +671,31 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       needsRust: 'yes'
-      skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
         set -euo pipefail
 
+        # Provisions the wasi-sdk, emnapi and the cross-compilation env. Shared with local
+        # builds so the two cannot drift; see contributing/core/building-wasm.md.
         source scripts/setup-wasi-env.sh
-        cargo check -p next-napi-bindings --target wasm32-wasip1-threads
+
+        # swc's plugin host is gated off for wasm (see turbopack-ecmascript-plugins and
+        # next-napi-bindings), so nothing needs patching here: the wasm32 plugin path that does not
+        # compile is simply never built.
+        cargo build -p next-napi-bindings --target wasm32-wasip1-threads
+
+        # Run the crates whose tests can execute on wasm. This needs a host that supplies the
+        # `env.read_custom_section` import turbo-tasks' link-time registries depend on; no stock
+        # runtime provides it. See scripts/wasi-test-host/README.md, which also lists the platform
+        # limitations behind the tests that are `ignore`d on wasm.
+        export CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER="node $PWD/scripts/wasi-test-host/run.mjs"
+        cargo test \
+          -p turbo-rcstr \
+          -p turbo-tasks \
+          -p turbo-tasks-backend \
+          --lib \
+          --target wasm32-wasip1-threads
       stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 
@@ -781,8 +819,7 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
       timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
@@ -808,8 +845,7 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
       timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
     secrets: inherit
@@ -850,12 +886,11 @@ jobs:
 
       - name: Wait for preview tarball
         env:
-          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
+          NEXT_TEST_PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
           PREVIEW_BUILDS_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
         run: |
           set -euo pipefail
           node scripts/wait-for-preview-tarball.mjs \
-            --preview-builds-base-url "$PREVIEW_BUILDS_BASE_URL" \
             --timeout-minutes 30
 
   test-new-tests-deploy:
@@ -878,13 +913,13 @@ jobs:
       # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
         export NEXT_ENABLE_ADAPTER=1
+        export NEXT_TEST_DEPLOY_TARGET_VERCEL=1
         export NEXT_E2E_TEST_TIMEOUT=240000
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
@@ -910,13 +945,13 @@ jobs:
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
         export NEXT_ENABLE_ADAPTER=1
+        export NEXT_TEST_DEPLOY_TARGET_VERCEL=1
         export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
-          --group ${{ matrix.group }} \
-          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+          --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-cache-components-${{matrix.group}}'
 
     secrets: inherit
@@ -1028,6 +1063,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
+        set -euo pipefail
         export NEXT_TEST_MODE=start
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         export IS_TURBOPACK_TEST=1
@@ -1040,6 +1076,13 @@ jobs:
           test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
           test/e2e/incremental-cache-path-traversal/index.test.ts
+
+        # Root params use a webpack loader, so cover Windows path handling with webpack.
+        unset IS_TURBOPACK_TEST TURBOPACK_BUILD
+        export IS_WEBPACK_TEST=1
+
+        node run-tests.js --type production \
+          test/e2e/app-dir/app-root-params-getters/simple.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
     secrets: inherit

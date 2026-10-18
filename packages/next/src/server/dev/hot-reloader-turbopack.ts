@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import ws from 'next/dist/compiled/ws'
 
 import type { OutputState } from '../../build/output/store'
+import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import { store as consoleStore } from '../../build/output/store'
 import type {
   CompilationError,
@@ -35,7 +36,11 @@ import type {
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
-import { BLOCKED_PAGES } from '../../shared/lib/constants'
+import {
+  BLOCKED_PAGES,
+  CLIENT_REFERENCE_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
+} from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
@@ -43,7 +48,9 @@ import {
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
-import { clearManifestCache } from '../load-manifest.external'
+import { clearManifestCache, loadManifest } from '../load-manifest.external'
+import { loadClientReferenceManifestForPage } from '../load-components'
+import { setManifestsSingleton } from '../app-render/manifests-singleton'
 import { deleteCache } from './require-cache'
 import {
   dropDevValidationWorker,
@@ -199,6 +206,9 @@ declare global {
    * Sync with  `turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/runtime/nodejs-globals.d.ts`.
    */
   var __turbopack_server_hmr_handlers__: Map<string, unknown> | undefined
+  var __turbopack_ensure_chunk__:
+    | ((chunkPath: string) => void | Promise<void>)
+    | undefined
 }
 
 /**
@@ -411,6 +421,8 @@ export async function createHotReloaderTurbopack(
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
   const lazyDynamicImports = nextConfig.experimental.turbopackLazyDynamicImports
+  const lazyDynamicImportsSSR =
+    nextConfig.experimental.turbopackLazyDynamicImportsSSR
 
   const bindings = getBindingsSync()
 
@@ -621,6 +633,7 @@ export async function createHotReloaderTurbopack(
   )
 
   const assetMapper = new AssetMapper()
+  const serverAssetMapper = new AssetMapper()
 
   // Deferred entries state management
   const deferredEntriesConfig = nextConfig.experimental.deferredEntries
@@ -891,6 +904,22 @@ export async function createHotReloaderTurbopack(
     client.send(data)
   }
 
+  let hasVulnerabilityInsight = false
+  opts.hasVulnerabilityInsight.then((enabled) => {
+    if (enabled) {
+      hasVulnerabilityInsight = true
+      for (const client of [
+        ...clientsWithoutHtmlRequestId,
+        ...clientsByHtmlRequestId.values(),
+      ]) {
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT,
+          hasVulnerabilityInsight: true,
+        })
+      }
+    }
+  })
+
   let updateInProgress = false
   let pendingServerComponentChanges = false
 
@@ -970,14 +999,22 @@ export async function createHotReloaderTurbopack(
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
+  function markClientHmrChange() {
+    if (!clientHmrEventHappened) {
+      clientHmrVersion++
+      clientHmrEventHappened = true
+    }
+  }
+
   const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
     pendingBuilding.flush()
 
+    if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES) {
+      // Pages already observes client output before a browser subscribes.
+      markClientHmrChange()
+    }
     if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES) {
-      if (!clientHmrEventHappened) {
-        clientHmrVersion++
-        clientHmrEventHappened = true
-      }
+      markClientHmrChange()
       message.hmrVersion = String(clientHmrVersion)
     }
 
@@ -1007,12 +1044,56 @@ export async function createHotReloaderTurbopack(
       clientStates.get(client)?.turbopackUpdates.push(payload)
     }
 
-    if (!clientHmrEventHappened) {
-      clientHmrVersion++
-      clientHmrEventHappened = true
-    }
+    markClientHmrChange()
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
+  }
+
+  async function subscribeToClientHmrChanges(
+    key: EntryKey,
+    endpoint: Endpoint
+  ) {
+    const existing = changeSubscriptions.get(key)
+    if (existing) {
+      // Its owner handles setup failures using the existing HMR error path.
+      await existing.catch(() => {})
+      return
+    }
+
+    const changedPromise = endpoint.clientChanged()
+    changeSubscriptions.set(key, changedPromise)
+    let changed: Awaited<typeof changedPromise>
+    try {
+      // Resolves after the native baseline is established, not when consumption
+      // ends. HTML must not be served while listening is still being set up.
+      changed = await changedPromise
+    } catch (error) {
+      changeSubscriptions.delete(key)
+      sendHmr(key, {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in ${key} client subscription: ${error}`,
+      })
+      return
+    }
+
+    void (async () => {
+      try {
+        for await (const _change of changed) {
+          // No browser message or server cache invalidation: connected clients
+          // still receive ordinary CSS/JS HMR through their chunk subscriptions.
+          markClientHmrChange()
+        }
+      } catch (error) {
+        sendHmr(key, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+          data: `error in ${key} client subscription: ${error}`,
+        })
+      } finally {
+        if (changeSubscriptions.get(key) === changedPromise) {
+          changeSubscriptions.delete(key)
+        }
+      }
+    })()
   }
 
   async function subscribeToClientChanges(
@@ -1757,6 +1838,7 @@ export async function createHotReloaderTurbopack(
             warnings: [],
             hash: '',
             versionInfo,
+            hasVulnerabilityInsight,
             debug: {
               devtoolsFrontendUrl,
             },
@@ -1794,6 +1876,10 @@ export async function createHotReloaderTurbopack(
       ]) {
         client.send(payload)
       }
+    },
+
+    getClientHmrVersion() {
+      return String(clientHmrVersion)
     },
 
     getServerComponentsHmrRefreshHash() {
@@ -2050,6 +2136,10 @@ export async function createHotReloaderTurbopack(
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                     currentWrittenEntrypoints.set(id, result.value)
                     assetMapper.setPathsForKey(id, result.value.clientPaths)
+                    serverAssetMapper.setPathsForKey(
+                      id,
+                      result.value.serverPaths.map(({ path }) => path)
+                    )
                     return clearRequireCache(id, result.value, {
                       force: forceDeleteCache,
                     })
@@ -2124,10 +2214,17 @@ export async function createHotReloaderTurbopack(
                 subscribeToChanges: subscribeToChanges
                   ? subscribeToClientChanges
                   : ((async () => {}) as StartChangeSubscription),
+                subscribeToClientHmrChanges: subscribeToChanges
+                  ? subscribeToClientHmrChanges
+                  : undefined,
                 handleServerComponentChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result.value)
                   assetMapper.setPathsForKey(id, result.value.clientPaths)
+                  serverAssetMapper.setPathsForKey(
+                    id,
+                    result.value.serverPaths.map(({ path }) => path)
+                  )
                   shouldPullServerHmr ||= participatesInServerHmr(
                     id,
                     result.value
@@ -2295,6 +2392,60 @@ export async function createHotReloaderTurbopack(
     process.exit(1)
   })
 
+  if (lazyDynamicImportsSSR) {
+    const previousEnsureChunk = globalThis.__turbopack_ensure_chunk__
+    const ensureChunk = async (chunkPath: string) => {
+      if (!chunkPath.includes('lazy-compilation-')) return
+
+      const keys = serverAssetMapper.getKeysByAsset(chunkPath)
+      if (keys.length === 0 || !(await project.activateLazyChunk(chunkPath))) {
+        return
+      }
+
+      for (const key of keys) {
+        const { page, type } = splitEntryKey(key)
+        await hotReloader.ensurePage({
+          page,
+          clientOnly: false,
+          definition: undefined,
+        })
+        if (type === 'app') {
+          clearManifestCache(
+            join(
+              distDir,
+              'server',
+              'app',
+              page.replace(/%5F/g, '_') +
+                '_' +
+                CLIENT_REFERENCE_MANIFEST +
+                '.js'
+            )
+          )
+          const clientReferenceManifest =
+            await loadClientReferenceManifestForPage(distDir, page, 1)
+          if (clientReferenceManifest) {
+            setManifestsSingleton({
+              page,
+              clientReferenceManifest,
+              serverActionsManifest: loadManifest<ActionManifest>(
+                join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json'),
+                false
+              ),
+            })
+          }
+        }
+      }
+      deleteCache([join(distDir, chunkPath)])
+    }
+
+    globalThis.__turbopack_ensure_chunk__ = ensureChunk
+    opts.onDevServerCleanup?.(async () => {
+      if (globalThis.__turbopack_ensure_chunk__ === ensureChunk) {
+        globalThis.__turbopack_ensure_chunk__ = previousEnsureChunk
+      }
+    })
+  }
+
   let serverHmr: ReturnType<typeof setupServerHmr> | undefined
   if (serverFastRefresh) {
     serverHmr = setupServerHmr(project, {
@@ -2331,7 +2482,7 @@ export async function createHotReloaderTurbopack(
         // Clear the evalManifest() shared cache for each updated chunk so the
         // next RSC render picks up the HMR-applied module changes. Unlike
         // a full restart, this does NOT clear require.cache — the HMR-applied
-        // modules in devModuleCache must persist for dep preservation.
+        // modules in the module cache must persist for dep preservation.
         const manifestPaths = chunkPaths.map((chunkPath) =>
           join(distDir, chunkPath)
         )

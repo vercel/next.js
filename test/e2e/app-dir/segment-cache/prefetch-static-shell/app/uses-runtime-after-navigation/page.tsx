@@ -7,7 +7,7 @@
 
 import { cacheLife } from 'next/dist/server/use-cache/cache-life'
 import { cookies, headers } from 'next/headers'
-import { unstable_navigation as navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 import { Suspense } from 'react'
 
 export default async function Page() {

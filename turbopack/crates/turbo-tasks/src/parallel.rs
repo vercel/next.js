@@ -323,7 +323,12 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_parallel_try_for_each_mut() {
-        let mut input = vec![1, 2, 3, 4, 5];
+        // Match `good_chunk_size`'s target chunk count so every item gets its own chunk. This makes
+        // the exact mutation assertion independent of the machine's reported parallelism while
+        // still verifying that all chunks start even when earlier chunks return errors.
+        let item_count = available_parallelism().map_or(16, |count| count.get() * 4);
+        let max_value = i32::try_from(item_count).unwrap();
+        let mut input: Vec<_> = (1..=max_value).collect();
         let result = try_for_each_mut(&mut input, |x| {
             *x += 10;
             if *x % 2 == 0 {
@@ -334,7 +339,7 @@ mod tests {
         });
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Odd number 11 encountered");
-        assert_eq!(input, vec![11, 12, 13, 14, 15]);
+        assert_eq!(input, (11..=max_value + 10).collect::<Vec<_>>());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -369,6 +374,11 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    // Relies on `catch_unwind` catching, which needs unwinding; wasm is panic = abort.
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     async fn test_panic_in_scope() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let mut input = vec![1; 1000];
