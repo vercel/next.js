@@ -84,11 +84,6 @@ function parseSetCookie(setCookie) {
       value2
     ])
   );
-  // `value` is already decoded by `parseCookie`; only attempt a second
-  // decode for values that still contain a `%` escape (i.e. values that were
-  // double-encoded at set time) and fall back to the already-decoded value
-  // when the remaining `%` is not a valid escape sequence, so malformed
-  // cookies do not throw `URIError`.
   let cookieValue = value;
   if (value !== undefined && value.includes("%")) {
     try {
