@@ -196,12 +196,12 @@ async fn gc_diamond_forward_dep_no_resurrection() {
     tt.stop_and_wait().await;
 }
 
-/// Resurrection-on-connect: a task marked `deleted` by GC but reconnected **before** the
-/// tombstoning snapshot must come back to life (marker cleared, made dirty, re-executed) rather
-/// than being tombstoned/hard-deleted.
+/// Reconnect before the tombstoning snapshot: GC removes the collected tasks from `task_cache`, so
+/// reconnecting the subtree mints fresh tasks that execute and produce the correct value, while the
+/// collected ones are dropped by the next snapshot.
 #[tokio::test(flavor = "multi_thread", worker_threads = 8)]
-async fn gc_resurrect_on_reconnect() {
-    let (tt, _persistence_dir) = create_tt("gc_resurrect_on_reconnect");
+async fn gc_reconnect_before_snapshot_mints_fresh_tasks() {
+    let (tt, _persistence_dir) = create_tt("gc_reconnect_before_snapshot_mints_fresh_tasks");
     let tt2 = tt.clone();
     let expected: u32 = (0..FANOUT).fold(0u32, |a, b| a.wrapping_add(b));
 
@@ -232,7 +232,7 @@ async fn gc_resurrect_on_reconnect() {
     );
 
     // Reconnect the subtree (selector back to false) BEFORE any snapshot. Reading `reader` again
-    // connects it, which must resurrect it (and its leaves, as it re-reads them).
+    // must create a fresh `reader` (and fresh leaves, as it re-reads them).
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let selector_op = create_selector(false);
         let selector_vc = selector_op.resolve().strongly_consistent().await?;
@@ -244,14 +244,14 @@ async fn gc_resurrect_on_reconnect() {
         assert_eq!(
             *output.read_strongly_consistent().await?,
             expected,
-            "resurrected reader must recompute the correct value"
+            "the fresh reader must compute the correct value"
         );
         anyhow::Ok(())
     })
     .await;
     result.unwrap();
 
-    // A snapshot+evict now must NOT have tombstoned/hard-deleted the resurrected subtree.
+    // A snapshot+evict now drops the collected subtree but must keep the fresh one.
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let selector_op = create_selector(false);
@@ -264,6 +264,88 @@ async fn gc_resurrect_on_reconnect() {
     })
     .await;
     result.unwrap();
+
+    tt.stop_and_wait().await;
+}
+
+/// Like [`gc_reconnect_before_snapshot_mints_fresh_tasks`], but the subtree was persisted before
+/// it was collected. The cache misses (GC removed the entries), and the type index on disk still
+/// names the collected tasks because their tombstones have not been committed, so `task_by_type`
+/// must skip them rather than hand out ids that eviction is about to drop.
+///
+/// The next snapshot commits the collected tasks' tombstones and the fresh tasks' index entries
+/// together, and a lookup after eviction must resolve to the fresh tasks.
+#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+async fn gc_reconnect_persisted_before_tombstone_commits() {
+    let (tt, _persistence_dir) = create_tt("gc_reconnect_persisted_before_tombstone_commits");
+    let tt2 = tt.clone();
+    let expected: u32 = (0..FANOUT).fold(0u32, |a, b| a.wrapping_add(b));
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+        let output = select_reader(selector_vc, constant_vc);
+        assert_eq!(*output.read_strongly_consistent().await?, expected);
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    // Persist the subtree and register its type index entries on disk.
+    tt2.backend().snapshot_and_evict_for_testing(&tt2);
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+        selector.set(true);
+        select_reader(selector_vc, constant_vc)
+            .read_strongly_consistent()
+            .await?;
+        anyhow::Ok(())
+    })
+    .await;
+    result.unwrap();
+
+    // Collect without snapshotting, so the tombstones stay pending and the index still names the
+    // collected tasks.
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    assert_eq!(
+        collected,
+        FANOUT as usize + 1,
+        "reader + {FANOUT} leaves should be collected"
+    );
+
+    let reconnect = || {
+        let tt = tt.clone();
+        async move {
+            turbo_tasks::run_once(tt, async move {
+                let selector_op = create_selector(false);
+                let selector_vc = selector_op.resolve().strongly_consistent().await?;
+                let selector = selector_op.read_strongly_consistent().await?;
+                let constant_op = create_constant();
+                let constant_vc = constant_op.resolve().strongly_consistent().await?;
+                selector.set(false);
+                let output = select_reader(selector_vc, constant_vc);
+                assert_eq!(*output.read_strongly_consistent().await?, expected);
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+    };
+
+    // Reconnect while the index still names the collected tasks.
+    reconnect().await;
+
+    // Commit the tombstones alongside the fresh tasks' index entries, evict, then look the tasks
+    // up again through the index.
+    tt2.backend().snapshot_and_evict_for_testing(&tt2);
+    reconnect().await;
 
     tt.stop_and_wait().await;
 }
@@ -312,12 +394,12 @@ async fn select_imm_reader(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
     Ok(Vc::cell(value))
 }
 
-/// An **immutable** task that is collected and reconnected before any snapshot must come back dirty
-/// and re-execute, producing the correct value.  Normally we don't allow re-execution of immutable
-/// tasks, but resurrection is special
+/// An **immutable** task that is collected and reconnected before any snapshot must re-execute and
+/// produce the correct value. Immutable tasks are never re-executed in place, but the reconnect
+/// mints a fresh task, which executes for the first time.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn gc_resurrect_immutable_recomputes() {
-    let (tt, _persistence_dir) = create_tt("gc_resurrect_immutable_recomputes");
+async fn gc_reconnect_immutable_recomputes() {
+    let (tt, _persistence_dir) = create_tt("gc_reconnect_immutable_recomputes");
     let expected: u32 = (0..IMM_FANOUT).fold(0u32, |a, b| a.wrapping_add(b * 3));
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
@@ -382,7 +464,7 @@ async fn gc_resurrect_immutable_recomputes() {
         assert_eq!(
             *output.read_strongly_consistent().await?,
             expected,
-            "a resurrected immutable task must recompute the correct value"
+            "a reconnected immutable task must recompute the correct value"
         );
 
         anyhow::Ok(())
@@ -392,13 +474,12 @@ async fn gc_resurrect_immutable_recomputes() {
 
     assert!(
         IMM_LEAF_EXECUTIONS.load(Ordering::Relaxed) > executions_after_direct,
-        "the resurrected leaves must have re-executed, but the execution count did not move past \
+        "the reconnected leaves must have re-executed, but the execution count did not move past \
          {executions_after_direct} — compared against the post-direct-read value so that read's \
          own re-execution cannot satisfy this"
     );
 
-    // A snapshot + evict must not have tombstoned the resurrected subtree, and the restored data
-    // must survive the round trip.
+    // A snapshot + evict must keep the fresh subtree, and its data must survive the round trip.
     tt.backend().snapshot_and_evict_for_testing(&tt);
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let selector_op = create_selector(false);
@@ -442,16 +523,16 @@ async fn select_dependent(
     }
 }
 
-/// A resurrected task must not keep the reverse dependency edges GC left behind.
+/// A reconnected task must not keep the reverse dependency edges GC left behind.
 ///
 /// Collecting `P` scrubs the forward edge from each dependent `D`, but deliberately leaves
-/// `P.cell_dependents` alone since `P` is about to be deleted. If `P` is then resurrected, that
-/// stale `(D, cell)` entry survives with no forward edge backing it, so collecting `D` later never
-/// clears it. Once `D` is gone, invalidating `P` walks `cell_dependents`, opens `D` with
-/// `MustExist`, and panics with `task is missing in memory or persistent storage`.
+/// `P.cell_dependents` alone since `P` is about to be deleted. If reconnecting `P` revived it in
+/// place, that stale `(D, cell)` entry would survive with no forward edge backing it, so collecting
+/// `D` later would never clear it. Once `D` is gone, invalidating `P` walks `cell_dependents`,
+/// opens `D` with `MustExist`, and panics with `task is missing in memory or persistent storage`.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn gc_resurrected_producer_has_no_stale_cell_dependents() {
-    let (tt, _persistence_dir) = create_tt("gc_resurrected_producer_has_no_stale_cell_dependents");
+async fn gc_reconnected_producer_has_no_stale_cell_dependents() {
+    let (tt, _persistence_dir) = create_tt("gc_reconnected_producer_has_no_stale_cell_dependents");
 
     // Build `P` and `D`, then disconnect `P` alone. `D` keeps its cell dependency on `P`.
     let target = turbo_tasks::run_once(tt.clone(), async move {
@@ -492,10 +573,10 @@ async fn gc_resurrected_producer_has_no_stale_cell_dependents() {
         "only the producer should be collected; the dependent is still connected"
     );
 
-    // Disconnect `D`, then reconnect `P` before any snapshot. `P` is resurrected and re-executes;
-    // its update finds the stale `D` entry and dirties `D`, but `D` is no longer active, so it
-    // never re-executes and re-registers a forward edge that would clear the entry. A dependent
-    // that is still live does exactly that, which hides the bug.
+    // Disconnect `D`, then reconnect `P` before any snapshot, which mints a fresh `P`. Had `P` been
+    // revived in place, its update would find the stale `D` entry and dirty `D`, but `D` is no
+    // longer active, so it would never re-execute and re-register a forward edge that clears the
+    // entry. A dependent that is still live does exactly that, which hides the bug.
     turbo_tasks::run_once(tt.clone(), async move {
         let dependent_selector_op = create_other_selector();
         let dependent_selector_vc = dependent_selector_op

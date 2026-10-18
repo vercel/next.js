@@ -40,10 +40,7 @@ use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::
 use crate::{
     backend::{
         TaskDataCategory,
-        operation::{
-            ExecuteContext, TaskGuard, connect_child::resurrect_deleted,
-            invalidate::make_task_dirty_internal,
-        },
+        operation::{ExecuteContext, TaskGuard, invalidate::make_task_dirty_internal},
         storage_schema::TaskStorageAccessors,
     },
     data::{ActivenessState, AggregationNumber, CollectibleRef, CollectiblesRef},
@@ -3213,14 +3210,13 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
-        let task = ctx.task(
+        let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay Meta and not All.
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
-        // Revive the task if GC soft-deleted it.
-        let mut task = resurrect_deleted(task, task_id, self, ctx);
+        task.assert_not_deleted("increase_active_count");
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
@@ -3380,8 +3376,8 @@ impl AggregationUpdateQueue {
             // free and lets us elide the write entirely.
             task.set_optimization_pending(false);
         }
-        // A racing GC pass may have deleted this task, just return
-        // still clear the `optimization_pending` flag just in case we get resurrected.
+        // A racing GC pass may have deleted this task, just return. The flag is still cleared
+        // above so a deleted task never looks like it has pending work.
         if task.deleted() {
             return;
         }

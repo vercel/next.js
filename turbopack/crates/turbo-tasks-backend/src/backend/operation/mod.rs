@@ -168,6 +168,7 @@ impl<'e> ExecuteContext<'e> {
         }
     }
 
+    #[track_caller]
     fn open_task(
         &mut self,
         task_id: TaskId,
@@ -177,10 +178,21 @@ impl<'e> ExecuteContext<'e> {
         self.task_lock_counter.acquire();
 
         let mut task = self.backend.storage.access_entry_mut(task_id);
-        // Treat deleted tasks under AllowMissing as missing
-        if access == TaskAccess::AllowMissing && task.flags.deleted() {
-            self.task_lock_counter.release();
-            return None;
+        if task.flags.deleted() {
+            // Treat deleted tasks under AllowMissing as missing
+            if access == TaskAccess::AllowMissing {
+                self.task_lock_counter.release();
+                return None;
+            }
+            // Outside of GC nothing can reach a collected task through `task`/`task_or_create`:
+            // GC tears down every edge to it and removes it from `task_cache` while operations are
+            // excluded, and `task_by_type` skips it. GC itself opens tasks it is concurrently
+            // collecting, e.g. to scrub the reverse halves of their edges.
+            debug_assert!(
+                self.gc_collectible.is_some(),
+                "{access:?} open of GC-deleted task {task_id} — a stale reference to a collected \
+                 task"
+            );
         }
         if task.flags.is_restored(category) {
             return Some(TaskGuard::new(
@@ -899,6 +911,7 @@ impl<'e> ExecuteContext<'e> {
     ///
     /// A transient task (or any task, without backing storage) is restored from creation and never
     /// evicted, so one that is not restored exists nowhere. See `ExecuteContext::open_task`.
+    #[track_caller]
     pub fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'e> {
         self.open_task(task_id, category, TaskAccess::MustExist)
             .expect("a MustExist open either yields a task or panics")
@@ -924,6 +937,7 @@ impl<'e> ExecuteContext<'e> {
     /// This creates *storage for* an already-minted `TaskId`; it does not mint one. Compare
     /// `TurboTasksBackend::get_or_create_task`, which takes a function and arguments and returns a
     /// `TaskId` (reusing one if the task is already cached).
+    #[track_caller]
     pub fn task_or_create(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'e> {
         self.open_task(task_id, category, TaskAccess::MaybeCreate)
             .expect("a MaybeCreate open always yields a task")
@@ -1107,7 +1121,17 @@ impl<'e> ExecuteContext<'e> {
         // Verify each candidate by comparing the stored persistent_task_type.
         // Only rarely is there more than one candidate, so no need for parallelization.
         for candidate_id in candidates {
-            let task = self.task(candidate_id, TaskDataCategory::Data);
+            // GC removes the tasks it deletes from `task_cache`, but the type index on disk still
+            // names a deleted task until the snapshot commits its tombstone. Skip such a candidate
+            // so the caller mints a fresh task instead: once the tombstone commits, eviction may
+            // drop the deleted task at any time, so its id must never be handed out again. That
+            // includes a candidate eviction already dropped, which is now missing on disk too.
+            //
+            // A live task cannot become deleted here, since GC only runs while operations are
+            // excluded, so a candidate that opens is safe to return.
+            let Some(task) = self.try_task(candidate_id, TaskDataCategory::Data) else {
+                continue;
+            };
             if let Some(stored_type) = task.get_persistent_task_type()
                 && stored_type.eq_components(native_fn, this, arg)
             {
@@ -1228,7 +1252,7 @@ impl<'a> TaskGuard<'a> {
             // Small hack to work around check_access. Technically a 'deleted' flag is never
             // persisted so it cannot be recovered either.
             !self.task.flags.deleted(),
-            "{operation} on GC-deleted task {} — a resurrection path was missed",
+            "{operation} on GC-deleted task {} — a stale reference to a collected task",
             self.id()
         );
     }
@@ -1602,20 +1626,6 @@ impl<'a> TaskGuard<'a> {
 
     pub fn id(&self) -> TaskId {
         self.task_id
-    }
-
-    #[cfg(debug_assertions)]
-    pub fn access(&self) -> TaskDataCategory {
-        self.category
-    }
-    #[cfg(debug_assertions)]
-    pub fn downgrade_access(&mut self, access: TaskDataCategory) {
-        assert!(
-            self.category >= access,
-            "Cannot downgrade {:?} to {access:?}",
-            self.category
-        );
-        self.category = access;
     }
 
     pub fn invalidate_serialization(&mut self) {
