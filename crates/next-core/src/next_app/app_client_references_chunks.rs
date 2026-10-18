@@ -162,7 +162,7 @@ pub async fn get_app_client_references_chunks(
             }
             // Framework components need to go into first layout segment
             if let Some((_, list)) = client_references_by_server_component.first_mut() {
-                list.extend(framework_reference_types);
+                list.extend(std::mem::take(&mut framework_reference_types));
             }
 
             let chunk_group_info = module_graph.chunk_group_info();
@@ -326,6 +326,94 @@ pub async fn get_app_client_references_chunks(
                             client_reference_ty
                         {
                             client_component_ssr_chunks.insert(client_reference_ty, assets);
+                        }
+                    }
+                }
+            }
+
+            // Endpoints without layout segments (Route Handlers) have no server component to
+            // group their client references under. Give them one client chunk group, parented
+            // to the chunk group the module graph already assigned to those client modules, so
+            // that they are loadable when the endpoint renders a Flight payload.
+            if !framework_reference_types.is_empty() {
+                let client_modules = framework_reference_types
+                    .iter()
+                    .map(async |client_reference_ty| {
+                        Ok(match client_reference_ty {
+                            ClientReferenceType::EcmascriptClientReference(
+                                ecmascript_client_reference,
+                            ) => {
+                                ResolvedVc::upcast(ecmascript_client_reference.await?.client_module)
+                            }
+                            ClientReferenceType::CssClientReference(css_client_reference) => {
+                                ResolvedVc::upcast(*css_client_reference)
+                            }
+                        })
+                    })
+                    .try_join()
+                    .await?;
+
+                let chunk_group_info = chunk_group_info.await?;
+                let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
+                let client_merge_tag = ecmascript_client_reference_merge_tag();
+
+                // A client module can also be reached from pages, where its group hangs off a
+                // server component. Prefer the group whose parent is an entry, which is the one
+                // created for the endpoint itself.
+                let mut parent = None;
+                let mut fallback_parent = None;
+                'modules: for module in &client_modules {
+                    let Some(groups) = module_chunk_groups.get(module) else {
+                        continue;
+                    };
+                    for index in groups.iter() {
+                        if let Some(ChunkGroup::IsolatedMerged {
+                            parent: candidate,
+                            merge_tag,
+                            ..
+                        }) = chunk_group_info.chunk_groups.get_index(index as usize)
+                            && *merge_tag == client_merge_tag
+                        {
+                            if matches!(
+                                chunk_group_info.chunk_groups.get_index(*candidate),
+                                Some(ChunkGroup::Entry(_))
+                            ) {
+                                parent = Some(*candidate);
+                                break 'modules;
+                            }
+                            fallback_parent.get_or_insert(*candidate);
+                        }
+                    }
+                }
+                let parent = parent.or(fallback_parent);
+
+                if let Some(parent) = parent {
+                    let ident = client_modules[0]
+                        .ident()
+                        .owned()
+                        .await?
+                        .with_modifier(rcstr!("route client modules"))
+                        .into_vc();
+                    let client_chunk_group = client_chunking_context
+                        .chunk_group(
+                            ident,
+                            smallvec![ChunkGroup::IsolatedMerged {
+                                parent,
+                                merge_tag: ecmascript_client_reference_merge_tag(),
+                                entries: client_modules,
+                            }],
+                            module_graph,
+                            client_availability_info,
+                        )
+                        .to_resolved()
+                        .await?;
+
+                    for &client_reference_ty in framework_reference_types.iter() {
+                        if let ClientReferenceType::EcmascriptClientReference(_) =
+                            client_reference_ty
+                        {
+                            client_component_client_chunks
+                                .insert(client_reference_ty, client_chunk_group);
                         }
                     }
                 }
