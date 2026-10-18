@@ -16,6 +16,29 @@ import {
   WEBP,
 } from './image-type'
 
+// An ISO BMFF `ftyp` box is: size (4 bytes) + "ftyp" + major brand (4 bytes) +
+// minor version (4 bytes) + compatible brands (4 bytes each). Real files have
+// small, 4-byte aligned sizes, so reject anything else. This stops text such as
+// `<!--ftypavif-->` (an SVG) from matching because the first 4 bytes of the
+// size field were previously treated as a wildcard.
+const FTYP_MIN_SIZE = 16
+const FTYP_MAX_SIZE = 4096
+
+function isFtypBrand(buffer: Buffer, brand: string): boolean {
+  if (buffer.byteLength < 12) {
+    return false
+  }
+  // `<` is never the start of an ISO BMFF box size, it starts markup (SVG/HTML).
+  if (buffer[0] === 0x3c) {
+    return false
+  }
+  const size = buffer.readUInt32BE(0)
+  if (size < FTYP_MIN_SIZE || size > FTYP_MAX_SIZE || size % 4 !== 0) {
+    return false
+  }
+  return buffer.toString('latin1', 4, 12) === `ftyp${brand}`
+}
+
 /**
  * Inspects the first few bytes of a buffer to determine if
  * it matches the "magic number" of known file signatures.
@@ -53,11 +76,7 @@ export async function detectContentType(
   if ([0x3c, 0x73, 0x76, 0x67].every((b, i) => buffer[i] === b)) {
     return SVG
   }
-  if (
-    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
+  if (isFtypBrand(buffer, 'avif')) {
     return AVIF
   }
   if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
@@ -82,11 +101,7 @@ export async function detectContentType(
   ) {
     return JXL
   }
-  if (
-    [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63].every(
-      (b, i) => !b || buffer[i] === b
-    )
-  ) {
+  if (isFtypBrand(buffer, 'heic')) {
     return HEIC
   }
   if ([0x25, 0x50, 0x44, 0x46, 0x2d].every((b, i) => buffer[i] === b)) {
