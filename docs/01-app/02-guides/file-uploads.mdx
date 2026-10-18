@@ -1,0 +1,246 @@
+---
+title: How to handle file uploads
+nav_title: File Uploads
+description: Learn how to accept file uploads in Next.js with Server Actions and Route Handlers, and how to handle large files without running out of memory.
+---
+
+Next.js gives you two places to receive a file upload: a [Server Action](/docs/app/getting-started/mutating-data) or a [Route Handler](/docs/app/api-reference/file-conventions/route). Which one to use depends on how large the files are, because the two approaches handle the request body differently.
+
+| Approach                                                          | Good for                     | How the file is read                  |
+| ----------------------------------------------------------------- | ---------------------------- | ------------------------------------- |
+| [Server Action with `FormData`](#small-files-with-server-actions) | Small files, such as avatars | The whole file is held in memory      |
+| [Route Handler with a stream](#large-files-with-a-route-handler)  | Large files                  | The file is streamed in chunks        |
+| [Direct upload to storage](#uploading-directly-to-storage)        | Very large files, serverless | The file never passes through Next.js |
+
+> [!WARNING]
+> Always verify [authentication and authorization](/docs/app/guides/authentication) before accepting an upload, and never use the file name sent by the client as a path on disk.
+
+## Small files with Server Actions
+
+A Server Action used as a form `action` receives the form's [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData). A file input appears in it as a [`File`](https://developer.mozilla.org/docs/Web/API/File):
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+import { mkdir, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+
+export async function uploadAvatar(formData: FormData) {
+  const file = formData.get('avatar')
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error('No file selected')
+  }
+
+  const dir = path.join(process.cwd(), 'uploads')
+  await mkdir(dir, { recursive: true })
+
+  // Generate the name on the server instead of trusting `file.name`
+  const filename = crypto.randomUUID()
+  await writeFile(
+    path.join(dir, filename),
+    Buffer.from(await file.arrayBuffer())
+  )
+}
+```
+
+```jsx filename="app/actions.js" switcher
+'use server'
+
+import { mkdir, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+
+export async function uploadAvatar(formData) {
+  const file = formData.get('avatar')
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error('No file selected')
+  }
+
+  const dir = path.join(process.cwd(), 'uploads')
+  await mkdir(dir, { recursive: true })
+
+  // Generate the name on the server instead of trusting `file.name`
+  const filename = crypto.randomUUID()
+  await writeFile(
+    path.join(dir, filename),
+    Buffer.from(await file.arrayBuffer())
+  )
+}
+```
+
+```tsx filename="app/page.tsx" switcher
+import { uploadAvatar } from './actions'
+
+export default function Page() {
+  return (
+    <form action={uploadAvatar}>
+      <input type="file" name="avatar" accept="image/*" />
+      <button type="submit">Upload</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { uploadAvatar } from './actions'
+
+export default function Page() {
+  return (
+    <form action={uploadAvatar}>
+      <input type="file" name="avatar" accept="image/*" />
+      <button type="submit">Upload</button>
+    </form>
+  )
+}
+```
+
+Keep two limits in mind:
+
+- **Body size limit:** the request body sent to a Server Action is limited to 1MB by default. A larger upload fails before your code runs, and `Body exceeded 1 MB limit` is logged on the server. You can raise the limit with [`serverActions.bodySizeLimit`](/docs/app/api-reference/config/next-config-js/serverActions#bodysizelimit). The limit includes the bytes that `multipart/form-data` adds around the file, so leave some room above your largest expected file.
+- **Memory:** parsing `FormData` holds the entire file in memory, and memory use during parsing can be several times the file size. Raising `bodySizeLimit` to accept large files can exhaust memory when several uploads arrive at once. Use a [Route Handler with a stream](#large-files-with-a-route-handler) instead.
+
+## Large files with a Route Handler
+
+A Route Handler can read [`request.body`](https://developer.mozilla.org/docs/Web/API/Request/body) as a stream and write each chunk to its destination as it arrives, so memory use stays small no matter how large the file is. On the client, send the file itself as the request body rather than wrapping it in `FormData`:
+
+```tsx filename="app/api/upload/route.ts" switcher
+import { createWriteStream } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
+import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import type { ReadableStream } from 'node:stream/web'
+
+export async function POST(request: Request) {
+  if (!request.body) {
+    return Response.json({ error: 'Missing file' }, { status: 400 })
+  }
+
+  const dir = path.join(process.cwd(), 'uploads')
+  await mkdir(dir, { recursive: true })
+
+  const filename = crypto.randomUUID()
+  await pipeline(
+    Readable.fromWeb(request.body as ReadableStream),
+    createWriteStream(path.join(dir, filename))
+  )
+
+  return Response.json({ filename })
+}
+```
+
+```js filename="app/api/upload/route.js" switcher
+import { createWriteStream } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
+import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+
+export async function POST(request) {
+  if (!request.body) {
+    return Response.json({ error: 'Missing file' }, { status: 400 })
+  }
+
+  const dir = path.join(process.cwd(), 'uploads')
+  await mkdir(dir, { recursive: true })
+
+  const filename = crypto.randomUUID()
+  await pipeline(
+    Readable.fromWeb(request.body),
+    createWriteStream(path.join(dir, filename))
+  )
+
+  return Response.json({ filename })
+}
+```
+
+```tsx filename="app/upload-button.tsx" switcher
+'use client'
+
+export function UploadButton() {
+  async function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    })
+    const { filename } = await response.json()
+    console.log('Uploaded as', filename)
+  }
+
+  return <input type="file" onChange={handleChange} />
+}
+```
+
+```jsx filename="app/upload-button.js" switcher
+'use client'
+
+export function UploadButton() {
+  async function handleChange(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    })
+    const { filename } = await response.json()
+    console.log('Uploaded as', filename)
+  }
+
+  return <input type="file" onChange={handleChange} />
+}
+```
+
+> **Good to know**:
+>
+> - This example writes to the local file system, so it needs the Node.js runtime and a server with persistent disk. To store the file elsewhere, pipe the stream to your storage provider's upload API instead of `createWriteStream`.
+> - Calling `request.formData()` in a Route Handler holds the whole body in memory, the same as a Server Action. Read `request.body` as a stream for large files.
+
+### Uploads and Proxy
+
+When a [Proxy](/docs/app/api-reference/file-conventions/proxy) runs for a request, Next.js buffers the request body in memory so that both the Proxy and the Route Handler can read it. This buffer is limited to 10MB by default. **A body larger than the limit is cut off without an error**: the Route Handler receives only the first 10MB, the request still succeeds, and a warning is logged on the server. Parsing a cut-off `multipart/form-data` body fails.
+
+This applies even when your Proxy never reads the body. If you upload files larger than 10MB, exclude the upload route from the Proxy with a [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher):
+
+```ts filename="proxy.ts" switcher
+import { NextResponse } from 'next/server'
+
+export function proxy() {
+  return NextResponse.next()
+}
+
+export const config = {
+  // Run Proxy on every route except the upload Route Handler
+  matcher: ['/((?!api/upload).*)'],
+}
+```
+
+```js filename="proxy.js" switcher
+import { NextResponse } from 'next/server'
+
+export function proxy() {
+  return NextResponse.next()
+}
+
+export const config = {
+  // Run Proxy on every route except the upload Route Handler
+  matcher: ['/((?!api/upload).*)'],
+}
+```
+
+Since the Proxy no longer runs for that route, make sure the Route Handler performs any checks, such as authentication, that the Proxy did. Alternatively, raise the limit with [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize), keeping in mind that the whole body is then held in memory for each request.
+
+## Uploading directly to storage
+
+For very large files, or when your server can't hold or stream them, let the browser upload the file straight to your storage provider:
+
+1. The client asks your app for an upload URL, for example through a Server Action.
+2. On the server, verify the user and create a short-lived, pre-authorized upload URL with your storage provider's SDK. Many object storage services call this a presigned or signed URL.
+3. The client sends the file directly to that URL with `fetch`.
+4. Optionally, the client tells your app the upload finished, so you can record it.
+
+The file never passes through Next.js, so the request body limits and memory use described above don't apply. Many hosting platforms also limit the request body size of serverless functions, and uploading directly to storage avoids those limits too. Check your storage provider's documentation for how to create upload URLs.
