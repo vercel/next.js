@@ -30,7 +30,7 @@ export function install(
   let args: string[] = []
 
   if (dependencies.length > 0) {
-    if (packageManager === 'yarn') {
+    if (packageManager === 'yarn' || packageManager === 'bun') {
       args = ['add', '--exact']
       if (devDependencies) args.push('--dev')
     } else if (packageManager === 'pnpm') {
