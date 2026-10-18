@@ -30,6 +30,23 @@ describe('RequestCookiesAdapter', () => {
     expect(sealed.get('foo')).toEqual({ name: 'foo', value: 'bar' })
     expect(sealed.get('bar')).toEqual({ name: 'bar', value: 'foo' })
   })
+
+  it('should handle duplicate cookies correctly', () => {
+    const headers = new Headers({ cookie: 'sessionid=a; sessionid=b' })
+    const cookies = new RequestCookies(headers)
+
+    const sealed = RequestCookiesAdapter.seal(cookies)
+
+    expect(sealed.get('sessionid')).toEqual({ name: 'sessionid', value: 'a' })
+    expect(sealed.getAll('sessionid')).toEqual([
+      { name: 'sessionid', value: 'a' },
+      { name: 'sessionid', value: 'b' },
+    ])
+    expect(sealed.getAll()).toEqual([
+      { name: 'sessionid', value: 'a' },
+      { name: 'sessionid', value: 'b' },
+    ])
+  })
   it('should be able to create a new instance from an empty RequestCookies', () => {
     const headers = new Headers({})
     const cookies = new RequestCookies(headers)
