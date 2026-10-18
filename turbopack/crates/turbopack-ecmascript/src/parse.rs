@@ -573,6 +573,7 @@ async fn parse_file_content(
                 source,
                 source_text: &fm.src,
                 node_env,
+                is_typescript,
             };
             let span = tracing::trace_span!("transforms");
             async {
