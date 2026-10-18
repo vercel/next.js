@@ -1,0 +1,34 @@
+name: Prepare embedded Go toolchain
+description: Acquire and checksum-verify the pinned official archive before Cargo builds
+inputs:
+  target:
+    description: Rust target triple; defaults to the Rust compiler host
+    required: false
+outputs:
+  target:
+    description: Selected Rust target triple
+    value: ${{ steps.target.outputs.value }}
+runs:
+  using: composite
+  steps:
+    - id: target
+      shell: bash
+      env:
+        REQUESTED_TARGET: ${{ inputs.target }}
+      run: |
+        set -euo pipefail
+        target="$REQUESTED_TARGET"
+        if [ -z "$target" ]; then
+          target="$(rustc -vV | sed -n 's/^host: //p')"
+        fi
+        echo "value=$target" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: target/go-toolchain-archives
+        key: go-toolchain-${{ steps.target.outputs.value }}-${{ hashFiles('turbopack/crates/turbopack-go-toolchain/archives.json') }}
+    - shell: bash
+      env:
+        GO_TOOLCHAIN_TARGET: ${{ steps.target.outputs.value }}
+      run: |
+        set -euo pipefail
+        cargo xtask prepare-go-toolchain --target "$GO_TOOLCHAIN_TARGET"

@@ -9,6 +9,10 @@ on:
       - 'rust-toolchain.toml'
       - '.cargo/**'
       - 'turbopack/crates/turbopack-go/**'
+      - 'turbopack/crates/turbopack-go-toolchain/**'
+      - 'turbopack/xtask/**'
+      - '.github/actions/setup-go-toolchain/**'
+      - '.github/workflows/turbopack_go_toolchain.yml'
       - 'turbopack/crates/turbopack-cli/**'
       - 'turbopack/crates/turbo-tasks-fs/**'
   workflow_dispatch:
@@ -34,9 +38,16 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/setup-go-toolchain
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go }}
           cache: false
       - name: Test native Go bundles and CLI
-        run: cargo test -p turbopack-go -p turbopack-cli
+        shell: bash
+        run: |
+          set -euo pipefail
+          go_root="$(go env GOROOT)"
+          go_exe="$(go env GOEXE)"
+          export TURBOPACK_GO="$go_root/bin/go$go_exe"
+          cargo test -p turbopack-go-toolchain -p turbopack-go -p turbopack-cli

@@ -70,7 +70,8 @@ fn main() {
 }
 
 async fn main_inner(args: Arguments) -> Result<()> {
-    let native = matches!(&args, Arguments::Build(args) if turbopack_cli::go::has_go_inputs(args)?);
+    let native = matches!(&args, Arguments::Build(args) if turbopack_cli::go::has_go_inputs(args)?)
+        || matches!(&args, Arguments::Toolchain(_));
     let (exit_handler, receiver) = if native {
         let (handler, receiver) = ExitHandler::new_receiver();
         (handler, Some(receiver))
@@ -119,6 +120,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
     let result = match args {
         Arguments::Build(args) => turbopack_cli::build::build(&args).await,
         Arguments::Dev(args) => turbopack_cli::dev::start_server(&args).await,
+        Arguments::Toolchain(args) => turbopack_cli::go::toolchain(args).await,
     };
     if let Some(receiver) = receiver {
         receiver.run_exit_handler().await;

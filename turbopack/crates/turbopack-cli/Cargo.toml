@@ -23,7 +23,8 @@ name = "small_apps"
 harness = false
 
 [features]
-default = ["custom_allocator"]
+default = ["custom_allocator", "embedded-go"]
+embedded-go = ["turbopack-go-toolchain/embedded"]
 serializable = []
 tokio_console = [
   "dep:console-subscriber",
@@ -61,6 +62,8 @@ turbopack-browser = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-go = { workspace = true }
+turbopack-go-toolchain = { workspace = true }
+tokio-util = { workspace = true }
 tempfile = { workspace = true }
 turbopack-css = { workspace = true }
 turbopack-dev-server = { workspace = true }

@@ -532,7 +532,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
             && args.go.output.is_none()
             && args.go.go_cache.is_none()
             && args.go.tags.is_empty()
-            && args.go.go == std::path::Path::new("go"),
+            && args.go.go.is_none(),
         "native Go options require .go input files"
     );
     let NormalizedDirs {

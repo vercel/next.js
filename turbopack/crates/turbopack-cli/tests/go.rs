@@ -6,7 +6,21 @@ use std::{
 };
 
 fn tool() -> String {
-    std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into())
+    static TOOL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        std::env::var("TURBOPACK_GO").unwrap_or_else(|_| {
+            let output = Command::new(env!("CARGO_BIN_EXE_turbopack-cli"))
+                .args(["toolchain", "path"])
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            String::from_utf8(output.stdout).unwrap().trim().to_owned()
+        })
+    });
+    TOOL.clone()
 }
 fn cli(project: &Path) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_turbopack-cli"));
@@ -1047,4 +1061,147 @@ fn watch_observes_imported_packages_and_embedded_assets() {
     )
     .unwrap();
     wait_for_output("metadata-repaired:asset-v2:nested");
+}
+
+#[test]
+fn javascript_and_typescript_do_not_prepare_embedded_go() {
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/javascript");
+    for entry in ["main.js", "typed.ts"] {
+        let temp = tempfile::tempdir().unwrap();
+        let project = temp.path().join("project");
+        std::fs::create_dir(&project).unwrap();
+        std::fs::copy(fixtures.join(entry), project.join(entry)).unwrap();
+        // Preparing embedded Go would fail on this file instead of a cache directory.
+        let cache = temp.path().join("blocked-go-cache");
+        std::fs::write(&cache, "untouched").unwrap();
+        let output = cli(&project)
+            .args(["build", entry, "--target", "node"])
+            .env("TURBOPACK_GO_TOOLCHAIN_CACHE", &cache)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{entry}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(project.join("dist").exists());
+        assert_eq!(std::fs::read_to_string(&cache).unwrap(), "untouched");
+        assert!(!temp.path().join("toolchains").exists());
+    }
+}
+
+#[cfg(feature = "embedded-go")]
+#[test]
+fn embedded_toolchain_works_without_go_on_path_and_repairs_cache() {
+    let temp = tempfile::tempdir().unwrap();
+    let project = temp.path().join("project");
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/embedded");
+    std::fs::create_dir_all(project.join("internal/message")).unwrap();
+    for file in [
+        "main.go",
+        "go.mod",
+        "asset.txt",
+        "internal/message/message.go",
+    ] {
+        std::fs::copy(fixtures.join(file), project.join(file)).unwrap();
+    }
+    let cache = temp.path().join("toolchains");
+    let command = || {
+        let mut command = cli(&project);
+        // Windows retains only OS process-management tools. Neither PATH nor an
+        // inherited Go installation can satisfy this test's compiler requests.
+        let path = if cfg!(windows) {
+            PathBuf::from(std::env::var_os("SystemRoot").unwrap()).join("System32")
+        } else {
+            PathBuf::new()
+        };
+        command
+            .env("PATH", path)
+            .env("GOROOT", temp.path().join("no-installed-go"))
+            .env("GOTOOLCHAIN", "go1.999.0+auto")
+            .env("GOENV", temp.path().join("missing-go-env"))
+            .env("GOFLAGS", "--invalid-inherited-flag")
+            .env("GOOS", "invalid")
+            .env("GOARCH", "invalid")
+            .env("CGO_ENABLED", "1")
+            .env("TURBOPACK_GO_TOOLCHAIN_CACHE", &cache)
+            .env("GOCACHE", temp.path().join("build-cache"))
+            .env("GOMODCACHE", temp.path().join("module-cache"));
+        command
+    };
+    let output = command().args(["toolchain", "path"]).output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let driver = PathBuf::from(String::from_utf8(output.stdout).unwrap().trim());
+    assert!(driver.starts_with(std::fs::canonicalize(&cache).unwrap()));
+    let goroot = driver.parent().unwrap().parent().unwrap();
+    let version = goroot.join("VERSION");
+    let stamp = std::fs::metadata(&version).unwrap().modified().unwrap();
+    let build = || {
+        let output = command().args(["build", "main.go"]).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            run(&executable(&project)).as_deref(),
+            Some(
+                "embedded 9289140b1ac28dbda1437b283e6ca608e33186654e7d3a995da268c35906cd4c \
+                 Asia/Tokyo asset"
+            )
+        );
+    };
+    build();
+    assert_eq!(
+        std::fs::metadata(&version).unwrap().modified().unwrap(),
+        stamp
+    );
+    std::fs::write(&version, "corrupt").unwrap();
+    build();
+    assert!(
+        std::fs::read_to_string(&version)
+            .unwrap()
+            .starts_with("go1.27.2")
+    );
+    std::fs::remove_dir_all(&cache).unwrap();
+    build();
+    // Explicit overrides never fall back to the embedded payload.
+    let empty_cache = temp.path().join("unused-toolchain-cache");
+    let output = command()
+        .args(["build", "main.go", "--go"])
+        .arg(temp.path().join("missing-go"))
+        .env("TURBOPACK_GO_TOOLCHAIN_CACHE", &empty_cache)
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(!empty_cache.exists());
+    let output = command()
+        .args(["build", "main.go", "--output"])
+        .arg(goroot.join("bin/new-directory/overwrite"))
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Go toolchain cache must be outside"));
+    assert!(!goroot.join("bin/new-directory").exists());
+    let unsafe_cache = project.join("assets/toolchain-cache");
+    let output = command()
+        .args(["build", "main.go"])
+        .env("TURBOPACK_GO_TOOLCHAIN_CACHE", &unsafe_cache)
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(!unsafe_cache.exists());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Go toolchain cache must be outside"));
+    std::fs::write(
+        project.join("go.mod"),
+        "module example.com/embedded\ngo 1.999\n",
+    )
+    .unwrap();
+    let output = command().args(["build", "main.go"]).output().unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("requires go"));
 }
