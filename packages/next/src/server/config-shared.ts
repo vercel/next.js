@@ -2498,7 +2498,11 @@ export const defaultConfig = Object.freeze({
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
-    config = config(phase, { defaultConfig })
+    // Pass a copy so a config function that writes into the nested defaults
+    // (e.g. `defaultConfig.images`) cannot change them for later loads.
+    config = config(phase, {
+      defaultConfig: Object.freeze(structuredClone(defaultConfig)),
+    })
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
