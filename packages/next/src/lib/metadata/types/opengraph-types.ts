@@ -145,10 +145,13 @@ type OpenGraphVideoEpisode = OpenGraphMetadata & {
   tags?: null | string | Array<string> | undefined
   series?: null | string | URL | undefined
 }
-type OpenGraphVideoTVShow = OpenGraphMetadata & {
+// `video.tv_show` and `video.other` carry the same properties as `video.movie`.
+// https://ogp.me/#type_video.tv_show
+type OpenGraphVideoFields = Omit<OpenGraphVideoMovie, 'type'>
+type OpenGraphVideoTVShow = OpenGraphVideoFields & {
   type: 'video.tv_show'
 }
-type OpenGraphVideoOther = OpenGraphMetadata & {
+type OpenGraphVideoOther = OpenGraphVideoFields & {
   type: 'video.other'
 }
 
@@ -274,10 +277,11 @@ type ResolvedOpenGraphVideoEpisode = ResolvedOpenGraphMetadata & {
   tags?: Array<string> | undefined
   series?: string | URL | undefined
 }
-type ResolvedOpenGraphVideoTVShow = ResolvedOpenGraphMetadata & {
+type ResolvedOpenGraphVideoFields = Omit<ResolvedOpenGraphVideoMovie, 'type'>
+type ResolvedOpenGraphVideoTVShow = ResolvedOpenGraphVideoFields & {
   type: 'video.tv_show'
 }
-type ResolvedOpenGraphVideoOther = ResolvedOpenGraphMetadata & {
+type ResolvedOpenGraphVideoOther = ResolvedOpenGraphVideoFields & {
   type: 'video.other'
 }
 
