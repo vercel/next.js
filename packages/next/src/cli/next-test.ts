@@ -148,6 +148,7 @@ async function runPlaywright(
       strictRouteTypes: Boolean(nextConfig.experimental.strictRouteTypes),
       shouldRunTypeCheck: false,
       tsconfigPath: nextConfig.typescript.tsconfigPath,
+      compilerPackage: nextConfig.typescript.compilerPackage,
       typedRoutes: Boolean(nextConfig.typedRoutes),
       disableStaticImages: nextConfig.images.disableStaticImages,
       hasAppDir: !!appDir,

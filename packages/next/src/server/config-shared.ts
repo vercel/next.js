@@ -109,6 +109,8 @@ export interface DomainLocale {
 }
 
 export interface TypeScriptConfig {
+  /** Package providing a TypeScript-compatible CLI. Defaults to `typescript`. */
+  compilerPackage?: string
   /** Do not run TypeScript during production builds (`next build`). */
   ignoreBuildErrors?: boolean
   /** Relative path to a custom tsconfig file */

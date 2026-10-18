@@ -64,7 +64,19 @@ export default async function loadJsConfig(
   resolvedBaseUrl: ResolvedBaseUrl
 }> {
   const useTypeScriptCli = Boolean(config.experimental.useTypeScriptCli)
-  const typeScriptPackage = getTypeScriptPackageInfo(dir)
+  if (
+    config.typescript.compilerPackage &&
+    config.typescript.compilerPackage !== 'typescript' &&
+    !useTypeScriptCli
+  ) {
+    throw new Error(
+      '`typescript.compilerPackage` requires `experimental.useTypeScriptCli` to be enabled. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/typescript#compilerpackage'
+    )
+  }
+  const typeScriptPackage = getTypeScriptPackageInfo(
+    dir,
+    config.typescript.compilerPackage
+  )
   const typeScriptPath = useTypeScriptCli
     ? typeScriptPackage?.tscPath
     : typeScriptPackage?.apiPath
