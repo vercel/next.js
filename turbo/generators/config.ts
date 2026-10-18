@@ -83,11 +83,15 @@ export default function generator(plop: NodePlopAPI): void {
         'ts'
       )
 
+      // `addMany` matches templates with globby, which needs forward slashes,
+      // so backslash paths on Windows would match nothing.
+      const toPosixPath = (p: string) => p.split(path.sep).join('/')
+
       return [
         {
           type: 'addMany',
-          templateFiles: path.join(templatePath, '**/*'),
-          base: templatePath,
+          templateFiles: toPosixPath(path.join(templatePath, '**/*')),
+          base: toPosixPath(templatePath),
           destination: targetPath,
         },
         {
