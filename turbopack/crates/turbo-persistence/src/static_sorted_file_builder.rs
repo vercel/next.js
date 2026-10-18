@@ -1480,10 +1480,12 @@ impl<W: Write> IndexBlockBuilder<W> {
 mod tests {
     use super::*;
     use crate::{
+        AccessMode,
         key::hash_key,
         lookup_entry::LookupValue,
         static_sorted_file::{
-            BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
+            BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileIter,
+            StaticSortedFileMetaData,
         },
     };
 
@@ -1934,6 +1936,51 @@ mod tests {
         assert!(multi_page(&value_block));
         assert!(value_block.len() > 20_000, "{value_block:?}");
         assert_eq!(first_read.last(), Some(&value_block));
+        Ok(())
+    }
+
+    /// A corrupt block offset is rejected by the shared bounds check before `MADV_WILLNEED`, so
+    /// no hint ever covers bytes outside the data section.
+    #[cfg(all(feature = "mmap", unix))]
+    #[test]
+    fn will_need_skips_corrupt_block_ranges() -> Result<()> {
+        use crate::static_sorted_file::will_need_log;
+
+        let dir = tempfile::tempdir()?;
+        let entries = will_need_entries();
+        let meta = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let path = dir.path().join("00000001.sst");
+        let original = std::fs::read(&path)?;
+        let table_start = original.len() - meta.block_count as usize * 4;
+        // Every block below the last data block: the last data block's end is the start of the
+        // index block, which is validated when the file is opened.
+        for block_index in 0..meta.block_count as usize - 2 {
+            let mut bytes = original.clone();
+            let entry = table_start + block_index * 4;
+            // Inside the mapping, but past the end of the data section.
+            bytes[entry..entry + 4].copy_from_slice(&(table_start as u32 + 4).to_be_bytes());
+            std::fs::write(&path, &bytes)?;
+
+            let sst = open_sst(dir.path(), 1, &meta)?;
+            will_need_log::take();
+            let kc = make_cache();
+            let vc = make_cache();
+            let errors = entries
+                .iter()
+                .filter_map(|e| sst.lookup::<_, false>(e.hash, &e.key, &kc, &vc).err())
+                .map(|err| format!("{err:#}"))
+                .collect::<Vec<_>>();
+            assert!(!errors.is_empty(), "block {block_index}: lookups succeeded");
+            assert!(
+                errors.iter().all(|err| err.contains("not a valid block")),
+                "block {block_index}: {errors:?}"
+            );
+            let hinted = will_need_log::take();
+            assert!(
+                hinted.iter().all(|range| range.end <= table_start),
+                "block {block_index}: hinted outside the data section: {hinted:?}"
+            );
+        }
         Ok(())
     }
 
@@ -2432,6 +2479,109 @@ mod tests {
         // Corrupt a byte in the first block's data (after the 8-byte header)
         corrupt_sst_byte(dir.path(), 1, BLOCK_HEADER_SIZE as u64 + 1);
         assert_corruption_detected(dir.path(), 1, &meta, &entries);
+    }
+
+    /// Reads every entry through both readers in every access mode and collects all errors.
+    /// A corrupt block offset must surface here as an error, not as a panic.
+    fn read_all_entries(
+        dir: &Path,
+        meta: StaticSortedFileMetaData,
+        entries: &[TestEntry],
+    ) -> Vec<anyhow::Error> {
+        let mut errors = Vec::new();
+        let access_modes: &[AccessMode] = &[
+            #[cfg(feature = "mmap")]
+            AccessMode::Mmap,
+            AccessMode::File,
+        ];
+        for &access_mode in access_modes {
+            match StaticSortedFile::open(dir, meta, Compression::Lz4, access_mode) {
+                Ok(sst) => {
+                    let kc = make_cache();
+                    let vc = make_cache();
+                    // Look up every entry rather than stopping at the first error, so that each
+                    // block, and with it the corrupt one, is read.
+                    let lookup_errors = entries
+                        .iter()
+                        .filter_map(|e| sst.lookup::<_, false>(e.hash, &e.key, &kc, &vc).err())
+                        .collect::<Vec<_>>();
+                    assert!(
+                        !lookup_errors.is_empty(),
+                        "lookups ({access_mode:?}) succeeded despite a corrupt block offset"
+                    );
+                    errors.extend(lookup_errors);
+                }
+                Err(err) => errors.push(err),
+            }
+            match StaticSortedFileIter::open(dir, meta, Compression::Lz4, access_mode) {
+                Ok(iter) => {
+                    if let Some(err) = iter.filter_map(|r| r.err()).next() {
+                        errors.push(err);
+                    } else {
+                        panic!(
+                            "iteration ({access_mode:?}) succeeded despite a corrupt block offset"
+                        );
+                    }
+                }
+                Err(err) => errors.push(err),
+            }
+        }
+        errors
+    }
+
+    /// Overwriting the directory entry of any non-index block with an offset outside the data
+    /// section must make reads fail with the shared block-range error, with or without
+    /// `strict_checks`.
+    #[test]
+    fn corrupt_block_offsets_are_rejected_on_read() -> Result<()> {
+        let mut entries = vec![TestEntry::medium(b"medium", &vec![0xAB; 8192])];
+        for i in 0..64u32 {
+            entries.push(TestEntry::small(
+                format!("small-{i:04}").as_bytes(),
+                &[i as u8; 64],
+            ));
+        }
+        sort_entries(&mut entries);
+
+        let dir = tempfile::tempdir()?;
+        let written = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count: written.block_count,
+        };
+        assert!(
+            meta.block_count >= 3,
+            "expected value, key and index blocks, got {} blocks",
+            meta.block_count
+        );
+        let path = dir.path().join("00000001.sst");
+        let original = std::fs::read(&path)?;
+        let directory_start = meta.checked_block_offsets_start(original.len())?;
+        // Sanity check: the uncorrupted file reads back with the expected values.
+        let sst = open_sst(dir.path(), 1, &written)?;
+        let kc = make_cache();
+        let vc = make_cache();
+        for entry in &entries {
+            assert_lookup(&sst, entry, &kc, &vc)?;
+        }
+        drop(sst);
+
+        for block_index in 0..usize::from(meta.block_count) - 1 {
+            for bad_end in [u32::MAX, directory_start as u32 + 4] {
+                let mut bytes = original.clone();
+                let entry = directory_start + block_index * 4;
+                bytes[entry..entry + 4].copy_from_slice(&bad_end.to_be_bytes());
+                std::fs::write(&path, &bytes)?;
+                for err in read_all_entries(dir.path(), meta, &entries) {
+                    let message = format!("{err:#}");
+                    assert!(
+                        message.contains("not a valid block") && message.contains("00000001.sst"),
+                        "block {block_index} end {bad_end}: unexpected error: {message}"
+                    );
+                }
+            }
+        }
+        Ok(())
     }
 
     #[test]

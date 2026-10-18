@@ -1,11 +1,10 @@
-#[cfg(feature = "mmap")]
-use std::ops::Range;
 use std::{
     borrow::Cow,
     cmp::Ordering,
     hash::BuildHasherDefault,
     io,
     marker::PhantomData,
+    ops::Range,
     path::Path,
     rc::Rc,
     sync::{
@@ -338,40 +337,74 @@ impl StaticSortedFileMetaData {
             )
         })
     }
+
+    /// The validated byte range (8-byte header followed by the data) of block `block_index`.
+    ///
+    /// Every block read goes through this check, independent of `strict_checks`: the block
+    /// directory is not covered by any checksum, so a corrupt offset must surface as an error
+    /// rather than an out-of-bounds slice or an unbounded allocation. The range is checked to be
+    /// ordered, large enough for a block header and within the data section that ends where the
+    /// directory starts at `block_offsets_start`.
+    ///
+    /// `block_offsets_start` must be the directory start computed for the file's actual length
+    /// (normally once at open time with [`Self::checked_block_offsets_start`]), so the directory
+    /// holds `self.block_count` entries. `block_offset(i)` returns the directory's end offset of
+    /// block `i`; it is only called with `i < self.block_count`, so a reader over that directory
+    /// cannot go out of bounds.
+    pub fn block_range(
+        &self,
+        block_index: u16,
+        block_offsets_start: usize,
+        block_offset: impl Fn(usize) -> u32,
+    ) -> Result<Range<usize>> {
+        ensure!(
+            block_index < self.block_count,
+            "block {} of {:08}.sst is out of range, the file has {} blocks",
+            block_index,
+            self.sequence_number,
+            self.block_count
+        );
+        let index = usize::from(block_index);
+        let start = if index == 0 {
+            0
+        } else {
+            block_offset(index - 1) as usize
+        };
+        let end = block_offset(index) as usize;
+        ensure!(
+            end.checked_sub(start)
+                .is_some_and(|len| len >= BLOCK_HEADER_SIZE)
+                && end <= block_offsets_start,
+            "block {} of {:08}.sst spans bytes {}..{}, which is not a valid block within the {} \
+             byte data section",
+            block_index,
+            self.sequence_number,
+            start,
+            end,
+            block_offsets_start
+        );
+        Ok(start..end)
+    }
 }
 
-/// Checks at open time that the index block (the file's last block) lies within the data section,
-/// before the block directory at `block_offsets_start`, and is large enough for a block header.
-///
-/// Reading the index block indexes into the file by these offsets, which are otherwise only
-/// range-checked with `strict_checks`. `block_offset(i)` returns the directory's end offset of
-/// block `i`. Requires `meta.block_count > 0`, as ensured by
-/// [`StaticSortedFileMetaData::checked_block_offsets_start`].
+/// Checks at open time that the index block (the file's last block) has a valid range, so that a
+/// corrupt directory is reported when the file is opened. Requires `meta.block_count > 0`, as
+/// ensured by [`StaticSortedFileMetaData::checked_block_offsets_start`].
 fn validate_index_block_range(
     meta: &StaticSortedFileMetaData,
     block_offsets_start: usize,
     block_offset: impl Fn(usize) -> u32,
 ) -> Result<()> {
-    let index = usize::from(meta.block_count) - 1;
-    let start = if index == 0 {
-        0
-    } else {
-        block_offset(index - 1) as usize
-    };
-    let end = block_offset(index) as usize;
-    ensure!(
-        end.checked_sub(start)
-            .is_some_and(|len| len >= BLOCK_HEADER_SIZE)
-            && end <= block_offsets_start,
-        "index block {} of {:08}.sst spans bytes {}..{}, which is not a valid block within the {} \
-         byte data section",
-        index,
-        meta.sequence_number,
-        start,
-        end,
-        block_offsets_start
-    );
+    meta.block_range(meta.block_count - 1, block_offsets_start, block_offset)
+        .context("invalid index block")?;
     Ok(())
+}
+
+/// Reads big-endian block directory entry `i` of a memory-mapped SST whose directory starts at
+/// `block_offsets_start`.
+#[cfg(feature = "mmap")]
+fn mmap_block_offset(mmap: &[u8], block_offsets_start: usize, i: usize) -> u32 {
+    be::read_u32(&mmap[block_offsets_start + i * size_of::<u32>()..])
 }
 
 /// Reads and validates the block directory of an SST file for the file access mode.
@@ -398,9 +431,7 @@ fn read_block_offsets<T: From<Vec<u32>>>(
 #[cfg(feature = "mmap")]
 fn validate_mmap_layout(mmap: &Mmap, meta: &StaticSortedFileMetaData) -> Result<usize> {
     let offset = meta.checked_block_offsets_start(mmap.len())?;
-    validate_index_block_range(meta, offset, |i| {
-        be::read_u32(&mmap[offset + i * size_of::<u32>()..])
-    })?;
+    validate_index_block_range(meta, offset, |i| mmap_block_offset(mmap, offset, i))?;
     Ok(offset)
 }
 
@@ -886,7 +917,7 @@ impl BlockRef<'_> {
 /// Gets a block from the cache, or reads it from the mmap and inserts it.
 ///
 /// Reads the block header exactly once via `get_raw_block_slice` (which
-/// includes all `strict_checks` bounds guards). Uncompressed blocks bypass
+/// validates the block's range). Uncompressed blocks bypass
 /// the cache and are borrowed from the mmap; their CRC is verified at most
 /// once per file open, tracked by `verified_blocks`. Compressed blocks are
 /// looked up in `cache`; on a miss they are decompressed, CRC-verified, and
@@ -1049,63 +1080,18 @@ fn get_raw_block_slice<'a>(
     block_index: u16,
     will_need: bool,
 ) -> Result<(u32, u32, &'a [u8])> {
-    #[cfg(feature = "strict_checks")]
-    if block_index >= meta.block_count {
-        bail!(
-            "Corrupted file seq:{} block:{} > number of blocks {} (block_offsets: {:x})",
-            meta.sequence_number,
-            block_index,
-            meta.block_count,
-            meta.block_offsets_start(mmap.len()),
-        );
+    let block_offsets_start = meta.block_offsets_start(mmap.len());
+    let range = meta.block_range(block_index, block_offsets_start, |i| {
+        mmap_block_offset(mmap, block_offsets_start, i)
+    })?;
+    // Hint only after `block_range` has validated the range, so a corrupt offset never reaches
+    // `madvise`.
+    if will_need {
+        will_need_range(mmap, range.clone());
     }
-    let offset = meta.block_offsets_start(mmap.len()) + block_index as usize * 4;
-    #[cfg(feature = "strict_checks")]
-    if offset + 4 > mmap.len() {
-        bail!(
-            "Corrupted file seq:{} block:{} block offset locations {} + 4 bytes > file end {} \
-             (block_offsets: {:x})",
-            meta.sequence_number,
-            block_index,
-            offset,
-            mmap.len(),
-            meta.block_offsets_start(mmap.len()),
-        );
-    }
-    let block_start = if block_index == 0 {
-        0
-    } else {
-        be::read_u32(&mmap[offset - 4..]) as usize
-    };
-    let block_end = be::read_u32(&mmap[offset..]) as usize;
-    #[cfg(feature = "strict_checks")]
-    if block_end > mmap.len() || block_start > mmap.len() {
-        bail!(
-            "Corrupted file seq:{} block:{} block {} - {} > file end {} (block_offsets: {:x})",
-            meta.sequence_number,
-            block_index,
-            block_start,
-            block_end,
-            mmap.len(),
-            meta.block_offsets_start(mmap.len()),
-        );
-    }
-    ensure!(
-        block_start
-            .checked_add(BLOCK_HEADER_SIZE)
-            .is_some_and(|header_end| header_end <= block_end),
-        "block {} header truncated in {:08}.sst",
-        block_index,
-        meta.sequence_number
-    );
-    // Only hint ranges inside the mapping; without `strict_checks` a corrupt end offset isn't
-    // rejected before the slicing below panics.
-    if will_need && block_end <= mmap.len() {
-        will_need_range(mmap, block_start..block_end);
-    }
-    let uncompressed_length = be::read_u32(&mmap[block_start..]);
-    let checksum = be::read_u32(&mmap[block_start + 4..]);
-    let block = &mmap[block_start + BLOCK_HEADER_SIZE..block_end];
+    let uncompressed_length = be::read_u32(&mmap[range.start..]);
+    let checksum = be::read_u32(&mmap[range.start + 4..]);
+    let block = &mmap[range.start + BLOCK_HEADER_SIZE..range.end];
     Ok((uncompressed_length, checksum, block))
 }
 
@@ -1129,32 +1115,31 @@ fn get_raw_block<'a>(
             file_len,
             block_offsets,
         } => {
-            let index = block_index as usize;
-            #[cfg(feature = "strict_checks")]
-            ensure!(index < block_offsets.len(), "block index out of bounds");
-            let block_start = if index == 0 {
-                0
-            } else {
-                block_offsets[index - 1] as usize
-            };
-            let block_end = block_offsets[index] as usize;
-            #[cfg(feature = "strict_checks")]
-            ensure!(block_end <= *file_len, "block end out of bounds");
-            let _ = file_len;
-            ensure!(
-                block_start + BLOCK_HEADER_SIZE <= block_end,
-                "block {} header truncated in {:08}.sst",
-                block_index,
-                meta.sequence_number
-            );
-            let mut bytes = vec![0; block_end - block_start];
-            pread(file.file(), &mut bytes, block_start as u64)?;
-            let uncompressed_length = be::read_u32(&bytes);
-            let checksum = be::read_u32(&bytes[4..]);
-            let block = bytes.split_off(BLOCK_HEADER_SIZE);
+            let (uncompressed_length, checksum, block) =
+                read_file_block(file, *file_len, block_offsets, meta, block_index)?;
             Ok((uncompressed_length, checksum, Cow::Owned(block)))
         }
     }
+}
+
+/// Reads a raw block of a file-backed SST with `pread`, after validating its range against the
+/// block directory. Returns `(uncompressed_length, checksum, block_data)`.
+fn read_file_block(
+    file: &File,
+    file_len: usize,
+    block_offsets: &[u32],
+    meta: &StaticSortedFileMetaData,
+    block_index: u16,
+) -> Result<(u32, u32, Vec<u8>)> {
+    let range = meta.block_range(block_index, meta.block_offsets_start(file_len), |i| {
+        block_offsets[i]
+    })?;
+    let mut bytes = vec![0; range.len()];
+    pread(file.file(), &mut bytes, range.start as u64)?;
+    let uncompressed_length = be::read_u32(&bytes);
+    let checksum = be::read_u32(&bytes[4..]);
+    let block = bytes.split_off(BLOCK_HEADER_SIZE);
+    Ok((uncompressed_length, checksum, block))
 }
 
 fn pread(file: &std::fs::File, buf: &mut [u8], offset: u64) -> io::Result<()> {
@@ -1292,29 +1277,8 @@ fn get_raw_block_iter(
             file_len,
             block_offsets,
         } => {
-            let index = block_index as usize;
-            #[cfg(feature = "strict_checks")]
-            ensure!(index < block_offsets.len(), "block index out of bounds");
-            let block_start = if index == 0 {
-                0
-            } else {
-                block_offsets[index - 1] as usize
-            };
-            let block_end = block_offsets[index] as usize;
-            #[cfg(feature = "strict_checks")]
-            ensure!(block_end <= *file_len, "block end out of bounds");
-            let _ = file_len;
-            ensure!(
-                block_start + BLOCK_HEADER_SIZE <= block_end,
-                "block {} header truncated in {:08}.sst",
-                block_index,
-                meta.sequence_number
-            );
-            let mut bytes = vec![0; block_end - block_start];
-            pread(file.file(), &mut bytes, block_start as u64)?;
-            let uncompressed_length = be::read_u32(&bytes);
-            let checksum = be::read_u32(&bytes[4..]);
-            let block = bytes.split_off(BLOCK_HEADER_SIZE);
+            let (uncompressed_length, checksum, block) =
+                read_file_block(file, *file_len, block_offsets, meta, block_index)?;
             Ok((
                 uncompressed_length,
                 checksum,
@@ -2165,5 +2129,64 @@ mod tests {
         let offsets = [u32::MAX, u32::MAX];
         let err = validate_index_block_range(&meta, usize::MAX, |i| offsets[i]).unwrap_err();
         assert!(format!("{err:#}").contains("not a valid block"));
+    }
+
+    /// Asserts `block_range` rejects `block_index` with an error containing `expected`.
+    fn assert_block_range_err(offsets: &[u32], data_len: usize, block_index: u16, expected: &str) {
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 7,
+            block_count: offsets.len() as u16,
+        };
+        let err = meta
+            .block_range(block_index, data_len, |i| offsets[i])
+            .unwrap_err();
+        let message = format!("{err:#}");
+        assert!(
+            message.contains(expected) && message.contains("00000007.sst"),
+            "block {block_index} of {offsets:?}: unexpected error: {message}"
+        );
+    }
+
+    #[test]
+    fn block_range_accepts_valid_blocks() {
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 7,
+            block_count: 3,
+        };
+        let offsets = [10, 18, 30];
+        let range = |i| meta.block_range(i, 30, |i| offsets[i]).unwrap();
+        assert_eq!(range(0), 0..10);
+        assert_eq!(range(1), 10..18);
+        assert_eq!(range(2), 18..30);
+    }
+
+    #[test]
+    fn block_range_rejects_out_of_range_index() {
+        // Must not call the offset reader for the missing entry, which would panic here.
+        assert_block_range_err(&[10, 20], 20, 2, "out of range");
+        assert_block_range_err(&[10, 20], 20, u16::MAX, "out of range");
+    }
+
+    #[test]
+    fn block_range_rejects_end_past_data_section() {
+        assert_block_range_err(&[10, 21], 20, 1, "not a valid block");
+        assert_block_range_err(&[u32::MAX, 20], 20, 0, "not a valid block");
+    }
+
+    #[test]
+    fn block_range_rejects_start_after_end() {
+        assert_block_range_err(&[18, 10], 20, 1, "not a valid block");
+        assert_block_range_err(&[u32::MAX, 20], 20, 1, "not a valid block");
+    }
+
+    #[test]
+    fn block_range_rejects_block_too_short_for_header() {
+        assert_block_range_err(&[7, 20], 20, 0, "not a valid block");
+        assert_block_range_err(&[10, 17], 20, 1, "not a valid block");
+    }
+
+    #[test]
+    fn block_range_rejects_max_offsets() {
+        assert_block_range_err(&[u32::MAX, u32::MAX], usize::MAX, 1, "not a valid block");
     }
 }

@@ -286,7 +286,9 @@ is used (checksum verification and decompression). On Unix, the lookup mapping t
 - A best-effort `MADV_WILLNEED` for a block that spans more than one page, before any of its bytes is
   read: on its first full read in this open, and on every read of a medium value block (those bypass
   the block cache). Without the hint, `MADV_RANDOM` would fault such a block in one page at a time.
-  Blocks within a single page, and blocks whose checksum was already verified, get no hint.
+  Blocks within a single page, and blocks whose checksum was already verified, get no hint. The hint
+  is issued only after the block's range has passed the bounds check, so a corrupt block offset
+  never causes a hint outside the data section.
 
 If the system page size can't be determined, block hints are skipped, so `MADV_RANDOM` isn't applied
 either and the mapping keeps the default advice.
