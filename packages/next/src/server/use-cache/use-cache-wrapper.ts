@@ -65,7 +65,7 @@ import {
   getServerModuleMap,
   normalizeWorkerPageName,
 } from '../app-render/manifests-singleton'
-import type { CacheEntry } from '../lib/cache-handlers/types'
+import type { CacheEntry, CacheHandler } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -3169,10 +3169,15 @@ export async function cache(
             // `updateTag()` or `revalidateTag()` in another request, holds data
             // the expiration replaced. The leader path would discard its stored
             // entry, so regenerate instead. The leader's registration is gone by
-            // now, so the retry becomes the leader.
+            // now, so the retry becomes the leader. The kind's registered handler
+            // owns its tags: in development a custom kind reads through a tiered
+            // handler, which has no `getExpiration`.
             if (
               await isJoinedInvocationOutdated(
                 metadata,
+                cacheHandler,
+                isPrivate ? getPrivateCacheHandler() : getCacheHandler(kind),
+                cacheHandlerKey,
                 kind,
                 workStore,
                 workUnitStore,
@@ -4040,17 +4045,28 @@ async function getImplicitTagsExpiration(
  * Whether a cross-request invocation this request joined was outdated by a tag
  * expiration after it started. A joined result never goes through
  * `cacheHandler.get`, so it gets the checks a handler hit gets on the leader
- * path: `shouldDiscardCacheEntry`, and the handler's expiration for each of the
- * entry's tags.
+ * path, in its order: the handler's tags are refreshed, then
+ * `shouldDiscardCacheEntry` runs. A built-in handler is then asked for the
+ * expiration of each of the entry's tags. Any other handler may check tags in
+ * `get` instead, so its `get` judges the entry, as it judges a hit.
  */
 async function isJoinedInvocationOutdated(
   metadata: CacheResultMetadata,
+  cacheHandler: CacheReadWriteHandler | undefined,
+  tagsCacheHandler: CacheHandler | undefined,
+  cacheHandlerKey: string,
   kind: string,
   workStore: WorkStore,
   workUnitStore: WorkUnitStore,
   implicitTags: string[],
   logPrefix: string
 ): Promise<boolean> {
+  const lazyRefreshTags = workStore.refreshTagsByCacheKind.get(kind)
+
+  if (lazyRefreshTags && !isResolvedLazyResult(lazyRefreshTags)) {
+    await lazyRefreshTags
+  }
+
   if (
     shouldDiscardCacheEntry(
       metadata,
@@ -4064,19 +4080,41 @@ async function isJoinedInvocationOutdated(
     return true
   }
 
-  const handler = getCacheHandler(kind)
+  // A built-in handler's `getExpiration` reads the tag state its `get` checks,
+  // so asking it spares a read. Each tag is asked alone, as the latest of
+  // several expirations can lie in the future and hide one already past.
+  if (
+    tagsCacheHandler &&
+    (kind === 'private' || isBuiltInCacheHandler(kind))
+  ) {
+    const expirations = await Promise.all(
+      metadata.tags.map((tag) => tagsCacheHandler.getExpiration([tag]))
+    )
+    const now = performance.timeOrigin + performance.now()
 
-  if (!handler) {
-    return false
+    return expirations.some(
+      (expiration) => expiration > metadata.timestamp && expiration <= now
+    )
   }
 
-  const now = performance.timeOrigin + performance.now()
-  const expirations = await Promise.all(
-    metadata.tags.map((tag) => handler.getExpiration([tag]))
-  )
+  // The joined invocation's write has settled, so `get` returns its entry
+  // unless the write failed, a newer entry replaced it, or the handler rejects
+  // it for its tags or the implicit tags. An entry no newer than the joined one
+  // that carries its tags vouches for it. In development, a custom kind's tiered
+  // handler answers from its in-memory front, as it does for a hit, so an
+  // expiration that only the backing handler knows is missed here as there.
+  const entry = await cacheHandler?.get(cacheHandlerKey, implicitTags)
 
-  return expirations.some(
-    (expiration) => expiration > metadata.timestamp && expiration <= now
+  if (!entry) {
+    return true
+  }
+
+  // Only the verdict is used, so the entry's stream is released unread.
+  entry.value.cancel().catch(ignoreReject)
+
+  return (
+    entry.timestamp > metadata.timestamp ||
+    !metadata.tags.every((tag) => entry.tags.includes(tag))
   )
 }
 
