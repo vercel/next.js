@@ -62,6 +62,7 @@ url = { workspace = true }
 omnipath = "0.1.6"
 windows-sys = { workspace = true, features = [
   "Win32_Foundation",
+  "Win32_Security",
   "Win32_Storage_FileSystem",
   "Win32_System_SystemServices",
 ] }

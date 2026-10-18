@@ -66,6 +66,7 @@ fn bench_small_apps(c: &mut Criterion) {
 
                     rt.block_on(async move {
                         turbopack_cli::build::build(&BuildArguments {
+                            go: Default::default(),
                             common: CommonArguments {
                                 entries: Some(vec![format!("{app_name}/index.tsx")]),
                                 dir: Some(app.clone()),

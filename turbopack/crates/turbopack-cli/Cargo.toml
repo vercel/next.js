@@ -60,6 +60,8 @@ turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
+turbopack-go = { workspace = true }
+tempfile = { workspace = true }
 turbopack-css = { workspace = true }
 turbopack-dev-server = { workspace = true }
 turbopack-ecmascript = { workspace = true }
