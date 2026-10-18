@@ -5,7 +5,6 @@ mod eviction;
 mod gc;
 mod operation;
 mod snapshot_coordinator;
-mod snapshot_idle;
 mod storage;
 pub mod storage_schema;
 
@@ -61,7 +60,7 @@ pub use self::{
 };
 use crate::{
     backend::{
-        activity::{ActivityPublisher, BackendActivity},
+        activity::{ActivityMonitor, BackendActivity, IdleArming},
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, LeafDistanceUpdateQueue,
             OutdatedEdge, TaskGuard, TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges,
@@ -69,7 +68,6 @@ use crate::{
             make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
-        snapshot_idle::{IdleWait, SnapshotIdleState},
         storage::{Storage, StorageOptions, encode_snapshot_item},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
@@ -264,9 +262,9 @@ pub struct TurboTasksBackend {
     gc_enabled: bool,
 
     stopping: RwLock<bool>,
-    /// Whether the backend is idle, busy or stopping. See [`activity`] for why the idle hooks
-    /// sample the foreground-job counter instead of publishing their own kind.
-    activity: ActivityPublisher,
+    /// Whether the backend is idle, busy or stopping, when the current idle period began, and the
+    /// accumulated active time. See [`activity`].
+    activity: ActivityMonitor,
 
     task_statistics: TaskStatisticsApi,
 
@@ -366,7 +364,7 @@ impl TurboTasksBackend {
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(LastPersistenceStatus::Ok),
             stopping: RwLock::new(false),
-            activity: ActivityPublisher::new(),
+            activity: ActivityMonitor::new(),
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
             gc_root_ttl,
@@ -1637,7 +1635,7 @@ impl TurboTasksBackend {
 
     #[allow(unused_variables)]
     fn idle_start(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        self.activity.publish_idle(|| turbo_tasks.is_idle());
+        self.activity.publish_idle_state(|| turbo_tasks.is_idle());
 
         #[cfg(feature = "verify_aggregation_graph")]
         {
@@ -1669,7 +1667,7 @@ impl TurboTasksBackend {
     }
 
     fn idle_end(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        self.activity.publish_idle(|| turbo_tasks.is_idle());
+        self.activity.publish_idle_state(|| turbo_tasks.is_idle());
     }
 
     fn get_or_create_task(
@@ -3015,18 +3013,16 @@ impl TurboTasksBackend {
 
                     let mut last_snapshot = self.start_time;
                     let mut activity = self.activity.subscribe();
-                    // Whether to immediately set an idle timeout if possible.
-                    // Set to false if we don't persist anything in a cycle.
-                    let mut fresh_idle = true;
+                    // Which idle periods arm the idle timer in the next cycle. `None` arms it for
+                    // any idle period, but not before a full timeout from the cycle start.
+                    // `Some(cutoff)` arms it only for an idle period that began after `cutoff`:
+                    // set when a cycle persisted nothing, so we don't snapshot the same idle
+                    // period again.
+                    let mut next_idle_cutoff: Option<Instant> = None;
                     let mut is_first = true;
                     // Owns the eviction policy (mode + threshold state); decides each
                     // cycle whether an eviction sweep is worthwhile.
                     let mut eviction_control = EvictionControl::new(self.options.eviction_mode);
-                    // The idle-snapshot timer and the accumulated compilation (non-idle) time
-                    // since the last persisted snapshot, used to skip periodic snapshots that
-                    // wouldn't save enough work to justify their fixed overhead. Both are
-                    // derived from the observed activity; see `SnapshotIdleState`.
-                    let mut idle_state = SnapshotIdleState::new(*IDLE_TIMEOUT);
                     'outer: loop {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
@@ -3036,30 +3032,31 @@ impl TurboTasksBackend {
                             (SNAPSHOT_INTERVAL, SnapshotReason::RegularSnapshotInterval)
                         };
 
-                        // Peek at the latest activity without marking it seen. A change made
-                        // while the previous cycle was snapshotting stays pending, so the
-                        // `changed()` below still handles it as a new period. That matters
-                        // when `fresh_idle` is false: only the change re-arms the idle timer.
-                        let current = *activity.borrow();
-                        if current == BackendActivity::Stopping {
+                        if *activity.borrow() == BackendActivity::Stopping {
                             return;
                         }
-                        idle_state.begin_cycle(current.is_idle(), fresh_idle, Instant::now());
+                        let arming = match next_idle_cutoff {
+                            None => IdleArming::Fresh {
+                                not_before: Instant::now(),
+                            },
+                            Some(cutoff) => IdleArming::After { cutoff },
+                        };
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
                             loop {
-                                let idle_deadline =
-                                    idle_state.idle_deadline().unwrap_or_else(far_future);
+                                let current = *activity.borrow_and_update();
+                                if current == BackendActivity::Stopping {
+                                    return;
+                                }
+                                let idle_deadline = current
+                                    .idle_deadline(arming, *IDLE_TIMEOUT)
+                                    .unwrap_or_else(far_future);
                                 tokio::select! {
                                     changed = activity.changed() => {
                                         // Only fails once the sender (owned by the backend) is
                                         // gone, i.e. the backend is being dropped.
-                                        if changed.is_err()
-                                            || idle_state
-                                                .on_activity_changed(&mut activity, Instant::now())
-                                                == IdleWait::Stop
-                                        {
+                                        if changed.is_err() {
                                             return;
                                         }
                                     },
@@ -3067,15 +3064,16 @@ impl TurboTasksBackend {
                                         break;
                                     },
                                     _ = tokio::time::sleep_until(idle_deadline) => {
-                                        match idle_state
-                                            .on_idle_deadline(&mut activity, Instant::now())
-                                        {
-                                            IdleWait::Continue => {}
-                                            IdleWait::Snapshot => {
-                                                reason = SnapshotReason::IdleTimeout;
-                                                break;
-                                            }
-                                            IdleWait::Stop => return,
+                                        // Decide on the latest value: the idle period may have
+                                        // changed since the deadline was computed. Otherwise, the
+                                        // next iteration recomputes the deadline.
+                                        if activity.borrow_and_update().should_snapshot(
+                                            arming,
+                                            *IDLE_TIMEOUT,
+                                            Instant::now(),
+                                        ) {
+                                            reason = SnapshotReason::IdleTimeout;
+                                            break;
                                         }
                                     },
                                 }
@@ -3088,14 +3086,14 @@ impl TurboTasksBackend {
                         // flush, but they don't run through this loop (Stop is handled in
                         // stop(), Test in snapshot_and_evict_for_testing), so every reason
                         // reaching here is subject to the threshold.
-                        if idle_state.active_time(Instant::now()) < *MIN_SNAPSHOT_ACTIVE_TIME {
+                        if self.activity.active_time() < *MIN_SNAPSHOT_ACTIVE_TIME {
                             // Not enough compilation time accumulated — skip the (potentially
                             // expensive) snapshot. Advance scheduling state as if we had run,
                             // but keep the active time so it carries toward the next cycle.
-                            // Clear fresh_idle (as a no-data snapshot would) so we don't re-arm
-                            // the short idle timeout every cycle and spin while idle; a new
-                            // active period (idle_end) re-triggers timing and progress.
-                            fresh_idle = false;
+                            // Only an idle period that begins after this decision re-arms the
+                            // idle timer (as after a no-data snapshot), so we don't re-arm the
+                            // short idle timeout every cycle and spin while idle.
+                            next_idle_cutoff = Some(Instant::now());
                             is_first = false;
                             last_snapshot = Instant::now();
                             continue 'outer;
@@ -3106,6 +3104,10 @@ impl TurboTasksBackend {
                         // grouped together in trace viewers.
                         let background_span =
                             tracing::info_span!(parent: None, "background snapshot");
+                        // Taken before the attempt: an idle period that begins while it runs
+                        // still re-arms the idle timer after a no-data snapshot. (The time
+                        // `snapshot_and_persist` returns is usually taken later, after GC.)
+                        let attempt_start = Instant::now();
                         match self.snapshot_and_persist(background_span.id(), reason, turbo_tasks) {
                             Err(err) => {
                                 // save_snapshot consumed persisted_task_cache_log entries;
@@ -3117,14 +3119,17 @@ impl TurboTasksBackend {
                             Ok(None) => {
                                 // An idle snapshot found operations in flight. Nothing was
                                 // persisted, so keep the accumulated active time and scheduling
-                                // state. Re-arm the idle timeout so we retry if we are still
-                                // idle; otherwise the next idle period or interval picks it up.
-                                fresh_idle = true;
+                                // state. Arm the idle timer afresh, so we retry after a full
+                                // timeout if we are still idle; otherwise the next idle period
+                                // or interval picks it up.
+                                next_idle_cutoff = None;
                                 continue 'outer;
                             }
                             Ok(Some((snapshot_start, new_data, _gc_outcome))) => {
-                                // if we see 'new_data' then the next idle transition is 'fresh'
-                                fresh_idle = new_data;
+                                // With new data, the next idle period is 'fresh'. Without, only
+                                // an idle period that began after this attempt started re-arms
+                                // the idle timer (including one from during the attempt).
+                                next_idle_cutoff = (!new_data).then_some(attempt_start);
                                 is_first = false;
                                 last_snapshot = snapshot_start;
                                 // A completed snapshot attempt means the accumulated
@@ -3134,7 +3139,7 @@ impl TurboTasksBackend {
                                 // state. Either way, reset so stale time doesn't carry into the
                                 // next cycle. If still timing an active period, reset() keeps it
                                 // running from now so time before this snapshot isn't counted.
-                                idle_state.reset_active_time(Instant::now());
+                                self.activity.reset_active_time();
 
                                 // Whether turbo-tasks has stopped being idle (busy or
                                 // stopping), from the latest published activity. Doesn't
