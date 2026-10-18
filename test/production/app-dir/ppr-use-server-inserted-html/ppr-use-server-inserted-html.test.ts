@@ -16,9 +16,9 @@ describe('ppr-use-server-inserted-html', () => {
     })
   }
 
-  it('should not log insertion in build', async () => {
+  it('should not log dynamic insertion in build', async () => {
     const output = next.cliOutput
-    expect(output).not.toContain('testing-log-insertion:')
+    expect(output).not.toContain('testing-log-insertion:dynamic-data')
   })
 
   it('should insert the html insertion into html body', async () => {
@@ -28,5 +28,11 @@ describe('ppr-use-server-inserted-html', () => {
 
     expect($('head [data-test-id]').length).toBe(0)
     expect($('body [data-test-id]').length).toBe(1)
+  })
+
+  it('should insert the html insertion of a static page once', async () => {
+    const $ = await next.render$('/static')
+
+    expect($('[data-test-id="static-inserted-html"]').length).toBe(1)
   })
 })
