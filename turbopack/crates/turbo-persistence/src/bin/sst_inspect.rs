@@ -30,7 +30,7 @@ use turbo_persistence::{
         KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
         KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
         KEY_BLOCK_ENTRY_TYPE_SMALL, KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH, KeyBlockLayout,
-        key_block_table_stride,
+        StaticSortedFileMetaData, key_block_table_stride,
     },
 };
 
@@ -498,7 +498,11 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         ..Default::default()
     };
 
-    let block_offsets_start = mmap.len() - (info.block_count as usize * size_of::<u32>());
+    let block_offsets_start = StaticSortedFileMetaData {
+        sequence_number: info.sequence_number,
+        block_count: info.block_count,
+    }
+    .checked_block_offsets_start(mmap.len())?;
 
     // Read the index block (always the last block) first to learn which blocks are key blocks.
     // Without this, we'd have to guess block types from their first byte, which is wrong for

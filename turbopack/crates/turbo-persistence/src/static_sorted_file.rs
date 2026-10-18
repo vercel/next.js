@@ -312,10 +312,96 @@ pub struct StaticSortedFileMetaData {
 }
 
 impl StaticSortedFileMetaData {
+    /// Byte offset of the block directory (one big-endian `u32` end offset per block) at the end
+    /// of an SST file of `sst_len` bytes.
+    ///
+    /// Infallible for the per-block hot path: the open functions validate the layout once with
+    /// [`Self::checked_block_offsets_start`], so this cannot underflow for an opened file.
     pub fn block_offsets_start(&self, sst_len: usize) -> usize {
         let bc: usize = self.block_count.into();
         sst_len - (bc * size_of::<u32>())
     }
+
+    /// Fallible [`Self::block_offsets_start`] for open time: rejects files without blocks and files
+    /// too short to hold their block directory, which a corrupt or truncated file can be.
+    pub fn checked_block_offsets_start(&self, sst_len: usize) -> Result<usize> {
+        ensure!(
+            self.block_count > 0,
+            "{:08}.sst has no blocks, so no index block",
+            self.sequence_number
+        );
+        let directory_len = usize::from(self.block_count) * size_of::<u32>();
+        sst_len.checked_sub(directory_len).with_context(|| {
+            format!(
+                "{:08}.sst is {} bytes, too short for its block directory of {} blocks ({} bytes)",
+                self.sequence_number, sst_len, self.block_count, directory_len
+            )
+        })
+    }
+}
+
+/// Checks at open time that the index block (the file's last block) lies within the data section,
+/// before the block directory at `block_offsets_start`, and is large enough for a block header.
+///
+/// Reading the index block indexes into the file by these offsets, which are otherwise only
+/// range-checked with `strict_checks`. `block_offset(i)` returns the directory's end offset of
+/// block `i`. Requires `meta.block_count > 0`, as ensured by
+/// [`StaticSortedFileMetaData::checked_block_offsets_start`].
+fn validate_index_block_range(
+    meta: &StaticSortedFileMetaData,
+    block_offsets_start: usize,
+    block_offset: impl Fn(usize) -> u32,
+) -> Result<()> {
+    let index = usize::from(meta.block_count) - 1;
+    let start = if index == 0 {
+        0
+    } else {
+        block_offset(index - 1) as usize
+    };
+    let end = block_offset(index) as usize;
+    ensure!(
+        end.checked_sub(start)
+            .is_some_and(|len| len >= BLOCK_HEADER_SIZE)
+            && end <= block_offsets_start,
+        "index block {} of {:08}.sst spans bytes {}..{}, which is not a valid block within the {} \
+         byte data section",
+        index,
+        meta.sequence_number,
+        start,
+        end,
+        block_offsets_start
+    );
+    Ok(())
+}
+
+/// Reads and validates the block directory of an SST file for the file access mode.
+fn read_block_offsets<T: From<Vec<u32>>>(
+    file: &File,
+    meta: &StaticSortedFileMetaData,
+) -> Result<(usize, T)> {
+    let file_len: usize = file.metadata()?.len().try_into()?;
+    let offset = meta.checked_block_offsets_start(file_len)?;
+    let mut bytes = vec![0; file_len - offset];
+    pread(file.file(), &mut bytes, offset as u64)?;
+    let block_offsets = bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|bytes| be::read_u32(bytes))
+        .collect::<Vec<_>>();
+    validate_index_block_range(meta, offset, |i| block_offsets[i])?;
+    Ok((file_len, block_offsets.into()))
+}
+
+/// Validates the block directory and index block range of a memory-mapped SST file, returning the
+/// directory's offset.
+#[cfg(feature = "mmap")]
+fn validate_mmap_layout(mmap: &Mmap, meta: &StaticSortedFileMetaData) -> Result<usize> {
+    let offset = meta.checked_block_offsets_start(mmap.len())?;
+    validate_index_block_range(meta, offset, |i| {
+        be::read_u32(&mmap[offset + i * size_of::<u32>()..])
+    })?;
+    Ok(offset)
 }
 
 enum StaticSortedFileBacking {
@@ -463,6 +549,8 @@ impl StaticSortedFile {
                         file.metadata().map(|m| m.len()).unwrap_or(0)
                     )
                 })?;
+                #[cfg_attr(not(unix), allow(unused_variables))]
+                let offset = validate_mmap_layout(&mmap, &meta)?;
                 // Lookups touch only a few blocks of most SSTs, so `Random` stops the kernel from
                 // reading around every fault. In exchange, `get_raw_block_slice` asks for a
                 // multi-page block with `WillNeed` before its first full read. Those hints need the
@@ -473,12 +561,8 @@ impl StaticSortedFile {
                     if page_size().is_some() {
                         mmap.advise(memmap2::Advice::Random)?;
                     }
-                    let offset = meta.block_offsets_start(mmap.len());
-                    let _ = mmap.advise_range(
-                        memmap2::Advice::WillNeed,
-                        offset,
-                        mmap.len().saturating_sub(offset),
-                    );
+                    let _ =
+                        mmap.advise_range(memmap2::Advice::WillNeed, offset, mmap.len() - offset);
                     #[cfg(test)]
                     will_need_log::record(offset..mmap.len());
                 }
@@ -486,17 +570,7 @@ impl StaticSortedFile {
                 StaticSortedFileBacking::Mmap(Arc::new(mmap))
             }
             AccessMode::File => {
-                let file_len: usize = file.metadata()?.len().try_into()?;
-                let offset = meta.block_offsets_start(file_len);
-                let mut bytes = vec![0; file_len - offset];
-                pread(file.file(), &mut bytes, offset as u64)?;
-                let block_offsets = bytes
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|bytes| be::read_u32(bytes))
-                    .collect::<Vec<_>>()
-                    .into();
+                let (file_len, block_offsets) = read_block_offsets(&file, &meta)?;
                 StaticSortedFileBacking::File {
                     file: Arc::new(file),
                     file_len,
@@ -1428,23 +1502,14 @@ impl StaticSortedFileIter {
                         file.metadata().map(|m| m.len()).unwrap_or(0)
                     )
                 })?;
+                validate_mmap_layout(&mmap, &meta)?;
                 #[cfg(unix)]
                 mmap.advise(memmap2::Advice::Sequential)?;
                 advise_mmap_for_persistence(&mmap)?;
                 StaticSortedFileIterBacking::Mmap(Rc::new(mmap))
             }
             AccessMode::File => {
-                let file_len: usize = file.metadata()?.len().try_into()?;
-                let offset = meta.block_offsets_start(file_len);
-                let mut bytes = vec![0; file_len - offset];
-                pread(file.file(), &mut bytes, offset as u64)?;
-                let block_offsets = bytes
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|bytes| be::read_u32(bytes))
-                    .collect::<Vec<_>>()
-                    .into();
+                let (file_len, block_offsets) = read_block_offsets(&file, &meta)?;
                 StaticSortedFileIterBacking::File {
                     file: Rc::new(file),
                     file_len,
@@ -1463,14 +1528,17 @@ impl StaticSortedFileIter {
     ) -> Result<Self> {
         let root_block_index = meta.block_count - 1;
         let block = read_block_iter(&backing, &meta, root_block_index, compression)?;
+        let block_len = block.len();
+        ensure!(
+            block_len >= INDEX_BLOCK_HEADER_SIZE,
+            "index block too short"
+        );
         let block_type = block[0];
 
         // The builder always writes an index block as the root block.
         if block_type != BLOCK_TYPE_INDEX {
             bail!("Root block must be an index block");
         }
-        let block_len = block.len();
-        ensure!(block_len >= 3, "index block too short");
         let index_entries = block.slice(1..block_len);
         let first_child = be::read_u16(&index_entries);
         // Index block body layout: [first_child: u16] [hash: u64, block: u16]*
@@ -1994,5 +2062,108 @@ mod tests {
         // A 5 KiB block is one page at 16 KiB but two at 4 KiB.
         assert!(spans_multiple_pages(&(0..5120), 4096));
         assert!(!spans_multiple_pages(&(0..5120), 16384));
+    }
+
+    fn access_modes() -> Vec<AccessMode> {
+        vec![
+            #[cfg(feature = "mmap")]
+            AccessMode::Mmap,
+            AccessMode::File,
+        ]
+    }
+
+    /// Writes `data` followed by a block directory of `directory` offsets as `00000001.sst`, then
+    /// opens it with both readers in every access mode. Each open must fail with an error naming
+    /// the file rather than panic.
+    fn assert_open_fails(block_count: u16, data: &[u8], directory: &[u32], expected: &str) {
+        let dir = tempfile::tempdir().unwrap();
+        let mut bytes = data.to_vec();
+        for offset in directory {
+            bytes.extend_from_slice(&offset.to_be_bytes());
+        }
+        std::fs::write(dir.path().join("00000001.sst"), &bytes).unwrap();
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count,
+        };
+        for access_mode in access_modes() {
+            let err = StaticSortedFile::open(dir.path(), meta, Compression::Lz4, access_mode)
+                .err()
+                .unwrap_or_else(|| {
+                    panic!("StaticSortedFile::open ({access_mode:?}) accepted a corrupt file")
+                });
+            let message = format!("{err:#}");
+            assert!(
+                message.contains("00000001.sst") && message.contains(expected),
+                "StaticSortedFile::open ({access_mode:?}) returned an unexpected error: {err:#}"
+            );
+            let err = StaticSortedFileIter::open(dir.path(), meta, Compression::Lz4, access_mode)
+                .err()
+                .unwrap_or_else(|| {
+                    panic!("StaticSortedFileIter::open ({access_mode:?}) accepted a corrupt file")
+                });
+            let message = format!("{err:#}");
+            assert!(
+                message.contains("00000001.sst") && message.contains(expected),
+                "StaticSortedFileIter::open ({access_mode:?}) returned an unexpected error: \
+                 {err:#}"
+            );
+        }
+    }
+
+    #[test]
+    fn open_rejects_empty_file() {
+        assert_open_fails(1, &[], &[], "too short for its block directory");
+    }
+
+    #[test]
+    fn open_rejects_file_shorter_than_block_directory() {
+        assert_open_fails(4, &[0; 6], &[], "too short for its block directory");
+    }
+
+    #[test]
+    fn open_rejects_zero_blocks() {
+        assert_open_fails(0, &[0; 16], &[], "has no blocks");
+    }
+
+    #[test]
+    fn open_rejects_index_block_past_end_of_file() {
+        assert_open_fails(1, &[0; 16], &[1000], "not a valid block");
+    }
+
+    #[test]
+    fn open_rejects_index_block_overlapping_block_directory() {
+        // The directory starts at byte 16, but the index block claims to end at byte 20.
+        assert_open_fails(2, &[0; 16], &[8, 20], "not a valid block");
+    }
+
+    #[test]
+    fn open_rejects_index_block_too_short_for_header() {
+        assert_open_fails(2, &[0; 16], &[10, 12], "not a valid block");
+    }
+
+    #[test]
+    fn open_rejects_index_block_ending_before_it_starts() {
+        assert_open_fails(2, &[0; 16], &[14, 4], "not a valid block");
+    }
+
+    #[test]
+    fn open_rejects_header_only_index_block() {
+        // A valid CRC of an empty uncompressed block must still be rejected by both readers before
+        // they read the index block header.
+        let mut data = 0_u32.to_be_bytes().to_vec();
+        data.extend_from_slice(&checksum_block(&[]).to_be_bytes());
+        assert_open_fails(1, &data, &[8], "too short");
+    }
+
+    #[test]
+    fn index_block_range_rejects_offsets_without_room_for_a_header() {
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count: 2,
+        };
+        let offsets = [u32::MAX, u32::MAX];
+        let err = validate_index_block_range(&meta, usize::MAX, |i| offsets[i]).unwrap_err();
+        assert!(format!("{err:#}").contains("not a valid block"));
     }
 }
