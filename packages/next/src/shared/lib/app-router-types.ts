@@ -293,14 +293,16 @@ export const enum PrefetchHint {
   // does not propagate.
   ShouldAttemptStaticShell = 0b100000000000000,
   ShouldAttemptStaticPrefetch = 0b1000000000000000,
+  ShouldAttemptStaticNavigation = 0b10000000000000000,
+
   // This dynamic segment only accepts build-time parameter values. Kept on
   // the affected node, without propagating or copying it to other segments.
   // Until the client knows the allowed values, any such node prevents route
   // prediction, even when the route's components never read the parameter.
-  IsClosedParam = 0b10000000000000000,
+  IsClosedParam = 0b100000000000000000,
   // A descendant segment (but not this one) has a closed parameter. Propagates
   // upward so route prediction can check the root instead of walking the tree.
-  SubtreeHasClosedParams = 0b100000000000000000,
+  SubtreeHasClosedParams = 0b1000000000000000000,
 }
 
 /**
@@ -325,7 +327,8 @@ export const StaticPrefetchDisabled = PrefetchHint.PrefetchDisabled
 
 export const StaticAttemptHints =
   PrefetchHint.ShouldAttemptStaticShell |
-  PrefetchHint.ShouldAttemptStaticPrefetch
+  PrefetchHint.ShouldAttemptStaticPrefetch |
+  PrefetchHint.ShouldAttemptStaticNavigation
 
 /**
  * The subset of PrefetchHint bits that propagate upward from a child segment to

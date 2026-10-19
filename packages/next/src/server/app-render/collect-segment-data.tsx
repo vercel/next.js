@@ -392,7 +392,8 @@ export async function collectPrefetchHints(
   serverConsumerManifest: any,
   inlining: { maxSize: number; maxBundleSize: number } | false,
   shouldAttemptStaticShell: boolean,
-  shouldAttemptStaticPrefetch: boolean
+  shouldAttemptStaticPrefetch: boolean,
+  shouldAttemptStaticNavigation: boolean
 ): Promise<PrefetchHints> {
   // Warm up the module cache, same as collectSegmentData.
   try {
@@ -428,6 +429,9 @@ export async function collectPrefetchHints(
   }
   if (shouldAttemptStaticPrefetch) {
     baseHints |= PrefetchHint.ShouldAttemptStaticPrefetch
+  }
+  if (shouldAttemptStaticNavigation) {
+    baseHints |= PrefetchHint.ShouldAttemptStaticNavigation
   }
 
   if (inlining === false) {

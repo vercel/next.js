@@ -9913,10 +9913,11 @@ async function prerenderToStream(
         const {
           shouldAttemptStaticShell: shellIsStatic,
           shouldAttemptStaticPrefetch: prefetchIsStatic,
+          shouldAttemptStaticNavigation: navigationIsStatic,
         } = prerenderDataTracking
         const label = (isStatic: boolean) => (isStatic ? 'static' : 'runtime')
         console.log(
-          `Route ${workStore.route} :: hints: shell=${label(shellIsStatic)}, prefetch=${label(prefetchIsStatic)}`
+          `Route ${workStore.route} :: hints: shell=${label(shellIsStatic)}, prefetch=${label(prefetchIsStatic)}, navigation=${label(navigationIsStatic)}`
         )
       }
       await collectSegmentData(
@@ -11200,12 +11201,14 @@ async function collectSegmentData(
     const {
       shouldAttemptStaticShell = false,
       shouldAttemptStaticPrefetch = false,
+      shouldAttemptStaticNavigation = false,
     } = prerenderDataTracking ?? {}
 
     if (
       prefetchInlining ||
       shouldAttemptStaticShell ||
-      shouldAttemptStaticPrefetch
+      shouldAttemptStaticPrefetch ||
+      shouldAttemptStaticNavigation
     ) {
       // Build time: compute fresh hints and store in metadata for the
       // manifest. When prefetch inlining is disabled there are no sizes to
@@ -11219,7 +11222,8 @@ async function collectSegmentData(
         serverConsumerManifest,
         prefetchInlining,
         shouldAttemptStaticShell,
-        shouldAttemptStaticPrefetch
+        shouldAttemptStaticPrefetch,
+        shouldAttemptStaticNavigation
       )
       metadata.prefetchHints = hints
     } else {

@@ -277,6 +277,8 @@ export type PrerenderDataTracking = {
   shouldAttemptStaticShell: boolean
   /** Corresponds to `PrefetchHint.ShouldAttemptStaticPrefetch`. */
   shouldAttemptStaticPrefetch: boolean
+  /** Corresponds to `PrefetchHint.ShouldAttemptStaticNavigation`. */
+  shouldAttemptStaticNavigation: boolean
 }
 
 export function createPrerenderDataTracking(): PrerenderDataTracking {
@@ -284,6 +286,7 @@ export function createPrerenderDataTracking(): PrerenderDataTracking {
     runtimeDataAccessed: createPromiseWithResolvers(),
     shouldAttemptStaticShell: true,
     shouldAttemptStaticPrefetch: true,
+    shouldAttemptStaticNavigation: true,
   }
 }
 
@@ -572,6 +575,9 @@ function setRuntimeHintForAffectedStage(
   }
   if (firstAffectedStage <= RenderStage.PrefetchStatic) {
     prerenderDataTracking.shouldAttemptStaticPrefetch = false
+  }
+  if (firstAffectedStage <= RenderStage.NavigationStatic) {
+    prerenderDataTracking.shouldAttemptStaticNavigation = false
   }
 }
 
