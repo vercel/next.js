@@ -6,9 +6,6 @@ import path from 'path'
 /**
  * Create a randomly-named directory in `os.tmpdir()`, await a function call,
  * and delete the directory when finished, unless `NEXT_TEST_SKIP_CLEANUP` is set.
- *
- * Cleanup never fails the test: if the directory can't be removed, a warning
- * is logged and the error from `fn` (if any) is preserved.
  */
 export async function useTempDir(
   fn: (folder: string) => void | Promise<void>,
@@ -28,28 +25,20 @@ export async function useTempDir(
     await fn(folder)
   } finally {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-      await removeTempDir(folder)
+      // Use Node's native `rm` rather than fs-extra's `remove()`. On Windows, a
+      // freshly installed project can briefly be locked (EPERM/EBUSY), e.g. by
+      // antivirus or a lingering child process. fs-extra@9's rimraf then runs
+      // `assert(er instanceof Error)`, which fails under Jest because fs errors
+      // come from a different realm. The assert throws inside an fs callback,
+      // so `remove()` never settles and the test hangs until it times out.
+      //
+      // `maxRetries` makes Node retry transient filesystem errors with a
+      // linear backoff, which handles short-lived Windows locks.
+      await fsPromises.rm(folder, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+      })
     }
-  }
-}
-
-async function removeTempDir(folder: string) {
-  try {
-    // Use Node's native `rm` rather than fs-extra's `remove()`. On Windows, a
-    // freshly installed project can briefly be locked (EPERM/EBUSY), e.g. by
-    // antivirus or a lingering child process. fs-extra@9's rimraf then runs
-    // `assert(er instanceof Error)`, which fails under Jest because fs errors
-    // come from a different realm. The assert throws inside an fs callback, so
-    // `remove()` never settles and the test hangs until it times out.
-    //
-    // `maxRetries` makes Node retry transient filesystem errors with a linear
-    // backoff, which handles short-lived Windows locks.
-    await fsPromises.rm(folder, {
-      recursive: true,
-      force: true,
-      maxRetries: 10,
-    })
-  } catch (err) {
-    console.warn(`useTempDir: failed to remove temp directory ${folder}`, err)
   }
 }
