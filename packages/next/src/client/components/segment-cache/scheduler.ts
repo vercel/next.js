@@ -1219,7 +1219,7 @@ function isShellEntryEligibleForStaticAttempt(
   if (entry.stage !== AppStage.Shell) {
     return false
   }
-  if (!shouldSegmentAttemptStaticRequest(AppStage.Prefetch, tree)) {
+  if (!shouldSegmentAttemptStaticRequest(walkStage, tree)) {
     return false
   }
   const revalidatingEntry = readOrCreateRevalidatingSegmentEntry(

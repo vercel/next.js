@@ -376,25 +376,31 @@ function trackRuntimeDataAccessed(
         return
       }
       const { currentStage } = stagedRendering
-      if (currentStage === RenderStage.Before) {
-        console.error(
-          new InvariantError(
-            'Unexpected trackRuntimeDataAccessed in the Before stage.'
+      // A static prerender only runs in the static stages. The
+      // validation-only stages, like `PrefetchStatic_prefetchApi`, aren't
+      // used here.
+      let currentPrerenderStage: StaticPrerenderStage
+      switch (currentStage) {
+        case RenderStage.ShellStatic:
+        case RenderStage.PrefetchStatic:
+        case RenderStage.NavigationStatic:
+          currentPrerenderStage = currentStage
+          break
+        case RenderStage.Before:
+        case RenderStage.PrefetchStatic_prefetchApi:
+        case RenderStage.ShellRuntime:
+        case RenderStage.PrefetchRuntime_prefetchApi:
+        case RenderStage.PrefetchRuntime:
+        case RenderStage.NavigationRuntime:
+        case RenderStage.Dynamic:
+        case RenderStage.Abandoned:
+          console.error(
+            new InvariantError(
+              `Unexpected trackRuntimeDataAccessed in the ${RenderStage[currentStage]} stage.`
+            )
           )
-        )
-        return
-      } else if (currentStage > RenderStage.NavigationStatic) {
-        console.error(
-          new InvariantError(
-            `Unexpected trackRuntimeDataAccessed after the NavigationStatic stage (${RenderStage[currentStage]})`
-          )
-        )
-        return
+          return
       }
-
-      // NOTE: We're excluding validation-only stages like `PrefetchStatic_prefetchApi`
-      // which are not used during static prerenders
-      const currentPrerenderStage = currentStage as StaticPrerenderStage
 
       const ensureStaticLevel =
         workUnitStore.ensureStaticLevel ?? EnsureStaticLevel.None
