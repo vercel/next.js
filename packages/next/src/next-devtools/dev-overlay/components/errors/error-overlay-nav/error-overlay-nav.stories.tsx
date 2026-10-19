@@ -39,8 +39,6 @@ export const Default: Story = {
       },
     ],
     activeIdx: 1,
-    error: new Error('Second error message'),
-    generateErrorInfo: async () => '## Error Type\nRuntime Error',
     versionInfo: {
       installed: '15.0.0',
       staleness: 'stale-major',

@@ -7,7 +7,7 @@ description: Configure Next.js with Turbopack-specific options
 
 The `turbopack` option lets you customize [Turbopack](/docs/app/api-reference/turbopack) to transform different files and change how modules are resolved.
 
-> **Good to know**: The `turbopack` option was previously named `experimental.turbo` in Next.js versions 13.0.0 to 15.2.x. The `experimental.turbo` option will be removed in Next.js 16.
+> **Good to know**: The `turbopack` option was previously named `experimental.turbo` in Next.js versions 13.0.0 to 15.2.x, an option which still works as an alias, but new configuration should use the top-level `turbopack` option.
 >
 > If you are using an older version of Next.js, run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to automatically migrate your configuration.
 
@@ -79,16 +79,9 @@ Turbopack uses the [`loader-runner`](https://github.com/webpack/loader-runner) l
 - [`fs`](https://webpack.js.org/api/loaders/#thisfs) - Partial support: only `fs.readFile` is currently implemented.
 - [`emitFile`](https://webpack.js.org/api/loaders/#thisemitfile) - No support
 
-**Context properties:**
-
-- [`version`](https://webpack.js.org/api/loaders/#thisversion) - No support
-- [`mode`](https://webpack.js.org/api/loaders/#thismode) - No support
-- [`target`](https://webpack.js.org/api/loaders/#thistarget) - No support
-
 **Utilities:**
 
 - [`utils`](https://webpack.js.org/api/loaders/#thisutils) - No support
-- [`resolve`](https://webpack.js.org/api/loaders/#thisresolve) - No support (use [`getResolve`](https://webpack.js.org/api/loaders/#thisgetresolve) instead)
 
 If you have a loader that is critically dependent upon one of these features please file an issue.
 
@@ -98,7 +91,7 @@ If you have a loader that is critically dependent upon one of these features ple
 
 Turbopack uses the root directory to resolve modules. Files outside of the project root are not resolved.
 
-The reason files are not resolved outside of the project root is to improve cache validation, reduce filesystem watching overhead, and reduce the number of resolving steps needed.
+Files are not resolved outside of the project root is to improve cache validation, reduce filesystem watching overhead, and reduce the number of [resolving steps](https://nodejs.org/api/esm.html#resolution-algorithm) needed.
 
 Next.js automatically detects the root directory of your project. It does so by looking for one of these files:
 
@@ -119,9 +112,54 @@ module.exports = {
 }
 ```
 
-To resolve files from linked dependencies outside the project root (via `npm link`, `yarn link`, `pnpm link`, etc.), you must configure the `turbopack.root` to the parent directory of both the project and the linked dependencies.
+To resolve files from linked dependencies outside the project root (e.g. [`npm link`]), you must either configure the `turbopack.root` to the parent directory of both the project and the linked dependencies or configure an additional root.
 
-While this expands the scope of filesystem watching, it's typically only necessary during development when actively working on linked packages.
+Use this option to configure the root when working in a monorepo. Do not extend the root directory too broadly (e.g. to your home directory). Turbopack may watch all files inside of roots, and configuring too broad of a root directory can cause significant performance problems.
+
+[`npm link`]: https://docs.npmjs.com/cli/commands/npm-link
+
+### Additional roots (experimental)
+
+`experimental.turbopackAdditionalRoots` allows Turbopack to follow symbolic links whose targets are outside `turbopack.root`.
+
+It is useful for linked packages that live outside the project (e.g. [`npm link`](https://docs.npmjs.com/cli/commands/npm-link) or a [global virtual store](https://pnpm.io/global-virtual-store)).
+
+Additional roots can only be crossed at symlink boundaries. Direct relative imports that escape a root are unsupported.
+
+```js filename="next.config.js"
+const path = require('path')
+
+module.exports = {
+  experimental: {
+    turbopackAdditionalRoots: {
+      linkedPackages: { path: path.join(__dirname, '../packages') },
+    },
+  },
+}
+```
+
+Each key identifies one root. `path` can be absolute or relative to the directory where you run Next.js.
+
+> **Good to know**:
+>
+> - The symbolic link and its target must both be available on the build machine before `next dev` or `next build` starts.
+> - Deployment tools and CI systems may copy your repository to a separate build machine. These tools may be unaware of the additional roots, and they may fail to copy required files.
+> - On Windows, builds [require Developer Mode or elevated permissions to create symbolic links](https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/). Creating output artifacts may require creating symbolic links. In some cases, Turbopack can fall back to [directory junctions](https://learn.microsoft.com/en-us/windows/win32/fileio/hard-links-and-junctions#junctions) when symlink creation is not permitted, but these junctions use absolute paths, so the resulting output may not be relocatable.
+
+If a root path is not found when `next build` or `next dev` starts, a warning will be issued, unless `ignoreIfMissing` is set to `true` (defaults to `false`).
+
+To ensure portability of your configuration across a variety of platforms, including Windows, a root name must meet all of these requirements:
+
+- It contains 1 to 40 characters.
+- Each character must be an ASCII letter (`a-z` or `A-Z`), a digit (`0-9`), an underscore (`_`), or a hyphen (`-`).
+- It is not a Windows device name.
+- It does not duplicate an earlier name under ASCII case-insensitive comparison.
+
+To avoid ambiguous references to files, additional roots may not overlap `turbopack.root` or one another. This means an additional root cannot be inside `turbopack.root` or contain it. For example, configuring both `foo/` and `foo/bar/` as additional roots would produce a warning, and the overlapping additional root will be ignored.
+
+Additional roots change Next.js's [`trace format`](/docs/app/api-reference/config/next-config-js/output#turbopack-nft-extensions).
+
+When using [`output: "standalone"`](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files), unbundled files stored in these additional roots will be copied to a subdirectory of the output directory containing the configured name of the root.
 
 ### Configuring webpack loaders
 
@@ -293,9 +331,12 @@ Available module types:
 | `typescript` | Process as TypeScript                                    |
 | `css`        | Process as CSS                                           |
 | `css-module` | Process as CSS module                                    |
+| `json`       | Parse as JSON and export it                              |
 | `wasm`       | Process as WebAssembly                                   |
-| `raw`        | Return raw contents as string                            |
-| `bytes`      | Inline contents as bytes                                 |
+| `node`       | Process as a native Node.js addon                        |
+| `raw`        | Export the contents as a string (an alias of `text`)     |
+| `text`       | Export the contents as a string                          |
+| `bytes`      | Export the contents as a `Uint8Array`                    |
 
 ### Inline loader configuration with import attributes
 
@@ -359,12 +400,23 @@ To configure resolve extensions, use the `resolveExtensions` field in `next.conf
 ```js filename="next.config.js"
 module.exports = {
   turbopack: {
-    resolveExtensions: ['.mdx', '.tsx', '.ts', '.jsx', '.js', '.mjs', '.json'],
+    resolveExtensions: [
+      '.mdx',
+      '.tsx',
+      '.ts',
+      '.jsx',
+      '.js',
+      '.mjs',
+      '.node',
+      '.json',
+    ],
   },
 }
 ```
 
-This overwrites the original resolve extensions with the provided list. Make sure to include the default extensions.
+This overwrites the default resolve extensions with the provided list, so include every extension you still need. The defaults are `.tsx`, `.ts`, `.jsx`, `.js`, `.mjs`, and `.json`, and server-side resolution adds `.node` for native modules. Listing `.node` on the client is harmless, so a single list can cover both.
+
+> **Good to know**: This applies to your own source files. Imports resolved inside `node_modules` keep their own extension list and are not affected by this option.
 
 For more information and guidance for how to migrate your app to Turbopack from webpack, see [Turbopack's documentation on webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
 
@@ -388,6 +440,7 @@ The option automatically adds a polyfill for debug IDs to the JavaScript bundle 
 
 | Version  | Changes                                              |
 | -------- | ---------------------------------------------------- |
+| `16.4.0` | `experimental.turbopackAdditionalRoots` was added    |
 | `16.2.0` | `turbopackLoader` import attributes were added.      |
 | `16.2.0` | `turbopack.rules.*.type` was added.                  |
 | `16.2.0` | `turbopack.rules.*.condition.contentType` was added. |

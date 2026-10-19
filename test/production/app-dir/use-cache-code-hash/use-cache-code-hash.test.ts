@@ -1,0 +1,433 @@
+import { nextTestSetup, type NextInstance } from 'e2e-utils'
+import { join } from 'path'
+
+async function getCodeHashes(
+  next: NextInstance,
+  pages?: string[]
+): Promise<
+  {
+    id: string
+    page: string
+    codeHash?: string
+    rootParamDependencies?: readonly string[]
+    runtimeEnvVarsRead?: string[]
+    runtimeEnvVarsExistence?: string[]
+  }[]
+> {
+  const manifest = await next.readJSON(
+    '.next/server/server-reference-manifest.json'
+  )
+
+  const hashes: {
+    id: string
+    page: string
+    codeHash?: string
+    rootParamDependencies?: readonly string[]
+    runtimeEnvVarsRead?: string[]
+    runtimeEnvVarsExistence?: string[]
+  }[] = []
+  for (const [actionId, entry] of Object.entries<any>(manifest.node)) {
+    for (const [workerKey, worker] of Object.entries<any>(entry.workers)) {
+      if (!pages || pages.includes(workerKey)) {
+        hashes.push({
+          id: actionId,
+          page: workerKey,
+          codeHash: worker?.durability?.codeHash,
+          rootParamDependencies: worker.rootParamDependencies,
+          runtimeEnvVarsRead: worker?.durability?.runtimeEnvVarsRead,
+          runtimeEnvVarsExistence: worker?.durability?.runtimeEnvVarsExistence,
+        })
+      }
+    }
+  }
+  hashes.sort((a, b) => a.page.localeCompare(b.page))
+  return hashes
+}
+
+// `durableUseCacheEntries` is only supported by by Turbopack.
+;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
+  'app-dir - use-cache-code-hash',
+  () => {
+    describe('basic', () => {
+      const { next } = nextTestSetup({
+        files: __dirname,
+      })
+
+      it('emits codeHash only for use-cache functions', async () => {
+        const values = Object.values(await getCodeHashes(next))
+        const valuesWithoutCodeHash = values.filter(
+          (e) => typeof e.codeHash !== 'string'
+        )
+        expect(valuesWithoutCodeHash.map((v) => v.page)).toMatchInlineSnapshot(`
+         [
+           "app/use-server/page",
+         ]
+        `)
+      })
+
+      it('emits root dependencies alongside durability', async () => {
+        const manifest = await next.readJSON(
+          '.next/server/server-reference-manifest.json'
+        )
+        let cacheWorkers = 0
+        for (const entry of Object.values<any>(manifest.node)) {
+          for (const worker of Object.values<any>(entry.workers)) {
+            if (worker.durability) {
+              cacheWorkers++
+              expect(worker.rootParamDependencies).toBeDefined()
+            } else {
+              expect(worker.rootParamDependencies).toBeUndefined()
+            }
+          }
+        }
+        expect(cacheWorkers).toBeGreaterThan(0)
+      })
+
+      it('lists non-inlined runtime env vars', async () => {
+        const data = await getCodeHashes(next)
+        expect(
+          Object.fromEntries(
+            data
+              .filter((d) => d.runtimeEnvVarsRead || d.runtimeEnvVarsExistence)
+              .map((d) => [
+                d.page,
+                [
+                  ...d.runtimeEnvVarsRead,
+                  ...d.runtimeEnvVarsExistence.map((v) => `exist ${v}`),
+                ],
+              ])
+          )
+        ).toMatchInlineSnapshot(`
+         {
+           "app/env-dynamic/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/env-existence/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist BAR",
+             "exist FOO",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/next-image-props/page": [
+             "NEXT_DEPLOYMENT_ID",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/next-image/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-client/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-import/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_RUNTIME",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-url/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-worker/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache/page": [
+             "BUNDLED_NON_INLINED_ENVVAR",
+             "EXTERNAL_ENV_VAR",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+         }
+        `)
+      })
+    })
+
+    describe('root params', () => {
+      const { next } = nextTestSetup({
+        files: join(__dirname, 'fixtures/root-params'),
+        skipStart: true,
+      })
+
+      async function expectStableRootParamHash(args: string[] = []) {
+        expect((await next.build({ args })).exitCode).toBe(0)
+        const before = await getCodeHashes(next, ['app/[lang]/page'])
+        expect(before).toHaveLength(1)
+        expect(before[0].codeHash).toEqual(expect.any(String))
+        expect(before[0].rootParamDependencies).toEqual(['lang'])
+
+        await next.patchFile(
+          'app/extra/[region]/layout.jsx',
+          `export default function Layout({ children }) {
+  return <html><body>{children}</body></html>
+}
+
+export function generateStaticParams() {
+  return [{ region: 'eu' }]
+}
+`,
+          async () => {
+            await next.patchFile(
+              'app/extra/[region]/page.jsx',
+              `export default function Page() {
+  return <p>extra root</p>
+}
+`,
+              async () => {
+                expect((await next.build({ args })).exitCode).toBe(0)
+                const after = await getCodeHashes(next, ['app/[lang]/page'])
+                expect(after).toHaveLength(1)
+                expect(after[0].codeHash).toBe(before[0].codeHash)
+                expect(after[0].rootParamDependencies).toEqual(['lang'])
+              }
+            )
+          }
+        )
+      }
+
+      it('keeps codeHash stable when an unrelated root param is added', async () => {
+        await expectStableRootParamHash()
+      })
+
+      it('keeps root-param codeHash stable in debug-prerender builds', async () => {
+        await expectStableRootParamHash(['--debug-prerender'])
+      })
+
+      it('keeps root-param codeHash stable without import/export pruning', async () => {
+        await next.patchFile(
+          'next.config.js',
+          (config) =>
+            config.replace(
+              'experimental: {',
+              'experimental: { turbopackRemoveUnusedImports: false, turbopackRemoveUnusedExports: false,'
+            ),
+          async () => {
+            await expectStableRootParamHash()
+          }
+        )
+      })
+    })
+
+    describe('invalidation', () => {
+      const { next } = nextTestSetup({
+        files: __dirname,
+        skipStart: true,
+      })
+
+      it('codeHash stays stable across identical rebuilds', async () => {
+        await next.build()
+        const first = await getCodeHashes(next)
+
+        await next.build()
+        const second = await getCodeHashes(next)
+
+        expect(second).toEqual(first)
+      })
+
+      it("changes when the action's own code changes", async () => {
+        await next.build()
+        const before = await getCodeHashes(next, ['app/use-cache/page'])
+
+        await next.patchFile(
+          'app/use-cache/logic.tsx',
+          `import { foo } from './foo'
+import { external } from 'external-dep'
+
+export async function logic() {
+  'use cache'
+  return \`\${foo()}:\${external()}:\${process.env.BUNDLED_NON_INLINED_ENVVAR}\` + ":other"
+}
+`,
+          async () => {
+            await next.build()
+            const after = await getCodeHashes(next, ['app/use-cache/page'])
+
+            // Same set of actions, but the hash for the changed action differs.
+            expect(Object.keys(after)).toEqual(Object.keys(before))
+            expect(after).not.toEqual(before)
+          }
+        )
+      })
+
+      it('codeHash changes when an imported dependency changes', async () => {
+        await next.build()
+        const before = await getCodeHashes(next, ['app/use-cache/page'])
+
+        await next.patchFile(
+          'app/use-cache/foo.tsx',
+          `export function foo() {
+  return "foo-v2"
+}
+`,
+          async () => {
+            await next.build()
+            const after = await getCodeHashes(next, ['app/use-cache/page'])
+
+            expect(Object.keys(after)).toEqual(Object.keys(before))
+            expect(after).not.toEqual(before)
+          }
+        )
+      })
+
+      it('codeHash changes when dependencies referenced by new URL(), import(), and new Worker() inside use cache scopes change', async () => {
+        const dependencies = [
+          {
+            route: 'use-cache-url',
+            file: 'asset.txt',
+            content: 'asset-v2\n',
+          },
+          {
+            route: 'use-cache-import',
+            file: 'dependency.ts',
+            content: "export const value = 'import-v2'\n",
+          },
+          {
+            route: 'use-cache-worker',
+            file: 'worker.ts',
+            content: "console.log('worker-v2')\n",
+          },
+        ]
+        const pages = dependencies.map(({ route }) => `app/${route}/page`)
+        expect((await next.build()).exitCode).toBe(0)
+        const before = await getCodeHashes(next, pages)
+        expect(before.map(({ page }) => page)).toEqual([...pages].sort())
+        for (const entry of before) {
+          expect(entry.codeHash).toEqual(expect.any(String))
+        }
+
+        const originals = await Promise.all(
+          dependencies.map(({ route, file }) =>
+            next.readFile(`app/${route}/${file}`)
+          )
+        )
+        try {
+          for (const { route, file, content } of dependencies) {
+            await next.patchFile(`app/${route}/${file}`, content)
+          }
+          expect((await next.build()).exitCode).toBe(0)
+          const after = await getCodeHashes(next, pages)
+          expect(after.map(({ page }) => page)).toEqual(
+            before.map(({ page }) => page)
+          )
+          for (let i = 0; i < before.length; i++) {
+            expect(after[i].id).toBe(before[i].id)
+            expect(after[i].codeHash).toEqual(expect.any(String))
+            expect(after[i].codeHash).not.toBe(before[i].codeHash)
+          }
+        } finally {
+          for (const [i, { route, file }] of dependencies.entries()) {
+            await next.patchFile(`app/${route}/${file}`, originals[i])
+          }
+        }
+      })
+
+      it('codeHash changes when an external (node_modules) dependency changes', async () => {
+        await next.build()
+        const before = await getCodeHashes(next, ['app/use-cache/page'])
+
+        await next.patchFile(
+          'node_modules/external-dep/index.js',
+          `export function external() {
+  return 'external-v2' + process.env.EXTERNAL_ENV_VAR
+}
+`,
+          async () => {
+            await next.build()
+            const after = await getCodeHashes(next, ['app/use-cache/page'])
+
+            expect(Object.keys(after)).toEqual(Object.keys(before))
+            expect(after).not.toEqual(before)
+          }
+        )
+      })
+
+      it('codeHash does not change when an unrelated file changes', async () => {
+        await next.build()
+        const before = await getCodeHashes(next, ['app/use-cache/page'])
+
+        await next.patchFile(
+          'app/use-cache/unrelated.ts',
+          `export function unrelated() {
+  return 'unrelated-v2'
+}
+`,
+          async () => {
+            await next.build()
+            const after = await getCodeHashes(next, ['app/use-cache/page'])
+
+            expect(after).toEqual(before)
+          }
+        )
+      })
+
+      it('codeHash does not change when a client file changes', async () => {
+        await next.build()
+        const before = await getCodeHashes(next, ['app/use-cache-client/page'])
+
+        await next.patchFile(
+          'app/use-cache-client/data.ts',
+          `export function data() {
+  return 'data-v2'
+}
+`,
+          async () => {
+            await next.build()
+            const after = await getCodeHashes(next, [
+              'app/use-cache-client/page',
+            ])
+
+            expect(after).toEqual(before)
+          }
+        )
+      })
+    })
+  }
+)

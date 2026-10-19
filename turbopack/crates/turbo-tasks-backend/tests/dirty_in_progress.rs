@@ -13,7 +13,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dirty_in_progress() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let cases = [
             (1, 3, 2, 2, ""),
             (11, 13, 12, 42, "12"),

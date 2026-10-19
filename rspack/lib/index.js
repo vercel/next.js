@@ -4,8 +4,9 @@ process.env.RSPACK_BINDING = require('node:path').dirname(
 
 const binding = require('@next/rspack-binding')
 
-// Register the plugin `NextExternalsPlugin` exported by `crates/binding/src/lib.rs`.
+// Register the plugins exported by `crates/binding/src/lib.rs`.
 binding.registerNextExternalsPlugin()
+binding.registerForceCompleteRuntimePlugin()
 
 const core = require('@rspack/core')
 
@@ -16,8 +17,19 @@ const NextExternalsPlugin = core.experiments.createNativePlugin(
   }
 )
 
+const ForceCompleteRuntimePlugin = core.experiments.createNativePlugin(
+  'ForceCompleteRuntimePlugin',
+  function () {
+    return {}
+  }
+)
+
 Object.defineProperty(core, 'NextExternalsPlugin', {
   value: NextExternalsPlugin,
+})
+
+Object.defineProperty(core, 'ForceCompleteRuntimePlugin', {
+  value: ForceCompleteRuntimePlugin,
 })
 
 module.exports = core

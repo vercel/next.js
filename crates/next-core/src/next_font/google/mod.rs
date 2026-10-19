@@ -3,6 +3,7 @@ use std::{path::Path, sync::LazyLock};
 use anyhow::{Context, Result, bail};
 use futures::FutureExt;
 use indoc::formatdoc;
+use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -20,7 +21,7 @@ use turbopack_core::{
     asset::AssetContent,
     context::AssetContext,
     ident::Layer,
-    issue::{IssueExt, IssueSeverity, StyledString},
+    issue::{IssueExt, IssueSeverity},
     module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -40,7 +41,6 @@ use turbopack_node::{
 use crate::{
     embed_js::next_js_file_path,
     mode::NextMode,
-    next_app::metadata::split_extension,
     next_font::{
         font_fallback::FontFallback,
         google::{
@@ -49,7 +49,7 @@ use crate::{
             stylesheet::build_stylesheet,
             util::{get_font_axes, get_stylesheet_url},
         },
-        issue::NextFontIssue,
+        issue::GoogleFontsFetchIssue,
         util::{
             FontCssProperties, FontFamilyType, can_use_next_font, get_request_hash, get_request_id,
             get_scoped_font_family,
@@ -268,56 +268,14 @@ impl NextFontGoogleCssModuleReplacer {
                 .await?,
             ),
             None => {
-                match *self.next_mode.await? {
-                    // If we're in production mode, we want to fail the build to ensure proper font
-                    // rendering.
-                    NextMode::Build => {
-                        NextFontIssue {
-                            path: css_virtual_path.clone(),
-                            title: StyledString::Line(vec![
-                                StyledString::Code(rcstr!("next/font:")),
-                                StyledString::Text(rcstr!(" error:")),
-                            ])
-                            .resolved_cell(),
-                            description: StyledString::Text(
-                                format!(
-                                    "Failed to fetch `{}` from Google Fonts.",
-                                    options.await?.font_family
-                                )
-                                .into(),
-                            )
-                            .resolved_cell(),
-                            severity: IssueSeverity::Error,
-                        }
-                        .resolved_cell()
-                        .emit();
-                    }
-                    // Inform the user of the failure to retrieve the stylesheet / font, but don't
-                    // propagate this error. We don't want e.g. offline connections to prevent page
-                    // renders during development.
-                    NextMode::Development => {
-                        NextFontIssue {
-                            path: css_virtual_path.clone(),
-                            title: StyledString::Line(vec![
-                                StyledString::Code(rcstr!("next/font:")),
-                                StyledString::Text(rcstr!(" warning:")),
-                            ])
-                            .resolved_cell(),
-                            description: StyledString::Text(
-                                format!(
-                                    "Failed to download `{}` from Google Fonts. Using fallback \
-                                     font instead.",
-                                    options.await?.font_family
-                                )
-                                .into(),
-                            )
-                            .resolved_cell(),
-                            severity: IssueSeverity::Warning,
-                        }
-                        .resolved_cell()
-                        .emit();
-                    }
+                let is_dev = matches!(*self.next_mode.await?, NextMode::Development);
+                GoogleFontsFetchIssue {
+                    path: css_virtual_path.clone(),
+                    font_family: options.await?.font_family.clone(),
+                    is_dev,
                 }
+                .resolved_cell()
+                .emit();
 
                 None
             }
@@ -383,6 +341,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct NextFontGoogleFontFileOptions {
     pub url: String,
+    pub ext: String,
     pub preload: bool,
     pub has_size_adjust: bool,
 }
@@ -390,6 +349,7 @@ struct NextFontGoogleFontFileOptions {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: FileSystemPath,
+    next_mode: ResolvedVc<NextMode>,
     fetch_client: ResolvedVc<FetchClientConfig>,
 }
 
@@ -398,10 +358,12 @@ impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
     pub fn new(
         project_path: FileSystemPath,
+        next_mode: ResolvedVc<NextMode>,
         fetch_client: ResolvedVc<FetchClientConfig>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleFontFileReplacer {
             project_path,
+            next_mode,
             fetch_client,
         })
     }
@@ -436,15 +398,13 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 
         let NextFontGoogleFontFileOptions {
             url,
+            ext,
             preload,
             has_size_adjust: size_adjust,
         } = font_file_options_from_query_map(query)?;
 
-        let (filename, ext) = split_extension(&url);
-        let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
-
         // remove dashes and dots as they might be used for the markers below.
-        let mut name = format!("{:016x}", hash_xxh3_hash64(filename.as_bytes()));
+        let mut name = format!("{:016x}", hash_xxh3_hash64(url.as_bytes()));
         if size_adjust {
             name.push_str("-s")
         }
@@ -456,20 +416,30 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             .await?
             .join(&format!("/{name}.{ext}"))?;
 
+        // Like the stylesheet fetch, a failure fails `next build` and only warns in `next dev`,
+        // where an empty file lets the browser fall back to the next font in the stack.
+        let severity = if matches!(*self.next_mode.await?, NextMode::Development) {
+            IssueSeverity::Warning
+        } else {
+            IssueSeverity::Error
+        };
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
-        let Some(font) =
-            fetch_from_google_fonts(*self.fetch_client, url.into(), font_virtual_path.clone())
-                .await?
-        else {
-            return Ok(
-                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
-            );
+        let font: File = match fetch_from_google_fonts(
+            *self.fetch_client,
+            url.into(),
+            font_virtual_path.clone(),
+            severity,
+        )
+        .await?
+        {
+            Some(font) => font.await?.0.as_slice().into(),
+            None => File::from(Vec::new()),
         };
 
         let font_source = VirtualSource::new(
             font_virtual_path,
-            AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).cell()),
+            AssetContent::file(FileContent::Content(font).cell()),
         )
         .to_resolved()
         .await?;
@@ -506,7 +476,7 @@ async fn update_google_stylesheet(
     // Update font-family definitions to the scoped name
     // TODO: Do this more resiliently, e.g. transforming an swc ast
     let mut stylesheet = stylesheet.await?.replace(
-        &format!("font-family: '{}';", &options.font_family),
+        &format!("font-family: '{}';", options.font_family),
         &format!("font-family: '{scoped_font_family}';"),
     );
 
@@ -521,13 +491,19 @@ async fn update_google_stylesheet(
 
     let has_size_adjust = *has_size_adjust.await?;
 
-    for FontFile { font_url, preload } in font_files {
+    for FontFile {
+        font_url,
+        ext,
+        preload,
+    } in font_files
+    {
         let query = NextFontGoogleFontFileOptions {
             url: font_url.clone(),
+            ext,
             preload,
             has_size_adjust,
         };
-        let query_str = qstring::QString::from(serde_json::to_string(&query)?.as_str());
+        let query_str = font_file_options_to_query(&query)?;
 
         stylesheet = stylesheet.replace(
             &font_url,
@@ -538,9 +514,10 @@ async fn update_google_stylesheet(
     Ok(Vc::cell(stylesheet.into()))
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 struct FontFile {
     font_url: String,
+    ext: String,
     preload: bool,
 }
 
@@ -568,8 +545,31 @@ fn find_font_files_in_css(css: &str, subsets_to_preload: &[RcStr]) -> Vec<FontFi
             continue;
         }
 
+        // Google sometimes serves extensionless /l/font?kit=... URLs. Resolve
+        // the type from the pathname or CSS hint, falling back to WOFF2 for the
+        // Chrome user agent used by our fetches.
+        let pathname = font_url.split(['?', '#']).next().unwrap_or(font_url);
+        static FONT_EXT_RE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r#"\.(woff|woff2|eot|ttf|otf)$"#).unwrap());
+        static FONT_FORMAT_RE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r#"format\(['\"](.+?)['\"]\)"#).unwrap());
+        let format = FONT_FORMAT_RE.captures(line);
+        let format_ext = match format.as_ref().and_then(|c| c.get(1)).map(|m| m.as_str()) {
+            Some("woff") => "woff",
+            Some("truetype") => "ttf",
+            Some("opentype") => "otf",
+            Some("embedded-opentype") => "eot",
+            _ => "woff2",
+        };
+        let extension = FONT_EXT_RE.captures(pathname);
+        let ext = extension
+            .as_ref()
+            .and_then(|c| c.get(1))
+            .map_or(format_ext, |m| m.as_str());
+
         font_files.push(FontFile {
             font_url: font_url.to_string(),
+            ext: ext.to_string(),
             preload: subsets_to_preload
                 .iter()
                 .any(|subset| subset == current_subset),
@@ -677,6 +677,13 @@ async fn font_options_from_query_map(
         options_from_request(&parse_json_with_source_context(&json)?, &*font_data.await?)?;
     Ok(NextFontGoogleOptions::new(options))
 }
+fn font_file_options_to_query(options: &NextFontGoogleFontFileOptions) -> Result<String> {
+    // Encode the JSON as a single query key. Parsing JSON as a query would
+    // split font URL parameters at '&'; QString's encoder also leaves '%' and
+    // '#' unescaped, so use a complete percent-encoding set here.
+    Ok(utf8_percent_encode(&serde_json::to_string(options)?, NON_ALPHANUMERIC).to_string())
+}
+
 fn font_file_options_from_query_map(query: &RcStr) -> Result<NextFontGoogleFontFileOptions> {
     let query_map = qstring::QString::from(query.as_str());
 
@@ -696,7 +703,14 @@ async fn fetch_real_stylesheet(
     stylesheet_url: RcStr,
     css_virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<RcStr>>> {
-    let body = fetch_from_google_fonts(fetch_client, stylesheet_url, css_virtual_path).await?;
+    // The caller reports a failed stylesheet through GoogleFontsFetchIssue.
+    let body = fetch_from_google_fonts(
+        fetch_client,
+        stylesheet_url,
+        css_virtual_path,
+        IssueSeverity::Warning,
+    )
+    .await?;
 
     Ok(body.map(|body| body.to_string()))
 }
@@ -705,6 +719,7 @@ async fn fetch_from_google_fonts(
     fetch_client: Vc<FetchClientConfig>,
     url: RcStr,
     virtual_path: FileSystemPath,
+    severity: IssueSeverity,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch_client
         .fetch(url, Some(USER_AGENT_FOR_GOOGLE_FONTS))
@@ -713,7 +728,7 @@ async fn fetch_from_google_fonts(
     Ok(match *result {
         Ok(r) => Some(*r.await?.body),
         Err(err) => {
-            err.to_issue(IssueSeverity::Warning, virtual_path)
+            err.to_issue(severity, virtual_path)
                 .to_resolved()
                 .await?
                 .emit();
@@ -812,6 +827,107 @@ async fn get_mock_stylesheet(
         }
         _ => {
             panic!("Unexpected error evaluating JS")
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        FontFile, NextFontGoogleFontFileOptions, find_font_files_in_css,
+        font_file_options_from_query_map, font_file_options_to_query,
+    };
+
+    #[test]
+    fn font_extensions() {
+        for (url, format, ext) in [
+            (
+                "https://fonts.gstatic.com/l/font?kit=a=b&skey=c&v=v20",
+                "format('woff2')",
+                "woff2",
+            ),
+            (
+                "https://fonts.gstatic.com/l/font?kit=a%2Bb&skey=c",
+                "format(\"woff\")",
+                "woff",
+            ),
+            (
+                "https://fonts.gstatic.com/l/font",
+                "format('truetype')",
+                "ttf",
+            ),
+            (
+                "https://fonts.gstatic.com/l/font",
+                "format('opentype')",
+                "otf",
+            ),
+            (
+                "https://fonts.gstatic.com/l/font",
+                "format('embedded-opentype')",
+                "eot",
+            ),
+            ("https://fonts.gstatic.com/l/font", "", "woff2"),
+            (
+                "https://fonts.gstatic.com/l/font",
+                "format('unknown')",
+                "woff2",
+            ),
+            (
+                "https://fonts.gstatic.com/s/font.ttf?kit=a&v=1#font",
+                "format('woff2')",
+                "ttf",
+            ),
+            (
+                "https://fonts.gstatic.com/l/font?kit=a.woff",
+                "format('woff2')",
+                "woff2",
+            ),
+            (
+                "https://fonts.gstatic.com/s/font.woff2",
+                "format('woff2')",
+                "woff2",
+            ),
+        ] {
+            let css = format!(
+                "/* latin */\n@font-face {{\n  src: url({url}) {format};\n}}\n@font-face {{\n  \
+                 src: url({url}) {format};\n}}"
+            );
+            let expected = FontFile {
+                font_url: url.to_string(),
+                ext: ext.to_string(),
+                preload: true,
+            };
+            assert_eq!(
+                find_font_files_in_css(&css, &["latin".into()]),
+                vec![expected]
+            );
+            assert!(!find_font_files_in_css(&css, &[])[0].preload);
+        }
+    }
+
+    #[test]
+    fn font_file_query_round_trip() {
+        for url in [
+            "https://fonts.gstatic.com/s/font.woff2",
+            "https://fonts.gstatic.com/l/font?kit=a=b&skey=c&v=v20",
+            "https://fonts.gstatic.com/l/font?kit=a%2Bb%25c+d&skey=c#font",
+        ] {
+            for preload in [false, true] {
+                for has_size_adjust in [false, true] {
+                    let options = NextFontGoogleFontFileOptions {
+                        url: url.to_string(),
+                        ext: "woff2".to_string(),
+                        preload,
+                        has_size_adjust,
+                    };
+                    let query = font_file_options_to_query(&options).unwrap();
+                    let decoded = font_file_options_from_query_map(&query.into()).unwrap();
+                    assert_eq!(decoded.url, options.url);
+                    assert_eq!(decoded.ext, options.ext);
+                    assert_eq!(decoded.preload, preload);
+                    assert_eq!(decoded.has_size_adjust, has_size_adjust);
+                }
+            }
         }
     }
 }

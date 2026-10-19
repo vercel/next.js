@@ -5,15 +5,13 @@ use bincode::{Decode, Encode};
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
-        ArrowExpr, BlockStmt, BlockStmtOrExpr, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt,
+        ArrowExpr, ArrowFunctionBody, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt, FunctionBody,
         Ident, Stmt,
     },
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
@@ -26,10 +24,10 @@ use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 
 use crate::{
     ScopeHoistingContext,
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::{
-        AstPath,
         esm::{EsmAssetReference, base::ReferencedAsset},
         pattern_mapping::{PatternMapping, ResolveType},
     },
@@ -41,7 +39,8 @@ use crate::{
 /// `import.meta.hot.accept(dep, callback)`. Ensures the accepted dependency is included
 /// in the chunk graph so it can be hot-replaced at runtime.
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("module.hot.accept/decline {request}")]
 pub struct ModuleHotReferenceAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -70,9 +69,10 @@ impl ModuleHotReferenceAssetReference {
     }
 }
 
-impl ModuleHotReferenceAssetReference {
-    /// Shared resolve logic used by both `resolve_reference` and code generation.
-    pub async fn resolve(&self) -> Result<Vc<ModuleResolveResult>> {
+#[turbo_tasks::value_impl]
+impl ModuleReference for ModuleHotReferenceAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if self.is_esm {
             esm_resolve(
                 *self.origin,
@@ -92,25 +92,6 @@ impl ModuleHotReferenceAssetReference {
             ))
         }
     }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let request_str = self.request.to_string().await?;
-        Ok(Vc::cell(
-            format!("module.hot.accept/decline {}", request_str).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        self.resolve().await
-    }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
         Some(ChunkingType::Parallel {
@@ -120,23 +101,21 @@ impl ModuleReference for ModuleHotReferenceAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ModuleHotReferenceCodeGen {
     references: Vec<ResolvedVc<ModuleHotReferenceAssetReference>>,
     /// For ESM modules, the matching ESM import reference for each dep (if any).
     /// This is used to generate code that re-assigns the ESM namespace variable
     /// after an HMR update so that imported bindings reflect the updated module.
     esm_references: Vec<Option<ResolvedVc<EsmAssetReference>>>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl ModuleHotReferenceCodeGen {
     pub fn new(
         references: Vec<ResolvedVc<ModuleHotReferenceAssetReference>>,
         esm_references: Vec<Option<ResolvedVc<EsmAssetReference>>>,
-        path: AstPath,
+        path: AstPathId,
     ) -> Self {
         ModuleHotReferenceCodeGen {
             references,
@@ -147,21 +126,23 @@ impl ModuleHotReferenceCodeGen {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let resolved_ids: Vec<ReadRef<PatternMapping>> = self
             .references
             .iter()
-            .map(|reference| async move {
+            .map(async |reference| {
                 let r = reference.await?;
-                let resolve_result = r.resolve().await?;
+                let resolve_result = reference.resolve_reference();
                 PatternMapping::resolve_request(
                     *r.request,
                     *r.origin,
                     chunking_context,
                     resolve_result,
                     ResolveType::ChunkItem,
+                    None,
                 )
                 .await
             })
@@ -173,7 +154,7 @@ impl ModuleHotReferenceCodeGen {
         let esm_reimports: Vec<Option<(String, SyntaxContext, Expr)>> = self
             .esm_references
             .iter()
-            .map(|esm_ref| async move {
+            .map(async |esm_ref| {
                 let Some(esm_ref) = esm_ref else {
                     return Ok(None);
                 };
@@ -220,6 +201,7 @@ impl ModuleHotReferenceCodeGen {
 
         let mut visitors = Vec::new();
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {
@@ -261,10 +243,9 @@ impl ModuleHotReferenceCodeGen {
                             *call_expr.args[1].expr = Expr::Arrow(ArrowExpr {
                                 span: DUMMY_SP,
                                 params: vec![],
-                                body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                body: Box::new(ArrowFunctionBody::FunctionBody(FunctionBody {
                                     span: DUMMY_SP,
                                     stmts: wrapper_stmts,
-                                    ..Default::default()
                                 })),
                                 ..Default::default()
                             });
@@ -275,10 +256,9 @@ impl ModuleHotReferenceCodeGen {
                                 expr: Box::new(Expr::Arrow(ArrowExpr {
                                     span: DUMMY_SP,
                                     params: vec![],
-                                    body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                    body: Box::new(ArrowFunctionBody::FunctionBody(FunctionBody {
                                         span: DUMMY_SP,
                                         stmts: wrapper_stmts,
-                                        ..Default::default()
                                     })),
                                     ..Default::default()
                                 })),

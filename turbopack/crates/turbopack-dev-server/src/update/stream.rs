@@ -9,7 +9,6 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TransientInstance, Vc,
-    trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
@@ -35,20 +34,13 @@ struct TypedGetContentFn<C> {
 // Safety: `capture` is `NonLocalValue`, `func` stores no data (is a static pointer to code)
 unsafe impl<C: NonLocalValue> NonLocalValue for TypedGetContentFn<C> {}
 
-// Manual (non-derive) impl required due to: https://github.com/rust-lang/rust/issues/70263
-impl<C: TraceRawVcs> TraceRawVcs for TypedGetContentFn<C> {
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        self.capture.trace_raw_vcs(trace_context);
-    }
-}
-
-trait TypedGetContentFnTrait: NonLocalValue + TraceRawVcs {
+trait TypedGetContentFnTrait: NonLocalValue {
     fn call(&self) -> OperationVc<ResolveSourceRequestResult>;
 }
 
 impl<C> TypedGetContentFnTrait for TypedGetContentFn<C>
 where
-    C: NonLocalValue + TraceRawVcs,
+    C: NonLocalValue,
 {
     fn call(&self) -> OperationVc<ResolveSourceRequestResult> {
         (self.func)(&self.capture)
@@ -56,11 +48,11 @@ where
 }
 
 /// A wrapper type returning [`OperationVc<ResolveSourceRequestResult>`][ResolveSourceRequestResult]
-/// that implements [`NonLocalValue`] and [`TraceRawVcs`].
+/// that implements [`NonLocalValue`].
 ///
 /// The capture (e.g. moved values in a closure) and function pointer are stored separately to allow
-/// safe implementation of these desired traits.
-#[derive(NonLocalValue, TraceRawVcs)]
+/// a safe implementation of this trait.
+#[derive(NonLocalValue)]
 pub struct GetContentFn {
     inner: Box<dyn TypedGetContentFnTrait + Send + Sync>,
 }
@@ -73,7 +65,7 @@ impl GetContentFn {
         func: for<'a> fn(&'a C) -> OperationVc<ResolveSourceRequestResult>,
     ) -> Self
     where
-        C: NonLocalValue + TraceRawVcs + Send + Sync + 'static,
+        C: NonLocalValue + Send + Sync + 'static,
     {
         Self {
             inner: Box::new(TypedGetContentFn { capture, func }),
@@ -90,7 +82,7 @@ impl GetContentFn {
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues();
 
-    captured.get_plain_issues(IssueFilter::everything()).await
+    captured.get_plain_issues(&IssueFilter::everything()).await
 }
 
 fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {
@@ -109,6 +101,22 @@ fn versioned_content_update_operation(
     from: ResolvedVc<Box<dyn Version>>,
 ) -> Vc<Update> {
     content.update(*from)
+}
+
+/// Computes the initial [`Version`] for an update stream from a resolved source request. Runs as
+/// an `operation` so [`UpdateStream::new`] can read it strongly consistently from its top-level
+/// task without performing an eventually-consistent read.
+#[turbo_tasks::function(operation, root)]
+async fn initial_version_operation(
+    content: OperationVc<ResolveSourceRequestResult>,
+) -> Result<Vc<Box<dyn Version>>> {
+    Ok(match *content.read_strongly_consistent().await? {
+        ResolveSourceRequestResult::Static(static_content, _) => {
+            static_content.await?.content.version()
+        }
+        ResolveSourceRequestResult::HttpProxy(proxy_result) => Vc::upcast(proxy_result.connect()),
+        _ => Vc::upcast(NotFoundVersion::new()),
+    })
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -235,16 +243,7 @@ async fn get_update_stream_item_operation(
     }
 }
 
-#[derive(TraceRawVcs)]
-struct ComputeUpdateStreamSender(
-    // HACK: `trace_ignore`: It's not correct or safe to send `Vc`s across this mpsc channel, but
-    // (without nightly auto traits) there's no easy way for us to statically assert that
-    // `UpdateStreamItem` does not contain a `RawVc`.
-    //
-    // It could be safe (at least for the GC use-case) if we had some way of wrapping arbitrary
-    // objects in a GC root container.
-    #[turbo_tasks(trace_ignore)] Sender<Result<ReadRef<UpdateStreamItem>>>,
-);
+struct ComputeUpdateStreamSender(Sender<Result<ReadRef<UpdateStreamItem>>>);
 
 /// This function sends an [`UpdateStreamItem`] to `sender` every time it gets recomputed by
 /// turbo-tasks due to invalidation.
@@ -277,17 +276,13 @@ impl UpdateStream {
 
         let content = get_content.call();
         // We can ignore issues reported in content here since [compute_update_stream]
-        // will handle them
-        let version = match *content.connect().await? {
-            ResolveSourceRequestResult::Static(static_content, _) => {
-                static_content.await?.content.version()
-            }
-            ResolveSourceRequestResult::HttpProxy(proxy_result) => {
-                Vc::upcast(proxy_result.connect())
-            }
-            _ => Vc::upcast(NotFoundVersion::new()),
-        };
-        let version_state = VersionState::new(version.into_trait_ref().await?).await?;
+        // will handle them. This runs in a top-level task (`UpdateServer::run`'s
+        // `start_once_process`), so the initial version is computed in a dedicated `operation`
+        // task (where the per-content reads are legal) and read strongly consistently.
+        let version = initial_version_operation(content)
+            .read_trait_strongly_consistent()
+            .await?;
+        let version_state = VersionState::new(version).await?;
 
         let _ = compute_update_stream(
             resource,

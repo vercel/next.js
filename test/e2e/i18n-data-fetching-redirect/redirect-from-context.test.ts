@@ -1,15 +1,8 @@
 import { join } from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 
 describe('i18n-data-fetching-redirect', () => {
-  // TODO: investigate tests failures on deploy
-  if ((global as any).isNextDeploy) {
-    it('should skip temporarily', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, 'app/pages')),
@@ -28,7 +21,7 @@ describe('i18n-data-fetching-redirect', () => {
       ${'gsp-fallback-redirect'} | ${'en'}
       ${'gsp-fallback-redirect'} | ${'sv'}
     `('$path $locale', async ({ path, locale }) => {
-      const browser = await webdriver(next.url, `/${locale}/${path}/from-ctx`)
+      const browser = await next.browser(`/${locale}/${path}/from-ctx`)
 
       await check(
         () => browser.eval('window.location.pathname'),
@@ -50,7 +43,7 @@ describe('i18n-data-fetching-redirect', () => {
       ${'gsp-fallback-redirect'} | ${'en'}
       ${'gsp-fallback-redirect'} | ${'sv'}
     `('next/link $path $locale', async ({ path, locale }) => {
-      const browser = await webdriver(next.url, `/${locale}`)
+      const browser = await next.browser(`/${locale}`)
       await browser.eval('window.beforeNav = 1')
 
       await browser.elementByCss(`#to-${path}-from-ctx`).click()

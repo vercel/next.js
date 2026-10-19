@@ -1,6 +1,7 @@
 import type { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
+import type { ParamMatching } from '../segment-config/app/app-segments'
 
 type StaticPrerenderedRoute = {
   readonly params: Params
@@ -10,6 +11,7 @@ type StaticPrerenderedRoute = {
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: undefined
   remainingPrerenderableParams?: undefined
+  readonly isPrerenderOutput?: undefined
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which
@@ -46,15 +48,68 @@ type FallbackPrerenderedRoute = {
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
 
   /**
+   * False when this candidate renders only for build-time hints or static-shell
+   * validation, without providing a fallback artifact.
+   * It must not be registered as a concrete prerender cache output.
+   */
+  readonly isPrerenderOutput?: false
+
+  /**
    * When enabled, the route will be rendered with diagnostics enabled which
    * will error the build if the route that is generated is empty.
    */
   throwOnEmptyStaticShell: boolean
 }
 
+/**
+ * A route the build plans to prerender. Rendering decides whether the result
+ * becomes a published output: for example, an allowed empty fallback shell is
+ * discarded and its matcher becomes blocking instead.
+ *
+ * The historical name is retained because this type is used throughout static
+ * path generation, but values of this type are prerender candidates rather
+ * than guaranteed outputs.
+ */
 export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
+
+/**
+ * Describes how a dynamic pathname is matched when no concrete build-time
+ * output matches it. It describes the logical route independently of any
+ * artifacts produced for it, and is not itself something to render.
+ *
+ * Zero or more prerender candidates may share this pathname. In particular,
+ * variants can produce several artifacts for one logical matcher, so consumers
+ * must not assume pathname identifies a single candidate or render result.
+ */
+export type PrerenderRouteMatcher = {
+  readonly pathname: string
+  readonly fallbackRouteParams: readonly FallbackRouteParam[]
+  readonly fallbackMode: FallbackMode | undefined
+  /**
+   * The first unresolved prerenderable parameter has no explicit policy.
+   * Its trial fallback becomes blocking if rendering produces an empty shell,
+   * independently of whether that shell also requires instant validation.
+   */
+  readonly isFallbackModeInferred?: true
+  readonly fallbackRootParams: readonly string[]
+  readonly remainingPrerenderableParams?: readonly FallbackRouteParam[]
+}
 
 export type StaticPathsResult = {
   fallbackMode: FallbackMode | undefined
+
+  /** Planned renders, some of which may be discarded after rendering. */
   prerenderedRoutes: PrerenderedRoute[] | undefined
+
+  /** Logical request matchers, independent of the artifacts rendered for them. */
+  prerenderRouteMatchers?: PrerenderRouteMatcher[]
+
+  /** Explicit policies after inheritance, before build-time inference. */
+  paramMatching?: ParamMatching
+
+  /**
+   * DEV only: the first explicitly configured fallback parameter and every
+   * parameter after it remain unknown during staged rendering and validation.
+   */
+  explicitFallbackRouteParams?: readonly FallbackRouteParam[]
 }

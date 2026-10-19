@@ -1,0 +1,68 @@
+# Avoid running the full CI concurrently on every PR in a branch-based stack.
+#
+# A stack is inferred from ordinary PR branch relationships (the next PR's base
+# branch is the previous PR's head branch). The first three PRs and every top
+# PR run immediately. A middle PR waits until any of its previous three PRs has
+# passed `thank you, next`, while a five-hour deadline fails open.
+
+name: PR Stack CI Gate
+on:
+  workflow_call:
+    outputs:
+      skip:
+        description: 'Kept for compatibility; expensive CI is never skipped after the gate opens.'
+        value: ${{ jobs.optimize-ci.outputs.skip }}
+
+permissions: {}
+
+env:
+  BYPASS_LABEL: CI Bypass PR Stack Optimization
+
+jobs:
+  optimize-ci:
+    name: PR Stack CI Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    # The build-and-test caller grants these same read scopes; reusable
+    # workflows cannot increase the caller's GITHUB_TOKEN permissions.
+    permissions:
+      checks: read
+      contents: read
+      pull-requests: read
+    outputs:
+      skip: ${{ steps.gate.outputs.skip || steps.fork.outputs.skip }}
+    steps:
+      # Do not check out or execute code supplied by a fork. It cannot be part
+      # of a same-repository branch stack, so let its full CI run immediately.
+      - name: Run full CI for fork PRs
+        id: fork
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          set -euo pipefail
+          echo 'skip=false' >> "$GITHUB_OUTPUT"
+          {
+            echo '# PR Stack CI Gate'
+            echo ''
+            echo '- Role: **fork**'
+            echo '- Result: **open**'
+            echo '- Reason: fork PRs always run immediately'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Fetch the compiled action from the exact commit this CI run tests.
+      - name: Check out stack gate from this CI commit
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: |
+            .github/actions/pr-stack-ci-gate/action.yml
+            .github/actions/pr-stack-ci-gate/dist/index.js
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Wait for previous stack CI
+        id: gate
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: ./.github/actions/pr-stack-ci-gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

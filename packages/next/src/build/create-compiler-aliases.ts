@@ -16,7 +16,8 @@ import {
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
 import { hasExternalOtelApiPackage } from './webpack-config'
-import { NEXT_PROJECT_ROOT } from './next-dir-paths'
+import { NEXT_PROJECT_ROOT, NEXT_PROJECT_ROOT_DIST } from './next-dir-paths'
+import { browserVariantModules } from './browser-variant-modules'
 import { shouldUseReactServerCondition } from './utils'
 
 interface CompilerAliases {
@@ -24,6 +25,17 @@ interface CompilerAliases {
 }
 
 const isReact19 = typeof React.use === 'function'
+
+/**
+ * Absolute path to the placeholder file that `private-next-instrumentation-client`
+ * resolves to. Its contents are replaced at build time by
+ * `next-instrumentation-client-loader` via a `module.rules` entry in
+ * `webpack-config.ts`.
+ */
+const INSTRUMENTATION_CLIENT_STUB_PATH = path.join(
+  NEXT_PROJECT_ROOT,
+  'dist/build/webpack/loaders/instrumentation-client-stub.js'
+)
 
 export function createWebpackAliases({
   distDir,
@@ -49,6 +61,11 @@ export function createWebpackAliases({
   const pageExtensions = config.pageExtensions
   const customAppAliases: CompilerAliases = {}
   const customDocumentAliases: CompilerAliases = {}
+  const isInstantNavigationTestingEnabled =
+    config.cacheComponents === true &&
+    (dev || config.experimental.exposeTestingApiInProductionBuild === true)
+  const isConcurrentRouterQueueEnabled =
+    config.experimental.concurrentRouterQueue === true
 
   // tell webpack where to look for _app and _document
   // using aliases to allow falling back to the default
@@ -138,7 +155,16 @@ export function createWebpackAliases({
     [ROOT_DIR_ALIAS]: dir,
     ...(isClient
       ? {
-          'private-next-instrumentation-client': [
+          // `private-next-instrumentation-client` resolves to a placeholder
+          // file whose contents are replaced at build time by
+          // `next-instrumentation-client-loader` (registered via a
+          // `module.rules` entry in webpack-config.ts). The emitted module lists
+          // each configured instrumentation module, followed by the user's
+          // `instrumentation-client.{pageExt}` file (resolved through the
+          // `private-next-instrumentation-client-user` alias below).
+          'private-next-instrumentation-client':
+            INSTRUMENTATION_CLIENT_STUB_PATH,
+          'private-next-instrumentation-client-user': [
             path.join(dir, 'src', 'instrumentation-client'),
             path.join(dir, 'instrumentation-client'),
             'private-next-empty-module',
@@ -146,6 +172,53 @@ export function createWebpackAliases({
 
           // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
           'private-next-empty-module': false as any,
+
+          // In the browser bundle, swap every module that has a `.browser` sibling
+          // (see browser-variant-modules.ts, generated from the filesystem) for that
+          // sibling. The default module holds the full server logic; bundling it would
+          // drag server-only modules into the client bundle. Server/edge compilers are
+          // not aliased and keep the default. The trailing `$` is an exact match so it
+          // cannot catch the `.browser.js` file itself.
+          ...Object.fromEntries(
+            browserVariantModules.map((moduleId) => [
+              path.join(NEXT_PROJECT_ROOT_DIST, `${moduleId}.js`) + '$',
+              `next/dist/${moduleId}.browser`,
+            ])
+          ),
+
+          // When the Instant Navigation Testing API is unavailable (Cache
+          // Components is disabled, or this is a production build without
+          // `experimental.exposeTestingApiInProductionBuild`), swap the
+          // navigation lock implementation for an inert shim so the testing
+          // machinery does not ship in the browser bundle. Same resolved-path
+          // matching as the browser-variant swap above.
+          ...(!isInstantNavigationTestingEnabled
+            ? {
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/components/segment-cache/navigation-testing-lock.js'
+                ) + '$']:
+                  'next/dist/client/components/segment-cache/navigation-testing-lock.disabled',
+              }
+            : {}),
+
+          // When `experimental.concurrentRouterQueue` is enabled, resolve the
+          // router's forked entry-point modules (the navigator interface and
+          // the callServer action door) to the concurrent implementations.
+          // Neither the interface module nor the sequential implementation is
+          // bundled at all. Same resolved-path matching as the swaps above.
+          ...(isConcurrentRouterQueueEnabled
+            ? {
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/components/navigator.js'
+                ) + '$']: 'next/dist/client/components/concurrent-router-queue',
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/app-call-server.js'
+                ) + '$']: 'next/dist/client/concurrent-call-server',
+              }
+            : {}),
         }
       : {}),
 

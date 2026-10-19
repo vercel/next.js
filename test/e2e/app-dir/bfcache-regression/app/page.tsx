@@ -11,9 +11,6 @@ export default function Page() {
       <button id="increment" onClick={() => setCount((c) => c + 1)}>
         Increment
       </button>
-      <p>
-        <a href="/target-page">MPA Link</a>
-      </p>
     </div>
   )
 }

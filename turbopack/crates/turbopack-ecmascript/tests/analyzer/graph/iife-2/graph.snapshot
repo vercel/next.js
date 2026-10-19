@@ -20,9 +20,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                0.0,
-                            ),
+                            0.0,
                         ),
                     ),
                 ),
@@ -112,7 +110,7 @@
         Object {
             total_nodes: 1,
             parts: [],
-            mutable: true,
+            mutability: Mutable,
         },
     ),
 ]

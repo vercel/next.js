@@ -1,0 +1,1 @@
+Keep the existing `/catalog?category=...` URLs. Prepare each category link's URL-specific heading and products before the click so selecting it can navigate immediately without showing the loading state. Do not make the click wait for a full server render.

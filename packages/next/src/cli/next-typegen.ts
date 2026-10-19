@@ -8,9 +8,11 @@ import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import { discoverRoutes } from '../build/route-discovery'
+import { parseBundlerArgs } from '../lib/bundler'
 
 import {
   createRouteTypesManifest,
@@ -23,13 +25,14 @@ import { installBindings } from '../build/swc/install-bindings'
 
 export type NextTypegenOptions = {
   dir?: string
+  webpack?: boolean
 }
 
-const nextTypegen = async (
-  _options: NextTypegenOptions,
-  directory?: string
-) => {
+const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
+  parseBundlerArgs(options)
+
   const baseDir = getProjectDir(directory)
+  warnMissingReactDependencies(baseDir)
 
   // Check if the provided directory exists
   if (!existsSync(baseDir)) {
@@ -55,8 +58,7 @@ const nextTypegen = async (
     hasPagesDir: !!pagesDir,
     appDir: appDir || undefined,
     pagesDir: pagesDir || undefined,
-    rootParams:
-      !!nextConfig.experimental.rootParams || !!nextConfig.cacheComponents,
+    useTypeScriptCli: Boolean(nextConfig.experimental.useTypeScriptCli),
   })
 
   console.log('Generating route types...')
@@ -117,8 +119,7 @@ const nextTypegen = async (
 
   await writeRootParamsTypes(
     routeTypesManifest,
-    join(distDir, 'types', 'root-params.d.ts'),
-    nextConfig
+    join(distDir, 'types', 'root-params.d.ts')
   )
 
   console.log('✓ Types generated successfully')

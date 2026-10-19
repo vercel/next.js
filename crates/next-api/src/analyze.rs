@@ -1,29 +1,329 @@
+mod groups;
+mod membership;
+
 use std::{borrow::Cow, io::Write};
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use byteorder::{BE, WriteBytesExt};
-use rustc_hash::FxHashMap;
+use either::Either;
+use membership::output_chunk_modules;
+use next_core::app_structure::FileSystemPathVec;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
+    FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString,
+    ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
 };
-use turbopack_analyze::split_chunk::split_output_asset_into_parts;
+use turbo_tasks_hash::hash_xxh3_hash64;
+use turbopack_analyze::split_chunk::{split_output_asset_into_parts, split_traced_file_into_parts};
+use turbopack_browser::ecmascript::EcmascriptBrowserChunk;
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
-    chunk::ChunkingType,
+    chunk::{ChunkingType, TracedMode},
     module::Module,
+    module_graph::{GraphTraversalAction, ModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference::all_assets_from_entries,
 };
+use turbopack_ecmascript::references::service_worker::ServiceWorkerEntryModule;
 
-use crate::route::ModuleGraphs;
+use crate::route::AnalyzeChunkGroups;
 
+const ANALYZE_SCHEMA_VERSION: u32 = 1;
+
+#[turbo_tasks::value]
+#[derive(Clone, Copy, Serialize)]
+pub struct BundleTotals {
+    pub size: u64,
+    pub compressed_size: u64,
+}
+
+#[turbo_tasks::value]
+#[derive(Clone, Copy, Serialize)]
+pub struct RouteBundleSummary {
+    pub size: u64,
+    pub compressed_size: u64,
+    pub client: BundleTotals,
+}
+
+#[derive(Serialize)]
+pub struct AnalyzeSource {
+    pub parent_source_index: Option<u32>,
+    /// Path. When there is a parent, this is concatenated to the parent's path.
+    /// Folders end with a slash. Might have multiple path segments when folders contain only a
+    /// single child.
+    pub path: RcStr,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Serialize)]
+pub struct AnalyzeModule {
+    pub ident: RcStr,
+    pub path: RcStr,
+}
+
+#[derive(Serialize)]
+pub struct AnalyzeChunkPart {
+    pub source_index: u32,
+    pub output_file_index: u32,
+    pub size: u32,
+    pub compressed_size: u32,
+}
+
+#[derive(Serialize)]
+pub struct AnalyzeOutputFile {
+    pub filename: RcStr,
+}
+
+/// Exact endpoint graph root. Client roles and references are build-time
+/// provenance; neither establishes that a browser requested a chunk.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Serialize)]
+pub struct AnalyzeRouteEntry {
+    pub route_entry_id: RcStr,
+    pub module_ident: RcStr,
+    pub module_path: RcStr,
+    pub role: RcStr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entry_kind: Option<RcStr>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub client_references: Vec<AnalyzeClientReferenceEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Serialize)]
+pub struct AnalyzeClientReferenceEntry {
+    pub module_ident: RcStr,
+    pub module_path: RcStr,
+    pub reference_kind: RcStr,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct AnalyzeRouteEntries(Vec<AnalyzeRouteEntry>);
+
+pub type AnalyzeGraphModule = ResolvedVc<Box<dyn Module>>;
+pub type AnalyzeSyncDependents = FxHashMap<AnalyzeGraphModule, Vec<AnalyzeGraphModule>>;
+pub type AnalyzeWorkerEntry = (AnalyzeGraphModule, ResolvedVc<ServiceWorkerEntryModule>);
+
+/// Snapshot-scoped module order shared by both artifact writers. Never regenerate
+/// indices independently from a route graph or use them across analyzer snapshots.
+#[turbo_tasks::value(shared)]
+pub struct AnalyzeModuleIndex {
+    pub modules: Vec<AnalyzeModule>,
+    pub by_ident: FxHashMap<RcStr, u32>,
+    /// Fingerprint of the exact ordered module identities serialized in modules.data.
+    pub module_index_hash: RcStr,
+    /// Cached once for the whole application, not rebuilt for each route.
+    pub sync_dependents: AnalyzeSyncDependents,
+    pub worker_entries: Vec<AnalyzeWorkerEntry>,
+}
+
+#[turbo_tasks::function]
+pub async fn analyze_module_index(module_graph: Vc<ModuleGraph>) -> Result<Vc<AnalyzeModuleIndex>> {
+    let mut all_modules = FxIndexSet::default();
+    let mut sync_dependents: AnalyzeSyncDependents = FxHashMap::default();
+    let mut registrations = FxIndexSet::default();
+    let graph = module_graph.await?;
+    graph.traverse_edges_dfs(
+        graph.all_entry_modules(),
+        &mut (),
+        |parent, node, _| {
+            all_modules.insert(node);
+            if let Some((importer, reference)) = parent {
+                if !matches!(
+                    reference.chunking_type,
+                    ChunkingType::Async | ChunkingType::Traced { .. }
+                ) {
+                    sync_dependents.entry(node).or_default().push(importer);
+                }
+                if let Some(marker) =
+                    ResolvedVc::try_downcast_type::<ServiceWorkerEntryModule>(node)
+                {
+                    registrations.insert((importer, marker));
+                }
+            }
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        true,
+        false,
+    )?;
+    let mut modules = Vec::with_capacity(all_modules.len());
+    let mut by_ident = FxHashMap::default();
+    let idents_and_paths = all_modules
+        .iter()
+        .copied()
+        .map(async |module| {
+            let ident = module.ident();
+            let ident_str = ident.to_string().owned().await?;
+            let path = ident.await?.path.to_string_ref().await?;
+            anyhow::Ok((ident_str, path))
+        })
+        .join()
+        .await;
+    for pair in idents_and_paths {
+        let (ident, path) = pair?;
+        if by_ident.contains_key(&ident) {
+            continue;
+        }
+        by_ident.insert(ident.clone(), modules.len() as u32);
+        modules.push(AnalyzeModule { ident, path });
+    }
+    let module_index_hash = format!(
+        "{:016x}",
+        hash_xxh3_hash64(
+            modules
+                .iter()
+                .map(|module| (module.ident.as_str(), module.path.as_str()))
+                .collect::<Vec<_>>()
+        )
+    )
+    .into();
+    Ok(AnalyzeModuleIndex {
+        modules,
+        by_ident,
+        module_index_hash,
+        sync_dependents,
+        worker_entries: registrations.into_iter().collect(),
+    }
+    .cell())
+}
+
+pub fn analyze_route_entry_id(
+    route: &str,
+    role: &str,
+    sub_name: &str,
+    module_ident: &str,
+) -> RcStr {
+    format!("{route}|{role}|{sub_name}|{module_ident}").into()
+}
+
+#[derive(Serialize)]
+struct EdgesDataReference {
+    pub offset: u32,
+    pub length: u32,
+}
+
+#[derive(Serialize)]
+struct AnalyzeDataHeader {
+    /// The header and modules.data must use the same supported schema version.
+    pub schema_version: u32,
+    pub module_index_hash: RcStr,
+    pub sources: Vec<AnalyzeSource>,
+    pub chunk_parts: Vec<AnalyzeChunkPart>,
+    pub output_files: Vec<AnalyzeOutputFile>,
+    /// Exact indices into this snapshot's modules.data.modules, one row per output file.
+    pub output_file_modules: EdgesDataReference,
+    pub output_file_async_loaders: EdgesDataReference,
+    pub output_file_module_coverage: Vec<AnalyzeOutputFileCoverage>,
+    pub chunk_groups: Vec<AnalyzeChunkGroupData>,
+    /// Exact endpoint roots; nested client references do not become roots.
+    pub route_entries: Vec<AnalyzeRouteEntry>,
+    /// Edges from chunks to chunk parts
+    pub output_file_chunk_parts: EdgesDataReference,
+    /// Edges from sources to chunk parts
+    pub source_chunk_parts: EdgesDataReference,
+    /// Edges from sources to their children sources
+    pub source_children: EdgesDataReference,
+    /// Root level sources, walking their children will reach all sources
+    pub source_roots: Vec<u32>,
+}
+
+#[derive(Serialize)]
+struct ModulesDataHeader {
+    /// The header and modules.data must use the same supported schema version.
+    pub schema_version: u32,
+    pub module_index_hash: RcStr,
+    pub modules: Vec<AnalyzeModule>,
+    /// Edges from modules to modules
+    pub module_dependents: EdgesDataReference,
+    /// Edges from modules to modules
+    pub async_module_dependents: EdgesDataReference,
+    /// Edges from modules to modules
+    pub traced_module_dependents: EdgesDataReference,
+    /// Edges from modules to modules
+    pub module_dependencies: EdgesDataReference,
+    /// Edges from modules to modules
+    pub async_module_dependencies: EdgesDataReference,
+    /// Edges from modules to modules
+    pub traced_module_dependencies: EdgesDataReference,
+}
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum AnalyzeOutputFileCoverage {
+    Exact,
+    Unsupported,
+    NotAChunk,
+}
+
+#[derive(Serialize)]
+struct AnalyzeChunkGroupData {
+    id: u32,
+    kind: RcStr,
+    /// Async groups identify the dynamically imported target, not a loader stub.
+    /// Other group kinds retain their explicitly selected trigger.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    trigger_module_index: Option<u32>,
+    /// Direct emitted output_file indices; group membership is not a claim that
+    /// an individual reference contributes every module in a cumulative group.
+    output_file_indices: Vec<u32>,
+}
+
+struct ChunkLoadCandidate {
+    source: u32,
+    target: ResolvedVc<Box<dyn OutputAsset>>,
+    /// The dynamically imported target, shared by loaders and manifests.
+    trigger_module_index: u32,
+}
+
+struct AnalyzeOutputFileBuilder {
+    output_file: AnalyzeOutputFile,
+    chunk_part_indices: Vec<u32>,
+    module_indices: Vec<u32>,
+    async_loader_indices: Vec<u32>,
+    module_coverage: AnalyzeOutputFileCoverage,
+}
+
+struct AnalyzeSourceBuilder {
+    source: AnalyzeSource,
+    child_source_indices: Vec<u32>,
+    chunk_part_indices: Vec<u32>,
+}
+
+struct AnalyzeModuleBuilder {
+    module: AnalyzeModule,
+    dependencies: FxIndexSet<u32>,
+    async_dependencies: FxIndexSet<u32>,
+    traced_dependencies: FxIndexSet<u32>,
+    dependents: FxIndexSet<u32>,
+    async_dependents: FxIndexSet<u32>,
+    traced_dependents: FxIndexSet<u32>,
+}
+
+struct AnalyzeDataBuilder {
+    sources: Vec<AnalyzeSourceBuilder>,
+    source_index_map: FxHashMap<RcStr, u32>,
+    chunk_parts: Vec<AnalyzeChunkPart>,
+    output_files: Vec<AnalyzeOutputFileBuilder>,
+    output_file_index_map: FxHashMap<RcStr, u32>,
+    route_entries: Vec<AnalyzeRouteEntry>,
+    module_index_hash: RcStr,
+    chunk_groups: Vec<AnalyzeChunkGroupData>,
+}
+
+struct ModulesDataBuilder {
+    modules: Vec<AnalyzeModuleBuilder>,
+    module_index_map: FxHashMap<RcStr, u32>,
+    module_index_hash: RcStr,
+}
+
+/// Shared row-offset encoding used by both analyzer artifacts.
 pub struct EdgesData {
     pub offsets: Vec<u32>,
     pub data: Vec<u32>,
@@ -57,99 +357,6 @@ impl EdgesData {
     }
 }
 
-#[derive(Serialize)]
-pub struct AnalyzeSource {
-    pub parent_source_index: Option<u32>,
-    /// Path. When there is a parent, this is concatenated to the parent's path.
-    /// Folders end with a slash. Might have multiple path segments when folders contain only a
-    /// single child.
-    pub path: RcStr,
-}
-
-#[derive(Serialize)]
-pub struct AnalyzeModule {
-    pub ident: RcStr,
-    pub path: RcStr,
-}
-
-#[derive(Serialize)]
-pub struct AnalyzeChunkPart {
-    pub source_index: u32,
-    pub output_file_index: u32,
-    pub size: u32,
-    pub compressed_size: u32,
-}
-
-#[derive(Serialize)]
-pub struct AnalyzeOutputFile {
-    pub filename: RcStr,
-}
-
-#[derive(Serialize)]
-struct EdgesDataReference {
-    pub offset: u32,
-    pub length: u32,
-}
-
-#[derive(Serialize)]
-struct AnalyzeDataHeader {
-    pub sources: Vec<AnalyzeSource>,
-    pub chunk_parts: Vec<AnalyzeChunkPart>,
-    pub output_files: Vec<AnalyzeOutputFile>,
-    /// Edges from chunks to chunk parts
-    pub output_file_chunk_parts: EdgesDataReference,
-    /// Edges from sources to chunk parts
-    pub source_chunk_parts: EdgesDataReference,
-    /// Edges from sources to their children sources
-    pub source_children: EdgesDataReference,
-    /// Root level sources, walking their children will reach all sources
-    pub source_roots: Vec<u32>,
-}
-
-#[derive(Serialize)]
-struct ModulesDataHeader {
-    pub modules: Vec<AnalyzeModule>,
-    /// Edges from modules to modules
-    pub module_dependents: EdgesDataReference,
-    /// Edges from modules to modules
-    pub async_module_dependents: EdgesDataReference,
-    /// Edges from modules to modules
-    pub module_dependencies: EdgesDataReference,
-    /// Edges from modules to modules
-    pub async_module_dependencies: EdgesDataReference,
-}
-
-struct AnalyzeOutputFileBuilder {
-    output_file: AnalyzeOutputFile,
-    chunk_part_indices: Vec<u32>,
-}
-
-struct AnalyzeSourceBuilder {
-    source: AnalyzeSource,
-    child_source_indices: Vec<u32>,
-    chunk_part_indices: Vec<u32>,
-}
-
-struct AnalyzeModuleBuilder {
-    module: AnalyzeModule,
-    dependencies: FxIndexSet<u32>,
-    async_dependencies: FxIndexSet<u32>,
-    dependents: FxIndexSet<u32>,
-    async_dependents: FxIndexSet<u32>,
-}
-
-struct AnalyzeDataBuilder {
-    sources: Vec<AnalyzeSourceBuilder>,
-    source_index_map: FxHashMap<RcStr, u32>,
-    chunk_parts: Vec<AnalyzeChunkPart>,
-    output_files: Vec<AnalyzeOutputFileBuilder>,
-}
-
-struct ModulesDataBuilder {
-    modules: Vec<AnalyzeModuleBuilder>,
-    module_index_map: FxHashMap<RcStr, u32>,
-}
-
 struct EdgesDataSectionBuilder {
     data: Vec<u8>,
 }
@@ -168,12 +375,16 @@ impl EdgesDataSectionBuilder {
 }
 
 impl AnalyzeDataBuilder {
-    fn new() -> Self {
+    fn new(route_entries: Vec<AnalyzeRouteEntry>, module_index_hash: RcStr) -> Self {
         Self {
+            module_index_hash,
             sources: vec![],
             source_index_map: FxHashMap::default(),
             chunk_parts: vec![],
             output_files: vec![],
+            output_file_index_map: FxHashMap::default(),
+            route_entries,
+            chunk_groups: vec![],
         }
     }
 
@@ -202,10 +413,18 @@ impl AnalyzeDataBuilder {
     }
 
     fn add_output_file(&mut self, output_file: AnalyzeOutputFile) -> u32 {
+        if let Some(&index) = self.output_file_index_map.get(&output_file.filename) {
+            return index;
+        }
         let i = self.output_files.len() as u32;
+        self.output_file_index_map
+            .insert(output_file.filename.clone(), i);
         self.output_files.push(AnalyzeOutputFileBuilder {
             output_file,
             chunk_part_indices: vec![],
+            module_indices: vec![],
+            async_loader_indices: vec![],
+            module_coverage: AnalyzeOutputFileCoverage::NotAChunk,
         });
         i
     }
@@ -220,6 +439,30 @@ impl AnalyzeDataBuilder {
         self.sources[source_index as usize]
             .chunk_part_indices
             .push(chunk_part_index);
+    }
+
+    /// Link the attributed sources into their directory hierarchy before
+    /// serializing the route artifact.
+    fn finish_sources(&mut self) {
+        let mut i: u32 = 0;
+        while i < self.sources.len().try_into().unwrap() {
+            let source = &self.sources[i as usize];
+            let path = source.source.path.as_str();
+            if !path.is_empty() {
+                let (parent_path, path) = if let Some(pos) = path.trim_end_matches('/').rfind('/') {
+                    (&path[..pos + 1], &path[pos + 1..])
+                } else {
+                    ("", path)
+                };
+                let parent_path = parent_path.to_string();
+                let path = path.into();
+                let (parent_source, parent_index) = self.ensure_source(&parent_path);
+                parent_source.child_source_indices.push(i);
+                self.sources[i as usize].source.parent_source_index = Some(parent_index);
+                self.sources[i as usize].source.path = path;
+            }
+            i += 1;
+        }
     }
 
     fn build(self) -> Rope {
@@ -244,17 +487,32 @@ impl AnalyzeDataBuilder {
 
         let output_file_chunk_parts =
             EdgesData::from_iterator(self.output_files.iter().map(|of| &of.chunk_part_indices));
+        let output_file_modules =
+            EdgesData::from_iterator(self.output_files.iter().map(|of| &of.module_indices));
 
+        let output_file_async_loaders =
+            EdgesData::from_iterator(self.output_files.iter().map(|of| &of.async_loader_indices));
         let mut binary_section = EdgesDataSectionBuilder::new();
 
         let header = AnalyzeDataHeader {
+            schema_version: ANALYZE_SCHEMA_VERSION,
+            module_index_hash: self.module_index_hash,
             sources: self.sources.into_iter().map(|s| s.source).collect(),
             chunk_parts: self.chunk_parts,
+            output_file_module_coverage: self
+                .output_files
+                .iter()
+                .map(|of| of.module_coverage)
+                .collect(),
+            output_file_modules: binary_section.add_edges(&output_file_modules),
+            output_file_async_loaders: binary_section.add_edges(&output_file_async_loaders),
             output_files: self
                 .output_files
                 .into_iter()
                 .map(|of| of.output_file)
                 .collect(),
+            chunk_groups: self.chunk_groups,
+            route_entries: self.route_entries,
             output_file_chunk_parts: binary_section.add_edges(&output_file_chunk_parts),
             source_chunk_parts: binary_section.add_edges(&source_chunk_parts),
             source_children: binary_section.add_edges(&source_children),
@@ -273,8 +531,9 @@ impl AnalyzeDataBuilder {
 }
 
 impl ModulesDataBuilder {
-    fn new() -> Self {
+    fn new(module_index_hash: RcStr) -> Self {
         Self {
+            module_index_hash,
             modules: vec![],
             module_index_map: FxHashMap::default(),
         }
@@ -299,8 +558,10 @@ impl ModulesDataBuilder {
             module: AnalyzeModule { ident, path },
             dependencies: FxIndexSet::default(),
             async_dependencies: FxIndexSet::default(),
+            traced_dependencies: FxIndexSet::default(),
             dependents: FxIndexSet::default(),
             async_dependents: FxIndexSet::default(),
+            traced_dependents: FxIndexSet::default(),
         });
         (&mut self.modules[index as usize], index)
     }
@@ -316,6 +577,11 @@ impl ModulesDataBuilder {
             .iter()
             .map(|s| s.async_dependencies.iter().copied().collect())
             .collect();
+        let traced_module_dependencies_vecs: Vec<Vec<u32>> = self
+            .modules
+            .iter()
+            .map(|s| s.traced_dependencies.iter().copied().collect())
+            .collect();
         let module_dependents_vecs: Vec<Vec<u32>> = self
             .modules
             .iter()
@@ -326,20 +592,31 @@ impl ModulesDataBuilder {
             .iter()
             .map(|s| s.async_dependents.iter().copied().collect())
             .collect();
+        let traced_module_dependents_vecs: Vec<Vec<u32>> = self
+            .modules
+            .iter()
+            .map(|s| s.traced_dependents.iter().copied().collect())
+            .collect();
 
         let module_dependencies = EdgesData::from_iterator(&module_dependencies_vecs);
         let async_module_dependencies = EdgesData::from_iterator(&async_module_dependencies_vecs);
+        let traced_module_dependencies = EdgesData::from_iterator(&traced_module_dependencies_vecs);
         let module_dependents = EdgesData::from_iterator(&module_dependents_vecs);
         let async_module_dependents = EdgesData::from_iterator(&async_module_dependents_vecs);
+        let traced_module_dependents = EdgesData::from_iterator(&traced_module_dependents_vecs);
 
         let mut binary_section = EdgesDataSectionBuilder::new();
 
         let header = ModulesDataHeader {
+            schema_version: ANALYZE_SCHEMA_VERSION,
+            module_index_hash: self.module_index_hash,
             modules: self.modules.into_iter().map(|s| s.module).collect(),
             module_dependents: binary_section.add_edges(&module_dependents),
             async_module_dependents: binary_section.add_edges(&async_module_dependents),
+            traced_module_dependents: binary_section.add_edges(&traced_module_dependents),
             module_dependencies: binary_section.add_edges(&module_dependencies),
             async_module_dependencies: binary_section.add_edges(&async_module_dependencies),
+            traced_module_dependencies: binary_section.add_edges(&traced_module_dependencies),
         };
 
         let header_json = serde_json::to_vec(&header).unwrap();
@@ -366,29 +643,122 @@ pub async fn combine_output_assets(
     Ok(Vc::cell(combined))
 }
 
+/// Merges two sets of traced modules into one. Used to combine per-route traced
+/// modules with shared modules (e.g. `_app`, `_document`) at report generation time.
 #[turbo_tasks::function]
-pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc<FileContent>> {
-    let output_assets = all_assets_from_entries(output_assets);
+pub async fn combine_traced_files(
+    primary: Vc<FileSystemPathVec>,
+    extra: Vc<FileSystemPathVec>,
+) -> Result<Vc<FileSystemPathVec>> {
+    let mut combined: Vec<FileSystemPath> = primary.await?.iter().cloned().collect();
+    combined.extend(extra.await?.iter().cloned());
+    Ok(Vc::cell(combined))
+}
 
-    let mut builder = AnalyzeDataBuilder::new();
+#[turbo_tasks::value]
+pub struct AnalyzedRoute {
+    pub content: ResolvedVc<FileContent>,
+    pub summary: RouteBundleSummary,
+}
+
+#[turbo_tasks::value_impl]
+impl AnalyzedRoute {
+    #[turbo_tasks::function]
+    fn file_content(&self) -> Vc<FileContent> {
+        *self.content
+    }
+}
+
+#[turbo_tasks::function]
+pub async fn analyze_output_assets(
+    output_assets: Vc<OutputAssets>,
+    traced_files: Vc<FileSystemPathVec>,
+    route_entries: Vc<AnalyzeRouteEntries>,
+    chunk_groups: Vc<AnalyzeChunkGroups>,
+    module_graph: Vc<ModuleGraph>,
+) -> Result<Vc<AnalyzedRoute>> {
+    let output_assets = all_assets_from_entries(output_assets);
+    let mut summary = RouteBundleSummary {
+        size: 0,
+        compressed_size: 0,
+        client: BundleTotals {
+            size: 0,
+            compressed_size: 0,
+        },
+    };
+    let route_entries = route_entries.await?.iter().cloned().collect();
+    let module_index = analyze_module_index(module_graph).await?;
+
+    let mut builder =
+        AnalyzeDataBuilder::new(route_entries, module_index.module_index_hash.clone());
+    let mut asset_indices: FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, Vec<u32>> =
+        FxHashMap::default();
+    let mut candidates = Vec::new();
+    let mut browser_chunks = FxHashSet::default();
 
     let prefix = format!("{SOURCE_URL_PROTOCOL}///");
 
     // Process the output assets and extract chunk parts.
     // Also creates sources for the chunk parts.
-    for &asset in output_assets.await? {
-        let filename = asset.path().to_string().owned().await?;
-        if filename.ends_with(".map") || filename.ends_with(".nft.json") {
+    for asset in output_assets
+        .await?
+        .iter()
+        .copied()
+        .map(Either::Left)
+        .chain(traced_files.await?.iter().cloned().map(Either::Right))
+    {
+        let file_system_path = match &asset {
+            Either::Left(asset) => Either::Left(asset.path().await?),
+            Either::Right(path) => Either::Right(path),
+        };
+        let path = match &file_system_path {
+            Either::Left(path) => &path.path,
+            Either::Right(path) => &path.path,
+        };
+        if path.ends_with(".map") || path.ends_with(".nft.json") {
             // Skip source maps.
             continue;
         }
 
-        let output_file_index = builder.add_output_file(AnalyzeOutputFile { filename });
-        let chunk_parts = split_output_asset_into_parts(*asset).await?;
-        for chunk_part in chunk_parts {
+        let filename = match &file_system_path {
+            Either::Left(path) => path.to_string_ref().await?,
+            Either::Right(path) => path.to_string_ref().await?,
+        };
+
+        let is_client = filename.starts_with("[client-fs]/");
+        let output_file_index = builder.add_output_file(AnalyzeOutputFile {
+            filename: filename.clone(),
+        });
+        if let Either::Left(asset) = &asset {
+            asset_indices
+                .entry(*asset)
+                .or_default()
+                .push(output_file_index);
+            if ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(*asset).is_some() {
+                browser_chunks.insert(output_file_index);
+            }
+            let (indices, coverage, loads, async_loaders) =
+                output_chunk_modules(*asset, &filename, &module_index, output_file_index).await?;
+            candidates.extend(loads);
+            let file = &mut builder.output_files[output_file_index as usize];
+            file.module_indices.extend(indices);
+            file.module_indices.sort_unstable();
+            file.module_indices.dedup();
+            file.async_loader_indices.extend(async_loaders);
+            file.async_loader_indices.sort_unstable();
+            file.async_loader_indices.dedup();
+            file.module_coverage = coverage;
+        }
+        let chunk_parts = match asset {
+            Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
+            Either::Right(path) => split_traced_file_into_parts(path).await?,
+        };
+        for chunk_part in &chunk_parts {
             let decoded_source = urlencoding::decode(&chunk_part.source)?;
             let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
                 Cow::Borrowed(stripped)
+            } else if decoded_source.starts_with('[') && decoded_source.contains("]/") {
+                decoded_source
             } else {
                 Cow::Owned(format!(
                     "[project]/{}",
@@ -396,67 +766,96 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
                 ))
             };
             let source_index = builder.ensure_source(&source).1;
+            let size = chunk_part.real_size + chunk_part.unaccounted_size;
+            let compressed_size = chunk_part.get_compressed_size().await?.unwrap_or(size);
+            summary.size += u64::from(size);
+            summary.compressed_size += u64::from(compressed_size);
+            if is_client {
+                summary.client.size += u64::from(size);
+                summary.client.compressed_size += u64::from(compressed_size);
+            }
             let chunk_part_index = builder.add_chunk_part(AnalyzeChunkPart {
                 source_index,
                 output_file_index,
-                size: chunk_part.real_size + chunk_part.unaccounted_size,
-                compressed_size: chunk_part.get_compressed_size().await?,
+                size,
+                compressed_size,
             });
             builder.add_chunk_part_to_output_file(output_file_index, chunk_part_index);
             builder.add_chunk_part_to_source(source_index, chunk_part_index);
         }
     }
 
-    // Build a directory structure for the sources.
-    let mut i: u32 = 0;
-    while i < builder.sources.len().try_into().unwrap() {
-        let source = &builder.sources[i as usize];
-        let path = source.source.path.as_str();
-        if !path.is_empty() {
-            let (parent_path, path) = if let Some(pos) = path.trim_end_matches('/').rfind('/') {
-                (&path[..pos + 1], &path[pos + 1..])
-            } else {
-                ("", path)
-            };
-            let parent_path = parent_path.to_string();
-            let path = path.into();
-            let (parent_source, parent_index) = builder.ensure_source(&parent_path);
-            parent_source.child_source_indices.push(i);
-            builder.sources[i as usize].source.parent_source_index = Some(parent_index);
-            builder.sources[i as usize].source.path = path;
-        }
-        i += 1;
-    }
+    groups::collect_groups(
+        &mut builder,
+        candidates,
+        &asset_indices,
+        chunk_groups,
+        &module_index,
+        &browser_chunks,
+    )
+    .await?;
+
+    builder.finish_sources();
 
     let rope = builder.build();
-    Ok(FileContent::Content(File::from(rope)).cell())
+    Ok(AnalyzedRoute {
+        content: FileContent::Content(File::from(rope))
+            .cell()
+            .to_resolved()
+            .await?,
+        summary,
+    }
+    .cell())
 }
 
 #[turbo_tasks::function]
-pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc<FileContent>> {
-    let mut builder = ModulesDataBuilder::new();
+pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<FileContent>> {
+    let module_index = analyze_module_index(module_graph).await?;
+    let mut builder = ModulesDataBuilder::new(module_index.module_index_hash.clone());
 
-    let mut all_modules = FxIndexSet::default();
     let mut all_edges = FxIndexSet::default();
     let mut all_async_edges = FxIndexSet::default();
-    for &module_graph in module_graphs.await? {
-        let module_graph = module_graph.await?;
-        module_graph.traverse_edges_unordered(|parent, node| {
-            if let Some((parent_node, reference)) = parent {
-                all_modules.insert(parent_node);
-                all_modules.insert(node);
-                match reference.chunking_type {
-                    ChunkingType::Async => {
-                        all_async_edges.insert((parent_node, node));
-                    }
-                    _ => {
-                        all_edges.insert((parent_node, node));
-                    }
+    let mut all_traced_edges = FxIndexSet::default();
+    let mut traced_modules = FxHashSet::default();
+
+    let module_graph = module_graph.await?;
+    module_graph.traverse_edges_dfs(
+        module_graph.all_entry_modules(),
+        &mut (),
+        |parent, node, _| {
+            let Some((parent_node, reference)) = parent else {
+                return Ok(GraphTraversalAction::Continue);
+            };
+
+            // ChunkingType::Traced{TracedMode::Entry}     => target is always traced
+            // ChunkingType::Traced{TracedMode::Transitive}=> target only traced if parent is traced
+            // ChunkingType::*                             => target only traced if parent is traced
+            if matches!(
+                reference.chunking_type,
+                ChunkingType::Traced {
+                    mode: TracedMode::Entry
+                }
+            ) || traced_modules.contains(&parent_node)
+            {
+                traced_modules.insert(node);
+                all_traced_edges.insert((parent_node, node));
+                return Ok(GraphTraversalAction::Continue);
+            };
+
+            match reference.chunking_type {
+                ChunkingType::Async => {
+                    all_async_edges.insert((parent_node, node));
+                }
+                _ => {
+                    all_edges.insert((parent_node, node));
                 }
             }
-            Ok(())
-        })?;
-    }
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        true,
+        false,
+    )?;
 
     type ModulePair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
     async fn mapper((from, to): ModulePair) -> Result<Option<(RcStr, RcStr)>> {
@@ -468,19 +867,8 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
         Ok(Some((from_ident, to_ident)))
     }
 
-    let all_modules = all_modules
-        .iter()
-        .copied()
-        .map(async |module| {
-            let ident = module.ident().to_string().owned().await?;
-            let path = module.ident().await?.path.to_string_ref().await?;
-            Ok((ident, path))
-        })
-        .try_join()
-        .await?;
-
-    for (ident, path) in all_modules {
-        builder.ensure_module(&ident, &path);
+    for module in &module_index.modules {
+        builder.ensure_module(&module.ident, &module.path);
     }
 
     let all_edges = all_edges
@@ -490,6 +878,12 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
         .try_flat_join()
         .await?;
     let all_async_edges = all_async_edges
+        .iter()
+        .copied()
+        .map(mapper)
+        .try_flat_join()
+        .await?;
+    let all_traced_edges = all_traced_edges
         .iter()
         .copied()
         .map(mapper)
@@ -521,6 +915,19 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
             .async_dependents
             .insert(from_index);
     }
+    for (from_ident, to_ident) in all_traced_edges {
+        let from_index = builder.get_module(&from_ident).1;
+        let to_index = builder.get_module(&to_ident).1;
+        if from_index == to_index {
+            continue;
+        }
+        builder.modules[from_index as usize]
+            .traced_dependencies
+            .insert(to_index);
+        builder.modules[to_index as usize]
+            .traced_dependents
+            .insert(from_index);
+    }
 
     let rope = builder.build();
     Ok(FileContent::Content(File::from(rope)).cell())
@@ -530,6 +937,10 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
 pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
     pub output_assets: ResolvedVc<OutputAssets>,
+    pub traced_files: ResolvedVc<FileSystemPathVec>,
+    pub route_entries: ResolvedVc<AnalyzeRouteEntries>,
+    pub chunk_groups: ResolvedVc<AnalyzeChunkGroups>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::value_impl]
@@ -538,10 +949,18 @@ impl AnalyzeDataOutputAsset {
     pub async fn new(
         path: FileSystemPath,
         output_assets: ResolvedVc<OutputAssets>,
+        traced_files: ResolvedVc<FileSystemPathVec>,
+        route_entries: ResolvedVc<AnalyzeRouteEntries>,
+        chunk_groups: ResolvedVc<AnalyzeChunkGroups>,
+        module_graph: ResolvedVc<ModuleGraph>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
             output_assets,
+            traced_files,
+            route_entries,
+            chunk_groups,
+            module_graph,
         }
         .cell())
     }
@@ -551,7 +970,14 @@ impl AnalyzeDataOutputAsset {
 impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_output_assets(*self.output_assets);
+        let file_content = analyze_output_assets(
+            *self.output_assets,
+            *self.traced_files,
+            *self.route_entries,
+            *self.chunk_groups,
+            *self.module_graph,
+        )
+        .file_content();
         AssetContent::file(file_content)
     }
 }
@@ -570,18 +996,17 @@ impl OutputAsset for AnalyzeDataOutputAsset {
 #[turbo_tasks::value]
 pub struct ModulesDataOutputAsset {
     pub path: FileSystemPath,
-    pub module_graphs: ResolvedVc<ModuleGraphs>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModulesDataOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(path: FileSystemPath, module_graphs: Vc<ModuleGraphs>) -> Result<Vc<Self>> {
-        Ok(Self {
-            path,
-            module_graphs: module_graphs.to_resolved().await?,
-        }
-        .cell())
+    pub async fn new(
+        path: FileSystemPath,
+        module_graph: ResolvedVc<ModuleGraph>,
+    ) -> Result<Vc<Self>> {
+        Ok(Self { path, module_graph }.cell())
     }
 }
 
@@ -589,7 +1014,7 @@ impl ModulesDataOutputAsset {
 impl Asset for ModulesDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        let file_content = analyze_module_graphs(*self.module_graphs);
+        let file_content = analyze_module_graphs(*self.module_graph);
         AssetContent::file(file_content)
     }
 }

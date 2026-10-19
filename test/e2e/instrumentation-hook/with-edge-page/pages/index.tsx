@@ -1,11 +1,14 @@
 export default function Page() {
-  return <p>Edge</p>
+  return (
+    <h1>
+      {`Page Edge instrumentationFinished=${(globalThis as any).instrumentationFinished}`}
+    </h1>
+  )
 }
 
-export function getServerSideProps() {
-  return {
-    props: {},
-  }
+// force dynamic rendering
+export async function getServerSideProps() {
+  return { props: {} }
 }
 
 export const config = {

@@ -1,7 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 import { fetchViaHTTP } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
@@ -15,7 +14,7 @@ describe('Middleware base tests', () => {
   })
 
   it('should execute from absolute paths', async () => {
-    const browser = await webdriver(next.url, '/redirect-with-basepath')
+    const browser = await next.browser('/redirect-with-basepath')
     try {
       expect(await browser.eval(`window.location.pathname`)).toBe(
         '/root/redirect-with-basepath'
@@ -31,7 +30,7 @@ describe('Middleware base tests', () => {
   })
 
   it('router.query must exist when Link clicked page routing', async () => {
-    const browser = await webdriver(next.url, '/root')
+    const browser = await next.browser('/root')
     try {
       await browser.elementById('go-to-hello-world-anchor').click()
       const routeName = await browser.elementById('route-name').text()
@@ -42,7 +41,7 @@ describe('Middleware base tests', () => {
   })
 
   it('should allow client-side navigation to the root', async () => {
-    const browser = await webdriver(next.url, '/root/other')
+    const browser = await next.browser('/root/other')
     try {
       await browser.elementById('go-to-home').click()
       const title = await browser.waitForElementByCss('.title').text()

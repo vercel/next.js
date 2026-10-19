@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getCommonMetadataHeadTags } from './utils'
+import {
+  getCommonMetadataHeadTags,
+  readFixtureBuffer,
+  readFixtureText,
+} from './utils'
 
 describe('metadata-files-static-output-root-route', () => {
   if (process.env.__NEXT_CACHE_COMPONENTS) {
@@ -10,12 +14,12 @@ describe('metadata-files-static-output-root-route', () => {
     // This prevents the page from being prerendered, leading to a slower user experience.
     //
     // Ways to fix this:
-    //   - Use a static metadata export instead of `generateMetadata()`
-    //   - Cache the metadata with `"use cache"` in `generateMetadata()`
-    //   - Add a dynamic data access (e.g. `await connection()`) to the page to render it at request time
-    //   - Set `export const instant = false` to allow a blocking route
+    //   - [static] Use a static metadata export instead of `generateMetadata()`
+    //   - [cache] Cache the metadata with `"use cache"` in `generateMetadata()`
+    //   - [dynamic] Render a marker component that calls `await connection()` inside `<Suspense>` on the page
+    //   - [block] Set `export const instant = false` to allow a blocking route
     //
-    // Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+    // Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic
     // Error occurred prerendering page "/dynamic/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
     // Export encountered an error on /dynamic/[id]/page: /dynamic/[id], exiting the build.
     //
@@ -26,7 +30,6 @@ describe('metadata-files-static-output-root-route', () => {
 
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -69,10 +72,10 @@ describe('metadata-files-static-output-root-route', () => {
     // Compare response content with actual files
     const [actualFavicon, actualManifest, actualRobots, actualSitemap] =
       await Promise.all([
-        next.readFileBuffer('app/favicon.ico'),
-        next.readFile('app/manifest.json'),
-        next.readFile('app/robots.txt'),
-        next.readFile('app/sitemap.xml'),
+        readFixtureBuffer('app/favicon.ico'),
+        readFixtureText('app/manifest.json'),
+        readFixtureText('app/robots.txt'),
+        readFixtureText('app/sitemap.xml'),
       ])
 
     expect({

@@ -7,7 +7,7 @@ import { join } from 'path'
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      lodash: 'latest',
+      lodash: '4.18.1',
       'webpack-bundle-analyzer': 'latest',
     },
   })

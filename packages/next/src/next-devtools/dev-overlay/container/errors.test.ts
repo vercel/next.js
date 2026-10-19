@@ -1,4 +1,13 @@
 import {
+  createRuntimeBodyErrorInStaticRoute,
+  createDynamicBodyErrorInStaticRoute,
+  createNonPrerenderableBodyErrorInStaticRoute,
+  createRuntimeMetadataErrorInStaticRoute,
+  createDynamicMetadataErrorInStaticRoute,
+  createNonPrerenderableMetadataErrorInStaticRoute,
+  createRuntimeViewportErrorInStaticRoute,
+  createDynamicViewportErrorInStaticRoute,
+  createNonPrerenderableViewportErrorInStaticRoute,
   createDynamicBodyError,
   createDynamicBodyErrorInNavigation,
   createDynamicMetadataError,
@@ -10,6 +19,15 @@ import {
   createRuntimeBodyErrorInNavigation,
   createRuntimeMetadataError,
   createRuntimeViewportError,
+  createLinkBodyErrorInNavigation,
+  createLinkMetadataError,
+  createLinkViewportError,
+  createNavigationBodyErrorInNavigation,
+  createPrefetchBodyErrorInNavigation,
+  createNavigationMetadataError,
+  createPrefetchMetadataError,
+  createNavigationViewportError,
+  createPrefetchViewportError,
 } from '../../../server/app-render/blocking-route-messages'
 import {
   createSyncIOClientError,
@@ -17,46 +35,209 @@ import {
   createSyncIORuntimeError,
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
+import { ClientHookDynamicError } from '../../../server/dynamic-rendering-utils'
 import {
+  CACHE_STAGE_METADATA_EXPLANATION,
+  CACHE_STAGE_VIEWPORT_EXPLANATION,
+  getCards,
+  getStaticRouteDocsUrl,
+} from '../components/instant/instant-guidance-data'
+import {
+  deriveCauseFromCodeFrame,
   getBlockingRouteErrorDetails,
-  isRuntimeVariant,
+  getErrorTypeLabel,
+  getLinkPrefetchPartialErrorDetails,
+  getUnrenderedSegmentErrorDetails,
+  isInstantNavigationError,
+  getGuidanceVariant,
   isSyncIOClientError,
   isSyncIOError,
 } from './errors'
 
 const ROUTE = '/example'
 
-describe('isRuntimeVariant', () => {
-  it('returns true for runtime body factory output', () => {
-    expect(isRuntimeVariant(createRuntimeBodyError(ROUTE).message)).toBe(true)
+describe('getErrorTypeLabel', () => {
+  function getLabel(instance: Error) {
+    const details = getBlockingRouteErrorDetails(instance)
+    if (!details) {
+      throw new Error('Expected Instant Insight details')
+    }
+    return getErrorTypeLabel(instance, 'runtime', details)
+  }
+
+  it('labels warning-only validation messages as Instant', () => {
+    expect(getLabel(createNavigationMetadataError(ROUTE))).toBe('Instant')
+    expect(getLabel(createPrefetchMetadataError(ROUTE))).toBe('Instant')
+    expect(getLabel(createNavigationViewportError(ROUTE))).toBe('Instant')
+    expect(getLabel(createPrefetchViewportError(ROUTE))).toBe('Instant')
+    expect(getLabel(createLinkBodyErrorInNavigation(ROUTE))).toBe('Instant')
   })
 
-  it('returns false for dynamic body factory output', () => {
-    expect(isRuntimeVariant(createDynamicBodyError(ROUTE).message)).toBe(false)
+  it('labels prerender failures as Blocking Route', () => {
+    expect(getLabel(createRuntimeMetadataError(ROUTE))).toBe('Blocking Route')
+    expect(getLabel(createRuntimeViewportError(ROUTE))).toBe('Blocking Route')
+  })
+})
+
+describe('navigation stage Insight messages', () => {
+  it.each([
+    {
+      error: () => createNavigationMetadataError(ROUTE),
+      detail:
+        "Metadata can already stream without blocking the route's UI, so delaying it until navigation may be unintentional.",
+      fix: '[remove] Remove `navigation()` from `generateMetadata()`',
+      secondFix:
+        '[mark] Render a marker component that calls `await navigation()` inside `<Suspense>` on the page',
+      docs: 'instant-navigation-stage-metadata',
+      explanation:
+        'Metadata can already stream, so delaying it may be unintentional.',
+    },
+    {
+      error: () => createPrefetchMetadataError(ROUTE),
+      detail:
+        "Metadata can already stream without blocking the route's UI, so delaying it until a per-link prefetch or navigation may be unintentional.",
+      fix: '[remove] Remove `prefetch()` from `generateMetadata()`',
+      secondFix:
+        '[mark] Render a marker component that calls `await prefetch()` inside `<Suspense>` on the page',
+      docs: 'instant-navigation-stage-metadata',
+      explanation:
+        'Metadata can already stream, so delaying it may be unintentional.',
+    },
+    {
+      error: () => createNavigationViewportError(ROUTE),
+      detail:
+        'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
+      fix: '[remove] Remove `navigation()` from `generateViewport()`',
+      secondFix:
+        '[ignore] Set `export const instant = false` to disable validation for this segment',
+      docs: 'instant-navigation-stage-viewport',
+      explanation:
+        'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
+    },
+    {
+      error: () => createPrefetchViewportError(ROUTE),
+      detail:
+        'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
+      fix: '[remove] Remove `prefetch()` from `generateViewport()`',
+      secondFix:
+        '[ignore] Set `export const instant = false` to disable validation for this segment',
+      docs: 'instant-navigation-stage-viewport',
+      explanation:
+        'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
+    },
+  ])(
+    'keeps the stage behavior and dedicated docs link',
+    ({ error, detail, fix, secondFix, docs, explanation }) => {
+      const instance = error()
+      expect(instance.message).toContain(detail)
+      expect(instance.message).toContain(fix)
+      expect(instance.message).toContain(secondFix)
+      expect(instance.message).toContain(
+        `Learn more: https://nextjs.org/docs/messages/${docs}`
+      )
+      expect(getBlockingRouteErrorDetails(instance)).toMatchObject({
+        explanation,
+      })
+    }
+  )
+})
+
+describe('getGuidanceVariant', () => {
+  describe('classifies runtime messages as runtime', () => {
+    it.each([
+      { description: 'body', error: () => createRuntimeBodyError(ROUTE) },
+      {
+        description: 'body in navigation',
+        error: () => createRuntimeBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createRuntimeMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createRuntimeViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('runtime')
+    })
   })
 
-  it('returns true for runtime metadata factory output', () => {
-    expect(isRuntimeVariant(createRuntimeMetadataError(ROUTE).message)).toBe(
-      true
-    )
+  describe('classifies link messages as link', () => {
+    it.each([
+      {
+        description: 'body',
+        error: () => createLinkBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createLinkMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createLinkViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('link')
+    })
   })
 
-  it('returns false for dynamic metadata factory output', () => {
-    expect(isRuntimeVariant(createDynamicMetadataError(ROUTE).message)).toBe(
-      false
-    )
+  describe('classifies navigation messages as navigation', () => {
+    it.each([
+      {
+        description: 'body',
+        error: () => createNavigationBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createNavigationMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createNavigationViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('navigation')
+    })
   })
 
-  it('returns true for runtime viewport factory output', () => {
-    expect(isRuntimeVariant(createRuntimeViewportError(ROUTE).message)).toBe(
-      true
-    )
+  describe('classifies prefetch messages as prefetch', () => {
+    it.each([
+      {
+        description: 'body',
+        error: () => createPrefetchBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createPrefetchMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createPrefetchViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('prefetch')
+    })
   })
 
-  it('returns false for dynamic viewport factory output', () => {
-    expect(isRuntimeVariant(createDynamicViewportError(ROUTE).message)).toBe(
-      false
-    )
+  describe('classifies dynamic messages as dynamic', () => {
+    it.each([
+      { description: 'body', error: () => createDynamicBodyError(ROUTE) },
+      {
+        description: 'body in navigation',
+        error: () => createDynamicBodyErrorInNavigation(ROUTE),
+      },
+      {
+        description: 'metadata',
+        error: () => createDynamicMetadataError(ROUTE),
+      },
+      {
+        description: 'viewport',
+        error: () => createDynamicViewportError(ROUTE),
+      },
+    ])('$description', ({ error }) => {
+      expect(getGuidanceVariant(error().message)).toBe('dynamic')
+    })
   })
 })
 
@@ -122,6 +303,28 @@ describe('isSyncIOClientError', () => {
 })
 
 describe('getBlockingRouteErrorDetails', () => {
+  it('classifies client hook errors separately', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ClientHookDynamicError(ROUTE, 'useSearchParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useSearchParams()',
+    })
+  })
+
+  it('classifies useParams() client hook errors', () => {
+    expect(
+      getBlockingRouteErrorDetails(
+        new ClientHookDynamicError(ROUTE, 'useParams()')
+      )
+    ).toEqual({
+      type: 'client-hook',
+      expression: 'useParams()',
+    })
+  })
+
   it('classifies createRuntimeBodyError as blocking-route + runtime (SSR-only)', () => {
     expect(getBlockingRouteErrorDetails(createRuntimeBodyError(ROUTE))).toEqual(
       { type: 'blocking-route', variant: 'runtime', inNavigation: false }
@@ -154,6 +357,36 @@ describe('getBlockingRouteErrorDetails', () => {
     })
   })
 
+  it('classifies createLinkBodyErrorInNavigation as blocking-route + link + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createLinkBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'link',
+      inNavigation: true,
+    })
+  })
+
+  it('classifies createNavigationBodyErrorInNavigation as blocking-route + navigation + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createNavigationBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'navigation',
+      inNavigation: true,
+    })
+  })
+
+  it('classifies createPrefetchBodyErrorInNavigation as blocking-route + prefetch + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createPrefetchBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'prefetch',
+      inNavigation: true,
+    })
+  })
+
   it('classifies createDynamicOrRuntimeBodyError as blocking-route + dynamic (SSR-only)', () => {
     // The "either" factory has no clear runtime signal — falls into the
     // dynamic branch by `isRuntimeVariant`. Documents current behavior.
@@ -172,6 +405,32 @@ describe('getBlockingRouteErrorDetails', () => {
     ).toEqual({ type: 'dynamic-metadata', variant: 'runtime' })
   })
 
+  it('classifies createLinkMetadataError as dynamic-metadata + link', () => {
+    expect(
+      getBlockingRouteErrorDetails(createLinkMetadataError(ROUTE))
+    ).toEqual({ type: 'dynamic-metadata', variant: 'link' })
+  })
+
+  it('classifies createNavigationMetadataError as dynamic-metadata + navigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createNavigationMetadataError(ROUTE))
+    ).toEqual({
+      type: 'dynamic-metadata',
+      variant: 'navigation',
+      explanation: CACHE_STAGE_METADATA_EXPLANATION,
+    })
+  })
+
+  it('classifies createPrefetchMetadataError as dynamic-metadata + prefetch', () => {
+    expect(
+      getBlockingRouteErrorDetails(createPrefetchMetadataError(ROUTE))
+    ).toEqual({
+      type: 'dynamic-metadata',
+      variant: 'prefetch',
+      explanation: CACHE_STAGE_METADATA_EXPLANATION,
+    })
+  })
+
   it('classifies createDynamicMetadataError as dynamic-metadata + dynamic', () => {
     expect(
       getBlockingRouteErrorDetails(createDynamicMetadataError(ROUTE))
@@ -188,6 +447,32 @@ describe('getBlockingRouteErrorDetails', () => {
     expect(
       getBlockingRouteErrorDetails(createRuntimeViewportError(ROUTE))
     ).toEqual({ type: 'dynamic-viewport', variant: 'runtime' })
+  })
+
+  it('classifies createLinkViewportError as dynamic-viewport + link', () => {
+    expect(
+      getBlockingRouteErrorDetails(createLinkViewportError(ROUTE))
+    ).toEqual({ type: 'dynamic-viewport', variant: 'link' })
+  })
+
+  it('classifies createNavigationViewportError as dynamic-viewport + navigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createNavigationViewportError(ROUTE))
+    ).toEqual({
+      type: 'dynamic-viewport',
+      variant: 'navigation',
+      explanation: CACHE_STAGE_VIEWPORT_EXPLANATION,
+    })
+  })
+
+  it('classifies createPrefetchViewportError as dynamic-viewport + prefetch', () => {
+    expect(
+      getBlockingRouteErrorDetails(createPrefetchViewportError(ROUTE))
+    ).toEqual({
+      type: 'dynamic-viewport',
+      variant: 'prefetch',
+      explanation: CACHE_STAGE_VIEWPORT_EXPLANATION,
+    })
   })
 
   it('classifies createDynamicViewportError as dynamic-viewport + dynamic', () => {
@@ -252,4 +537,535 @@ describe('getBlockingRouteErrorDetails', () => {
   it('returns null for an unrelated error', () => {
     expect(getBlockingRouteErrorDetails(new Error('regular bug'))).toBe(null)
   })
+})
+
+describe('client hook guidance', () => {
+  it('shows Stream and Block cards for useSearchParams', () => {
+    const cards = getCards('client-hook', 'runtime', 'useSearchParams()')
+    expect(cards.map((card) => card.id)).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'allow-blocking-route',
+    ])
+    expect(cards.map((card) => card.group)).toEqual(['stream', 'block'])
+  })
+
+  it('shows Stream and Block cards for useParams', () => {
+    const cards = getCards('client-hook', 'runtime', 'useParams()')
+    expect(cards.map((card) => card.id)).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'allow-blocking-route',
+    ])
+    expect(cards.map((card) => card.group)).toEqual(['stream', 'block'])
+  })
+
+  it('shows Stream and Block cards for hooks (no GSP)', () => {
+    const expected = ['wrap-in-or-move-into-suspense', 'allow-blocking-route']
+    expect(
+      getCards('client-hook', 'runtime', 'usePathname()').map((c) => c.id)
+    ).toEqual(expected)
+    expect(
+      getCards('client-hook', 'runtime', 'useSelectedLayoutSegment()').map(
+        (c) => c.id
+      )
+    ).toEqual(expected)
+    expect(
+      getCards('client-hook', 'runtime', 'useSelectedLayoutSegments()').map(
+        (c) => c.id
+      )
+    ).toEqual(expected)
+  })
+})
+
+describe('card sets for all error families', () => {
+  it('blocking-route runtime', () => {
+    expect(
+      getCards('blocking-route', 'runtime').map((card) => card.id)
+    ).toEqual(['wrap-in-or-move-into-suspense', 'allow-blocking-route'])
+  })
+
+  it('blocking-route dynamic', () => {
+    expect(
+      getCards('blocking-route', 'dynamic').map((card) => card.id)
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'cache-the-component-or-data',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('blocking-route dynamic with connection() drops the cache card', () => {
+    expect(
+      getCards('blocking-route', 'dynamic', 'connection').map((card) => card.id)
+    ).toEqual(['wrap-in-or-move-into-suspense', 'allow-blocking-route'])
+  })
+
+  it('metadata runtime', () => {
+    expect(getCards('metadata', 'runtime').map((card) => card.id)).toEqual([
+      'use-static-metadata',
+      'mark-the-route-as-dynamic',
+    ])
+  })
+
+  it.each(['prefetch', 'navigation'] as const)('metadata %s', (variant) => {
+    const cards = getCards('metadata', variant)
+    expect(cards.map((card) => card.id)).toEqual([
+      'remove-the-api-call',
+      'confirm-the-metadata-delay',
+    ])
+    expect(cards[0]).toMatchObject({
+      title: 'Remove the API call',
+      group: 'remove',
+    })
+    expect(cards[1]).toMatchObject({
+      title: 'Confirm the metadata delay',
+      group: 'mark',
+    })
+    expect(cards[0].snippets).toContainEqual({
+      text: `-  await ${variant}()`,
+      highlight: true,
+    })
+    expect(cards[1].snippets).toContainEqual({
+      text: `await ${variant}()`,
+      highlight: true,
+    })
+  })
+
+  it('metadata dynamic', () => {
+    expect(getCards('metadata', 'dynamic').map((card) => card.id)).toEqual([
+      'cache-the-metadata',
+      'mark-the-route-as-dynamic',
+    ])
+  })
+
+  it('metadata dynamic with connection() drops the cache card', () => {
+    expect(
+      getCards('metadata', 'dynamic', 'connection').map((card) => card.id)
+    ).toEqual(['mark-the-route-as-dynamic'])
+  })
+
+  it('viewport runtime', () => {
+    expect(getCards('viewport', 'runtime').map((card) => card.id)).toEqual([
+      'use-static-viewport',
+      'allow-blocking-route',
+    ])
+  })
+
+  it.each(['prefetch', 'navigation'] as const)('viewport %s', (variant) => {
+    const cards = getCards('viewport', variant)
+    expect(cards.map((card) => card.id)).toEqual([
+      'remove-the-api-call',
+      'disable-validation-on-this-route',
+    ])
+    expect(cards[0].snippets).toContainEqual({
+      text: `-  await ${variant}()`,
+      highlight: true,
+    })
+  })
+
+  it('viewport dynamic', () => {
+    expect(getCards('viewport', 'dynamic').map((card) => card.id)).toEqual([
+      'cache-the-viewport-data',
+      'allow-blocking-route',
+    ])
+  })
+
+  it('viewport dynamic with connection() drops the cache card', () => {
+    expect(
+      getCards('viewport', 'dynamic', 'connection').map((card) => card.id)
+    ).toEqual(['allow-blocking-route'])
+  })
+
+  it('unrendered-segment', () => {
+    expect(
+      getCards('unrendered-segment', 'runtime').map((card) => card.id)
+    ).toEqual(['render-the-dropped-segment', 'skip-validation-on-the-segment'])
+  })
+
+  it('link-prefetch-partial', () => {
+    expect(
+      getCards('link-prefetch-partial', 'runtime').map((card) => card.id)
+    ).toEqual([
+      'opt-into-partial-prefetching',
+      'use-the-default-prefetch',
+      'disable-validation-on-this-route',
+    ])
+  })
+
+  it('sync-io math', () => {
+    expect(
+      getCards('sync-io', 'runtime', 'Math.random()').map((card) => card.id)
+    ).toEqual([
+      'render-at-request-time',
+      'cache-the-random-value',
+      'render-on-the-client',
+    ])
+  })
+
+  it('sync-io date', () => {
+    expect(
+      getCards('sync-io', 'runtime', 'Date.now()').map((card) => card.id)
+    ).toEqual([
+      'render-at-request-time',
+      'cache-the-timestamp',
+      'render-on-the-client',
+      'measure-elapsed-time',
+    ])
+  })
+
+  it('sync-io crypto', () => {
+    expect(
+      getCards('sync-io', 'runtime', 'crypto.randomUUID()').map(
+        (card) => card.id
+      )
+    ).toEqual([
+      'render-at-request-time',
+      'cache-the-generated-value',
+      'render-on-the-client',
+    ])
+  })
+
+  it('sync-io-client math', () => {
+    expect(
+      getCards('sync-io-client', 'runtime', 'Math.random()').map(
+        (card) => card.id
+      )
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'move-into-effect-or-event-handler',
+    ])
+  })
+
+  it('sync-io-client date', () => {
+    expect(
+      getCards('sync-io-client', 'runtime', 'Date.now()').map((card) => card.id)
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'move-into-effect-or-event-handler',
+      'measure-elapsed-time',
+    ])
+  })
+
+  it('sync-io-client crypto', () => {
+    expect(
+      getCards('sync-io-client', 'runtime', 'crypto.randomUUID()').map(
+        (card) => card.id
+      )
+    ).toEqual([
+      'wrap-in-or-move-into-suspense',
+      'move-into-effect-or-event-handler',
+    ])
+  })
+})
+
+describe('getUnrenderedSegmentErrorDetails', () => {
+  function createUnrenderedSegmentError(
+    route: string,
+    files: string[] = []
+  ): Error {
+    let message = `Route "${route}": Could not validate that a segment in your UI has instant navigation.`
+    if (files.length > 0) {
+      const label = files.length === 1 ? 'Dropped segment' : 'Dropped segments'
+      message +=
+        `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
+        `\n\n${label}:\n${files.map((p) => `  ${p}`).join('\n')}` +
+        `\n\nWays to fix this:` +
+        `\n  - [render] Render the dropped segment` +
+        `\n  - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation` +
+        `\n\nLearn more: https://nextjs.org/docs/messages/instant-unrendered-segment`
+    }
+    return new Error(message)
+  }
+
+  it('parses route and a single unrendered segment file', () => {
+    const error = createUnrenderedSegmentError(ROUTE, ['app/example/page.tsx'])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: ['app/example/page.tsx'],
+    })
+  })
+
+  it('parses route and multiple unrendered segment files', () => {
+    const error = createUnrenderedSegmentError(ROUTE, [
+      'app/example/@sidebar/page.tsx',
+      'app/example/page.tsx',
+    ])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: ['app/example/@sidebar/page.tsx', 'app/example/page.tsx'],
+    })
+  })
+
+  it('parses route with no segment list (defensive — framework currently always emits one)', () => {
+    const error = createUnrenderedSegmentError(ROUTE, [])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: [],
+    })
+  })
+
+  it('returns null when the headline substring is absent', () => {
+    expect(getUnrenderedSegmentErrorDetails(new Error('regular bug'))).toBe(
+      null
+    )
+  })
+
+  it('returns null when the headline matches but the route prefix is missing', () => {
+    expect(
+      getUnrenderedSegmentErrorDetails(
+        new Error(
+          'Could not validate that a segment in your UI has instant navigation.'
+        )
+      )
+    ).toBe(null)
+  })
+})
+
+describe('getLinkPrefetchPartialErrorDetails', () => {
+  function createLinkPrefetchPartialError(pathname: string): Error {
+    return new Error(
+      `Next.js encountered dynamic data during prefetching for "${pathname}".\n\n` +
+        `This will lead to slower, more expensive prefetches.`
+    )
+  }
+
+  it('parses the pathname', () => {
+    expect(
+      getLinkPrefetchPartialErrorDetails(
+        createLinkPrefetchPartialError('/dashboard')
+      )
+    ).toEqual({
+      type: 'link-prefetch-partial',
+      pathname: '/dashboard',
+    })
+  })
+
+  it('returns null for an unrelated error', () => {
+    expect(getLinkPrefetchPartialErrorDetails(new Error('regular bug'))).toBe(
+      null
+    )
+  })
+
+  it('returns null when the headline matches but the prefix is wrong', () => {
+    expect(
+      getLinkPrefetchPartialErrorDetails(
+        new Error(
+          'Some preamble: Next.js encountered dynamic data during prefetching for "/x".'
+        )
+      )
+    ).toBe(null)
+  })
+})
+
+describe('isInstantNavigationError', () => {
+  function createUnrenderedSegmentError(route: string): Error {
+    return new Error(
+      `Route "${route}": Could not validate that a segment in your UI has instant navigation.\n\nDropped segment:\n  app/example/page.tsx`
+    )
+  }
+
+  it('returns true for navigation-phase blocking-route errors', () => {
+    expect(
+      isInstantNavigationError(createRuntimeBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+    expect(
+      isInstantNavigationError(createDynamicBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+    expect(
+      isInstantNavigationError(createLinkBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+  })
+
+  it('returns true for unrendered-segment errors', () => {
+    expect(isInstantNavigationError(createUnrenderedSegmentError(ROUTE))).toBe(
+      true
+    )
+  })
+
+  it('returns true for link-prefetch-partial warnings', () => {
+    const error = new Error(
+      `Next.js encountered dynamic data during prefetching for "/dashboard".`
+    )
+    expect(isInstantNavigationError(error)).toBe(true)
+  })
+
+  it('returns true for prefetch and navigation in metadata and viewport', () => {
+    expect(isInstantNavigationError(createNavigationMetadataError(ROUTE))).toBe(
+      true
+    )
+    expect(isInstantNavigationError(createPrefetchMetadataError(ROUTE))).toBe(
+      true
+    )
+    expect(isInstantNavigationError(createNavigationViewportError(ROUTE))).toBe(
+      true
+    )
+    expect(isInstantNavigationError(createPrefetchViewportError(ROUTE))).toBe(
+      true
+    )
+  })
+
+  it('returns false for prerender-phase blocking-route errors', () => {
+    expect(isInstantNavigationError(createRuntimeBodyError(ROUTE))).toBe(false)
+    expect(isInstantNavigationError(createDynamicBodyError(ROUTE))).toBe(false)
+  })
+
+  it('returns false for blocking metadata/viewport/sync-io errors', () => {
+    expect(isInstantNavigationError(createDynamicMetadataError(ROUTE))).toBe(
+      false
+    )
+    expect(isInstantNavigationError(createRuntimeViewportError(ROUTE))).toBe(
+      false
+    )
+    expect(
+      isInstantNavigationError(
+        createSyncIOError(ROUTE, 'Math.random()', 'random')
+      )
+    ).toBe(false)
+  })
+
+  it('returns false for unrelated errors', () => {
+    expect(isInstantNavigationError(new Error('regular bug'))).toBe(false)
+  })
+})
+
+describe('deriveCauseFromCodeFrame', () => {
+  const connectionFrame = `  3 | export default async function Page() {\n> 4 |   await connection();\n    |                   ^\n  5 |   return <p>OK</p>;`
+  const fetchFrame = `  1 | export default async function Page() {\n> 2 |   const r = await fetch("/api");\n    |                     ^\n  3 |   return <p>{r.status}</p>;`
+
+  it('returns "connection" when the highlighted line calls connection()', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', connectionFrame)
+    ).toBe('connection')
+    expect(
+      deriveCauseFromCodeFrame('metadata', 'dynamic', connectionFrame)
+    ).toBe('connection')
+    expect(
+      deriveCauseFromCodeFrame('viewport', 'dynamic', connectionFrame)
+    ).toBe('connection')
+  })
+
+  it('returns undefined when the highlighted line is a fetch/db call', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', fetchFrame)
+    ).toBeUndefined()
+  })
+
+  it('returns undefined for runtime variant even if connection() is in scope', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'runtime', connectionFrame)
+    ).toBeUndefined()
+  })
+
+  it('returns undefined for kinds that do not show a cache card', () => {
+    expect(
+      deriveCauseFromCodeFrame('client-hook', 'dynamic', connectionFrame)
+    ).toBeUndefined()
+    expect(
+      deriveCauseFromCodeFrame('sync-io', 'dynamic', connectionFrame)
+    ).toBeUndefined()
+  })
+
+  it('returns undefined when there is no code frame', () => {
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', null)
+    ).toBeUndefined()
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', undefined)
+    ).toBeUndefined()
+  })
+
+  it('does not match when connection() appears only in a non-highlighted line', () => {
+    const frame = `  1 | import { connection } from "next/server";\n> 2 |   await fetch("/api");\n    |         ^`
+    expect(
+      deriveCauseFromCodeFrame('blocking-route', 'dynamic', frame)
+    ).toBeUndefined()
+  })
+})
+
+describe('fully static route errors', () => {
+  const runtimeDataExplanation =
+    'This route is configured to be fully static, but runtime data from `cookies()`, `headers()`, `params`, `searchParams`, or a short-lived cache requires rendering at request time.'
+  const uncachedDataExplanation =
+    'This route is configured to be fully static, but an uncached `fetch(...)`, database call, or `connection()` requires rendering at request time.'
+  const combinedDataExplanation =
+    'This route is configured to be fully static, but some data requires rendering at request time.'
+
+  it.each([
+    [createRuntimeBodyErrorInStaticRoute, runtimeDataExplanation],
+    [createDynamicBodyErrorInStaticRoute, uncachedDataExplanation],
+    [createNonPrerenderableBodyErrorInStaticRoute, combinedDataExplanation],
+    [createRuntimeMetadataErrorInStaticRoute, runtimeDataExplanation],
+    [createDynamicMetadataErrorInStaticRoute, uncachedDataExplanation],
+    [createNonPrerenderableMetadataErrorInStaticRoute, combinedDataExplanation],
+    [createRuntimeViewportErrorInStaticRoute, runtimeDataExplanation],
+    [createDynamicViewportErrorInStaticRoute, uncachedDataExplanation],
+    [createNonPrerenderableViewportErrorInStaticRoute, combinedDataExplanation],
+  ] as const)(
+    'preserves the primary guidance for %p',
+    (createError, explanation) => {
+      expect(createError(ROUTE).message.split('\n\n')[1]).toBe(explanation)
+    }
+  )
+
+  it.each([
+    [createRuntimeBodyErrorInStaticRoute, 'static-route', 'runtime'],
+    [createDynamicBodyErrorInStaticRoute, 'static-route', 'dynamic'],
+    [createNonPrerenderableBodyErrorInStaticRoute, 'static-route', 'dynamic'],
+    [createRuntimeMetadataErrorInStaticRoute, 'static-metadata', 'runtime'],
+    [createDynamicMetadataErrorInStaticRoute, 'static-metadata', 'dynamic'],
+    [
+      createNonPrerenderableMetadataErrorInStaticRoute,
+      'static-metadata',
+      'dynamic',
+    ],
+    [createRuntimeViewportErrorInStaticRoute, 'static-viewport', 'runtime'],
+    [createDynamicViewportErrorInStaticRoute, 'static-viewport', 'dynamic'],
+    [
+      createNonPrerenderableViewportErrorInStaticRoute,
+      'static-viewport',
+      'dynamic',
+    ],
+  ] as const)('classifies %p as %s (%s)', (createError, kind, variant) => {
+    const error = createError(ROUTE)
+    expect(getBlockingRouteErrorDetails(error)).toEqual({
+      type: 'static-route',
+      kind,
+      variant,
+      headline: error.message.split('\n')[0].replace(`Route "${ROUTE}": `, ''),
+    })
+    // This is a build constraint, not optional instant-navigation validation.
+    expect(isInstantNavigationError(error)).toBe(false)
+    const cards = getCards(kind, variant)
+    expect(cards.length).toBeGreaterThan(0)
+    expect(cards.map((card) => card.group)).not.toContain('stream')
+    expect(cards.map((card) => card.group)).not.toContain('block')
+    expect(cards.map((card) => card.group)).toEqual(
+      Array.from(
+        error.message.matchAll(/^\s*-\s*\[([a-z-]+)\]/gm),
+        (match) => match[1]
+      )
+    )
+    for (const card of cards) {
+      expect(card.link?.split('#')[0]).toBe(
+        getStaticRouteDocsUrl(kind, variant)
+      )
+    }
+  })
+
+  it.each(['static-route', 'static-metadata', 'static-viewport'] as const)(
+    'filters the cache card for connection() in %s',
+    (kind) => {
+      const cause = deriveCauseFromCodeFrame(
+        kind,
+        'dynamic',
+        '> 4 | await connection()'
+      )
+      expect(cause).toBe('connection')
+      expect(
+        getCards(kind, 'dynamic', cause).map((card) => card.group)
+      ).not.toContain('cache')
+    }
+  )
 })

@@ -6,7 +6,7 @@ import {
 
 import { Activity } from 'react'
 import { BuildError } from '../../../container/build-error'
-import { Errors } from '../../../container/errors'
+import { Errors, isInstantNavigationError } from '../../../container/errors'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 import type { HydrationErrorState } from '../../../../shared/hydration-error'
@@ -60,18 +60,30 @@ export function ErrorOverlay({
     )
   }
 
-  // No Runtime Errors.
-  if (!runtimeErrors.length) {
+  // No runtime errors or upgrade insight to display.
+  if (!runtimeErrors.length && !state.hasVulnerabilityInsight) {
     return null
   }
+
+  // Compute a key that resets tab state when the error composition changes
+  // (e.g., normal errors resolve leaving only instant errors).
+  const hasNormal = runtimeErrors.some(
+    (e) => !isInstantNavigationError(e.error)
+  )
+  const hasInstant = runtimeErrors.some((e) =>
+    isInstantNavigationError(e.error)
+  )
+  const tabKey = `${hasNormal ? 'n' : ''}${hasInstant ? 'i' : ''}`
 
   return (
     <Activity mode={mounted ? 'visible' : 'hidden'}>
       <Errors
+        key={tabKey}
         {...commonProps}
         debugInfo={state.debugInfo}
         getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
         runtimeErrors={runtimeErrors}
+        hasVulnerabilityInsight={state.hasVulnerabilityInsight}
         onClose={() => {
           dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
         }}

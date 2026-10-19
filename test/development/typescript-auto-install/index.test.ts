@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, renderViaHTTP } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
 
 describe('typescript-auto-install', () => {
@@ -31,7 +30,7 @@ describe('typescript-auto-install', () => {
   })
 
   it('should detect TypeScript being added and auto setup', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     const pageContent = await next.readFile('pages/index.js')
 
     await check(

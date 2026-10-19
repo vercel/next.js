@@ -17,7 +17,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -102,12 +103,11 @@ impl NextDynamicGraphs {
                 let result = self
                     .0
                     .iter()
-                    .map(|graph| async move {
+                    .map(async |graph| {
                         Ok(graph
                             .get_next_dynamic_imports_for_endpoint(entry)
                             .await?
                             .into_iter()
-                            .map(|(k, v)| (*k, *v))
                             // TODO remove this collect and return an iterator instead
                             .collect::<Vec<_>>())
                     })
@@ -170,7 +170,7 @@ impl NextDynamicGraph {
                 }
                 Either::Left(std::iter::once(entry))
             } else {
-                Either::Right(graph.graphs.first().unwrap().entry_modules())
+                Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
             };
 
             let mut result = vec![];
@@ -226,6 +226,8 @@ impl NextDynamicGraph {
                     })
                 },
                 |_, _, _| Ok(()),
+                false,
+                false,
             )?;
             Ok(Vc::cell(result))
         }
@@ -257,9 +259,8 @@ impl ServerActionsGraphs {
         let server_actions = async {
             graphs_ref
                 .iter()
-                .map(|graph| {
-                    ServerActionsGraph::new_with_entries(graph.connect(), is_single_page)
-                        .to_resolved()
+                .map(|&graph| {
+                    ServerActionsGraph::new_with_entries(graph, is_single_page).to_resolved()
                 })
                 .try_join()
                 .await
@@ -300,11 +301,10 @@ impl ServerActionsGraphs {
                 let result = self
                     .0
                     .iter()
-                    .map(|graph| async move {
+                    .map(|graph| {
                         graph
                             .get_server_actions_for_endpoint(entry, rsc_asset_context)
                             .owned()
-                            .await
                     })
                     .try_flat_join()
                     .await?;
@@ -321,14 +321,14 @@ impl ServerActionsGraphs {
 impl ServerActionsGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<ModuleGraphLayer>,
+        graph: OperationVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_server_actions(*graph);
+        let mapped = map_server_actions(graph);
 
         Ok(ServerActionsGraph {
             is_single_page,
-            graph,
+            graph: graph.connect().to_resolved().await?,
             data: mapped.to_resolved().await?,
         }
         .cell())
@@ -372,7 +372,7 @@ impl ServerActionsGraph {
 
             let actions = data
                 .iter()
-                .map(|(module, (layer, actions))| async move {
+                .map(async |(module, (layer, actions))| {
                     let actions = actions.await?;
                     actions
                         .actions
@@ -557,7 +557,7 @@ impl ClientReferencesGraph {
                 }
                 Either::Left(std::iter::once(entry))
             } else {
-                Either::Right(graph.graphs.first().unwrap().entry_modules())
+                Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
             };
 
             // Because we care about 'evaluation order' we need to collect client references in the
@@ -772,7 +772,7 @@ async fn validate_pages_css_imports_individual(
     graph: ResolvedVc<ModuleGraphLayer>,
     is_single_page: bool,
     entry: Vc<Box<dyn Module>>,
-    app_module: ResolvedVc<Box<dyn Module>>,
+    app_module_path: FileSystemPath,
 ) -> Result<()> {
     let graph = graph.await?;
     let entry = entry.to_resolved().await?;
@@ -784,7 +784,7 @@ async fn validate_pages_css_imports_individual(
         }
         Either::Left(std::iter::once(entry))
     } else {
-        Either::Right(graph.graphs.first().unwrap().entry_modules())
+        Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
     };
 
     let mut candidates = vec![];
@@ -801,11 +801,6 @@ async fn validate_pages_css_imports_individual(
                 return Ok(GraphTraversalAction::Continue);
             };
             let parent_module = parent_node;
-
-            // Importing CSS from _app.js is always allowed.
-            if parent_module == app_module {
-                return Ok(GraphTraversalAction::Continue);
-            }
 
             // If the module being imported isn't a global css module, there is nothing to
             // validate.
@@ -825,21 +820,24 @@ async fn validate_pages_css_imports_individual(
                 return Ok(GraphTraversalAction::Continue);
             }
 
-            // If all of the above invariants have been checked, we look to see if the parent
-            // module is the same as the app module. If it isn't we know it
-            // isn't a valid place to import global css.
-            if parent_module != app_module {
-                candidates.push(CssGlobalImportIssue::new(parent_module, module))
-            }
+            candidates.push(CssGlobalImportIssue::new(parent_module, module));
 
             Ok(GraphTraversalAction::Continue)
         },
         |_, _, _| Ok(()),
+        false,
+        false,
     )?;
 
     candidates
         .into_iter()
         .map(async |issue| {
+            // We allow the app module to import global CSS, but it may be split into multiple
+            // modules, so exempt references by path.
+            if issue.parent_module.ident().await?.path == app_module_path {
+                return Ok(None);
+            }
+
             let ident = issue.module.ident().await?;
             let path = &ident.path;
             // We allow imports of global CSS files which are inside of `node_modules`.
@@ -874,7 +872,7 @@ pub async fn validate_pages_css_imports(
     graph: Vc<ModuleGraph>,
     is_single_page: bool,
     entry: Vc<Box<dyn Module>>,
-    app_module: Vc<Box<dyn Module>>,
+    app_module_path: FileSystemPath,
 ) -> Result<()> {
     let graphs = graph.iter_graphs().await?;
     graphs
@@ -884,7 +882,7 @@ pub async fn validate_pages_css_imports(
                 graph.connect(),
                 is_single_page,
                 entry,
-                app_module,
+                app_module_path.clone(),
             )
             .as_side_effect()
         })

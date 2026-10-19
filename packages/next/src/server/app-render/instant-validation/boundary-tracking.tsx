@@ -10,9 +10,12 @@ export type ValidationBoundaryTracking = {
   renderedIds: Set<string>
 }
 
-export function createValidationBoundaryTracking(): ValidationBoundaryTracking {
+export function createValidationBoundaryTracking(
+  /** Pass if the render is expected to render the same IDs as a previous one. */
+  matchPrevious?: ValidationBoundaryTracking
+): ValidationBoundaryTracking {
   return {
-    requiredIds: new Map(),
+    requiredIds: matchPrevious ? new Map(matchPrevious.requiredIds) : new Map(),
     renderedIds: new Set(),
   }
 }

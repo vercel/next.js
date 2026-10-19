@@ -6,9 +6,7 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            TotalOrderF64(
-                                1.0,
-                            ),
+                            1.0,
                         ),
                     ),
                 ),
@@ -63,6 +61,7 @@
             ),
         ],
         span: 39..63,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -115,6 +114,7 @@
             ),
         ],
         span: 50..62,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "global",
@@ -213,6 +213,7 @@
             ),
         ],
         span: 100..116,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -265,6 +266,7 @@
             ),
         ],
         span: 103..115,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "global",
@@ -325,9 +327,7 @@
         prop: Constant(
             Num(
                 ConstantNumber(
-                    TotalOrderF64(
-                        1.0,
-                    ),
+                    1.0,
                 ),
             ),
         ),
@@ -359,6 +359,7 @@
             ),
         ],
         span: 129..134,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -370,9 +371,7 @@
         prop: Constant(
             Num(
                 ConstantNumber(
-                    TotalOrderF64(
-                        2.0,
-                    ),
+                    2.0,
                 ),
             ),
         ),
@@ -404,5 +403,6 @@
             ),
         ],
         span: 147..152,
+        in_truthiness_context: false,
     },
 ]

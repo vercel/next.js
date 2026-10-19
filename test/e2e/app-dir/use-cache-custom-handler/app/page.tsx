@@ -1,5 +1,11 @@
 import { Suspense } from 'react'
-import { cacheLife, cacheTag, revalidatePath, updateTag } from 'next/cache'
+import {
+  cacheLife,
+  cacheTag,
+  revalidatePath,
+  revalidateTag,
+  updateTag,
+} from 'next/cache'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import React from 'react'
@@ -58,6 +64,17 @@ export default async function Home() {
           }}
         >
           Revalidate Tag & Redirect
+        </button>{' '}
+        <button
+          id="revalidate-multiple-profiles"
+          formAction={async () => {
+            'use server'
+
+            updateTag('modern')
+            revalidateTag('other', { expire: 0 })
+          }}
+        >
+          Revalidate Tags With Different Profiles
         </button>
       </form>
     </main>

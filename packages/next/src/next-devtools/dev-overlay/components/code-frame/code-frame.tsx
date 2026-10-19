@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { getStackFrameFile, type StackFrame } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
-import { ExternalIcon } from '../../icons/external'
 import { FileIcon } from '../../icons/file'
+import { CodeFrameShell } from './code-frame-shell'
 import {
   formatCodeFrame,
   groupCodeFrameLines,
@@ -35,14 +35,9 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 
   const fileExtension = stackFrame?.file?.split('.').pop()
   return (
-    <div data-nextjs-codeframe>
-      <div className="code-frame-header">
-        {/* TODO: This is <div> in `Terminal` component.
-        Changing now will require multiple test snapshots updates.
-        Leaving as <div> as is trivial and does not affect the UI.
-        Change when the new redbox matcher `toDisplayRedbox` is used.
-        */}
-        <p className="code-frame-link">
+    <CodeFrameShell
+      header={
+        <>
           <span className="code-frame-icon">
             <FileIcon lang={fileExtension} />
           </span>
@@ -50,54 +45,45 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             {getStackFrameFile(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
-          <button
-            aria-label="Open in editor"
-            data-with-open-in-editor-link-source-file
-            onClick={open}
-          >
-            <ExternalIcon />
-          </button>
-        </p>
-      </div>
-      <pre className="code-frame-pre">
-        <div className="code-frame-lines">
-          {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
-            const { lineNumber, isErroredLine } = parsedLine
+        </>
+      }
+      onOpen={open}
+    >
+      {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
+        const { lineNumber, isErroredLine } = parsedLine
 
-            const lineNumberProps: Record<string, string | boolean> = {}
-            if (lineNumber) {
-              lineNumberProps['data-nextjs-codeframe-line'] = lineNumber
-            }
-            if (isErroredLine) {
-              lineNumberProps['data-nextjs-codeframe-line--errored'] = true
-            }
+        const lineNumberProps: Record<string, string | boolean> = {}
+        if (lineNumber) {
+          lineNumberProps['data-nextjs-codeframe-line'] = lineNumber
+        }
+        if (isErroredLine) {
+          lineNumberProps['data-nextjs-codeframe-line--errored'] = true
+        }
 
-            return (
-              <div key={`line-${lineIndex}`} {...lineNumberProps}>
-                {line.map((entry, entryIndex) => (
-                  <span
-                    key={`frame-${entryIndex}`}
-                    style={{
-                      color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-                      ...(entry.decoration === 'bold'
-                        ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
-                          // having longer width than expected on Geist Mono font-weight
-                          // above 600, hence a temporary fix is to use 500 for bold.
-                          { fontWeight: 500 }
-                        : entry.decoration === 'italic'
-                          ? { fontStyle: 'italic' }
-                          : undefined),
-                    }}
-                  >
-                    {entry.content}
-                  </span>
-                ))}
-              </div>
-            )
-          })}
-        </div>
-      </pre>
-    </div>
+        return (
+          <div key={`line-${lineIndex}`} {...lineNumberProps}>
+            {line.map((entry, entryIndex) => (
+              <span
+                key={`frame-${entryIndex}`}
+                style={{
+                  color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                  ...(entry.decoration === 'bold'
+                    ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                      // having longer width than expected on Geist Mono font-weight
+                      // above 600, hence a temporary fix is to use 500 for bold.
+                      { fontWeight: 500 }
+                    : entry.decoration === 'italic'
+                      ? { fontStyle: 'italic' }
+                      : undefined),
+                }}
+              >
+                {entry.content}
+              </span>
+            ))}
+          </div>
+        )
+      })}
+    </CodeFrameShell>
   )
 }
 
@@ -142,11 +128,6 @@ export const CODE_FRAME_STYLES = `
     flex-shrink: 0;
   }
 
-  [data-with-open-in-editor-link-source-file] svg {
-    width: var(--size-14);
-    height: var(--size-14);
-  }
-
   .code-frame-lines {
     min-width: max-content;
   }
@@ -154,6 +135,8 @@ export const CODE_FRAME_STYLES = `
   .code-frame-link [data-text] {
     font-size: var(--size-12);
     text-align: left;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .code-frame-header {
@@ -163,27 +146,7 @@ export const CODE_FRAME_STYLES = `
   }
 
   [data-with-open-in-editor-link-source-file] {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--size-24);
-    height: var(--size-24);
-    padding: 4px;
     margin-left: auto;
-    border-radius: var(--rounded-full);
-
-    &:focus-visible {
-      outline: var(--focus-ring);
-      outline-offset: -2px;
-    }
-
-    &:hover {
-      background: var(--color-gray-alpha-100);
-    }
-
-    &:active {
-      background: var(--color-gray-alpha-200);
-    }
   }
 
   [data-nextjs-codeframe]::selection,
@@ -191,7 +154,7 @@ export const CODE_FRAME_STYLES = `
     background-color: var(--color-ansi-selection);
   }
 
-  [data-nextjs-codeframe] *:not(a) {
+  [data-nextjs-codeframe] *:not(a):not(.open-in-editor-button):not(.open-in-editor-button *) {
     color: inherit;
     background-color: transparent;
     font-family: var(--font-stack-monospace);
@@ -218,7 +181,7 @@ export const CODE_FRAME_STYLES = `
   }
 
   [data-nextjs-codeframe-line] > span:first-child {
-    color: var(--color-gray-alpha-700) !important;
+    color: var(--color-gray-alpha-500) !important;
   }
 
   [data-nextjs-codeframe-line][data-nextjs-codeframe-line--errored="true"]

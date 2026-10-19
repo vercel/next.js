@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-consumer/input/index.js"],"sourcesContent":["import { used } from './lib.js'\n\n// A wholesale `require()` consumer reports `ExportUsage::All`, so the graph must\n// mark every export used and nothing may be dropped.\nconst lib = require('./lib.js')\n\nconsole.log(used, lib.unused)\n"],"names":["lib","console","log","unused"],"mappings":"AAAA;;AAEA,iFAAiF;AACjF,qDAAqD;AACrD,MAAMA;AAENC,QAAQC,GAAG,CAAC,6OAAI,EAAEF,IAAIG,MAAM"}},
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-consumer/input/lib.js"],"sourcesContent":["exports.used = 'used-value'\nexports.unused = 'unused-value'\n"],"names":["exports","used","unused"],"mappings":"AAAAA,QAAQC,IAAI,GAAG;AACfD,QAAQE,MAAM,GAAG"}}]
+}

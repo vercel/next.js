@@ -3,19 +3,24 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import { runTests, locales } from '../i18n-support/shared'
 import { findPort, fetchViaHTTP } from 'next-test-utils'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type NextInstance } from 'e2e-utils'
 
+type BrowserOptions = Parameters<NextInstance['browser']>[1]
+
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('i18n Support basePath', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const ctx: Record<string, any> = {
     basePath: '/docs',
     isDev: isNextDev,
+    browser: (pathname: string, options?: BrowserOptions) =>
+      next.browser(pathname, options),
   }
 
   let externalServer: http.Server

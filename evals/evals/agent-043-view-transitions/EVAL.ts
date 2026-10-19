@@ -5,8 +5,11 @@
  * product gallery app covering shared element morphs, directional navigation,
  * Suspense reveal animations, and accessibility.
  *
+ * View transitions need no next.config flag: experimental.viewTransition was
+ * inert and removed in #96098, and the docs now say "works with no
+ * configuration" — so nothing here may grade the config either way.
+ *
  * Tricky because agents may:
- * - Not know about the experimental.viewTransition flag in next.config
  * - Try to call document.startViewTransition manually instead of using
  *   React's <ViewTransition> component
  * - Import ViewTransition from a third-party library instead of 'react'
@@ -72,17 +75,6 @@ function readAllCssFiles(): string {
   const unique = [...new Set(files)]
   return unique.map((f) => readFileSync(f, 'utf-8')).join('\n')
 }
-
-test('next.config enables viewTransition', () => {
-  const configPath = existsSync(join(process.cwd(), 'next.config.ts'))
-    ? 'next.config.ts'
-    : 'next.config.js'
-  const content = stripComments(
-    readFileSync(join(process.cwd(), configPath), 'utf-8')
-  )
-
-  expect(content).toMatch(/viewTransition\s*:\s*true/)
-})
 
 test('ViewTransition is imported from react', () => {
   const allSource = readAllSourceFiles()

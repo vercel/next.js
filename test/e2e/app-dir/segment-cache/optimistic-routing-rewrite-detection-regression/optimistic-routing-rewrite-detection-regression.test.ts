@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 
 describe('optimistic routing - rewrite detection regression', () => {
@@ -41,7 +41,7 @@ describe('optimistic routing - rewrite detection regression', () => {
   }
 
   async function revealPrefetch(
-    browser: Awaited<ReturnType<typeof next.browser>>,
+    browser: Playwright,
     act: ReturnType<typeof createRouterAct>,
     href: string
   ) {
@@ -59,7 +59,7 @@ describe('optimistic routing - rewrite detection regression', () => {
   }
 
   async function revealAndClick(
-    browser: Awaited<ReturnType<typeof next.browser>>,
+    browser: Playwright,
     act: ReturnType<typeof createRouterAct>,
     href: string
   ) {

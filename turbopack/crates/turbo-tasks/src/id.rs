@@ -14,14 +14,12 @@ use bincode::{
 };
 use serde::{Deserialize, Serialize, de::Visitor};
 
-use crate::{
-    TaskPersistence, registry,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-};
+use crate::{TaskPersistence, registry};
 
 macro_rules! define_id {
     (
         $name:ident : $primitive:ty
+        $(,max = $max:expr)?
         $(,derive($($derive:ty),*))?
         $(,serde($serde:tt))?
         $(,doc = $doc:literal)*
@@ -36,7 +34,15 @@ macro_rules! define_id {
 
         impl $name {
             pub const MIN: Self = Self { id: NonZero::<$primitive>::MIN };
-            pub const MAX: Self = Self { id: NonZero::<$primitive>::MAX };
+            // `max` defaults to the primitive's max; types packed into a smaller
+            // bit field (e.g. `TaskId` in `RawVc`) override it.
+            pub const MAX: Self = {
+                let _max: $primitive = NonZero::<$primitive>::MAX.get();
+                $( let _max: $primitive = $max; )?
+                // SAFETY: `_max` is either `NonZero::MAX` or a caller-provided
+                // positive constant; both are non-zero.
+                Self { id: unsafe { NonZero::<$primitive>::new_unchecked(_max) } }
+            };
 
             /// Constructs a wrapper type from the numeric identifier.
             ///
@@ -60,6 +66,13 @@ macro_rules! define_id {
                     assert!(<$primitive>::BITS <= u64::BITS);
                 }
                 unsafe { NonZeroU64::new_unchecked(self.id.get() as u64) }
+            }
+            /// Allows `const` conversion to [`NonZero<$primitive>`]
+            pub const fn to_non_zero_primitive(self) -> NonZero<$primitive> {
+                self.id
+            }
+            pub const fn to_primitive(self) -> $primitive {
+                self.id.get()
             }
         }
 
@@ -93,10 +106,6 @@ macro_rules! define_id {
                 id.to_non_zero_u64()
             }
         }
-
-        impl TraceRawVcs for $name {
-            fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
-        }
     };
     (
         @impl_try_from_primitive_conversion $name:ident u64
@@ -126,9 +135,19 @@ macro_rules! define_id {
     };
 }
 
-define_id!(TaskId: u32, derive(Serialize, Deserialize, Encode, Decode), serde(transparent));
+define_id!(
+    TaskId: u32,
+    // Capped below `u32::MAX` so the id fits in 31 bits when packed into `RawVc`.
+    max = TASK_ID_MAX,
+    derive(Deserialize, Decode),
+    serde(transparent),
+);
+define_id!(
+    ValueTypeId: u16,
+    // Capped below `u16::MAX` so the id fits in 10 bits when packed into `CellId`.
+    max = crate::CellId::MAX_VALUE_TYPE_ID,
+);
 define_id!(FunctionId: u16);
-define_id!(ValueTypeId: u16);
 define_id!(TraitTypeId: u16);
 define_id!(
     LocalTaskId: u32,
@@ -144,6 +163,25 @@ define_id!(
         leak. This value may overflow and re-use old values.",
 );
 
+// Preserve transparent serde and the derived NonZero<u32> bincode format, but reject references
+// to transient tasks. RawVc packs TaskId into its own integer and checks that path separately.
+impl Serialize for TaskId {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        debug_assert!(
+            !self.is_transient(),
+            "transient TaskId must not be serialized"
+        );
+        self.id.serialize(serializer)
+    }
+}
+
+impl Encode for TaskId {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        debug_assert!(!self.is_transient(), "transient TaskId must not be encoded");
+        self.id.encode(encoder)
+    }
+}
+
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaskId").field("id", &self.id).finish()
@@ -152,7 +190,12 @@ impl Debug for TaskId {
 
 unsafe impl crate::NonLocalValue for TaskId {}
 
-pub const TRANSIENT_TASK_BIT: u32 = 0x8000_0000;
+/// `TaskId` values are constrained to 31 bits to preserve a niche for [`crate::RawVc`]. Bit 30
+/// marks transient tasks; bit 31 is always zero.
+pub const TRANSIENT_TASK_BIT: u32 = 0x4000_0000;
+
+/// The largest value a [`TaskId`] may hold (31 bits set).
+pub const TASK_ID_MAX: u32 = 0x7FFF_FFFF;
 
 impl TaskId {
     pub fn is_transient(&self) -> bool {

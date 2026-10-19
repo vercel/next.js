@@ -195,7 +195,7 @@ It will work both on Vercel and when self-hosted.
 
 We made sure that OpenTelemetry works out of the box on Vercel.
 
-Follow [Vercel documentation](https://vercel.com/docs/concepts/observability/otel-overview/quickstart) to connect your project to an observability provider.
+Follow [Vercel documentation](https://vercel.com/docs/tracing/instrumentation) to connect your project to an observability provider.
 
 #### Self-hosting
 

@@ -3,7 +3,6 @@
  */
 
 import type { Channel as Ipc } from '../types'
-import { relative, isAbsolute, join, sep } from 'path'
 import { type StructuredError } from '../error'
 import { type StackFrame } from '../compiled/stacktrace-parser'
 
@@ -14,6 +13,7 @@ export type IpcInfoMessage =
       directories?: Array<[string, string]>
       filePaths?: string[]
       buildFilePaths?: string[]
+      buildDependencyRequests?: Array<[string, boolean]>
     }
   | {
       type: 'emittedError'
@@ -48,23 +48,6 @@ export type IpcRequestMessage =
     }
 
 export type TransformIpc = Ipc<IpcInfoMessage, IpcRequestMessage>
-
-const contextDir = process.cwd()
-export const toPath = (file: string) => {
-  const relPath = relative(contextDir, file)
-  if (isAbsolute(relPath)) {
-    throw new Error(
-      `Cannot depend on path (${file}) outside of root directory (${contextDir})`
-    )
-  }
-  return sep !== '/' ? relPath.replaceAll(sep, '/') : relPath
-}
-export const fromPath = (path: string) => {
-  return join(
-    /* turbopackIgnore: true */ contextDir,
-    sep !== '/' ? path.replaceAll('/', sep) : path
-  )
-}
 
 // Patch process.env to track which env vars are read
 const originalEnv = process.env

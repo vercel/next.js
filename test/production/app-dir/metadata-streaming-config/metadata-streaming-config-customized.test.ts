@@ -1,22 +1,24 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO: the incremental option has been removed, update to use cacheComponents
-describe.skip('app-dir - metadata-streaming-config-customized', () => {
+describe('app-dir - metadata-streaming-config-customized', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     overrideFiles: {
       'next.config.js': `
         module.exports = {
           htmlLimitedBots: /MyBot/i,
-            experimental: {
-            ppr: 'incremental',
-          }
+          cacheComponents: true,
         }
       `,
     },
   })
 
   it('should have the customized streaming metadata config output in routes-manifest.json', async () => {
+    const requiredServerFiles = JSON.parse(
+      await next.readFile('.next/required-server-files.json')
+    )
+    expect(requiredServerFiles.config.htmlLimitedBots).toBe('MyBot')
+
     const prerenderManifest = JSON.parse(
       await next.readFile('.next/prerender-manifest.json')
     )
@@ -32,10 +34,25 @@ describe.skip('app-dir - metadata-streaming-config-customized', () => {
 
     expect(bypassConfigs).toMatchInlineSnapshot(`
      {
+       "/": {
+         "key": "user-agent",
+         "type": "header",
+         "value": ".*(?:MyBot).*",
+       },
+       "/_global-error": {
+         "key": "user-agent",
+         "type": "header",
+         "value": ".*(?:MyBot).*",
+       },
+       "/_not-found": {
+         "key": "user-agent",
+         "type": "header",
+         "value": ".*(?:MyBot).*",
+       },
        "/ppr": {
          "key": "user-agent",
          "type": "header",
-         "value": "MyBot",
+         "value": ".*(?:MyBot).*",
        },
      }
     `)

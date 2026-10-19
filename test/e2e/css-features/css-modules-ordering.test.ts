@@ -1,8 +1,12 @@
 /* eslint-disable jest/no-standalone-expect */
 /* eslint-disable jest/no-identical-title */
 import cheerio from 'cheerio'
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
-import type { Playwright } from 'next-webdriver'
+import {
+  isNextDev,
+  isNextStart,
+  nextTestSetup,
+  type Playwright,
+} from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
 
@@ -18,7 +22,6 @@ describe('Basic CSS Modules Ordering', () => {
             useLightningcss: true,
           },
         },
-        skipDeployment: true,
       })
 
       async function checkGreenButton(browser: Playwright) {
@@ -88,7 +91,6 @@ describe('Basic CSS Modules Ordering', () => {
             useLightningcss: false,
           },
         },
-        skipDeployment: true,
       })
 
       async function checkGreenButton(browser: Playwright) {
@@ -159,7 +161,6 @@ describe('Ordering with Global CSS and Modules', () => {
           useLightningcss: true,
         },
       },
-      skipDeployment: true,
     })
 
     ;(isNextDev ? it : it.skip)(
@@ -248,7 +249,6 @@ describe('Ordering with Global CSS and Modules', () => {
           useLightningcss: false,
         },
       },
-      skipDeployment: true,
     })
 
     ;(isNextDev ? it : it.skip)(
@@ -343,7 +343,6 @@ describe('CSS Modules Composes Ordering', () => {
             useLightningcss: true,
           },
         },
-        skipDeployment: true,
       })
 
       async function checkBlackTitle(browser: Playwright) {
@@ -503,7 +502,6 @@ describe('CSS Modules Composes Ordering', () => {
             useLightningcss: false,
           },
         },
-        skipDeployment: true,
       })
 
       async function checkBlackTitle(browser: Playwright) {

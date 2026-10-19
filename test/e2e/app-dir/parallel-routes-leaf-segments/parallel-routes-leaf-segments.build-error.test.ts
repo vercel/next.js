@@ -3,25 +3,21 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, retry } from 'next-test-utils'
 
 describe('parallel-routes-leaf-segments-build-error', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'build-error'),
     skipStart: true,
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    it.skip('skip test', () => {})
-    return
-  }
+  let buildError: unknown
 
   if (isNextDev) {
     beforeAll(() => next.start())
   } else {
     beforeAll(async () => {
       try {
-        await next.build()
-      } catch {
-        // Expect build error
+        await next.start()
+      } catch (error) {
+        buildError = error
       }
     })
   }
@@ -45,6 +41,7 @@ describe('parallel-routes-leaf-segments-build-error', () => {
           )
         })
       } else {
+        expect(buildError).toBeDefined()
         await retry(() => {
           expect(next.cliOutput).toContain('/with-children/@header/default.js')
         })
@@ -71,6 +68,7 @@ describe('parallel-routes-leaf-segments-build-error', () => {
           )
         })
       } else {
+        expect(buildError).toBeDefined()
         await retry(() => {
           expect(next.cliOutput).toContain(
             '/with-groups-and-children/(dashboard)/(overview)/@metrics/default.js'

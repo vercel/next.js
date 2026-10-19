@@ -9,6 +9,7 @@ import {
   createSyncIORuntimeError,
   type SyncIOApiType,
 } from '../app-render/sync-io-messages'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function io(expression: string, type: SyncIOApiType) {
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -26,6 +27,7 @@ export function io(expression: string, type: SyncIOApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
+        // TODO: synchronize this with `stageController`
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
@@ -56,30 +58,44 @@ export function io(expression: string, type: SyncIOApiType) {
       const stageController = workUnitStore.stagedRendering
       if (stageController && stageController.shouldTrackSyncInterrupt()) {
         let syncIOError: Error
-        if (
-          stageController.currentStage === RenderStage.Static ||
-          stageController.currentStage === RenderStage.EarlyStatic
-        ) {
-          syncIOError = createSyncIOError(workStore.route, expression, type)
-        } else {
-          // We're in the Runtime stage.
-          // We only error for Sync IO in the Runtime stage if the route has a runtime prefetch config.
-          // This check is implemented in `stageController.canSyncInterrupt()` --
-          // if runtime prefetching isn't enabled, then we won't get here.
-          syncIOError = createSyncIORuntimeError(
-            workStore.route,
-            expression,
-            type
-          )
+        // NOTE: keep stages where we can interrupt in sync with
+        // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
+        switch (stageController.currentStage) {
+          case RenderStage.ShellStatic:
+          case RenderStage.PrefetchStatic_prefetchApi:
+          case RenderStage.PrefetchStatic:
+          case RenderStage.NavigationStatic:
+          case RenderStage.Static: {
+            syncIOError = createSyncIOError(workStore.route, expression, type)
+            break
+          }
+          case RenderStage.ShellRuntime:
+          case RenderStage.PrefetchRuntime_prefetchApi:
+          case RenderStage.PrefetchRuntime:
+          case RenderStage.NavigationRuntime: {
+            // We're in a runtime stage.
+            // We only error for Sync IO in runtime stages if the route has partialPrefetching enabled.
+            syncIOError = createSyncIORuntimeError(
+              workStore.route,
+              expression,
+              type
+            )
+            break
+          }
+          case RenderStage.Before:
+          case RenderStage.Dynamic:
+          case RenderStage.Abandoned: {
+            throw new InvariantError(
+              `shouldTrackSyncInterrupt allowed a sync IO interrupt in an unexpected stage: ${RenderStage[stageController.currentStage]}`
+            )
+          }
         }
 
         syncIOError = applyOwnerStack(syncIOError)
         stageController.syncInterruptCurrentStageWithReason(syncIOError)
 
-        // A build-time validation render uses a 'request' store type, but may be abortable.
-        // If we're in the second, restarted render of the restart-on-cache miss flow,
-        // Sync IO is an error, and unlike dev, there's no need to continue the render past the sync IO,
-        // so we can abort it.
+        // A validation render uses a 'request' store type, but may be abortable.
+        // If we're rendering with filled caches, Sync IO is an error and should trigger an abort.
         if (
           workUnitStore.controller &&
           !workUnitStore.controller.signal.aborted
@@ -90,12 +106,11 @@ export function io(expression: string, type: SyncIOApiType) {
       break
     }
     case 'validation-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-    case 'generate-static-params':
+    case 'build-time-generator':
       break
     default:
       workUnitStore satisfies never

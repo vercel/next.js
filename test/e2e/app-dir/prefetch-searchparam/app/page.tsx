@@ -1,11 +1,18 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default async function Page({ searchParams }: { searchParams: any }) {
+async function SearchParams({ searchParams }: { searchParams: any }) {
+  return <p>{JSON.stringify(await searchParams)}</p>
+}
+
+export default function Page({ searchParams }: { searchParams: any }) {
   return (
     <>
       <Link href="/">/</Link>
       <Link href="/?q=bar">/?q=bar</Link>
-      <p>{JSON.stringify(await searchParams)}</p>
+      <Suspense>
+        <SearchParams searchParams={searchParams} />
+      </Suspense>
     </>
   )
 }

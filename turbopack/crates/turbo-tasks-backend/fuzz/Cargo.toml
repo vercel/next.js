@@ -17,7 +17,7 @@ serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }
 turbo-tasks-backend = { workspace = true }
-turbo-tasks-malloc = { workspace = true }
+turbo-tasks-malloc = { workspace = true , features = ["custom_allocator"]}
 
 [[bin]]
 name = "fuzz_graph"

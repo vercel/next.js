@@ -3,7 +3,7 @@
 // is the boundary segment's local mod. If firstModFilePath correctly
 // prefers the boundary segment's own layout, the error should point
 // at inner/layout.tsx — not this file.
-export const unstable_instant = { level: 'experimental-error' }
+export const instant = { level: 'experimental-error' }
 
 export default function Page() {
   return <p>test-firstmod inner page (should not render)</p>

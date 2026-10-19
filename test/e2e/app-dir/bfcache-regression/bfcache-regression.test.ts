@@ -6,6 +6,11 @@ describe('bfcache-regression', () => {
     files: __dirname,
   })
 
+  // Development documents are served with `no-store`, so a back navigation
+  // re-fetches the page instead of restoring it from the browser's HTTP cache.
+  // A restored document would re-execute the page scripts while React's debug
+  // channel has no data for its request id, which blocks hydration and leaves
+  // the page without interactivity.
   it('should preserve interactivity after navigating back from another page via MPA navigation', async () => {
     // In webpack dev, compiling a new route on demand while another page is
     // open triggers an HMR cycle that has no Fast Refresh boundary, surfacing

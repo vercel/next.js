@@ -9,13 +9,17 @@ use turbopack_core::{
     chunk::{
         ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapSourceType, SourceMapsType,
     },
+    context::AssetContext,
     environment::Environment,
     file_source::FileSource,
     module::Module,
-    module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
+    module_graph::{
+        GraphEntries, ModuleGraph, SingleModuleGraph,
+        chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
+    },
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
 };
@@ -133,34 +137,59 @@ pub async fn create_web_entry_source(
 
     let runtime_entries = entries.resolve_entries(asset_context);
 
-    let origin = PlainResolveOrigin::new(asset_context, root_path.join("_")?);
+    let origin = PlainResolveOrigin::new(asset_context, root_path.join("_")?).await?;
+    let resolve_options = origin.resolve_options();
+    let asset_context = origin.asset_context();
+    let origin_path = origin.origin_path();
     let entries = entry_requests
         .into_iter()
-        .map(|request| async move {
-            let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
-            origin
-                .resolve_asset(request, origin.resolve_options(), ty)
-                .await?
-                .await?
-                .first_module()
-                .await
+        .map(|request| {
+            let origin_path = origin_path.clone();
+            async move {
+                let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
+                asset_context
+                    .resolve_asset(origin_path, request, resolve_options, ty)
+                    .await?
+                    .first_module()
+                    .await
+            }
         })
         .try_flat_join()
         .await?;
 
-    let all_modules = entries
+    // The chunk groups registered here have to be exactly the ones `DevHtmlAsset` chunks later:
+    // a chunk group is identified by its entries, in order, so a different order or a repeated
+    // module is a different chunk group that `ChunkGroupInfo` wouldn't know.
+    let runtime_entry_modules = runtime_entries
+        .await?
         .iter()
-        .copied()
-        .chain(
-            runtime_entries
-                .await?
-                .iter()
-                .map(|&entry| ResolvedVc::upcast(entry)),
-        )
-        .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
+        .map(|&entry| ResolvedVc::upcast::<Box<dyn Module>>(entry))
+        .collect::<Vec<_>>();
+    let chunk_group_entries = entries
+        .iter()
+        .map(|&module| {
+            let modules = if ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module).is_some()
+            {
+                // `DevHtmlAsset` appends the entry to the runtime entries and evaluates all of
+                // them.
+                runtime_entry_modules
+                    .iter()
+                    .copied()
+                    .chain(std::iter::once(module))
+                    .collect()
+            } else {
+                // A module that isn't evaluatable is chunked on its own, without the runtime.
+                vec![module]
+            };
+            ChunkGroupEntry::Entry {
+                modules,
+                heuristics: EntryHeuristics::default(),
+            }
+        })
+        .collect::<Vec<_>>();
     let module_graph = ModuleGraph::from_graphs(
         vec![SingleModuleGraph::new_with_entries(
-            ResolvedVc::cell(vec![ChunkGroupEntry::Entry(all_modules)]),
+            GraphEntries::from_chunk_groups(chunk_group_entries).resolved_cell(),
             false,
             false,
         )],
@@ -170,8 +199,8 @@ pub async fn create_web_entry_source(
 
     let entries: Vec<_> = entries
         .into_iter()
-        .map(|module| async move {
-            if let (Some(chunkable_module), Some(entry)) = (
+        .map(async |module| {
+            if let (Some(chunkable_module), Some(_)) = (
                 ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module),
                 ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module),
             ) {
@@ -179,7 +208,9 @@ pub async fn create_web_entry_source(
                     chunkable_module,
                     module_graph,
                     chunking_context,
-                    runtime_entries: Some(runtime_entries.with_entry(*entry).to_resolved().await?),
+                    // Not `with_entry(module)`: `DevHtmlAsset` appends the entry itself, and
+                    // appending it here too would chunk it twice.
+                    runtime_entries: Some(runtime_entries.to_resolved().await?),
                 })
             } else if let Some(chunkable_module) =
                 ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module)

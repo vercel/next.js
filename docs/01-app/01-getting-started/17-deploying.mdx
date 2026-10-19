@@ -26,7 +26,7 @@ Next.js can be deployed to any provider that supports Node.js. Ensure your `pack
 }
 ```
 
-Then, run `npm run build` to build your application and `npm run start` to start the Node.js server. This server supports all Next.js features. If needed, you can also eject to a [custom server](/docs/app/guides/custom-server).
+Then, run `npm run build` to [build your application](/docs/app/guides/building) and `npm run start` to start the Node.js server. This server supports all Next.js features. If needed, you can also eject to a [custom server](/docs/app/guides/custom-server).
 
 Node.js deployments support all Next.js features. Learn how to [configure them](/docs/app/guides/self-hosting) for your infrastructure.
 
@@ -39,7 +39,7 @@ Node.js deployments support all Next.js features. Learn how to [configure them](
 
 ## Docker
 
-Next.js can be deployed to any provider that supports [Docker](https://www.docker.com/) containers. This includes container orchestrators like Kubernetes or a cloud provider that runs Docker. For containerization best practices, see the [Docker guide for React.js](https://docs.docker.com/guides/reactjs/).
+Next.js can be deployed to any provider that supports [Docker](https://www.docker.com/) containers. This includes container orchestrators like Kubernetes or a cloud provider that runs Docker. For best practices on containerizing your app, refer to Docker's official [Next.js](https://docs.docker.com/guides/nextjs) and [React.js](https://docs.docker.com/guides/reactjs) guides.
 
 Docker deployments support all Next.js features. Learn how to [configure them](/docs/app/guides/self-hosting) for your infrastructure.
 
@@ -81,7 +81,7 @@ Next.js can be adapted to run on different platforms to support their infrastruc
 
 Verified adapters are open source, run the full [Next.js compatibility test suite](/docs/app/api-reference/adapters/testing-adapters), and are hosted under the [Next.js GitHub organization](https://github.com/nextjs). The Next.js team coordinates testing with these platforms before major releases. Publicly visible test results for each adapter are coming soon. [Learn more about verified adapters](/docs/app/guides/deploying-to-platforms#verified-adapters).
 
-- [Vercel](https://vercel.com/docs/frameworks/nextjs)
+- [Vercel](https://vercel.com/docs/frameworks/full-stack/nextjs)
 - [Bun](https://bun.com/docs/guides/ecosystem/nextjs)
 
 Cloudflare and Netlify are working on verified adapters built on the Adapter API. In the meantime, they offer their own Next.js integrations (see below).

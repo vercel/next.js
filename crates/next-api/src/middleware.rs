@@ -2,11 +2,12 @@ use std::future::IntoFuture;
 
 use anyhow::{Context, Result};
 use next_core::{
+    app_structure::FileSystemPathVec,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
-    segment_config::NextSegmentConfig,
-    util::{MiddlewareMatcherKind, NextRuntime},
+    segment_config::{NextSegmentConfig, NextSegmentRegion},
+    util::NextRuntime,
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -19,7 +20,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         GraphEntries,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -28,7 +29,9 @@ use turbopack_core::{
 };
 
 use crate::{
+    nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
+    path_utils::convention_file_base_name,
     paths::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
@@ -82,7 +85,8 @@ impl MiddlewareEndpoint {
             )
             .module();
 
-        let is_proxy = userland_module.ident().await?.path.file_stem() == Some("proxy");
+        let is_proxy =
+            convention_file_base_name(userland_module.ident().await?.path.file_name()) == "proxy";
 
         let module = get_middleware_module(
             *self.asset_context,
@@ -116,6 +120,7 @@ impl MiddlewareEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
+            OutputAssets::empty(),
             AvailabilityInfo::root(),
         );
         Ok(edge_chunk_grou)
@@ -153,81 +158,25 @@ impl MiddlewareEndpoint {
         let next_config = this.project.next_config();
         let i18n = next_config.i18n().await?;
         let has_i18n = i18n.is_some();
-        let has_i18n_locales = i18n
-            .as_ref()
-            .map(|i18n| i18n.locales.len() > 1)
-            .unwrap_or(false);
+        let has_i18n_locales = i18n.is_some();
         let base_path = next_config.base_path().await?;
 
-        let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
-            matchers
-                .iter()
-                .map(|matcher| {
-                    let mut matcher = match matcher {
-                        MiddlewareMatcherKind::Str(matcher) => ProxyMatcher {
-                            original_source: matcher.as_str().into(),
-                            ..Default::default()
-                        },
-                        MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
-                    };
-
-                    // Mirrors implementation in get-page-static-info.ts getMiddlewareMatchers
-                    let mut source = matcher.original_source.to_string();
-                    let is_root = source == "/";
-                    let has_locale = matcher.locale;
-
-                    if has_i18n_locales && has_locale {
-                        if is_root {
-                            source.clear();
-                        }
-                        source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
-                    }
-
-                    // Match transport-specific route forms that resolve to the
-                    // same page:
-                    // - Pages Router data routes: /_next/data/<build-id>/...
-                    // - App Router transport routes: .rsc, ...segments/...segment.rsc
-                    if is_root {
-                        source.push('(');
-                        if has_i18n {
-                            source.push_str("|\\.json|");
-                        }
-                        source.push_str("/?index|/?index\\.json|");
-                        source.push_str("/?index(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)");
-                        source.push_str(")?");
-                    } else {
-                        source.push_str("{(\\.json|\\.rsc|\\.segments/.+\\.segment\\.rsc)}?");
-                    };
-
-                    source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
-
-                    if let Some(base_path) = base_path.as_ref() {
-                        source.insert_str(0, base_path);
-                    }
-
-                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here
-                    // using path-to-regexp. Currently there is no
-                    // equivalent of that so it post-processes
-                    // this value to the relevant regex in manifest-loader.ts
-                    matcher.regexp = Some(RcStr::from(source));
-
-                    matcher
-                })
-                .collect()
-        } else {
-            vec![ProxyMatcher {
-                regexp: Some(rcstr!("^/.*$")),
-                original_source: rcstr!("/:path*"),
-                ..Default::default()
-            }]
-        };
+        let matchers = config
+            .get_proxy_matchers(has_i18n, has_i18n_locales, base_path.as_deref())
+            .unwrap_or_else(|| {
+                vec![ProxyMatcher {
+                    regexp: Some(rcstr!("^/.*$")),
+                    original_source: rcstr!("/:path*"),
+                    ..Default::default()
+                }]
+            });
 
         if matches!(this.runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
-            if this.project.next_mode().await?.is_production() {
+            if *this.project.should_write_nft_manifests().await? {
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(*this.project, None, *chunk, vec![])
+                    NftJsonAsset::new(*this.project, None, *chunk, vec![], self.trace_result())
                         .to_resolved()
                         .await?,
                 ));
@@ -263,7 +212,7 @@ impl MiddlewareEndpoint {
             let edge_assets = edge_chunk_group_ref.assets.await?;
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_assets).await?;
+                get_js_paths_from_root(&node_root_value, edge_assets.iter().copied()).await?;
             let entrypoint_asset = *edge_assets
                 .last()
                 .context("expected assets for edge middleware endpoint")?;
@@ -278,19 +227,15 @@ impl MiddlewareEndpoint {
                 get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let all_assets =
-                get_asset_paths_from_root(&node_root_value, &edge_all_assets.await?).await?;
+                get_asset_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
-            let regions = if let Some(regions) = config.preferred_region.as_ref() {
-                if regions.len() == 1 {
-                    regions
-                        .first()
-                        .map(|region| Regions::Single(region.clone()))
-                } else {
-                    Some(Regions::Multiple(regions.clone()))
+            let regions = config.preferred_region.as_ref().map(|region| match region {
+                NextSegmentRegion::Single(region) => Regions::Single(region.clone()),
+                NextSegmentRegion::Multiple(regions) if regions.len() == 1 => {
+                    Regions::Single(regions[0].clone())
                 }
-            } else {
-                None
-            };
+                NextSegmentRegion::Multiple(regions) => Regions::Multiple(regions.clone()),
+            });
 
             let edge_function_definition = EdgeFunctionDefinition {
                 files: file_paths_from_root,
@@ -334,6 +279,19 @@ impl MiddlewareEndpoint {
                 ReferenceType::Entry(EntryReferenceSubType::Middleware),
             )
             .module()
+    }
+
+    #[turbo_tasks::function]
+    async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
+        let this = self.await?;
+        let userland_module = self.entry_module().to_resolved().await?;
+        Ok(trace_endpoint(
+            *this.project,
+            None,
+            this.project.module_graph(*userland_module),
+            Vc::cell(vec![userland_module]),
+            this.project.additional_traced_modules(),
+        ))
     }
 }
 
@@ -391,9 +349,14 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            self.entry_module().to_resolved().await?,
-        ])]))
+        Ok(
+            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                modules: vec![self.entry_module().to_resolved().await?],
+                // Middleware runs on (potentially) all routes, so treat it as high priority.
+                heuristics: EntryHeuristics::high_priority(),
+            }])
+            .cell(),
+        )
     }
 
     #[turbo_tasks::function]
@@ -410,5 +373,10 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
         *self.project
+    }
+
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        self.trace_result().all_files()
     }
 }

@@ -25,17 +25,17 @@ const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
     .join('|')
 )
 
+const IGNORE = /(^|\/)(trace|trace-build)$/
+
 async function readFilesNext(
   next: NextInstance
 ): Promise<Map<string, Map<string, string>>> {
-  // These are cosmetic files which aren't deployed.
-  const IGNORE = /^trace$|^trace-build$/
-
   const files = (
     (await glob('**/*', {
       cwd: path.join(next.testDir, next.distDir),
       nodir: true,
       dot: true,
+      ignore: 'cache/**',
     })) as string[]
   )
     .filter((f) => !IGNORE.test(f) && !IGNORE_CONTENT_NEXT_REGEX.test(f))
@@ -65,9 +65,28 @@ async function readFilesBuilder(
       nodir: true,
     })) as string[]
   ).sort()
+  const statics = (
+    (await glob('.vercel/output/static/**/*', {
+      cwd: next.testDir,
+      nodir: true,
+    })) as string[]
+  )
+    .sort()
+    // HTML Prerenders contain `<html data-dpl-id="foo-dpl-id">`
+    .filter((f) => !f.endsWith('.html') && !IGNORE.test(f))
 
-  return new Map(
-    await Promise.all(
+  return new Map([
+    [
+      'static' as string,
+      new Map(
+        await Promise.all(
+          statics.map(async (f) => {
+            return [f, await next.readFile(f)] as const
+          })
+        )
+      ),
+    ] as const,
+    ...(await Promise.all(
       functions.map(async (fn) => {
         let config = await next.readJSON(fn)
         let fnDir = path.dirname(fn)
@@ -110,8 +129,8 @@ async function readFilesBuilder(
           ),
         ] as const
       })
-    )
-  )
+    )),
+  ])
 }
 
 async function runTest(
@@ -203,11 +222,9 @@ async function runTest(
     })
 
     describe.each([
-      { test: 'standard', mode: 'builder' } as const,
-      { test: 'standard', mode: 'adapter' } as const,
-      { test: 'cacheComponents', mode: 'builder' } as const,
-      { test: 'cacheComponents', mode: 'adapter' } as const,
-    ])('build output API - $test $mode', ({ test, mode }) => {
+      { test: 'standard' } as const,
+      { test: 'cacheComponents' } as const,
+    ])('build output API - $test adapter', ({ test }) => {
       const { next } = nextTestSetup({
         files: {
           // A mock file to be able to run `vercel build` without logging in
@@ -224,43 +241,33 @@ async function runTest(
         // We use NEXT_TEST_PREFER_OFFLINE, so just declaring `vercel: latest` as a dependency still
         // doesn't force the latest version.
         buildCommand: 'pnpm dlx vercel@latest build',
-        env:
-          mode === 'adapter'
-            ? {
-                NEXT_ENABLE_ADAPTER: '1',
-              }
-            : undefined,
+        env: {
+          NEXT_ENABLE_ADAPTER: '1',
+        },
         skipStart: true,
         disableAutoSkewProtection: true,
       })
 
-      it(
-        'should produce identical build outputs even when changing deployment id',
-        async () => {
-          let { run1, run2 } = await runTest(next, readFilesBuilder)
+      it('should produce identical build outputs even when changing deployment id', async () => {
+        let { run1, run2 } = await runTest(next, readFilesBuilder)
 
-          expect(run1.size).toBeGreaterThan(0)
-          expect([...run1.keys()]).toEqual([...run2.keys()])
+        expect(run1.size).toBeGreaterThan(0)
+        expect([...run1.keys()]).toEqual([...run2.keys()])
 
-          if (test === 'standard') {
-            expect([...run1.keys()]).toIncludeAllMembers([
-              '.vercel/output/functions/app-page.func/.vc-config.json',
-              '.vercel/output/functions/app-page.rsc.func/.vc-config.json',
-              '.vercel/output/functions/app-route.func/.vc-config.json',
-              '.vercel/output/functions/app-route.rsc.func/.vc-config.json',
-              '.vercel/output/functions/pages-dynamic.func/.vc-config.json',
-              '.vercel/output/functions/pages-static-gsp.func/.vc-config.json',
-            ])
-            expect([...run1.keys()]).toSatisfyAny((k) =>
-              k.includes('middleware.func')
-            )
-          }
-        },
-        // The builder mode can take a bit longer, so we increase the timeout
-        // for these tests. The adapter mode should be faster, so we leave it as
-        // the default.
-        mode === 'builder' ? 120_000 : undefined
-      )
+        if (test === 'standard') {
+          expect([...run1.keys()]).toIncludeAllMembers([
+            '.vercel/output/functions/app-page.func/.vc-config.json',
+            '.vercel/output/functions/app-page.rsc.func/.vc-config.json',
+            '.vercel/output/functions/app-route.func/.vc-config.json',
+            '.vercel/output/functions/app-route.rsc.func/.vc-config.json',
+            '.vercel/output/functions/pages-dynamic.func/.vc-config.json',
+            '.vercel/output/functions/pages-static-gsp.func/.vc-config.json',
+          ])
+          expect([...run1.keys()]).toSatisfyAny((k) =>
+            k.includes('middleware.func')
+          )
+        }
+      })
     })
   }
 )

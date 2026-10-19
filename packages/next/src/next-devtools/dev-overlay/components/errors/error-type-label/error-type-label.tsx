@@ -4,6 +4,7 @@ export type ErrorType =
   | `Console ${string}`
   | `Recoverable ${string}`
   | 'Blocking Route'
+  | 'Static Route'
   | 'Ambiguous Metadata'
   | 'Instant'
 
@@ -15,7 +16,7 @@ export function ErrorTypeLabel({ errorType }: ErrorTypeLabelProps) {
   return (
     <span
       id="nextjs__container_errors_label"
-      className={`nextjs__container_errors_label ${errorType === 'Blocking Route' || errorType === 'Ambiguous Metadata' ? 'nextjs__container_errors_label_blocking_page' : ''} ${errorType === 'Instant' ? 'nextjs__container_errors_label_instant' : ''}`}
+      className={`nextjs__container_errors_label ${errorType === 'Ambiguous Metadata' ? 'nextjs__container_errors_label_blocking_page' : ''} ${errorType === 'Instant' ? 'nextjs__container_errors_label_instant' : ''}`}
     >
       {errorType}
     </span>
@@ -43,7 +44,5 @@ export const styles = `
   .nextjs__container_errors_label_instant {
     background: var(--color-amber-200);
     color: var(--color-amber-900);
-    font-family: var(--font-stack-sans);
-    font-weight: 500;
   }
 `

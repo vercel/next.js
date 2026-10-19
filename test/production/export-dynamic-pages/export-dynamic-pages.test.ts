@@ -2,7 +2,6 @@ import path from 'path'
 import http from 'http'
 import fs from 'fs'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Export Dynamic Pages', () => {
@@ -67,7 +66,9 @@ describe('Export Dynamic Pages', () => {
 
   it('should hydrate with correct asPath', async () => {
     expect.assertions(1)
-    const browser = await webdriver(port, '/regression/jeff-is-cool')
+    const browser = await next.browser('/regression/jeff-is-cool', {
+      baseUrl: port,
+    })
     try {
       expect(await browser.eval(`window.__AS_PATHS`)).toEqual([
         '/regression/jeff-is-cool',

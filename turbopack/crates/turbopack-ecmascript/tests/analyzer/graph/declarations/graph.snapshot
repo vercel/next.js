@@ -51,9 +51,7 @@
         Constant(
             Num(
                 ConstantNumber(
-                    TotalOrderF64(
-                        123.0,
-                    ),
+                    123.0,
                 ),
             ),
         ),

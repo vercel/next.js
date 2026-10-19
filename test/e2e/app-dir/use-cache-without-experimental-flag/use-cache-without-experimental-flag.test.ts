@@ -13,16 +13,14 @@ const nextConfigWithUseCache: NextConfig = {
   experimental: { useCache: true },
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('use-cache-without-experimental-flag', () => {
-  const { next, isNextStart, isTurbopack, skipped, isRspack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextStart) {
     it('should fail the build with an error', async () => {
@@ -39,7 +37,9 @@ describe('use-cache-without-experimental-flag', () => {
         expect(buildOutput).toContain('Ecmascript file had an error')
         expect(buildOutput).toContain('./app/page.tsx:1:1')
         expect(buildOutput).toContain("> 1 | 'use cache'")
-        expect(buildOutput).toContain('at <unknown> (./app/page.tsx:1:1)')
+        // The stack of a build error holds framework frames only, and the
+        // terminal collapses them.
+        expect(buildOutput).toContain('at ignore-listed frames')
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "

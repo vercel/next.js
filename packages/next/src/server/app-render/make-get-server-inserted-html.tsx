@@ -6,11 +6,14 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { isRedirectError } from '../../client/components/redirect-error'
-import { renderToReadableStream } from 'react-dom/server'
-import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import type { ClientTraceDataEntry } from '../lib/trace/tracer'
+import {
+  renderToNodeFizzStream,
+  renderToWebFizzStream,
+  streamToString,
+} from './stream-ops'
 
 export function makeGetServerInsertedHTML({
   polyfills,
@@ -84,8 +87,11 @@ export function makeGetServerInsertedHTML({
       return ''
     }
 
-    // TODO: This should use Node streams when __NEXT_USE_NODE_STREAMS is true
-    const stream = await renderToReadableStream(
+    const { stream } = await (
+      process.env.__NEXT_USE_NODE_STREAMS
+        ? renderToNodeFizzStream
+        : renderToWebFizzStream
+    )(
       <>
         {polyfillTags}
         {serverInsertedHTML}

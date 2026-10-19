@@ -1,0 +1,12 @@
+runtime: [
+    "FOO1",
+    "FOO3",
+    "FOO5",
+    "FOO7",
+    "FOO8",
+]
+runtime_existence: [
+    "FOO_EXIST2",
+    "FOO_EXIST4",
+    "FOO_EXIST6",
+]

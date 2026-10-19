@@ -20,7 +20,7 @@ pub use self::{
 /// Like [`EnvMap`], but with `serialization = "skip"` to avoid storing
 /// environment variables (which may contain secrets) in the persistent cache.
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct TransientEnvMap(#[turbo_tasks(trace_ignore)] FxIndexMap<RcStr, RcStr>);
+pub struct TransientEnvMap(FxIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl TransientEnvMap {
@@ -31,11 +31,7 @@ impl TransientEnvMap {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EnvMap(
-    #[turbo_tasks(trace_ignore)]
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<RcStr, RcStr>,
-);
+pub struct EnvMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl EnvMap {

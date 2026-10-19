@@ -23,7 +23,6 @@ use turbopack_core::{
     ident::Layer,
     resolve::options::ImportMap,
 };
-use turbopack_ecmascript::TreeShakingMode;
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
 };
@@ -100,7 +99,8 @@ async fn get_client_module_options_context(
     let module_options_context = ModuleOptionsContext {
         environment: Some(env),
         execution_context: Some(execution_context),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        follow_reexports: true,
+        module_fragments_enabled: false,
         keep_last_successful_parse: is_dev,
         ..Default::default()
     };

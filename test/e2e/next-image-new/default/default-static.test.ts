@@ -1,14 +1,15 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Build Error Tests', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (isNextDeploy) return
 
   if (isNextDev) {
     it('no-op in dev', () => {})
@@ -29,21 +30,24 @@ describe('Build Error Tests', () => {
           "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
         )
         expect(cliOutput).toContain('pages/static-img.js')
-        expect(cliOutput).not.toContain('Import trace for requested module')
+        if (!isRspack) {
+          expect(cliOutput).not.toContain('Import trace for requested module')
+        }
       }
     )
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Static Image Component Tests', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) return
 
-  let browser: Awaited<ReturnType<typeof next.browser>>
+  let browser: Playwright
   let $: ReturnType<typeof cheerio.load>
 
   beforeAll(async () => {
@@ -124,11 +128,27 @@ describe('Static Image Component Tests', () => {
     expect(metaViewport.index).toBeLessThan(linkPreload.index)
   })
 
-  it('Should automatically provide an image height and width', async () => {
-    const img = $('#basic-non-static')
-    expect(img.attr('width')).toBe('400')
-    expect(img.attr('height')).toBe('300')
-  })
+  it.each([
+    ['basic-non-static', '400', '300'],
+    ['basic-static', '400', '300'],
+    ['blur-png', '400', '400'],
+    ['blur-jpg', '400', '400'],
+    ['blur-webp', '400', '400'],
+    ['blur-avif', '400', '400'],
+    ['blur-wide', '1200', '700'],
+    ['blur-tall', '160', '394'],
+    ['static-svg', '400', '400'],
+    ['static-gif', '400', '400'],
+    ['static-bmp', '400', '400'],
+    ['static-ico', '32', '32'],
+  ])(
+    'Should automatically provide an image height and width for #%s',
+    async (id, width, height) => {
+      const img = $(`#${id}`)
+      expect(img.attr('width')).toBe(width)
+      expect(img.attr('height')).toBe(height)
+    }
+  )
 
   it('should use width and height prop to override import', async () => {
     const img = $('#defined-width-and-height')
@@ -199,7 +219,7 @@ describe('Static Image Component Tests', () => {
         )
       } else {
         expect(style).toBe(
-          `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAMAAADz0U65AAAAElBMVEUAAAA6OjolJSWwsLAfHx/9/f2oxsg2AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAH0lEQVR4nGNgwAaYmKAMZmYIzcjKyghmsDAysmDTAgAEXAAhXbseDQAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+          `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAMAAADz0U65AAAAElBMVEUAAAA6OjolJSWwsLAfHx/9/f2oxsg2AAAACXBIWXMAAAsSAAALEgHS3X78AAAAH0lEQVQImWNgwAaYmKAMZmYIzcjKyghmsDAysmDTAQAEXAAh8CaqOAAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
         )
       }
     }
@@ -224,7 +244,7 @@ describe('Static Image Component Tests', () => {
         )
       } else {
         expect(style).toBe(
-          `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAMAAADz0U65AAAAElBMVEUAAAA6OjolJSWwsLAfHx/9/f2oxsg2AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAH0lEQVR4nGNgwAaYmKAMZmYIzcjKyghmsDAysmDTAgAEXAAhXbseDQAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
+          `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAMAAADz0U65AAAAElBMVEUAAAA6OjolJSWwsLAfHx/9/f2oxsg2AAAACXBIWXMAAAsSAAALEgHS3X78AAAAH0lEQVQImWNgwAaYmKAMZmYIzcjKyghmsDAysmDTAQAEXAAh8CaqOAAAAABJRU5ErkJggg=='/%3E%3C/svg%3E")`
         )
       }
     }

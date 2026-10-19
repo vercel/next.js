@@ -1,7 +1,6 @@
 import type { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { UseCacheTrackerKey } from '../../build/webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
-import { extractNextErrorCode } from '../../lib/error-telemetry-utils'
 
 const REGEXP_DIRECTORY_DUNDER =
   /[\\/]__[^\\/]+(?<![\\/]__(?:tests|mocks))__[\\/]/i
@@ -15,6 +14,7 @@ type EventTypeCheckCompleted = {
   inputFilesCount?: number
   totalFilesCount?: number
   incremental?: boolean
+  typeCheckMode: 'typescript-api' | 'typescript-cli'
 }
 
 export function eventTypeCheckCompleted(event: EventTypeCheckCompleted): {
@@ -195,7 +195,6 @@ export type EventBuildFeatureUsage = {
     | 'experimental/nextScriptWorkers'
     | 'experimental/cacheComponents'
     | 'experimental/optimizeCss'
-    | 'experimental/ppr'
     | 'swcLoader'
     | 'swcRelay'
     | 'swcStyledComponents'
@@ -278,8 +277,10 @@ export type McpToolName =
   | 'mcp/get_page_metadata'
   | 'mcp/get_project_metadata'
   | 'mcp/get_routes'
+  | 'mcp/get_request_insights'
   | 'mcp/get_server_action_by_id'
   | 'mcp/get_compilation_issues'
+  | 'mcp/compile_route'
 
 export type EventMcpToolUsage = {
   toolName: McpToolName
@@ -307,8 +308,8 @@ type ErrorThrownEvent = {
   }
 }
 
-// Creates a Telemetry event for errors. For privacy, only includes the error code and not the error
-// message.
+// Creates a Telemetry event for errors. For privacy, only includes the error name and not the error
+// message. The payload field retains its existing name for telemetry schema compatibility.
 //
 // `location` may be included if it's a location internal to the next.js source tree (i.e. a
 // non-absolute path).
@@ -319,7 +320,7 @@ export function eventErrorThrown(
   return {
     eventName: ERROR_THROWN_EVENT,
     payload: {
-      errorCode: extractNextErrorCode(error) || 'Unknown',
+      errorCode: error.name || 'Unknown',
       location: anonymizedLocation,
     },
   }

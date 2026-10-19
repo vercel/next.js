@@ -8,14 +8,9 @@ throw new Error('please dont execute me')
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'turbopack-import-with-type',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     // Testing this together on one route ensures we also avoid weird duplicate module ident things
     it('supports import with type: text, type: bytes, and type: json', async () => {

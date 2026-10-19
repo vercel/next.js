@@ -25,11 +25,11 @@ use crate::{
 #[derive(PartialEq)]
 pub enum ImportAttributes {
     LightningCss {
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         layer_name: Option<LayerName<'static>>,
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         supports: Option<SupportsCondition<'static>>,
-        #[turbo_tasks(trace_ignore)]
+        #[turbo_tasks(unsafe_ignore)]
         media: MediaList<'static>,
     },
 }
@@ -147,6 +147,10 @@ impl ModuleReference for ImportAssetReference {
             inherit_async: false,
             hoisted: false,
         })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 

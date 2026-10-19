@@ -9,18 +9,20 @@ import {
   waitFor,
   normalizeRegEx,
   normalizeManifest,
+  fetchViaRawHttp,
   retry,
 } from 'next-test-utils'
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Custom routes', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let externalServerPort: number
   let externalServer: http.Server
@@ -350,7 +352,7 @@ describe('Custom routes', () => {
 
   it('should not hang when proxy rewrite fails', async () => {
     const res = await next.fetch('/to-nowhere', {
-      timeout: 5000,
+      signal: AbortSignal.timeout(5000),
     })
 
     expect(res.status).toBe(500)
@@ -1117,7 +1119,7 @@ describe('Custom routes', () => {
     const res1 = await next.fetch('/has-rewrite-4')
     expect(res1.status).toBe(404)
 
-    const res = await next.fetch('/has-rewrite-4', {
+    const res = await fetchViaRawHttp(next.appPort, '/has-rewrite-4', {
       headers: {
         host: 'example.com',
       },
@@ -1270,7 +1272,7 @@ describe('Custom routes', () => {
     const res1 = await next.fetch('/has-redirect-4', { redirect: 'manual' })
     expect(res1.status).toBe(404)
 
-    const res = await next.fetch('/has-redirect-4', {
+    const res = await fetchViaRawHttp(next.appPort, '/has-redirect-4', {
       headers: {
         host: 'example.com',
       },
@@ -1278,7 +1280,8 @@ describe('Custom routes', () => {
     })
 
     expect(res.status).toBe(307)
-    const parsed = new URL(res.headers.get('location'), res.url)
+    // Raw responses carry the Location header verbatim (relative).
+    const parsed = new URL(res.headers.get('location'), next.url)
 
     expect(parsed.pathname).toBe('/another')
     expect(Object.fromEntries(parsed.searchParams)).toEqual({
@@ -1290,7 +1293,7 @@ describe('Custom routes', () => {
     const res1 = await next.fetch('/has-redirect-6', { redirect: 'manual' })
     expect(res1.status).toBe(404)
 
-    const res = await next.fetch('/has-redirect-6', {
+    const res = await fetchViaRawHttp(next.appPort, '/has-redirect-6', {
       headers: {
         host: 'hello-test.example.com',
       },
@@ -1298,7 +1301,7 @@ describe('Custom routes', () => {
     })
 
     expect(res.status).toBe(307)
-    const parsed = new URL(res.headers.get('location'), res.url)
+    const parsed = new URL(res.headers.get('location'))
 
     expect(parsed.protocol).toBe('https:')
     expect(parsed.hostname).toBe('hello.example.com')
@@ -1367,7 +1370,7 @@ describe('Custom routes', () => {
   })
 
   it('should match has host for header correctly', async () => {
-    const res = await next.fetch('/has-header-4', {
+    const res = await fetchViaRawHttp(next.appPort, '/has-header-4', {
       headers: {
         host: 'example.com',
       },
@@ -3471,16 +3474,17 @@ describe('Custom routes', () => {
     })
   }
 })
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Custom routes no-op rewrite', () => {
-  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     env: {
       ADD_NOOP_REWRITE: 'true',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
   if (isTurbopack && isNextStart) {
     it('skipped - not supported in turbopack build mode', () => {})
     return
@@ -3528,14 +3532,15 @@ describe('Custom routes no-op rewrite', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Custom routes solo types', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let externalServer: http.Server
   let externalServerPort: number
@@ -3640,7 +3645,7 @@ describe('Custom routes solo types', () => {
       expect(res.headers.get('x-custom-header')).toBeFalsy()
       expect(res.headers.get('x-another-header')).toBeFalsy()
 
-      const { pathname } = new URL(res2.headers.get('location'), res.url)
+      const { pathname } = new URL(res2.headers.get('location'), res2.url)
       expect(res2.status).toBe(301)
       expect(pathname).toBe('/docs/v2/advanced/now-for-github')
 
@@ -3651,13 +3656,12 @@ describe('Custom routes solo types', () => {
     }
   })
 })
-;(isNextStart ? describe : describe.skip)('Custom routes export', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+// @force-gate start
+describe('Custom routes export', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (isNextDeploy) return
 
   it('should not show warning for custom routes when not next export', async () => {
     await next.patchFile('next.config.js', (content) =>

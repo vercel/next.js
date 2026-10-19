@@ -1,4 +1,4 @@
-use std::collections::hash_map::Entry;
+use std::{collections::hash_map::Entry, hash::Hash};
 
 use anyhow::{Context, Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -20,7 +20,7 @@ use crate::{
 #[turbo_tasks::value(transparent, cell = "keyed")]
 #[allow(clippy::type_complexity)]
 pub struct MergedModulesReplacements(
-    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
+    FxHashMap<ResolvedVc<Box<dyn Module>>, Option<ResolvedVc<Box<dyn ChunkableModule>>>>,
 );
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
@@ -29,27 +29,30 @@ pub struct MergedModulesOriginalModules(
     FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>>,
 );
 
-#[turbo_tasks::value(transparent, cell = "keyed")]
-#[allow(clippy::type_complexity)]
-pub struct MergedModulesIncluded(FxHashSet<ResolvedVc<Box<dyn Module>>>);
-
 #[turbo_tasks::value]
 pub struct MergedModuleInfo {
-    /// A map of modules to the merged module containing the module plus additional modules.
+    /// A map of modules describing how they participate in module merging:
+    /// - Not present: the module is not affected by merging and a regular chunk item should be
+    ///   created for it.
+    /// - Present with `Some(replacement)`: the module should be replaced with the given merged
+    ///   module when creating a chunk item.
+    /// - Present with `None`: the module is already included in some other merged module returned
+    ///   by a `Some(replacement)` entry and no chunk item should be created for it.
     pub replacements: ResolvedVc<MergedModulesReplacements>,
     /// A map of replacement modules to their corresponding chunk group info (which is the same as
     /// the chunk group info of the original module it replaced).
     pub replacements_to_original: ResolvedVc<MergedModulesOriginalModules>,
-    /// A map of modules that are already contained as values in replacements.
-    pub included: ResolvedVc<MergedModulesIncluded>,
 }
 
 impl MergedModuleInfo {
-    /// Whether the given module should be replaced with a merged module.
+    /// Returns the merging decision for the given module:
+    /// - `None`: the module is not affected by merging, keep it as-is.
+    /// - `Some(None)`: the module is already included in another merged module, skip it.
+    /// - `Some(Some(replacement))`: the module should be replaced with `replacement`.
     pub async fn should_replace_module(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<Option<ResolvedVc<Box<dyn ChunkableModule>>>> {
+    ) -> Result<Option<Option<ResolvedVc<Box<dyn ChunkableModule>>>>> {
         Ok(self.replacements.get(&module).await?.as_deref().copied())
     }
 
@@ -66,15 +69,22 @@ impl MergedModuleInfo {
             .as_deref()
             .copied())
     }
+}
 
-    // Whether the given module should be skipped during chunking, as it is already included in a
-    // module returned by some `should_replace_module` call.
-    pub async fn should_create_chunk_item_for(
-        &self,
-        module: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<bool> {
-        Ok(!self.included.contains_key(&module).await?)
+/// Assigns each distinct bitmap a dense id, starting at 0, so that callers can hash and compare a
+/// `u32` instead of a whole bitmap (hashing a [`RoaringBitmapWrapper`] serializes it). Equal
+/// bitmaps get the same id. Returns the id of every key and the number of distinct bitmaps.
+fn intern_bitmaps<'a, K: Eq + Hash>(
+    entries: impl IntoIterator<Item = (K, &'a RoaringBitmapWrapper)>,
+    capacity: usize,
+) -> (FxHashMap<K, u32>, usize) {
+    let mut ids: FxHashMap<&'a RoaringBitmapWrapper, u32> = FxHashMap::default();
+    let mut result = FxHashMap::with_capacity_and_hasher(capacity, Default::default());
+    for (key, bitmap) in entries {
+        let next_id = ids.len() as u32;
+        result.insert(key, *ids.entry(bitmap).or_insert(next_id));
     }
+    (result, ids.len())
 }
 
 /// Determine which modules can be merged together:
@@ -102,10 +112,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         span.record("module_count", module_count);
 
         // Use all entries from all graphs
-        let entries = graphs
-            .iter()
-            .flat_map(|g| g.entries.iter())
-            .flat_map(|g| g.entries())
+        let entries = module_graph
+            .all_chunk_group_entry_modules()
             .collect::<Vec<_>>();
 
         // First, compute the depth for each module in the graph
@@ -179,6 +187,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             &mut (),
             |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
+             _,
              _|
              -> Result<GraphTraversalAction> {
                 // On the down traversal, establish which edges are mergeable and set the list
@@ -261,6 +270,26 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         )?;
 
         drop(inner_span);
+
+        // The traversals below look up and compare the bitmaps of many modules (once per visit),
+        // so use a dense id per distinct bitmap instead of the bitmaps themselves.
+        let module_bitmap_ids = {
+            let _inner_span = tracing::info_span!("intern bitmaps").entered();
+            intern_bitmaps(
+                module_merged_groups
+                    .iter()
+                    .map(|(&module, bitmap)| (module, bitmap)),
+                module_merged_groups.len(),
+            )
+            .0
+        };
+        let bitmap_id = |module: ResolvedVc<Box<dyn Module>>| {
+            module_bitmap_ids
+                .get(&module)
+                .copied()
+                .context("every module should have a bitmap")
+        };
+
         let inner_span = tracing::info_span!("chunk group collection").entered();
 
         span.record("visit_count", visit_count);
@@ -344,7 +373,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         // A partition of all modules in the chunk into several execution traces
                         // (orderings), stored in the top-level lists and referenced here by
                         // index.
-                        let mut chunk_lists: FxHashMap<&RoaringBitmapWrapper, usize> =
+                        // Keyed by bitmap id.
+                        let mut chunk_lists: FxHashMap<u32, usize> =
                             FxHashMap::with_capacity_and_hasher(
                                 module_merged_groups.len() / chunk_group_info.chunk_groups.len(),
                                 Default::default(),
@@ -369,9 +399,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                             },
                             |parent_info, node, _| {
                                 let module = node;
-                                let bitmap = module_merged_groups
-                                    .get(&module)
-                                    .context("every module should have a bitmap")?;
+                                let bitmap = bitmap_id(module)?;
 
                                 if mergeable.contains(&module) {
                                     let mergeable_module =
@@ -413,12 +441,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 }
 
                                 if let Some((parent, _)) = parent_info {
-                                    let same_bitmap = module_merged_groups
-                                        .get(&parent)
-                                        .context("every module should have a bitmap")?
-                                        == module_merged_groups
-                                            .get(&module)
-                                            .context("every module should have a bitmap")?;
+                                    let same_bitmap = bitmap_id(parent)? == bitmap;
 
                                     if same_bitmap {
                                         intra_group_references_rev
@@ -429,6 +452,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                                 }
                                 Ok(())
                             },
+                            false,
+                            false,
                         )?;
 
                         list_lists.push(lists);
@@ -505,12 +530,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 let module = node;
 
                 if let Some((parent, _)) = parent_info {
-                    let same_bitmap = module_merged_groups
-                        .get(&parent)
-                        .context("every module should have a bitmap")?
-                        == module_merged_groups
-                            .get(&module)
-                            .context("every module should have a bitmap")?;
+                    let same_bitmap = bitmap_id(parent)? == bitmap_id(module)?;
 
                     if same_bitmap {
                         intra_group_references
@@ -522,14 +542,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
                 if match parent_info {
                     None => true,
-                    Some((parent, _)) => {
-                        module_merged_groups
-                            .get(&parent)
-                            .context("every module should have a bitmap")?
-                            != module_merged_groups
-                                .get(&module)
-                                .context("every module should have a bitmap")?
-                    }
+                    Some((parent, _)) => bitmap_id(parent)? != bitmap_id(module)?,
                 } {
                     // This module needs to be exposed:
                     // - referenced from another group or
@@ -540,7 +553,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 if parent_info.is_some_and(|(_, r)| {
                     matches!(
                         r.binding_usage.export,
-                        ExportUsage::All | ExportUsage::PartialNamespaceObject(_)
+                        ExportUsage::All
+                            | ExportUsage::PartialNamespaceObject(_)
+                            | ExportUsage::Passthrough { .. }
                     )
                 }) {
                     // This module needs to be exposed:
@@ -549,6 +564,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 }
                 Ok(())
             },
+            false,
+            false,
         )?;
 
         drop(inner_span);
@@ -774,31 +791,77 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         #[allow(clippy::type_complexity)]
         let mut replacements: FxHashMap<
             ResolvedVc<Box<dyn Module>>,
-            ResolvedVc<Box<dyn ChunkableModule>>,
+            Option<ResolvedVc<Box<dyn ChunkableModule>>>,
         > = Default::default();
         #[allow(clippy::type_complexity)]
         let mut replacements_to_original: FxHashMap<
             ResolvedVc<Box<dyn Module>>,
             ResolvedVc<Box<dyn Module>>,
         > = Default::default();
-        let mut included: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
+        let mut merged_groups = 0;
+        let mut included_modules = 0;
 
         for (original, replacement, replacement_included) in result.into_iter().flatten() {
-            replacements.insert(original, replacement);
+            replacements.insert(original, Some(replacement));
             replacements_to_original.insert(ResolvedVc::upcast(replacement), original);
-            included.extend(replacement_included);
+            merged_groups += 1;
+            included_modules += replacement_included.len();
+            for included in replacement_included {
+                replacements.insert(included, None);
+            }
         }
 
-        span.record("merged_groups", replacements.len());
-        span.record("included_modules", included.len());
+        span.record("merged_groups", merged_groups);
+        span.record("included_modules", included_modules);
 
         Ok(MergedModuleInfo {
             replacements: ResolvedVc::cell(replacements),
             replacements_to_original: ResolvedVc::cell(replacements_to_original),
-            included: ResolvedVc::cell(included),
         }
         .cell())
     }
     .instrument(span_outer)
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use roaring::RoaringBitmap;
+
+    use super::*;
+
+    fn bitmap(bits: &[u32]) -> RoaringBitmapWrapper {
+        RoaringBitmapWrapper(bits.iter().copied().collect::<RoaringBitmap>())
+    }
+
+    #[test]
+    fn intern_bitmaps_gives_equal_bitmaps_equal_ids() {
+        let a = bitmap(&[1, 5, 100_000]);
+        let a_reordered = bitmap(&[100_000, 1, 5]);
+        let b = bitmap(&[1, 5]);
+        let empty = bitmap(&[]);
+        let empty2 = bitmap(&[]);
+        let entries = [
+            ("a", &a),
+            ("b", &b),
+            ("a_reordered", &a_reordered),
+            ("empty", &empty),
+            ("empty2", &empty2),
+        ];
+
+        let (ids, distinct) = intern_bitmaps(entries.iter().copied(), entries.len());
+
+        assert_eq!(distinct, 3);
+        assert_eq!(ids.len(), entries.len());
+        assert_eq!(ids["a"], ids["a_reordered"]);
+        assert_eq!(ids["empty"], ids["empty2"]);
+        assert_ne!(ids["a"], ids["b"]);
+        assert_ne!(ids["a"], ids["empty"]);
+        assert_ne!(ids["b"], ids["empty"]);
+        // Ids are dense and start at zero.
+        let mut all = ids.values().copied().collect::<Vec<_>>();
+        all.sort_unstable();
+        all.dedup();
+        assert_eq!(all, vec![0, 1, 2]);
+    }
 }

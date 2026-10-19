@@ -3,22 +3,26 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { runTests, locales, nonDomainLocales } from './shared'
-import webdriver from 'next-webdriver'
 import { findPort, fetchViaHTTP, retry } from 'next-test-utils'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type NextInstance } from 'e2e-utils'
 import assert from 'assert'
 
+type BrowserOptions = Parameters<NextInstance['browser']>[1]
+
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('i18n Support', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const ctx: Record<string, any> = {
     basePath: '',
     isDev: isNextDev,
+    browser: (pathname: string, options?: BrowserOptions) =>
+      next.browser(pathname, options),
   }
 
   let externalServer: http.Server
@@ -72,6 +76,30 @@ describe('i18n Support', () => {
         )
         expect(content).toContain('500')
         expect(content).toMatch(/Internal Server Error/i)
+      }
+    })
+
+    it('should have locale-prefixed pages-manifest entries for default 500', async () => {
+      const manifest = await fs.readJSON(
+        join(next.testDir, '.next/server/pages-manifest.json')
+      )
+      for (const locale of locales) {
+        expect(manifest[`/${locale}/500`]).toBe(`pages/${locale}/500.html`)
+      }
+    })
+
+    it('should not have non-locale-prefixed HTML files for auto-static pages', async () => {
+      const pagesDir = join(next.testDir, '.next/server/pages')
+      // auto-export is a non-SSG auto-static page; only locale-prefixed
+      // variants should exist in server/pages/ (e.g. en-US/auto-export.html).
+      // A bare auto-export.html would be an orphan that can interfere with routing.
+      expect(await fs.pathExists(join(pagesDir, 'auto-export.html'))).toBe(
+        false
+      )
+      for (const locale of locales) {
+        expect(
+          await fs.pathExists(join(pagesDir, locale, 'auto-export.html'))
+        ).toBe(true)
       }
     })
   }
@@ -214,10 +242,7 @@ describe('i18n Support', () => {
     const runSlashTests = (curCtx) => {
       if (!curCtx.isDev) {
         it('should preload all locales data correctly', async () => {
-          const browser = await webdriver(
-            curCtx.appPort,
-            `${curCtx.basePath}/mixed`
-          )
+          const browser = await curCtx.browser(`${curCtx.basePath}/mixed`)
 
           await browser.eval(`(function() {
             document.querySelector('#to-gsp-en-us').scrollIntoView()
@@ -354,7 +379,7 @@ describe('i18n Support', () => {
       it('should navigate between pages correctly', async () => {
         for (const locale of nonDomainLocales) {
           const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
-          const browser = await webdriver(curCtx.appPort, localePath)
+          const browser = await curCtx.browser(localePath)
 
           await browser.eval('window.beforeNav = 1')
           await browser.elementByCss('#to-gsp').click()

@@ -10,9 +10,9 @@ import { isDynamicServerError } from '../../client/components/hooks-server-conte
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
-import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import { isReactLargeShellError } from './react-large-shell-error'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
+import { isNextBrowserBailoutError } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -81,31 +81,32 @@ export function createReactServerErrorHandler(
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
     if (err.digest) {
-      if (
-        process.env.NODE_ENV === 'production' &&
-        reactServerErrors.has(err.digest)
-      ) {
-        // This error is likely an obfuscated error from another react-server
-        // environment (e.g. 'use cache'). We recover the original error here
-        // for reporting purposes.
-        err = reactServerErrors.get(err.digest)!
-        // We don't log it again though, as it was already logged in the
-        // original environment.
-        silenceLog = true
-      } else {
-        // Either we're in development (where we want to keep the transported
-        // error with environmentName), or the error is not in reactServerErrors
-        // but has a digest from other means. Keep the error as-is.
+      const originalError = reactServerErrors.get(err.digest)
+
+      if (originalError) {
+        // This error crossed a react-server boundary (e.g. from a `'use cache'`
+        // render). Reaching the handler means it surfaced (it wasn't caught in
+        // userland), so stamp the digest onto the original to mark it surfaced.
+        // If the original was recorded as `invalidDynamicUsageError` without a
+        // digest (a cache that aborted across the boundary), this is what lets
+        // the dev overlay dedup: the separate forwarding checks for that digest
+        // and skips it.
+        originalError.digest ??= err.digest
+
+        if (process.env.NODE_ENV === 'production') {
+          // In production we use the recovered original (de-obfuscated!) error
+          // for reporting, and don't log it again as it was already logged in
+          // the original environment.
+          err = originalError
+          silenceLog = true
+        }
       }
     } else {
       // TODO-APP: look at using webcrypto instead of string-hash. Requires a promise to be awaited.
       err.digest =
         typeof thrownValue === 'string'
           ? stringHash(thrownValue).toString()
-          : createDigestWithErrorCode(
-              err,
-              stringHash(err.message + (err.stack || '')).toString()
-            )
+          : stringHash(err.message + (err.stack || '')).toString()
     }
 
     // @TODO by putting this here and not at the top it is possible that
@@ -149,6 +150,7 @@ export function createReactServerErrorHandler(
 export function createHTMLErrorHandler(
   shouldFormatError: boolean,
   isBuildTimePrerendering: boolean,
+  reactBrowserBailout: boolean,
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
   onHTMLRenderSSRError: (err: DigestedError, errorInfo?: ErrorInfo) => void,
@@ -167,6 +169,13 @@ export function createHTMLErrorHandler(
 
     // If the response was closed, we don't need to log the error.
     if (isAbortError(thrownValue)) return
+
+    // React turns a browser bailout outside Suspense into a fatal error. This
+    // is a framework signal handled by the prerender caller, so don't report it
+    // as a userland render error here.
+    if (reactBrowserBailout && isNextBrowserBailoutError(thrownValue)) {
+      return
+    }
 
     const digest = getDigestForWellKnownError(thrownValue)
 
@@ -189,12 +198,9 @@ export function createHTMLErrorHandler(
         // from other means so we don't need to produce a new one
       }
     } else {
-      err.digest = createDigestWithErrorCode(
-        err,
-        stringHash(
-          err.message + (errorInfo?.componentStack || err.stack || '')
-        ).toString()
-      )
+      err.digest = stringHash(
+        err.message + (errorInfo?.componentStack || err.stack || '')
+      ).toString()
     }
 
     // Format server errors in development to add more helpful error messages
@@ -232,8 +238,14 @@ export function createHTMLErrorHandler(
   }
 }
 
-export function isUserLandError(err: any): boolean {
+export function isUserLandError(
+  err: any,
+  reactBrowserBailout: boolean
+): boolean {
   return (
-    !isAbortError(err) && !isBailoutToCSRError(err) && !isNextRouterError(err)
+    !isAbortError(err) &&
+    !isBailoutToCSRError(err) &&
+    !(reactBrowserBailout && isNextBrowserBailoutError(err)) &&
+    !isNextRouterError(err)
   )
 }

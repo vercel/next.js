@@ -246,7 +246,7 @@ pub async fn tsconfig_resolve_options(
     let configs = read_tsconfigs(
         tsconfig.read(),
         ResolvedVc::upcast(FileSource::new(tsconfig.clone()).to_resolved().await?),
-        node_cjs_resolve_options(tsconfig.root().owned().await?),
+        node_cjs_resolve_options(),
     )
     .await?;
 
@@ -394,8 +394,9 @@ pub async fn type_resolve(
     request: Vc<Request>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined);
-    let context_path = origin.origin_path().await?.parent();
-    let options = origin.resolve_options();
+    let origin_ref = origin.into_trait_ref().await?;
+    let context_path = origin_ref.origin_path().parent();
+    let options = origin_ref.resolve_options();
     let options = apply_typescript_types_options(options);
     let types_request = if let Request::Module {
         module: m,
@@ -446,14 +447,14 @@ pub async fn type_resolve(
         )
     };
     let result = as_typings_result(
-        origin
+        origin_ref
             .asset_context()
             .process_resolve_result(result, ty.clone()),
     );
     handle_resolve_error(
         result,
         ty,
-        origin,
+        origin_ref.origin_path(),
         request,
         options,
         ResolveErrorMode::Error,

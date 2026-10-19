@@ -506,6 +506,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                     : undefined,
                   ignore: ignoreFn,
                   mixedModules: true,
+                  moduleSyncCatchall: true,
                 })
                 // @ts-ignore
                 fileList = result.fileList

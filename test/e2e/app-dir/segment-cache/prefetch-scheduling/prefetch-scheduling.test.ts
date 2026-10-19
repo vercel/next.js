@@ -30,23 +30,58 @@ describe('segment cache prefetch scheduling', () => {
           await checkbox.click()
         }, 'block')
 
-        // Hover over a link to increase its relative priority.
+        // Hover over a link near the bottom of the document to increase its
+        // relative priority. By default the scheduler prioritizes the links
+        // nearest the top, so this link's route tree has not been prefetched
+        // yet; hovering bumps it ahead of the default tasks.
+        const link6 = await browser.elementByCss('a[href="/cancellation/6"]')
+        await link6.hover()
+
+        // Hover over a different link to increase its relative priority. This
+        // one is near the top of the document, so its route tree is already
+        // in-flight.
         const link2 = await browser.elementByCss('a[href="/cancellation/2"]')
         await link2.hover()
-
-        // Hover over a different link to increase its relative priority.
-        const link5 = await browser.elementByCss('a[href="/cancellation/5"]')
-        await link5.hover()
       },
       // Assert that the segment data is prefetched in the expected order.
       [
         // The last link we hovered over should be the first to prefetch.
-        { includes: 'Content of page 5' },
-        // The second-to-last link we hovered over should come next.
         { includes: 'Content of page 2' },
+        // The second-to-last link we hovered over should come next, ahead of
+        // the other default tasks.
+        { includes: 'Content of page 6' },
         // Then all the other links come after that. (We don't need to assert
         // on every single prefetch response. I picked one of them arbitrarily.)
         { includes: 'Content of page 4' },
+      ]
+    )
+  })
+
+  it('prioritizes links nearest the top of the document when many enter the viewport at once', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/cancellation', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    const checkbox = await browser.elementByCss('input[type="checkbox"]')
+    await act(
+      async () => {
+        // Reveal all the links at once. They all enter the viewport in the same
+        // IntersectionObserver callback, which reports them in document order
+        // (page 1 through 7).
+        await checkbox.click()
+      },
+      // The prefetch scheduler gives the highest priority to the most recently
+      // scheduled task. Rather than letting the link lowest in the document win
+      // (which is what happens if we schedule the observer entries in the order
+      // they're reported), we schedule them in reverse, so the link nearest the
+      // top of the document is scheduled last and therefore prefetched first.
+      [
+        { includes: 'Content of page 1' },
+        { includes: 'Content of page 2' },
+        { includes: 'Content of page 3' },
       ]
     )
   })
@@ -129,19 +164,25 @@ describe('segment cache prefetch scheduling', () => {
         // Hover over a link. This will initiate a request for the route tree,
         // but before we're able to fetch the segments, we'll have already
         // hovered over a different link.
-        const link2 = await browser.elementByCss('a[href="/cancellation/2"]')
-        await link2.hover()
+        //
+        // We hover over links near the bottom of the document (pages 6 and 7).
+        // By default the scheduler prioritizes the links nearest the top, so
+        // these links' route trees have *not* already been requested — which is
+        // what lets us observe that hovering initiates a new request that
+        // exceeds the default bandwidth limit.
+        const link6 = await browser.elementByCss('a[href="/cancellation/6"]')
+        await link6.hover()
 
         // Immediately hover over a different link.
-        const link3 = await browser.elementByCss('a[href="/cancellation/3"]')
-        await link3.hover()
+        const link7 = await browser.elementByCss('a[href="/cancellation/7"]')
+        await link7.hover()
       }, [
         // The most recently hovered link is allowed to finish loading its
         // segment data.
-        { includes: 'Content of page 3' },
+        { includes: 'Content of page 7' },
         // The previously hovered link was downgraded to the default priority,
         // so it should still be blocked.
-        { includes: 'Content of page 2', block: 'reject' },
+        { includes: 'Content of page 6', block: 'reject' },
       ])
     }, [
       // Assert that everything else proceeds in the expected order. We don't
@@ -151,7 +192,7 @@ describe('segment cache prefetch scheduling', () => {
       // The previously hovered link is the next to finish loading, because
       // even though it was downgraded to the default priority, it was still
       // moved ahead of the other default tasks.
-      { includes: 'Content of page 2' },
+      { includes: 'Content of page 6' },
       // Next are the links that were revealed by the "Show More" button.
       { includes: 'Content of page 8' },
       // Then the rest.

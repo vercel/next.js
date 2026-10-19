@@ -2,7 +2,6 @@
 import cheerio from 'cheerio'
 import { check, retry, withQuery } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
-import type { Response } from 'node-fetch'
 
 describe('app-dir with middleware', () => {
   const { next, isNextDeploy } = nextTestSetup({
