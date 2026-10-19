@@ -61,16 +61,16 @@ If you colocate a generic UI component with one of these reserved names (for exa
 
   ```txt
   Error occurred prerendering page "/icon".
-  Expected a Response object but received 'Object'
+  No response is returned from route handler '[project]/app/icon--route-entry.js'. Expected a Response object but received 'Object'
   ```
 
-- This happens because Next.js treats the file as a dynamic app icon route rather than a UI component. During the build, route handlers expect the default export to return a `Response` (or types like `Blob`, `ArrayBuffer`, or `ReadableStream`). Returning a plain React JSX element instead results in a prerender failure.
+- This happens because Next.js treats the file as a dynamic app icon route rather than a standard UI component. During the build, it expects the default export to return a `Response` (such as `ImageResponse`, or types like `Blob`, `ArrayBuffer`, or `ReadableStream`). Returning a plain React JSX element instead of a valid Response causes this prerender failure.
 
 **How to fix:**
 
 - Rename your component to something that does not conflict with metadata conventions (for example, `IconComponent.tsx` or `LogoIcon.tsx`).
 - Or place reusable UI components outside the `app/` directory in a dedicated root `components/` folder.
-- If you intentionally want to generate a dynamic icon, ensure the file exports a default function returning a valid `Response` (such as an `ImageResponse`) as documented in [favicon, icon, and apple-icon](/docs/app/api-reference/file-conventions/metadata/app-icons).
+- If you intentionally want to generate a dynamic icon, ensure the file exports a default function returning a valid `Response` (such as an `ImageResponse`, or other supported types like `Blob`, `ArrayBuffer`, or `ReadableStream`) as documented in [favicon, icon, and apple-icon](/docs/app/api-reference/file-conventions/metadata/app-icons).
 
 ### 2. Handle undefined props and missing data
 
