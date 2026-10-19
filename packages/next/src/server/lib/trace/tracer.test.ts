@@ -33,7 +33,14 @@ import {
   NodeSpan,
   RouteModuleSpan,
 } from './constants'
-import { SpanKind, SpanStatusCode, getTracer } from './tracer'
+import {
+  BubbledError,
+  recordSpanError,
+  SpanKind,
+  SpanStatusCode,
+  getTracer,
+  type Span,
+} from './tracer'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
@@ -825,5 +832,42 @@ describe('local span recording', () => {
         }
       }
     })
+  })
+})
+
+describe('recordSpanError', () => {
+  function createSpan() {
+    return {
+      recordException: jest.fn(),
+      setAttribute: jest.fn(),
+      setStatus: jest.fn(),
+      end: jest.fn(),
+    }
+  }
+
+  it('records the error on the span without ending it', () => {
+    const span = createSpan()
+    const error = new TypeError('boom')
+
+    recordSpanError(span as unknown as Span, error)
+
+    expect(span.recordException).toHaveBeenCalledWith(error)
+    expect(span.setAttribute).toHaveBeenCalledWith('error.type', 'TypeError')
+    expect(span.setStatus).toHaveBeenCalledWith({
+      code: SpanStatusCode.ERROR,
+      message: 'boom',
+    })
+    expect(span.end).not.toHaveBeenCalled()
+  })
+
+  it('only marks bubbled errors', () => {
+    const span = createSpan()
+
+    recordSpanError(span as unknown as Span, new BubbledError(true))
+
+    expect(span.setAttribute).toHaveBeenCalledWith('next.bubble', true)
+    expect(span.recordException).not.toHaveBeenCalled()
+    expect(span.setStatus).not.toHaveBeenCalled()
+    expect(span.end).not.toHaveBeenCalled()
   })
 })

@@ -67,11 +67,11 @@ export function isBubbledError(error: unknown): error is BubbledError {
   return error instanceof BubbledError
 }
 
-const closeSpanWithError = (
-  span: Span,
-  error?: Error,
-  endTime?: Parameters<Span['end']>[0]
-) => {
+/**
+ * Records `error` on `span` the way a span traced with `NextTracer.trace` that
+ * throws it does, without ending the span.
+ */
+export const recordSpanError = (span: Span, error?: Error) => {
   if (isBubbledError(error) && error.bubble) {
     span.setAttribute('next.bubble', true)
   } else {
@@ -81,6 +81,14 @@ const closeSpanWithError = (
     }
     span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }
+}
+
+const closeSpanWithError = (
+  span: Span,
+  error?: Error,
+  endTime?: Parameters<Span['end']>[0]
+) => {
+  recordSpanError(span, error)
   span.end(endTime)
 }
 

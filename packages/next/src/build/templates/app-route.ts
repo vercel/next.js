@@ -15,7 +15,6 @@ import {
 import {
   getTracer,
   type Span,
-  SpanKind,
   SpanStatusCode,
 } from '../../server/lib/trace/tracer'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
@@ -131,6 +130,41 @@ export async function handler(
   const multiZoneDraftMode = process.env
     .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
+  // Start the request span before `prepare`, so route module preparation is
+  // part of the request's trace.
+  return routeModule.traceRequest(
+    req,
+    res,
+    {
+      tracer: getTracer(),
+      spanName: `${req.method || 'GET'} ${srcPage}`,
+      httpTarget: req.url,
+    },
+    (requestSpan, requestParentSpan) =>
+      handleRequest(
+        req,
+        res,
+        ctx,
+        srcPage,
+        multiZoneDraftMode,
+        requestSpan,
+        requestParentSpan
+      )
+  )
+}
+
+async function handleRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
+  },
+  srcPage: string,
+  multiZoneDraftMode: boolean,
+  requestSpan: Span | undefined,
+  requestParentSpan: Span | undefined
+) {
   const prepareResult = await routeModule.prepare(req, res, {
     srcPage,
     multiZoneDraftMode,
@@ -594,24 +628,11 @@ export async function handler(
   if (isWrappedByNextServer && activeSpan) {
     await handleResponse(activeSpan, undefined)
   } else {
-    let parentSpan = tracer.getActiveScopeSpan()
-    await tracer.withPropagatedContext(
-      req.headers,
-      () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
-            },
-          },
-          (span) => handleResponse(span, parentSpan)
-        ),
-      undefined,
-      !isWrappedByNextServer
-    )
+    // The request span was started before `prepare`; record the request
+    // target as normalized by it.
+    if (req.url !== undefined) {
+      requestSpan?.setAttribute('http.target', req.url)
+    }
+    await handleResponse(requestSpan, requestParentSpan)
   }
 }

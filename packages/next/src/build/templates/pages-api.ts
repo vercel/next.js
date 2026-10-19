@@ -12,7 +12,7 @@ import { hoist } from './helpers'
 import * as userland from 'VAR_USERLAND'
 import {
   getTracer,
-  SpanKind,
+  recordSpanError,
   SpanStatusCode,
 } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
@@ -67,6 +67,32 @@ export async function handler(
     srcPage = srcPage.replace(/\/index$/, '') || '/'
   }
 
+  // Start the request span before `prepare`, so route module preparation is
+  // part of the request's trace.
+  return routeModule.traceRequest(
+    req,
+    res,
+    {
+      tracer: getTracer(),
+      spanName: `${req.method || 'GET'} ${srcPage}`,
+      httpTarget: req.url,
+    },
+    (requestSpan, requestParentSpan) =>
+      handleRequest(req, res, ctx, srcPage, requestSpan, requestParentSpan)
+  )
+}
+
+async function handleRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
+  },
+  srcPage: string,
+  requestSpan: Span | undefined,
+  requestParentSpan: Span | undefined
+) {
   const prepareResult = await routeModule.prepare(req, res, { srcPage })
 
   if (!prepareResult) {
@@ -174,25 +200,22 @@ export async function handler(
     if (isWrappedByNextServer && activeSpan) {
       await invokeRouteModule(activeSpan)
     } else {
-      parentSpan = tracer.getActiveScopeSpan()
-      await tracer.withPropagatedContext(
-        req.headers,
-        () =>
-          tracer.trace(
-            BaseServerSpan.handleRequest,
-            {
-              spanName: `${method} ${srcPage}`,
-              kind: SpanKind.SERVER,
-              attributes: {
-                'http.method': method,
-                'http.target': req.url,
-              },
-            },
-            invokeRouteModule
-          ),
-        undefined,
-        !isWrappedByNextServer
-      )
+      // The request span was started before `prepare`; record the request
+      // target as normalized by it.
+      if (req.url !== undefined) {
+        requestSpan?.setAttribute('http.target', req.url)
+      }
+      parentSpan = requestParentSpan
+      try {
+        await invokeRouteModule(requestSpan)
+      } catch (err) {
+        // The request span outlives the error handling below, which only
+        // rethrows in dev: record the error on the span here otherwise.
+        if (requestSpan && !routeModule.isDev) {
+          recordSpanError(requestSpan, err as Error)
+        }
+        throw err
+      }
     }
   } catch (err) {
     // we re-throw in dev to show the error overlay

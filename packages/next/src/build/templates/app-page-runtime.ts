@@ -15,7 +15,6 @@ import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition
 import { getRevalidateReason } from '../../server/instrumentation/utils' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getTracer,
-  SpanKind,
   SpanStatusCode,
   type Span,
 } from '../../server/lib/trace/tracer' with { 'turbopack-transition': 'next-server-utility' }
@@ -244,6 +243,41 @@ export function createAppPageEntrypoint({
     const multiZoneDraftMode = process.env
       .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
+    // Start the request span before `prepare`, so route module preparation is
+    // part of the request's trace.
+    return routeModule.traceRequest(
+      req,
+      res,
+      {
+        tracer: getTracer(),
+        spanName: `${req.method || 'GET'} ${srcPage}`,
+        httpTarget,
+      },
+      (requestSpan, requestParentSpan) =>
+        handleRequest(
+          req,
+          res,
+          ctx,
+          isMinimalMode,
+          multiZoneDraftMode,
+          requestSpan,
+          requestParentSpan
+        )
+    )
+  }
+
+  async function handleRequest(
+    req: IncomingMessage,
+    res: ServerResponse,
+    ctx: {
+      waitUntil?: (prom: Promise<void>) => void
+      requestMeta?: RequestMeta
+    },
+    isMinimalMode: boolean,
+    multiZoneDraftMode: boolean,
+    requestSpan: Span | undefined,
+    requestParentSpan: Span | undefined
+  ) {
     const prepareResult = await routeModule.prepare(req, res, {
       srcPage,
       multiZoneDraftMode,
@@ -2417,25 +2451,8 @@ export function createAppPageEntrypoint({
       if (isWrappedByNextServer && activeSpan) {
         await handleResponse(activeSpan)
       } else {
-        parentSpan = tracer.getActiveScopeSpan()
-        return await tracer.withPropagatedContext(
-          req.headers,
-          () =>
-            tracer.trace(
-              BaseServerSpan.handleRequest,
-              {
-                spanName: `${method} ${srcPage}`,
-                kind: SpanKind.SERVER,
-                attributes: {
-                  'http.method': method,
-                  'http.target': httpTarget,
-                },
-              },
-              handleResponse
-            ),
-          undefined,
-          !isWrappedByNextServer
-        )
+        parentSpan = requestParentSpan
+        return await handleResponse(requestSpan)
       }
     } catch (err) {
       // If an Instant Navigation Testing document render fails (e.g. the page

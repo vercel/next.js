@@ -2032,68 +2032,158 @@ describe.each(
 })
 
 if (isNextStart) {
-  describe('opentelemetry route module preparation with direct entrypoint handler', () => {
-    let collector: Collector | undefined
-    const { next, skipped } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-      dependencies: require('./package.json').dependencies,
-      startCommand: 'pnpm start-entrypoint',
-      packageJson: {
-        scripts: {
-          'start-entrypoint':
-            'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+  describe.each([
+    { name: 'without parent span', withParentSpan: false },
+    { name: 'with parent span', withParentSpan: true },
+  ])(
+    'opentelemetry route module preparation with direct entrypoint handler $name',
+    ({ withParentSpan }) => {
+      let collector: Collector | undefined
+      const { next, skipped } = nextTestSetup({
+        files: __dirname,
+        skipStart: true,
+        dependencies: require('./package.json').dependencies,
+        startCommand: 'pnpm start-entrypoint',
+        packageJson: {
+          scripts: {
+            'start-entrypoint': withParentSpan
+              ? 'pnpm tsx custom-entrypoint-server.ts'
+              : 'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+          },
         },
-      },
-      serverReadyPattern: /- Local:/,
-      env: {
-        TEST_OTEL_COLLECTOR_PORT: String(ROUTE_PREPARATION_COLLECTOR_PORT),
-        NEXT_TELEMETRY_DISABLED: '1',
-        NODE_ENV: 'production',
-      },
-    })
-
-    if (skipped) {
-      return
-    }
-
-    afterAll(async () => {
-      await collector?.shutdown()
-    })
-
-    it('should trace route module preparation', async () => {
-      const connectedCollector = await connectCollector({
-        port: ROUTE_PREPARATION_COLLECTOR_PORT,
+        serverReadyPattern: /- Local:/,
+        env: {
+          TEST_OTEL_COLLECTOR_PORT: String(ROUTE_PREPARATION_COLLECTOR_PORT),
+          NEXT_TELEMETRY_DISABLED: '1',
+          NODE_ENV: 'production',
+        },
       })
-      collector = connectedCollector
-      await next.start()
 
-      await next.fetch('/app/param/rsc-fetch')
-      await next.fetch('/api/app/param/data')
+      if (skipped) {
+        return
+      }
 
-      await retry(async () => {
-        const prepareSpans = connectedCollector
-          .getSpans()
-          .filter(
+      afterAll(async () => {
+        await collector?.shutdown()
+      })
+
+      const pathnames = [
+        '/app/param/rsc-fetch',
+        '/api/app/param/data',
+        '/pages/param/getServerSideProps',
+        '/api/pages/param/basic',
+      ]
+
+      it('should trace route module preparation inside the request span', async () => {
+        const connectedCollector = await connectCollector({
+          port: ROUTE_PREPARATION_COLLECTOR_PORT,
+        })
+        collector = connectedCollector
+        await next.start()
+
+        // The first request starts the process (cold: instrumentation is
+        // registered and route modules are loaded), the later ones are warm.
+        // The parent-span harness starts its own root span without extracting
+        // incoming headers, so incoming propagation only applies without it.
+        const requests: { id: string; cold: boolean; traceparent: boolean }[] =
+          []
+        for (const [index, pathname] of pathnames.entries()) {
+          for (const variant of [
+            { traceparent: false },
+            { traceparent: false },
+            ...(withParentSpan ? [] : [{ traceparent: true }]),
+          ]) {
+            const id = Math.random().toString(36).slice(2)
+            const res = await next.fetch(`${pathname}?id=${id}`, {
+              headers: variant.traceparent
+                ? {
+                    traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+                  }
+                : {},
+            })
+            expect(res.status).toBe(200)
+            requests.push({
+              id,
+              cold: index === 0 && requests.length === 0,
+              traceparent: variant.traceparent,
+            })
+          }
+        }
+
+        await retry(async () => {
+          const spans = connectedCollector.getAllSpans()
+          const byId = new Map(spans.map((span) => [span.id, span]))
+          const prepareSpans = spans.filter(
             (span) =>
               span.attributes?.['next.span_type'] === 'RouteModule.prepare'
           )
 
-        expect(prepareSpans).toEqual([
-          expect.objectContaining({
-            runtime: 'nodejs',
-            name: 'prepare route module',
-            attributes: {
-              'next.span_category': 'nextjs',
-              'next.span_name': 'prepare route module',
-              'next.span_type': 'RouteModule.prepare',
-            },
-            status: { code: 0 },
-          }),
-        ])
+          // Every route module preparation belongs to a request: none starts
+          // a trace of its own.
+          for (const span of prepareSpans) {
+            expect(span).toEqual(
+              expect.objectContaining({
+                // The parent-span harness exports through its own provider,
+                // which doesn't record the runtime.
+                ...(withParentSpan ? {} : { runtime: 'nodejs' }),
+                name: 'prepare route module',
+                attributes: {
+                  'next.span_category': 'nextjs',
+                  'next.span_name': 'prepare route module',
+                  'next.span_type': 'RouteModule.prepare',
+                },
+                status: { code: 0 },
+              })
+            )
+            const parent = byId.get(span.parentId!)
+            expect(parent?.attributes?.['next.span_type']).toBe(
+              'BaseServer.handleRequest'
+            )
+            expect(span.traceId).toMatch(/^[0-9a-f]{32}$/)
+            expect(span.traceId).toBe(parent!.traceId)
+          }
+
+          for (const { id, cold, traceparent } of requests) {
+            const requestSpans = spans.filter(
+              (span) =>
+                span.attributes?.['next.span_type'] ===
+                  'BaseServer.handleRequest' &&
+                String(span.attributes?.['http.target'] ?? '').includes(
+                  `id=${id}`
+                )
+            )
+            expect({ id, cold, requestSpans: requestSpans.length }).toEqual({
+              id,
+              cold,
+              requestSpans: 1,
+            })
+            const [requestSpan] = requestSpans
+            expect(requestSpan.traceId).toMatch(/^[0-9a-f]{32}$/)
+
+            // The request's route module preparation is nested in its span.
+            const requestPrepareSpans = prepareSpans.filter(
+              (span) => span.parentId === requestSpan.id
+            )
+            expect(requestPrepareSpans).toHaveLength(1)
+            expect(requestPrepareSpans[0].traceId).toBe(requestSpan.traceId)
+
+            // ...and the request span continues the request's context.
+            if (withParentSpan) {
+              const parent = byId.get(requestSpan.parentId!)
+              expect(parent).toBeDefined()
+              expect(parent!.attributes?.['next.span_type']).toBeUndefined()
+              expect(parent!.traceId).toBe(requestSpan.traceId)
+            } else if (traceparent) {
+              expect(requestSpan.traceId).toBe(EXTERNAL.traceId)
+              expect(requestSpan.parentId).toBe(EXTERNAL.spanId)
+            } else {
+              expect(requestSpan.parentId).toBeUndefined()
+            }
+          }
+        })
       })
-    })
-  })
+    }
+  )
 }
 
 describe.each(
