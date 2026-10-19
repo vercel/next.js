@@ -319,6 +319,17 @@ export function prepareDestination(args: {
         break
       }
     }
+
+    // Marker-adjacent repeating params compile with an empty path-to-regexp
+    // prefix after `_NEXTSEP_` normalization. Passing an array then concatenates
+    // segments without `/` (['a','b'] -> 'ab'). Join first so destinations keep
+    // path separators.
+    for (const key of Object.keys(args.params)) {
+      const value = args.params[key]
+      if (Array.isArray(value)) {
+        args.params[key] = value.join('/')
+      }
+    }
   }
 
   try {
