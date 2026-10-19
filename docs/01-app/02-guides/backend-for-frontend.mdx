@@ -190,7 +190,6 @@ import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
-import type { ReadableStream } from 'node:stream/web'
 
 export async function GET(
   request: Request,
@@ -204,7 +203,7 @@ export async function GET(
 
   try {
     const stats = await stat(filePath)
-    const data: ReadableStream = Readable.toWeb(createReadStream(filePath))
+    const data = Readable.toWeb(createReadStream(filePath)) as ReadableStream
 
     return new Response(data, {
       headers: {
@@ -466,6 +465,8 @@ Next.js gives you two places to receive a file upload: a [Server Action](/docs/a
 
 > [!WARNING]
 > Always verify [authentication and authorization](/docs/app/guides/authentication) before accepting an upload, and never use the file name sent by the client as a path on disk.
+
+The examples in this section save files to the local file system, so they need the Node.js runtime and a server with a persistent disk. To keep files elsewhere, send them to your storage provider's upload API instead.
 
 #### Small files with Server Actions
 
@@ -1184,7 +1185,9 @@ Community libraries often use the factory pattern for Route Handlers.
 ```ts filename="/app/api/[...path]/route.ts"
 import { createHandler } from 'third-party-library'
 
-const handler = createHandler({/* library-specific options */})
+const handler = createHandler({
+  /* library-specific options */
+})
 
 export const GET = handler
 // or
