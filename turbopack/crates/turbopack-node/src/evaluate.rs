@@ -1,23 +1,33 @@
-use std::{iter, process::ExitStatus, time::Duration};
+use std::{
+    iter,
+    path::PathBuf,
+    process::ExitStatus,
+    sync::{
+        Arc, LazyLock, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
+    time::Duration,
+};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, OperationVc, PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc,
-    duration_span, fxindexmap, parallel::available_parallelism,
+    Completion, FxIndexMap, PrettyPrintError, ReadRef, ResolvedVc, State, TryJoinIterExt,
+    TurboTasksApi, Vc, duration_span, fxindexmap, parallel::available_parallelism,
     resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::AssetContent,
-    changed::content_changed,
+    asset::{Asset, AssetContent},
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     context::AssetContext,
     file_source::FileSource,
@@ -40,16 +50,22 @@ use crate::{
     embed_js::embed_file_path,
     emit, emit_package_json,
     format::FormattingMode,
-    internal_assets_for_source_mapping,
+    internal_assets, internal_assets_for_source_mapping,
     pool_stats::PoolStatsSnapshot,
     source_map::StructuredError,
 };
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 enum EvalJavaScriptOutgoingMessage<'a> {
     #[serde(rename_all = "camelCase")]
-    Evaluate { args: Vec<&'a JsonValue> },
+    Evaluate {
+        entry: &'a str,
+        args: Vec<&'a JsonValue>,
+    },
     Result {
         id: u64,
         data: Option<JsonValue>,
@@ -66,38 +82,39 @@ enum EvalJavaScriptIncomingMessage {
     Error(StructuredError),
 }
 
-#[turbo_tasks::value(
-    cell = "new",
-    serialization = "skip",
-    evict = "last",
-    eq = "manual",
-    shared
-)]
+/// Shared runtime resources only. Task-specific assets must never be retained by this pool.
 pub struct EvaluatePool {
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    id: u64,
     pool: Box<dyn EvaluateOperation>,
+}
+
+/// Source attribution belongs to an evaluation, not to a worker or its pool.
+#[derive(Clone)]
+pub struct EvaluationAssets {
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,
     pub project_dir: FileSystemPath,
 }
 
 impl EvaluatePool {
-    pub(crate) fn new(
-        pool: Box<dyn EvaluateOperation>,
-        assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-        assets_root: FileSystemPath,
-        project_dir: FileSystemPath,
-    ) -> Self {
+    pub(crate) fn new(pool: Box<dyn EvaluateOperation>) -> Self {
+        static NEXT_ID: AtomicU64 = AtomicU64::new(1);
         Self {
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             pool,
-            assets_for_source_mapping,
-            assets_root,
-            project_dir,
         }
     }
 
-    pub async fn operation(&self) -> Result<Box<dyn Operation>> {
-        self.pool.operation().await
+    /// Retire synchronously, before returning the acquisition future. This lets callers coordinate
+    /// invalidation detection with retirement without holding a lock across an await.
+    pub fn operation(
+        &self,
+        restart_pool: bool,
+    ) -> impl Future<Output = Result<Box<dyn Operation>>> + Send + '_ {
+        if restart_pool {
+            self.pool.restart();
+        }
+        self.pool.operation()
     }
 
     pub fn stats(&self) -> PoolStatsSnapshot {
@@ -112,6 +129,8 @@ impl EvaluatePool {
 #[async_trait::async_trait]
 pub trait EvaluateOperation: Send + Sync {
     async fn operation(&self) -> Result<Box<dyn Operation>>;
+    /// Retire idle workers immediately and prevent in-flight workers from returning for reuse.
+    fn restart(&self);
     fn stats(&self) -> PoolStatsSnapshot;
     /// Eagerly spawn a Node.js worker so it's ready when the first [`Self::operation`] is called.
     /// The worker should go into the idle queue.
@@ -123,6 +142,8 @@ pub trait EvaluateOperation: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait Operation: Send {
+    fn set_assets(&mut self, _assets: EvaluationAssets) {}
+
     async fn recv(&mut self) -> Result<Bytes>;
 
     async fn send(&mut self, data: Bytes) -> Result<()>;
@@ -137,6 +158,8 @@ struct EmittedEvaluatePoolAssets {
     bootstrap: ResolvedVc<Box<dyn OutputAsset>>,
     output_root: FileSystemPath,
     entrypoint: FileSystemPath,
+    evaluation_entry: ResolvedVc<Box<dyn OutputAsset>>,
+    evaluation_entrypoint: FileSystemPath,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -148,12 +171,31 @@ async fn emit_evaluate_pool_assets_operation(
     let EvaluateEntries {
         entries,
         main_entry_ident,
+        bootstrap_entries,
+        bootstrap_ident,
     } = &*entries.await?;
+
+    let evaluation_entrypoint = chunking_context
+        .chunk_path(
+            None,
+            **main_entry_ident,
+            Some(rcstr!("evaluate_entry")),
+            rcstr!(".js"),
+        )
+        .owned()
+        .await?;
+    let evaluation_entry = chunking_context.root_entry_chunk_group_asset(
+        evaluation_entrypoint.clone(),
+        ChunkGroup::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()),
+        *module_graph,
+        OutputAssets::empty(),
+        OutputAssets::empty(),
+    );
 
     let entrypoint = chunking_context
         .chunk_path(
             None,
-            **main_entry_ident,
+            **bootstrap_ident,
             Some(rcstr!("pool_entry")),
             rcstr!(".js"),
         )
@@ -162,7 +204,13 @@ async fn emit_evaluate_pool_assets_operation(
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint.clone(),
-        ChunkGroup::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()),
+        ChunkGroup::Entry(
+            bootstrap_entries
+                .iter()
+                .cloned()
+                .map(ResolvedVc::upcast)
+                .collect(),
+        ),
         *module_graph,
         OutputAssets::empty(),
         OutputAssets::empty(),
@@ -175,11 +223,16 @@ async fn emit_evaluate_pool_assets_operation(
     emit(bootstrap, output_root.clone())
         .as_side_effect()
         .await?;
+    emit(evaluation_entry, output_root.clone())
+        .as_side_effect()
+        .await?;
 
     Ok(EmittedEvaluatePoolAssets {
         bootstrap: bootstrap.to_resolved().await?,
         output_root,
         entrypoint,
+        evaluation_entry: evaluation_entry.to_resolved().await?,
+        evaluation_entrypoint,
     }
     .cell())
 }
@@ -212,9 +265,136 @@ pub enum EnvVarTracking {
     Untracked,
 }
 
-#[turbo_tasks::function(operation, root)]
-/// Pass the file you cared as `runtime_entries` to invalidate and reload the
-/// evaluated result automatically.
+#[derive(Hash, PartialEq, Eq)]
+struct PoolKey {
+    backend: RcStr,
+    cwd: PathBuf,
+    env: Vec<(RcStr, RcStr)>,
+    concurrency: usize,
+    debug: bool,
+}
+
+struct EnginePools {
+    owner: Weak<dyn TurboTasksApi>,
+    pools: FxHashMap<PoolKey, Arc<EvaluatePool>>,
+}
+
+static EVALUATE_POOLS: LazyLock<tokio::sync::Mutex<Vec<EnginePools>>> =
+    LazyLock::new(Default::default);
+
+async fn get_or_create_pool(
+    key: PoolKey,
+    create: impl FnOnce() -> crate::backend::CreatePoolFuture,
+) -> Result<Arc<EvaluatePool>> {
+    // Serialize first creation, including prewarming, across concurrent lookups.
+    let owner = turbo_tasks::turbo_tasks_weak();
+    let mut engines = EVALUATE_POOLS.lock().await;
+    engines.retain(|engine| engine.owner.strong_count() > 0);
+    let index = if let Some(index) = engines
+        .iter()
+        .position(|engine| Weak::ptr_eq(&engine.owner, &owner))
+    {
+        index
+    } else {
+        engines.push(EnginePools {
+            owner,
+            pools: FxHashMap::default(),
+        });
+        engines.len() - 1
+    };
+    let pools = &mut engines[index].pools;
+    if let Some(pool) = pools.get(&key) {
+        return Ok(pool.clone());
+    }
+    let pool = Arc::new(create().await?);
+    pool.pre_warm();
+    pools.insert(key, pool.clone());
+    Ok(pool)
+}
+
+pub struct PreparedEvaluation {
+    pool: Arc<EvaluatePool>,
+    assets: EvaluationAssets,
+    entry: PathBuf,
+    code_state: ReadRef<EvaluationInvalidationState>,
+    code_version: InvalidationVersion,
+}
+
+// Completion contains no task handles. Retain the ReadRef rather than only its address to avoid
+// treating a newly allocated completion at a reused address as the previously observed version.
+enum InvalidationVersion {
+    Completion(ReadRef<Completion>),
+    Code(Vec<(RcStr, Option<RcStr>)>),
+}
+unsafe impl turbo_tasks::OperationValue for InvalidationVersion {}
+
+impl InvalidationVersion {
+    fn matches(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Completion(a), Self::Completion(b)) => ReadRef::ptr_eq(a, b),
+            (Self::Code(a), Self::Code(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+#[turbo_tasks::value(serialization = "skip", eq = "manual")]
+#[derive(PartialEq)]
+struct EvaluationInvalidationState {
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    versions: State<FxHashMap<u64, InvalidationVersion>>,
+}
+
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Encode, Decode)]
+enum InvalidationKey {
+    Additional(ResolvedVc<Completion>),
+    Code(ResolvedVc<AssetIdent>),
+}
+
+#[turbo_tasks::function]
+fn evaluation_invalidation_state(key: InvalidationKey) -> Vc<EvaluationInvalidationState> {
+    let _ = key;
+    // Do not read the completion here: rerunning this task would reset the remembered version.
+    EvaluationInvalidationState {
+        versions: State::new(FxHashMap::default()),
+    }
+    .cell()
+}
+
+#[turbo_tasks::value(transparent)]
+struct CodeVersion(Vec<(RcStr, Option<RcStr>)>);
+
+#[turbo_tasks::function]
+async fn evaluation_code_version(
+    entry: Vc<Box<dyn OutputAsset>>,
+    root: FileSystemPath,
+) -> Result<Vc<CodeVersion>> {
+    // Entry files can remain byte-identical while referenced chunks change. Compare the complete
+    // emitted graph by relative path and content, not task identity or the absolute output path.
+    let mut version = internal_assets(entry, root.clone())
+        .await?
+        .iter()
+        .map(async |asset| {
+            let path = asset.path().await?;
+            let relative = root
+                .get_path_to(&path)
+                .expect("internal asset is inside output root");
+            let hash = asset
+                .content()
+                .content_hash(Vc::cell(RcStr::default()), HashAlgorithm::Xxh3Hash128Hex)
+                .owned()
+                .await?;
+            Ok((RcStr::from(relative), hash))
+        })
+        .try_join()
+        .await?;
+    version.sort_unstable();
+    Ok(Vc::cell(version))
+}
+
+/// Retrieve a compatible runtime pool. Neither emitted code nor its invalidation dependencies
+/// contribute to pool identity; they belong to the evaluation and trigger retirement instead.
 pub async fn get_evaluate_pool(
     entries: ResolvedVc<EvaluateEntries>,
     cwd: FileSystemPath,
@@ -222,63 +402,89 @@ pub async fn get_evaluate_pool(
     node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-    additional_invalidation: ResolvedVc<Completion>,
     debug: bool,
     env_var_tracking: EnvVarTracking,
-) -> Result<Vc<EvaluatePool>> {
+) -> Result<PreparedEvaluation> {
     let assets_op = create_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
-    // Effects are applied inside `create_evaluate_pool_assets_operation`; a plain strongly
-    // consistent read suffices here.
-    let assets = assets_op.read_strongly_consistent().await?;
-
-    let EmittedEvaluatePoolAssets {
-        bootstrap,
-        output_root,
-        entrypoint,
-    } = &*assets;
-
-    let (Some(cwd), Some(entrypoint)) = (
-        to_sys_path(cwd.clone()).await?,
-        to_sys_path(entrypoint.clone()).await?,
+    // Effects are applied by the producing operation. Keep emission strongly consistent before
+    // asking a worker to load the evaluation entry.
+    let emitted = assets_op.read_strongly_consistent().await?;
+    let (Some(cwd), Some(entrypoint), Some(entry)) = (
+        to_sys_path(cwd).await?,
+        to_sys_path(emitted.entrypoint.clone()).await?,
+        to_sys_path(emitted.evaluation_entrypoint.clone()).await?,
     ) else {
         panic!("can only evaluate from a disk filesystem");
     };
-
-    // Invalidate pool when code content changes
-    content_changed(Vc::upcast(**bootstrap)).await?;
-    let assets_for_source_mapping =
-        internal_assets_for_source_mapping(**bootstrap, output_root.clone())
-            .to_resolved()
+    let mut code_version =
+        evaluation_code_version(*emitted.evaluation_entry, emitted.output_root.clone())
+            .owned()
             .await?;
+    code_version.extend(
+        evaluation_code_version(*emitted.bootstrap, emitted.output_root.clone())
+            .owned()
+            .await?,
+    );
+    code_version.sort_unstable();
+    code_version.dedup();
+    let code_version = InvalidationVersion::Code(code_version);
+    let code_state =
+        evaluation_invalidation_state(InvalidationKey::Code(entries.await?.main_entry_ident))
+            .await?;
+    let assets = EvaluationAssets {
+        assets_for_source_mapping: internal_assets_for_source_mapping(
+            *emitted.evaluation_entry,
+            emitted.output_root.clone(),
+        )
+        .to_resolved()
+        .await?,
+        assets_root: emitted.output_root.clone(),
+        project_dir: chunking_context.root_path().owned().await?,
+    };
     let env = match env_var_tracking {
         EnvVarTracking::WholeEnvTracked => env.read_all().await?,
         EnvVarTracking::Untracked => {
-            // We always depend on some known env vars that are used by Node.js
             common_node_env(*env).await?;
             for name in ["FORCE_COLOR", "NO_COLOR", "OPENSSL_CONF", "TZ"] {
                 env.read(name.into()).await?;
             }
-
             env.read_all().untracked().await?
         }
     };
-
     let node_backend = node_backend.into_trait_ref().await?;
-    let pool = node_backend
-        .create_pool(CreatePoolOptions {
+    let concurrency = available_parallelism().map_or(1, |v| v.get());
+    let mut effective_env = if node_backend.uses_env() {
+        env.iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    effective_env.sort_unstable();
+    let key = PoolKey {
+        backend: node_backend.runtime_module_path(),
+        cwd: cwd.clone(),
+        env: effective_env,
+        concurrency,
+        debug,
+    };
+    let pool = get_or_create_pool(key, || {
+        node_backend.create_pool(CreatePoolOptions {
             cwd,
             entrypoint,
             env: env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
-            assets_for_source_mapping,
-            assets_root: output_root.clone(),
-            project_dir: chunking_context.root_path().owned().await?,
-            concurrency: available_parallelism().map_or(1, |v| v.get()),
+            concurrency,
             debug,
         })
-        .await?;
-    pool.pre_warm();
-    additional_invalidation.await?;
-    Ok(pool.cell())
+    })
+    .await?;
+    Ok(PreparedEvaluation {
+        pool,
+        assets,
+        entry,
+        code_state,
+        code_version,
+    })
 }
 
 #[turbo_tasks::function]
@@ -356,7 +562,8 @@ pub trait EvaluateContext {
     type ResponseMessage: Serialize;
     type State: Default;
 
-    fn pool(&self) -> OperationVc<EvaluatePool>;
+    fn pool(&self) -> impl Future<Output = Result<PreparedEvaluation>> + Send;
+    fn additional_invalidation(&self) -> ResolvedVc<Completion>;
     fn keep_alive(&self) -> bool {
         false
     }
@@ -367,24 +574,24 @@ pub trait EvaluateContext {
     fn emit_error(
         &self,
         error: StructuredError,
-        pool: &EvaluatePool,
+        pool: &EvaluationAssets,
     ) -> impl Future<Output = Result<()>> + Send;
     fn info(
         &self,
         state: &mut Self::State,
         data: Self::InfoMessage,
-        pool: &EvaluatePool,
+        pool: &EvaluationAssets,
     ) -> impl Future<Output = Result<()>> + Send;
     fn request(
         &self,
         state: &mut Self::State,
         data: Self::RequestMessage,
-        pool: &EvaluatePool,
+        pool: &EvaluationAssets,
     ) -> impl Future<Output = Result<Self::ResponseMessage>> + Send;
     fn finish(
         &self,
         state: Self::State,
-        pool: &EvaluatePool,
+        pool: &EvaluationAssets,
     ) -> impl Future<Output = Result<()>> + Send;
 
     /// Optional human-readable prefix describing *what was being evaluated*,
@@ -397,13 +604,48 @@ pub trait EvaluateContext {
     }
 }
 
-pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<Vc<Option<RcStr>>> {
-    let pool_op = evaluate_context.pool();
-    let mut state = Default::default();
+fn evaluation_operation<'a>(
+    pool: &'a EvaluatePool,
+    code_state: &EvaluationInvalidationState,
+    code_version: InvalidationVersion,
+    additional_state: &EvaluationInvalidationState,
+    additional_version: InvalidationVersion,
+) -> impl Future<Output = Result<Box<dyn Operation>>> + Send + 'a {
+    // Keep comparison and synchronous retirement atomic for callers sharing these States. A
+    // second caller must not observe the new version and acquire an old idle worker in between.
+    let mut code = code_state.versions.get_untracked();
+    let mut extra = additional_state.versions.get_untracked();
+    let restart_pool = code
+        .get(&pool.id)
+        .is_some_and(|v| !v.matches(&code_version))
+        || extra
+            .get(&pool.id)
+            .is_some_and(|v| !v.matches(&additional_version));
+    code.insert(pool.id, code_version);
+    extra.insert(pool.id, additional_version);
+    pool.operation(restart_pool)
+}
 
-    // Read this strongly consistent, since we don't want to run inconsistent
-    // node.js code.
-    let pool = pool_op.read_strongly_consistent().await?;
+pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<Vc<Option<RcStr>>> {
+    let PreparedEvaluation {
+        pool,
+        assets,
+        entry,
+        code_state,
+        code_version,
+    } = evaluate_context.pool().await?;
+    let additional = evaluate_context.additional_invalidation();
+    let additional_version = InvalidationVersion::Completion(additional.await?);
+    let additional_state =
+        evaluation_invalidation_state(InvalidationKey::Additional(additional)).await?;
+    let mut state = Default::default();
+    let mut acquire = Some(evaluation_operation(
+        &pool,
+        &code_state,
+        code_version,
+        &additional_state,
+        additional_version,
+    ));
 
     let args = evaluate_context.args().iter().try_join().await?;
     // Assume this is a one-off operation, so we can kill the process
@@ -416,16 +658,30 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
     // sending the job.
 
     let operation = FutureRetry::new(
-        async || {
-            let mut operation = pool.operation().await?;
-            operation
-                .send(Bytes::from(serde_json::to_vec(
-                    &EvalJavaScriptOutgoingMessage::Evaluate {
-                        args: args.iter().map(|v| &**v).collect(),
-                    },
-                )?))
-                .await?;
-            Ok(operation)
+        || {
+            let acquire = acquire.take();
+            let pool = &pool;
+            let assets = &assets;
+            let args = &args;
+            let entry = &entry;
+            async move {
+                let mut operation = match acquire {
+                    Some(acquire) => acquire.await?,
+                    None => pool.operation(false).await?,
+                };
+                operation.set_assets(assets.clone());
+                operation
+                    .send(Bytes::from(serde_json::to_vec(
+                        &EvalJavaScriptOutgoingMessage::Evaluate {
+                            entry: entry
+                                .to_str()
+                                .ok_or_else(|| anyhow::anyhow!("evaluation entry is not UTF-8"))?,
+                            args: args.iter().map(|v| &**v).collect(),
+                        },
+                    )?))
+                    .await?;
+                Ok(operation)
+            }
         },
         PoolErrorHandler,
     )
@@ -454,9 +710,9 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
     // The evaluation sent an initial intermediate value without completing. We'll
     // need to spawn a new thread to continually pull data out of the process,
     // and ferry that along.
-    let result = pull_operation(&mut operation, &pool, &evaluate_context, &mut state).await?;
+    let result = pull_operation(&mut operation, &assets, &evaluate_context, &mut state).await?;
 
-    evaluate_context.finish(state, &pool).await?;
+    evaluate_context.finish(state, &assets).await?;
 
     if kill {
         operation.wait_or_kill().await?;
@@ -469,35 +725,51 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
 pub struct EvaluateEntries {
     entries: Vec<ResolvedVc<Box<dyn EvaluatableAsset + 'static>>>,
     main_entry_ident: ResolvedVc<AssetIdent>,
+    bootstrap_entries: Vec<ResolvedVc<Box<dyn EvaluatableAsset>>>,
+    bootstrap_ident: ResolvedVc<AssetIdent>,
 }
 
 #[turbo_tasks::value_impl]
 impl EvaluateEntries {
     #[turbo_tasks::function]
     pub async fn graph_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(
-            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
-                modules: self
-                    .await?
+        let entries = self.await?;
+        Ok(GraphEntries::from_chunk_groups(vec![
+            ChunkGroupEntry::Entry {
+                modules: entries
                     .entries
                     .iter()
                     .cloned()
                     .map(ResolvedVc::upcast)
                     .collect(),
                 heuristics: EntryHeuristics::default(),
-            }])
-            .cell(),
-        )
+            },
+            ChunkGroupEntry::Entry {
+                modules: entries
+                    .bootstrap_entries
+                    .iter()
+                    .cloned()
+                    .map(ResolvedVc::upcast)
+                    .collect(),
+                heuristics: EntryHeuristics::default(),
+            },
+        ])
+        .cell())
     }
 }
 
+#[turbo_tasks::value]
+struct EvaluateBootstrap {
+    entries: Vec<ResolvedVc<Box<dyn EvaluatableAsset>>>,
+    ident: ResolvedVc<AssetIdent>,
+    runtime_path: FileSystemPath,
+}
+
 #[turbo_tasks::function]
-pub async fn get_evaluate_entries(
-    module_asset: ResolvedVc<Box<dyn Module>>,
+async fn get_evaluate_bootstrap(
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     node_backend: ResolvedVc<Box<dyn NodeBackend>>,
-    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
-) -> Result<Vc<EvaluateEntries>> {
+) -> Result<Vc<EvaluateBootstrap>> {
     let node_backend = node_backend.into_trait_ref().await?;
     let runtime_module_path = node_backend.runtime_module_path();
 
@@ -512,53 +784,78 @@ pub async fn get_evaluate_entries(
         .to_resolved()
         .await?;
 
-    let entry_module = asset_context
+    let bootstrap_module = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                runtime_asset.ident().await?.path.join("evaluate.js")?,
+                runtime_asset.ident().await?.path.join("bootstrap.js")?,
                 AssetContent::file(
-                    FileContent::Content(File::from(
-                        "import {run} from 'RUNTIME'; run(() => import('INNER'))",
-                    ))
-                    .cell(),
+                    FileContent::Content(File::from("import {run} from 'RUNTIME'; run()")).cell(),
                 ),
             )),
             ReferenceType::Internal(ResolvedVc::cell(
-                fxindexmap! {rcstr!("INNER") => module_asset,
-                rcstr!("RUNTIME") => runtime_asset},
+                fxindexmap! { rcstr!("RUNTIME") => runtime_asset },
             )),
         )
         .module()
         .to_resolved()
         .await?;
 
-    let runtime_entries = {
-        let mut entries = vec![];
-        let global_module_path = node_backend.globals_module_path();
+    let global_module_path = node_backend.globals_module_path();
+    let globals_module = asset_context
+        .process(
+            Vc::upcast(FileSource::new(
+                embed_file_path(global_module_path).owned().await?,
+            )),
+            ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+        )
+        .module()
+        .to_resolved()
+        .await?;
+    let Some(globals_module) =
+        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(globals_module)
+    else {
+        bail!("Internal module is not evaluatable");
+    };
+    Ok(EvaluateBootstrap {
+        entries: vec![
+            globals_module,
+            ResolvedVc::try_downcast(bootstrap_module).unwrap(),
+        ],
+        ident: bootstrap_module.ident().to_resolved().await?,
+        runtime_path: runtime_asset.ident().await?.path.clone(),
+    }
+    .cell())
+}
 
-        let globals_module = asset_context
-            .process(
-                Vc::upcast(FileSource::new(
-                    embed_file_path(global_module_path).owned().await?,
-                )),
-                ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
-            )
-            .module();
-
-        let Some(globals_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
-            globals_module.to_resolved().await?,
-        ) else {
-            bail!("Internal module is not evaluatable");
-        };
-
-        entries.push(globals_module);
-
-        if let Some(runtime_entries) = runtime_entries {
-            for &entry in &*runtime_entries.await? {
-                entries.push(entry)
-            }
-        }
-        entries
+#[turbo_tasks::function]
+pub async fn get_evaluate_entries(
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    node_backend: ResolvedVc<Box<dyn NodeBackend>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+) -> Result<Vc<EvaluateEntries>> {
+    // Construct this independently of the evaluation entry so a multi-entry module graph sees
+    // exactly one bootstrap module, not different module handles with the same ident.
+    let bootstrap = get_evaluate_bootstrap(*asset_context, *node_backend).await?;
+    let entry_module = asset_context
+        .process(
+            Vc::upcast(VirtualSource::new(
+                bootstrap.runtime_path.join("evaluate.js")?,
+                AssetContent::file(
+                    FileContent::Content(File::from("export default () => import('INNER')")).cell(),
+                ),
+            )),
+            ReferenceType::Internal(ResolvedVc::cell(
+                fxindexmap! {rcstr!("INNER") => module_asset},
+            )),
+        )
+        .module()
+        .to_resolved()
+        .await?;
+    let runtime_entries = if let Some(runtime_entries) = runtime_entries {
+        runtime_entries.await?.iter().copied().collect::<Vec<_>>()
+    } else {
+        Vec::new()
     };
 
     Ok(EvaluateEntries {
@@ -568,6 +865,8 @@ pub async fn get_evaluate_entries(
             .chain(iter::once(ResolvedVc::try_downcast(entry_module).unwrap()))
             .collect(),
         main_entry_ident: module_asset.ident().to_resolved().await?,
+        bootstrap_ident: bootstrap.ident,
+        bootstrap_entries: bootstrap.entries.clone(),
     }
     .cell())
 }
@@ -606,7 +905,7 @@ pub async fn evaluate(
 /// value/error/end.
 async fn pull_operation<T: EvaluateContext>(
     operation: &mut Box<dyn Operation>,
-    pool: &EvaluatePool,
+    pool: &EvaluationAssets,
     evaluate_context: &T,
     state: &mut T::State,
 ) -> Result<Option<String>> {
@@ -708,7 +1007,7 @@ impl EvaluateContext for BasicEvaluateContext {
     type ResponseMessage = ();
     type State = ();
 
-    fn pool(&self) -> OperationVc<EvaluatePool> {
+    fn pool(&self) -> impl Future<Output = Result<PreparedEvaluation>> + Send {
         get_evaluate_pool(
             self.entries,
             self.cwd.clone(),
@@ -716,10 +1015,13 @@ impl EvaluateContext for BasicEvaluateContext {
             self.node_backend,
             self.chunking_context,
             self.module_graph,
-            self.additional_invalidation,
             self.debug,
             EnvVarTracking::WholeEnvTracked,
         )
+    }
+
+    fn additional_invalidation(&self) -> ResolvedVc<Completion> {
+        self.additional_invalidation
     }
 
     fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
@@ -738,7 +1040,7 @@ impl EvaluateContext for BasicEvaluateContext {
         !self.args.is_empty()
     }
 
-    async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
+    async fn emit_error(&self, error: StructuredError, pool: &EvaluationAssets) -> Result<()> {
         EvaluationIssue {
             error,
             source: IssueSource::from_source_only(self.context_source_for_issue),
@@ -756,7 +1058,7 @@ impl EvaluateContext for BasicEvaluateContext {
         &self,
         _state: &mut Self::State,
         _data: Self::InfoMessage,
-        _pool: &EvaluatePool,
+        _pool: &EvaluationAssets,
     ) -> Result<()> {
         bail!("BasicEvaluateContext does not support info messages")
     }
@@ -765,12 +1067,12 @@ impl EvaluateContext for BasicEvaluateContext {
         &self,
         _state: &mut Self::State,
         _data: Self::RequestMessage,
-        _pool: &EvaluatePool,
+        _pool: &EvaluationAssets,
     ) -> Result<Self::ResponseMessage> {
         bail!("BasicEvaluateContext does not support request messages")
     }
 
-    async fn finish(&self, _state: Self::State, _pool: &EvaluatePool) -> Result<()> {
+    async fn finish(&self, _state: Self::State, _pool: &EvaluationAssets) -> Result<()> {
         Ok(())
     }
 }

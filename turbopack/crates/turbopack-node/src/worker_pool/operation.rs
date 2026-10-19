@@ -1,6 +1,6 @@
 use std::{
     process::ExitStatus,
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, Weak},
 };
 
 use anyhow::{Context, Result};
@@ -60,6 +60,7 @@ impl<T: Send + Sync + 'static> MessageChannel<T> {
 
 #[derive(Default)]
 pub(crate) struct PoolState {
+    pub(crate) retired: Mutex<bool>,
     pub(crate) idle_workers: Mutex<Vec<u32>>,
     pub(crate) stats: Arc<Mutex<NodeJsPoolStats>>,
     pub(crate) waiters: Mutex<Vec<oneshot::Sender<u32>>>,
@@ -85,15 +86,16 @@ pub(crate) struct WorkerPoolOperation {
     worker_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<(u32, Bytes)>>>>,
     #[allow(clippy::type_complexity)]
     task_routed_channel: Mutex<FxHashMap<u32, Arc<MessageChannel<Bytes>>>>,
-    pub(crate) pools: Mutex<FxHashMap<Arc<WorkerOptions>, Arc<PoolState>>>,
+    pub(crate) pools: Mutex<Vec<(Arc<WorkerOptions>, Weak<PoolState>)>>,
 }
 
 impl WorkerPoolOperation {
-    pub(crate) async fn get_pool_state(
-        &self,
-        worker_options: Arc<WorkerOptions>,
-    ) -> Arc<PoolState> {
-        self.pools.lock().entry(worker_options).or_default().clone()
+    pub(crate) fn create_pool_state(&self, worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
+        let state = Arc::new(PoolState::default());
+        let mut pools = self.pools.lock();
+        pools.retain(|(_, state)| state.strong_count() > 0);
+        pools.push((worker_options, Arc::downgrade(&state)));
+        state
     }
 
     pub(crate) fn scale_down(&self) -> Result<()> {
@@ -102,6 +104,9 @@ impl WorkerPoolOperation {
         {
             let pools = self.pools.lock();
             for (worker_options, state) in pools.iter() {
+                let Some(state) = state.upgrade() else {
+                    continue;
+                };
                 let mut idle = state.idle_workers.lock();
                 if idle.len() > 1 {
                     let workers = idle.split_off(1);
@@ -128,6 +133,9 @@ impl WorkerPoolOperation {
         {
             let pools = self.pools.lock();
             for (worker_options, state) in pools.iter() {
+                let Some(state) = state.upgrade() else {
+                    continue;
+                };
                 let mut idle = state.idle_workers.lock();
                 let workers = std::mem::take(&mut *idle);
                 let mut stats = state.stats.lock();
@@ -193,8 +201,8 @@ pub(crate) fn terminate_worker(worker_options: Arc<WorkerOptions>, worker_id: u3
     WORKER_POOL_OPERATION.terminate_worker(worker_options, worker_id)
 }
 
-pub(crate) async fn get_pool_state(worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
-    WORKER_POOL_OPERATION.get_pool_state(worker_options).await
+pub(crate) fn create_pool_state(worker_options: Arc<WorkerOptions>) -> Arc<PoolState> {
+    WORKER_POOL_OPERATION.create_pool_state(worker_options)
 }
 
 /// Pre-allocated channels for a single task's communication.

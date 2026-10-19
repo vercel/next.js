@@ -12,7 +12,7 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    Completion, Completions, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
     ValueToString, ValueToStringRef, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
@@ -64,8 +64,8 @@ use crate::{
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluatePool, EvaluationIssue,
-        custom_evaluate, get_evaluate_entries, get_evaluate_pool,
+        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluationAssets, EvaluationIssue,
+        PreparedEvaluation, custom_evaluate, get_evaluate_entries, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
     format::FormattingMode,
@@ -746,7 +746,7 @@ impl EvaluateContext for WebpackLoaderContext {
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 
-    fn pool(&self) -> OperationVc<EvaluatePool> {
+    fn pool(&self) -> impl Future<Output = Result<PreparedEvaluation>> + Send {
         get_evaluate_pool(
             self.entries,
             self.cwd.clone(),
@@ -754,13 +754,16 @@ impl EvaluateContext for WebpackLoaderContext {
             self.node_backend,
             self.chunking_context,
             self.module_graph,
-            self.additional_invalidation,
             should_debug("webpack_loader"),
             // Env vars are read untracked, since we want a more granular dependency on certain env
             // vars only. So the runtime code tracks which env vars are read and send a dependency
             // message for them.
             EnvVarTracking::Untracked,
         )
+    }
+
+    fn additional_invalidation(&self) -> ResolvedVc<Completion> {
+        self.additional_invalidation
     }
 
     fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
@@ -783,7 +786,7 @@ impl EvaluateContext for WebpackLoaderContext {
         self.loader_chain_description()
     }
 
-    async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
+    async fn emit_error(&self, error: StructuredError, pool: &EvaluationAssets) -> Result<()> {
         EvaluationIssue {
             error,
             source: IssueSource::from_source_only(self.context_source_for_issue),
@@ -801,7 +804,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         state: &mut Self::State,
         data: Self::InfoMessage,
-        pool: &EvaluatePool,
+        pool: &EvaluationAssets,
     ) -> Result<()> {
         match data {
             InfoMessage::Dependencies {
@@ -891,7 +894,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         _state: &mut Self::State,
         data: Self::RequestMessage,
-        _pool: &EvaluatePool,
+        _pool: &EvaluationAssets,
     ) -> Result<Self::ResponseMessage> {
         match data {
             RequestMessage::Resolve {
@@ -1065,7 +1068,7 @@ impl EvaluateContext for WebpackLoaderContext {
         }
     }
 
-    async fn finish(&self, state: Self::State, pool: &EvaluatePool) -> Result<()> {
+    async fn finish(&self, state: Self::State, pool: &EvaluationAssets) -> Result<()> {
         let has_errors = state.iter().any(|log| log.log_type == LogType::Error);
         let has_warnings = state.iter().any(|log| log.log_type == LogType::Warn);
         if has_errors || has_warnings {

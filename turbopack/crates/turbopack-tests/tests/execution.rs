@@ -20,7 +20,7 @@ use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storag
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
-    json::parse_json_with_source_context,
+    json::parse_json_with_source_context, to_sys_path,
 };
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
@@ -43,7 +43,8 @@ use turbopack_core::{
     ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
-        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
+        GraphEntries, ModuleGraph, SingleModuleGraph,
+        binding_usage_info::compute_binding_usage_info,
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -297,6 +298,9 @@ struct TestOptions {
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
+    /// Exercise shared worker dispatch using first.js and second.js before running the JS tests.
+    #[serde(default)]
+    test_shared_pool: bool,
     #[serde(default)]
     global_module_ids: bool,
     /// Assign numeric module ids, as production builds do, instead of the
@@ -334,6 +338,7 @@ impl Default for TestOptions {
             infer_module_side_effects: default_true(),
             minify: false,
             production_chunking: false,
+            test_shared_pool: false,
             global_module_ids: false,
             numeric_module_ids: false,
             side_effect_free_packages: Vec::new(),
@@ -587,8 +592,28 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let entries = get_evaluate_entries(jest_entry_asset, asset_context, node_backend, None);
 
+    let mut graph_entries = vec![entries.graph_entries().owned().await?];
+    let mut shared_entries = Vec::new();
+    if options.test_shared_pool {
+        for name in ["first.js", "second.js"] {
+            let module = asset_context
+                .process(
+                    Vc::upcast(FileSource::new(
+                        project_path.join(&format!("input/{name}"))?,
+                    )),
+                    ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+                )
+                .module();
+            let entries = get_evaluate_entries(module, asset_context, node_backend, None);
+            graph_entries.push(entries.graph_entries().owned().await?);
+            shared_entries.push(entries.to_resolved().await?);
+        }
+    }
     let single_graph = SingleModuleGraph::new_with_entries(
-        entries.graph_entries().to_resolved().await?,
+        GraphEntries::concatenate(graph_entries)
+            .cell()
+            .to_resolved()
+            .await?,
         false,
         true,
     );
@@ -677,6 +702,49 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .nested_async_availability(true);
     }
     let chunking_context = builder.build();
+
+    if options.test_shared_pool {
+        let mut pid = None;
+        // Different entries and invalidation handles, then an ordinary argument reevaluation of
+        // the first entry. All must run in the same worker, with each module initialized once.
+        for (index, arg) in [(0, "first call"), (1, "second entry"), (0, "new argument")] {
+            let value = evaluate(
+                *shared_entries[index],
+                path.clone(),
+                Vc::upcast(CommandLineProcessEnv::new()),
+                node_backend,
+                Vc::upcast(test_source),
+                Vc::upcast(chunking_context),
+                module_graph,
+                vec![Vc::cell(serde_json::json!(arg))],
+                Completion::new(),
+                false,
+            )
+            .await?;
+            let value: serde_json::Value =
+                serde_json::from_str(value.as_ref().context("no evaluation result")?)?;
+            assert_eq!(value["entry"], if index == 0 { "first" } else { "second" });
+            assert_eq!(value["arg"], arg);
+            assert_eq!(value["initCount"], 1);
+            assert_eq!(value["hasGlobals"], true);
+            assert_eq!(
+                value["cwd"],
+                to_sys_path(path.clone())
+                    .await?
+                    .unwrap()
+                    .to_string_lossy()
+                    .as_ref()
+            );
+            if let Some(pid) = &pid {
+                assert_eq!(
+                    &value["pid"], pid,
+                    "distinct emitted entries must reuse the same worker"
+                );
+            } else {
+                pid = Some(value["pid"].clone());
+            }
+        }
+    }
 
     let res = evaluate(
         entries,

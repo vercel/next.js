@@ -26,14 +26,12 @@ use tokio::{
     time::{sleep, timeout},
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, ResolvedVc, Vc, duration_span};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks::{FxIndexSet, duration_span};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 use crate::{
-    AssetsForSourceMapping,
     backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
-    evaluate::{EvaluateOperation, EvaluatePool, NodeJsConnectError, Operation},
+    evaluate::{EvaluateOperation, EvaluatePool, EvaluationAssets, NodeJsConnectError, Operation},
     format::FormattingMode,
     pool_stats::{AcquiredPermits, NodeJsPoolStats, PoolStatsSnapshot},
     source_map::apply_source_mapping,
@@ -115,9 +113,7 @@ type RecentLines = Arc<Mutex<VecDeque<Vec<u8>>>>;
 struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     stream: BufReader<R>,
     shared: SharedOutputSet,
-    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    root: FileSystemPath,
-    project_dir: FileSystemPath,
+    assets: Option<EvaluationAssets>,
     final_stream: W,
     recent_lines: RecentLines,
 }
@@ -131,9 +127,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
         let Self {
             stream,
             shared,
-            assets_for_source_mapping,
-            root,
-            project_dir,
+            assets,
             final_stream,
             recent_lines,
         } = self;
@@ -155,20 +149,21 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
 
         async fn write_source_mapped_final<W: AsyncWrite + Unpin>(
             bytes: &[u8],
-            assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-            root: FileSystemPath,
-            project_dir: FileSystemPath,
+            assets: &Option<EvaluationAssets>,
             final_stream: &mut W,
         ) -> Result<()> {
+            let Some(assets) = assets else {
+                return write_final(bytes, final_stream).await;
+            };
             if let Ok(text) = std::str::from_utf8(bytes) {
                 let text = unmangle_identifiers(text, |content| {
                     format!("{{{content}}}").italic().to_string()
                 });
                 match apply_source_mapping(
                     text.as_ref(),
-                    assets_for_source_mapping,
-                    root,
-                    project_dir,
+                    *assets.assets_for_source_mapping,
+                    assets.assets_root.clone(),
+                    assets.project_dir.clone(),
                     FormattingMode::AnsiColors,
                 )
                 .await
@@ -262,14 +257,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                                 // to print it again.
                                 continue;
                             }
-                            write_source_mapped_final(
-                                &entry.data,
-                                **assets_for_source_mapping,
-                                root.clone(),
-                                project_dir.clone(),
-                                final_stream,
-                            )
-                            .await?;
+                            write_source_mapped_final(&entry.data, assets, final_stream).await?;
                         }
                     }
                     Some(b'S') => {
@@ -289,14 +277,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                 continue;
             }
 
-            write_source_mapped_final(
-                &buffer,
-                **assets_for_source_mapping,
-                root.clone(),
-                project_dir.clone(),
-                final_stream,
-            )
-            .await?;
+            write_source_mapped_final(&buffer, assets, final_stream).await?;
             buffer.clear();
         }
         Ok(())
@@ -308,9 +289,6 @@ impl NodeJsPoolProcess {
         cwd: &Path,
         env: &FxHashMap<RcStr, RcStr>,
         entrypoint: &Path,
-        assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-        assets_root: FileSystemPath,
-        project_dir: FileSystemPath,
         shared_stdout: SharedOutputSet,
         shared_stderr: SharedOutputSet,
         debug: bool,
@@ -415,18 +393,14 @@ impl NodeJsPoolProcess {
         let stdout_handler = OutputStreamHandler {
             stream: child_stdout,
             shared: shared_stdout,
-            assets_for_source_mapping,
-            root: assets_root.clone(),
-            project_dir: project_dir.clone(),
+            assets: None,
             final_stream: stdout(),
             recent_lines: recent_stdout.clone(),
         };
         let stderr_handler = OutputStreamHandler {
             stream: child_stderr,
             shared: shared_stderr,
-            assets_for_source_mapping,
-            root: assets_root.clone(),
-            project_dir: project_dir.clone(),
+            assets: None,
             final_stream: stderr(),
             recent_lines: recent_stderr.clone(),
         };
@@ -583,9 +557,6 @@ struct ProcessArgs {
     cwd: PathBuf,
     env: FxHashMap<RcStr, RcStr>,
     entrypoint: PathBuf,
-    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    assets_root: FileSystemPath,
-    project_dir: FileSystemPath,
     shared_stdout: SharedOutputSet,
     shared_stderr: SharedOutputSet,
     debug: bool,
@@ -598,9 +569,6 @@ impl ProcessArgs {
             &self.cwd,
             &self.env,
             &self.entrypoint,
-            self.assets_for_source_mapping,
-            self.assets_root,
-            self.project_dir,
             self.shared_stdout,
             self.shared_stderr,
             self.debug,
@@ -610,7 +578,45 @@ impl ProcessArgs {
     }
 }
 
-/// A pool of Node.js workers operating on an `entrypoint` with specific `cwd` and `env`.
+struct ProcessGeneration {
+    retired: Mutex<bool>,
+    idle: Arc<HeapQueue<NodeJsPoolProcess>>,
+}
+
+impl Default for ProcessGeneration {
+    fn default() -> Self {
+        Self {
+            retired: Mutex::new(false),
+            idle: Arc::new(HeapQueue::new()),
+        }
+    }
+}
+
+impl ProcessGeneration {
+    fn retire(&self, stats: &Mutex<NodeJsPoolStats>) {
+        let mut retired = self.retired.lock();
+        *retired = true;
+        let removed = self.idle.reduce_to_zero(&ACTIVE_POOLS);
+        let mut stats = stats.lock();
+        for _ in 0..removed {
+            stats.remove_worker();
+        }
+    }
+
+    fn recycle(&self, mut process: NodeJsPoolProcess) -> bool {
+        let retired = self.retired.lock();
+        if *retired {
+            return false;
+        }
+        // Idle workers live in a global registry. Do not retain task-engine values between jobs.
+        process.stdout_handler.assets = None;
+        process.stderr_handler.assets = None;
+        self.idle.push(process, &ACTIVE_POOLS);
+        true
+    }
+}
+
+/// A pool of Node.js workers running a generic bootstrap with specific `cwd` and `env`.
 ///
 /// The pool will spawn processes when needed and reuses old ones. It will never spawn more then a
 /// certain number of concurrent processes. This is specified with the `concurrency` argument in the
@@ -618,35 +624,19 @@ impl ProcessArgs {
 ///
 /// The worker will *not* use the `env` of the parent process by default. All environment variables
 /// need to be provided to make the execution as pure as possible.
-#[turbo_tasks::value(
-    cell = "new",
-    serialization = "skip",
-    evict = "last",
-    eq = "manual",
-    shared
-)]
 pub struct ChildProcessPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: FxHashMap<RcStr, RcStr>,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
-    idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
+    generation: Mutex<Arc<ProcessGeneration>>,
     /// Semaphore to limit the number of concurrent operations in general
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
     /// Semaphore to limit the number of concurrently booting up processes
     /// (excludes one-off processes)
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     bootup_semaphore: Arc<Semaphore>,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     shared_stdout: SharedOutputSet,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     shared_stderr: SharedOutputSet,
     debug: bool,
-    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     stats: Arc<Mutex<NodeJsPoolStats>>,
 }
 
@@ -657,36 +647,27 @@ impl ChildProcessPool {
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: FxHashMap<RcStr, RcStr>,
-        assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-        assets_root: FileSystemPath,
-        project_dir: FileSystemPath,
         concurrency: usize,
         debug: bool,
     ) -> EvaluatePool {
-        EvaluatePool::new(
-            Box::new(Self {
-                cwd,
-                entrypoint,
-                env,
-                assets_for_source_mapping,
-                assets_root: assets_root.clone(),
-                project_dir: project_dir.clone(),
-                concurrency_semaphore: Arc::new(Semaphore::new(if debug {
-                    1
-                } else {
-                    concurrency
-                })),
-                bootup_semaphore: Arc::new(Semaphore::new(1)),
-                idle_processes: Arc::new(HeapQueue::new()),
-                shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
-                shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
-                debug,
-                stats: Default::default(),
-            }),
-            assets_for_source_mapping,
-            assets_root,
-            project_dir,
-        )
+        EvaluatePool::new(Box::new(Self {
+            cwd,
+            entrypoint,
+            env,
+            concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
+            bootup_semaphore: Arc::new(Semaphore::new(1)),
+            generation: Mutex::new(Arc::new(ProcessGeneration::default())),
+            shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
+            shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
+            debug,
+            stats: Default::default(),
+        }))
+    }
+}
+
+impl Drop for ChildProcessPool {
+    fn drop(&mut self) {
+        self.generation.get_mut().retire(&self.stats);
     }
 }
 
@@ -709,9 +690,6 @@ impl NodeBackend for ChildProcessesBackend {
                 cwd,
                 entrypoint,
                 env,
-                assets_for_source_mapping,
-                assets_root,
-                project_dir,
                 concurrency,
                 debug,
             } = options;
@@ -720,9 +698,6 @@ impl NodeBackend for ChildProcessesBackend {
                 cwd,
                 entrypoint,
                 env,
-                assets_for_source_mapping,
-                assets_root,
-                project_dir,
                 concurrency,
                 debug,
             ))
@@ -747,11 +722,23 @@ impl EvaluateOperation for ChildProcessPool {
 
         let operation = {
             let _guard = duration_span!("Node.js operation", blocking = true);
-            let (process, permits) = self.acquire_process().await?;
+            let (process, permits, generation) = loop {
+                let generation = self.generation.lock().clone();
+                let (process, permits) = self.acquire_process(&generation).await?;
+                if !*generation.retired.lock() {
+                    break (process, permits, generation);
+                }
+                {
+                    let mut stats = self.stats.lock();
+                    stats.remove_worker();
+                    stats.queued_tasks = stats.queued_tasks.saturating_sub(1);
+                }
+                drop((process, permits));
+            };
             ChildProcessOperation {
                 process: Some(process),
                 permits,
-                idle_processes: self.idle_processes.clone(),
+                generation,
                 start: Instant::now(),
                 stats: self.stats.clone(),
                 allow_process_reuse: true,
@@ -759,6 +746,12 @@ impl EvaluateOperation for ChildProcessPool {
         };
 
         Ok(Box::new(operation))
+    }
+
+    fn restart(&self) {
+        let mut current = self.generation.lock();
+        current.retire(&self.stats);
+        *current = Arc::new(ProcessGeneration::default());
     }
 
     /// Returns a snapshot of the pool's internal statistics.
@@ -773,7 +766,7 @@ impl EvaluateOperation for ChildProcessPool {
     fn pre_warm(&self) {
         let args = self.process_args();
         let bootup_semaphore = self.bootup_semaphore.clone();
-        let idle_processes = self.idle_processes.clone();
+        let generation = self.generation.lock().clone();
         let stats = self.stats.clone();
 
         tokio::spawn(async move {
@@ -791,7 +784,9 @@ impl EvaluateOperation for ChildProcessPool {
                         s.finished_booting_worker();
                     }
                     drop(bootup_permit);
-                    idle_processes.push(process, &ACTIVE_POOLS);
+                    if !generation.recycle(process) {
+                        stats.lock().remove_worker();
+                    }
                 }
                 Err(_e) => {
                     let mut s = stats.lock();
@@ -804,7 +799,10 @@ impl EvaluateOperation for ChildProcessPool {
 }
 
 impl ChildProcessPool {
-    async fn acquire_process(&self) -> Result<(NodeJsPoolProcess, AcquiredPermits)> {
+    async fn acquire_process(
+        &self,
+        generation: &ProcessGeneration,
+    ) -> Result<(NodeJsPoolProcess, AcquiredPermits)> {
         {
             self.stats.lock().add_queued_task();
         }
@@ -819,7 +817,7 @@ impl ChildProcessPool {
         };
 
         select! {
-            idle_process_result = self.idle_processes.pop(&ACTIVE_POOLS) => {
+            idle_process_result = generation.idle.pop(&ACTIVE_POOLS) => {
                 let process = idle_process_result.context("acquiring idle process permit")?;
                 Ok((process, AcquiredPermits::Idle { _concurrency_permit: concurrency_permit }))
             },
@@ -847,9 +845,6 @@ impl ChildProcessPool {
             cwd: self.cwd.clone(),
             env: self.env.clone(),
             entrypoint: self.entrypoint.clone(),
-            assets_for_source_mapping: self.assets_for_source_mapping,
-            assets_root: self.assets_root.clone(),
-            project_dir: self.project_dir.clone(),
             shared_stdout: self.shared_stdout.clone(),
             shared_stderr: self.shared_stderr.clone(),
             debug: self.debug,
@@ -883,7 +878,7 @@ pub struct ChildProcessOperation {
     // This is used for drop
     #[allow(dead_code)]
     permits: AcquiredPermits,
-    idle_processes: Arc<HeapQueue<NodeJsPoolProcess>>,
+    generation: Arc<ProcessGeneration>,
     start: Instant,
     stats: Arc<Mutex<NodeJsPoolStats>>,
     allow_process_reuse: bool,
@@ -891,6 +886,13 @@ pub struct ChildProcessOperation {
 
 #[async_trait::async_trait]
 impl Operation for ChildProcessOperation {
+    fn set_assets(&mut self, assets: EvaluationAssets) {
+        if let Some(process) = &mut self.process {
+            process.stdout_handler.assets = Some(assets.clone());
+            process.stderr_handler.assets = Some(assets);
+        }
+    }
+
     async fn recv(&mut self) -> Result<Bytes> {
         let bytes = self
             .with_process(async |process| process.recv().await.context("failed to receive message"))
@@ -978,7 +980,9 @@ impl Drop for ChildProcessOperation {
             }
             if self.allow_process_reuse {
                 process.cpu_time_invested += elapsed;
-                self.idle_processes.push(process, &ACTIVE_POOLS);
+                if !self.generation.recycle(process) {
+                    self.stats.lock().remove_worker();
+                }
             }
         }
     }

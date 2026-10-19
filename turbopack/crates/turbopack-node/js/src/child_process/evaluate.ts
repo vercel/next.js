@@ -1,11 +1,11 @@
 import { IPC } from './index'
+import { loadEvaluation } from '../evaluation'
 import type { Ipc as GenericIpc } from './index'
-
-import type { Channel as Ipc } from '../types'
 
 type IpcIncomingMessage =
   | {
       type: 'evaluate'
+      entry: string
       args: string[]
     }
   | {
@@ -33,14 +33,9 @@ type IpcOutgoingMessage =
 
 const ipc = IPC as GenericIpc<IpcIncomingMessage, IpcOutgoingMessage>
 
-const queue: string[][] = []
+const queue: Array<{ entry: string; args: string[] }> = []
 
-export const run = async (
-  moduleFactory: () => Promise<{
-    init?: () => Promise<void>
-    default: (ipc: Ipc<any, any>, ...deserializedArgs: any[]) => any
-  }>
-) => {
+export const run = async () => {
   let nextId = 1
   const requests = new Map()
   const internalIpc = {
@@ -66,26 +61,16 @@ export const run = async (
     },
   }
 
-  // Initialize module and send ready message
-  let getValue: (ipc: Ipc<any, any>, ...deserializedArgs: any[]) => any
-  try {
-    const module = await moduleFactory()
-    if (typeof module.init === 'function') {
-      await module.init()
-    }
-    getValue = module.default
-    await ipc.sendReady()
-  } catch (err) {
-    await ipc.sendReady()
-    await ipc.sendError(err as Error)
-  }
+  // Only the generic bootstrap owns the IPC connection. Evaluation modules are loaded on demand.
+  await ipc.sendReady()
 
   // Queue handling
   let isRunning = false
   const run = async () => {
     while (queue.length > 0) {
-      const args = queue.shift()!
+      const { entry, args } = queue.shift()!
       try {
+        const getValue = await loadEvaluation(entry)
         const value = await getValue(internalIpc, ...args)
         await ipc.send({
           type: 'end',
@@ -106,7 +91,7 @@ export const run = async (
 
     switch (msg.type) {
       case 'evaluate': {
-        queue.push(msg.args)
+        queue.push({ entry: msg.entry, args: msg.args })
         if (!isRunning) {
           isRunning = true
           run()

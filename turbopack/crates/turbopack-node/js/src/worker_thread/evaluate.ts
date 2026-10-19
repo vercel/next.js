@@ -1,6 +1,6 @@
 import { threadId as workerId, workerData } from 'worker_threads'
 import { structuredError } from '../error'
-import type { Channel } from '../types'
+import { loadEvaluation } from '../evaluation'
 import { Binding, TaskChannel, TEXT_ENCODER, TEXT_DECODER } from './taskChannel'
 
 if (!workerData.hasOwnProperty('bindingPath')) {
@@ -13,26 +13,13 @@ const binding: Binding = require(
 
 binding.workerCreated(workerId)
 
-export const run = async (
-  moduleFactory: () => Promise<{
-    init?: () => Promise<void>
-    default: (channel: Channel<any, any>, ...deserializedArgs: any[]) => any
-  }>
-) => {
-  let getValue: (channel: Channel<any, any>, ...deserializedArgs: any[]) => any
-
+export const run = async () => {
   let isRunning = false
-  const queue: Array<{ taskId: number; args: string[] }> = []
+  const queue: Array<{ taskId: number; entry: string; args: string[] }> = []
 
-  const run = async (taskId: number, args: string[]) => {
+  const run = async (taskId: number, entry: string, args: string[]) => {
     try {
-      if (typeof getValue !== 'function') {
-        const module = await moduleFactory()
-        if (typeof module.init === 'function') {
-          await module.init()
-        }
-        getValue = module.default
-      }
+      const getValue = await loadEvaluation(entry)
       const value = await getValue(new TaskChannel(binding, taskId), ...args)
       await binding.sendTaskMessage({
         taskId,
@@ -57,7 +44,7 @@ export const run = async (
     }
     if (queue.length > 0) {
       const next = queue.shift()!
-      run(next.taskId, next.args)
+      run(next.taskId, next.entry, next.args)
     } else {
       isRunning = false
     }
@@ -71,6 +58,7 @@ export const run = async (
     const msg = JSON.parse(msg_str) as
       | {
           type: 'evaluate'
+          entry: string
           args: string[]
         }
       | {
@@ -84,9 +72,9 @@ export const run = async (
       case 'evaluate': {
         if (!isRunning) {
           isRunning = true
-          run(taskId, msg.args)
+          run(taskId, msg.entry, msg.args)
         } else {
-          queue.push({ taskId, args: msg.args })
+          queue.push({ taskId, entry: msg.entry, args: msg.args })
         }
         break
       }

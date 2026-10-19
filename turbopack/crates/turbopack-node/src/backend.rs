@@ -3,18 +3,13 @@ use std::{future::Future, path::PathBuf, pin::Pin};
 use anyhow::Result;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::ResolvedVc;
-use turbo_tasks_fs::FileSystemPath;
 
-use crate::{AssetsForSourceMapping, evaluate::EvaluatePool};
+use crate::evaluate::EvaluatePool;
 
 pub struct CreatePoolOptions {
     pub cwd: PathBuf,
     pub entrypoint: PathBuf,
     pub env: FxHashMap<RcStr, RcStr>,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
     pub concurrency: usize,
     pub debug: bool,
 }
@@ -39,6 +34,10 @@ pub trait NodeBackend: sealed::Sealed {
     fn runtime_module_path(&self) -> RcStr;
 
     fn globals_module_path(&self) -> RcStr;
+
+    fn uses_env(&self) -> bool {
+        true
+    }
 
     fn create_pool(&self, options: CreatePoolOptions) -> CreatePoolFuture;
 
