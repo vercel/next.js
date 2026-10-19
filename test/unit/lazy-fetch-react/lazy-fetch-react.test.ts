@@ -36,14 +36,14 @@ function probeImport(moduleName: string, constructDedupeFetch = false) {
 
 describe('fetch helper React loading', () => {
   it.each(['dedupe-fetch', 'patch-fetch', 'router-server'])(
-    'currently loads React when importing %s',
+    'does not load React when importing %s',
     (moduleName) => {
-      expect(probeImport(moduleName).reactLoadedOnImport).toBe(true)
+      expect(probeImport(moduleName).reactLoadedOnImport).toBe(false)
     }
   )
 
-  it('currently loads the fetch patcher when importing the router server', () => {
-    expect(probeImport('router-server').patchFetchLoaded).toBe(true)
+  it('does not load the fetch patcher when importing the router server', () => {
+    expect(probeImport('router-server').patchFetchLoaded).toBe(false)
   })
 
   it('has React available when constructing the dedupe helper', () => {
