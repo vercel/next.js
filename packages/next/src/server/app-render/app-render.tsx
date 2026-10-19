@@ -206,14 +206,12 @@ import {
   ClientComponentLoadTracker,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
-import { isNodeNextResponse } from '../base-http/helpers'
-import { waitForResponseToFinish } from './wait-for-response'
+import type { DevResponseLifecycle } from '../route-modules/app-page/dev-response-lifecycle'
 import {
   beginDevValidation,
   type DevValidationGeneration,
   yieldToForegroundRequest,
 } from './dev-validation-scheduler'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import {
   parseRelativeUrl,
   type ParsedRelativeUrl,
@@ -425,6 +423,7 @@ export type AppRenderContext = {
   isNotFoundPath: boolean
   nonce: string | undefined
   res: BaseNextResponse
+  devResponseLifecycle: DevResponseLifecycle | undefined
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
    * rendering/revalidating segments independently, they need to move to the
@@ -844,9 +843,8 @@ async function generateDynamicFlightRenderResult(
   const requestAbortSignal =
     process.env.__NEXT_DEV_SERVER &&
     renderOpts.experimental.serverComponentsHmrCancellation === true &&
-    requestStore.isHmrRefresh === true &&
-    isNodeNextResponse(ctx.res)
-      ? signalFromNodeResponse(ctx.res.originalResponse)
+    requestStore.isHmrRefresh === true
+      ? ctx.devResponseLifecycle?.getCloseSignal()
       : undefined
 
   if (process.env.__NEXT_USE_NODE_STREAMS) {
@@ -1407,9 +1405,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // render" button.
     const requestAbortSignal =
       renderOpts.experimental.serverComponentsHmrCancellation === true &&
-      initialRequestStore.isHmrRefresh === true &&
-      isNodeNextResponse(ctx.res)
-        ? signalFromNodeResponse(ctx.res.originalResponse)
+      initialRequestStore.isHmrRefresh === true
+        ? ctx.devResponseLifecycle?.getCloseSignal()
         : undefined
 
     const result = await stagedRenderWithCachesInDev({
@@ -2616,7 +2613,8 @@ async function prepareAppPageRender(
   routeMatch: RouteMatch,
   generateRequestId: GenerateRequestId,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
-  renderCapabilities: AppRenderCapabilities
+  renderCapabilities: AppRenderCapabilities,
+  devResponseLifecycle: DevResponseLifecycle | undefined
 ): Promise<PreparedAppPageRender> {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -2752,6 +2750,7 @@ async function prepareAppPageRender(
     isNotFoundPath,
     nonce,
     res,
+    devResponseLifecycle,
     sharedContext,
     implicitTags,
   }
@@ -3220,7 +3219,8 @@ async function renderToHTMLOrFlightImpl(
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  devResponseLifecycle: DevResponseLifecycle | undefined
 ) {
   if (renderOpts.ComponentMod.__next_app__) {
     installGlobalModuleLoadingHandlers(
@@ -3251,7 +3251,8 @@ async function renderToHTMLOrFlightImpl(
     {
       isPossiblyPartialResponse: false,
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
-    }
+    },
+    devResponseLifecycle
   )
   return renderAppPage(
     req,
@@ -3308,7 +3309,8 @@ async function prerenderToHTMLOrFlightImpl(
     {
       isPossiblyPartialResponse: isRoutePPREnabled,
       supportsPerSegmentPrefetching: true,
-    }
+    },
+    undefined
   )
   return prerenderAppPage(prepared)
 }
@@ -3327,7 +3329,8 @@ export type AppPageRender = (
   routeMatch: RouteMatch,
   parsedRequestHeaders: ParsedRequestHeaders,
   serverActionRequestMetadata: ServerActionRequestMetadata,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  devResponseLifecycle: DevResponseLifecycle | undefined
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3430,7 +3433,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   routeMatch,
   parsedRequestHeaders,
   serverActionRequestMetadata,
-  stagedFallbackParams
+  stagedFallbackParams,
+  devResponseLifecycle
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
     serverActionRequestMetadata,
@@ -3472,7 +3476,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     interpolatedParams,
     fallbackRouteParams,
     routeMatch,
-    stagedFallbackParams
+    stagedFallbackParams,
+    devResponseLifecycle
   )
 }
 
@@ -4861,8 +4866,8 @@ function runDevValidationInBackground(
       // the response has finished so that work cannot delay Flight delivery or
       // the client navigation.
       if (
-        isNodeNextResponse(ctx.res) &&
-        !(await waitForResponseToFinish(ctx.res.originalResponse))
+        ctx.devResponseLifecycle &&
+        !(await ctx.devResponseLifecycle.waitForFinish())
       ) {
         logValidationAborted(ctx)
         return
@@ -6674,8 +6679,7 @@ async function runWithDevValidationLogging(
 
   const requestId = ctx.requestId
   const url = ctx.url.href
-  const responseFinished =
-    !isNodeNextResponse(ctx.res) || ctx.res.originalResponse.writableFinished
+  const responseFinished = ctx.devResponseLifecycle?.isFinished() ?? true
 
   console.log(
     formatValidationEvent({
@@ -8683,6 +8687,7 @@ async function validateInstantConfigInBuildWithSample(
       isNotFoundPath: outerCtx.isNotFoundPath,
       nonce: outerCtx.nonce,
       res: outerCtx.res,
+      devResponseLifecycle: outerCtx.devResponseLifecycle,
       sharedContext: outerCtx.sharedContext,
       implicitTags: outerCtx.implicitTags,
     }

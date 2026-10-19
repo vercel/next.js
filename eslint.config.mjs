@@ -471,7 +471,10 @@ export default defineConfig([
     },
   },
   {
-    files: ['packages/next/src/server/app-render/app-render.tsx'],
+    files: [
+      'packages/next/src/server/app-render/app-render.tsx',
+      'packages/next/src/server/app-render/dev-validation-worker-snapshot.ts',
+    ],
     rules: {
       'no-restricted-properties': [
         'error',
@@ -497,6 +500,15 @@ export default defineConfig([
             },
           ],
           patterns: [
+            {
+              group: [
+                '**/base-http/helpers',
+                '**/adapters/next-request',
+                '**/wait-for-response',
+              ],
+              allowTypeImports: true,
+              message: 'Use the development response lifecycle capabilities.',
+            },
             {
               group: ['**/request-meta'],
               allowTypeImports: true,
