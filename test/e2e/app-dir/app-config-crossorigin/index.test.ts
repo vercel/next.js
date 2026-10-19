@@ -4,10 +4,6 @@ import { isNextStart, nextTestSetup } from 'e2e-utils'
 const assetPrefix = 'https://example.vercel.sh'
 
 if (!isNextStart) {
-  // Deploy mode tries to link a Vercel project through the CLI, which is not
-  // available to external-fork CI jobs. This markup assertion runs in local
-  // test modes instead.
-  // @force-gate !deploy
   describe('app dir - crossOrigin config', () => {
     const { next } = nextTestSetup({
       files: __dirname,
