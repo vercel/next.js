@@ -169,7 +169,7 @@ import {
   getPostponedFromState,
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import type { ServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { getFlightStream } from './use-flight-response'
 import {
   StaticGenBailoutError,
@@ -221,7 +221,6 @@ import {
 } from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
 import type { RequestErrorContext } from '../instrumentation/types'
-import { getIsPossibleServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../client/components/app-router-instance'
 import { getRevalidateReason } from '../instrumentation/utils'
@@ -591,7 +590,7 @@ async function generateDynamicRSCPayload(
     actionResult?: ActionResult
     skipPageRendering?: boolean
     staleTimeIterable?: AsyncIterable<number>
-    shellByteLengthPromise?: Promise<number | null>
+    stageByteLengthsPromise?: Promise<Array<number>>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<RSCPayload> {
@@ -744,8 +743,8 @@ async function generateDynamicRSCPayload(
     baseResponse.s = options.staleTimeIterable
   }
 
-  if (options?.shellByteLengthPromise !== undefined) {
-    baseResponse.a = options.shellByteLengthPromise
+  if (options?.stageByteLengthsPromise !== undefined) {
+    baseResponse.a = options.stageByteLengthsPromise
   }
 
   if (options?.runtimePrefetchStream !== undefined) {
@@ -1001,7 +1000,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     selectStaleTime
   )
 
-  const shellByteLengthDeferred = createPromiseWithResolvers<number | null>()
+  const stageByteLengthsDeferred = createPromiseWithResolvers<Array<number>>()
 
   let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
   let startRuntimePrefetchRender: (() => Promise<void>) | undefined
@@ -1062,7 +1061,7 @@ async function generateStagedDynamicFlightRenderResultNode(
     ctx,
     {
       staleTimeIterable,
-      shellByteLengthPromise: shellByteLengthDeferred.promise,
+      stageByteLengthsPromise: stageByteLengthsDeferred.promise,
       runtimePrefetchStream,
     }
   )
@@ -1095,7 +1094,7 @@ async function generateStagedDynamicFlightRenderResultNode(
       const shellStream = replayable.createReplayStream()
 
       void countShellBytes(shellStream, stageController).then(
-        shellByteLengthDeferred.resolve
+        (shellByteLength) => stageByteLengthsDeferred.resolve([shellByteLength])
       )
 
       return dynamicStream
@@ -1142,7 +1141,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
     // We want to be able to rewind the result to a session shell.
     const mode: RuntimePrerenderMode & { type: 'navigation' } = {
       type: 'navigation',
-      shellByteLengthDeferred: createPromiseWithResolvers(),
+      stageByteLengthsDeferred: createPromiseWithResolvers(),
     }
 
     const { result } = await finalRuntimeServerPrerender(
@@ -1150,7 +1149,7 @@ async function spawnRuntimePrefetchWithFilledCaches(
       ctx,
       generateDynamicRSCPayload.bind(null, ctx, {
         staleTimeIterable,
-        shellByteLengthPromise: mode.shellByteLengthDeferred.promise,
+        stageByteLengthsPromise: mode.stageByteLengthsDeferred.promise,
       }),
       prerenderResumeDataCache,
       rootParams,
@@ -1528,7 +1527,7 @@ async function generateRuntimePrefetchResult(
     ? { type: 'session-shell-only' }
     : {
         type: 'rewindable-session-shell',
-        shellByteLengthDeferred: createPromiseWithResolvers(),
+        stageByteLengthsDeferred: createPromiseWithResolvers(),
       }
 
   await prospectiveRuntimeServerPrerender(
@@ -1554,10 +1553,12 @@ async function generateRuntimePrefetchResult(
     ctx,
     generateDynamicRSCPayload.bind(null, ctx, {
       staleTimeIterable,
-      shellByteLengthPromise:
+      // A runtime shell render stops at the shell stage, so the shell ends
+      // at the end of the response.
+      stageByteLengthsPromise:
         mode.type === 'rewindable-session-shell'
-          ? mode.shellByteLengthDeferred.promise
-          : undefined,
+          ? mode.stageByteLengthsDeferred.promise
+          : Promise.resolve([]),
     }),
     prerenderResumeDataCache,
     rootParams,
@@ -1749,11 +1750,11 @@ type RuntimePrerenderMode =
   | { type: 'session-shell-only' }
   | {
       type: 'rewindable-session-shell'
-      shellByteLengthDeferred: PromiseWithResolvers<number | null>
+      stageByteLengthsDeferred: PromiseWithResolvers<Array<number>>
     }
   | {
       type: 'navigation'
-      shellByteLengthDeferred: PromiseWithResolvers<number | null>
+      stageByteLengthsDeferred: PromiseWithResolvers<Array<number>>
     }
 
 async function finalRuntimeServerPrerender(
@@ -1966,12 +1967,12 @@ async function finalRuntimeServerPrerender(
 
       // An aborted render emits no more chunks, so there's no offset to send.
       if (
-        'shellByteLengthDeferred' in mode &&
+        'stageByteLengthsDeferred' in mode &&
         !finalServerController.signal.aborted
       ) {
-        // If neither link data nor `navigation()` unblocked new content, then
-        // the result can be used as a shell (indicated via `null`). Otherwise,
-        // send a byte length to indicate where the shell content ends.
+        // If neither link data nor `navigation()` unblocked new content, the
+        // whole response can be used as a shell, so we list nothing.
+        // Otherwise, we send where the shell ends.
         // NOTE: we must capture this *before* closing the accumulators below,
         // which emit new rows. If the render stopped before the
         // NavigationRuntime stage, that stage's count is the same as
@@ -1979,10 +1980,10 @@ async function finalRuntimeServerPrerender(
         const didNavigationUnblockNewContent =
           stageByteLengths[RenderStage.NavigationRuntime] >
           stageByteLengths[RenderStage.PrefetchRuntime]
-        mode.shellByteLengthDeferred.resolve(
+        mode.stageByteLengthsDeferred.resolve(
           didLinkDataUnblockNewContent || didNavigationUnblockNewContent
-            ? stageByteLengths[RenderStage.ShellRuntime]
-            : null
+            ? [stageByteLengths[RenderStage.ShellRuntime]]
+            : []
         )
       }
 
@@ -2060,7 +2061,7 @@ async function getRSCPayload(
     is404: boolean
     isPrerendering: boolean
     staleTimeIterable?: AsyncIterable<number>
-    shellByteLengthPromise?: Promise<number | null>
+    stageByteLengthsPromise?: Promise<Array<number>>
     runtimePrefetchStream?: ReadableStream<Uint8Array>
   }
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
@@ -2068,7 +2069,7 @@ async function getRSCPayload(
     is404,
     isPrerendering,
     staleTimeIterable,
-    shellByteLengthPromise,
+    stageByteLengthsPromise,
     runtimePrefetchStream,
   } = options
   const injectedCSS = new Set<string>()
@@ -2197,7 +2198,7 @@ async function getRSCPayload(
     S: ctx.renderCapabilities.supportsPerSegmentPrefetching,
     r: getRootParamsVaryParamsAccumulator() ?? undefined,
     s: staleTimeIterable,
-    a: shellByteLengthPromise,
+    a: stageByteLengthsPromise,
     p: runtimePrefetchStream,
     // Include the per-page dynamic stale time from unstable_dynamicStaleTime, but
     // only for dynamic renders. The client treats its presence as
@@ -2549,13 +2550,14 @@ function installGlobalModuleLoadingHandlers(
 }
 
 type PreparedAppPageRender = {
+  serverActionRequestMetadata: ServerActionRequestMetadata
   req: BaseNextRequest
   ctx: AppRenderContext
   metadata: AppPageRenderResultMetadata
   loaderTree: LoaderTree
 }
 
-type GenerateRequestId = (req: BaseNextRequest) => string | Promise<string>
+type GenerateRequestId = (requestUrl: string) => string | Promise<string>
 
 const generateRenderRequestId: GenerateRequestId = () => {
   if (process.env.NEXT_RUNTIME === 'edge') {
@@ -2567,9 +2569,9 @@ const generateRenderRequestId: GenerateRequestId = () => {
   }
 }
 
-const generatePrerenderRequestId: GenerateRequestId = async (req) => {
+const generatePrerenderRequestId: GenerateRequestId = async (requestUrl) => {
   return Buffer.from(
-    await crypto.subtle.digest('SHA-1', Buffer.from(req.url))
+    await crypto.subtle.digest('SHA-1', Buffer.from(requestUrl))
   ).toString('hex')
 }
 
@@ -2615,12 +2617,14 @@ function initializeClientComponentLoadTracking(
 async function prepareAppPageRender(
   req: BaseNextRequest,
   res: BaseNextResponse,
+  requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -2707,7 +2711,7 @@ async function prepareAppPageRender(
     requestId = requestInsightsIdentity.requestId
   } else {
     // Otherwise we generate a new request ID.
-    requestId = await generateRequestId(req)
+    requestId = await generateRequestId(requestUrl)
   }
 
   // If the client has provided an HTML request ID, we use it to associate the
@@ -2727,8 +2731,6 @@ async function prepareAppPageRender(
     fallbackRouteParams,
     renderOpts.experimental.optimisticRouting
   )
-
-  const isPossibleActionRequest = getIsPossibleServerAction(req)
 
   const implicitTags = await getImplicitTags(
     workStore.page,
@@ -2750,7 +2752,7 @@ async function prepareAppPageRender(
     fallbackRouteParams,
     query,
     isPrefetch: isPrefetchRequest,
-    isPossibleServerAction: isPossibleActionRequest,
+    isPossibleServerAction: serverActionRequestMetadata.isPossibleServerAction,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
@@ -2768,6 +2770,7 @@ async function prepareAppPageRender(
   getTracer().setRootSpanAttribute('next.route', pagePath)
 
   return {
+    serverActionRequestMetadata,
     req,
     ctx,
     metadata,
@@ -2922,7 +2925,13 @@ async function prerenderAppPage({
 }
 
 async function renderAppPage(
-  { req, ctx, metadata, loaderTree }: PreparedAppPageRender,
+  {
+    req,
+    ctx,
+    metadata,
+    loaderTree,
+    serverActionRequestMetadata,
+  }: PreparedAppPageRender,
   postponedState: PostponedState | null,
   dev: DevRenderContext | undefined
 ) {
@@ -3059,6 +3068,7 @@ async function renderAppPage(
     // For action requests, we handle them differently with a special render result.
     const actionRequestResult = await handleAction({
       req,
+      serverActionRequestMetadata,
       res,
       ComponentMod,
       generateFlight: generateDynamicFlightRenderResult,
@@ -3207,12 +3217,14 @@ async function renderAppPage(
 async function renderToHTMLOrFlightImpl(
   req: BaseNextRequest,
   res: BaseNextResponse,
+  requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   postponedState: PostponedState | null,
   dev: DevRenderContext | undefined,
   sharedContext: AppSharedContext,
@@ -3229,12 +3241,14 @@ async function renderToHTMLOrFlightImpl(
   const prepared = await prepareAppPageRender(
     req,
     res,
+    requestUrl,
     url,
     pagePath,
     query,
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
@@ -3256,12 +3270,14 @@ async function renderToHTMLOrFlightImpl(
 async function prerenderToHTMLOrFlightImpl(
   req: BaseNextRequest,
   res: BaseNextResponse,
+  requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
   sharedContext: AppSharedContext,
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -3277,12 +3293,14 @@ async function prerenderToHTMLOrFlightImpl(
   const prepared = await prepareAppPageRender(
     req,
     res,
+    requestUrl,
     url,
     pagePath,
     query,
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
@@ -3304,6 +3322,7 @@ async function prerenderToHTMLOrFlightImpl(
 export type AppPageRender = (
   req: BaseNextRequest,
   res: BaseNextResponse,
+  requestUrl: string,
   pagePath: string,
   query: NextParsedUrlQuery,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
@@ -3311,7 +3330,8 @@ export type AppPageRender = (
   dev: DevRenderContext | undefined,
   sharedContext: AppSharedContext,
   routeMatch: RouteMatch,
-  parsedRequestHeaders: ParsedRequestHeaders
+  parsedRequestHeaders: ParsedRequestHeaders,
+  serverActionRequestMetadata: ServerActionRequestMetadata
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3325,16 +3345,17 @@ type AppPagePreparation = {
 }
 
 function prepareAppPage(
-  req: BaseNextRequest,
+  serverActionRequestMetadata: ServerActionRequestMetadata,
+  requestUrl: string,
   pagePath: string,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   renderOpts: RenderOpts
 ): AppPagePreparation {
-  if (!req.url) {
+  if (!requestUrl) {
     throw new Error('Invalid URL')
   }
 
-  const url = parseRelativeUrl(req.url, undefined, false)
+  const url = parseRelativeUrl(requestUrl, undefined, false)
 
   const interpolatedParams = interpolateParallelRouteParams(
     renderOpts.ComponentMod.routeModule.userland.loaderTree,
@@ -3348,7 +3369,7 @@ function prepareAppPage(
   let postponedState: PostponedState | null = null
   if (typeof renderOpts.postponed === 'string') {
     if (fallbackRouteParams) {
-      if (!getServerActionRequestMetadata(req).isFetchAction) {
+      if (!serverActionRequestMetadata.isFetchAction) {
         throw new InvariantError(
           'postponed state should not be provided when fallback params are provided'
         )
@@ -3393,6 +3414,7 @@ function prepareAppPage(
 export const renderToHTMLOrFlight: AppPageRender = (
   req,
   res,
+  requestUrl,
   pagePath,
   query,
   fallbackRouteParams,
@@ -3400,10 +3422,12 @@ export const renderToHTMLOrFlight: AppPageRender = (
   dev,
   sharedContext,
   routeMatch,
-  parsedRequestHeaders
+  parsedRequestHeaders,
+  serverActionRequestMetadata
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
-    req,
+    serverActionRequestMetadata,
+    requestUrl,
     pagePath,
     fallbackRouteParams,
     renderOpts
@@ -3426,12 +3450,14 @@ export const renderToHTMLOrFlight: AppPageRender = (
     renderToHTMLOrFlightImpl,
     req,
     res,
+    requestUrl,
     url,
     pagePath,
     query,
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     postponedState,
     dev,
     sharedContext,
@@ -3444,6 +3470,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 export const prerenderToHTMLOrFlight: AppPagePrerender = (
   req,
   res,
+  requestUrl,
   pagePath,
   query,
   fallbackRouteParams,
@@ -3451,10 +3478,12 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
   _dev,
   sharedContext,
   routeMatch,
-  parsedRequestHeaders
+  parsedRequestHeaders,
+  serverActionRequestMetadata
 ) => {
   const { url, interpolatedParams } = prepareAppPage(
-    req,
+    serverActionRequestMetadata,
+    requestUrl,
     pagePath,
     fallbackRouteParams,
     renderOpts
@@ -3477,12 +3506,14 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
     prerenderToHTMLOrFlightImpl,
     req,
     res,
+    requestUrl,
     url,
     pagePath,
     query,
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    serverActionRequestMetadata,
     sharedContext,
     interpolatedParams,
     fallbackRouteParams,
@@ -3915,9 +3946,8 @@ async function renderToStream(
           selectStaleTime
         )
 
-        const shellByteLengthDeferred = createPromiseWithResolvers<
-          number | null
-        >()
+        const stageByteLengthsDeferred =
+          createPromiseWithResolvers<Array<number>>()
 
         let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
         let startRuntimePrefetchRender: (() => Promise<void>) | undefined
@@ -3977,7 +4007,7 @@ async function renderToStream(
             is404: res.statusCode === 404,
             isPrerendering: false,
             staleTimeIterable,
-            shellByteLengthPromise: shellByteLengthDeferred.promise,
+            stageByteLengthsPromise: stageByteLengthsDeferred.promise,
             runtimePrefetchStream,
           }
         )
@@ -4011,7 +4041,8 @@ async function renderToStream(
             const shellStream = replayable.createReplayStream()
 
             void countShellBytes(shellStream, stageController).then(
-              shellByteLengthDeferred.resolve
+              (shellByteLength) =>
+                stageByteLengthsDeferred.resolve([shellByteLength])
             )
 
             return dynamicStream
@@ -6285,6 +6316,14 @@ function createStageChunksAccumulator(): AccumulatedStreamChunks {
     result[stage] = []
   }
   return result as AccumulatedStreamChunks
+}
+
+function getTotalByteLength(chunks: Array<Uint8Array>): number {
+  let byteLength = 0
+  for (const chunk of chunks) {
+    byteLength += chunk.byteLength
+  }
+  return byteLength
 }
 
 async function accumulateStreamChunks(
@@ -9611,9 +9650,8 @@ async function prerenderToStream(
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
 
-      const shellByteLengthDeferred = createPromiseWithResolvers<
-        number | null
-      >()
+      const stageByteLengthsDeferred =
+        createPromiseWithResolvers<Array<number>>()
 
       const finalServerPayload = await workUnitAsyncStorage.run(
         finalServerPayloadPrerenderStore,
@@ -9623,7 +9661,7 @@ async function prerenderToStream(
         {
           is404: res.statusCode === 404,
           isPrerendering: true,
-          shellByteLengthPromise: shellByteLengthDeferred.promise,
+          stageByteLengthsPromise: stageByteLengthsDeferred.promise,
         }
       )
 
@@ -9803,12 +9841,21 @@ async function prerenderToStream(
           // which is scheduled in a (fast) immediate, so we do this in a separate task
           // (fast immediates will be drained at the end of the task, so in the next task we know we're done flushing)
 
-          // Check if new chunks were emitted after unblocking link data or navigation().
+          // List where the shell ends, if new chunks were emitted after
+          // unblocking link data or navigation().
           // NOTE: we must capture this *before* resolving staleTime/varyParams,
           // which always emit new static chunks.
-          const hasMoreContentThanShell =
+          const stageByteLengths: Array<number> = []
+          if (
             collectedChunksByStage[RenderStage.Static].length >
             collectedChunksByStage[RenderStage.ShellStatic].length
+          ) {
+            stageByteLengths.push(
+              getTotalByteLength(
+                collectedChunksByStage[RenderStage.ShellStatic]
+              )
+            )
+          }
 
           // Now that the prerendering is complete, we know the final stale
           // time and vary params. Close the stale time iterable and resolve
@@ -9822,14 +9869,7 @@ async function prerenderToStream(
           finishPrerenderDataTracking(prerenderDataTracking)
           finishAccumulatingVaryParams(varyParamsAccumulator)
 
-          shellByteLengthDeferred.resolve(
-            hasMoreContentThanShell
-              ? collectedChunksByStage[RenderStage.ShellStatic].reduce(
-                  (acc, chunk) => acc + chunk.byteLength,
-                  0
-                )
-              : null
-          )
+          stageByteLengthsDeferred.resolve(stageByteLengths)
         },
         () => {
           if (checkUnexpectedAbort()) return

@@ -154,7 +154,7 @@ export const CODE_FRAME_STYLES = `
     background-color: var(--color-ansi-selection);
   }
 
-  [data-nextjs-codeframe] *:not(a):not(.open-in-editor-button) {
+  [data-nextjs-codeframe] *:not(a):not(.open-in-editor-button):not(.open-in-editor-button *) {
     color: inherit;
     background-color: transparent;
     font-family: var(--font-stack-monospace);

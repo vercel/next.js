@@ -37,7 +37,6 @@ import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-ma
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { RouteMatch } from './route-matches/route-match'
-import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
 import type { RouteDefinition } from './route-definitions/route-definition'
 import type { AppPageRouteDefinition } from './route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
@@ -419,15 +418,6 @@ export default abstract class Server<
     query: ParsedUrlQuery,
     match: PagesAPIRouteMatch
   ): Promise<boolean>
-
-  protected abstract renderHTML(
-    req: ServerRequest,
-    res: ServerResponse,
-    pathname: string,
-    query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts,
-    routeMatch: AppRenderRouteMatch
-  ): Promise<RenderResult>
 
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
@@ -908,26 +898,8 @@ export default abstract class Server<
               'http.target': req.url,
             },
           },
-          async (span) => {
-            if (getRequestMeta(req, 'middlewareInvoke')) {
-              // When middleware lets the request continue, the router server
-              // calls `handleRequest` twice: once to run middleware (this pass)
-              // and once to render. Publish this span's W3C trace context on
-              // the request, so the middleware span (including the Edge
-              // sandbox, which extracts it from the request headers) is a
-              // child of this span instead of starting a new trace. The
-              // middleware forwards its own span's context to the render pass
-              // via request-header overrides, which replace this value; it
-              // only stays when there is no middleware span to forward (e.g.
-              // OpenTelemetry isn't registered in the Edge runtime), keeping
-              // the render in this trace.
-              const traceContext = tracer.getTraceContextHeaders()
-              if (traceContext) {
-                Object.assign(req.headers, traceContext)
-              }
-            }
-
-            return this.handleRequestImpl(req, res, parsedUrl).finally(() => {
+          async (span) =>
+            this.handleRequestImpl(req, res, parsedUrl).finally(() => {
               if (!span) return
 
               const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
@@ -986,7 +958,6 @@ export default abstract class Server<
                 span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
               }
             })
-          }
         )
       })
 

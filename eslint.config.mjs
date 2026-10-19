@@ -458,6 +458,19 @@ export default defineConfig([
     },
   },
   {
+    files: ['packages/next/src/server/app-render/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'req',
+          property: 'url',
+          message: 'Use the explicit `requestUrl` input instead.',
+        },
+      ],
+    },
+  },
+  {
     files: ['examples/**/*'],
     linterOptions: {
       reportUnusedDisableDirectives: 'off',

@@ -50,7 +50,7 @@ import { setManifestsSingleton } from '../../server/app-render/manifests-singlet
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app' with { 'turbopack-transition': 'next-server-utility' }
-import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -323,7 +323,8 @@ export function createAppPageEntrypoint({
       getRequestMeta(req, 'isRSCRequest') ??
       isRSCRequestHeader(req.headers[RSC_HEADER])
 
-    const isPossibleServerAction = getIsPossibleServerAction(req)
+    const serverActionRequestMetadata = getServerActionRequestMetadata(req)
+    const { isPossibleServerAction } = serverActionRequestMetadata
 
     // For subresource requests (e.g. images or fonts), return plain text 404
     // instead of rendering the not-found route.
@@ -895,11 +896,13 @@ export function createAppPageEntrypoint({
         const routeMatch: RouteMatch = { resolvedPathname }
         const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
+          requestUrl: req.url!,
           query,
           params,
           page: normalizedSrcPage,
           routeMatch,
           parsedRequestHeaders,
+          serverActionRequestMetadata,
           sharedContext: {
             buildId,
             deploymentId,
@@ -943,7 +946,6 @@ export function createAppPageEntrypoint({
             isDraftMode,
             botType,
             isOnDemandRevalidate,
-            isPossibleServerAction,
             assetPrefix: routeModule.getAssetPrefixForRender(
               routerServerContext,
               nextConfig.assetPrefix
