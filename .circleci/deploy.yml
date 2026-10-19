@@ -1,0 +1,73 @@
+# This is a template CircleCI deploy config
+# that shows how to use deploy markers to track deployments.
+# You can edit this template to add your custom deployment logic.
+
+version: 2.1
+
+jobs:
+  deploy-component:
+    docker:
+      - image: cimg/base:current
+    environment:
+      COMPONENT_NAME: << pipeline.deploy.component_name >>
+      NAMESPACE: << pipeline.deploy.namespace >>
+      ENVIRONMENT_NAME: << pipeline.deploy.environment_name >>
+      TARGET_VERSION: << pipeline.deploy.target_version >>
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+
+      # This step will create a new deploy with PENDING status
+      # that will show up in the deploys tab in the UI
+      - run:
+          name: Plan release of deploy release
+          command: |
+            circleci run release plan  \
+              --environment-name=${ENVIRONMENT_NAME} \
+              --namespace=${NAMESPACE} \
+              --component-name=${COMPONENT_NAME} \
+              --target-version=${TARGET_VERSION}
+
+      - run:
+          name: Perform deployment
+          command: echo "Replace this step with your custom deployment logic"
+
+      # These last two steps update the PENDING deployment marker
+      # to SUCCESS or FAILED, based on the outcome of the job.
+      - run:
+          name: Update planned release to SUCCESS
+          command: |
+            circleci run release update \
+              --status=SUCCESS
+          when: on_success
+      - run:
+          name: Update planned release to FAILED
+          command: |
+            circleci run release update \
+             --status=FAILED
+          when: on_fail
+
+  # This job handles the cancellation of the deploy marker
+  # if the deploy job is canceled
+  cancel-deploy:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - run:
+          name: Update planned release to CANCELED
+          command: |
+            circleci run release update \
+             --status=CANCELED
+
+workflows:
+  deploy:
+    jobs:
+      - deploy-component
+      - cancel-deploy:
+          requires:
+            - deploy-component:
+              - canceled
+          filters:
+            branches:
+              only: main
