@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
-import { createRouterAct } from 'router-act'
-import type * as Playwright from 'playwright'
 
 describe('parallel-routes-revalidation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -46,12 +44,7 @@ describe('parallel-routes-revalidation', () => {
   }
 
   it('refreshes a retained slot using its original URL after multiple navigations', async () => {
-    let act: ReturnType<typeof createRouterAct>
-    const browser = await next.browser('/retained-search/one?value=first', {
-      beforePageLoad(p: Playwright.Page) {
-        act = createRouterAct(p)
-      },
-    })
+    const browser = await next.browser('/retained-search/one?value=first')
     const originalRender = await browser.elementById('retained-render').text()
     expect(await browser.elementById('retained-value').text()).toBe('first')
 
@@ -59,24 +52,24 @@ describe('parallel-routes-revalidation', () => {
       ['two', 'second'],
       ['three', 'third'],
     ]) {
-      await act(async () => {
-        await browser
-          .elementByCss(`a[href="/retained-search/${page}?value=${value}"]`)
-          .click()
+      await browser
+        .elementByCss(`a[href="/retained-search/${page}?value=${value}"]`)
+        .click()
+      await retry(async () => {
+        expect(await browser.elementById('active-page').text()).toBe(page)
       })
-      expect(await browser.elementById('active-page').text()).toBe(page)
       expect(await browser.elementById('retained-value').text()).toBe('first')
       expect(await browser.elementById('retained-render').text()).toBe(
         originalRender
       )
     }
 
-    await act(async () => {
-      await browser.elementById('refresh-button').click()
+    await browser.elementById('refresh-button').click()
+    await retry(async () => {
+      expect(await browser.elementById('retained-render').text()).not.toBe(
+        originalRender
+      )
     })
-    expect(await browser.elementById('retained-render').text()).not.toBe(
-      originalRender
-    )
     expect(await browser.elementById('retained-value').text()).toBe('first')
     expect(await browser.elementById('active-page').text()).toBe('three')
     expect(new URL(await browser.url()).search).toBe('?value=third')
@@ -215,7 +208,11 @@ describe('parallel-routes-revalidation', () => {
 
     // reload the page, which will cause the router to no longer have cache nodes
     await browser.refresh()
-    await browser.waitForIdleNetwork()
+    // The history listener must be hydrated before going forward. Background
+    // requests in development can prevent the network from becoming idle.
+    await retry(async () => {
+      expect(await browser.eval('window.__NEXT_HYDRATED')).toBe(true)
+    })
 
     // go forward, this will trigger a lazy fetch for the missing data, and should restore the detail page
     await browser.forward()
