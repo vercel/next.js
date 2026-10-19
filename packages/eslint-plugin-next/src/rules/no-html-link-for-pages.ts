@@ -4,6 +4,7 @@ import * as fs from 'fs'
 import { getRootDirs } from '../utils/get-root-dirs'
 
 import {
+  DEFAULT_PAGE_EXTENSIONS,
   getUrlFromPagesDirectories,
   normalizeURL,
   execOnce,
@@ -71,6 +72,10 @@ export default defineRule({
   create(context) {
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
+    const nextSettings: { pageExtensions?: string[] } =
+      context.settings?.next || {}
+    const pageExtensions =
+      nextSettings.pageExtensions || DEFAULT_PAGE_EXTENSIONS
 
     const rootDirs = getRootDirs(context)
 
@@ -107,8 +112,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
