@@ -46,6 +46,7 @@ import type { ZodError } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
+import { deepFreeze, deepFreezePlainValues } from '../shared/lib/deep-freeze'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
@@ -1860,43 +1861,13 @@ function finalizeConfig(
       (config.outputHashSalt ?? '') + config.experimental.outputHashSalt
   }
 
-  return freezeConfigInTestMode(config)
-}
-
-/**
- * In tests, deeply freezes the loaded config so that any later write throws
- * where it happens instead of silently changing the config other code reads.
- * Only plain objects and arrays are frozen: class instances (RegExp, URL, ...)
- * are left alone because freezing breaks them, e.g. a global RegExp's
- * `lastIndex`.
- */
-function freezeConfigInTestMode<T>(config: T): T {
+  // In tests, freeze the loaded config so that any later write throws where it
+  // happens instead of silently changing the config other code reads.
   if (process.env.__NEXT_TEST_MODE) {
-    deepFreezePlainValues(config, new WeakSet())
+    deepFreezePlainValues(config)
   }
+
   return config
-}
-
-function deepFreezePlainValues(value: unknown, seen: WeakSet<object>): void {
-  if (value === null || typeof value !== 'object' || seen.has(value)) {
-    return
-  }
-  seen.add(value)
-
-  if (!Array.isArray(value)) {
-    const proto = Object.getPrototypeOf(value)
-    if (proto !== Object.prototype && proto !== null) {
-      return
-    }
-  }
-
-  for (const key of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key)
-    if (descriptor && 'value' in descriptor) {
-      deepFreezePlainValues(descriptor.value, seen)
-    }
-  }
-  Object.freeze(value)
 }
 
 async function applyModifyConfig(
@@ -2082,9 +2053,13 @@ async function loadConfigImpl(
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
     // we don't apply assignDefaults or modifyConfig here as it
     // has already been applied
-    const standaloneConfig = freezeConfigInTestMode(
-      JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+    const standaloneConfig = JSON.parse(
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
     )
+    // The standalone config is JSON written at build time, like the manifests.
+    if (process.env.__NEXT_TEST_MODE) {
+      deepFreeze(standaloneConfig)
+    }
 
     // Cache the standalone config
     configCache.set(cacheKey, {

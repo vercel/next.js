@@ -1,4 +1,5 @@
 import type { DeepReadonly } from './deep-readonly'
+import { isPlainObject } from './is-plain-object'
 
 /**
  * Recursively freezes an object and all of its properties. This prevents the
@@ -29,4 +30,38 @@ export function deepFreeze<T extends object>(obj: T): DeepReadonly<T> {
   }
 
   return Object.freeze(obj) as DeepReadonly<T>
+}
+
+/**
+ * Like `deepFreeze`, but only freezes plain objects and arrays. Other objects,
+ * such as `RegExp`, `URL` or user class instances, are left as they are,
+ * together with everything they reference, because freezing them can break
+ * them: a global `RegExp` writes `lastIndex` on every `test()` and `exec()`.
+ *
+ * Use this for values that can contain user-provided objects, such as the
+ * loaded next.config. JSON data, like manifests, can use `deepFreeze`.
+ *
+ * @param obj The object to freeze.
+ */
+export function deepFreezePlainValues<T extends object>(obj: T): T {
+  // If the object is already frozen, there's no need to freeze it again.
+  if (Object.isFrozen(obj)) return obj
+
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      if (!item || typeof item !== 'object') continue
+      deepFreezePlainValues(item)
+    }
+
+    return Object.freeze(obj)
+  }
+
+  if (!isPlainObject(obj)) return obj
+
+  for (const value of Object.values(obj)) {
+    if (!value || typeof value !== 'object') continue
+    deepFreezePlainValues(value)
+  }
+
+  return Object.freeze(obj)
 }

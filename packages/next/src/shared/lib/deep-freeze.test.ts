@@ -1,4 +1,4 @@
-import { deepFreeze } from './deep-freeze'
+import { deepFreeze, deepFreezePlainValues } from './deep-freeze'
 
 describe('freeze', () => {
   it('should freeze an object', () => {
@@ -37,5 +37,35 @@ describe('freeze', () => {
     expect(Object.isFrozen(obj)).toBe(true)
     expect(Object.isFrozen(obj.a)).toBe(true)
     expect(Object.isFrozen(obj.b)).toBe(true)
+  })
+})
+
+describe('deepFreezePlainValues', () => {
+  it('should freeze nested plain objects and arrays', () => {
+    const obj = { a: [{ b: 1 }], c: { d: [2] } }
+    deepFreezePlainValues(obj)
+    expect(Object.isFrozen(obj)).toBe(true)
+    expect(Object.isFrozen(obj.a)).toBe(true)
+    expect(Object.isFrozen(obj.a[0])).toBe(true)
+    expect(Object.isFrozen(obj.c)).toBe(true)
+    expect(Object.isFrozen(obj.c.d)).toBe(true)
+  })
+
+  it('should leave class instances and their contents unfrozen', () => {
+    class Holder {
+      value = { nested: true }
+    }
+    const pattern = /a/g
+    const holder = new Holder()
+    const obj = { pattern, holder, list: [pattern] }
+    deepFreezePlainValues(obj)
+
+    expect(Object.isFrozen(obj)).toBe(true)
+    expect(Object.isFrozen(obj.list)).toBe(true)
+    expect(Object.isFrozen(pattern)).toBe(false)
+    expect(Object.isFrozen(holder)).toBe(false)
+    expect(Object.isFrozen(holder.value)).toBe(false)
+    // A frozen global RegExp would throw when `test` writes `lastIndex`.
+    expect(pattern.test('a')).toBe(true)
   })
 })
