@@ -3267,12 +3267,11 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
-        // Skip deleted tasks, which can be encountered while processing GC's deferred cleanup.
-        // This just means there is no point in rebalancing the subgraph here since this 'root' is
-        // dead.
-        if task.deleted() {
-            return;
-        }
+        // Only balance and optimize jobs and normal operations update aggregation numbers. GC's
+        // parallel collect runs neither, and its deferred rebalance starts from edges whose
+        // endpoints were filtered for deletion, so reaching a deleted task means edge removal left
+        // an aggregation or child edge to it.
+        task.assert_not_deleted("update_aggregation_number");
         self.check_optimization_pending(&task);
         let current = task.get_aggregation_number().copied().unwrap_or_default();
         let old = current.effective;
@@ -3361,12 +3360,12 @@ impl AggregationUpdateQueue {
             TaskDataCategory::Meta,
         );
 
+        // Optimize jobs only target live tasks: GC's parallel collect never optimizes, and its
+        // deferred rebalance starts from edges whose endpoints were filtered for deletion. An
+        // optimization reaching a deleted task means edge removal left an aggregation edge to it.
+        task.assert_not_deleted("optimize_task");
         // We are about to optimize, so optimization is no longer pending.
         task.set_optimization_pending(false);
-        // A racing GC pass may have deleted this task, just return.
-        if task.deleted() {
-            return;
-        }
         let aggregation_number = task.get_aggregation_number().copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
