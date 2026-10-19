@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
-import type { BaseNextRequest } from './base-http'
+import type { BaseNextRequest, FetchMetricsCollection } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
@@ -49,6 +49,8 @@ export type OnCacheEntryHandler = (
 ) => Promise<boolean | void> | boolean | void
 
 export interface RequestMeta {
+  fetchMetricsCollection?: FetchMetricsCollection
+
   /**
    * The query that was used to make the request.
    */

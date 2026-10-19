@@ -5,6 +5,7 @@ import {
 } from '../../server/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
+import { createFetchMetricsCollection } from '../../server/lib/fetch-metrics'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
   addRequestMeta,
@@ -114,6 +115,10 @@ export async function handler(
   if (ctx.requestMeta) {
     setRequestMeta(req, ctx.requestMeta)
   }
+  const fetchMetricsCollection =
+    process.env.NEXT_RUNTIME !== 'edge'
+      ? createFetchMetricsCollection(req, res)
+      : undefined
   if (routeModule.isDev) {
     addRequestMeta(req, 'devRequestTimingInternalsEnd', process.hrtime.bigint())
   }
@@ -240,6 +245,7 @@ export async function handler(
   ;(globalThis as any).__incrementalCache = incrementalCache
 
   const context: AppRouteRouteHandlerContext = {
+    fetchMetricsCollection,
     params,
     previewProps,
     renderOpts: {
