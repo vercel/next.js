@@ -41,7 +41,7 @@ Ask what kind of difference you're encoding:
 1. **A behavior change — both states assert something meaningful.** Don't
    gate the test at all: fork inside the body with the runtime `gate()` —
    same condition registry, no inversion — which pinpoints exactly what
-   differs, and also covers `it.each`, where a pragma cannot attach:
+   differs, including in parameterized tests (`it.each`):
    `if (await gate((c) => c.cacheComponents)) { ... } else { ... }`. It
    mirrors React's `gate(flags => ...)`; a pragma expression string works
    too (`await gate('cacheComponents && !dev')`). A suite-level pragma is
@@ -153,11 +153,13 @@ single dimension.
 ## Pitfalls
 
 - A pragma the transform can't attach is a **hard error**: a blank line
-  between pragma and `it(`, `it.each`/`it.failing`, or a pragma inside a
+  between pragma and `it(`, `it.failing`, or a pragma inside a
   JSDoc block. Prose comments must not begin with `@gate`. A pragma on a
   skipped test (`it.skip`, `xit`, …) errors as ambiguous — remove the skip or
   the pragma. A skip without a pragma is respected.
-- A `describe`-level gate does not reach `it.each` tests.
+- `it.each` / `test.each` support both array and tagged-template tables. A
+  pragma applies to every row independently; enclosing `describe` gates are
+  inherited too. Row arguments are preserved; use promises rather than `done`.
 - Gated-false bodies that fail by _stalling_ waste the full Jest timeout —
   and under a lazy gate they fail the suite anyway (the runtime inversion
   only absorbs thrown errors; a static gate rides Jest's native

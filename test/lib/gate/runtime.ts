@@ -222,7 +222,7 @@ function makeConditionsObject(
  *
  * Unlike the pragma there is no inversion — it only answers the question — so
  * reach for it when a body should run under both states but assert
- * differently, and for tests a pragma cannot attach to (`it.each`). When the
+ * differently, including parameterized tests (`it.each`). When the
  * whole body is a known failure, use `// @gate` instead and keep the tripwire.
  */
 export async function gate(
@@ -264,20 +264,25 @@ export async function expectTestToFail(
 
 function wrapGatedBody(
   gates: Gate[],
-  callback: Function
+  callback: Function,
+  parameterized = false
 ): jest.ProvidesCallback {
-  if (callback.length > 0) {
+  if (!parameterized && callback.length > 0) {
     throw new Error(
       `A gated test cannot use the \`done\` callback, because the gate has to ` +
         `observe whether the test failed. Return a promise instead.`
     )
   }
 
-  const body = async function gatedBody(this: unknown): Promise<void> {
+  const body = async function gatedBody(
+    this: unknown,
+    ...args: unknown[]
+  ): Promise<void> {
+    assertNoDoneCallback(callback, args)
     const decision = await decideGates(gates)
 
     if (decision.type === 'run') {
-      await callback.call(this)
+      await callback.apply(this, args)
       return
     }
 
@@ -294,7 +299,7 @@ function wrapGatedBody(
 
     const error = new Error(staleGateMessage(decision.gate))
     Error.captureStackTrace(error, body)
-    await expectTestToFail(() => callback.call(this), error)
+    await expectTestToFail(() => callback.apply(this, args), error)
     require('console').warn(
       `  ⚠ gated test failed as expected (@gate ${decision.gate.source})`
     )
@@ -345,18 +350,23 @@ function wrapGatedHook(
  */
 function wrapFailingBody(
   gate: Gate,
-  callback: Function
+  callback: Function,
+  parameterized = false
 ): jest.ProvidesCallback {
-  if (callback.length > 0) {
+  if (!parameterized && callback.length > 0) {
     throw new Error(
       `A gated test cannot use the \`done\` callback, because the gate has to ` +
         `observe whether the test failed. Return a promise instead.`
     )
   }
 
-  const body = async function gatedFailingBody(this: unknown): Promise<void> {
+  const body = async function gatedFailingBody(
+    this: unknown,
+    ...args: unknown[]
+  ): Promise<void> {
+    assertNoDoneCallback(callback, args)
     try {
-      await callback.call(this)
+      await callback.apply(this, args)
     } catch (error) {
       require('console').warn(
         `  ⚠ gated test failed as expected (@gate ${gate.source})`
@@ -372,6 +382,14 @@ function wrapFailingBody(
 
   gatedBodies.add(body)
   return body as jest.ProvidesCallback
+}
+
+function assertNoDoneCallback(callback: Function, args: unknown[]): void {
+  if (callback.length > args.length) {
+    throw new Error(
+      'A gated test cannot use the `done` callback. Return a promise instead.'
+    )
+  }
 }
 
 /**
@@ -439,6 +457,33 @@ export function _test_gate(pragmas: GatePragma[], kind: string) {
   )
 }
 
+/** Keep the underlying Jest functions available without re-entering proxies. */
+const originalTestFns = new WeakMap<Function, Function>()
+
+/** Bind a Jest table first, then gate each row's body independently. */
+export function _test_gate_each(pragmas: GatePragma[], kind: string) {
+  const testFn = resolveTestFn(kind)
+  const original = originalTestFns.get(testFn) ?? testFn
+  return createGatedEach(pragmas.map(parseGate), kind, original)
+}
+
+function createGatedEach(allGates: Gate[], kind: string, testFn: any) {
+  return (...tableArgs: unknown[]) =>
+    createGatedTest(
+      allGates,
+      kind,
+      () => {
+        const bound = testFn.each(...tableArgs)
+        if (typeof testFn.failing?.each === 'function') {
+          bound.failing = testFn.failing.each(...tableArgs)
+        }
+        return bound
+      },
+      () => (resolveSkipFn(kind) as any).each(...tableArgs),
+      true
+    )
+}
+
 /** `describe.each(table)` binds the table before receiving the suite call. */
 export function _test_gate_describe_each(
   pragmas: GatePragma[],
@@ -458,7 +503,8 @@ function createGatedTest(
   allGates: Gate[],
   kind: string,
   getTestFn: () => TestFn,
-  getSkipFn: () => TestFn
+  getSkipFn: () => TestFn,
+  parameterized = false
 ) {
   // A static `@force-gate` is decided at collection time (a real Jest skip).
   // Everything else — `@gate`, and *lazy* `@force-gate` — is resolved at
@@ -502,12 +548,16 @@ function createGatedTest(
     if (staticInversion && typeof failingFn === 'function') {
       return failingFn(
         name,
-        wrapFailingBody(staticInversion, callback),
+        wrapFailingBody(staticInversion, callback, parameterized),
         timeout
       )
     }
 
-    return testFn(name, wrapGatedBody(applicable, callback), timeout)
+    return testFn(
+      name,
+      wrapGatedBody(applicable, callback, parameterized),
+      timeout
+    )
   }
 }
 
@@ -553,16 +603,26 @@ export function findLazyForceSkip(
  * technique `test/lib/e2e-utils` uses to inject a per-test timeout, and the two
  * wrappers compose.
  *
- * Known gap: `it.each` and friends bypass the wrapper, so a `describe`-level
- * gate does not reach them. `it.each` cannot carry a pragma of its own either
- * (the transform rejects it).
+ * Parameterized registrations bind their table before wrapping the row bodies.
  */
 function wrapTestGlobals(): void {
   for (const key of ['it', 'test'] as const) {
     const original = (global as any)[key]
-    if (typeof original !== 'function' || original.__gateWrapped) continue
+    if (typeof original !== 'function' || originalTestFns.has(original))
+      continue
 
     const wrapped = new Proxy(original, {
+      get(target, property, receiver) {
+        if (property === 'each') {
+          return (...tableArgs: unknown[]) => {
+            if (describeGateStack.length === 0) {
+              return target.each(...tableArgs)
+            }
+            return createGatedEach([], key, target)(...tableArgs)
+          }
+        }
+        return Reflect.get(target, property, receiver)
+      },
       apply(target, thisArg, args: any[]) {
         const [name, callback, timeout] = args
         if (
@@ -591,7 +651,10 @@ function wrapTestGlobals(): void {
         ])
       },
     })
-    Object.defineProperty(wrapped, '__gateWrapped', { value: true })
+    originalTestFns.set(wrapped, original)
+    // Do not mark the proxy with defineProperty: that marks its target too,
+    // and Jest aliases `it` and `test` to the same function. The WeakMap marks
+    // only the proxy, so both globals get their own inheritance wrapper.
     ;(global as any)[key] = wrapped
   }
 }
@@ -640,6 +703,7 @@ function wrapHookGlobals(): void {
 export function installGate(): void {
   ;(global as any)._test_gate = _test_gate
   ;(global as any)._test_gate_describe_each = _test_gate_describe_each
+  ;(global as any)._test_gate_each = _test_gate_each
   wrapTestGlobals()
   wrapHookGlobals()
 }

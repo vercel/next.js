@@ -136,9 +136,9 @@ describe('@gate pragma transform', () => {
       ).toThrow('this `@gate` pragma has no effect')
     })
 
-    it('rejects a pragma over it.each', () => {
+    it('rejects a pragma over it.failing', () => {
       expect(() =>
-        rewrite(src('// @gate dev', 'it.each([1])("a", () => {})'), 'x.test.ts')
+        rewrite(src('// @gate dev', 'it.failing("a", () => {})'), 'x.test.ts')
       ).toThrow('this `@gate` pragma has no effect')
     })
 
@@ -154,6 +154,8 @@ describe('@gate pragma transform', () => {
         "xdescribe('a', () => {})",
         "it.todo('a')",
         "describe.skip('a', () => {})",
+        'it.skip.each([1])("a", () => {})',
+        'test.skip.each([1])("a", () => {})',
       ]) {
         expect(() => rewrite(src('// @gate dev', call), 'x.test.ts')).toThrow(
           'a `@gate` pragma on a skipped test is ambiguous'
@@ -201,5 +203,51 @@ describe('@gate pragma transform', () => {
       "it('a', () => {})"
     )
     expect(rewrite(input, 'x.test.ts')).toBe(input)
+  })
+
+  it.each(['it', 'test', 'fit', 'it.only', 'test.only'])(
+    'supports %s.each tables and preserves line counts',
+    (kind) => {
+      const input = src(
+        '  // @gate dev',
+        '  // @force-gate webpack',
+        `  ${kind}.each([`,
+        '    [1, 2],',
+        '  ])("row %s", (a, b) => {})'
+      )
+      const out = rewrite(input, 'x.ts')
+      expect(out).toBe(
+        input.replace(
+          `${kind}.each(`,
+          `_test_gate_each([{"force":false,"source":"dev"},{"force":true,"source":"webpack"}],${JSON.stringify(kind)})(`
+        )
+      )
+      expect(out.split('\n')).toHaveLength(input.split('\n').length)
+    }
+  )
+
+  it('supports tagged template tables', () => {
+    const input = src(
+      '// @gate dev',
+      'it.each`',
+      '  a | b',
+      `  \${1} | \${2}`,
+      '`("row $a", ({ a, b }) => {})'
+    )
+    expect(rewrite(input, 'x.ts')).toBe(
+      input.replace(
+        'it.each',
+        '_test_gate_each([{"force":false,"source":"dev"}],"it")'
+      )
+    )
+  })
+
+  it('does not rewrite ungated parameterized tests in a file with gates', () => {
+    const input = src(
+      '// @gate dev',
+      "it('gated', () => {})",
+      'it.each([1])("row %s", (value) => {})'
+    )
+    expect(rewrite(input, 'x.ts').split('\n')[2]).toBe(input.split('\n')[2])
   })
 })
