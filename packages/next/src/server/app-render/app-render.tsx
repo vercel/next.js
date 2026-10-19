@@ -697,12 +697,6 @@ async function generateDynamicRSCPayload(
     }
   }
 
-  // In dev, interception routes are compiled on demand, so route matching may
-  // not reliably reflect whether a route can be intercepted yet.
-  // Default to true so the client doesn't cache a stale Fallback entry.
-  const couldBeIntercepted =
-    !!process.env.__NEXT_DEV_SERVER || ctx.couldBeIntercepted
-
   // If we have an action result, then this is a server action response.
   // We can rely on this because `ActionResult` will always be a promise, even if
   // the result is falsey.
@@ -710,7 +704,7 @@ async function generateDynamicRSCPayload(
     const actionResponse: ActionFlightResponse = {
       a: options.actionResult,
       q: getRenderedSearch(query),
-      i: !!couldBeIntercepted,
+      i: ctx.couldBeIntercepted,
     }
     if (transportData !== undefined) {
       actionResponse.t = transportData
@@ -722,7 +716,7 @@ async function generateDynamicRSCPayload(
   const baseResponse: DynamicNavigationFlightResponse =
     maybeAppendBuildIdToRSCPayload(ctx, {
       q: getRenderedSearch(query),
-      i: !!couldBeIntercepted,
+      i: ctx.couldBeIntercepted,
       // Tells the client whether this route supports per-segment prefetching.
       // With Cache Components, all routes support it. Without it, only fully
       // static pages do, because their per-segment prefetch responses are
@@ -2129,14 +2123,6 @@ async function getRSCPayload(
     hintTree: hints,
   })
 
-  // Tell AppRouter whether the response can differ for an interception route,
-  // so it can seed the prefetch cache with a prefix if needed.
-  // In dev, interception routes are compiled on demand, so route matching may
-  // not reliably reflect whether a route can be intercepted yet.
-  // Default to true so the client doesn't cache a stale Fallback entry.
-  const couldBeIntercepted =
-    !!process.env.__NEXT_DEV_SERVER || ctx.couldBeIntercepted
-
   const initialHead = createElement(
     Fragment,
     {
@@ -2178,7 +2164,9 @@ async function getRSCPayload(
     }),
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
-    i: !!couldBeIntercepted,
+    // Tell AppRouter whether the response can differ for an interception route,
+    // so it can seed the prefetch cache with a prefix if needed.
+    i: ctx.couldBeIntercepted,
     t: {
       t: initialTree,
       h: {
@@ -2750,7 +2738,11 @@ async function prepareAppPageRender(
     query,
     isPrefetch: isPrefetchRequest,
     isPossibleServerAction: serverActionRequestMetadata.isPossibleServerAction,
-    couldBeIntercepted: routeMatch.couldBeIntercepted,
+    // In dev, interception routes are compiled on demand, so route matching may
+    // not reliably reflect whether a route can be intercepted yet.
+    // Default to true so the client doesn't cache a stale Fallback entry.
+    couldBeIntercepted:
+      !!process.env.__NEXT_DEV_SERVER || routeMatch.couldBeIntercepted,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
