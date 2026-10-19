@@ -30,9 +30,6 @@ import type {
   PrerenderStoreModernServer,
 } from './work-unit-async-storage.external'
 
-// Once postpone is in stable we should switch to importing the postpone export directly
-import React from 'react'
-
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { getStagedRenderingController } from './work-unit-async-storage.external'
@@ -1250,10 +1247,14 @@ function addErrorContext(
   componentStack: string,
   createInstantStack: (() => Error) | null
 ) {
-  const ownerStack =
-    process.env.NODE_ENV !== 'production' && React.captureOwnerStack
-      ? React.captureOwnerStack()
-      : null
+  let ownerStack: string | null = null
+  if (process.env.NODE_ENV !== 'production') {
+    // Required lazily so production builds don't include React. This module
+    // is reachable from proxy.ts via `connection()` in `next/server`, and
+    // importing React there pulls in the whole app-page runtime.
+    const React = require('react') as typeof import('react')
+    ownerStack = React.captureOwnerStack ? React.captureOwnerStack() : null
+  }
 
   if (createInstantStack !== null) {
     error.cause = createInstantStack()
