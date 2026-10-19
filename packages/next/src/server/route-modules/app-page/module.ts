@@ -96,6 +96,9 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
+  // Defer access to these params while retaining their concrete request values.
+  // A resumed render prefers the mask recorded in its postponed state.
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
   dev: DevRenderContext | undefined
   parsedRequestHeaders: ParsedRequestHeaders
@@ -199,7 +202,8 @@ export class AppPageRouteModule extends RouteModule<
       context.sharedContext,
       context.routeMatch,
       context.parsedRequestHeaders,
-      context.serverActionRequestMetadata
+      context.serverActionRequestMetadata,
+      context.stagedFallbackParams
     )
   }
 
@@ -220,7 +224,8 @@ export class AppPageRouteModule extends RouteModule<
       context.sharedContext,
       context.routeMatch,
       context.parsedRequestHeaders,
-      context.serverActionRequestMetadata
+      context.serverActionRequestMetadata,
+      context.stagedFallbackParams
     )
   }
 

@@ -913,6 +913,8 @@ export function createAppPageEntrypoint({
           },
           dev,
           fallbackRouteParams,
+          stagedFallbackParams:
+            getRequestMeta(req, 'stagedFallbackParams') ?? null,
           renderOpts: {
             App: () => null,
             Document: () => null,

@@ -107,7 +107,8 @@ export async function exportAppPage(
       sharedContext,
       routeMatch,
       parsedRequestHeaders,
-      getServerActionRequestMetadata(nextReq)
+      getServerActionRequestMetadata(nextReq),
+      null // stagedFallbackParams
     )
 
     if ('error' in result) {
