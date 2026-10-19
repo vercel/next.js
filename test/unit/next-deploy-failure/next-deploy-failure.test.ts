@@ -299,14 +299,31 @@ describe('deployment lifecycle', () => {
     expect(stopRuntimeLogs).toHaveBeenCalled()
   })
 
-  it('rejects runtime capture for a custom provider before deploying', async () => {
+  it('ignores runtime capture for a custom provider', async () => {
+    const warn = jest.spyOn(require('console'), 'warn').mockImplementation()
     process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH = 'mock-deploy'
     process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH = 'mock-logs'
+    successfulDeployment()
     const next = await instance(true)
-    await expect(next.start()).rejects.toThrow(
-      'requires the Vercel deployment provider'
+    await next.start()
+    expect(next.cliOutput).toBe(ids)
+    expect(execa.sync).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('captureRuntimeLogs has no effect')
     )
-    expect(execa).not.toHaveBeenCalled()
+    await next.destroy()
+    expect(stopRuntimeLogs).not.toHaveBeenCalled()
+  })
+
+  it('ignores runtime capture for an existing deployment with custom logs', async () => {
+    jest.spyOn(require('console'), 'warn').mockImplementation()
+    process.env.NEXT_TEST_DEPLOY_URL = deploymentUrl
+    process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH = 'mock-logs'
+    successfulDeployment()
+    const next = await instance(true)
+    await next.start()
+    expect(next.cliOutput).toBe(ids)
+    expect(execa.sync).not.toHaveBeenCalled()
     await next.destroy()
   })
 

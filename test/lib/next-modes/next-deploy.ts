@@ -116,7 +116,7 @@ export class NextDeployInstance extends NextInstance {
   private _restoreDnsLookup: (() => void) | null = null
   private _startPromise: Promise<void> | undefined
   private _npmrcAuthFile: string | undefined
-  private readonly captureRuntimeLogs: boolean
+  private captureRuntimeLogs: boolean
   private runtimeLogs: DeployRuntimeLogs | undefined
 
   constructor(opts: NextInstanceOpts) {
@@ -479,13 +479,19 @@ export class NextDeployInstance extends NextInstance {
     const customLogsScriptPath =
       process.env.NEXT_TEST_DEPLOY_LOGS_SCRIPT_PATH?.trim()
 
+    // Runtime logs are read from Vercel request logs. Like dev and start mode,
+    // other providers ignore the option, and `@force-gate !deploy || vercel`
+    // skips the assertions that read them.
     if (
       this.captureRuntimeLogs &&
       (customDeployScriptPath || customLogsScriptPath)
     ) {
-      throw new Error(
-        'captureRuntimeLogs requires the Vercel deployment provider'
+      require('console').warn(
+        'captureRuntimeLogs has no effect with custom deployment or log ' +
+          'scripts. Gate runtime log assertions with ' +
+          '`// @force-gate !deploy || vercel`.'
       )
+      this.captureRuntimeLogs = false
     }
 
     // Check if using an existing deployment URL (takes priority)

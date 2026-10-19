@@ -91,8 +91,8 @@ export interface NextInstanceOpts {
    * recover late messages and make up to three attempts with backoff. Persistent
    * failures, truncation, and reaching the 1,000-request limit fail the test
    * instead of silently leaving cliOutput incomplete. No background polling.
-   * Unsupported for custom deployment/log scripts. Has no effect in dev or
-   * start mode.
+   * Has no effect with custom deployment/log scripts, where it logs a warning,
+   * or in dev or start mode.
    */
   captureRuntimeLogs?: boolean
   disableAutoSkewProtection?: boolean
