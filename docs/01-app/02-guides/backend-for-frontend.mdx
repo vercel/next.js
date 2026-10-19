@@ -455,18 +455,42 @@ export async function POST(request) {
 
 ### File uploads
 
-Next.js gives you two places to receive a file upload: a [Server Action](/docs/app/getting-started/mutating-data) or a [Route Handler](/docs/app/api-reference/file-conventions/route). Which one to use depends on how large the files are, because the two approaches handle the request body differently:
-
-| Approach                                                          | Good for                     | How the file is read                  |
-| ----------------------------------------------------------------- | ---------------------------- | ------------------------------------- |
-| [Server Action with `FormData`](#small-files-with-server-actions) | Small files, such as avatars | The whole file is held in memory      |
-| [Route Handler with a stream](#large-files-with-a-route-handler)  | Large files                  | The file is streamed in chunks        |
-| [Direct upload to storage](#uploading-directly-to-storage)        | Very large files, serverless | The file never passes through Next.js |
+Before choosing how to receive a file, decide where it will be stored.
 
 > [!WARNING]
 > Always verify [authentication and authorization](/docs/app/guides/authentication) before accepting an upload, and never use the file name sent by the client as a path on disk.
 
-The examples in this section save files to the local file system, so they need the Node.js runtime and a server with a persistent disk. To keep files elsewhere, send them to your storage provider's upload API instead.
+#### Where to store uploads
+
+Next.js doesn't store uploaded files for you, and where you keep them depends on how your app is deployed:
+
+- **The local file system is not shared or persistent everywhere.** In serverless and multi-instance deployments, each instance has its own temporary file system, so a file saved while handling one request may not exist when another instance handles the next one. Saving to disk only works on a long-running server with a persistent disk.
+- **Don't save uploads to the `public` folder.** In production, `next start` serves only the files that are in `public` when the server starts, so files added afterwards return a 404 until the server restarts.
+- **Hosting limits apply to every upload, not only large ones.** Many hosting providers limit the request body size and bandwidth of functions, and frequent small uploads can reach those limits too. Many providers also offer a dedicated storage or upload service for this.
+
+For most applications, store uploads in a storage service and upload files to it directly from the browser.
+
+#### Uploading directly to storage
+
+Let the browser upload the file straight to your storage provider:
+
+1. The client asks your app for an upload URL, for example through a Server Action.
+2. On the server, verify the user and create a short-lived, pre-authorized upload URL with your storage provider's SDK. Many object storage services call this a presigned or signed URL.
+3. The client sends the file directly to that URL with `fetch`.
+4. Optionally, the client tells your app the upload finished, so you can record it.
+
+The file never passes through Next.js, so the request body limits and memory use described below don't apply. Check your storage provider's documentation for how to create upload URLs.
+
+#### Receiving uploads in Next.js
+
+When your app runs on a server with a persistent disk, or forwards the file to storage itself, you can receive the upload in a [Server Action](/docs/app/getting-started/mutating-data) or a [Route Handler](/docs/app/api-reference/file-conventions/route). Which one to use depends on how large the files are, because the two approaches handle the request body differently:
+
+| Approach                                                          | Good for                     | How the file is read             |
+| ----------------------------------------------------------------- | ---------------------------- | -------------------------------- |
+| [Server Action with `FormData`](#small-files-with-server-actions) | Small files, such as avatars | The whole file is held in memory |
+| [Route Handler with a stream](#large-files-with-a-route-handler)  | Large files                  | The file is streamed in chunks   |
+
+The examples below save files to the local file system, so they need the Node.js runtime and a server with a persistent disk. To keep files elsewhere, send them to your storage provider's upload API instead.
 
 #### Small files with Server Actions
 
@@ -706,17 +730,6 @@ export const config = {
 ```
 
 Since the Proxy no longer runs for that route, make sure the Route Handler performs any checks, such as authentication, that the Proxy did. Alternatively, raise the limit with the experimental [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize) option, set under `experimental` in your `next.config` file, keeping in mind that the whole body is then held in memory for each request.
-
-#### Uploading directly to storage
-
-For very large files, or when your server can't hold or stream them, let the browser upload the file straight to your storage provider:
-
-1. The client asks your app for an upload URL, for example through a Server Action.
-2. On the server, verify the user and create a short-lived, pre-authorized upload URL with your storage provider's SDK. Many object storage services call this a presigned or signed URL.
-3. The client sends the file directly to that URL with `fetch`.
-4. Optionally, the client tells your app the upload finished, so you can record it.
-
-The file never passes through Next.js, so the request body limits and memory use described above don't apply. Many hosting platforms also limit the request body size of serverless functions, and uploading directly to storage avoids those limits too. Check your storage provider's documentation for how to create upload URLs.
 
 ## Manipulating data
 
