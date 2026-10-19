@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 describe('instrumentation-hook-rsc', () => {
+  // Runtime logs are only collected from Vercel deployments.
+  // @force-gate !deploy || vercel
   describe('instrumentation', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,

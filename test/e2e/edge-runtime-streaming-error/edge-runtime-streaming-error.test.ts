@@ -2,6 +2,8 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// Runtime logs are only collected from Vercel deployments.
+// @force-gate !deploy || vercel
 describe('edge-runtime-streaming-error', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,

@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+// Runtime logs are only collected from Vercel deployments.
+// @force-gate !deploy || vercel
 describe('unhandled-rejection-logging', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,

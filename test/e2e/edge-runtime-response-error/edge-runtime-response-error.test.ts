@@ -1,6 +1,8 @@
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
+// Runtime logs are only collected from Vercel deployments.
+// @force-gate !deploy || vercel
 describe('Edge runtime response error', () => {
   describe.each([
     { title: 'Edge API', url: '/api/route' },
