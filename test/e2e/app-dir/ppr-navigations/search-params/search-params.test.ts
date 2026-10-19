@@ -1,12 +1,9 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 // TODO(NAR-423): Migrate to Cache Components.
-describe.skip('search-params', () => {
-  if (isNextDev) {
-    test('ppr is disabled in dev', () => {})
-    return
-  }
-
+// @force-gate FIXME
+// @force-gate prefetching
+describe('search-params', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

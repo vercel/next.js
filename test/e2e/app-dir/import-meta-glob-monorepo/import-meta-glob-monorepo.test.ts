@@ -11,12 +11,8 @@ import * as path from 'path'
 // This suite lives in its own monorepo rather than in
 // `test/e2e/app-dir/non-root-project-monorepo`, so that skipping it here doesn't
 // take that suite's webpack coverage with it.
-const testFn =
-  process.env.IS_WEBPACK_TEST || process.env.NEXT_RSPACK
-    ? describe.skip
-    : describe
-
-testFn('import-meta-glob-monorepo', () => {
+// @force-gate turbopack
+describe('import-meta-glob-monorepo', () => {
   const { next } = nextTestSetup({
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
