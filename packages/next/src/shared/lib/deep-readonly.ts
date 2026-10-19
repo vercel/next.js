@@ -10,3 +10,28 @@ export type DeepReadonly<T> = T extends (infer R)[]
         readonly [K in keyof T]: DeepReadonly<T[K]>
       }
     : T
+
+/**
+ * The type returned by `deepFreezePlainValues`. Like `DeepReadonly`, but
+ * functions and built-in class instances (`RegExp`, `Date`, `URL`, `Map`,
+ * `Set`, ...) keep their own types, because they are not frozen.
+ *
+ * Other class instances cannot be told apart from plain objects at the type
+ * level, so they are typed as readonly even though they are not frozen. That
+ * is stricter than their runtime behavior, never looser.
+ */
+export type DeepReadonlyPlainValues<T> = T extends
+  | ((...args: any[]) => any)
+  | RegExp
+  | Date
+  | URL
+  | Map<any, any>
+  | Set<any>
+  | WeakMap<any, any>
+  | WeakSet<any>
+  | Promise<any>
+  | Error
+  ? T
+  : T extends object
+    ? { readonly [K in keyof T]: DeepReadonlyPlainValues<T[K]> }
+    : T

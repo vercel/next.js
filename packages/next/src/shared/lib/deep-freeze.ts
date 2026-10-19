@@ -1,4 +1,4 @@
-import type { DeepReadonly } from './deep-readonly'
+import type { DeepReadonly, DeepReadonlyPlainValues } from './deep-readonly'
 import { isPlainObject } from './is-plain-object'
 
 /**
@@ -43,7 +43,10 @@ export function deepFreeze<T extends object>(obj: T): DeepReadonly<T> {
  *
  * @param obj The object to freeze.
  */
-export function deepFreezePlainValues<T extends object>(obj: T): T {
+export function deepFreezePlainValues<T extends object>(
+  obj: T
+): DeepReadonlyPlainValues<T>
+export function deepFreezePlainValues(obj: object): object {
   // If the object is already frozen, there's no need to freeze it again.
   if (Object.isFrozen(obj)) return obj
 

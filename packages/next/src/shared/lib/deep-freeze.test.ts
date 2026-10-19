@@ -68,4 +68,25 @@ describe('deepFreezePlainValues', () => {
     // A frozen global RegExp would throw when `test` writes `lastIndex`.
     expect(pattern.test('a')).toBe(true)
   })
+
+  it('should type plain values as readonly and keep class instance types', () => {
+    const frozen = deepFreezePlainValues({
+      nested: { value: 1 },
+      list: [1],
+      pattern: /a/g,
+    })
+
+    expect(() => {
+      // @ts-expect-error -- plain objects are readonly
+      frozen.nested.value = 2
+    }).toThrow(TypeError)
+    expect(() => {
+      // @ts-expect-error -- arrays are readonly
+      frozen.list.push(2)
+    }).toThrow(TypeError)
+
+    // The RegExp is not frozen, so its type stays writable.
+    frozen.pattern.lastIndex = 0
+    expect(frozen.pattern.test('a')).toBe(true)
+  })
 })
