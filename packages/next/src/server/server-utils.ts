@@ -30,36 +30,33 @@ import { parseReqUrl } from '../lib/url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 
 /**
- * Compiled matchers for rewrite sources. The rewrites come from the routes
- * manifest, which is loaded once and reused for every request, so they're
- * compiled once instead of on every request. Keyed by the rewrite object so a
- * manifest that's loaded fresh (e.g. in development) just misses the cache.
+ * Compiled matchers for rewrite sources, keyed by the source. Rewrites come
+ * from the routes manifest, so every request checks the same sources; they're
+ * compiled once instead of on every request, and rewrites that share a source
+ * share a matcher. The cap keeps the cache bounded regardless of the input.
  */
-const rewriteMatchers = new WeakMap<
-  DeepReadonly<Rewrite>,
-  Map<string, ReturnType<typeof getPathMatch>>
->()
+const MAX_REWRITE_MATCHERS = 1000
+const rewriteMatchers = new Map<string, ReturnType<typeof getPathMatch>>()
 
 function getRewriteMatcher(
   rewrite: DeepReadonly<Rewrite>,
   trailingSlash: boolean | undefined,
   caseSensitive: boolean
 ) {
-  let matchers = rewriteMatchers.get(rewrite)
-  if (matchers === undefined) {
-    matchers = new Map()
-    rewriteMatchers.set(rewrite, matchers)
-  }
+  const source = trailingSlash ? `${rewrite.source}(/)?` : rewrite.source
+  const key = `${caseSensitive ? '1' : '0'}${source}`
 
-  const key = `${trailingSlash ? 1 : 0}${caseSensitive ? 1 : 0}`
-  let matcher = matchers.get(key)
+  let matcher = rewriteMatchers.get(key)
   if (matcher === undefined) {
-    matcher = getPathMatch(rewrite.source + (trailingSlash ? '(/)?' : ''), {
+    matcher = getPathMatch(source, {
       removeUnnamedParams: true,
       strict: true,
       sensitive: caseSensitive,
     })
-    matchers.set(key, matcher)
+    if (rewriteMatchers.size >= MAX_REWRITE_MATCHERS) {
+      rewriteMatchers.clear()
+    }
+    rewriteMatchers.set(key, matcher)
   }
   return matcher
 }
@@ -303,25 +300,30 @@ export function getServerUtils({
     }
 
     const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
-      const matcher = getRewriteMatcher(rewrite, trailingSlash, !!caseSensitive)
-
       if (!rewrittenParsedUrl.pathname) return false
 
-      let params = matcher(rewrittenParsedUrl.pathname)
-
-      if ((rewrite.has || rewrite.missing) && params) {
-        const hasParams = matchHas(
+      // Check `has` and `missing` before the source: they're header, cookie
+      // and query lookups, while the source can be a large regex. Both have
+      // to match either way.
+      let hasParams: ReturnType<typeof matchHas> | undefined
+      if (rewrite.has || rewrite.missing) {
+        hasParams = matchHas(
           req,
           rewrittenParsedUrl.query,
           rewrite.has as Rewrite['has'],
           rewrite.missing as Rewrite['missing']
         )
+        if (!hasParams) return false
+      }
 
-        if (hasParams) {
-          Object.assign(params, hasParams)
-        } else {
-          params = false
-        }
+      const params = getRewriteMatcher(
+        rewrite,
+        trailingSlash,
+        !!caseSensitive
+      )(rewrittenParsedUrl.pathname)
+
+      if (params && hasParams) {
+        Object.assign(params, hasParams)
       }
 
       if (params) {
