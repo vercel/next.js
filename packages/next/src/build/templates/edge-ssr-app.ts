@@ -119,7 +119,9 @@ async function requestHandler(
 
   const routeMatch: RouteMatch = {
     resolvedPathname,
-    // The Vary header is currently added after rendering in the Edge adapter.
+    // TODO: Edge renders don't report interception capability yet, even though
+    // the response's Vary header includes Next-URL for interceptable routes.
+    // `false` preserves the existing behavior.
     couldBeIntercepted: false,
   }
   const dev: DevRenderContext | undefined = createDevRenderContext(baseReq)
