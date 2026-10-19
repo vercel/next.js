@@ -2638,8 +2638,9 @@ async function prepareAppPageRender(
   } = renderOpts
 
   if (
-    // Build-time prerenders track fetch metrics through after() callbacks.
-    process.env.__NEXT_DEV_SERVER &&
+    // Build-time prerenders collect fetch metrics after running after() callbacks,
+    // so they must keep tracking when their render lifecycle closes.
+    !renderOpts.isBuildTimePrerendering &&
     process.env.NEXT_RUNTIME !== 'edge'
   ) {
     renderOpts.onClose(() => {
