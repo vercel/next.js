@@ -135,8 +135,6 @@ describe('app-dir - server source maps - fake frame source maps', () => {
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
     // This suite requires runtime logs and a local Node.js inspector.
-    // Use the declared pnpm version on Vercel to install link: dependencies.
-    env: { ENABLE_EXPERIMENTAL_COREPACK: '1' },
     // Expose the inspector on a random port.
     startArgs: ['--inspect=0'],
   })

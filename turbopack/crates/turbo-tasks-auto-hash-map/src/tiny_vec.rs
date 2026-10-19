@@ -20,9 +20,8 @@
 //! # Type parameters
 //! * `INLINE` — elements stored inline in the struct before spilling to the heap. `INLINE = 0` (the
 //!   default) is a pure heap vector with a 2-byte header — 16 B on 64-bit, vs 24 B for `Vec`.
-//! * `MAX` — hard cap on the element count. Defaults to [`MAX_LIST_SIZE`](crate::MAX_LIST_SIZE).
-//!   Pushing past `MAX` panics; growth doubles until it would exceed `MAX`, then caps at exactly
-//!   `MAX`.
+//! * `MAX` — hard cap on the element count. Defaults to `MAX_TINY_VEC_SIZE`. Pushing past `MAX`
+//!   panics; growth doubles until it would exceed `MAX`, then caps at exactly `MAX`.
 //!
 //! # Representation
 //! * `cap == INLINE`: elements live inline in `data.inline[..len]`.

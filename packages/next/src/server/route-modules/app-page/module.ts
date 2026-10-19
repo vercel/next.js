@@ -25,6 +25,7 @@ import type { OpaqueFallbackRouteParams } from '../../request/fallback-params'
 import { PrerenderManifestMatcher } from './helpers/prerender-manifest-matcher'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { ParsedRequestHeaders } from './parse-request-headers'
+import type { ServerActionRequestMetadata } from '../../lib/server-action-request-meta'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -86,6 +87,9 @@ export type DevRenderContext = {
 }
 
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
+  // Exact path-relative URL (pathname plus search) after route preparation,
+  // preserving its encoded bytes for rendering and prerender request IDs.
+  requestUrl: string
   page: string
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
@@ -93,6 +97,7 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: RenderOpts
   dev: DevRenderContext | undefined
   parsedRequestHeaders: ParsedRequestHeaders
+  serverActionRequestMetadata: ServerActionRequestMetadata
   sharedContext: AppSharedContext
 }
 
@@ -179,6 +184,7 @@ export class AppPageRouteModule extends RouteModule<
     return renderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
@@ -190,7 +196,8 @@ export class AppPageRouteModule extends RouteModule<
       context.dev,
       context.sharedContext,
       context.routeMatch,
-      context.parsedRequestHeaders
+      context.parsedRequestHeaders,
+      context.serverActionRequestMetadata
     )
   }
 
@@ -202,6 +209,7 @@ export class AppPageRouteModule extends RouteModule<
     return prerenderToHTMLOrFlight(
       req,
       res,
+      context.requestUrl,
       context.page,
       context.query,
       context.fallbackRouteParams,
@@ -209,7 +217,8 @@ export class AppPageRouteModule extends RouteModule<
       undefined,
       context.sharedContext,
       context.routeMatch,
-      context.parsedRequestHeaders
+      context.parsedRequestHeaders,
+      context.serverActionRequestMetadata
     )
   }
 

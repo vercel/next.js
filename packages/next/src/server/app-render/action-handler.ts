@@ -47,7 +47,7 @@ import {
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import type { ServerActionRequestMetadata } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
 import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
@@ -615,6 +615,7 @@ function getRevalidationWaitUntil(
 
 export async function handleAction({
   req,
+  serverActionRequestMetadata,
   res,
   ComponentMod,
   generateFlight,
@@ -625,6 +626,7 @@ export async function handleAction({
   metadata,
 }: {
   req: BaseNextRequest
+  serverActionRequestMetadata: ServerActionRequestMetadata
   res: BaseNextResponse
   ComponentMod: AppPageModule
   generateFlight: GenerateFlight
@@ -644,7 +646,7 @@ export async function handleAction({
     isFetchAction,
     isURLEncodedAction,
     isPossibleServerAction,
-  } = getServerActionRequestMetadata(req)
+  } = serverActionRequestMetadata
 
   const handleUnrecognizedAction = (
     err: unknown,

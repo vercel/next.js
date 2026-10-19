@@ -181,6 +181,9 @@ function _type_of(obj) {
  * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
  * uses plain Module objects.
  */ var createModuleWithDirectionFlag = false;
+/**
+ * Maps module IDs to the factory functions that instantiate them.
+ */ var moduleFactories = new Map();
 var REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -196,10 +199,21 @@ var REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 var contextPrototype = Context.prototype;
+contextPrototype.M = moduleFactories;
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 var toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
     if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
+}
+/**
+ * Returns the cached module for `id`, or `undefined` if it has not been
+ * instantiated yet. Rethrows the error if the module's factory threw.
+ */ function getCachedModule(moduleCache, id) {
+    var module = moduleCache.get(id);
+    if (module === null || module === void 0 ? void 0 : module.error) {
+        throw module.error;
+    }
+    return module;
 }
 function getOverwrittenModule(moduleCache, id) {
     var module = moduleCache.get(id);
@@ -234,7 +248,7 @@ function createModuleWithDirection(id) {
         children: []
     };
 }
-var BindingTag_Accessor = 0;
+var BindingTag_Value = 0;
 /**
  * Terminates a module's group of entries in an {@link EsmReexports} list.
  */ var REEXPORT_GROUP_END = 0;
@@ -250,9 +264,19 @@ var BindingTag_Accessor = 0;
     var i = 0;
     while(i < bindings.length){
         var propName = bindings[i++];
-        if (bindings[i] === BindingTag_Accessor && typeof bindings[i + 1] === 'function') {
-            i++;
-            var getterFn = bindings[i++];
+        var tagOrFunction = bindings[i++];
+        if (typeof tagOrFunction === 'number') {
+            if (tagOrFunction === BindingTag_Value) {
+                defineProp(exports, propName, {
+                    value: bindings[i++],
+                    enumerable: true,
+                    writable: false
+                });
+            } else {
+                throw new Error(`unexpected tag: ${tagOrFunction}`);
+            }
+        } else {
+            var getterFn = tagOrFunction;
             if (typeof bindings[i] === 'function') {
                 var setterFn = bindings[i++];
                 defineProp(exports, propName, {
@@ -266,12 +290,6 @@ var BindingTag_Accessor = 0;
                     enumerable: true
                 });
             }
-        } else {
-            defineProp(exports, propName, {
-                value: bindings[i++],
-                enumerable: true,
-                writable: false
-            });
         }
     }
     // The properties defined above are already non-configurable and
@@ -390,9 +408,8 @@ function appendReexportBinding(bindings, exportedName, namespace, importedName) 
     if (descriptor) {
         if ('value' in descriptor) {
             // Code generation only routes immutable imported bindings through this helper, so a data
-            // descriptor is a constant export and can be captured once. Values are untagged; only
-            // accessors carry a tag.
-            bindings.push(exportedName, descriptor.value);
+            // descriptor is a constant export and can be captured once.
+            bindings.push(exportedName, BindingTag_Value, descriptor.value);
             return;
         }
         if (descriptor.get) {
@@ -403,12 +420,12 @@ function appendReexportBinding(bindings, exportedName, namespace, importedName) 
             // and the CommonJS/dynamic-namespace paths create arrows in `createGetter` and
             // `getOwnPropertyDescriptor`. The destination can therefore reuse the exact function instead
             // of allocating another wrapper getter.
-            bindings.push(exportedName, BindingTag_Accessor, descriptor.get);
+            bindings.push(exportedName, descriptor.get);
             return;
         }
     }
     // Dynamic/proxy/inherited CommonJS edge cases may not expose a usable own descriptor.
-    bindings.push(exportedName, BindingTag_Accessor, function() {
+    bindings.push(exportedName, function() {
         return namespace[importedName];
     });
 }
@@ -627,10 +644,9 @@ function createGetter(obj, key) {
         try {
             for(var _iterator = Object.getOwnPropertyNames(current)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
                 var key = _step.value;
-                bindings.push(key, BindingTag_Accessor, createGetter(raw, key));
+                bindings.push(key, createGetter(raw, key));
                 if (defaultLocation === -1 && key === 'default') {
-                    // The index of the tag, so that the tag and the getter can be replaced together below.
-                    defaultLocation = bindings.length - 2;
+                    defaultLocation = bindings.length - 1;
                 }
             }
         } catch (err) {
@@ -652,12 +668,11 @@ function createGetter(obj, key) {
     // we should set the `default` getter if the imported module is a `.cjs file`
     if (!(allowExportDefault && defaultLocation >= 0)) {
         // Replace the binding with one for the namespace itself in order to preserve iteration order.
-        // Values are untagged, so `raw` is bound directly even when it is itself a function.
         if (defaultLocation >= 0) {
-            // Replace the tag and getter with the value
-            bindings.splice(defaultLocation, 2, raw);
+            // Replace the getter with the value
+            bindings.splice(defaultLocation, 1, BindingTag_Value, raw);
         } else {
-            bindings.push('default', raw);
+            bindings.push('default', BindingTag_Value, raw);
         }
     }
     esm(ns, bindings);
@@ -685,7 +700,7 @@ function esmImport(id) {
 }
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
-    var loader = this.r(moduleId);
+    var loader = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
@@ -772,11 +787,11 @@ contextPrototype.f = moduleContext;
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
 // The flat format alternates one or more module IDs with their factory function.
 // Strict factories can be prepended as a nested array.
-function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+function installCompressedModuleFactories(chunkModules, offset, newModuleId) {
     var i = offset;
     var strictFactories = chunkModules[i];
     if (Array.isArray(strictFactories)) {
-        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
+        installCompressedModuleFactories(strictFactories, 0, newModuleId);
         i++;
     }
     while(i < chunkModules.length){
@@ -1080,8 +1095,6 @@ function _unsupported_iterable_to_array(o, minLen) {
 }
 var browserContextPrototype = Context.prototype;
 var RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
-var moduleFactories = new Map();
-contextPrototype.M = moduleFactories;
 var availableModules = new Map();
 var availableModuleChunks = new Map();
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
@@ -1434,7 +1447,7 @@ function loadChunkPath(sourceType, sourceData, chunkPath) {
  * Returns an absolute url to an asset.
  */ function resolvePathFromModule(moduleId) {
     var _ref;
-    var exported = this.r(moduleId);
+    var exported = getOrInstantiateModuleFromParent(moduleId, this.m).exports;
     return (_ref = exported === null || exported === void 0 ? void 0 : exported.default) !== null && _ref !== void 0 ? _ref : exported;
 }
 browserContextPrototype.R = resolvePathFromModule;
@@ -1549,14 +1562,8 @@ contextPrototype.c = moduleCache;
  */ // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
-    var module = moduleCache.get(moduleId);
-    if (module) {
-        if (module.error) {
-            throw module.error;
-        }
-        return module;
-    }
-    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
+    var _getCachedModule;
+    return (_getCachedModule = getCachedModule(moduleCache, moduleId)) !== null && _getCachedModule !== void 0 ? _getCachedModule : instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
@@ -1564,14 +1571,8 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
 // @ts-ignore
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 var getOrInstantiateModuleFromParent = function getOrInstantiateModuleFromParent(id, sourceModule) {
-    var module = moduleCache.get(id);
-    if (module) {
-        if (module.error) {
-            throw module.error;
-        }
-        return module;
-    }
-    return instantiateModule(id, SourceType.Parent, sourceModule.id);
+    var _getCachedModule;
+    return (_getCachedModule = getCachedModule(moduleCache, id)) !== null && _getCachedModule !== void 0 ? _getCachedModule : instantiateModule(id, SourceType.Parent, sourceModule.id);
 };
 function instantiateModule(id, sourceType, sourceData) {
     var moduleFactory = moduleFactories.get(id);
@@ -1614,7 +1615,7 @@ function registerChunk(registration) {
         runtimeParams = registration[1];
     } else {
         runtimeParams = undefined;
-        installCompressedModuleFactories(registration, /* offset= */ 1, moduleFactories);
+        installCompressedModuleFactories(registration, /* offset= */ 1);
     }
     return BACKEND.registerChunk(chunk, runtimeParams);
 }
@@ -1763,6 +1764,64 @@ function getAssetSuffixFromScriptSrc() {
     var src = (_ref = (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.call(_document_currentScript, 'src')) !== null && _ref !== void 0 ? _ref : '';
     var qi = src.indexOf('?');
     return qi >= 0 ? src.slice(qi) : '';
+}
+/**
+ * Whether a `src` / `href` attribute value refers to `url`: either exactly, or
+ * with an additional query string (e.g. `?dpl=...`). Also matches the decoded
+ * form of `url`.
+ *
+ * TODO(PACK-2140): drop the decoded variant once all filenames are guaranteed
+ * to be escaped.
+ */ function matchesChunkUrl(value, url, decodedUrl) {
+    return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?'));
+}
+// These lookups only search `<head>`: the runtime inserts its chunk tags there,
+// and chunk tags rendered into the HTML are expected there too. Tags in
+// `<body>` are deliberately ignored, so that the cost of a lookup does not grow
+// with the size of the page content. A chunk whose tag is only in `<body>` is
+// loaded again through a new tag in `<head>`, and unloading a chunk leaves its
+// `<body>` tags in place.
+//
+// They iterate the tag collection and compare attribute values as plain
+// strings. `querySelectorAll` with attribute selectors would need the URL to be
+// CSS-escaped.
+/**
+ * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
+ */ function findChunkScripts(url) {
+    var decodedUrl = decodeURI(url);
+    var scripts = document.head.getElementsByTagName('script');
+    var result = [];
+    for(var i = 0; i < scripts.length; i++){
+        var script = scripts[i];
+        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+            result.push(script);
+        }
+    }
+    return result;
+}
+/**
+ * Returns all `<link>` elements in `<head>` whose `href` refers to `url`.
+ * With `stylesheetsOnly`, only links whose `rel` is exactly `stylesheet`
+ * (ASCII case-insensitive) are returned.
+ */ function findChunkLinks(url) {
+    var stylesheetsOnly = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : false;
+    var decodedUrl = decodeURI(url);
+    var links = document.head.getElementsByTagName('link');
+    var result = [];
+    for(var i = 0; i < links.length; i++){
+        var _link_getAttribute;
+        var link = links[i];
+        if ((!stylesheetsOnly || ((_link_getAttribute = link.getAttribute('rel')) === null || _link_getAttribute === void 0 ? void 0 : _link_getAttribute.toLowerCase()) === 'stylesheet') && matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)) {
+            result.push(link);
+        }
+    }
+    return result;
+}
+/**
+ * Returns all `<link rel=stylesheet>` elements in `<head>` whose `href`
+ * refers to `url`.
+ */ function findChunkStylesheets(url) {
+    return findChunkLinks(url, true);
 }
 var BACKEND;
 /**
@@ -1955,10 +2014,8 @@ var BACKEND;
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
         } else {
-            // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
-            var decodedChunkUrl = decodeURI(chunkUrl);
             if (isCss(chunkUrl)) {
-                var previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                var previousLinks = findChunkStylesheets(chunkUrl);
                 if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
@@ -1989,7 +2046,7 @@ var BACKEND;
                     document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
-                var previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                var previousScripts = findChunkScripts(chunkUrl);
                 if (previousScripts.length > 0) {
                     var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
                     try {
@@ -2003,7 +2060,7 @@ var BACKEND;
                                 once: true
                             });
                         };
-                        for(var _iterator = Array.from(previousScripts)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true)_loop();
+                        for(var _iterator = previousScripts[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true)_loop();
                     } catch (err) {
                         _didIteratorError = true;
                         _iteratorError = err;

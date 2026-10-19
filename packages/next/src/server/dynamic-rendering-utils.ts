@@ -446,12 +446,11 @@ function trackRuntimeDataAccessed(
             // static prefetch would hit) so it does not indicate the need for a runtime
             // request and thus does not affect the static hints.
             //
-            // If runtime prefetches are not disallowed by `ensureStatic`, then we still
-            // set `runtimeDataAccessed` (while keeping the hints static). This means that
-            // if the concrete prerender isn't ready yet and we served the fallback, then
-            // the client knows it can use a *runtime* prefetch for speculative links --
-            // a runtime prefetch can provide the same content (or more) as the concrete
-            // prerender would.
+            // If `ensureStatic` doesn't disallow runtime prefetches, we still
+            // set `runtimeDataAccessed`, but keep the hints static. So if we
+            // serve the fallback, the client knows it needs more. It waits for
+            // the concrete prerender first, and only sends a runtime request
+            // if that still needs runtime data, or if it gives up waiting.
             if (ensureStaticLevel < EnsureStaticLevel.Prefetch) {
               markRuntimeDataAccessWhenStageReached(
                 prerenderDataTracking,
@@ -746,8 +745,30 @@ class TrackedPromise<T> extends Promise<T> {
 
 export const RENDER_STAGES_BY_DATA_KIND = {
   sessionData: RenderStage.ShellRuntime as const,
-  staticLinkData: RenderStage.PrefetchStatic as const,
-  runtimeLinkData: RenderStage.Runtime as const,
+  /**
+   * Statically-prerenderable URL data, like static `params`.
+   * It may need to be pushed to a runtime stage in a runtime prerender,
+   * but it's semantically distinct from `runtimeUrlData` like `searchParams`,
+   * which is always excluded from static prerenders.
+   * */
+  staticUrlData: {
+    /**
+     * From that app's point of view, `prefetch()` is semantically the same as
+     * `staticUrlData`, because it does not resolve in a shell but resolves in
+     * a prefetch (even a static one).
+     * We handle it separately to provide a specialized error in validation renders.
+     */
+    prefetchApi: {
+      static: RenderStage.PrefetchStatic_prefetchApi as const,
+      runtime: RenderStage.PrefetchRuntime_prefetchApi as const,
+    },
+    static: RenderStage.PrefetchStatic as const,
+    runtime: RenderStage.PrefetchRuntime as const,
+  },
+  /**
+   * URL data that is never statically-prerenderable, like static `searchParams`.
+   * */
+  runtimeUrlData: RenderStage.PrefetchRuntime as const,
 }
 
 export function applyOwnerStack(error: Error): Error {

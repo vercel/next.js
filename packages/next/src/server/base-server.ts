@@ -37,7 +37,6 @@ import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-ma
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { RouteMatch } from './route-matches/route-match'
-import type { RouteMatch as AppRenderRouteMatch } from './route-modules/app-page/module'
 import type { RouteDefinition } from './route-definitions/route-definition'
 import type { AppPageRouteDefinition } from './route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
@@ -221,6 +220,11 @@ export interface Options {
    * Object containing the configuration next.config.js
    */
   conf: NextConfig
+  /**
+   * Present when the build manifest was read, even if its marker is undefined.
+   * @internal
+   */
+  compileMode?: { isExperimentalCompile: boolean | undefined }
   /**
    * Set to false when the server was created by Next.js
    */
@@ -415,15 +419,6 @@ export default abstract class Server<
     match: PagesAPIRouteMatch
   ): Promise<boolean>
 
-  protected abstract renderHTML(
-    req: ServerRequest,
-    res: ServerResponse,
-    pathname: string,
-    query: NextParsedUrlQuery,
-    renderOpts: LoadedRenderOpts,
-    routeMatch: AppRenderRouteMatch
-  ): Promise<RenderResult>
-
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
   }): Promise<import('./lib/incremental-cache').IncrementalCache>
@@ -442,6 +437,11 @@ export default abstract class Server<
    * server; returns `undefined` otherwise.
    */
   protected getServerComponentsHmrRefreshHash(): string | undefined {
+    return undefined
+  }
+
+  /** Available only on the dev server with Turbopack HMR. */
+  protected getClientHmrVersion(): string | undefined {
     return undefined
   }
 
@@ -601,7 +601,9 @@ export default abstract class Server<
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
 
-      isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
+      isExperimentalCompile: options.compileMode
+        ? options.compileMode.isExperimentalCompile
+        : this.nextConfig.experimental.isExperimentalCompile,
       cacheComponents: this.nextConfig.cacheComponents ?? false,
       partialPrefetching: this.nextConfig.partialPrefetching,
       validationLevel:
@@ -2044,7 +2046,11 @@ export default abstract class Server<
   ): Promise<void>
 
   public setAssetPrefix(prefix?: string): void {
-    this.nextConfig.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+    this.renderOpts.assetPrefix = prefix ? prefix.replace(/\/$/, '') : ''
+  }
+
+  public getAssetPrefix(): string {
+    return this.renderOpts.assetPrefix || ''
   }
 
   protected prepared: boolean = false
@@ -2383,6 +2389,12 @@ export default abstract class Server<
     }: RequestContext<ServerRequest, ServerResponse>,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
+    if (this.dev && getRequestMeta(req, 'initialHmrVersion') === undefined) {
+      // Snapshot before rendering/streaming HTML. Reading the live version at
+      // script insertion or socket connection can hide an intervening CSS edit.
+      addRequestMeta(req, 'initialHmrVersion', this.getClientHmrVersion())
+    }
+
     if (pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
       pathname = '/404'
     }

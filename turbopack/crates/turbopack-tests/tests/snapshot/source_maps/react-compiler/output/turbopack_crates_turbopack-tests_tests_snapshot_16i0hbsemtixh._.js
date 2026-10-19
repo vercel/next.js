@@ -4,7 +4,6 @@
 
 __turbopack_context__.s([
     "c",
-    0,
     ()=>c
 ]);
 function c() {
@@ -16,10 +15,8 @@ function c() {
 
 __turbopack_context__.s([
     "jsx",
-    0,
     ()=>jsx,
     "useState",
-    0,
     ()=>useState
 ]);
 function jsx() {
@@ -34,7 +31,6 @@ function useState() {
 
 __turbopack_context__.s([
     "jsxDEV",
-    0,
     ()=>jsxDEV
 ]);
 function jsxDEV() {
@@ -46,7 +42,6 @@ function jsxDEV() {
 
 __turbopack_context__.s([
     "Counter",
-    0,
     ()=>Counter
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/jsx-dev-runtime.js [test] (ecmascript)");

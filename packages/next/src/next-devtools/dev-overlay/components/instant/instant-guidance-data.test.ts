@@ -4,14 +4,17 @@ import {
   createRuntimeBodyErrorInNavigation,
   createLinkBodyErrorInNavigation,
   createNavigationBodyErrorInNavigation,
+  createPrefetchBodyErrorInNavigation,
   createDynamicBodyErrorInNavigation,
   createRuntimeMetadataError,
   createLinkMetadataError,
   createNavigationMetadataError,
+  createPrefetchMetadataError,
   createDynamicMetadataError,
   createRuntimeViewportError,
   createLinkViewportError,
   createNavigationViewportError,
+  createPrefetchViewportError,
   createDynamicViewportError,
 } from '../../../../server/app-render/blocking-route-messages'
 import { createLinkPrefetchPartialError } from '../../../../shared/lib/instant-messages'
@@ -30,13 +33,13 @@ import {
 describe('static route explanations', () => {
   it('matches the fully static build guidance', () => {
     expect(EXPLANATIONS['static-route']).toBe(
-      'This route is configured to be fully static, but data prevents it from being fully prerendered.'
+      'This route is configured to be fully static, but some data requires rendering at request time.'
     )
     expect(EXPLANATIONS['static-metadata']).toBe(
-      'This route is configured to be fully static, but data prevents its metadata from being fully prerendered.'
+      'This route is configured to be fully static, but some data requires rendering at request time.'
     )
     expect(EXPLANATIONS['static-viewport']).toBe(
-      'This route is configured to be fully static, but data prevents its viewport from being fully prerendered.'
+      'This route is configured to be fully static, but some data requires rendering at request time.'
     )
   })
 })
@@ -44,6 +47,7 @@ describe('static route explanations', () => {
 const GUIDANCE_VARIANTS = [
   'runtime',
   'link',
+  'prefetch',
   'navigation',
   'dynamic',
 ] as const satisfies GuidanceVariant[]
@@ -89,6 +93,12 @@ describe('instant-guidance-data card ordering', () => {
       'link',
     ],
     [
+      'blocking-route prefetch in navigation',
+      createPrefetchBodyErrorInNavigation('/x').message,
+      'blocking-route',
+      'prefetch',
+    ],
+    [
       'blocking-route navigation in navigation',
       createNavigationBodyErrorInNavigation('/x').message,
       'blocking-route',
@@ -114,6 +124,12 @@ describe('instant-guidance-data card ordering', () => {
       'link',
     ],
     [
+      'metadata prefetch',
+      createPrefetchMetadataError('/x').message,
+      'metadata',
+      'prefetch',
+    ],
+    [
       'metadata navigation',
       createNavigationMetadataError('/x').message,
       'metadata',
@@ -137,6 +153,12 @@ describe('instant-guidance-data card ordering', () => {
       createLinkViewportError('/x').message,
       'viewport',
       'link',
+    ],
+    [
+      'viewport prefetch',
+      createPrefetchViewportError('/x').message,
+      'viewport',
+      'prefetch',
     ],
     [
       'viewport navigation',

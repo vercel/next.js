@@ -9,7 +9,7 @@ use turbo_tasks::{FxIndexMap, OperationValue, ResolvedVc, Vc};
 
 use crate::chunk::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo};
 
-/// Wrapper around an `f32` that implements [`TaskInput`] (and the other derives the
+/// Wrapper around an `f32` that implements [`turbo_tasks::TaskInput`] (and the other derives the
 /// [`StyleGroupsAlgorithm`] enum needs) by going through the IEEE-754 bit pattern. Use
 /// [`F32TaskInput::get`] / [`F32TaskInput::from`] at the boundary; do not match on the inner
 /// `u32` directly.

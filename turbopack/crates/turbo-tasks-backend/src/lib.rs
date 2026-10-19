@@ -100,5 +100,6 @@ pub fn compact_database(
         max_merge_jobs: usize::MAX,
         ..turbo::COMPACT_CONFIG
     })?;
-    db.shutdown()
+    db.shutdown();
+    Ok(())
 }

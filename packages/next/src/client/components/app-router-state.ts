@@ -22,8 +22,7 @@ import {
   type SegmentCacheEntry,
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
-  spawnStaticStageCacheWrite,
-  writeRuntimePrefetchStreamIntoCache,
+  bufferAndWriteNavigationResponse,
   type FulfilledRouteCacheEntry,
   createRootRouteTree,
 } from './segment-cache/cache'
@@ -34,7 +33,7 @@ import {
 } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import { schedulePrefetchTask } from './segment-cache/scheduler'
-import { PrefetchPriority, FetchStrategy } from './segment-cache/types'
+import { PrefetchPriority, AppStage } from './segment-cache/types'
 import { getLinkForCurrentNavigation } from './links'
 import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { ScrollBehavior } from './router-reducer/router-reducer-types'
@@ -278,7 +277,7 @@ export function navigateToKnownRoute(
     const link = getLinkForCurrentNavigation()
     if (
       link !== null &&
-      link.fetchStrategy === FetchStrategy.Full &&
+      link.prefetchStage !== AppStage.Shell &&
       (navigationSeed.root.tree.prefetchHints &
         (PrefetchHint.SubtreeHasPartialPrefetching |
           PrefetchHint.SubtreeHasInstantFalse)) ===
@@ -314,7 +313,7 @@ export function navigateToKnownRoute(
     const link = getLinkForCurrentNavigation()
     restrictToShell = shouldRestrictNavigationToShell(
       navigationSeed.root.tree.prefetchHints,
-      link !== null ? link.fetchStrategy : FetchStrategy.PPR
+      link !== null ? link.prefetchStage : AppStage.Shell
     )
   }
 
@@ -508,9 +507,8 @@ async function navigateToUnknownRoute(
     supportsPerSegmentPrefetching,
     dynamicStaleTime,
     isResponsePartial,
-    staticStageResponse,
-    runtimePrefetchStream,
-    responseHeaders,
+    flightResponse,
+    responseChunks,
     debugInfo,
   } = result
 
@@ -556,30 +554,18 @@ async function navigateToUnknownRoute(
     false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
   )
 
-  if (staticStageResponse !== null) {
-    spawnStaticStageCacheWrite(
-      now,
-      staticStageResponse,
-      isResponsePartial,
-      responseHeaders,
-      currentFlightRouterState,
-      renderedSearch,
-      map
-    )
-  }
-
-  if (runtimePrefetchStream !== null) {
-    writeRuntimePrefetchStreamIntoCache(
-      now,
-      runtimePrefetchStream,
-      currentFlightRouterState,
-      renderedSearch,
-      map
-    ).catch(() => {
-      // The runtime prefetch cache write failed. Not fatal — the
-      // navigation completed normally, we just won't cache runtime data.
-    })
-  }
+  bufferAndWriteNavigationResponse(
+    now,
+    flightResponse,
+    isResponsePartial,
+    responseChunks,
+    currentFlightRouterState,
+    renderedSearch,
+    map
+  ).catch(() => {
+    // The cache write failed. Not fatal — the navigation completed normally,
+    // we just won't write into the cache.
+  })
 
   // In the streaming dev render, this single response's seed content may still
   // be streaming when we build the tree below. An unknown-route navigation
@@ -847,7 +833,7 @@ async function ensurePrefetchThenNavigate(
   navigationLock: NavigationLock | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
-  const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
+  const prefetchStage = link !== null ? link.prefetchStage : AppStage.Shell
 
   const cacheKey = createCacheKey(url.href, nextUrl)
 
@@ -862,7 +848,7 @@ async function ensurePrefetchThenNavigate(
   const prefetchTask = schedulePrefetchTask(
     cacheKey,
     currentRoot,
-    fetchStrategy,
+    prefetchStage,
     PrefetchPriority.Default,
     null, // onInvalidate
     navigationLockPrefetch

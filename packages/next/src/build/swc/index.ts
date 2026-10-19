@@ -653,6 +653,7 @@ function bindingToApi(
   async function rustifyProjectOptions(
     options: ProjectOptions
   ): Promise<NapiProjectOptions> {
+    const projectPath = path.join(options.rootPath, options.projectPath)
     const additionalRoots = Object.entries(
       options.nextConfig.experimental.turbopackAdditionalRoots ?? {}
     ).map(([key, root]) => ({ key, ...root }))
@@ -661,7 +662,10 @@ function bindingToApi(
       additionalRoots,
       nextConfig: await serializeNextConfig(
         options.nextConfig,
-        path.join(options.rootPath, options.projectPath)
+        projectPath,
+        path.isAbsolute(options.distDir)
+          ? path.relative(projectPath, options.distDir)
+          : options.distDir
       ),
       env: rustifyEnv(options.env),
     }
@@ -902,7 +906,8 @@ function bindingToApi(
 
   async function serializeNextConfig(
     nextConfig: NextConfigComplete,
-    projectPath: string
+    projectPath: string,
+    distDir?: string
   ): Promise<string> {
     // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
     let nextConfigSerializable: Record<string, any> = { ...nextConfig }
@@ -932,7 +937,7 @@ function bindingToApi(
 
     // These are relative paths, but might be backslash-separated on Windows
     nextConfigSerializable.distDir = normalizePathOnWindows(
-      nextConfigSerializable.distDir
+      distDir ?? nextConfigSerializable.distDir
     )
     nextConfigSerializable.distDirRoot = normalizePathOnWindows(
       nextConfigSerializable.distDirRoot

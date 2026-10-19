@@ -1,4 +1,3 @@
-import os from 'os'
 import path from 'path'
 import dns from 'dns'
 import execa from 'execa'
@@ -11,7 +10,11 @@ import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
 import { FileRef } from '../e2e-utils'
 import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
-import { packPackages } from '../create-next-install'
+import { packPackages, PNPM_TEST_DIR_SETTINGS } from '../create-next-install'
+import {
+  getPnpmSecuritySettings,
+  mergeSettingsIntoYaml,
+} from '../pnpm-security-settings'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -21,6 +24,7 @@ export class NextDeployInstance extends NextInstance {
   private _writtenHostsLine: string | null = null
   private _restoreDnsLookup: (() => void) | null = null
   private _startPromise: Promise<void> | undefined
+  private _npmrcAuthFile: string | undefined
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -298,6 +302,29 @@ export class NextDeployInstance extends NextInstance {
     ) {
       await this.prepareLocalPackages(parentSpan)
     }
+
+    this.preparePnpmSettings()
+  }
+
+  private preparePnpmSettings(): void {
+    const workspacePath = path.join(this.testDir, 'pnpm-workspace.yaml')
+    const settings = {
+      ...getPnpmSecuritySettings(),
+      ...PNPM_TEST_DIR_SETTINGS,
+      // Our preview tarballs reference other packages from the same commit by
+      // URL. pnpm rejects those subdependencies even with explicit overrides.
+      ...(process.env.NEXT_TEST_VERSION && { blockExoticSubdeps: false }),
+    }
+    let workspace: string
+    if (fs.existsSync(workspacePath)) {
+      workspace = mergeSettingsIntoYaml(
+        fs.readFileSync(workspacePath, 'utf8'),
+        settings
+      )
+    } else {
+      workspace = dump(settings)
+    }
+    this.writeFixtureConfiguration(workspacePath, workspace)
   }
 
   private async deploy() {
@@ -417,27 +444,25 @@ export class NextDeployInstance extends NextInstance {
     // the flag is enough to force plain-URL output for both link and deploy.
     vercelFlags.push('--non-interactive=false')
 
-    // If the token is available in the environment, use it as the token in the
-    // environment.
-    if (TEST_TOKEN) {
-      vercelEnv.TOKEN = TEST_TOKEN
+    if (process.env.RUNNER_DEBUG === '1') {
+      vercelFlags.push('--debug')
     }
 
-    // create auth file in CI
+    // If the token is available in the environment, use it as the token in the
+    // environment. The CLI reads `VERCEL_TOKEN` (since vercel@50.12.1) and then
+    // neither reads nor writes the shared `auth.json`, which keeps parallel
+    // test jobs from racing on a non-atomically written credentials file.
+    if (TEST_TOKEN) {
+      vercelEnv.VERCEL_TOKEN = TEST_TOKEN
+    }
+
+    // validate auth is configured in CI
     if (process.env.NEXT_TEST_JOB) {
       if (!TEST_TOKEN && !TEST_TEAM_NAME) {
         throw new Error(
           'Missing TEST_TOKEN and TEST_TEAM_NAME environment variables for CI'
         )
       }
-
-      const vcConfigDir = path.join(os.homedir(), '.vercel')
-      await fs.ensureDir(vcConfigDir)
-      await fs.writeFile(
-        path.join(vcConfigDir, 'auth.json'),
-        JSON.stringify({ token: TEST_TOKEN })
-      )
-      vercelFlags.push('--global-config', vcConfigDir)
     }
 
     require('console').log(`Linking project at ${this.testDir}`)
@@ -469,6 +494,9 @@ export class NextDeployInstance extends NextInstance {
     additionalEnv.push(
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
+
+    // So that our `package.json#packageManager` field is respected when building on Vercel
+    additionalEnv.push(`ENABLE_EXPERIMENTAL_COREPACK=1`)
 
     // Route the build to a named hive, and to a specific build-container image.
     // The dispatcher reads the image version only for a build on a forced hive.
@@ -515,6 +543,13 @@ export class NextDeployInstance extends NextInstance {
         'NEXT_TELEMETRY_DISABLED=1',
         '--build-env',
         'VERCEL_NEXT_BUNDLED_SERVER=1',
+        // See: https://pnpm.io/npmrc#environment-variables-in-auth-settings
+        ...(this._npmrcAuthFile
+          ? [
+              '--build-env',
+              `PNPM_CONFIG_NPMRC_AUTH_FILE=${this._npmrcAuthFile}`,
+            ]
+          : []),
         ...additionalEnv.flatMap((pair) => [
           '--env',
           pair,
@@ -580,22 +615,9 @@ export class NextDeployInstance extends NextInstance {
     this.parseIdsFromCliOutput()
   }
 
-  private async writeFixtureConfiguration(
-    filePath: string,
-    contents: string
-  ): Promise<void> {
-    const temporaryDirectory = await fs.mkdtemp(
-      path.join(path.dirname(filePath), '.next-test-config-')
-    )
-    const temporaryPath = path.join(temporaryDirectory, path.basename(filePath))
-    try {
-      // Preserve permissions and replace links rather than their targets.
-      await fs.copyFile(filePath, temporaryPath, fs.constants.COPYFILE_EXCL)
-      await fs.writeFile(temporaryPath, contents)
-      await fs.rename(temporaryPath, filePath)
-    } finally {
-      await fs.remove(temporaryDirectory)
-    }
+  private writeFixtureConfiguration(filePath: string, contents: string): void {
+    fs.rmSync(filePath, { force: true })
+    fs.writeFileSync(filePath, contents)
   }
 
   /**
@@ -783,7 +805,7 @@ export class NextDeployInstance extends NextInstance {
       }
     }
 
-    await this.writeFixtureConfiguration(
+    this.writeFixtureConfiguration(
       packageJsonPath,
       JSON.stringify(packageJson, null, 2) + '\n'
     )
@@ -811,12 +833,11 @@ export class NextDeployInstance extends NextInstance {
           ...packageJson.pnpm.overrides,
           ...workspace.overrides,
         }
-        await this.writeFixtureConfiguration(filePath, dump(workspace))
+        this.writeFixtureConfiguration(filePath, dump(workspace))
       } else if (contents !== '') {
-        const separator = contents.endsWith('\n') ? '' : '\n'
-        await this.writeFixtureConfiguration(
+        this.writeFixtureConfiguration(
           filePath,
-          `${contents}${separator}!/${directoryName}\n!/${directoryName}/**\n`
+          `${contents}\n!/${directoryName}\n!/${directoryName}/**\n`
         )
         break
       }
@@ -826,32 +847,25 @@ export class NextDeployInstance extends NextInstance {
     )
   }
 
-  // When preview builds are private, the deploy build installs Next.js
-  // artifacts from an auth-protected route and needs credentials. The build
-  // authenticates with the Vercel OIDC token that Vercel automatically
-  // provides to builds (vercel-packages accepts it for allowlisted teams), so
-  // we write an `.npmrc` referencing it. Referencing the environment variable
-  // instead of inlining a token keeps credentials out of the uploaded
-  // deployment source. Only written for private preview builds since public
-  // ones need no credentials and pnpm fails when an `.npmrc` references an
-  // unset environment variable.
-  // TODO: pnpm >= 10.34.2 no longer expands environment variables in
-  // repository .npmrc files (GHSA-3qhv-2rgh-x77r). An install command writing
-  // to the user-level pnpm config (like vercel/front does) did not work with
-  // `vercel deploy` and needs more investigation.
+  // Private preview builds authenticate with the remote build's Vercel OIDC
+  // token. pnpm only expands auth placeholders in trusted configuration, so
+  // pass a separate mirror auth file through PNPM_CONFIG_NPMRC_AUTH_FILE.
+  // https://pnpm.io/npmrc#environment-variables-in-auth-settings
+  // This keeps tokens out of uploaded source without trusting fixture .npmrc
+  // files. Public builds need no auth file or OIDC token.
   private async writeMirrorNpmrcIfNecessary(): Promise<void> {
     const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
     const access = process.env.PREVIEW_BUILDS_ACCESS
 
     if (access !== 'private') {
       require('console').log(
-        `Skipping .npmrc write for preview-builds mirror: preview builds are public`
+        `Skipping mirror auth file: preview builds are public`
       )
       return
     }
     if (!baseUrlRaw) {
       require('console').warn(
-        `Skipping .npmrc write for preview-builds mirror: PREVIEW_BUILDS_ACCESS=private but NEXT_TEST_PREVIEW_BUILDS_BASE_URL is not set, so the remote build cannot authenticate to the mirror`
+        `Skipping mirror auth file: PREVIEW_BUILDS_ACCESS=private but NEXT_TEST_PREVIEW_BUILDS_BASE_URL is not set, so the remote build cannot authenticate to the mirror`
       )
       return
     }
@@ -861,21 +875,13 @@ export class NextDeployInstance extends NextInstance {
     // ensure a trailing slash so it matches requests to that registry path.
     const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
 
-    require('console').log(
-      `Writing .npmrc for preview-builds mirror: ${registryKey}`
-    )
-    // Appended rather than written, because a fixture may ship its own `.npmrc`
-    // (several do) and overwriting it silently drops that configuration.
-    const npmrcPath = path.join(this.testDir, '.npmrc')
-    const existing = (await fs.pathExists(npmrcPath))
-      ? await fs.readFile(npmrcPath, 'utf8')
-      : ''
-    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n'
-
+    require('console').log(`Writing mirror auth file: ${registryKey}`)
+    const authFile = '.next-test-auth.npmrc'
     await fs.writeFile(
-      npmrcPath,
-      `${existing}${separator}${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
+      path.join(this.testDir, authFile),
+      `${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
     )
+    this._npmrcAuthFile = authFile
   }
 
   /**

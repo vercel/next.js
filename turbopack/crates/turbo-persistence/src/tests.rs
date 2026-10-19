@@ -611,7 +611,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
         check(&db, 2, 21)?;
         check(&db, 3, 31)?;
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     println!("---");
@@ -626,7 +626,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
         check(&db, 2, 22)?;
         check(&db, 3, 31)?;
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     {
@@ -639,7 +639,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
         check(&db, 2, 22)?;
         check(&db, 3, 31)?;
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     println!("---");
@@ -650,7 +650,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
         check(&db, 2, 22)?;
         check(&db, 3, 31)?;
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     println!("---");
@@ -663,7 +663,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
         check(&db, 2, 22)?;
         check(&db, 3, 31)?;
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     println!("---");
@@ -674,7 +674,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
         check(&db, 2, 22)?;
         check(&db, 3, 31)?;
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -727,7 +727,7 @@ fn partial_compaction(#[case] mmap: bool) -> Result<()> {
             check(&db, i + 1, i)?;
             check(&db, i + 2, i)?;
 
-            db.shutdown()?;
+            db.shutdown();
         }
 
         println!("Compaction");
@@ -743,7 +743,7 @@ fn partial_compaction(#[case] mmap: bool) -> Result<()> {
             check(&db, i + 1, i)?;
             check(&db, i + 2, i)?;
 
-            db.shutdown()?;
+            db.shutdown();
         }
 
         println!("Restore check");
@@ -757,7 +757,7 @@ fn partial_compaction(#[case] mmap: bool) -> Result<()> {
             check(&db, i + 1, i)?;
             check(&db, i + 2, i)?;
 
-            db.shutdown()?;
+            db.shutdown();
         }
     }
 
@@ -814,7 +814,7 @@ fn merge_file_removal(#[case] mmap: bool) -> Result<()> {
             put(&b, j, 0)?;
         }
         db.commit_write_batch(b)?;
-        db.shutdown()?;
+        db.shutdown();
     }
 
     let mut expected_values = [0; 256];
@@ -837,7 +837,7 @@ fn merge_file_removal(#[case] mmap: bool) -> Result<()> {
                 check(&db, j, expected_values[j as usize])?;
             }
 
-            db.shutdown()?;
+            db.shutdown();
         }
 
         println!("Compaction");
@@ -850,7 +850,7 @@ fn merge_file_removal(#[case] mmap: bool) -> Result<()> {
                 check(&db, j, expected_values[j as usize])?;
             }
 
-            db.shutdown()?;
+            db.shutdown();
         }
 
         println!("Restore check");
@@ -861,7 +861,7 @@ fn merge_file_removal(#[case] mmap: bool) -> Result<()> {
                 check(&db, j, expected_values[j as usize])?;
             }
 
-            db.shutdown()?;
+            db.shutdown();
         }
     }
 
@@ -895,7 +895,7 @@ fn batch_get_basic(#[case] mmap: bool) -> Result<()> {
     assert_eq!(results[3].as_deref(), Some(&[50u8][..]));
     assert_eq!(results[4], None); // 255 doesn't exist
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -924,7 +924,7 @@ fn batch_get_all_existing(#[case] mmap: bool) -> Result<()> {
         assert_eq!(result.as_deref(), Some(&[(i * 2) as u8][..]));
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -953,7 +953,7 @@ fn batch_get_none_existing(#[case] mmap: bool) -> Result<()> {
         assert_eq!(result, &None);
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -977,7 +977,7 @@ fn batch_get_empty(#[case] mmap: bool) -> Result<()> {
 
     assert_eq!(results.len(), 0);
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1013,7 +1013,7 @@ fn batch_get_duplicate_keys(#[case] mmap: bool) -> Result<()> {
     assert_eq!(results[3], None);
     assert_eq!(results[4].as_deref(), Some(&[100u8][..]));
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1053,7 +1053,7 @@ fn batch_get_large_batch(#[case] mmap: bool) -> Result<()> {
         );
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1110,7 +1110,7 @@ fn batch_get_different_sizes(#[case] mmap: bool) -> Result<()> {
     );
     assert_eq!(results[6], None);
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1166,7 +1166,7 @@ fn batch_get_across_families(#[case] mmap: bool) -> Result<()> {
     // Same keys, but different values per family
     assert_ne!(results_f0[0].as_deref(), results_f1[0].as_deref());
 
-    db.shutdown()?;
+    db.shutdown();
     drop(db);
 
     // Reopen with the same family configuration recorded in the meta files.
@@ -1178,7 +1178,7 @@ fn batch_get_across_families(#[case] mmap: bool) -> Result<()> {
     let value = db.get(2, &vec![7u8])?.expect("zstd family value exists");
     assert_eq!(value[0], 7);
     assert!(value[1..].iter().all(|byte| *byte == 2));
-    db.shutdown()?;
+    db.shutdown();
     drop(db);
 
     // Reopening with the wrong codec must fail while validating the meta files.
@@ -1235,7 +1235,7 @@ fn batch_get_after_compaction(#[case] mmap: bool) -> Result<()> {
         assert_eq!(results_after[i].as_deref(), Some(&[i as u8][..]));
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1284,7 +1284,7 @@ fn batch_get_with_overwrites(#[case] mmap: bool) -> Result<()> {
         );
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1337,7 +1337,7 @@ fn batch_get_comparison_with_get(#[case] mmap: bool) -> Result<()> {
         );
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1357,7 +1357,7 @@ fn batch_get_after_restore(#[case] mmap: bool) -> Result<()> {
             batch.put(0, vec![i], vec![i, i + 1].into())?;
         }
         db.commit_write_batch(batch)?;
-        db.shutdown()?;
+        db.shutdown();
     }
 
     // Reopen and test batch_get
@@ -1376,7 +1376,7 @@ fn batch_get_after_restore(#[case] mmap: bool) -> Result<()> {
             );
         }
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -1426,7 +1426,7 @@ fn many_small_values_compaction(#[case] mmap: bool) -> Result<()> {
     assert!(result.is_some(), "Entry 0 not found after compaction");
     assert_eq!(result.unwrap().len(), 512);
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1473,7 +1473,7 @@ fn many_max_small_values_compaction(#[case] mmap: bool) -> Result<()> {
     assert!(result.is_some(), "Entry 0 not found after compaction");
     assert_eq!(result.unwrap().len(), MAX_SMALL_VALUE_SIZE);
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1521,7 +1521,7 @@ fn many_medium_values_compaction(#[case] mmap: bool) -> Result<()> {
     assert!(result.is_some(), "Entry 0 not found after compaction");
     assert_eq!(result.unwrap().len(), value_size);
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -1569,7 +1569,7 @@ fn compaction_multi_value_preserves_different_values(#[case] mmap: bool) -> Resu
         values.sort();
         assert_eq!(values, vec![1, 2, 3], "All values should be preserved");
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -1651,7 +1651,7 @@ fn compaction_multi_value_multiple_compactions(#[case] mmap: bool) -> Result<()>
             "Should have values 1, 1, 2, 2, 3, 4"
         );
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     // Reopen and verify persistence
@@ -1661,7 +1661,7 @@ fn compaction_multi_value_multiple_compactions(#[case] mmap: bool) -> Result<()>
         let results = db.get_multiple(0, &key.as_slice())?;
         assert_eq!(results.len(), 6, "Should still have 6 values after reopen");
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -1711,7 +1711,7 @@ fn multi_value_delete_key(#[case] mmap: bool) -> Result<()> {
             "get_multiple should return empty after compaction"
         );
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     // Reopen and verify deletion persists
@@ -1724,7 +1724,7 @@ fn multi_value_delete_key(#[case] mmap: bool) -> Result<()> {
             "get_multiple should return empty after reopen"
         );
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -1788,7 +1788,7 @@ fn multi_value_delete_then_rewrite(#[case] mmap: bool) -> Result<()> {
             "Should still have values 10, 20 after compaction"
         );
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     // Reopen and verify
@@ -1805,7 +1805,7 @@ fn multi_value_delete_then_rewrite(#[case] mmap: bool) -> Result<()> {
             "Should have values 10, 20 after reopen"
         );
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -1873,7 +1873,7 @@ fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<
         assert_eq!(results.len(), 1, "Should have only value 4");
         assert_eq!(results[0].as_ref(), &[4u8]);
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     // Reopen and verify
@@ -1884,7 +1884,7 @@ fn multi_value_delete_with_compaction_interleaved(#[case] mmap: bool) -> Result<
         assert_eq!(results.len(), 1, "Should have only value 4 after reopen");
         assert_eq!(results[0].as_ref(), &[4u8]);
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -1955,7 +1955,7 @@ fn multi_value_tombstone_only_shadows_older_ssts(#[case] mmap: bool) -> Result<(
             results
         );
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -1996,7 +1996,7 @@ fn multi_value_tombstone_shadows_older_sst_only(#[case] mmap: bool) -> Result<()
             results
         );
 
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -2069,7 +2069,7 @@ fn compaction_deletes_superseded_blob(#[case] mmap: bool) -> Result<()> {
         "Old blob file should be deleted after compaction"
     );
 
-    db.shutdown()?;
+    db.shutdown();
 
     Ok(())
 }
@@ -2123,7 +2123,7 @@ fn compaction_deletes_blob_on_tombstone(#[case] mmap: bool) -> Result<()> {
         "Blob file should be deleted after compaction"
     );
 
-    db.shutdown()?;
+    db.shutdown();
 
     Ok(())
 }
@@ -2175,7 +2175,7 @@ fn compaction_deletes_blob_multi_value_tombstone(#[case] mmap: bool) -> Result<(
         "Blob file should be deleted after compaction"
     );
 
-    db.shutdown()?;
+    db.shutdown();
 
     Ok(())
 }
@@ -2222,7 +2222,7 @@ fn compaction_preserves_active_blob(#[case] mmap: bool) -> Result<()> {
     let result = db.get(0, &vec![1u8])?;
     assert_eq!(result.as_deref(), Some(&blob_value[..]));
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -2242,7 +2242,7 @@ fn stale_current_next_is_recovered() -> Result<()> {
         let batch = db.write_batch()?;
         batch.put(0, vec![1u8], vec![42u8].into())?;
         db.commit_write_batch(batch)?;
-        db.shutdown()?;
+        db.shutdown();
     }
 
     // Simulate a crash partway through a later CURRENT update: a stray, even garbage-length,
@@ -2253,7 +2253,7 @@ fn stale_current_next_is_recovered() -> Result<()> {
     {
         let db = TurboPersistence::<SerialScheduler, 1>::open(path.to_path_buf())?;
         assert_eq!(db.get(0, &vec![1u8])?.as_deref(), Some(&[42u8][..]));
-        db.shutdown()?;
+        db.shutdown();
     }
     assert!(
         !path.join("CURRENT.next").exists(),
@@ -2277,7 +2277,7 @@ fn current_file_is_json_with_commit_time() -> Result<()> {
         let batch = db.write_batch()?;
         batch.put(0, vec![1u8], vec![42u8].into())?;
         db.commit_write_batch(batch)?;
-        db.shutdown()?;
+        db.shutdown();
     }
     let after = jiff::Timestamp::now();
 
@@ -2330,7 +2330,7 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
     results.sort();
     assert_eq!(results, vec![10, 30], "only the named pair should be gone");
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -2403,7 +2403,7 @@ fn valued_tombstone_survives_partial_compaction() -> Result<()> {
         }
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -2428,7 +2428,7 @@ fn valued_tombstone_persists_across_reopen() -> Result<()> {
         let batch = db.write_batch()?;
         batch.delete_value(0, key.clone(), 100u32.to_be_bytes().to_vec().into())?;
         db.commit_write_batch(batch)?;
-        db.shutdown()?;
+        db.shutdown();
     }
 
     {
@@ -2443,7 +2443,7 @@ fn valued_tombstone_persists_across_reopen() -> Result<()> {
             .map(|v| u32::from_be_bytes((**v).try_into().unwrap()))
             .collect::<Vec<_>>();
         assert_eq!(results, vec![200], "tombstone lost across reopen");
-        db.shutdown()?;
+        db.shutdown();
     }
 
     Ok(())
@@ -2480,7 +2480,7 @@ fn whole_key_tombstone_still_deletes_all_values() -> Result<()> {
         "key tombstone should remove everything"
     );
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -2583,7 +2583,7 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
         assert_eq!(results, vec![2], "value 1 must stay deleted for key {k}");
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -2656,7 +2656,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
         }
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -2745,7 +2745,7 @@ fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
         }
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -2785,7 +2785,7 @@ fn valued_tombstone_supports_all_inline_value_sizes() -> Result<()> {
         );
     }
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -2812,7 +2812,7 @@ fn valued_tombstone_rejects_values_larger_than_inline() -> Result<()> {
         "unexpected error: {err}"
     );
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -2839,7 +2839,7 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
         "unexpected error: {err}"
     );
 
-    db.shutdown()?;
+    db.shutdown();
     Ok(())
 }
 
@@ -3020,7 +3020,7 @@ fn bottom_merge_writes_read_keys_into_hot_files(#[case] mmap: bool) -> Result<()
             &1u32.to_be_bytes()
         );
     }
-    db.shutdown()?;
+    db.shutdown();
 
     // The full compaction merged every SST file of the commit that recorded the reads, which
     // retired its meta file and the used keys with it. The reads of the keys checked above were
@@ -3116,7 +3116,7 @@ fn shard_count_changes_with_hysteresis(#[case] mmap: bool) -> Result<()> {
         }
         db.commit_write_batch(batch)?;
         db.full_compact()?;
-        db.shutdown()?;
+        db.shutdown();
         db.meta_info()?
             .into_iter()
             .flat_map(|meta| meta.entries)

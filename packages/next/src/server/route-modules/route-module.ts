@@ -182,6 +182,18 @@ export abstract class RouteModule<
     }
   }
 
+  public getAssetPrefixForRender(
+    routerServerContext: RouterServerContext[string] | undefined,
+    configuredAssetPrefix: string
+  ): string {
+    // A running NextServer owns overrides from app.setAssetPrefix().
+    if (routerServerContext && routerServerContext.getAssetPrefix) {
+      return routerServerContext.getAssetPrefix()
+    }
+    // Direct route invocations use the configured prefix.
+    return configuredAssetPrefix
+  }
+
   public normalizeUrl(
     _req: IncomingMessage | BaseNextRequest,
     _parsedUrl: UrlWithParsedQuery
