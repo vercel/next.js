@@ -85,6 +85,7 @@ export type RouteMatch = {
 export type DevRenderContext = {
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly hmrRefreshHash: string | undefined
+  readonly initialHmrVersion: string | undefined
 }
 
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
