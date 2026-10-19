@@ -181,11 +181,11 @@ Sanitize any input used to generate markup.
 
 ### Serving files
 
-When serving static or user-generated files (such as PDFs, images, or media) from a Route Handler, avoid buffering the entire file into memory using `fs.readFile()` or `Buffer`. Instead, stream the file using [`Readable.toWeb()`](https://nodejs.org/api/stream.html#streamreadabletowebstreamreadable-options) to convert a Node.js read stream into a Web [`ReadableStream`](https://developer.mozilla.org/docs/Web/API/ReadableStream).
+When serving user-uploaded or private files (such as PDFs, images, or media) from a Route Handler, avoid buffering the entire file into memory using `fs.readFile()` or `Buffer`. Instead, stream the file using [`Readable.toWeb()`](https://nodejs.org/api/stream.html#streamreadabletowebstreamreadable-options) to convert a Node.js read stream into a Web [`ReadableStream`](https://developer.mozilla.org/docs/Web/API/ReadableStream).
 
 Streaming sends the file to the client in chunks as it is read from disk, keeping server memory usage low regardless of file size:
 
-```tsx filename="app/api/files/[filename]/route.ts" switcher
+```ts filename="app/api/files/[filename]/route.ts" switcher
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
@@ -248,11 +248,12 @@ export async function GET(request, { params }) {
 }
 ```
 
-> **Good to know:**
+> **Good to know**:
 >
 > - Always validate or sanitize dynamic route parameters using `path.basename` to avoid directory traversal vulnerabilities.
 > - Setting the `Content-Length` header allows clients to track download progress.
-> - For files stored with a cloud provider (such as Amazon S3 or Vercel Blob), pass the provider's readable stream directly to `new Response(stream)` or redirect to a pre-signed download URL.
+> - This example sets `Content-Disposition: attachment`, so the browser downloads the file. To display a file such as an image in the browser instead, set `Content-Type` to the file's actual type and omit `Content-Disposition`.
+> - For files kept in object storage, pass the storage provider's readable stream directly to `new Response(stream)`, or redirect to a short-lived signed download URL.
 
 ### Content negotiation
 
@@ -496,7 +497,7 @@ The examples below save files to the local file system, so they need the Node.js
 
 A Server Action used as a form `action` receives the form's [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData). A file input appears in it as a [`File`](https://developer.mozilla.org/docs/Web/API/File):
 
-```tsx filename="app/actions.ts" switcher
+```ts filename="app/actions.ts" switcher
 'use server'
 
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -520,7 +521,7 @@ export async function uploadAvatar(formData: FormData) {
 }
 ```
 
-```jsx filename="app/actions.js" switcher
+```js filename="app/actions.js" switcher
 'use server'
 
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -579,7 +580,7 @@ Keep two limits in mind:
 
 A Route Handler can read [`request.body`](https://developer.mozilla.org/docs/Web/API/Request/body) as a stream and write each chunk to its destination as it arrives, so memory use stays small no matter how large the file is. On the client, send the file itself as the request body rather than wrapping it in `FormData`:
 
-```tsx filename="app/api/upload/route.ts" switcher
+```ts filename="app/api/upload/route.ts" switcher
 import { createWriteStream } from 'node:fs'
 import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
