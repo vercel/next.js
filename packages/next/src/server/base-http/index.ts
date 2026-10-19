@@ -25,6 +25,11 @@ export type FetchMetric = {
 
 export type FetchMetrics = Array<FetchMetric>
 
+/** Shared by renders whose metrics are reported for the same response. */
+export type FetchMetricsCollection = {
+  accepting: boolean
+}
+
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined
   public abstract headers: IncomingHttpHeaders

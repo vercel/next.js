@@ -217,6 +217,7 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics: false,
+    fetchMetricsCollection: undefined,
     clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
     afterContext,

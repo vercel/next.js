@@ -38,7 +38,11 @@ import type {
   DevRenderContext,
   RouteMatch,
 } from '../route-modules/app-page/module'
-import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type {
+  BaseNextRequest,
+  BaseNextResponse,
+  FetchMetricsCollection,
+} from '../base-http'
 import * as ReactClient from 'react'
 
 import RenderResult, {
@@ -207,7 +211,7 @@ import {
   ClientComponentLoadTracker,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
-import { isNodeNextRequest, isNodeNextResponse } from '../base-http/helpers'
+import { isNodeNextResponse } from '../base-http/helpers'
 import { waitForResponseToFinish } from './wait-for-response'
 import {
   beginDevValidation,
@@ -2644,19 +2648,6 @@ async function prepareAppPageRender(
     enableTainting,
   } = renderOpts
 
-  if (
-    // The type check here ensures that `req` is correctly typed, and the
-    // environment variable check provides dead code elimination.
-    process.env.NEXT_RUNTIME !== 'edge' &&
-    isNodeNextRequest(req)
-  ) {
-    res.onClose(() => {
-      // We stop tracking fetch metrics when the response closes, since we
-      // report them at that time.
-      workStore.shouldTrackFetchMetrics = false
-    })
-  }
-
   const metadata: AppPageRenderResultMetadata = {
     statusCode: isNotFoundPath ? 404 : undefined,
     hasPendingUi: false,
@@ -3324,7 +3315,8 @@ export type AppPageRender = (
   sharedContext: AppSharedContext,
   routeMatch: RouteMatch,
   parsedRequestHeaders: ParsedRequestHeaders,
-  serverActionRequestMetadata: ServerActionRequestMetadata
+  serverActionRequestMetadata: ServerActionRequestMetadata,
+  fetchMetricsCollection?: FetchMetricsCollection
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
@@ -3416,7 +3408,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   sharedContext,
   routeMatch,
   parsedRequestHeaders,
-  serverActionRequestMetadata
+  serverActionRequestMetadata,
+  fetchMetricsCollection
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
     serverActionRequestMetadata,
@@ -3429,6 +3422,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     parsedRequestHeaders
   const workStore = createWorkStore({
     page: renderOpts.routeModule.definition.page,
+    fetchMetricsCollection,
     renderOpts,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
@@ -3472,7 +3466,8 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
   sharedContext,
   routeMatch,
   parsedRequestHeaders,
-  serverActionRequestMetadata
+  serverActionRequestMetadata,
+  fetchMetricsCollection
 ) => {
   const { url, interpolatedParams } = prepareAppPage(
     serverActionRequestMetadata,
@@ -3485,6 +3480,7 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
     parsedRequestHeaders
   const workStore = createPrerenderWorkStore({
     page: renderOpts.routeModule.definition.page,
+    fetchMetricsCollection,
     renderOpts,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
@@ -6802,6 +6798,7 @@ function buildDevValidationWorkStore(
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics: false,
+    fetchMetricsCollection: undefined,
     clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
     afterContext: noopAfterContext,
@@ -8630,6 +8627,7 @@ async function validateInstantConfigInBuildWithSample(
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: outerWorkStore.runInCleanSnapshot,
     shouldTrackFetchMetrics: false,
+    fetchMetricsCollection: undefined,
     clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
   }

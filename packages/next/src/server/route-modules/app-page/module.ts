@@ -19,7 +19,11 @@ import {
   type RouteModuleHandleContext,
 } from '../route-module'
 import * as vendoredContexts from './vendored/contexts/entrypoints'
-import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
+import type {
+  BaseNextRequest,
+  BaseNextResponse,
+  FetchMetricsCollection,
+} from '../../base-http'
 import type { ServerComponentsHmrCache } from '../../response-cache'
 import type { OpaqueFallbackRouteParams } from '../../request/fallback-params'
 import { PrerenderManifestMatcher } from './helpers/prerender-manifest-matcher'
@@ -96,6 +100,7 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
   dev: DevRenderContext | undefined
+  fetchMetricsCollection?: FetchMetricsCollection
   parsedRequestHeaders: ParsedRequestHeaders
   serverActionRequestMetadata: ServerActionRequestMetadata
   sharedContext: AppSharedContext
@@ -197,7 +202,8 @@ export class AppPageRouteModule extends RouteModule<
       context.sharedContext,
       context.routeMatch,
       context.parsedRequestHeaders,
-      context.serverActionRequestMetadata
+      context.serverActionRequestMetadata,
+      context.fetchMetricsCollection
     )
   }
 
@@ -218,7 +224,8 @@ export class AppPageRouteModule extends RouteModule<
       context.sharedContext,
       context.routeMatch,
       context.parsedRequestHeaders,
-      context.serverActionRequestMetadata
+      context.serverActionRequestMetadata,
+      context.fetchMetricsCollection
     )
   }
 

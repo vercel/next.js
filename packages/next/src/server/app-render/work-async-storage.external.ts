@@ -1,6 +1,6 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import type { FetchMetrics } from '../base-http'
+import type { FetchMetrics, FetchMetricsCollection } from '../base-http'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
@@ -102,6 +102,7 @@ export interface WorkStore {
 
   fetchMetrics?: FetchMetrics
   shouldTrackFetchMetrics: boolean
+  readonly fetchMetricsCollection?: FetchMetricsCollection
   clientComponentLoadTracker: ClientComponentLoadTracker | undefined
 
   /**

@@ -1,7 +1,7 @@
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOpts } from '../app-render/types'
-import type { FetchMetric } from '../base-http'
+import type { FetchMetric, FetchMetricsCollection } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type {
@@ -24,6 +24,7 @@ export type WorkStoreContext = {
 
   isPrefetchRequest?: boolean
   nonce?: string
+  fetchMetricsCollection?: FetchMetricsCollection
   renderOpts: {
     cacheLifeProfiles: ResolvedCacheLifeProfiles
     staticPageGenerationTimeout: number
@@ -110,6 +111,7 @@ function createWorkStoreImpl(
     deploymentId,
     previouslyRevalidatedTags,
     nonce,
+    fetchMetricsCollection,
   }: WorkStoreContext,
   shouldTrackFetchMetrics: boolean
 ): WorkStore {
@@ -147,6 +149,7 @@ function createWorkStoreImpl(
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
     shouldTrackFetchMetrics,
+    fetchMetricsCollection,
     clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
   }

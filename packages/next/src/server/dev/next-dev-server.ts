@@ -83,6 +83,7 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+import { createFetchMetricsCollection } from '../lib/fetch-metrics'
 
 registerLocalSpanRecorder()
 
@@ -454,8 +455,12 @@ export default class DevServer extends Server {
     const handler = super.getRequestHandler()
 
     return (req, res, parsedUrl) => {
-      const request = this.normalizeReq(req)
       const response = this.normalizeRes(res)
+      if (!getRequestMeta(req, 'middlewareInvoke')) {
+        // Stop collection before the close reporter runs, even with logging off.
+        createFetchMetricsCollection(req, response.originalResponse)
+      }
+      const request = this.normalizeReq(req)
       const loggingConfig = this.nextConfig.logging
 
       if (loggingConfig !== false) {

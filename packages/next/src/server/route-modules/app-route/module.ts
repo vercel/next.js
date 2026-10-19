@@ -5,6 +5,7 @@ import type { NextRequest } from '../../web/spec-extension/request'
 import type { NextURL } from '../../web/next-url'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
+import type { FetchMetricsCollection } from '../../base-http'
 import type { __ApiPreviewProps } from '../../api-utils'
 
 import {
@@ -119,6 +120,7 @@ export type AppRouteSharedContext = {
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
+  fetchMetricsCollection?: FetchMetricsCollection
   renderOpts: WorkStoreContext['renderOpts'] & CollectedCacheInfo
   previewProps: DeepReadonly<__ApiPreviewProps>
   sharedContext: AppRouteSharedContext
@@ -1089,6 +1091,7 @@ export class AppRouteRouteModule extends RouteModule<
     const prepared = await this.prepareExecution(req, context)
     const workStore = createWorkStore({
       page: this.definition.page,
+      fetchMetricsCollection: context.fetchMetricsCollection,
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
       deploymentId: context.sharedContext.deploymentId,
@@ -1105,6 +1108,7 @@ export class AppRouteRouteModule extends RouteModule<
     const prepared = await this.prepareExecution(req, context)
     const workStore = createPrerenderWorkStore({
       page: this.definition.page,
+      fetchMetricsCollection: context.fetchMetricsCollection,
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
       deploymentId: context.sharedContext.deploymentId,

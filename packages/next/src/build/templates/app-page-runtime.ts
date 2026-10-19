@@ -95,6 +95,7 @@ import {
   readBodyWithSizeLimit,
 } from '../../server/lib/postponed-request-body' with { 'turbopack-transition': 'next-server-utility' }
 import { parseUrl } from '../../lib/url' with { 'turbopack-transition': 'next-server-utility' }
+import { createFetchMetricsCollection } from '../../server/lib/fetch-metrics' with { 'turbopack-transition': 'next-server-utility' }
 
 import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 import { RedirectStatusCode } from '../../client/components/redirect-status-code' with { 'turbopack-transition': 'next-server-utility' }
@@ -225,6 +226,11 @@ export function createAppPageEntrypoint({
     if (ctx.requestMeta) {
       setRequestMeta(req, ctx.requestMeta)
     }
+
+    const fetchMetricsCollection =
+      process.env.NEXT_RUNTIME !== 'edge'
+        ? createFetchMetricsCollection(req, res)
+        : undefined
 
     if (routeModule.isDev) {
       addRequestMeta(
@@ -909,6 +915,7 @@ export function createAppPageEntrypoint({
             clientAssetToken,
           },
           dev,
+          fetchMetricsCollection,
           fallbackRouteParams,
           renderOpts: {
             App: () => null,

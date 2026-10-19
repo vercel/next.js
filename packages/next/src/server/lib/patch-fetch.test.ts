@@ -1,16 +1,30 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import {
+  createServer,
+  get,
+  type IncomingMessage,
+  type ServerResponse,
+} from 'node:http'
+import type { AddressInfo } from 'node:net'
+import { once } from 'node:events'
 import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { CachedRouteKind } from '../response-cache'
 import { createPatchedFetcher } from './patch-fetch'
+import { createFetchMetricsCollection } from './fetch-metrics'
 import { registerLocalSpanRecorder } from './trace/local-span-recorder'
+import {
+  clearRequestInsightsForTest,
+  getRequestInsightsSnapshot,
+} from './trace/request-insights'
 import {
   setSpanRecorderForTest,
   type SpanStoreRecord,
 } from './trace/span-store'
 
 const originalDevServer = process.env.__NEXT_DEV_SERVER
+const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const spanRecords: SpanStoreRecord[] = []
 
 describe('createPatchedFetcher', () => {
@@ -27,6 +41,159 @@ describe('createPatchedFetcher', () => {
     }
     setSpanRecorderForTest(undefined)
     spanRecords.length = 0
+    if (originalRequestInsights === undefined) {
+      delete process.env.__NEXT_REQUEST_INSIGHTS
+    } else {
+      process.env.__NEXT_REQUEST_INSIGHTS = originalRequestInsights
+    }
+    clearRequestInsightsForTest()
+  })
+
+  it.each([false, true])(
+    'does not collect fetches completing after close (already closed: %s)',
+    async (alreadyClosed) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      setSpanRecorderForTest((span) => spanRecords.push(span))
+      const server = createServer()
+      server.listen(0, '127.0.0.1')
+      await once(server, 'listening')
+      const pendingRequest = once(server, 'request')
+      const responseFinished = new Promise<void>((resolve, reject) => {
+        get(
+          `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+          (response) => {
+            response.once('end', resolve)
+            response.resume()
+          }
+        ).once('error', reject)
+      })
+      const [req, res] = (await pendingRequest) as [
+        IncomingMessage,
+        ServerResponse,
+      ]
+
+      try {
+        const closeResponse = async () => {
+          const closed = once(res, 'close')
+          res.end('ok')
+          await closed
+        }
+        if (alreadyClosed) {
+          await closeResponse()
+        }
+        const workStore: Partial<WorkStore> = {
+          page: '/',
+          route: '/',
+          requestId: 'late-request',
+          shouldTrackFetchMetrics: true,
+          fetchMetricsCollection: createFetchMetricsCollection(req, res),
+        }
+        let completeFetch!: (response: Response) => void
+        let startFetch!: () => void
+        const fetchStarted = new Promise<void>((resolve) => {
+          startFetch = resolve
+        })
+        const mockFetch = jest.fn(
+          () =>
+            new Promise<Response>((resolve) => {
+              completeFetch = resolve
+              startFetch()
+            })
+        )
+        const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+        const patchedFetch = createPatchedFetcher(mockFetch, {
+          workAsyncStorage,
+          workUnitAsyncStorage: new AsyncLocalStorage<WorkUnitStore>(),
+        })
+        const fetched = workAsyncStorage.run(workStore as WorkStore, () =>
+          patchedFetch('https://example.com/late', { cache: 'no-store' })
+        )
+        await fetchStarted
+        if (!alreadyClosed) {
+          await closeResponse()
+        }
+        completeFetch(new Response('ok'))
+        await fetched
+
+        expect(workStore.fetchMetrics ?? []).toEqual([])
+        expect(spanRecords).toHaveLength(1)
+        expect(spanRecords[0].attributes?.['http.url']).toBe(
+          'https://example.com/late'
+        )
+        expect(getRequestInsightsSnapshot().requests).toEqual([
+          expect.objectContaining({
+            requestId: 'late-request',
+            fetches: [
+              expect.objectContaining({ url: 'https://example.com/late' }),
+            ],
+          }),
+        ])
+      } finally {
+        if (!res.writableEnded) res.end('ok')
+        await responseFinished
+        await new Promise<void>((resolve) => server.close(() => resolve()))
+      }
+    }
+  )
+
+  it('keeps response collection isolated across concurrent requests', async () => {
+    const server = createServer()
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const responses: ServerResponse[] = []
+    const completedResponses: Promise<unknown>[] = []
+    const stores: Partial<WorkStore>[] = []
+    try {
+      for (let i = 0; i < 2; i++) {
+        const pendingRequest = once(server, 'request')
+        completedResponses.push(
+          new Promise<void>((resolve, reject) => {
+            get(
+              `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+              (response) => {
+                response.once('end', resolve)
+                response.resume()
+              }
+            ).once('error', reject)
+          })
+        )
+        const [req, res] = await pendingRequest
+        responses.push(res)
+        stores.push({
+          page: '/',
+          route: '/',
+          shouldTrackFetchMetrics: true,
+          fetchMetricsCollection: createFetchMetricsCollection(req, res),
+        })
+      }
+      const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+      const patchedFetch = createPatchedFetcher(
+        jest.fn(async () => new Response('ok')),
+        {
+          workAsyncStorage,
+          workUnitAsyncStorage: new AsyncLocalStorage<WorkUnitStore>(),
+        }
+      )
+      const closed = once(responses[0], 'close')
+      responses[0].end('ok')
+      await closed
+
+      await Promise.all(
+        stores.map((store) =>
+          workAsyncStorage.run(store as WorkStore, () =>
+            patchedFetch('https://example.com/isolated', { cache: 'no-store' })
+          )
+        )
+      )
+      expect(stores[0].fetchMetrics ?? []).toEqual([])
+      expect(stores[1].fetchMetrics).toHaveLength(1)
+    } finally {
+      for (const response of responses) {
+        if (!response.writableEnded) response.end('ok')
+      }
+      await Promise.all(completedResponses)
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
   })
 
   it('should not buffer a streamed response', async () => {

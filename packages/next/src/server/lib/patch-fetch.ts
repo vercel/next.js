@@ -219,7 +219,10 @@ function trackFetchMetric(
     }
   }
 
-  if (!workStore.shouldTrackFetchMetrics) {
+  if (
+    !workStore.shouldTrackFetchMetrics ||
+    workStore.fetchMetricsCollection?.accepting === false
+  ) {
     return
   }
 
