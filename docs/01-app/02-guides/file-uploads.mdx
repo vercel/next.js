@@ -15,6 +15,8 @@ Next.js gives you two places to receive a file upload: a [Server Action](/docs/a
 > [!WARNING]
 > Always verify [authentication and authorization](/docs/app/guides/authentication) before accepting an upload, and never use the file name sent by the client as a path on disk.
 
+The examples on this page save files to the local file system, so they need the Node.js runtime and a server with a persistent disk. To keep files elsewhere, send them to your storage provider's upload API instead.
+
 ## Small files with Server Actions
 
 A Server Action used as a form `action` receives the form's [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData). A file input appears in it as a [`File`](https://developer.mozilla.org/docs/Web/API/File):
@@ -104,7 +106,7 @@ A Route Handler can read [`request.body`](https://developer.mozilla.org/docs/Web
 
 ```tsx filename="app/api/upload/route.ts" switcher
 import { createWriteStream } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
@@ -119,10 +121,17 @@ export async function POST(request: Request) {
   await mkdir(dir, { recursive: true })
 
   const filename = crypto.randomUUID()
-  await pipeline(
-    Readable.fromWeb(request.body as ReadableStream),
-    createWriteStream(path.join(dir, filename))
-  )
+  const filePath = path.join(dir, filename)
+  try {
+    await pipeline(
+      Readable.fromWeb(request.body as ReadableStream),
+      createWriteStream(filePath)
+    )
+  } catch (error) {
+    // Remove the partial file if the upload was interrupted
+    await rm(filePath, { force: true })
+    throw error
+  }
 
   return Response.json({ filename })
 }
@@ -130,7 +139,7 @@ export async function POST(request: Request) {
 
 ```js filename="app/api/upload/route.js" switcher
 import { createWriteStream } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
+import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
@@ -144,10 +153,14 @@ export async function POST(request) {
   await mkdir(dir, { recursive: true })
 
   const filename = crypto.randomUUID()
-  await pipeline(
-    Readable.fromWeb(request.body),
-    createWriteStream(path.join(dir, filename))
-  )
+  const filePath = path.join(dir, filename)
+  try {
+    await pipeline(Readable.fromWeb(request.body), createWriteStream(filePath))
+  } catch (error) {
+    // Remove the partial file if the upload was interrupted
+    await rm(filePath, { force: true })
+    throw error
+  }
 
   return Response.json({ filename })
 }
@@ -166,6 +179,10 @@ export function UploadButton() {
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
       body: file,
     })
+    if (!response.ok) {
+      console.error('Upload failed with status', response.status)
+      return
+    }
     const { filename } = await response.json()
     console.log('Uploaded as', filename)
   }
@@ -187,6 +204,10 @@ export function UploadButton() {
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
       body: file,
     })
+    if (!response.ok) {
+      console.error('Upload failed with status', response.status)
+      return
+    }
     const { filename } = await response.json()
     console.log('Uploaded as', filename)
   }
@@ -197,7 +218,8 @@ export function UploadButton() {
 
 > **Good to know**:
 >
-> - This example writes to the local file system, so it needs the Node.js runtime and a server with persistent disk. To store the file elsewhere, pipe the stream to your storage provider's upload API instead of `createWriteStream`.
+> - This example doesn't limit the file size, so a client could fill your disk. Reject uploads above your limit, for example by counting the bytes as they arrive and stopping the stream once the count passes it.
+> - To store the file elsewhere, pipe the stream to your storage provider's upload API instead of `createWriteStream`.
 > - Calling `request.formData()` in a Route Handler holds the whole body in memory, the same as a Server Action. Read `request.body` as a stream for large files.
 
 ### Uploads and Proxy
@@ -232,7 +254,7 @@ export const config = {
 }
 ```
 
-Since the Proxy no longer runs for that route, make sure the Route Handler performs any checks, such as authentication, that the Proxy did. Alternatively, raise the limit with [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize), keeping in mind that the whole body is then held in memory for each request.
+Since the Proxy no longer runs for that route, make sure the Route Handler performs any checks, such as authentication, that the Proxy did. Alternatively, raise the limit with the experimental [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize) option, set under `experimental` in your `next.config` file, keeping in mind that the whole body is then held in memory for each request.
 
 ## Uploading directly to storage
 
