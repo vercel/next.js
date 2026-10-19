@@ -9,6 +9,9 @@ const isPageRuntime = (file: string) =>
 // A proxy that only imports `next/server` must not pull in the app-page runtime.
 // It's expensive to load on a cold start and was previously reachable through
 // `connection()` -> `dynamic-rendering`, which imported React.
+
+// This test accesses the filesystem, which is not available in deploy mode
+// @force-gate !deploy
 describe('proxy-no-page-runtime', () => {
   const { next } = nextTestSetup({
     files: __dirname,
