@@ -341,7 +341,8 @@ export function getResolveRoutes(
         if (params) {
           const pageOutput = await fsChecker.getItem(
             addPathPrefix(route.page, config.basePath || ''),
-            curPathname || undefined
+            curPathname || undefined,
+            isAppRoute && !localePathWasInferred
           )
 
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
@@ -943,9 +944,20 @@ export function getResolveRoutes(
             if (curLocaleResult.detectedLocale) {
               addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
             }
+
+            // Generated i18n rewrites propagate the internal locale prefix.
+            // That prefix remains inferred unless the destination supplies
+            // an explicit locale instead.
+            localePathWasInferred = Boolean(
+              localePathWasInferred &&
+                route.destination.startsWith(
+                  `${config.basePath || ''}/:nextInternalLocale`
+                ) &&
+                rewriteParams.nextInternalLocale ===
+                  curLocaleResult.detectedLocale
+            )
           }
           didRewrite = true
-          localePathWasInferred = false
           parsedUrl.pathname = parsedDestination.pathname
           Object.assign(parsedUrl.query, parsedDestination.query)
         }

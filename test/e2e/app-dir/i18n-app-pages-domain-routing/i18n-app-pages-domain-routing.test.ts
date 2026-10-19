@@ -38,6 +38,18 @@ describe('i18n-app-pages-domain-routing', () => {
     expect(load(await response.text())('#app-locale').text()).toBe('en-US')
   })
 
+  it('routes a literal locale pathname to a dynamic App page', async () => {
+    const response = await fetchFromDomain(
+      '/en-US/literal/value',
+      'en.example.local'
+    )
+
+    expect(response.status).toBe(200)
+    expect(load(await response.text())('#literal-locale-id').text()).toBe(
+      'value'
+    )
+  })
+
   it('matches App catch-all params against the locale-prefixed pathname', async () => {
     const response = await fetchFromDomain('/nl-NL/blog/post')
 
@@ -74,6 +86,34 @@ describe('i18n-app-pages-domain-routing', () => {
 
     expect(response.status).toBe(200)
     expect(load(await response.text())('#plain-id').text()).toBe('123')
+  })
+
+  it.each(['en.example.local', 'nl.example.local'])(
+    'does not expose an inferred locale through a config rewrite on %s',
+    async (host) => {
+      const response = await fetchFromDomain('/old/123', host)
+
+      expect(response.status).toBe(200)
+      expect(load(await response.text())('#plain-id').text()).toBe('123')
+    }
+  )
+
+  it('preserves an explicit locale through a config rewrite', async () => {
+    const response = await fetchFromDomain('/nl-NL/old/123')
+
+    expect(response.status).toBe(200)
+    const $ = load(await response.text())
+    expect($('#app-locale').text()).toBe('nl-NL')
+    expect($('#app-slug').text()).toBe('plain/123')
+  })
+
+  it('routes an explicit config rewrite destination to a localized App page', async () => {
+    const response = await fetchFromDomain('/explicit/123')
+
+    expect(response.status).toBe(200)
+    const $ = load(await response.text())
+    expect($('#app-locale').text()).toBe('en-US')
+    expect($('#app-slug').text()).toBe('plain/123')
   })
 
   it('keeps locale normalization for dynamic Pages routes', async () => {
