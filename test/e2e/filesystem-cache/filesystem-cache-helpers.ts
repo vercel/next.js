@@ -175,23 +175,18 @@ export function setupFilesystemCacheTest(cacheEnabled: boolean) {
       checkChanged: makeTextCheck('/add-me', 'hello world'),
       largeCacheIncrease: true,
     },
-    // TODO fix this case with Turbopack
-    ...((isTurbopack
-      ? {}
-      : {
-          'loader change': {
-            async checkInitial() {
-              await textCheck('/loader', 'hello world')
-              await textCheck('/loader/client', 'hello world')
-            },
-            withChange: makeFileEdit('my-loader.js'),
-            async checkChanged() {
-              await textCheck('/loader', 'hello filesystem cache')
-              await textCheck('/loader/client', 'hello filesystem cache')
-            },
-            fullInvalidation: !isTurbopack,
-          },
-        }) as Record<ChangeName, Change>),
+    'loader change': {
+      async checkInitial() {
+        await textCheck('/loader', 'hello world')
+        await textCheck('/loader/client', 'hello world')
+      },
+      withChange: makeFileEdit('my-loader.js'),
+      async checkChanged() {
+        await textCheck('/loader', 'hello filesystem cache')
+        await textCheck('/loader/client', 'hello filesystem cache')
+      },
+      fullInvalidation: !isTurbopack,
+    },
     'next config change': {
       async checkInitial() {
         await textCheck('/next-config', 'hello world')
@@ -255,6 +250,11 @@ export function setupFilesystemCacheTest(cacheEnabled: boolean) {
   function testChangesWhileStopped(changeNames: readonly ChangeName[]) {
     registerCacheWarmUp()
 
+    // TODO fix loader changes with Turbopack. Exclude them from combined tests
+    // as well as individual tests, without leaving undefined change entries.
+    changeNames = changeNames.filter(
+      (changeName) => changeName !== 'loader change' || !isTurbopack
+    )
     const name = changeNames.join(', ')
     const changes = changeNames.map(
       (changeName) => POTENTIAL_CHANGES[changeName]
