@@ -1560,7 +1560,7 @@ impl AggregationUpdateQueue {
             false
         } else if let Some(OptimizeJob {
             task_id,
-            optimization_pending_flag_already_set,
+            optimization_pending_flag_already_set: _,
             #[cfg(feature = "trace_aggregation_update_queue")]
             span,
         }) = self.optimize_queue.pop_front()
@@ -1576,7 +1576,7 @@ impl AggregationUpdateQueue {
                 self.stats.optimize_task += 1;
             }
             self.optimizations_executed += 1;
-            self.optimize_task(ctx, task_id, optimization_pending_flag_already_set);
+            self.optimize_task(ctx, task_id);
             false
         } else if !self.find_and_schedule.is_empty() {
             let count = self
@@ -3351,16 +3351,7 @@ impl AggregationUpdateQueue {
     /// than the number of upper edges. Increasing the aggregation reduces the number of upper
     /// edges, as it places the task in a bigger aggregation group. We want to avoid having too many
     /// upper edges as this amplifies the updates needed when changes to that task occur.
-    ///
-    /// `optimization_pending_flag_already_set` is the snapshot recorded on the `OptimizeJob`: when
-    /// `true`, we also need to clear `optimization_pending` here (this is the only path that
-    /// does so); when `false`, the flag is known to be unset already and we can skip the write.
-    fn optimize_task(
-        &mut self,
-        ctx: &mut ExecuteContext<'_>,
-        task_id: TaskId,
-        optimization_pending_flag_already_set: bool,
-    ) {
+    fn optimize_task(&mut self, ctx: &mut ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("check optimize").entered();
 
@@ -3369,15 +3360,10 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
-        if optimization_pending_flag_already_set {
-            // Clear the pending flag — this is the only path that does so. We skip the
-            // write when our snapshot says the flag wasn't set (push path / self-re-enqueue
-            // path); the setter would just no-op in that case, but reading the snapshot is
-            // free and lets us elide the write entirely.
-            task.set_optimization_pending(false);
-        }
-        // A racing GC pass may have deleted this task, just return. The flag is still cleared
-        // above so a deleted task never looks like it has pending work.
+
+        // We are about to optimize, so optimization is no longer pending.
+        task.set_optimization_pending(false);
+        // A racing GC pass may have deleted this task, just return.
         if task.deleted() {
             return;
         }
