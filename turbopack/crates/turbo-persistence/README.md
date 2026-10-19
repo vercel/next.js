@@ -281,8 +281,6 @@ Lookups usually touch only some blocks of an SST file, and a block is read in fu
 is used (checksum verification and decompression). On Unix, the lookup mapping therefore uses:
 
 - `MADV_RANDOM` for the whole file, so a fault doesn't read around into neighboring blocks.
-- `MADV_WILLNEED` for the block offset table when the file is opened, since every block access
-  reads it.
 - A best-effort `MADV_WILLNEED` for a block that spans more than one page, before any of its bytes is
   read: on its first full read in this open, and on every read of a medium value block (those bypass
   the block cache). Without the hint, `MADV_RANDOM` would fault such a block in one page at a time.
@@ -292,6 +290,9 @@ If the system page size can't be determined, block hints are skipped, so `MADV_R
 either and the mapping keeps the default advice.
 
 Compaction reads SST files through separate `MADV_SEQUENTIAL` mappings.
+
+The block offset table and the index block aren't read through either mapping: see
+[Opening](#opening).
 
 ## Writing
 
@@ -414,7 +415,12 @@ Bottom merges are paced by the fresh (not yet compacted) files of the family: th
 - Read the `CURRENT` file
 - Delete all files with a higher sequence number than the one in the `CURRENT` file.
 - Read all `*.del` files and delete the files that are listed in there.
-- Read all `*.sst` files and memory map them.
+- Read all `*.meta` files. An SST file is opened lazily, the first time a lookup needs it: memory
+  mapped in mmap access mode, or read with positional reads in file access mode. Either way, its
+  block-offset table (4 bytes per block) is read with one positional read (`pread`) and decoded in
+  place. It is validated once (every block holds at least its header and ends before the table) and
+  kept in memory, so locating a block neither reads the file nor re-checks the offsets. The index
+  block is read the same way, verified, and kept in memory for every lookup.
 
 ## Closing
 
