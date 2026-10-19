@@ -1,3 +1,4 @@
+import type { Page } from '../../shared/lib/route-types'
 import type { EdgeHandler } from '../../server/web/adapter'
 
 import '../../server/web/globals'
@@ -13,7 +14,8 @@ import handlerUserland from 'VAR_USERLAND'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
 
-const page = 'VAR_DEFINITION_PAGE'
+// @ts-ignore -- TODO: Temporary template boundary: injected Pages API module key; guarded ingestion deferred.
+const page: Page = 'VAR_DEFINITION_PAGE'
 
 if (typeof handlerUserland !== 'function') {
   throw new Error(

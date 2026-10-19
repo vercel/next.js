@@ -1,3 +1,8 @@
+import {
+  createPage,
+  type Page,
+  type Route,
+} from '../../../../shared/lib/route-types'
 import type webpack from 'next/dist/compiled/webpack/webpack'
 import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
@@ -45,15 +50,20 @@ import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-path-sep'
 import { installBindings } from '../../../swc/install-bindings'
 
-export type AppLoaderOptions = {
+// Legacy entry callers serialize strings. The paired loader decodes the same
+// module-ID/normalized-URL protocol using the private branded specialization.
+export type AppLoaderOptions<
+  ModulePage extends string = string,
+  UrlRoute extends string = string,
+> = {
   name: string
-  page: string
+  page: ModulePage
   pagePath: string
   appDir: string
-  appPaths: readonly string[] | null
-  // All normalized app paths across the entire app, used for computing
-  // static siblings for dynamic segments
-  allNormalizedAppPaths: readonly string[] | null
+  appPaths: readonly ModulePage[] | ModulePage | null
+  // Normalized URL paths across the entire app, used for computing
+  // static siblings for dynamic segments.
+  allNormalizedAppPaths: readonly UrlRoute[] | null
   preferredRegion: string | string[] | undefined
   pageExtensions: PageExtensions
   assetPrefix: string
@@ -68,7 +78,7 @@ export type AppLoaderOptions = {
   strictRouteMatching: true | undefined
   isFinalRouteMatcher: true | undefined
 }
-type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
+type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions<Page, Route>>
 
 const HTTP_ACCESS_FALLBACKS = {
   'not-found': 'not-found',
@@ -172,7 +182,7 @@ async function createTreeCodeFromPath(
     isFinalRouteMatcher,
     isDev,
   }: {
-    page: string
+    page: Page
     resolveDir: DirResolver
     resolver: PathResolver
     metadataResolver: MetadataResolver
@@ -1056,7 +1066,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   const getStaticSiblingSegments = (segmentPath: string): string[] => {
     // Normalize the current path to URL space
     // Add a trailing /page so normalizeAppPath strips it properly
-    const currentUrlPath = normalizeAppPath(segmentPath + '/page')
+    const currentUrlPath = normalizeAppPath(createPage(segmentPath + '/page'))
     const currentUrlSegments = currentUrlPath.split('/').filter(Boolean)
 
     // If the path is empty (root level), there are no siblings
@@ -1083,6 +1093,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
     for (const appPath of allNormalizedAppPaths) {
       // Normalize each path to URL space (strip route groups, parallel routes, and /page suffix)
+      // TODO: Human review: these keys are already Routes from appPathsPerRoute; normalizing again as raw Pages may strip a real URL /page or /route segment. Preserve sibling computation.
       const urlPath = normalizeAppPath(appPath)
       const urlSegments = urlPath.split('/').filter(Boolean)
 

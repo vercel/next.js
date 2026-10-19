@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../route-types'
 import { ensureLeadingSlash } from '../../page-path/ensure-leading-slash'
 import { isGroupSegment } from '../../segment'
 
@@ -20,7 +21,11 @@ import { isGroupSegment } from '../../segment'
  * @param route the app route to normalize
  * @returns the normalized pathname
  */
-export function normalizeAppPath(route: string) {
+// Build supplies raw module IDs; legacy callers keep their string contract.
+// TODO: Human review: interception markers are retained by this normalizer.
+export function normalizeAppPath(route: Page): Route
+export function normalizeAppPath(route: string): string
+export function normalizeAppPath(route: string): string {
   return ensureLeadingSlash(
     route.split('/').reduce((pathname, segment, index, segments) => {
       // Empty segments are ignored.
@@ -80,12 +85,12 @@ function normalizeAppPageEntryPathname(appPath: string): string {
  * paths are candidates. Among those, compareAppPaths deterministically prefers
  * the children/root page, or a stable slot when the route only has slots.
  */
-export function selectAppPageEntry(
+export function selectAppPageEntry<Path extends string>(
   pathname: string,
-  appPaths: readonly string[],
-  normalizePathname: (appPath: string) => string = normalizeAppPageEntryPathname
-): string {
-  let entry: string | undefined
+  appPaths: readonly Path[],
+  normalizePathname: (appPath: Path) => string = normalizeAppPageEntryPathname
+): Path {
+  let entry: Path | undefined
 
   for (const appPath of appPaths) {
     if (normalizePathname(appPath) !== pathname) continue

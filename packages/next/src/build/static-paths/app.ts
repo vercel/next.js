@@ -1,3 +1,4 @@
+import { createRoute, type Route } from '../../shared/lib/route-types'
 import type { Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type {
@@ -331,7 +332,7 @@ export function calculateFallbackMode(
  * @returns The list of validated parameters.
  */
 function validateParams(
-  page: string,
+  page: Route,
   isRoutePPREnabled: boolean,
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
@@ -864,7 +865,7 @@ function createReplacements(
  */
 export async function buildAppStaticPaths({
   dir,
-  page,
+  page: legacyPage,
   route,
   distDir,
   cacheComponents,
@@ -915,6 +916,10 @@ export async function buildAppStaticPaths({
   deploymentId: string
   rootParamKeys: readonly string[]
 }): Promise<StaticPathsResult> {
+  // The dev worker's legacy page field is a normalized URL pattern. This
+  // static-path stage owns the scoped Route view; no raw reconstruction or
+  // generic JSON-reader assertion is involved, and known Routes stay intact.
+  const page = legacyPage as Route
   if (
     segments.some((generate) => generate.config?.dynamicParams === true) &&
     nextConfigOutput === 'export'
@@ -1198,17 +1203,17 @@ export async function buildAppStaticPaths({
     )
   }
 
-  const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>()
-  const blockingCandidatesByPathname = new Map<string, PrerenderedRoute>()
+  const prerenderedRoutesByPathname = new Map<Route, PrerenderedRoute>()
+  const blockingCandidatesByPathname = new Map<Route, PrerenderedRoute>()
   const prerenderRouteMatchersByPathname = new Map<
-    string,
+    Route,
     PrerenderRouteMatcher
   >()
 
   const addPrerenderCandidate = (
     params: Params,
-    pathname: string,
-    encodedPathname: string,
+    pathname: Route,
+    encodedPathname: Route,
     fallbackRouteParams: readonly FallbackRouteParam[],
     fallbackRootParams: readonly string[]
   ): void => {
@@ -1372,18 +1377,22 @@ export async function buildAppStaticPaths({
 
         const replacements = createReplacements({ paramType }, paramValue)
 
-        pathname = pathname.replace(
-          name,
-          // We're replacing the segment name with the replacement pathname
-          // which will include the interception marker prefix if it exists.
-          replacements.pathname
+        pathname = createRoute(
+          pathname.replace(
+            name,
+            // We're replacing the segment name with the replacement pathname
+            // which will include the interception marker prefix if it exists.
+            replacements.pathname
+          )
         )
 
-        encodedPathname = encodedPathname.replace(
-          name,
-          // We're replacing the segment name with the replacement encoded
-          // pathname which will include the encoded param value.
-          replacements.encodedPathname
+        encodedPathname = createRoute(
+          encodedPathname.replace(
+            name,
+            // We're replacing the segment name with the replacement encoded
+            // pathname which will include the encoded param value.
+            replacements.encodedPathname
+          )
         )
       }
 

@@ -1,3 +1,4 @@
+import { createPage, type Page } from '../../../../shared/lib/route-types'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { ProxyConfig } from '../../../analysis/get-page-static-info'
 
@@ -13,6 +14,8 @@ import { isInstrumentationHookFile } from '../../../utils'
 import { loadEntrypoint } from '../../../load-entrypoint'
 import type { MappedPages } from '../../../build-context'
 
+// Entry callers retain string-compatible serialization options. Only this
+// paired loader decodes their module-ID protocol into the private Page view.
 type RouteLoaderOptionsPagesAPIInput = {
   kind: RouteKind.PAGES_API
   page: string
@@ -34,13 +37,13 @@ type RouteLoaderOptionsInput =
   | RouteLoaderOptionsPagesInput
   | RouteLoaderOptionsPagesAPIInput
 
-type RouteLoaderPagesAPIOptions = {
+type RouteLoaderPagesAPIOptions<ModulePage extends string = string> = {
   kind: RouteKind.PAGES_API
 
   /**
    * The page name for this particular route.
    */
-  page: string
+  page: ModulePage
 
   /**
    * The preferred region for this route.
@@ -58,13 +61,13 @@ type RouteLoaderPagesAPIOptions = {
   middlewareConfigBase64: string
 }
 
-type RouteLoaderPagesOptions = {
+type RouteLoaderPagesOptions<ModulePage extends string = string> = {
   kind: RouteKind.PAGES
 
   /**
    * The page name for this particular route.
    */
-  page: string
+  page: ModulePage
 
   /**
    * The preferred region for this route.
@@ -95,7 +98,9 @@ type RouteLoaderPagesOptions = {
 /**
  * The options for the route loader.
  */
-type RouteLoaderOptions = RouteLoaderPagesOptions | RouteLoaderPagesAPIOptions
+type RouteLoaderOptions =
+  | RouteLoaderPagesOptions<Page>
+  | RouteLoaderPagesAPIOptions<Page>
 
 /**
  * Returns the loader entry for a given page.
@@ -113,8 +118,8 @@ export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
         absolutePagePath: options.absolutePagePath,
         // These are the path references to the internal components that may be
         // overridden by userland components.
-        absoluteAppPath: options.pages['/_app'],
-        absoluteDocumentPath: options.pages['/_document'],
+        absoluteAppPath: options.pages[createPage('/_app')],
+        absoluteDocumentPath: options.pages[createPage('/_document')],
         middlewareConfigBase64: encodeToBase64(options.middlewareConfig),
       }
 
@@ -145,7 +150,7 @@ const loadPages = async (
     absoluteAppPath,
     preferredRegion,
     middlewareConfigBase64,
-  }: RouteLoaderPagesOptions,
+  }: RouteLoaderPagesOptions<Page>,
   buildInfo: ModuleBuildInfo
 ) => {
   const middlewareConfig: ProxyConfig = decodeFromBase64(middlewareConfigBase64)
@@ -182,7 +187,7 @@ const loadPagesAPI = async (
     absolutePagePath,
     preferredRegion,
     middlewareConfigBase64,
-  }: RouteLoaderPagesAPIOptions,
+  }: RouteLoaderPagesAPIOptions<Page>,
   buildInfo: ModuleBuildInfo
 ) => {
   const middlewareConfig: ProxyConfig = decodeFromBase64(middlewareConfigBase64)

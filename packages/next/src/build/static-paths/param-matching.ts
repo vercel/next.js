@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../shared/lib/route-types'
 import {
   PARAM_MATCHING_MODES,
   type AppSegment,
@@ -16,7 +17,7 @@ type PolicyCandidate = {
 }
 
 export async function resolveParamMatching(
-  page: string,
+  page: Route,
   segmentTree: readonly AppSegmentTree[],
   pathnameSegments: ReadonlyArray<{ readonly paramName: string }>
 ): Promise<ParamMatching | undefined> {
@@ -159,9 +160,9 @@ export async function resolveParamMatching(
  * definition when their URL prefixes match.
  */
 export function validateParamMatchingCoherence(
-  paramMatchingByRoute: ReadonlyMap<string, ParamMatching | undefined>
+  paramMatchingByRoute: ReadonlyMap<Page, ParamMatching | undefined>
 ): void {
-  const parameters = new Map<string, [route: string, notFound: boolean]>()
+  const parameters = new Map<string, [route: Route, notFound: boolean]>()
 
   for (const [appPath, paramMatching] of [...paramMatchingByRoute].sort(
     ([a], [b]) => a.localeCompare(b)
@@ -221,7 +222,7 @@ export function getParamMatchingFallbackMode(
 }
 
 export function validateParamMatchingParams(
-  page: string,
+  page: Route,
   paramMatching: Readonly<ParamMatching>,
   generatedParamNames: ReadonlySet<string>,
   missingParamNames: ReadonlySet<string>,

@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../shared/lib/route-types'
 import type {
   ProxyConfig,
   ProxyMatcher,
@@ -6,7 +7,7 @@ import type {
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export type ModuleBuildInfo = {
-  nextEdgeMiddleware?: EdgeMiddlewareMeta
+  nextEdgeMiddleware?: EdgeMiddlewareMeta<Route>
   nextEdgeApiFunction?: EdgeMiddlewareMeta
   nextEdgeSSR?: EdgeSSRMeta
   nextWasmMiddlewareBinding?: AssetBinding
@@ -53,7 +54,7 @@ export interface RSCMeta {
 }
 
 export interface RouteMeta {
-  page: string
+  page: Page
   absolutePagePath: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: ProxyConfig
@@ -62,15 +63,16 @@ export interface RouteMeta {
   relatedModules?: string[]
 }
 
-export interface EdgeMiddlewareMeta {
-  page: string
+// Proxy entries carry a URL scope prefix; API entries carry a raw module key.
+export interface EdgeMiddlewareMeta<Path extends string = Page> {
+  page: Path
   matchers?: ProxyMatcher[]
 }
 
 export interface EdgeSSRMeta {
   isServerComponent: boolean
   isAppDir?: boolean
-  page: string
+  page: Page
 }
 
 export interface AssetBinding {

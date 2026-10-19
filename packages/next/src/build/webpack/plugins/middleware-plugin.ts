@@ -1,3 +1,4 @@
+import type { Page, Route } from '../../../shared/lib/route-types'
 import type {
   AssetBinding,
   EdgeMiddlewareMeta,
@@ -41,10 +42,10 @@ import { getModuleReferencesInOrder } from '../utils'
 const KNOWN_SAFE_DYNAMIC_PACKAGES =
   require('../../../lib/known-edge-safe-packages.json') as string[]
 
-export interface EdgeFunctionDefinition {
+export interface EdgeFunctionDefinition<Path extends string = string> {
   files: string[]
   name: string
-  page: string
+  page: Path
   /**
    * Canonical entrypoint module path (relative to distDir) for this edge function.
    */
@@ -56,15 +57,20 @@ export interface EdgeFunctionDefinition {
   regions?: string[] | string
 }
 
-export interface MiddlewareManifest {
+// Default to legacy string keys for untouched readers. The producer opts into
+// the correlated URL/module namespaces below.
+export interface MiddlewareManifest<
+  MiddlewarePath extends string = string,
+  ModulePage extends string = string,
+> {
   version: 3
-  sortedMiddleware: string[]
-  middleware: { [page: string]: EdgeFunctionDefinition }
-  functions: { [page: string]: EdgeFunctionDefinition }
+  sortedMiddleware: MiddlewarePath[]
+  middleware: Record<MiddlewarePath, EdgeFunctionDefinition<MiddlewarePath>>
+  functions: Record<ModulePage, EdgeFunctionDefinition<ModulePage>>
 }
 
 interface EntryMetadata {
-  edgeMiddleware?: EdgeMiddlewareMeta
+  edgeMiddleware?: EdgeMiddlewareMeta<Route>
   edgeApiFunction?: EdgeMiddlewareMeta
   edgeSSR?: EdgeSSRMeta
   wasmBindings: Map<string, string>
@@ -189,7 +195,7 @@ function getCreateAssets(params: {
 }) {
   const { compilation, metadataByEntry, opts } = params
   return () => {
-    const middlewareManifest: MiddlewareManifest = {
+    const middlewareManifest: MiddlewareManifest<Route, Page> = {
       version: MANIFEST_VERSION,
       middleware: {},
       functions: {},
@@ -229,8 +235,11 @@ function getCreateAssets(params: {
         continue
       }
 
+      // TODO: Preserve the metadata discriminator's Page/Route correlation in these views.
+      // Entry metadata is exclusive: the app SSR tag proves a raw app Page,
+      // while proxy entries carry a Route scope prefix.
       const matcherSource = metadata.edgeSSR?.isAppDir
-        ? normalizeAppPath(page)
+        ? normalizeAppPath(page as Page)
         : page
 
       const catchAll = !metadata.edgeSSR && !metadata.edgeApiFunction
@@ -246,7 +255,7 @@ function getCreateAssets(params: {
       ]
 
       const isEdgeFunction = !!(metadata.edgeApiFunction || metadata.edgeSSR)
-      const edgeFunctionDefinition: EdgeFunctionDefinition = {
+      const edgeFunctionDefinition: EdgeFunctionDefinition<typeof page> = {
         files: getEntryFiles(
           entrypoint.getFiles(),
           metadata,
@@ -269,16 +278,22 @@ function getCreateAssets(params: {
         ...(metadata.regions && { regions: metadata.regions }),
       }
 
+      // TODO: Preserve the key/payload correlation without asserting each manifest branch.
+      // The metadata tag determines the namespace of both key and payload.
       if (isEdgeFunction) {
-        middlewareManifest.functions[page] = edgeFunctionDefinition
+        middlewareManifest.functions[page as Page] =
+          edgeFunctionDefinition as EdgeFunctionDefinition<Page>
       } else {
-        middlewareManifest.middleware[page] = edgeFunctionDefinition
+        middlewareManifest.middleware[page as Route] =
+          edgeFunctionDefinition as EdgeFunctionDefinition<Route>
       }
     }
 
     middlewareManifest.sortedMiddleware = getSortedRoutes(
-      Object.keys(middlewareManifest.middleware)
-    )
+      Object.keys(
+        middlewareManifest.middleware
+      ) as /* TODO: Preserve Route keys across iteration and sorting. */ Route[]
+    ) as /* TODO: Preserve Route keys across iteration and sorting. */ Route[]
 
     compilation.emitAsset(
       MIDDLEWARE_MANIFEST,

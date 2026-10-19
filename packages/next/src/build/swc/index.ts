@@ -1214,7 +1214,9 @@ function bindingToApi(
   function napiEntrypointsToRawEntrypoints(
     entrypoints: TurbopackResult<NapiEntrypoints>
   ): TurbopackResult<RawEntrypoints> {
-    const routes = new Map()
+    // Preserve the native transport's primitive identifiers for untouched dev
+    // callers. The build converter owns URL/module ingestion after dispatch.
+    const routes = new Map<string, Route>()
     for (const { pathname, ...nativeRoute } of entrypoints.value.routes) {
       let route: Route
       const routeType = nativeRoute.type

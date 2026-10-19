@@ -1,3 +1,4 @@
+import type { Route } from '../shared/lib/route-types'
 import {
   getParamProperties,
   type SegmentParam,
@@ -58,7 +59,8 @@ function validateSegmentParam(param: SegmentParam, pathname: string): void {
  * For interception routes, validates both the intercepting and intercepted routes separately.
  * Returns the validated segment parameters.
  */
-function validateAppRoute(route: NormalizedAppRoute): void {
+// This also validates relative intercepted fragments, not only whole Routes.
+function validateAppRoute(route: NormalizedAppRoute<string>): void {
   // For interception routes, validate the intercepting and intercepted routes separately
   // This allows the same parameter name to appear in both parts
   if (isInterceptionAppRoute(route)) {
@@ -141,7 +143,7 @@ function validateAppRoute(route: NormalizedAppRoute): void {
 /**
  * Validates a single path for internal consistency and returns its segment parameters.
  */
-function parseAndValidateAppPath(path: string): NormalizedAppRoute {
+function parseAndValidateAppPath(path: Route): NormalizedAppRoute {
   // Fast parse the route information. We're expecting this to be a normalized
   // route.
   const route = parseNormalizedAppRoute(path)
@@ -200,16 +202,16 @@ function normalizeSegments(
  * @throws Error if validation fails
  */
 export function validateAppPaths(
-  appPaths: readonly string[]
+  appPaths: readonly Route[]
 ): NormalizedAppRoute[] {
   // First, validate each path individually
-  const paramsByPath = new Map<string, NormalizedAppRoute>()
+  const paramsByPath = new Map<Route, NormalizedAppRoute>()
   for (const path of appPaths) {
     paramsByPath.set(path, parseAndValidateAppPath(path))
   }
 
   // Group paths by their normalized structure for ambiguity detection
-  const structureMap = new Map<string, string[]>()
+  const structureMap = new Map<string, Route[]>()
 
   for (const [path, route] of paramsByPath) {
     // Check if the last segment is an optional catch-all and check to see if
@@ -252,7 +254,7 @@ export function validateAppPaths(
   }
 
   // Check for ambiguous routes (different slug names, same structure)
-  const conflicts: Array<{ paths: string[]; normalizedPath: string }> = []
+  const conflicts: Array<{ paths: Route[]; normalizedPath: string }> = []
 
   for (const [structure, paths] of structureMap) {
     if (paths.length > 1) {
