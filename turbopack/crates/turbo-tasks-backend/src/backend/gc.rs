@@ -41,30 +41,29 @@ use crate::{
     backing_storage::SnapshotItem,
 };
 
-/// How long a GC root may go un-anchored before it is collected.
+/// How long a recorded GC root may go without a session-only pin before it ages out.
 /// Default to 3 days so that a root that is at least occasionally used can survive a weekend.
 ///
-/// Aging out roots solves the problem of missing `gc_unpin` calls.  We can miss them for structural
-/// reasons, bugs or just shutdown races (drops from native threads race with turbopack shutdown).
-/// So using a TTL to track roots that haven't shown up in new sessions we can solve this leak.
+/// Most roots are parentless tasks that get an automatic, unbalanced session-only pin (e.g. a
+/// top-level operation connected from outside any task). That pin is never released within the
+/// session and is gone in the next one, so pins alone can't tell us when a root is no longer
+/// wanted. Without a TTL, a root that survived one session could survive indefinitely.
 ///
-/// The TTL counter is serving as a check for both new sessions and time.  To be aged out you get
-/// one session to start the clock and then eventually the timer expires.  This is intentionally
-/// course.
-///
-/// "Showing up" means being observed as a root again by a pass in the new session (pinned, or
-/// reported by `gc_scan_roots`), not merely being resident: restoring a task from disk (e.g. to
-/// propagate an invalidation through the aggregation graph) does not make it a current root. Until
-/// a persisted root is a current root again it is protected from collection, and only goes once its
-/// TTL expires.
+/// So once a task is recorded as a root it stays a root, protected from collection, until it ages
+/// out: the first pass that finds it without a session-only pin starts its stale clock (this can
+/// be in the same session that released it), a later pin resets it, and the first pass after the
+/// TTL has elapsed removes it from the roots map and queues it for the normal collectibility check.
+/// A root that still has persistent parents then simply isn't collected. This is intentionally
+/// coarse.
 pub(crate) const DEFAULT_GC_ROOT_TTL: Duration = Duration::from_secs(3 * 24 * 60 * 60);
 
-/// How long a GC root has gone without being observed live, as stored in the persisted roots map.
+/// How long a recorded GC root has gone without a session-only pin, as stored in the persisted
+/// roots map.
 #[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TtlCounter {
-    /// Observed live (a durable, anchored root) in the most recent session.
+    /// Pinned, or found as a root, by the most recent pass.
     MostRecent,
-    /// System time millis at which a session's **first** GC pass first found this root not live.
+    /// System time millis at which a pass first found this root without a session-only pin.
     FirstStale(u64),
 }
 
@@ -122,7 +121,7 @@ pub struct GcStats {
     pub collected: usize,
     /// Edges torn down across all collected tasks (children + forward-dependency reverse edges).
     pub edges_deleted: usize,
-    /// Cross-session roots that aged out past the TTL.
+    /// Recorded roots that aged out past the TTL.
     pub aged_out_roots: usize,
 }
 
@@ -225,7 +224,7 @@ impl TurboTasksBackend {
         };
 
         let (mut stats, mut result): (GcStats, GcPassResult) = scope_unbounded_with(
-            // Start by scanning all shards and collecting the aged out roots from prior sessions.
+            // Start by scanning all shards and collecting the roots that aged out.
             (0..self.storage.shard_count())
                 .map(GcJob::ScanShard)
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
@@ -245,11 +244,11 @@ impl TurboTasksBackend {
                     }
                     GcJob::Collect(task_id) => task_id,
                 };
-                // Entries still in the roots map are protected until they age out (aged-out ids
-                // were removed from the map above, so they do get collected). Checking here rather
-                // than only in the shard scan also covers the cascade: a root from an earlier
-                // session can gain a persistent parent in this session, and collecting that parent
-                // enqueues the root again.
+                // A root in the map that has no pin is ambiguous: it may or may not be safe to
+                // delete. Under our model a root shouldn't gain a proper (persistent) parent
+                // anyway, so skip it: once a root, always a root, until it ages out (aged-out
+                // roots were removed from the map above). Skipping here rather than only in the
+                // shard scan also covers a root reached by a cascade.
                 if roots.contains_key(&task_id) {
                     return ControlFlow::Continue(());
                 }
@@ -303,12 +302,8 @@ impl TurboTasksBackend {
         // We don't do this in the GC pass because a task detected as a root 'early' might become a
         // non-root later due to other operations (e.g. it might get promoted to a live aggregation
         // root).
-        {
-            let mut current = self.gc_current_roots.lock();
-            for id in self.storage.gc_scan_roots() {
-                roots.insert(id, TtlCounter::MostRecent);
-                current.insert(id);
-            }
+        for id in self.storage.gc_scan_roots() {
+            roots.insert(id, TtlCounter::MostRecent);
         }
 
         stats.gc_roots = roots.len();
@@ -323,31 +318,52 @@ impl TurboTasksBackend {
         (stats, result, roots_to_persist)
     }
 
-    /// Compute which persisted roots have expired their TTL, and decide which of the others the
-    /// pass must leave alone. An entry that stays in `map` is protected from collection for this
-    /// pass (see the check at the top of the `Collect` job in [`Self::gc_collect`]).
+    /// Refreshes the persisted roots map and returns the roots whose TTL has expired, removing
+    /// them from `map`. Every entry left in `map` is protected from collection for this pass (see
+    /// the check at the top of the `Collect` job in [`Self::gc_collect`]).
     ///
-    /// For each entry:
-    /// - Pinned (a session-only reference holds it): it is a current root. Keep it as
-    ///   [`TtlCounter::MostRecent`]. This is decided here rather than left to `gc_scan_roots`,
-    ///   which cannot see a task whose `Meta` has been evicted.
-    /// - Resident, unpinned, and a current root (observed as a root earlier in this session): it
-    ///   was released in this session. Drop it from the map so the pass judges it like any other
-    ///   task.
-    /// - Otherwise -- not resident, or resident without having been a root in this session (e.g.
-    ///   restored to propagate an invalidation): advance its TTL clock, starting it if needed, and
-    ///   keep it until it ages out. Residency alone says nothing about whether anything still wants
-    ///   the root.
+    /// A resident root with a session-only pin is kept as [`TtlCounter::MostRecent`]. This is
+    /// decided here rather than left to `gc_scan_roots`, which cannot see a task whose `Meta` has
+    /// been evicted. Every other entry (not resident, or resident without a pin) advances its TTL
+    /// clock. Only pins refresh a root: one that gained a persistent parent may age out, and is
+    /// then simply not collectible while that parent holds it.
     fn gc_roots_refresh_and_age_out(
         &self,
         map: &mut FxHashMap<TaskId, TtlCounter>,
         now: u64,
     ) -> Vec<TaskId> {
-        let mut current = self.gc_current_roots.lock();
-        refresh_roots_map(map, &mut current, now, self.gc_root_ttl, |id| {
-            self.storage
-                .with_task(id, |task| task.gc_transient_ref_count() > 0)
-        })
+        let ttl_ms = self.gc_root_ttl.as_millis() as u64;
+
+        let mut aged_out = Vec::new();
+        map.retain(|id, counter| {
+            let pinned = self
+                .storage
+                .with_task(*id, |task| task.gc_transient_ref_count() > 0)
+                .unwrap_or(false);
+            if pinned {
+                *counter = TtlCounter::MostRecent;
+                return true;
+            }
+            match *counter {
+                TtlCounter::MostRecent => {
+                    // It was recent in the last pass but not this one. Start the clock
+                    *counter = TtlCounter::FirstStale(now);
+                    true
+                }
+                TtlCounter::FirstStale(since) => {
+                    if now.saturating_sub(since) > ttl_ms {
+                        // Enqueue for collection, which restores it from disk and attempts the
+                        // delete. Dropped from the map so the pass does not protect it.
+                        aged_out.push(*id);
+                        false
+                    } else {
+                        true
+                    }
+                }
+            }
+        });
+
+        aged_out
     }
 
     pub(super) fn pin_task_for_gc(
@@ -415,126 +431,5 @@ impl TurboTasksBackend {
             panic!("gc_for_testing: failed to persist GC roots: {err:?}");
         }
         stats.collected
-    }
-}
-
-/// The pure core of [`TurboTasksBackend::gc_roots_refresh_and_age_out`].
-///
-/// `map` is the roots map loaded from storage at the start of the pass, and `current` is the
-/// session's set of current roots (see `TurboTasksBackend::gc_current_roots`).
-/// `residency(id)` is `None` when `id` is not resident, otherwise whether it is pinned.
-///
-/// `current` is pruned only once the loaded map no longer contains an entry. A pass can be
-/// interrupted after deciding to drop a released root, in which case that decision is never
-/// persisted and the next pass sees the old map again. Keeping the entry in `current` until the map
-/// catches up makes that retry make the same decision instead of mistaking the released root for
-/// one from an earlier session.
-fn refresh_roots_map(
-    map: &mut FxHashMap<TaskId, TtlCounter>,
-    current: &mut FxHashSet<TaskId>,
-    now: u64,
-    ttl: Duration,
-    mut residency: impl FnMut(TaskId) -> Option<bool>,
-) -> Vec<TaskId> {
-    let ttl_ms = ttl.as_millis() as u64;
-    current.retain(|id| map.contains_key(id));
-
-    let mut aged_out = Vec::new();
-    map.retain(|id, counter| {
-        if let Some(pinned) = residency(*id) {
-            if pinned {
-                current.insert(*id);
-                *counter = TtlCounter::MostRecent;
-                return true;
-            }
-            if current.contains(id) {
-                return false;
-            }
-        }
-        match *counter {
-            TtlCounter::MostRecent => {
-                // It was recent in the last pass but not this one. Start the clock
-                *counter = TtlCounter::FirstStale(now);
-                true
-            }
-            TtlCounter::FirstStale(since) => {
-                if now.saturating_sub(since) > ttl_ms {
-                    // Enqueue for collection, which restores it from disk and attempts the delete.
-                    // Dropped from the map so the pass does not protect it.
-                    aged_out.push(*id);
-                    false
-                } else {
-                    true
-                }
-            }
-        }
-    });
-
-    aged_out
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use rustc_hash::{FxHashMap, FxHashSet};
-    use turbo_tasks::TaskId;
-
-    use super::{TtlCounter, refresh_roots_map};
-
-    fn task_id(id: u32) -> TaskId {
-        TaskId::try_from(id).unwrap()
-    }
-
-    #[test]
-    fn interrupted_refresh_keeps_released_current_root() {
-        let root = task_id(1);
-        let persisted = FxHashMap::from_iter([(root, TtlCounter::MostRecent)]);
-        let mut current = FxHashSet::default();
-
-        let mut first = persisted.clone();
-        refresh_roots_map(
-            &mut first,
-            &mut current,
-            10,
-            Duration::from_secs(3600),
-            |_| Some(true),
-        );
-        assert_eq!(first.get(&root), Some(&TtlCounter::MostRecent));
-
-        // The root is released. This refresh decides to drop it, but suppose the pass is
-        // interrupted before that decision is persisted.
-        let mut interrupted = persisted.clone();
-        refresh_roots_map(
-            &mut interrupted,
-            &mut current,
-            20,
-            Duration::from_secs(3600),
-            |_| Some(false),
-        );
-        assert!(!interrupted.contains_key(&root));
-
-        // The retry sees the old persisted map again. It must still treat the root as released in
-        // this session, not protect it as a root from an earlier session.
-        let mut retry = persisted.clone();
-        refresh_roots_map(
-            &mut retry,
-            &mut current,
-            30,
-            Duration::from_secs(3600),
-            |_| Some(false),
-        );
-        assert!(!retry.contains_key(&root));
-
-        // Once a completed pass persisted the drop, it is no longer a current root.
-        let mut after_drop = FxHashMap::default();
-        refresh_roots_map(
-            &mut after_drop,
-            &mut current,
-            40,
-            Duration::from_secs(3600),
-            |_| None,
-        );
-        assert!(current.is_empty());
     }
 }

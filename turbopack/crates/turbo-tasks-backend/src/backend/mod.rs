@@ -156,8 +156,8 @@ pub struct BackendOptions {
     /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
     pub gc: Option<bool>,
 
-    /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
-    /// `DEFAULT_GC_ROOT_TTL`.
+    /// How long a recorded GC root may go without a session-only pin before it ages out. `None`
+    /// (default) uses `DEFAULT_GC_ROOT_TTL`.
     pub gc_root_ttl: Option<Duration>,
 
     /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
@@ -272,16 +272,8 @@ pub struct TurboTasksBackend {
     task_statistics: TaskStatisticsApi,
 
     backing_storage: TurboBackingStorage,
-    /// How long a GC root may go un-anchored before it ages out.
+    /// How long a recorded GC root may go without a session-only pin before it ages out.
     gc_root_ttl: Duration,
-
-    /// Current roots: tasks a GC pass in this session has observed as roots (reported by
-    /// `gc_scan_roots`, or found pinned while refreshing the roots map). Never persisted.
-    ///
-    /// A persisted root that is not a current root is from an earlier session and keeps its TTL,
-    /// even while resident. A current root that is later released was let go in this session, so a
-    /// pass may collect it right away. See `TurboTasksBackend::gc_roots_refresh_and_age_out`.
-    gc_current_roots: Mutex<FxHashSet<TaskId>>,
 
     /// How long a GC pass runs before it will honour an interrupt
     gc_min_progress: Duration,
@@ -383,7 +375,6 @@ impl TurboTasksBackend {
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
             gc_root_ttl,
-            gc_current_roots: Default::default(),
             gc_min_progress,
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
