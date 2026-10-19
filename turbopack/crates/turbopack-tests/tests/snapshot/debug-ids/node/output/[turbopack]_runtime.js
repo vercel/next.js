@@ -822,15 +822,26 @@ function loadChunkAsync(chunkData) {
         // `ensureChunk` is conditionally installed to support lazy dynamic imports during SSR
         // It can be used to call back into turbopack to compile the chunk we are about to reference.
         const ensureChunk = globalThis.__turbopack_ensure_chunk__;
-        if (ensureChunk === undefined) {
+        let ensuring = undefined;
+        if (ensureChunk !== undefined) {
+            try {
+                // Returns `undefined` when the chunk can be required right away.
+                ensuring = ensureChunk(chunkPath);
+            } catch (error) {
+                // Don't cache a failure to compile the chunk, so that the next load
+                // retries it.
+                return Promise.reject(error);
+            }
+        }
+        if (ensuring === undefined) {
             entry = requireChunk(chunkPath, sourceModuleId);
         } else {
-            // The chunk may have to be compiled on demand before it can be required.
+            // The chunk is being compiled on demand before it can be required.
             // Cache the combined promise right away so that every caller (including
             // concurrent ones) gets the same promise for this chunk.
-            const ensured = Promise.resolve().then(()=>ensureChunk(chunkPath)).then(()=>requireChunk(chunkPath, sourceModuleId), (error)=>{
-                // Don't cache a failure to compile the chunk, so that the next
-                // load retries it.
+            const ensured = Promise.resolve(ensuring).then(()=>requireChunk(chunkPath, sourceModuleId), (error)=>{
+                // Don't cache a failure to compile the chunk, so that the next load
+                // retries it.
                 if (chunkCache.get(chunkPath) === ensured) {
                     chunkCache.delete(chunkPath);
                 }
