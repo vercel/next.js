@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-import { PrefetchHint } from 'next/src/shared/lib/app-router-types'
+import { StaticAttemptHints } from 'next/src/shared/lib/app-router-types'
 import { createRouterAct } from 'router-act'
 import type * as Playwright from 'playwright'
 import {
@@ -67,9 +67,7 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
     )
 
     // we only care about the static hints, inlining is not relevant.
-    const hintsMask =
-      PrefetchHint.ShouldAttemptStaticShell |
-      PrefetchHint.ShouldAttemptStaticPrefetch
+    const hintsMask = StaticAttemptHints
 
     // The page awaits static params, so:
     // - the shell can be static (ShouldAttemptStaticShell hint set),
@@ -81,16 +79,16 @@ describe('Partial prefetching with static params and ISR fallbacks', () => {
       )
     ).toMatchInlineSnapshot(`
      {
-       "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ...",
+       "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ShouldAttemptStaticNavigation | ...",
        "slots": {
          "children": {
-           "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ...",
+           "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ShouldAttemptStaticNavigation | ...",
            "slots": {
              "children": {
-               "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ...",
+               "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ShouldAttemptStaticNavigation | ...",
                "slots": {
                  "children": {
-                   "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ...",
+                   "hints": "ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch | ShouldAttemptStaticNavigation | ...",
                    "slots": null,
                  },
                },
