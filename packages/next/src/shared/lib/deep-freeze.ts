@@ -9,27 +9,9 @@ import { isPlainObject } from './is-plain-object'
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
  * @param obj The object to freeze.
  */
-export function deepFreeze<T extends object>(obj: T): DeepReadonly<T> {
-  // If the object is already frozen, there's no need to freeze it again.
-  if (Object.isFrozen(obj)) return obj as DeepReadonly<T>
-
-  // An array is an object, but we also want to freeze each element in the array
-  // as well.
-  if (Array.isArray(obj)) {
-    for (const item of obj) {
-      if (!item || typeof item !== 'object') continue
-      deepFreeze(item)
-    }
-
-    return Object.freeze(obj) as DeepReadonly<T>
-  }
-
-  for (const value of Object.values(obj)) {
-    if (!value || typeof value !== 'object') continue
-    deepFreeze(value)
-  }
-
-  return Object.freeze(obj) as DeepReadonly<T>
+export function deepFreeze<T extends object>(obj: T): DeepReadonly<T>
+export function deepFreeze(obj: object): object {
+  return freezeRecursively(obj, freezeAnyObject)
 }
 
 /**
@@ -47,23 +29,41 @@ export function deepFreezePlainValues<T extends object>(
   obj: T
 ): DeepReadonlyPlainValues<T>
 export function deepFreezePlainValues(obj: object): object {
+  return freezeRecursively(obj, isPlainObject)
+}
+
+function freezeAnyObject(): boolean {
+  return true
+}
+
+/**
+ * Freezes `obj` and everything it references. Arrays are always frozen; other
+ * objects are frozen only when `shouldFreeze` returns true, otherwise they and
+ * everything they reference are left as they are.
+ */
+function freezeRecursively(
+  obj: object,
+  shouldFreeze: (obj: object) => boolean
+): object {
   // If the object is already frozen, there's no need to freeze it again.
   if (Object.isFrozen(obj)) return obj
 
+  // An array is an object, but we also want to freeze each element in the array
+  // as well.
   if (Array.isArray(obj)) {
     for (const item of obj) {
       if (!item || typeof item !== 'object') continue
-      deepFreezePlainValues(item)
+      freezeRecursively(item, shouldFreeze)
     }
 
     return Object.freeze(obj)
   }
 
-  if (!isPlainObject(obj)) return obj
+  if (!shouldFreeze(obj)) return obj
 
   for (const value of Object.values(obj)) {
     if (!value || typeof value !== 'object') continue
-    deepFreezePlainValues(value)
+    freezeRecursively(value, shouldFreeze)
   }
 
   return Object.freeze(obj)
