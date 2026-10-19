@@ -6607,6 +6607,7 @@
                 var iteratorFn = getIteratorFn(children$jscomp$0);
                 if (iteratorFn) {
                   var iterator = iteratorFn.call(children$jscomp$0);
+                  if (request.aborted) throw null;
                   if (iterator) {
                     validateIterable(
                       task,
@@ -6616,10 +6617,12 @@
                       iteratorFn
                     );
                     var step = iterator.next();
+                    if (request.aborted) throw null;
                     if (!step.done) {
                       var rows = [];
                       do rows.push(step.value), (step = iterator.next());
                       while (!step.done);
+                      if (request.aborted) throw null;
                       renderSuspenseListRows(
                         request,
                         task,
@@ -6633,6 +6636,7 @@
                 }
                 if ("function" === typeof children$jscomp$0[ASYNC_ITERATOR]) {
                   var _iterator = children$jscomp$0[ASYNC_ITERATOR]();
+                  if (request.aborted) throw null;
                   if (_iterator) {
                     validateAsyncIterable(
                       task,
@@ -6667,6 +6671,7 @@
                       )
                         _rows.push(_step2.value),
                           (_step2 = unwrapThenable(_iterator.next()));
+                    if (request.aborted) throw null;
                     renderSuspenseListRows(
                       request,
                       task,
@@ -7076,6 +7081,7 @@
                 propsWithoutRef,
                 ref
               );
+              if (request.aborted) throw null;
               finishFunctionComponent(
                 request,
                 task,
@@ -7149,8 +7155,9 @@
                 console.error(
                   "A context consumer was rendered with multiple children, or a child that isn't a function. A context consumer expects a single child that is a function. If you did pass a function, make sure there is no trailing or leading whitespace around it."
                 );
-              var newChildren = render(context$jscomp$0._currentValue),
-                prevKeyPath$jscomp$7 = task.keyPath;
+              var newChildren = render(context$jscomp$0._currentValue);
+              if (request.aborted) throw null;
+              var prevKeyPath$jscomp$7 = task.keyPath;
               task.keyPath = keyPath;
               renderNodeDestructive(request, task, newChildren, -1);
               task.keyPath = prevKeyPath$jscomp$7;
@@ -7542,54 +7549,73 @@
             renderChildrenArray(request, task, node, childIndex);
             return;
           }
-          if ((key = getIteratorFn(node)))
-            if ((type = key.call(node))) {
+          if ((key = getIteratorFn(node))) {
+            type = key.call(node);
+            if (request.aborted) throw null;
+            if (type) {
               validateIterable(task, node, childIndex, type, key);
               node = type.next();
+              if (request.aborted) throw null;
               if (!node.done) {
                 key = [];
-                do key.push(node.value), (node = type.next());
+                do
+                  if (
+                    (key.push(node.value),
+                    (node = type.next()),
+                    request.aborted)
+                  )
+                    throw null;
                 while (!node.done);
                 renderChildrenArray(request, task, key, childIndex);
               }
               return;
             }
-          if (
-            "function" === typeof node[ASYNC_ITERATOR] &&
-            (type = node[ASYNC_ITERATOR]())
-          ) {
-            validateAsyncIterable(task, node, childIndex, type);
-            key = task.thenableState;
-            task.thenableState = null;
-            thenableIndexCounter = 0;
-            thenableState = key;
-            key = [];
-            refProp = !1;
-            if (type === node)
-              for (node = readPreviousThenableFromState(); void 0 !== node; ) {
-                if (node.done) {
-                  refProp = !0;
-                  break;
-                }
-                key.push(node.value);
-                node = readPreviousThenableFromState();
-              }
-            if (!refProp)
-              for (node = unwrapThenable(type.next()); !node.done; )
-                key.push(node.value), (node = unwrapThenable(type.next()));
-            renderChildrenArray(request, task, key, childIndex);
-            return;
           }
-          if ("function" === typeof node.then)
-            return (
-              (task.thenableState = null),
-              renderNodeDestructive(
-                request,
-                task,
-                unwrapThenable(node),
-                childIndex
-              )
-            );
+          if ("function" === typeof node[ASYNC_ITERATOR]) {
+            type = node[ASYNC_ITERATOR]();
+            if (request.aborted) throw null;
+            if (type) {
+              validateAsyncIterable(task, node, childIndex, type);
+              key = task.thenableState;
+              task.thenableState = null;
+              thenableIndexCounter = 0;
+              thenableState = key;
+              key = [];
+              refProp = !1;
+              if (type === node)
+                for (
+                  node = readPreviousThenableFromState();
+                  void 0 !== node;
+
+                ) {
+                  if (node.done) {
+                    refProp = !0;
+                    break;
+                  }
+                  key.push(node.value);
+                  node = readPreviousThenableFromState();
+                }
+              if (!refProp) {
+                node = unwrapThenable(type.next());
+                if (request.aborted) throw null;
+                for (; !node.done; )
+                  if (
+                    (key.push(node.value),
+                    (node = unwrapThenable(type.next())),
+                    request.aborted)
+                  )
+                    throw null;
+              }
+              renderChildrenArray(request, task, key, childIndex);
+              return;
+            }
+          }
+          if ("function" === typeof node.then) {
+            task.thenableState = null;
+            node = unwrapThenable(node);
+            if (request.aborted) throw null;
+            return renderNodeDestructive(request, task, node, childIndex);
+          }
           if (node.$$typeof === REACT_CONTEXT_TYPE)
             return renderNodeDestructive(
               request,
@@ -8047,8 +8073,30 @@
               thrownValue$3 === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue$3),
-            !request.aborted && "object" === typeof node && null !== node)
+            request.aborted)
           ) {
+            if (
+              null !== request.trackedPostpones &&
+              null !== task.blockedBoundary
+            ) {
+              segment =
+                thrownValue$3 === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
+              segment = spawnNewSuspendedRenderTask(request, task, segment);
+              abortTaskDEV(segment, request);
+              segment.abortSet.delete(segment);
+              finishAbortedTaskDEV(segment, request, request.fatalError);
+              task.formatContext = previousFormatContext;
+              task.context = previousContext;
+              task.keyPath = previousKeyPath;
+              task.treeContext = previousTreeContext;
+              task.componentStack = previousComponentStack;
+              task.debugTask = previousDebugTask;
+              switchContext(previousContext);
+              return;
+            }
+          } else if ("object" === typeof node && null !== node) {
             if ("function" === typeof node.then) {
               segment = node;
               node =
@@ -9894,11 +9942,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-99c106c4-20261014" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-ba39b32a-20261019" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-99c106c4-20261014\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-ba39b32a-20261019\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11696,5 +11744,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-experimental-99c106c4-20261014";
+    exports.version = "19.3.0-experimental-ba39b32a-20261019";
   })();
