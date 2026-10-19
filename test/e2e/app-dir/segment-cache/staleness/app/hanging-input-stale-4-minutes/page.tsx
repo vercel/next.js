@@ -12,8 +12,8 @@ async function Content({ hangingInput }: { hangingInput: Promise<any> }) {
     await hangingInput
   }
 
-  cacheLife({ stale: 10 * 60 })
-  return 'Content with stale time of 10 minutes'
+  cacheLife({ stale: 4 * 60, revalidate: 8 * 60 })
+  return 'Content with stale time of 4 minutes'
 }
 
 export default function Page() {

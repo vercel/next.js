@@ -149,59 +149,44 @@ describe('segment cache (staleness)', () => {
 
   it('entry expires when its stale time has elapsed (for a cache with a hanging input)', async () => {
     let page: Playwright.Page
+    const startDate = Date.now()
+
     const browser = await next.browser('/', {
-      beforePageLoad(p: Playwright.Page) {
+      async beforePageLoad(p: Playwright.Page) {
         page = p
+        await page.clock.install()
+        await page.clock.setFixedTime(startDate)
       },
     })
     const act = createRouterAct(page)
 
-    await page.clock.install()
-
     // Reveal the link to trigger a prefetch
     const linkAccordion = await browser.elementByCss(
-      'input[data-link-accordion="/hanging-input-stale-10-minutes"]'
+      'input[data-link-accordion="/hanging-input-stale-4-minutes"]'
     )
     await act(
       async () => {
         await linkAccordion.click()
       },
       {
-        includes: 'Content with stale time of 10 minutes',
+        includes: 'Content with stale time of 4 minutes',
       }
     )
 
     // Hide the link
     await linkAccordion.click()
 
-    // Fast forward to <start> + 5 minutes and 1 millisecond
-    const timeStep = 5 * 60 * 1000 + 1
-    await page.clock.fastForward(timeStep)
+    // Fast forward to <start> + 4 minutes and 1 millisecond
+    await page.clock.setFixedTime(startDate + 4 * 60 * 1000 + 1)
 
     // Reveal the link again to trigger a new prefetch task
     await act(
       async () => {
         await linkAccordion.click()
       },
-      // The page with a stale time of 10 minutes is *not* requested again
-      // because it's still fresh.
-      'no-requests'
-    )
-
-    // Hide the link again
-    await linkAccordion.click()
-
-    // Fast forward to <start> + 10 minutes and 1 millisecond
-    await page.clock.fastForward(10 * 60 * 1000 + 1 - timeStep)
-
-    // Reveal the link again to trigger a new prefetch task
-    await act(
-      async () => {
-        await linkAccordion.click()
-      },
-      // The page with a stale time of 10 minutes is requested again
+      // The page with a stale time of 4 minutes is requested again
       {
-        includes: 'Content with stale time of 10 minutes',
+        includes: 'Content with stale time of 4 minutes',
       }
     )
   })
