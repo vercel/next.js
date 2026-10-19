@@ -2530,11 +2530,25 @@ function installGlobalModuleLoadingHandlers(
     return exportsOrPromise
   }
 
+  // React loads every chunk listed for a client reference before requiring
+  // it, and Turbopack lists all chunks of the reference's chunk group, so a
+  // render repeats the same chunks for each client reference (e.g. 13k calls
+  // for 242 chunks). Reuse the first load of a chunk instead of loading,
+  // instrumenting and tracking it again. This is scoped to the render that
+  // installed these handlers, so it doesn't outlive chunks reloaded in dev.
+  const chunkLoads = new Map<unknown, Promise<unknown>>()
+
   // @ts-expect-error
   globalThis.__next_chunk_load__ = (
     ...args: Parameters<typeof instrumented.loadChunk>
   ) => {
-    const loadingChunk = instrumented.loadChunk(...args)
+    const chunk = args[0]
+    let loadingChunk = chunkLoads.get(chunk)
+    if (loadingChunk !== undefined) {
+      return loadingChunk
+    }
+    loadingChunk = instrumented.loadChunk(...args)
+    chunkLoads.set(chunk, loadingChunk)
     if (shouldTrackModuleLoading()) {
       trackPendingChunkLoad(loadingChunk)
     }
