@@ -317,6 +317,8 @@ describe('app-root-param-getters - cache - at runtime', () => {
       expect(await browser.elementById('random').text()).toBe(frCaRandom)
     })
 
+    // Runtime logs are only collected from Vercel deployments.
+    // @force-gate !deploy || vercel
     it('should error when using root params within `unstable_cache` - start', async () => {
       await next.render$('/en/us/unstable_cache')
       await retry(() => {
@@ -326,6 +328,8 @@ describe('app-root-param-getters - cache - at runtime', () => {
       }, 30_000)
     })
 
+    // Runtime logs are only collected from Vercel deployments.
+    // @force-gate !deploy || vercel
     it('should error when using root params in "use cache" nested inside unstable_cache - start', async () => {
       await next.render$('/en/us/nested-in-unstable_cache')
       await retry(() => {

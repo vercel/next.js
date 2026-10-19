@@ -68,6 +68,8 @@ describe('setting cookies', () => {
 
 // All three phases produce the same diagnostic. Separate instances prevent a
 // delayed log from another phase from satisfying the current assertion.
+// Runtime logs are only collected from Vercel deployments.
+// @force-gate !deploy || vercel
 describe.each([
   {
     phase: 'action',

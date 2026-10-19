@@ -22,6 +22,8 @@ describe('revalidateTag-rsc', () => {
     })
   })
 
+  // Runtime logs are only collected from Vercel deployments.
+  // @force-gate !deploy || vercel
   it('should error if revalidateTag is called during render', async () => {
     const browser = await next.browser('/')
     await browser.elementByCss('#revalidate-via-page').click()
@@ -46,6 +48,8 @@ describe('revalidateTag-rsc', () => {
     }, 30_000)
   })
 
+  // Runtime logs are only collected from Vercel deployments.
+  // @force-gate !deploy || vercel
   it('should error if revalidateTag is called inside a cached function', async () => {
     const browser = await next.browser('/')
     await browser.elementByCss('#revalidate-via-cache').click()
