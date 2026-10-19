@@ -67,11 +67,12 @@ export async function handler(
     srcPage = srcPage.replace(/\/index$/, '') || '/'
   }
 
-  // Start the request span before `prepare`, so route module preparation is
-  // part of the request's trace.
+  // Registering `instrumentation.ts` usually installs the tracer provider, so
+  // do it before starting the request span. The span is started before
+  // `prepare`, so route module preparation is part of the request's trace.
+  await routeModule.ensureInstrumentation(req)
   return routeModule.traceRequest(
     req,
-    res,
     {
       tracer: getTracer(),
       spanName: `${req.method || 'GET'} ${srcPage}`,

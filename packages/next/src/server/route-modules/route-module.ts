@@ -642,6 +642,10 @@ export abstract class RouteModule<
    * trace. When the handler is wrapped by next-server, which already started
    * the request span, `fn` runs inside that active span instead.
    *
+   * Callers must await `ensureInstrumentation` before calling this: on the
+   * first request, registering `instrumentation.ts` usually installs the
+   * tracer provider, and a span started earlier would not be recorded.
+   *
    * `fn` receives the request span, and the span that was active when the
    * handler was invoked (e.g. a platform-created HTTP span), if any.
    *
@@ -654,7 +658,6 @@ export abstract class RouteModule<
    */
   public async traceRequest<T>(
     req: IncomingMessage,
-    res: ServerResponse,
     {
       tracer,
       spanName,
@@ -675,13 +678,6 @@ export abstract class RouteModule<
     // next-server can be removed when this is no longer used
     if (isWrappedByNextServer && activeSpan) {
       return fn(activeSpan, undefined)
-    }
-
-    if (!isWrappedByNextServer) {
-      // On the first request, registering `instrumentation.ts` usually installs
-      // the tracer provider. Do it before starting the request span: a span
-      // started earlier would not be recorded.
-      await this.prepareRuntime(req, res)
     }
 
     const parentSpan = tracer.getActiveScopeSpan()
@@ -721,23 +717,20 @@ export abstract class RouteModule<
   }
 
   /**
-   * Sets up the Node.js runtime for a request: patches `res.setHeader` and
-   * makes sure `instrumentation.ts` is registered. Safe to call more than once
-   * per request. Returns the absolute project directory (`undefined` in the
-   * edge runtime, which handles loading instrumentation at the edge adapter
-   * level).
+   * Makes sure `instrumentation.ts` is registered for the Node.js runtime.
+   * Safe to call more than once per request. Returns the absolute project
+   * directory (`undefined` in the edge runtime, which handles loading
+   * instrumentation at the edge adapter level).
+   *
+   * @internal - called by `prepare` and by the Next.js build templates before
+   * `traceRequest`.
    */
-  private async prepareRuntime(
-    req: IncomingMessage | BaseNextRequest,
-    res: ServerResponse | null
+  public async ensureInstrumentation(
+    req: IncomingMessage | BaseNextRequest
   ): Promise<string | undefined> {
     let absoluteProjectDir: string | undefined
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
-      if (res) {
-        patchSetHeaderWithCookieSupport(req, res)
-      }
-
       const { join, relative } =
         require('node:path') as typeof import('node:path')
 
@@ -820,7 +813,10 @@ export abstract class RouteModule<
       }
     | undefined
   > {
-    const absoluteProjectDir = await this.prepareRuntime(req, res)
+    if (process.env.NEXT_RUNTIME !== 'edge' && res) {
+      patchSetHeaderWithCookieSupport(req, res)
+    }
+    const absoluteProjectDir = await this.ensureInstrumentation(req)
     const manifests = getTracer().trace(
       RouteModuleSpan.loadManifests,
       { spanName: 'load route manifests' },

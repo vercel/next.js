@@ -100,11 +100,12 @@ export const getHandler = ({
     const multiZoneDraftMode = process.env
       .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
-    // Start the request span before `prepare`, so route module preparation is
-    // part of the request's trace.
+    // Registering `instrumentation.ts` usually installs the tracer provider, so
+    // do it before starting the request span. The span is started before
+    // `prepare`, so route module preparation is part of the request's trace.
+    await routeModule.ensureInstrumentation(req)
     return routeModule.traceRequest(
       req,
-      res,
       {
         tracer: getTracer(),
         spanName: `${req.method || 'GET'} ${srcPage}`,
