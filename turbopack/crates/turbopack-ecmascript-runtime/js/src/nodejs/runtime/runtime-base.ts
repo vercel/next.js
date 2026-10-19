@@ -109,6 +109,8 @@ function loadChunkAsync<TModule extends Module>(
   let entry = chunkCache.get(chunkPath)
   if (entry === undefined) {
     const sourceModuleId = this.m.id
+    // `ensureChunk` is conditionally installed to support lazy dynamic imports during SSR
+    // It can be used to call back into turbopack to compile the chunk we are about to reference.
     const ensureChunk = globalThis.__turbopack_ensure_chunk__
     if (ensureChunk === undefined) {
       entry = requireChunk(chunkPath, sourceModuleId)
