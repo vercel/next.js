@@ -63,10 +63,6 @@ async function main() {
       'app/app/[param]/rsc-fetch/error/page.js',
     ],
     [/^\/behind-middleware$/, 'app/behind-middleware/page.js'],
-    [
-      /^\/behind-middleware\/route-handler$/,
-      'app/behind-middleware/route-handler/route.js',
-    ],
     // ---
     [/^\/api\/pages\/param\/basic$/, 'pages/api/pages/[param]/basic.js'],
     [/^\/api\/pages\/param\/error$/, 'pages/api/pages/[param]/error.js'],
