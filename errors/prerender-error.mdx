@@ -57,7 +57,7 @@ While the App Router supports [colocation](/docs/app/getting-started/project-str
 
 If you colocate a generic UI component with one of these reserved names (for example, creating `app/icon.tsx` or `app/shop/icon.tsx` for an SVG icon component):
 
-- The component may appear to work during `next dev`, but `next build` fails during prerendering with an error such as:
+- Pages will render in `next dev`, but requesting the `/icon` route returns an error (HTTP 500), and `next build` fails during prerendering with an error such as:
 
   ```txt
   Error occurred prerendering page "/icon".
