@@ -6,13 +6,23 @@ title: No HTML link for pages
 
 ## Why This Error Occurred
 
-An `<a>` element was used to navigate to a page route without using the `next/link` component, causing unnecessary full-page refreshes.
+There are two separate situations that lead to this page.
 
-The `Link` component is required to enable client-side route transitions between pages and provide a single-page app experience.
+The first is a lint error on a specific line: an `<a>` element was used to navigate to a page route without using the `next/link` component, causing unnecessary full-page refreshes. See [Use `Link` for internal navigation](#use-link-for-internal-navigation).
+
+The second is a warning printed once per ESLint run, not attached to any line of code:
+
+```bash filename="Terminal"
+Pages directory cannot be found at <root>/pages or <root>/src/pages. If using a custom path, please configure with the `no-html-link-for-pages` rule in your eslint config file.
+```
+
+That warning means the rule could not find the routes of your application, so it skipped the `<a>` check entirely for that run. It is not saying your file contains an `<a>` element. See [Resolve the routes directory](#resolve-the-routes-directory).
 
 ## Possible Ways to Fix It
 
-Make sure to import the `Link` component and wrap anchor elements that route to different page routes.
+### Use `Link` for internal navigation
+
+Import the `Link` component and use it in place of anchor elements that route to different page routes.
 
 **Before:**
 
@@ -42,24 +52,64 @@ function Home() {
 export default Home
 ```
 
-### Options
+The rule only reports anchors it can match against a discovered route. It ignores absolute and protocol-relative URLs, anchors carrying `target="_blank"` or `download`, and anchors whose `href` is not a string literal.
 
-#### `pagesDir`
+### Resolve the routes directory
 
-This rule can normally locate your `pages` directory automatically.
+To know which `href` values point at your own routes, the rule reads your routes from disk. For each root directory it checks four locations:
 
-If you're working in a monorepo, we recommend configuring the [`rootDir`](/docs/pages/api-reference/config/eslint#specifying-a-root-directory-within-a-monorepo) setting in `eslint-plugin-next`, which `pagesDir` will use to locate your `pages` directory.
+- `pages`
+- `src/pages`
+- `app`
+- `src/app`
 
-In some cases, you may also need to configure this rule directly by providing a `pages` directory. This can be a path or an array of paths.
+The root directory defaults to the directory ESLint is running in. If any one of those four locations exists, the rule works and no warning is printed. Either router satisfies it, so an application that uses only the App Router does not need a `pages` directory and does not trigger this warning.
 
-```json filename="eslint.config.json"
-{
-  "rules": {
-    "@next/next/no-html-link-for-pages": ["error", "packages/my-app/pages/"]
-  }
-}
+The warning is printed only when none of the four exists under any root directory. In practice that points at one of the following.
+
+**ESLint is running from a directory that is not your project root.** The four locations are resolved from the ESLint working directory, so a lint invocation started from a subdirectory, or from a repository root above the application, resolves them against the wrong place. Run ESLint from the directory that contains your `app` or `pages` folder, or set a root directory as described below.
+
+**The application lives somewhere else in the repository.** Set the [`rootDir`](/docs/app/api-reference/config/eslint#specifying-a-root-directory-within-a-monorepo) setting so the rule knows where to look. It accepts a path, a glob, or an array of either.
+
+```js filename="eslint.config.mjs"
+import { defineConfig } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  {
+    settings: {
+      next: {
+        rootDir: 'packages/my-app/',
+      },
+    },
+  },
+])
+
+export default eslintConfig
 ```
+
+**Your routes are in a directory with a different name.** Pass the path to the rule directly. This can be a path or an array of paths, and it replaces the `pages` and `src/pages` candidates.
+
+```js filename="eslint.config.mjs"
+import { defineConfig } from 'eslint/config'
+import nextVitals from 'eslint-config-next/core-web-vitals'
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  {
+    rules: {
+      '@next/next/no-html-link-for-pages': ['error', 'packages/my-app/routes/'],
+    },
+  },
+])
+
+export default eslintConfig
+```
+
+> **Good to know**: The warning names only the `pages` candidates, even though the `app` candidates were also checked. It is also printed at most once per ESLint process, and the results of the directory lookups are cached for the lifetime of that process, so a directory created while a long-running editor ESLint server is active is not picked up until that process restarts.
 
 ## Useful Links
 
-- [next/link API Reference](/docs/pages/api-reference/components/link)
+- [next/link API Reference](/docs/app/api-reference/components/link)
+- [ESLint configuration](/docs/app/api-reference/config/eslint)
