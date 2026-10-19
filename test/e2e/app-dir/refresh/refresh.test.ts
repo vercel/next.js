@@ -53,6 +53,8 @@ describe('app-dir refresh - valid usage', () => {
 
 // Each invalid usage gets its own instance: the error messages are identical,
 // and delayed runtime logs from one request must not satisfy another test.
+// Runtime logs are only collected from Vercel deployments.
+// @force-gate !deploy || vercel
 describe.each([
   {
     usage: 'during page render',

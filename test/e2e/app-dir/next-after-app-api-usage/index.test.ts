@@ -4,6 +4,8 @@ import { retry } from 'next-test-utils'
 import { randomUUID } from 'node:crypto'
 import { REQUEST_API_NAMES } from './app/request-apis-in-promise/common'
 
+// Runtime logs are only collected from Vercel deployments.
+// @force-gate !deploy || vercel
 describe('nextjs APIs in after()', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,

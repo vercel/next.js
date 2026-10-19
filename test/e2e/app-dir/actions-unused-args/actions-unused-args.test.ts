@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from '../../../lib/next-test-utils'
 
+// Runtime logs are only collected from Vercel deployments.
+// @force-gate !deploy || vercel
 describe('actions-unused-args', () => {
   const { next } = nextTestSetup({
     files: __dirname,

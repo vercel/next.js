@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { randomUUID } from 'node:crypto'
 
+// Runtime logs are only collected from Vercel deployments.
+// @force-gate !deploy || vercel
 describe('app-dir - draft-mode-middleware', () => {
   const { next } = nextTestSetup({
     files: __dirname,
