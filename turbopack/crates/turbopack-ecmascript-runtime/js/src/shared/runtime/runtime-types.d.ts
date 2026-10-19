@@ -157,6 +157,11 @@ interface TurbopackBaseContext<M> {
   f: ModuleContextFactory
   i: EsmImport
   A: InvokeAsyncLoader
+  B: (
+    id: ModuleId,
+    ancestors: readonly ModuleId[],
+    load: () => unknown
+  ) => ReturnType<EsmImport>
   s: EsmExport
   S: EsmReexport
   j: DynamicExport

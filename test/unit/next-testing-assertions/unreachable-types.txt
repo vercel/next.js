@@ -1,0 +1,21 @@
+import { createExpect, expect, expectTypeOf, test } from 'vitest'
+
+expectTypeOf(expect.unreachable)
+  .parameter(0)
+  .toEqualTypeOf<string | undefined>()
+expectTypeOf<ReturnType<typeof expect.unreachable>>().toEqualTypeOf<never>()
+const local = createExpect()
+expectTypeOf<ReturnType<typeof local.unreachable>>().toEqualTypeOf<never>()
+const detached: (message?: string) => never = local.unreachable
+function checked(value: string | undefined): string {
+  if (value === undefined) expect.unreachable('missing')
+  return value
+}
+test('context types', ({ expect: scoped }) => {
+  expectTypeOf<ReturnType<typeof scoped.unreachable>>().toEqualTypeOf<never>()
+})
+// @ts-expect-error The optional message is a string.
+expect.unreachable(1)
+// @ts-expect-error The helper accepts only one optional argument.
+local.unreachable('first', 'extra')
+void [detached, checked]

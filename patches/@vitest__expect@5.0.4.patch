@@ -1,0 +1,39 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -4,9 +4,17 @@
+ import c from 'tinyrainbow';
+ import { isMockFunction } from '@vitest/spy';
+ import { processError } from '@vitest/utils/error';
+-import { use, util } from 'chai';
++import { use, util, getChaiAssertionIdentity as nextGetChaiAssertionIdentity } from 'chai';
+ import * as chai from 'chai';
+ export { chai };
++
++// Original async wrappers inherit only the genuine Chai constructor token.
++const nextAsyncAssertionIdentities = new WeakMap();
++const nextGetAsyncAssertionIdentity = WeakMap.prototype.get.bind(nextAsyncAssertionIdentities);
++const nextSetAsyncAssertionIdentity = WeakMap.prototype.set.bind(nextAsyncAssertionIdentities);
++export function getVitestAssertionIdentity(value) {
++  return nextGetAsyncAssertionIdentity(value);
++}
+ 
+ const ChaiStyleAssertions = (chai, utils) => {
+ 	function defProperty(name, delegateTo) {
+@@ -1762,6 +1770,8 @@
+ 				return recordAsyncExpect(test, promise, createAssertionMessage(utils, this, !!args.length), error, utils.flag(this, "soft"));
+ 			};
+ 		} });
++		const identity = nextGetChaiAssertionIdentity(this);
++		if (identity) nextSetAsyncAssertionIdentity(proxy, identity);
+ 		return proxy;
+ 	});
+ 	utils.addProperty(chai.Assertion.prototype, "rejects", function __VITEST_REJECTS__() {
+@@ -1803,6 +1813,8 @@
+ 				return recordAsyncExpect(test, promise, createAssertionMessage(utils, this, !!args.length), error, utils.flag(this, "soft"));
+ 			};
+ 		} });
++		const identity = nextGetChaiAssertionIdentity(this);
++		if (identity) nextSetAsyncAssertionIdentity(proxy, identity);
+ 		return proxy;
+ 	});
+ };

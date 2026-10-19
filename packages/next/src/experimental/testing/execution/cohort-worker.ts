@@ -16,6 +16,7 @@ import {
   mapTestAnnotationLocation,
   serializeSourceMappedDiagnostic as serializeDiagnostic,
 } from '../reporting/source-mapped-diagnostics'
+import { mapTestArtifactLocation } from '../reporting/artifact-location'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import { setBundlerFindSourceMapImplementation } from '../../../server/patch-error-inspect'
 import { createArtifactSourceMapLookup } from './source-maps'
@@ -284,6 +285,22 @@ async function runFile(requestId: number, input: WorkerInput) {
             },
             revision: artifact.revision,
             annotation,
+          })
+        },
+        getArtifactLocation: (error) =>
+          mapTestArtifactLocation(error, options.entry.file),
+        onArtifact(context, artifactRecord) {
+          return event(owner, {
+            type: 'test-artifact',
+            entryId: artifact.entryId,
+            caseId: context.testId,
+            attempt: {
+              id: context.id,
+              retry: context.retry,
+              repeat: context.repeat,
+            },
+            revision: artifact.revision,
+            artifact: artifactRecord,
           })
         },
         testTimeout: options.testTimeout,

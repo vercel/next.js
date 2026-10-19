@@ -1,0 +1,165 @@
+{
+  "immediate": {
+    "kinds": ["undefined", "null", "boolean", "number", "string"],
+    "values": [null, false, 0, ""],
+    "objectIdentity": true,
+    "callbackReceiverUndefined": true
+  },
+  "retry": {
+    "forCalls": 3,
+    "untilCalls": 3,
+    "forValue": "for-ready",
+    "untilValue": "until-ready"
+  },
+  "async": {
+    "calls": 3,
+    "active": 0,
+    "maximum": 1,
+    "value": "async-ready",
+    "untilCalls": 3,
+    "truthy": 7
+  },
+  "errors": {
+    "forCalled": true,
+    "forIdentity": true,
+    "untilIdentity": true,
+    "asyncIdentity": true,
+    "untilCalls": 2,
+    "asyncCalls": 1,
+    "errors": [
+      {
+        "name": "TypeError",
+        "message": "retained waitFor error"
+      },
+      {
+        "name": "RangeError",
+        "message": "retained waitUntil error"
+      },
+      {
+        "name": "RangeError",
+        "message": "retained waitUntil error"
+      }
+    ]
+  },
+  "timeouts": {
+    "pendingCalls": 1,
+    "falsyCalls": 1,
+    "errors": [
+      {
+        "name": "Error",
+        "message": "Timed out in waitFor!"
+      },
+      {
+        "name": "Error",
+        "message": "Timed out in waitUntil!"
+      },
+      {
+        "name": "Error",
+        "message": "Timed out in waitUntil!"
+      }
+    ]
+  },
+  "thenables": {
+    "forValue": "for-thenable",
+    "untilValue": "until-thenable",
+    "forCalls": 2,
+    "untilCalls": 2,
+    "receivers": 4
+  },
+  "pending-before": {
+    "events": [],
+    "releaseReady": true
+  },
+  "pending-after": {
+    "events": [
+      ["for", "for-afterAll"],
+      ["until", "until-afterAll"]
+    ]
+  },
+  "unused-before": {
+    "started": 2
+  },
+  "unused-after": {
+    "reachedAfterAll": true
+  },
+  "assert-pending-before": {
+    "calls": 1,
+    "assertionCalls": 1
+  },
+  "assert-pending-after": {
+    "calls": 2,
+    "before": 1,
+    "after": 2,
+    "value": "assertion-afterAll"
+  },
+  "overlap-A": {
+    "calls": 1,
+    "assertionCalls": 1
+  },
+  "overlap-B": {
+    "calls": 2,
+    "before": 1,
+    "after": 2,
+    "value": "ready-from-B",
+    "seen": [
+      {
+        "currentTestName": "Browser next case observes the actual common expect counter after a pending retry",
+        "assertionCalls": 2
+      }
+    ]
+  },
+  "timer-overlap-before": {
+    "common": 0,
+    "local": 1
+  },
+  "timer-overlap-complete": {
+    "before": {
+      "common": 1,
+      "local": 1
+    },
+    "value": "timer-during-B",
+    "result": {
+      "common": 2,
+      "local": 2,
+      "commonName": "Browser ordinary timer updates live common state and its held local state independently",
+      "localName": "Browser ordinary timer holds an extracted common and context expectation"
+    },
+    "after": {
+      "common": 2,
+      "local": 2
+    }
+  },
+  "timer-after-before": {
+    "common": 0,
+    "local": 1
+  },
+  "timer-after-complete": {
+    "before": {
+      "common": 0,
+      "local": 1
+    },
+    "value": "timer-afterAll",
+    "result": {
+      "common": 1,
+      "local": 2,
+      "commonName": "Browser ordinary timer keeps extracted and local expectations through afterAll",
+      "localName": "Browser ordinary timer keeps extracted and local expectations through afterAll"
+    },
+    "after": {
+      "common": 1,
+      "local": 2
+    }
+  },
+  "around-before": {
+    "assertionCalls": 0,
+    "currentTestName": null
+  },
+  "around-child": {
+    "assertionCalls": 1,
+    "currentTestName": "Browser aroundAll keeps common state after its completed child"
+  },
+  "around-after": {
+    "assertionCalls": 1,
+    "currentTestName": "Browser aroundAll keeps common state after its completed child"
+  }
+}

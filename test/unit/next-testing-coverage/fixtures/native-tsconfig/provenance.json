@@ -1,0 +1,16 @@
+[
+  {
+    "file": "development.native.txt",
+    "original": "/private/tmp/next-testing-native-config-provenance72/native-endpoint-baseline/new-native-evidence-DYsqBH/development-coverage-true-true/artifact-files/server/next-test/821faac91c943693eb2ce35877c41db348adcbfe420cbc5be8aa741f2ff6978b.tsconfig-inputs.json",
+    "sha256": "d74e5d8da551927bf2a4a0616e77cfc2eee9a73a061268138ed79bb7ea8d37de",
+    "bytes": 153532,
+    "qualification": "historical native producer schema bytes only; original owners closed and native/runtime revisions differ; no live lease or parent publication qualification"
+  },
+  {
+    "file": "production.native.txt",
+    "original": "/private/tmp/next-testing-native-config-provenance72/native-endpoint-baseline/new-native-evidence-DYsqBH/production-coverage-true-true/artifact-files/server/next-test/3859dad299de0bdfe128055f19eb5f221dec43bc1a053f99f80d397963976e02.tsconfig-inputs.json",
+    "sha256": "ed547d0e2638cf8e7c8771560183ba3d30c640a82361ae45290d2ebd10161182",
+    "bytes": 152421,
+    "qualification": "historical native producer schema bytes only; original owners closed and native/runtime revisions differ; no live lease or parent publication qualification"
+  }
+]

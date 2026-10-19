@@ -1,4 +1,5 @@
 import { validateSynchronousClient } from '../client/validate'
+import { loadGlobalTestApi } from './invocation-platform'
 export { createModuleImportTracker } from './imports'
 import type { TestTagDefinition } from './tasks'
 import type { RuntimeOptions } from '../assertions/utilities'
@@ -18,6 +19,7 @@ import {
   type CollectorDispatch,
 } from './collector'
 import { createAssertionRuntime } from '../assertions'
+import { assertAssertionRuntimeAccess } from '../assertions/assertion-platform'
 import { createFixtureWorker, type FixtureWorker } from './fixtures'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import {
@@ -42,6 +44,13 @@ let assertions: Awaited<ReturnType<typeof createAssertionRuntime>> | undefined
 
 export function getAssertionRuntime() {
   assertScopeActive()
+  if (!assertions)
+    throw new Error('Assertion APIs require an initialized Next test file.')
+  return assertions
+}
+
+export function getAssertionRuntimeForAssertions() {
+  assertAssertionRuntimeAccess()
   if (!assertions)
     throw new Error('Assertion APIs require an initialized Next test file.')
   return assertions
@@ -349,12 +358,13 @@ function initializeFile(
         fileAssertions = assertions
         await scope.run(async () => {
           if (globals) {
-            const facade = await import('../vitest')
+            const facade = await loadGlobalTestApi()
             for (const name of [
               'suite',
               'test',
               'describe',
               'it',
+              'chai',
               'expect',
               'assert',
               'expectTypeOf',
@@ -456,7 +466,7 @@ function initializeFile(
     ) {
       if (state !== 'collected')
         throw new Error(`Cannot validate browser file in ${state} state.`)
-      validateSynchronousClient(collector.root, options)
+      return validateSynchronousClient(collector.root, options)
     },
     async run(options: RunnerOptions) {
       if (collectOnly)

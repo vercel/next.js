@@ -5,7 +5,8 @@ type SyntaxNode = { type?: string; [key: string]: unknown }
 /** Mirror the native dotted import.meta.vitest AST form; never execute source. */
 export function usesInSourceTestMarker(
   source: string,
-  filename: string
+  filename: string,
+  options?: { deferSyntaxError?: boolean }
 ): boolean {
   let syntax: unknown
   try {
@@ -21,6 +22,10 @@ export function usesInSourceTestMarker(
       ],
     })
   } catch (error) {
+    // Already-selected test files still reach the compiler/static collector,
+    // which owns their original syntax diagnostics. Source-only discovery must
+    // fail here because it cannot safely decide whether to select the file.
+    if (options?.deferSyntaxError) return false
     throw new Error(`Cannot determine in-source test marker in ${filename}`, {
       cause: error,
     })

@@ -21,7 +21,7 @@ export interface TestTagDefinition extends Omit<TestOptions, 'tags'> {
 export interface TestAttachment {
   contentType?: string
   path?: string
-  body?: string | Uint8Array
+  body?: string | Uint8Array | undefined
   bodyEncoding?: 'base64' | 'utf-8'
 }
 export interface TestArtifactLocation {
@@ -40,6 +40,43 @@ export interface TestArtifactBase {
   attachments?: TestAttachment[]
   location?: TestArtifactLocation
 }
+/** Public custom artifact registry, merged by consumer module augmentation. */
+export interface TestArtifactRegistry {}
+export interface TestAnnotationArtifact extends TestArtifactBase {
+  type: 'internal:annotation'
+  annotation: TestAnnotation
+}
+export interface VisualRegressionArtifactAttachment extends TestAttachment {
+  name: 'reference' | 'actual' | 'diff'
+  width: number
+  height: number
+}
+export interface VisualRegressionArtifact extends TestArtifactBase {
+  type: 'internal:toMatchScreenshot'
+  kind: 'visual-regression'
+  message: string
+  attachments: VisualRegressionArtifactAttachment[]
+}
+export interface BrowserTraceArtifact extends TestArtifactBase {
+  type: 'internal:browserTrace'
+  data: unknown
+}
+export interface FailureScreenshotArtifactAttachment extends TestAttachment {
+  path: string
+  originalPath: string
+  body?: undefined
+}
+export interface FailureScreenshotArtifact extends TestArtifactBase {
+  type: 'internal:failureScreenshot'
+  attachments: [FailureScreenshotArtifactAttachment] | []
+}
+export type TestArtifact =
+  | BrowserTraceArtifact
+  | FailureScreenshotArtifact
+  | TestAnnotationArtifact
+  | VisualRegressionArtifact
+  | TestArtifactRegistry[keyof TestArtifactRegistry]
+
 export interface TaskResult {
   state: 'run' | 'pass' | 'fail' | 'skip' | 'only' | 'todo' | 'queued'
   errors?: TestError[]
@@ -78,7 +115,7 @@ export interface Test<ExtraContext extends object = object> extends TaskBase {
   repeats?: number
   fails?: boolean
   annotations: TestAnnotation[]
-  artifacts: (TestArtifactBase & { type: string })[]
+  artifacts: TestArtifact[]
   benchmarks: unknown[]
 }
 export interface Suite extends TaskBase {

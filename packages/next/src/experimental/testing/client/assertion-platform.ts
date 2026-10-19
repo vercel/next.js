@@ -1,7 +1,16 @@
 import {
   assertBrowserApiScope,
   assertInternalAttemptOwner,
+  beginAssertionFile as beginClientAssertionFile,
+  getFileAssertionOrigin as getClientAssertionOrigin,
 } from './async-context'
+export { createEnvironmentStubs } from './env'
+export const fileAssertionLifetime: boolean = true
+export const beginAssertionFile = beginClientAssertionFile
+export const getFileAssertionOrigin = getClientAssertionOrigin
+export function assertAssertionRuntimeAccess(): void {
+  assertBrowserApiScope('assertion')
+}
 export function assertAssertionScope(): void {
   assertBrowserApiScope('assertion')
 }

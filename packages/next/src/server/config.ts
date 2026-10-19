@@ -1,4 +1,11 @@
 import { existsSync } from 'fs'
+import {
+  assertTestingDefaultConfigurationEnvironment,
+  assertTestingDefaultConfigurationAdapter,
+  captureTestingDefaultLoadOptions,
+  readTestingDefaultConfiguration,
+  type TestingDefaultConfiguration,
+} from './config-testing-policy'
 import { createRequire } from 'module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
@@ -1865,8 +1872,16 @@ async function applyModifyConfig(
   config: NextConfigComplete,
   phase: PHASE_TYPE,
   silent: boolean,
-  dir: string
+  dir: string,
+  testingDefaultConfiguration?: TestingDefaultConfiguration
 ): Promise<NextConfigComplete> {
+  if (testingDefaultConfiguration !== undefined) {
+    assertTestingDefaultConfigurationEnvironment(testingDefaultConfiguration)
+    assertTestingDefaultConfigurationAdapter(
+      config,
+      testingDefaultConfiguration
+    )
+  }
   // we always call modify config  and phase can be used to only
   // modify for specific times
   if (config.adapterPath) {
@@ -1924,6 +1939,8 @@ function getCacheKey(
 }
 
 type LoadConfigOptions = {
+  /** Internal refusals only; never native/client permission or a public config. */
+  testingDefaultConfiguration?: TestingDefaultConfiguration
   customConfig?: object | null
   rawConfig?: boolean
   silent?: boolean
@@ -1956,10 +1973,33 @@ export default async function loadConfig(
   dir: string,
   opts: LoadConfigOptions = {}
 ): Promise<NextConfigComplete> {
+  const testingDefaultConfiguration = readTestingDefaultConfiguration(opts)
+  if (testingDefaultConfiguration !== undefined) {
+    opts = captureTestingDefaultLoadOptions(opts)
+    if (
+      phase !== PHASE_PRODUCTION_BUILD ||
+      typeof dir !== 'string' ||
+      !isAbsolute(dir) ||
+      resolve(dir) !== dir ||
+      dir.includes('\0') ||
+      opts.customConfig !== undefined ||
+      opts.rawConfig === true ||
+      opts.silent === false ||
+      opts.reportExperimentalFeatures !== undefined ||
+      (opts.bundler !== undefined && opts.bundler !== Bundler.Turbopack)
+    ) {
+      throw new Error(
+        'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: unsupported default-only load options'
+      )
+    }
+  }
   // Test for an explicit `silent == false` since the default in loadConfig is true
   const logTiming = opts.silent === false
   const startTimeNanos = logTiming ? process.hrtime.bigint() : undefined
-  const [config, meta] = await loadConfigImpl(phase, dir, opts)
+  const [config, meta] =
+    testingDefaultConfiguration === undefined
+      ? await loadConfigImpl(phase, dir, opts)
+      : await loadConfigImpl(phase, dir, opts, testingDefaultConfiguration)
 
   warnIfReact18IsInstalled(phase, dir, opts.silent)
 
@@ -1988,8 +2028,12 @@ async function loadConfigImpl(
     reactProductionProfiling,
     debugPrerender,
     bundler,
-  }: LoadConfigOptions
+  }: LoadConfigOptions,
+  testingDefaultConfiguration?: TestingDefaultConfiguration
 ): Promise<[NextConfigComplete, LoadConfigMeta]> {
+  if (testingDefaultConfiguration !== undefined) {
+    assertTestingDefaultConfigurationEnvironment(testingDefaultConfiguration)
+  }
   const meta: LoadConfigMeta = {}
   // Generate cache key based on parameters that affect config output
   // Include process.pid to invalidate cache on server restart
@@ -2005,6 +2049,11 @@ async function loadConfigImpl(
   // Check if we have a cached result
   const cachedResult = configCache.get(cacheKey)
   if (cachedResult) {
+    if (testingDefaultConfiguration !== undefined) {
+      throw new Error(
+        'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: existing config cache is unavailable'
+      )
+    }
     meta.cacheHit = true
 
     // Call the experimental features callback if provided
@@ -2063,6 +2112,9 @@ async function loadConfigImpl(
     : Log
 
   loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
+  if (testingDefaultConfiguration !== undefined) {
+    assertTestingDefaultConfigurationEnvironment(testingDefaultConfiguration)
+  }
 
   let configFileName = 'next.config.js'
   const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
@@ -2103,6 +2155,14 @@ async function loadConfigImpl(
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
+  if (testingDefaultConfiguration !== undefined) {
+    assertTestingDefaultConfigurationEnvironment(testingDefaultConfiguration)
+    if (path?.length) {
+      throw new Error(
+        'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: named Next configuration is unavailable'
+      )
+    }
+  }
 
   // If config file was found
   if (path?.length) {
@@ -2384,7 +2444,15 @@ async function loadConfigImpl(
   setHttpClientAndAgentOptions(completeConfig)
 
   const finalConfig = finalizeConfig(
-    await applyModifyConfig(completeConfig, phase, silent, dir),
+    testingDefaultConfiguration === undefined
+      ? await applyModifyConfig(completeConfig, phase, silent, dir)
+      : await applyModifyConfig(
+          completeConfig,
+          phase,
+          silent,
+          dir,
+          testingDefaultConfiguration
+        ),
     bundler
   )
 

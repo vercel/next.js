@@ -1,3 +1,4 @@
+pub mod browser_creator_scope;
 pub mod cjs_finder;
 pub mod cjs_optimizer;
 pub mod debug_fn_name;

@@ -1,0 +1,27 @@
+test('existing global bindings', () => {
+  const mock = vi.fn((value: number) => value * 2)
+  const same = vitest.mocked(mock)
+  expect(same(3)).toBe(6)
+  expectTypeOf(same(3)).toEqualTypeOf<number>()
+  assertType<number>(same(3))
+  assert.equal(same(3), 6)
+})
+suite('suite', () => {})
+describe('describe', () => {})
+it('it', () => {})
+beforeAll(() => {})
+afterAll(() => {})
+beforeEach(() => {})
+afterEach(() => {})
+onTestFailed(() => {})
+onTestFinished(() => {})
+aroundEach(async (run) => {
+  await run()
+})
+aroundAll(async (run) => {
+  await run()
+})
+
+const globalChai: (typeof import('vitest'))['chai'] = chai
+globalChai.assert.equal(42, 42)
+globalChai.expect(42).to.equal(42)

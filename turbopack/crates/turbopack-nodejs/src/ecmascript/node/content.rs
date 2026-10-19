@@ -102,6 +102,11 @@ impl EcmascriptNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptNodeChunkContent {
     #[turbo_tasks::function]
+    fn native_test_import_coverage_roles(self: Vc<Self>) -> Vc<FileContent> {
+        self.code().native_test_import_coverage_roles()
+    }
+
+    #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }

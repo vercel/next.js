@@ -46,6 +46,7 @@ use crate::{
     export::Liveness,
     magic_identifier,
     module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
+    native_import_coverage::NativeImportCoverageRole,
     references::{
         esm::{
             EsmExport,
@@ -930,6 +931,12 @@ impl EsmAssetReference {
                                         DUMMY_SP,
                                         ctxt.unwrap_or_default(),
                                     );
+                                    let native_import_coverage =
+                                        matches!(&import_source, ImportSource::Module { .. })
+                                            && !span.is_dummy()
+                                            && *chunking_context
+                                                .native_test_import_coverage_roles()
+                                                .await?;
                                     let (key, mut call_expr) = match import_source {
                                         ImportSource::Module { asset } => {
                                             let id = asset.chunk_item_id(chunking_context).await?;
@@ -1012,7 +1019,12 @@ impl EsmAssetReference {
                                     if this.is_pure_import {
                                         call_expr.set_span(PURE_SP);
                                     }
-                                    result.push(CodeGenerationHoistedStmt::new(
+                                    let native_role =
+                                        native_import_coverage.then(|| NativeImportCoverageRole {
+                                            span,
+                                            call: call_expr.clone(),
+                                        });
+                                    let mut statement = CodeGenerationHoistedStmt::new(
                                         key,
                                         var_decl_with_span(
                                             quote!(
@@ -1022,7 +1034,9 @@ impl EsmAssetReference {
                                             ),
                                             span,
                                         ),
-                                    ));
+                                    );
+                                    statement.native_import_coverage = native_role;
+                                    result.push(statement);
                                 }
                                 None => {
                                     // Nothing to import.

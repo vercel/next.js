@@ -13,3 +13,19 @@ export function requireBrowserClientCapability(
       'The installed Turbopack binding does not support actual Browser Mode client entries.'
     )
 }
+
+/** Coverage needs concrete native output provenance, independently of client support. */
+export function requireBrowserCoverageCapability(
+  binding: { projectTestEntryBrowserCoverageVersion?: () => number },
+  requested: boolean
+) {
+  if (!requested) return
+  const version =
+    typeof binding.projectTestEntryBrowserCoverageVersion === 'function'
+      ? binding.projectTestEntryBrowserCoverageVersion()
+      : 0
+  if (!Number.isInteger(version) || version < 1)
+    throw new Error(
+      'The installed Turbopack binding does not support native Browser Mode coverage certificates.'
+    )
+}

@@ -2,7 +2,10 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
-    ecma::ast::{ArrayLit, ArrayPat, Expr, Ident},
+    ecma::{
+        ast::{ArrayLit, ArrayPat, ArrowExpr, Expr, Function, Ident, Program, YieldExpr},
+        visit::{VisitMut, VisitMutWith},
+    },
     quote,
 };
 use turbo_rcstr::rcstr;
@@ -15,7 +18,8 @@ use turbopack_core::{
 
 use crate::{
     ScopeHoistingContext,
-    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    ast_path_trie::AstPathId,
+    code_gen::{AstModifier, CodeGeneration, CodeGenerationHoistedStmt},
     references::esm::base::ReferencedAsset,
     utils::AstSyntaxContext,
 };
@@ -25,6 +29,7 @@ use crate::{
 #[derive(PartialEq, Eq, Default, Debug, Clone, NonLocalValue, Encode, Decode)]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
+    pub lower_async_to_generator: bool,
 }
 
 /// Option<[AsyncModuleOptions]>.
@@ -47,6 +52,7 @@ impl OptionAsyncModuleOptions {
 #[turbo_tasks::value(shared)]
 pub struct AsyncModule {
     pub has_top_level_await: bool,
+    pub lower_async_to_generator: bool,
     pub import_externals: bool,
 }
 
@@ -200,6 +206,7 @@ impl AsyncModule {
 
         Vc::cell(Some(AsyncModuleOptions {
             has_top_level_await: self.has_top_level_await,
+            lower_async_to_generator: self.lower_async_to_generator,
         }))
     }
 }
@@ -211,6 +218,12 @@ impl AsyncModule {
         references: Vc<ModuleReferences>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
+        let mut generated = CodeGeneration::empty();
+        if self.await?.lower_async_to_generator {
+            generated
+                .visitors
+                .push((AstPathId::ROOT, Box::new(LowerModuleAwait)));
+        }
         if let Some(async_module_info) = async_module_info {
             let async_idents = self
                 .get_async_idents(async_module_info, references, chunking_context)
@@ -222,7 +235,7 @@ impl AsyncModule {
                     .map(|(ident, ctxt)| Ident::new(ident.clone().into(), DUMMY_SP, **ctxt))
                     .collect::<Vec<_>>();
 
-                return Ok(CodeGeneration::hoisted_stmts([
+                generated.hoisted_stmts.extend([
                     CodeGenerationHoistedStmt::new(rcstr!("__turbopack_async_dependencies__"),
                         quote!(
                             "var __turbopack_async_dependencies__ = __turbopack_handle_async_dependencies__($deps);"
@@ -250,10 +263,95 @@ impl AsyncModule {
                                 type_ann: None,
                             }.into(),
                         )),
-                ].to_vec()));
+                ]);
+                if self.await?.lower_async_to_generator {
+                    for statement in &mut generated.hoisted_stmts {
+                        statement.stmt.visit_mut_with(&mut LowerModuleAwait);
+                    }
+                }
+                return Ok(generated);
             }
         }
 
-        Ok(CodeGeneration::empty())
+        Ok(generated)
     }
+}
+
+/// This runs after source analysis and preserves the original AST spans for maps.
+struct LowerModuleAwait;
+impl AstModifier for LowerModuleAwait {
+    fn visit_mut_program(&self, program: &mut Program) {
+        program.visit_mut_with(&mut LowerModuleAwait);
+    }
+}
+impl VisitMut for LowerModuleAwait {
+    fn visit_mut_function(&mut self, _: &mut Function) {}
+    fn visit_mut_arrow_expr(&mut self, _: &mut ArrowExpr) {}
+    fn visit_mut_expr(&mut self, expression: &mut Expr) {
+        expression.visit_mut_children_with(self);
+        if let Expr::Await(awaited) = expression {
+            *expression = Expr::Yield(YieldExpr {
+                span: awaited.span,
+                arg: Some(awaited.arg.clone()),
+                delegate: false,
+            });
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{
+        ecma::{
+            ast::{Decl, Expr, Stmt},
+            visit::VisitMutWith,
+        },
+        quote,
+    };
+
+    use crate::references::async_module::LowerModuleAwait;
+
+    #[test]
+    fn lowers_only_module_await_and_preserves_original_spans() {
+        let mut statement = quote!("await source;" as Stmt);
+        let Stmt::Expr(before) = &statement else {
+            panic!("expected expression")
+        };
+        let Expr::Await(before) = &*before.expr else {
+            panic!("expected await")
+        };
+        let span = before.span;
+        statement.visit_mut_with(&mut LowerModuleAwait);
+        let Stmt::Expr(after) = statement else {
+            panic!("expected expression")
+        };
+        let Expr::Yield(after) = *after.expr else {
+            panic!("expected yield")
+        };
+        assert_eq!(after.span, span);
+        let mut nested = quote!("async function nested() { await source; }" as Stmt);
+        nested.visit_mut_with(&mut LowerModuleAwait);
+        let Stmt::Decl(Decl::Fn(function)) = nested else {
+            panic!("expected function")
+        };
+        assert!(function.function.is_async);
+    }
+}
+
+pub(crate) fn unlowered_top_level_for_await(program: &Program) -> Option<swc_core::common::Span> {
+    struct Find(Option<swc_core::common::Span>);
+    impl swc_core::ecma::visit::Visit for Find {
+        fn visit_function(&mut self, _: &Function) {}
+        fn visit_arrow_expr(&mut self, _: &ArrowExpr) {}
+        fn visit_for_of_stmt(&mut self, statement: &swc_core::ecma::ast::ForOfStmt) {
+            if statement.is_await {
+                self.0 = Some(statement.span);
+            } else {
+                swc_core::ecma::visit::VisitWith::visit_children_with(statement, self);
+            }
+        }
+    }
+    let mut finder = Find(None);
+    swc_core::ecma::visit::VisitWith::visit_with(program, &mut finder);
+    finder.0
 }

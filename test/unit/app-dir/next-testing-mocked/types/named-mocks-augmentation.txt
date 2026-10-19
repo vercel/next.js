@@ -1,0 +1,17 @@
+import type { MockResultReturn, MockContext } from 'vitest'
+declare module 'vitest' {
+  interface MockResultReturn<T> { namedType136Marker?: T }
+}
+declare const record: MockResultReturn<number>
+declare const context: MockContext<() => number>
+type ReturnFromContext = Extract<
+  MockContext<() => number>['results'][number], { type: 'return' }
+>
+declare const contextReturn: ReturnFromContext
+export const probeDirectReturnType = record.type
+export const probeDirectReturnValue = record.value
+export const probeDirectReturnMarker = record.namedType136Marker
+export const probeContextResults = context.results
+export const probeContextReturnType = contextReturn.type
+export const probeContextReturnValue = contextReturn.value
+export const probeContextReturnMarker = contextReturn.namedType136Marker

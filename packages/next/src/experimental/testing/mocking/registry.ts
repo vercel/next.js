@@ -4,6 +4,13 @@ type MockFactory = (
   importOriginal: ImportOriginal
 ) => ModuleExports | Promise<ModuleExports>
 
+/** Supplied only by the emitted input loader for this file's collection. */
+export interface RegistrationInputOwner {
+  readonly index: number
+  closed: boolean
+  evaluating: boolean
+}
+
 interface Registration {
   factory: MockFactory
   importOriginal: ImportOriginal
@@ -23,13 +30,23 @@ export class MockRegistry {
   private evaluating = false
   private disposed = false
 
+  constructor(
+    private registrationInput?: () => RegistrationInputOwner | undefined
+  ) {}
+
   register(
     targetKey: string,
     factory: MockFactory,
     importOriginal: ImportOriginal
   ): void {
     this.assertActive()
-    if (this.evaluating) {
+    const input = this.registrationInput?.()
+    if (this.registrationInput && (!input || input.closed)) {
+      throw new Error(
+        'Module mock registration has no live compiled input owner.'
+      )
+    }
+    if (input ? input.evaluating : this.evaluating) {
       throw new Error(
         'Cannot register a module mock after evaluation has started. Dynamic mock registration is not supported.'
       )
@@ -44,14 +61,20 @@ export class MockRegistry {
     this.registrations.set(targetKey, { factory, importOriginal })
   }
 
-  resolve(targetKey: string): Promise<ModuleExports> {
+  resolve(
+    targetKey: string,
+    deferredOriginal?: ImportOriginal
+  ): Promise<ModuleExports> {
     this.assertActive()
-    this.evaluating = true
+    const input = this.registrationInput?.()
+    if (input) input.evaluating = true
+    else this.evaluating = true
     const registration = this.registrations.get(targetKey)
     if (!registration) {
       throw new Error(`No module mock is registered for target ${targetKey}.`)
     }
     if (!registration.result) {
+      let deferredResult: Promise<ModuleExports> | undefined
       // Store the promise before invoking user code, including synchronous
       // factories, so concurrent graph consumers share one evaluation.
       registration.result = Promise.resolve()
@@ -59,7 +82,9 @@ export class MockRegistry {
           this.assertActive()
           return registration.factory(async () => {
             this.assertActive()
-            const original = await registration.importOriginal()
+            const original = await (deferredOriginal
+              ? (deferredResult ??= Promise.resolve().then(deferredOriginal))
+              : registration.importOriginal())
             this.assertActive()
             return original
           })

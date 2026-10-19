@@ -1,0 +1,79 @@
+import { expect, test, vi } from 'vitest'
+
+const originalDate = globalThis.Date
+const originalSetTimeout = globalThis.setTimeout
+const originalClearTimeout = globalThis.clearTimeout
+const originalSetInterval = globalThis.setInterval
+const realSetTimeout = originalSetTimeout.bind(globalThis)
+const realClearTimeout = originalClearTimeout.bind(globalThis)
+function record(name, raw) {
+  console.log('BROWSER_PROJECT_CLOCK_RAW ' + JSON.stringify({ name, raw }))
+}
+
+test('inherits project time and selected timer methods', () => {
+  let raw
+  try {
+    const fluent = vi.useFakeTimers() === vi
+    const atInstall = Date.now()
+    const calls = []
+    setTimeout(() => calls.push(Date.now()), 10)
+    const pendingBefore = vi.getTimerCount()
+    vi.advanceTimersByTime(10)
+    raw = { fluent, atInstall, calls, now: Date.now(), pendingBefore, pendingAfter: vi.getTimerCount(), timeoutFaked: globalThis.setTimeout !== originalSetTimeout, intervalUnchanged: globalThis.setInterval === originalSetInterval }
+  } finally { vi.useRealTimers() }
+  raw.restored = globalThis.Date === originalDate && globalThis.setTimeout === originalSetTimeout
+  record('project-defaults', raw)
+  expect(raw.atInstall).toBe(1234)
+  expect(raw.calls).toEqual([1244])
+  expect(raw.timeoutFaked && raw.intervalUnchanged && raw.restored).toBe(true)
+})
+
+test('merges a partial call override with the project selection and loop limit', () => {
+  let raw
+  try {
+    vi.useFakeTimers({ now: 2345 })
+    const atInstall = Date.now()
+    const calls = []
+    function again() { calls.push(Date.now()); setTimeout(again, 0) }
+    setTimeout(again, 0)
+    let error
+    try { vi.runAllTimers() } catch (value) { error = value }
+    raw = { atInstall, calls, error: error && { name: error.name, message: error.message }, pendingAfter: vi.getTimerCount(), timeoutFaked: globalThis.setTimeout !== originalSetTimeout, intervalUnchanged: globalThis.setInterval === originalSetInterval }
+  } finally { vi.useRealTimers() }
+  record('partial-override', raw)
+  expect(raw.atInstall).toBe(2345)
+  expect(raw.calls).toHaveLength(3)
+  expect(raw.error).toBeDefined()
+  expect(raw.timeoutFaked && raw.intervalUnchanged).toBe(true)
+})
+
+test('replaces the project toFake array while retaining the configured time', () => {
+  let raw
+  try {
+    const fluent = vi.useFakeTimers({ toFake: ['Date'] }) === vi
+    raw = { fluent, now: Date.now(), fake: vi.isFakeTimers(), dateReplaced: globalThis.Date !== originalDate, timeoutUnchanged: globalThis.setTimeout === originalSetTimeout, intervalUnchanged: globalThis.setInterval === originalSetInterval, count: vi.getTimerCount() }
+  } finally { vi.useRealTimers() }
+  record('array-override', raw)
+  expect(raw.now).toBe(1234)
+  expect(raw.dateReplaced && raw.timeoutUnchanged && raw.intervalUnchanged).toBe(true)
+})
+
+test('inherits native cancellation and permits an explicit per-call override', async () => {
+  const rows = []
+  for (const override of [undefined, false]) {
+    let calls = 0
+    const handle = realSetTimeout(() => { calls++ }, 0)
+    try {
+      if (override === undefined) vi.useFakeTimers()
+      else vi.useFakeTimers({ shouldClearNativeTimers: override })
+      clearTimeout(handle)
+      await new Promise(resolve => realSetTimeout(resolve, 0))
+      rows.push({ override: override === undefined ? 'project' : override, calls, fake: vi.isFakeTimers() })
+    } finally {
+      vi.useRealTimers()
+      realClearTimeout(handle)
+    }
+  }
+  record('native-cancellation', { rows })
+  expect(rows.map(row => row.calls)).toEqual([0, 1])
+})

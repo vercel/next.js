@@ -1,0 +1,64 @@
+import { afterAll, recordArtifact, test, vi } from 'vitest'
+
+const observe = (name, raw) => console.log('BROWSER_ARTIFACT_RAW ' + JSON.stringify({ name, raw }))
+let firstTask
+
+async function call(task, input) {
+  let value, error
+  try { value = await recordArtifact(task, input) }
+  catch (actual) { error = actual }
+  return { value, error }
+}
+const failure = (error) => error && { name: error.name, message: error.message }
+
+test('observes named data-only Browser artifacts and repeated input identity', async ({ task }) => {
+  firstTask = task
+  const data = { value: 7, list: ['first', 2], enabled: false, empty: null }
+  const input = { type: 'probe:browser-json', label: 'first', data }
+  const pending = recordArtifact(task, input)
+  const immediate = { promise: pending instanceof Promise, locationInjected: !!input.location, taskCount: task.artifacts.length }
+  let first, error
+  try { first = await pending } catch (actual) { error = actual }
+  const second = await call(task, input)
+  observe('data-only', {
+    namedType: typeof recordArtifact, viMemberType: typeof vi.recordArtifact,
+    immediate, error: failure(error), repeatedError: failure(second.error),
+    returnSameInput: first === input, returnDataSame: first?.data === data,
+    storedSame: first !== undefined && task.artifacts[0] === first,
+    repeatedReturnSame: second.value !== undefined && second.value === first,
+    repeatedStoredSame: second.value !== undefined && task.artifacts[1] === second.value,
+    taskCount: task.artifacts.length, returned: first,
+    inputLocation: input.location, inputDataUnchanged: JSON.stringify(data) === '{"value":7,"list":["first",2],"enabled":false,"empty":null}',
+  })
+})
+
+test('observes a supplied completed earlier Browser test task', async ({ task }) => {
+  const originalCount = firstTask.artifacts.length
+  const input = { type: 'probe:browser-prior', data: { from: 'second' } }
+  const outcome = await call(firstTask, input)
+  observe('prior-task', { earlierState: firstTask.result?.state, originalCount,
+    currentCount: firstTask.artifacts.length, currentTaskCount: task.artifacts.length,
+    error: failure(outcome.error), returned: outcome.value,
+    storedSame: outcome.value !== undefined && firstTask.artifacts.at(-1) === outcome.value,
+  })
+})
+
+test('observes the actual Browser file task as an artifact target', async ({ task }) => {
+  const file = task.file
+  const input = { type: 'probe:browser-file', data: { value: 9 } }
+  const count = file.artifacts?.length
+  const outcome = await call(file, input)
+  observe('file-task', { fileType: file.type, fileSelf: file.file === file,
+    originalCount: count, currentCount: file.artifacts?.length,
+    currentTaskCount: task.artifacts.length, error: failure(outcome.error), returned: outcome.value,
+  })
+})
+
+afterAll(async () => {
+  const originalCount = firstTask.artifacts.length
+  const outcome = await call(firstTask, { type: 'probe:browser-after-all', data: { complete: true } })
+  observe('afterAll', { state: firstTask.result?.state, originalCount,
+    currentCount: firstTask.artifacts.length, error: failure(outcome.error), returned: outcome.value,
+    storedSame: outcome.value !== undefined && firstTask.artifacts.at(-1) === outcome.value,
+  })
+})

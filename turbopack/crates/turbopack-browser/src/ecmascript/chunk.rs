@@ -11,7 +11,7 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, SourceMapAsset},
     version::VersionedContent,
 };
-use turbopack_ecmascript::chunk::EcmascriptChunk;
+use turbopack_ecmascript::chunk::{EcmascriptChunk, is_async_loader_chunk_item};
 
 use crate::{BrowserChunkingContext, ecmascript::content::EcmascriptBrowserChunkContent};
 
@@ -51,6 +51,25 @@ impl EcmascriptBrowserChunk {
 }
 
 impl EcmascriptBrowserChunk {
+    /// A whole script can be source-free only when every emitted item is a
+    /// generated loader. Components and empty chunks never earn that certificate.
+    pub(crate) async fn is_async_loader_chunk(&self) -> Result<bool> {
+        let chunk = self.chunk.await?;
+        if !chunk.component_chunks.is_empty() {
+            return Ok(false);
+        }
+        let items = chunk.content.included_chunk_items().await?;
+        if items.is_empty() {
+            return Ok(false);
+        }
+        for &item in items.iter() {
+            if !is_async_loader_chunk_item(item).await? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
     async fn component_chunk_assets(&self) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
         let component_chunks = self.chunk.component_chunks().await?;
         let mut assets = Vec::with_capacity(component_chunks.len());

@@ -1,3 +1,4 @@
+import type { TestArtifact } from '../runner/tasks'
 import { relative, sep } from 'node:path'
 import type { createTestReporter } from './reporter'
 import type { CaseResult, ResultEvent, SerializedDiagnostic } from './events'
@@ -30,6 +31,7 @@ interface Task {
   ok(): boolean
   meta(): NonNullable<CaseResult['meta']>
   annotations?(): unknown[]
+  artifacts?(): TestArtifact[]
 }
 class Collection {
   constructor(private items: Task[]) {}
@@ -75,7 +77,6 @@ function expose(task: Task): Task {
           'diagnostic',
           'toTestSpecification',
           'logs',
-          'artifacts',
           'benchmarks',
         ].includes(String(key))
       )
@@ -217,6 +218,14 @@ export function createCustomReporterModules(
           ok: () => state !== 'failed',
           meta: () => metadata,
           annotations: () => [...(test.annotations ?? [])],
+          artifacts: () =>
+            completion.events.flatMap((event) =>
+              event.type === 'test-artifact' &&
+              event.entryId === entry.id &&
+              event.caseId === test.caseId
+                ? [event.artifact]
+                : []
+            ),
         })
       )
     }

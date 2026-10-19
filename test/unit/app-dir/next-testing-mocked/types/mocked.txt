@@ -1,0 +1,139 @@
+import { expectTypeOf, vi, vitest } from 'vitest'
+
+const fn = (value: string) => value.length
+vi.mocked(fn).mockReturnValue(1)
+vi.mocked(fn, false).mockReturnValue(1)
+vi.mocked(fn, true).mockReturnValue(1)
+vi.mocked(fn, {}).mockReturnValue(1)
+vi.mocked(fn, { partial: false }).mockReturnValue(1)
+vi.mocked(fn, { partial: false, deep: false }).mockReturnValue(1)
+vi.mocked(fn, { partial: false, deep: true }).mockReturnValue(1)
+vi.mocked(fn, { partial: true, deep: false }).mockReturnValue(1)
+vi.mocked(fn, { partial: true, deep: true }).mockReturnValue(1)
+vi.mocked(fn, undefined).mockReturnValue(1)
+const { mocked } = vi
+const detached: typeof vi.mocked = mocked
+const alias: typeof vi.mocked = vitest.mocked
+detached(fn).mockReturnValue(1)
+alias(fn).mockReturnValue(1)
+
+// @ts-expect-error A typed return must remain a number.
+vi.mocked(fn).mockReturnValue('wrong')
+// @ts-expect-error A typed argument must remain a string.
+vi.mocked(fn)(1)
+const dynamicBoolean: boolean = Math.random() > 0.5
+// @ts-expect-error The published overloads do not add a boolean-union overload.
+vi.mocked(fn, dynamicBoolean)
+// @ts-expect-error This runtime-ignored argument is not a published typed option.
+vi.mocked(fn, null)
+// @ts-expect-error This runtime-ignored argument is not a published typed option.
+vi.mocked(fn, 17)
+// @ts-expect-error Do not invent an options index signature.
+vi.mocked(fn, { deep: true, extra: 'ignored at runtime' })
+// @ts-expect-error Only literal false/true flags are accepted.
+vi.mocked(fn, { partial: 'partial' })
+
+const object = {
+  top: (value: number) => String(value),
+  nested: { run: (value: string) => value.length },
+  label: 'label',
+}
+vi.mocked(object).top.mockReturnValue('typed')
+// @ts-expect-error Shallow mocking does not change nested function members.
+vi.mocked(object).nested.run.mockReturnValue(1)
+vi.mocked(object, true).nested.run.mockReturnValue(1)
+vi.mocked(object, { deep: true }).nested.run.mockReturnValue(1)
+// @ts-expect-error Deep mocking preserves nested return types.
+vi.mocked(object, true).nested.run.mockReturnValue('wrong')
+expectTypeOf(vi.mocked(object).label).toEqualTypeOf<string>()
+
+const readonlyObject = {
+  value: 1,
+  nested: { label: 'fixed', run: (value: number) => value + 1 },
+} as const
+const readonlyMock = vi.mocked(readonlyObject, true)
+readonlyMock.nested.run.mockReturnValue(2)
+// @ts-expect-error The mapped field still has literal type 1.
+readonlyMock.value = 2
+// @ts-expect-error The mapped nested field still has literal type 'fixed'.
+readonlyMock.nested.label = 'changed'
+
+const sync = (value: number) => ({ id: value, nested: { label: 'value' } })
+vi.mocked(sync).mockReturnValue({ id: 1, nested: { label: 'full' } })
+vi.mocked(sync, { partial: true }).mockReturnValue({ id: 1 })
+vi.mocked(sync, { partial: true, deep: true }).mockReturnValue({ nested: {} })
+// @ts-expect-error Full mocking requires the full return value.
+vi.mocked(sync).mockReturnValue({ id: 1 })
+// @ts-expect-error Shallow partial does not make nested.label optional.
+vi.mocked(sync, { partial: true }).mockReturnValue({ nested: {} })
+// @ts-expect-error Partial mocking does not change property types.
+vi.mocked(sync, { partial: true }).mockReturnValue({ id: 'wrong' })
+
+const asyncFn = async (value: number) => ({ id: value, nested: { label: 'value' } })
+vi.mocked(asyncFn).mockResolvedValue({ id: 1, nested: { label: 'full' } })
+vi.mocked(asyncFn, { partial: true }).mockResolvedValue({ id: 1 })
+vi.mocked(asyncFn, { partial: true, deep: true }).mockResolvedValue({ nested: {} })
+// @ts-expect-error Full async return still needs every fulfilled field.
+vi.mocked(asyncFn).mockResolvedValue({ id: 1 })
+// @ts-expect-error Shallow partial does not make fulfilled nested.label optional.
+vi.mocked(asyncFn, { partial: true }).mockResolvedValue({ nested: {} })
+// @ts-expect-error Deep partial still preserves scalar field types.
+vi.mocked(asyncFn, { partial: true, deep: true }).mockResolvedValue({ id: 'wrong' })
+// @ts-expect-error Mocking preserves the async function argument type.
+vi.mocked(asyncFn, { partial: true })('wrong')
+
+function generic<T extends string | number>(value: T): T { return value }
+const genericMock = vi.mocked(generic)
+const genericGetter = genericMock.getMockImplementation()
+expectTypeOf(genericGetter).toEqualTypeOf<((value: string | number) => string | number) | undefined>()
+genericMock.mockImplementation((value: string | number) => value)
+// @ts-expect-error The getter normalizes and loses the original generic relation.
+const notPolymorphic: typeof generic = genericMock.getMockImplementation()!
+// @ts-expect-error Preserve the published generic constraint.
+genericMock(true)
+// @ts-expect-error Incompatible normalized implementation arguments.
+genericMock.mockImplementation((value: boolean) => value)
+
+function overloaded(value: string): string
+function overloaded(value: number): number
+function overloaded(value: string | number) { return value }
+const overloadedMock = vi.mocked(overloaded)
+const overloadedGetter = overloadedMock.getMockImplementation()
+expectTypeOf(overloadedGetter).toEqualTypeOf<((value: number) => number) | undefined>()
+overloadedMock.mockReturnValue(1)
+// @ts-expect-error ReturnType/Parameters use the last overload for mock methods.
+overloadedMock.mockReturnValue('wrong')
+// @ts-expect-error The normalized getter is not the original overloaded function.
+const notOriginalOverloads: typeof overloaded = overloadedMock.getMockImplementation()!
+
+class Box { constructor(public value: number) {} }
+const MockedBox = vi.mocked(Box)
+expectTypeOf(new MockedBox(1)).toEqualTypeOf<Box>()
+// @ts-expect-error Preserve constructor argument types.
+new MockedBox('wrong')
+MockedBox.mockReturnValue(new Box(1))
+// @ts-expect-error Preserve the instance type for class mock return values.
+MockedBox.mockReturnValue('wrong')
+
+expectTypeOf(vi.mocked(null)).toEqualTypeOf<null>()
+expectTypeOf(vi.mocked(undefined)).toEqualTypeOf<undefined>()
+const numericPrimitive: number = vi.mocked(1)
+const textualPrimitive: string = vi.mocked('value')
+// @ts-expect-error A numeric primitive cannot become a string.
+const wrongPrimitiveString: string = vi.mocked(1)
+// @ts-expect-error A string primitive cannot become a number.
+const wrongPrimitiveNumber: number = vi.mocked('value')
+void numericPrimitive
+void textualPrimitive
+
+// Host records and compares these actual inferred types between the two sides.
+// In particular, generic callable intersection inference is NOT inferred from
+// the getter or promised to be stronger than the pinned reference.
+export const probeGenericCall = genericMock('value')
+export const probeGenericGetter = genericGetter
+export const probeOverloadedCall = overloadedMock(1)
+export const probeOverloadedGetter = overloadedGetter
+export const probeReadonlyLabel = readonlyMock.nested.label
+export const probePrimitiveNull = vi.mocked(null)
+export const probeNumericPrimitiveLiteral = vi.mocked(1)
+export const probeStringPrimitiveLiteral = vi.mocked('value')

@@ -46,6 +46,12 @@ pub trait GenerateSourceMap {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<FileContent>;
 
+    /// Only typed native code may supply this inventory; raw map JSON has no authority.
+    #[turbo_tasks::function]
+    fn native_test_import_coverage_roles(self: Vc<Self>) -> Vc<FileContent> {
+        FileContent::NotFound.cell()
+    }
+
     /// Returns an individual section of the larger source map, if found.
     #[turbo_tasks::function]
     fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<FileContent> {

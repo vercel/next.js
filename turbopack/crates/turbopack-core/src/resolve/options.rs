@@ -17,6 +17,7 @@ use crate::{
         parse::Request,
         pattern::Pattern,
         plugin::{AfterResolvePlugin, BeforeResolvePlugin},
+        tsconfig_provenance::NativeTsConfigProbeScope,
     },
 };
 
@@ -638,6 +639,8 @@ impl ResolvedMap {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Default)]
 pub struct ResolveOptions {
+    /// Private native TypeScript input qualification. None preserves ordinary resolution.
+    pub native_tsconfig_probe: Option<NativeTsConfigProbeScope>,
     /// When set, do not apply extensions and default_files for relative
     /// request. But they are still applied for resolving into packages.
     pub fully_specified: bool,

@@ -1889,6 +1889,36 @@ pub fn project_test_entry_browser_client_version() -> u32 {
     1
 }
 
+/// Typed compiler certificates for generated browser bookkeeping scripts.
+#[napi]
+pub fn project_test_entry_browser_coverage_version() -> u32 {
+    1
+}
+
+/// Explicit source-preserving coverage compilation, independent of runtime mode.
+#[napi]
+pub fn project_test_entry_source_coverage_version() -> u32 {
+    1
+}
+
+/// Native-owned, post-composition import initializer coverage descriptors.
+#[napi]
+pub fn project_test_entry_import_coverage_version() -> u32 {
+    1
+}
+
+/// Actual native TypeScript option/discovery/resolve input observations.
+#[napi]
+pub fn project_test_entry_ts_config_inputs_version() -> u32 {
+    1
+}
+
+/// Raw query/fragment admission for parent-owned string alias plans.
+#[napi]
+pub fn project_test_entry_alias_version() -> u32 {
+    1
+}
+
 /// Create an explicit test endpoint without adding it to application routes.
 #[napi(ts_return_type = "Promise<{ __napiType: 'Endpoint' }>")]
 pub async fn project_test_entry(
@@ -1903,6 +1933,10 @@ pub async fn project_test_entry(
     route: Option<RcStr>,
     dependency_plan: Option<bool>,
     browser_client: Option<bool>,
+    source_coverage: Option<bool>,
+    alias_finds: Option<Vec<RcStr>>,
+    import_coverage_roles: Option<bool>,
+    tsconfig_input_revision: Option<RcStr>,
 ) -> napi::Result<External<ExternalEndpoint>> {
     let ctx = project.turbopack_ctx.clone();
     let container = project.container;
@@ -1919,8 +1953,14 @@ pub async fn project_test_entry(
                 cohort_files.unwrap_or_default(),
                 runtime_env.unwrap_or(false),
                 route,
-                dependency_plan.unwrap_or(false),
-                browser_client.unwrap_or(false),
+                (
+                    dependency_plan.unwrap_or(false),
+                    browser_client.unwrap_or(false),
+                    source_coverage.unwrap_or(false),
+                    alias_finds.unwrap_or_default(),
+                    import_coverage_roles.unwrap_or(false),
+                    tsconfig_input_revision,
+                ),
             );
             // Resolve now so invalid profiles/paths fail before an endpoint is exposed.
             endpoint.read_strongly_consistent().await?;

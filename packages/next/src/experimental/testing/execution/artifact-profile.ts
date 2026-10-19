@@ -3,10 +3,12 @@ import type { CompiledTestArtifact, TestEntry } from '../contracts'
 export function assertArtifactProfile(
   artifact: Pick<
     CompiledTestArtifact,
-    'version' | 'kind' | 'entryId' | 'profile'
+    'version' | 'kind' | 'entryId' | 'profile' | 'coverage'
   >,
   entry: TestEntry
 ): void {
+  if (artifact.coverage?.sourceAnalysis)
+    throw new Error('Compile-only coverage sources cannot be executed')
   if (artifact.version !== 2) {
     throw new Error(
       'Unsupported compiled test artifact version; recompile the test'

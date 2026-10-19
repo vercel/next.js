@@ -1,13 +1,27 @@
+import type { MessagePort } from 'node:worker_threads'
 import { readFile, stat, realpath } from 'node:fs/promises'
 import { dirname, extname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 let apiPath: string
 const owned = new Set<string>()
-export async function initialize(options: { apiPath: string; entry?: string }) {
+const dependencies = new Set<string>()
+const dependencyOwners = new Set<string>()
+export async function initialize(options: {
+  apiPath: string
+  entry?: string
+  dependencyPort?: MessagePort
+}) {
   apiPath = options.apiPath
-  if (options.entry)
-    owned.add(pathToFileURL(await realpath(options.entry)).href)
+  options.dependencyPort?.on('message', (id: string) =>
+    options.dependencyPort!.postMessage({ id, files: [...dependencies] })
+  )
+  options.dependencyPort?.unref()
+  if (options.entry) {
+    const entry = pathToFileURL(await realpath(options.entry)).href
+    owned.add(entry)
+    dependencyOwners.add(entry)
+  }
 }
 export async function resolve(
   specifier: string,
@@ -43,6 +57,8 @@ export async function resolve(
       `Test configuration cannot load the ${specifier} runner/controller. Use the inert vitest/config adapter.`
     )
   const parentOwned = context.parentURL && owned.has(context.parentURL)
+  const dependencyParent =
+    context.parentURL && dependencyOwners.has(context.parentURL)
   let result: { url: string }
   try {
     result = await nextResolve(specifier, context)
@@ -75,6 +91,14 @@ export async function resolve(
     }
     if (!found) throw error
     result = await nextResolve(pathToFileURL(found).href, context)
+  }
+  if (
+    (dependencyParent || specifier.startsWith('file:')) &&
+    result.url.startsWith('file:') &&
+    fileURLToPath(result.url) !== apiPath
+  ) {
+    dependencies.add(fileURLToPath(result.url))
+    dependencyOwners.add(result.url)
   }
   if (
     (parentOwned || specifier.startsWith('file:')) &&

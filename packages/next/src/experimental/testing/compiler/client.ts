@@ -33,12 +33,11 @@ export async function readClientDescriptor(
     Array.isArray(descriptor)
   )
     throw new Error('Invalid native Browser Mode descriptor.')
-  const { version, scripts, styles, ...unknown } = descriptor as Record<
-    string,
-    unknown
-  >
+  const { version, asyncScope, scripts, styles, ...unknown } =
+    descriptor as Record<string, unknown>
   if (
     version !== 1 ||
+    asyncScope !== 'promise-continuations-v1' ||
     Object.keys(unknown).length ||
     !Array.isArray(scripts) ||
     !scripts.length ||
@@ -62,6 +61,71 @@ export async function readClientDescriptor(
     throw new Error('Invalid native Browser Mode bootstrap asset type.')
   return {
     version: 1 as const,
+    asyncScope: 'promise-continuations-v1' as const,
+    scripts: scripts as string[],
+    styles: styles as string[],
+  }
+}
+export async function readCreatorClientDescriptor(
+  root: string,
+  entryPath: string,
+  files: readonly string[],
+  id: string
+) {
+  if (
+    entryPath !== `server/next-test/${id}.client.json` ||
+    !files.includes(entryPath)
+  )
+    throw new Error('Missing native Browser Mode client descriptor.')
+  const descriptor: unknown = JSON.parse(
+    await readFile(join(root, entryPath), 'utf8')
+  )
+  if (
+    !descriptor ||
+    typeof descriptor !== 'object' ||
+    Array.isArray(descriptor)
+  )
+    throw new Error('Invalid native Browser Mode descriptor.')
+  const {
+    version,
+    asyncScope,
+    creatorScope,
+    creatorPromiseRoute,
+    scripts,
+    styles,
+    ...unknown
+  } = descriptor as Record<string, unknown>
+  if (
+    version !== 1 ||
+    asyncScope !== 'promise-continuations-v1' ||
+    creatorScope !== 'synchronous-source-v1' ||
+    creatorPromiseRoute !== 'native-engine-v1' ||
+    Object.keys(unknown).length ||
+    !Array.isArray(scripts) ||
+    !scripts.length ||
+    !Array.isArray(styles)
+  )
+    throw new Error('Invalid native Browser Mode descriptor.')
+  const selected = [...scripts, ...styles]
+  if (new Set(selected).size !== selected.length)
+    throw new Error('Duplicate native Browser Mode bootstrap assets.')
+  for (const file of selected) {
+    assertClientPath(file)
+    if (!files.includes(file))
+      throw new Error(
+        'Browser Mode bootstrap is outside the immutable output closure.'
+      )
+  }
+  if (
+    scripts.some((file) => !file.endsWith('.js')) ||
+    styles.some((file) => !file.endsWith('.css'))
+  )
+    throw new Error('Invalid native Browser Mode bootstrap asset type.')
+  return {
+    version: 1 as const,
+    asyncScope: 'promise-continuations-v1' as const,
+    creatorScope: 'synchronous-source-v1' as const,
+    creatorPromiseRoute: 'native-engine-v1' as const,
     scripts: scripts as string[],
     styles: styles as string[],
   }

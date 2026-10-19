@@ -1853,6 +1853,2269 @@ remains false, no exception is approved and performance budgets remain deferred.
 The next active slices are compiler-certified CJS named spies and genuine browser
 and production coverage.
 
+## Increment 48: native mock identities, browser resources and source coverage
+
+Static direct named imports of CommonJS implementations now use a native export
+certificate. Production factory mocks retain immutable source/output evidence;
+the compiler no longer recursively asks its production graph for the root while
+constructing that same graph. Imported utility aliases and compiled package ESM
+targets use actual resolution rather than a node_modules path exclusion.
+
+Ordered setup mocks use separate native input contexts, exact emitted module-ID
+aliases and per-input registration ownership. Authored sources and unchanged
+compiler-issued mock generations preserve their namespaces; later declarations
+retain separate generations. Resolver metadata without a runtime factory cannot
+enter the manifest. Only the resolved Next testing runtime transitions to the
+shared native context, preserving one registry and assertion owner across inputs.
+The original setup-order probe and three new pristine-reference controls pass,
+including live cached imports, nested importer resolution and a parallel barrier.
+
+Browser primitives now build for the web, and actual Playwright commands execute
+in the parent-owned browser. The parent watch broker validates the discovered
+profile and application metadata, retains leases through worker cleanup and
+defers snapshot publication. The original browser source-edit watch probe passes.
+Browser and production standard coverage retain native source provenance. Exact
+concrete bookkeeping types certify mapless generated scripts, including chunks
+containing only generated async loaders; real or mixed source chunks cannot
+qualify through their path or absence of a map. The original browser/production
+coverage probes match the pristine reference. Cancellation during the final
+coverage directory rename restores the previous report.
+
+Focused evidence across the coordinated batches, without a new full-corpus claim:
+
+- Batch50 compiler/CLI/coverage/mock component suites: **479/479 pass**.
+- Batch51 execution/broker suites: **207/207 pass**; original browser watch passes.
+- Batch52 mock/coverage suites: **128/128 pass**, including cancellation rollback.
+- Batch53 original setup-order plus all three additional setup controls: **4/4
+  pass**. Native build, full bootstrap and normal root TypeScript pass.
+- Original CommonJS named-spy, external ESM mock, production mock, browser mock,
+  browser React helper, browser snapshot and browser/production coverage probes
+  have focused green evidence in batches48–53. Dependency adapters now give both
+  consumers the identical pinned Playwright/helper/package artifacts and verify
+  actual resolved entries and manifests; original bodies/assertions are intact.
+
+Raw results use `/private/tmp/next-testing-batch{48..53}-*`; the final setup proof
+is `/private/tmp/next-testing-batch53-setup-results.json`. The last full checkpoint
+remains **187/213** from increment44. Six new reference-qualified setup/browser
+controls bring the defined corpus to **219**, without changing an original gate.
+
+Browser continuation work was subsequently integrated and verified in increment49
+below. Complete native Promise/thenable fidelity remains unqualified: final
+callable-thenable jobs still lose their originating API owner. The complete release
+matrix remains work. Both requirements documents and the main checkout remain
+unchanged. No exception is approved; performance budgets remain deferred and
+stableReady remains false.
+
+## Increment 49: emitted continuations, lazy ESM originals and watch coverage
+
+Browser compilation lowers authored async functions and module awaits while one
+exact owned continuation source retains native await. The exact source transition
+replaces an ineffective directory condition. Native graph validation checks actual
+module options and transformed syntax before certifying the graph. Independent
+inspection of actual emitted chunks finds exactly one native async function and
+await mapped to that bridge, authored generator continuations, and one shared
+owned SWC overload-yield constructor used by both ESM and CommonJS consumers.
+The real async-generator adoption, final object getter/identity, Promise ordering
+and mapped failure controls now pass. Browser event wrappers preserve Chromium's
+null/undefined Window receiver behavior. Parent-mapped failure frames retain their
+verified original-source flag and method metadata.
+
+One development Node static mock target can lazily load its compiler-certified
+original ESM cycle. ID-only edges retain factory identity without eager evaluation;
+a private deferred-require alias maps to the same native original source. Only
+that exact certified edge gains CommonJS admission. The native runtime snapshots
+already pending ancestors before instantiation and restores the frame
+synchronously; newly instantiated members and unrelated dependencies retain their
+own awaits. The original partial-factory-cycle probe and three additional pristine
+controls pass, covering live bindings, namespace identity, actual completion and
+full-mock laziness. Independent review first caught the broader candidate skipping
+a fresh member's await; its failing VM proof and corrected boundary checks remain
+saved.
+
+Explicit standard coverage flags support development Node and real Chromium
+client watch. Parent-owned per-entry facts replace rerun facts, bind current source
+and artifact revisions, and broaden selection when retention is unavailable.
+The first completed publication and explicit keyboard run-all intent retain
+untouched-source expansion; automatic reruns follow the pinned reference's
+separate policy. Explicit cleanOnRerun:false retains valid untouched entry facts.
+Coverage publication and thresholds precede the single terminal event, machine
+report, human watch status and normal quit status. Failed native compilation
+preserves the prior complete report. Authored statement spans are recovered only
+after complete unique associations with actual mapped V8 statements; counters
+remain the actual captured values.
+
+Verification after the relevant repairs:
+
+- Batch55: **636/636** affected component tests, root TypeScript and the native
+  module-await span control pass. The emitted-code check caught the original
+  bridge recursion before browser acceptance.
+- Batch57: native build, 18-task bootstrap, **58/58** native testing controls and
+  **141/141** lifecycle/mock component tests pass. Actual emission proves shared
+  marker identity; the browser async-generator adoption gate passes.
+- Batch58: native build and 18-task bootstrap pass. **416/416** CLI, coverage and
+  browser-resource component tests and normal root TypeScript pass. The repaired
+  public cycle/mapping/coverage subset is **8/8** green.
+- Actual browser watch controls are **4/4** green with complete pristine-reference
+  JSON maps and exact source hashes for initial, addition, keyboard rerun and
+  retained generations. Initial and rerun threshold failures agree across JSON,
+  the single terminal, diagnostic, human status and normal quit exit1. All owned
+  PTYs/browser processes close. Evidence is under
+  `/private/tmp/next-testing-browser-watch-coverage58/` with source qualification.
+
+The defined suite is now **226** cases (three new cycle and four new browser watch
+controls). The last unfiltered checkpoint remains **187/213**; focused green
+results do not establish a new full-corpus result. Batch evidence uses
+`/private/tmp/next-testing-batch{55..58}-*`; exact actual emission is saved under
+`/private/tmp/next-testing-browser-emission57/`.
+
+Three actual Chromium final-return ownership controls remain red for callable
+thenables, callable accessors and own Promise.then returns. Getter counts,
+identity and native microtask ordering match, but those native resolving jobs
+execute outside their originating owner. No descriptor/prototype heuristic was
+shipped; the proof and design constraint are saved under
+`/private/tmp/next-testing-browser-final-return58/`. Promise subclass/exotic
+observability, top-level for-await and broader Browser Mode lifecycle remain
+release work. The compiler transform bridge is still in scratch review at this
+checkpoint. Neither requirements document changed, no exception is approved,
+performance budgets remain deferred, and stableReady remains false.
+
+## Increment 50: retained compiler hooks, imported TypeScript and native maps
+
+Transform-only compiler plugins run in their retained configuration realm. A
+parent-owned broker sends exact source/revision requests to that realm; a real
+Turbopack loader returns the resulting code and composed maps to normal Next
+parsing, resolution, chunking and execution. Configuration helper closures retain
+identity. Actual chained MagicString transforms and an exact original-line failure
+control pass against the same pristine Vitest configuration. This bridge does not
+load the Vite graph or controller. Other plugin hooks and unqualified combinations
+retain explicit diagnostics. A helper-only watch edit exposes a separate reference
+behavior: pinned Vitest reruns with its old transform closure, while the current
+Next session reloads it. That paired behavior remains unqualified; the recorded
+reference observation was not rewritten into an expected failure.
+
+The worker's early compiler-option validation initially rejected valid external
+project roots before the parent's canonical shared-application-root check. The
+repair admits a string root only for parent-owned project configuration realms;
+the existing canonical ownership check still rejects independent compiler roots.
+Ordinary root compiler overrides retain their migration diagnostic.
+
+Imported type-erasure TypeScript coverage now uses authored ESTree descriptors to
+associate actual native declaration, statement and branch maps uniquely. Function
+body starts come from authored syntax; all runtime counts remain actual V8 facts.
+Missing/ambiguous functions or branches and runtime-generating TypeScript forms
+fail explicitly. Development and production public CLI controls produce complete
+maps, metadata and counters equal to pristine Vitest after root normalization.
+Unimported typed sources and JSX still require compiler-profile-bound analysis;
+an independent transpiler cannot substitute for that provenance.
+
+A genuine native source-map defect in ordinary React compilation was traced to
+an unreachable hoisted-var block's reserved synthetic span. SWC emits its closing
+brace at hi minus one, which previously fell below the reserved range and became
+an impossible original coordinate. The producer keeps that position reserved.
+The regression parses real source, runs the actual removal modifier and SWC
+emitter, checks hoisting/comments and validates raw coordinates and map tokens.
+The extracted baseline proof fails on the precise leaked BytePos; the corrected
+actual crate test passes. A separate JSX synthetic export-registration/comment
+boundary defect remains under producer investigation; coverage validators stay
+strict.
+
+Verification and current checkpoint:
+
+- Batch59 unfiltered corpus: **224/227**. Two failures were the project-root
+  regression above. Production hydration lacked its required Chromium revision
+  in the forced cache; the qualified follow-up passes with the real multi-version
+  browser cache. Neither a replacement browser binary nor a revision alias was
+  used. The compiler-alias case still tests its migration diagnostic, not full
+  alias compatibility.
+- The two actual compiler-hook positive controls and the new mapped failure
+  control pass. The latter asserts the transformed value before throwing at the
+  verified original source line.
+- Batch60 native build, all **18** bootstrap tasks, root TypeScript and
+  **543/543** affected CLI/coverage/lifecycle/browser resource tests pass. The
+  native synthetic-span regression is **1/1** green. ESLint passes across **110**
+  retained authored JavaScript/TypeScript files after narrow cleanup.
+- Batch60 focused public checks: **6/7**. Both original external/glob project
+  cases, the transform mapping control, both TypeScript profiles and an actual
+  Chromium async suite/around hook ordering control pass. The new failed-suite
+  control exposes a transport bug that discarded a blocked test because its body
+  never started, then a shared lifecycle gap that attributed suite setup failures
+  to unexecuted tests. Batch62 repairs both: Node and actual Chromium report
+  skipped descendants while retaining the failed suite and command. The same
+  unchanged failure body gates both profiles. **3/3** public hook controls,
+  **107/107** lifecycle and **50/50** browser protocol/resource tests pass. The
+  protocol refuses a passing completion for an unstarted case. Internal tests
+  now assert the retained suite error and skipped task, matching the pinned
+  runner's actual markTasksAsSkipped behavior.
+
+There are **233** defined cases after the transform, typed coverage and browser
+hook controls. No new full-corpus green result is claimed by the focused checks.
+Evidence is saved under `/private/tmp/next-testing-batch{59..61}-*`,
+`/private/tmp/next-testing-coverage-syntax59/` and
+`/private/tmp/next-testing-reserved-span59/`. The final-callable-thenable ownership
+controls from increment49 remain red. Other lifecycle, compiler mapping, typed/JSX
+coverage and clean downstream/platform release gates remain open. Neither
+requirements document changed, no stable exception is approved, performance
+budgets remain deferred and stableReady remains false.
+
+## Increment 51: native aliases, compiler analysis and serial browser files
+
+String aliases now enter the actual test-owned Next resolver. Plain object and
+ordered string mappings preserve exact/slash boundaries and first-match ordering;
+protected framework names, overlapping application aliases and unqualified forms
+retain explicit diagnostics. The original alias acceptance no longer returns
+early on a migration error: its unchanged body executes and passes alongside two
+new direct/dynamic/subpath/ordering controls. Native testing checks pass **60/60**
+after grouping the internal compiler flags within turbo_tasks' argument bound.
+Separate static query/fragment/helper refusal and ordinary-application controls
+qualify eight boundaries; three computed-import forms remain unqualified, with
+their reached evaluation markers retained rather than described as pre-evaluation
+refusals.
+
+Native export registration now contributes explicit source-less source-map
+boundaries after upstream composition. Actual core/emitter regressions cover
+comment adjacency, normal/minified output, composition and later minification.
+They pass without relaxing coordinate validators. Together with increment50's
+reserved-span fix, this removes both established malformed-coordinate producers.
+Remaining JSX import-helper attribution and TSX branch endpoint differences are
+still under investigation; neither receives guessed coordinates.
+
+A separate compile-only source-analysis primitive uses the actual Next compiler
+profile, retained generated bytes/maps and exact source hashes. Its artifacts
+have a nonexecution role rejected by runtime collectors and executors. The parent
+independently authorizes source/project/profile/revision and validates declaration
+maps, including complete unique associations and zero-only analysis descriptors.
+Actual development/production proofs match pristine full maps without executing
+a source containing a deliberate throw. This does not yet enable public
+unimported TypeScript: parent broker/coordinator/publication integration remains
+in progress. Runtime-generating TypeScript and JSX remain explicit boundaries.
+
+Browser suite setup failures now retain failed suite/file facts while their
+unexecuted descendants are skipped, matching pinned Vitest. Async suite declaration
+storage follows explicit compiler continuation scopes, including overlapping
+collections and closed original tokens. Serial Chromium files send a closed
+manifest before execution; the parent recomputes selection and checks immutable
+identities, one active attempt, descendant completeness and actual setup-blocking
+facts. The two unchanged pristine-qualified browser controls match **4 passed /
+3 skipped / 1 todo** and **1 passed / 2 setup-blocked skipped** respectively.
+Independent review tightened sticky-RegExp admission, cancellation proof and
+contradictory blocked-descendant facts before the next corpus freeze; all
+corrected transport and downstream execution checks pass.
+
+The root transform configuration realm now follows the watch service across
+ordinary generations when it owns neither global setup nor external project
+realms. Helper edits rerun Next with the retained captured closure; direct config
+selection/byte changes create a fresh owner. Two actual public PTY controls match
+pristine Vitest, including fresh reports/source hashes and normal q exit codes.
+A separate mixed failure-then-recovery history exits pristine q with code1 and
+remains unqualified; it was not rewritten into a final-green q0 assertion.
+
+Verification since increment50:
+
+- Batch63 native build, all **18** bootstrap tasks, root TypeScript and **703/703**
+  affected component tests pass. Focused public checks reach **12/13**; the
+  remaining async collection guard is repaired and qualifies in actual Chromium
+  in batch64.
+- Batch65 browser checks reach **17/18**. The remaining default browser coverage
+  watch control times out while exiting. The PTY driver is repaired to retain
+  raw bytes and partial facts on that failure, preserving all existing deadlines
+  and assertions. Its focused follow-up passes all three publication stages and
+  normal exit. The original cleanup cause remains unresolved reliability work.
+- Batch66 core build, root TypeScript and **767/767** affected compiler, CLI,
+  coverage, lifecycle, browser-resource and watch tests pass. Both newly integrated
+  transform watch controls pass through the actual public CLI. ESLint and
+  Prettier pass across **124** retained authored paths after a local binding rename.
+- A real Chromium149 engine experiment disproves console.createTask/CDP as a
+  final-thenable ownership bridge. Ordinary Promise/await/timer continuations
+  retain opaque task labels, but shared thenables returned under two different
+  owners and an unowned call have indistinguishable parentless native jobs;
+  recursive adoption loses the parent from its first job. Values, identities,
+  getter counts and ordered traces remain identical with/without task labels.
+  No inferred owner is introduced; final-callable-thenable controls remain red.
+
+Batch67 completes the unfiltered corpus at **242/242**, zero skipped, in
+543.943 seconds. All **189** authored source hashes and **542** build-output
+hashes, including the native binary, are unchanged across that run. The separate
+manifest verification is retained. Your main checkout remains clean. The final
+corrected browser/lifecycle/execution/broker/mocking checks pass **425/425**, and
+root TypeScript, authored lint and formatting pass. This finite green checkpoint
+does not close the remaining release requirements. Evidence is retained under
+`/private/tmp/next-testing-batch{63..67}-*`,
+`/private/tmp/next-testing-coverage-source-shared63/`,
+`/private/tmp/next-testing-transform-realm-watch-next-slice/` and
+`/private/tmp/next-testing-engine-task64/`. Both requirements documents remain
+unchanged, no exception is approved, performance budgets remain deferred and
+stableReady remains false.
+
+## Increment 52: new await/coverage audit controls and native JSX endpoints
+
+Three additional controls bring the defined corpus to **245** after the frozen
+242-case checkpoint. An actual Chromium RegExp source/flags control passes with
+mixed-case nested case names, excluded throwing bodies, explicit skip and todo.
+A watch failure-history control keeps the exact task identity while repairing an
+assertion: the failed completed generation emits no coverage, the repaired run
+passes and publishes only the imported file, and q retains exit code1. Full maps
+and counters equal pristine Vitest. The candidate fixes Next's prior q0 while
+retaining the latest PASS report; the existing keyboard unit now asserts both
+facts rather than forgetting the earlier failed generation.
+
+The proposed unpublished-coverage cache guard is **withdrawn**. Reference evidence
+first removed a failed task and observed retained failure metadata, then repaired
+the same task to distinguish that effect. The completed failed generation already
+consumes initial source expansion even without a published report. A guard that
+restores a full untouched-source denominator on repair would change the pinned
+reference contract. Parent source-analysis integration preserves the existing
+completed-generation/full-rerun intent instead of introducing that guard.
+
+The new await control has four unchanged pristine-qualified browser cases.
+Actual Next passes both genuine-Promise own-then/constructor controls and fails
+both Proxy cases: an extra prototype operation is observable, and a throwing
+prototype trap fails an await that succeeds natively. The acceptance control is
+retained red. No expected assertion, skip or exception is substituted. The
+separate final-callable-thenable ownership gap remains open. Read-only engine/CDP
+experiments have not changed browser launch policy or runtime behavior.
+
+The missing JSX branch endpoint is repaired at its native producer. Before SWC
+React lowering, the compiler retains unique original JSX container spans; after
+lowering, it restores the span only on a uniquely matched generated props object
+with a genuinely dummy span. The original closing JSX token supplies the endpoint.
+No authored span, JavaScript byte, counter or consumer coordinate validator is
+changed. Four actual crate tests pass, including subsequent minification and
+ambiguous/authored-span refusals. The native build and all **18** bootstrap tasks
+pass. A fresh actual bundled TSX proof now matches complete pristine maps,
+metadata and counters. Ordinary JSX still has the separate import-helper role
+problem; import error mappings stay intact and JSX admission remains guarded.
+
+The parent source-analysis chain now has an actual development/production named
+generic-function proof: the untouched typed source deliberately throws if
+executed, yet both complete coverage outputs match pristine maps and real runtime
+counters without evaluating it. The integration patch remains under independent
+mutation/publication/cleanup verification. That audit also finds a distinct
+TypeScript arrow binding-map defect: counts match, but native declaration starts
+refer to arrow parameters while pristine refers to the binding identifier. A
+precise authored-location diagnostic prevents those incorrect reports while a
+separate generated-AST/provenance association repair is developed. This is an
+open requirement, not an approved exclusion.
+
+Batch68's three new public gates reach **2/3**, with only the recorded Proxy gap
+red. Root TypeScript, Python syntax, Rust formatting and authored lint/formatting
+pass. The component run reaches **772/773**; its sole stale expectation assumes q
+forgets earlier failure history. The reference-backed corrected CLI suite passes **271/271**. Batch69 rebuilds
+the arrow diagnostic, passes **131/131** coverage controls, root TypeScript and
+all **124** authored lint/format checks. The latest full-corpus result remains the immutable
+**242/242** checkpoint before these new gates and producer changes; no newer full
+green result is claimed. Evidence is retained under
+`/private/tmp/next-testing-batch68-*`,
+`/private/tmp/next-testing-watch-sticky-exit67/`,
+`/private/tmp/next-testing-browser-proxy-await68/`,
+`/private/tmp/next-testing-jsx-map64/` and
+`/private/tmp/next-testing-coverage-react68/`. Both requirement documents remain
+unchanged, performance budgets remain deferred, no stable exception is approved
+and stableReady remains false.
+
+## Increment 53: parent-owned typed source analysis and arrow binding provenance
+
+The parent now selects untouched typed coverage sources, assigns each selected
+source/profile/revision before compilation, and validates actual retained native
+artifacts through a separate broker action. These compile-only artifacts never
+enter runtime execution, V8 captures, runtime coverage caches or test counts.
+The parent derives zero-only declaration facts from the actual emitted bytes and
+maps before their output lease is disposed. Publication requires complete parent
+authorization, exact source/profile identities, exact runtime descriptor and
+metadata agreement, and unchanged selected source/config bytes. Metadata Maps
+remain Maps across IPC and comparison. Existing completed-generation coverage
+expansion and failure-history semantics remain unchanged.
+
+Supported config filename inventories include presence and absence, not just
+existing hashes. A newly added higher-precedence test/Next config file, a removed
+candidate or a changed supported dotenv/default TypeScript/package input vetoes
+publication. Native Next config ancestor lookup is included. Arbitrary imported
+Next config dependencies and custom TypeScript config paths remain unqualified;
+this finite inventory is not a complete effective-config dependency graph.
+
+The TypeScript arrow repair replaces the broad diagnostic only when exact
+compiler provenance links a direct variable binding, arrow initializer, every
+parameter and its body. A converter-local role map supplies the uniquely authored
+binding start and retains actual emitted endpoints. Original compiler stack/error
+map bytes are unchanged. Conversion uses the same native code, AST and V8 ranges,
+requires identical counter identities, and still rejects absent, foreign or
+ambiguous associations. Other arrow forms remain guarded. The deliberately
+unqualified original negative control is unchanged.
+
+Batch70 passes **533/533** combined coverage/CLI/broker/watch controls, root
+TypeScript and lint/formatting across **126** retained authored JS/TS paths.
+The separate arrow suite passes **146/146**. Actual retained native development
+and production comparisons cover ten arrow forms with complete pristine
+maps/metadata/counters; untouched throwing sources are never evaluated. The seven
+new public CLI controls pass **7/7**: named/arrow declarations in both Node modes
+match complete pristine coverage, and post-execution source/config-byte/config
+addition mutations all refuse JSON/LCOV publication. This brings the defined
+corpus to **252**. The unfiltered batch70 run reaches **251/252**, zero skipped,
+in 595.088 seconds. Its sole failure is the retained Proxy-await gate: both
+genuine-Promise cases pass and both Proxy cases fail. All **678** authored source
+hashes and **550** build-output hashes stay unchanged across the complete run;
+the separate manifest verification passes and the main checkout remains clean.
+The latest entirely green corpus remains the historical frozen **242/242**;
+the larger current corpus stays red until the browser repair is qualified.
+
+Two additional public named-TypeScript watch controls pass **2/2**, bringing the
+defined corpus to **254** after that frozen run. Both default and retained
+coverage match complete pristine maps/metadata/counters across initial execution,
+added-file selection and explicit full rerun. Every retained source hash and
+absolute canonical path is checked, and each Next generation has one successful
+terminal event. All four underlying pristine/Next PTY sessions exit q0 and their
+owned transient roots are removed. The driver accepts only the original known
+MJS source pair or the explicit known TypeScript pair. No full 254-case run is
+claimed yet.
+
+Three actual config-input probes demonstrate the documented remaining fence gap:
+an imported Next config helper, a custom TypeScript config and its extended base
+can change after analysis while both test assertions pass and coverage still
+publishes. An imported Next env define is asserted in actual compiled code, so
+these are effective compiler inputs. The repair must observe the existing Next
+config load and actual native TypeScript resolver graph, including resolution
+absence/package inputs; independently executing a config or using a different
+TypeScript resolver would not establish provenance. Those probes remain open;
+no complete effective-config dependency fence is claimed. Evidence is retained
+in `/private/tmp/next-testing-coverage-config-inputs70/`.
+
+Browser research has a trap-free engine brand predicate at an authenticated
+debugger location, and an explicit `current_microtask` heap root distinguishes
+the current thenable job from queued jobs. A private lookup recovers exact
+closed/unowned/live scopes for known target Promises. These are isolated engine
+proofs, not a shipped ownership bridge: hidden Promise field layout, unknown
+Promise creation, debugger lifecycle/observability and performance remain open.
+The separate JSX import-role investigation preserves all import error mappings.
+
+Evidence is retained under `/private/tmp/next-testing-batch70-*`,
+`/private/tmp/next-testing-parent-public70-*`,
+`/private/tmp/next-testing-coverage-source-parent64/`,
+`/private/tmp/next-testing-arrow-association68/`,
+`/private/tmp/next-testing-typed-coverage-watch70/`,
+`/private/tmp/next-testing-browser-debugger-brand71/` and
+`/private/tmp/next-testing-browser-heap-origin72/`. Both requirement documents
+remain unchanged, no stable exception is approved, performance budgets remain
+deferred and stableReady remains false.
+
+## Increment 54: engine Promise classification without Proxy observations
+
+Browser await classification now uses a parent-issued startup capability. The
+parent authenticates the exact engine function location, source bytes, main-frame
+execution context and frame before authored document code runs. An engine remote
+object subtype supplies only a primitive Promise-brand decision at the owned
+paused frame. Unknown values are never inspected through JavaScript prototype or
+instance checks. The captured native prototype intrinsic is consulted only after
+the engine certifies a genuine Promise; the existing native bridge and explicit
+scope adoption routes remain intact. The runtime captures the capability once,
+so authored replacement of Symbol or prototype builtins cannot redirect it.
+
+A persistent breakpoint at the existing private debugger statement is required:
+earlier local-variable write variants stopped working around 411 calls. The
+retained candidate passes 1,500 genuine-Promise classifications on each of actual
+Chromium 149 and 156, plus fourteen zero-trap/accessor shapes and ten startup,
+abort, close, realm and disconnection controls. This is bounded qualification;
+no engine-wide reliability or performance guarantee is inferred. The capability
+carries no test owner and does not solve native final-thenable job ownership.
+
+The coverage collector authenticates this initializer through the actual live
+parent-issued script/source/realm/frame fact and exact root execution range. It
+checks the issuer before capture and after awaited profiler shutdown. Missing,
+duplicate, stale, late or unissued facts refuse publication; there is no generic
+URL or matching-source exemption for unknown scripts. Cleanup releases paused
+execution, removes debugger ownership, awaits late acquisition and invalidates
+closed facts. The Node lifecycle harness has an explicit test-only adapter using
+real util.types.isPromise; no shipping Node fallback is added.
+
+The four original Proxy assertion bodies remain unchanged and pass through the
+actual native Next browser graph, including real V8 coverage publication. A new
+unchanged paired fixture checks captured startup capability after authored builtin
+replacement and subclass then ownership against pristine Vitest 5.0.4. It brings
+the defined corpus to **255**. The root coverage/lifecycle/browser-resource suites
+pass **394/394**; root TypeScript, ESLint and formatting across **129** authored
+JS/TS files pass after the paired core rebuild.
+
+The unfiltered frozen batch71 corpus passes **255/255**, zero skipped, in
+**647.372 seconds**. Independent manifest verification confirms all **681**
+source hashes and **556** build-output hashes stayed unchanged across the run.
+The main checkout is clean and both protected requirement hashes are unchanged.
+This replaces the historical 242-case green checkpoint as the current complete
+corpus checkpoint; it does not close the broader release-work rows below.
+
+Evidence is retained under `/private/tmp/next-testing-batch71-*`,
+`/private/tmp/next-testing-browser-engine-brand73/` and
+`/private/tmp/next-testing-browser-engine-coverage73/`. Other genuine Promise
+constructor/prototype combinations, native final callable-thenable ownership,
+other engine/platform behavior and debugger interaction remain unqualified.
+Heap-origin research is not part of the implementation. Config imported-module
+and native TypeScript input provenance work is still separate and pending;
+existing config-input gap probes remain open. No stable exception is approved,
+performance budgets remain deferred and stableReady remains false.
+
+## Increment 55: native import coverage roles and broader Promise controls
+
+An explicit default-off compiler option now asks isolated Node endpoints for
+native ESM import-initializer coverage roles. The actual native generated
+statement carries its role through hoist deduplication; final AST and emitted-byte
+checks must uniquely identify the same operation. A private StructuredSourceMap
+field transports it after composition, with native codec and cache-hash support.
+External JSON and raw or nested vendor map fields cannot recreate this authority.
+A separate native sidecar binds exact script and map hashes. The parent checks
+real factory/context/target bindings and uniquely authored import locations, then
+excludes only that generated descriptor from a cloned converter AST. Actual
+JavaScript, maps and V8 ranges remain unchanged; remaining descriptors and counts
+must agree. Public JSX admission is still guarded.
+
+The actual crate run caught an incorrect assumption in the initial transport:
+existing SourcePos counts a non-BMP character as one column. The private sidecar
+now tracks true UTF16 coordinates and CRLF state across section boundaries,
+without changing ordinary map serialization. Actual verification passes **12/12**
+structured-map tests, **3/3** CodeBuilder transport/authority tests and **4/4**
+native producer tests. Native72 builds in 54.46 seconds and bootstrap passes
+**18/18** tasks. Root coverage/compiler/broker/CLI/lifecycle/browser-resource
+suites pass **864/864**; root TypeScript and lint/format across **130** authored
+JS/TS files pass.
+
+Actual JSX and TSX imports in development and production pass **4/4** endpoint
+qualifications. For each unchanged fixture, all emitted JS/map hashes are exactly
+identical with the private option false and true; only the opted-in native
+sidecar grants roles. Real assertions and strict raw-map checks pass, and complete
+pristine coverage descriptors/counters agree. An independent fresh unpatched
+Vitest 5.0.4 onCoverage reporter retains raw metadata through v8.serialize.
+Read-only replay of the exact retained native bytes/captures matches those raw
+pristine objects **4/4**, including fnNames Map entries and Infinity endpoints.
+This metadata evidence does not rely on JSON erasing either value. Every actual
+compiler session is disposed and the temporary app root is removed. Untouched
+JSX/TSX compile-only analysis and public admission remain separate pending gates.
+
+A new unchanged thirteen-case Promise fixture passes **13/13** on pristine
+Vitest 5.0.4 and **5/13** on actual Next on both Chromium 149 and 156. Eight
+failures expose constructor-read order/count, own-then bypass, altered/null/Proxy
+prototype results and an unowned then-body API refusal. The original Proxy and
+subclass positives remain mandatory. A scratch candidate sending all genuine
+Promises to native await fixes the ordinary observations but regresses subclass
+ownership; it is rejected and is not integrated. No inferred owner, heap-origin
+bridge or ambient fallback is added.
+
+The formatted paired fixture has identical assertions and authored AST to the
+sealed initial probe and is registered as the **256th** public acceptance gate.
+The normal focused public run reproduces **5 passed + 8 failed** body cases,
+zero body skips/todo; its one gate fails with 255 gates filtered. No complete
+256-case run is claimed. The historical frozen **255/255** checkpoint in
+increment54 remains valid for its exact earlier corpus; the expanded corpus is
+known red and stableReady remains false.
+
+Evidence is retained under `/private/tmp/next-testing-batch72-*`,
+`/private/tmp/next-testing-import-role70/implementation/native-proof-evidence-QY35Rg/`,
+`/private/tmp/next-testing-coverage-metadata72/`,
+`/private/tmp/next-testing-browser-promise-conformance77/` and
+`/private/tmp/next-testing-browser-promise-repair76/`. Imported Next config helper
+and actual native TypeScript config input provenance are still being qualified.
+Native resolution research confirms that existing affecting-source lists omit
+some attempted absences, including extended JSON candidates; they cannot stand
+in for the actual ordered probe graph. Both requirements documents remain
+unchanged. No stable exception is approved and performance budgets remain deferred.
+
+## Increment 56: observed Next config imports and parent publication fencing
+
+The existing ordinary Next config load now retains its actual CommonJS/ESM module
+bytes and explicit file-import edges. Resolver/load/compile/JSON operations delegate
+once; config evaluation is not repeated. The actual config object's cache identity
+retains the original graph. Uncaptured cache entries, noncanonical or unsupported
+requests, changed hooks, transformed bytes and detected later loader registrations
+refuse certification while ordinary config loading preserves its result.
+
+Each source-analysis request independently authorizes the selected config file and
+per-profile request ID. A separate artifact sidecar binds the observed module graph
+to that request, source, profile, entry, revision and allocated root. The parent
+validates it before and after conversion, then rechecks every original profile
+receipt before and after report rename. Identical source descriptors cannot erase
+a different profile's inputs. A stale graph vetoes publication with rollback.
+Config facts remain separate from runtime captures and native import-role metadata.
+
+Actual ordinary-load controls pass **22/22** on Node 20 and **22/22** on Node 26,
+including delegated call counts, cached config/module evaluations, cycles and
+unsupported loader/cache edges. The actual unchanged built72 baseline publishes
+after a helper mutation; the staged and then integrated development/production
+repairs execute both assertions successfully, then refuse JSON and LCOV. Those
+assertions verify the real imported Next env define in compiled code. Positive
+coverage matches complete pristine maps/metadata/counters including untouched
+TypeScript sources. The four new normal public gates pass **4/4** after core73
+builds in 29.86 seconds. This brings the defined corpus to **260**, with the
+Promise gate in increment55 still known red; no full 260-case result is claimed
+at this point.
+
+Combined component verification exposed a Node-host isolation leak: the lifecycle
+suite runs saved browser code in Node and left EventTarget/MessagePort prototypes
+patched across Jest realms, interfering with the new loader's real worker thread.
+The test harness now restores its captured host API descriptors in teardown;
+shipping browser code and assertions are unchanged. The same combined six suites
+then pass **885/885**. Root TypeScript, lint and formatting across **136** authored
+JS/TS paths pass, including the cleanup repair. Both requirements hashes remain
+unchanged and the main checkout remains clean.
+
+The subsequent unfiltered run passes **259/260** with **zero skipped** in
+827.156 seconds. The only failing gate is the genuine Promise matrix from
+increment55: **5/13** unchanged bodies pass and **8/13** fail. The frozen manifest
+verifies all **696** authored source files and **571** build outputs unchanged
+throughout the run, with the same HEAD. The result and verification are retained
+in `next-testing-batch73-full-results.json` and
+`next-testing-batch73-manifest-verification.json`. The main checkout stays clean
+and both protected requirements hashes remain unchanged. This result does not
+close the broader remaining requirements or change stableReady.
+
+An additional actual endpoint control uses an emoji-containing project path in
+all four development/production JSX/TSX combinations. Each keeps authored
+assertions unchanged, emitted JS/map bytes identical and strict native sidecar
+validation intact. A read-only replay of its retained real execution bytes and
+captures independently matches complete pristine raw coverage metadata **4/4**,
+including `fnNames` Maps, `Infinity` coordinates, all maps and counters. The
+original sessions are closed; replay is evidence access rather than a new native
+artifact or lease. Evidence is retained in `next-testing-batch73-import-role-unicode-root.log`,
+`next-testing-import-role70/implementation/native-proof-evidence-KpwJFc/` and
+`next-testing-coverage-metadata72/unicode-replay-results.json` under
+`/private/tmp/`. Public JSX admission remains guarded.
+
+Evidence is retained under `/private/tmp/next-testing-batch73-*` and
+`/private/tmp/next-testing-config-imports71/`. These are loaded-module receipts,
+not a complete effective configuration dependency graph. Arbitrary IO, external
+preload loader aliases, native custom/extended TypeScript config resolution and
+partial watch generations with empty source-analysis plans remain separate work.
+The runtime receipt lane and actual native probe/consumer lane are being staged;
+neither is claimed complete here. No stable exception is approved, performance
+budgets remain deferred and stableReady remains false.
+
+## Increment 57: private leased JSX declarations and genuine Map validation
+
+Private compile-only source analysis now accepts `.jsx` and `.tsx` only when the
+session requested native import roles and negotiated both native version1
+contracts. The session captures that option once before startup. The parent must
+separately authorize an exact lease capability whose check returns synchronously
+with `undefined`. Its authority stays outside compiler artifacts and IPC. The
+parent validates actual native import inventory before excluding that proof field
+from rebuilt metadata comparison, and rechecks the lease after conversion and
+before sealing. Existing config-import authorization is preserved. Public source
+selection, ordinary runtime standard remapping and default typed admission retain
+their existing guards.
+
+The exact core74/native72 proof passes **4/4** development/production JSX/TSX zero
+analyses with **72** refusal controls. Unchanged immediate-throw source files are
+never executed; complete pristine raw maps, metadata, genuine `fnNames` Maps,
+`Infinity` coordinates and all zero counters match Vitest5.0.4. Ordinary/private
+JavaScript and source-map bytes stay identical. A delegated genuine conversion
+read triggers parent capability revocation and the later lease check refuses it;
+the compiler files remain leased until that analysis settles. This is distinct
+from the earlier scratch actual-disposal control. All eight native sessions close.
+
+A separate actual runtime proof passes **4/4** unchanged imported cases with real
+V8 capture. Complete captures and remap facts, source bytes and artifact bytes stay
+exact. Ordinary JSX standard remapping and using a runtime artifact as declaration
+authority both refuse. All four sessions and four file workers close, with each
+worker exiting0. Exact evidence is independently sealed in
+`/private/tmp/next-testing-private-jsx80/` (**386** files); the earlier
+`next-testing-private-jsx78/` **513**-file seal remains unchanged. The corrected
+snapshot proof preserves null prototypes, Maps and `Infinity`, independently of
+wire encoding. Earlier read-only-export and snapshot-host failures remain retained
+and are not counted as successful controls.
+
+Standard report validation now checks real `fnNames` Map entries with the
+intrinsic Map iterator, including cross-realm Maps, while preserving legacy record
+support. Previously `Object.values(Map)` admitted all seven malformed key/count
+controls. Those now refuse; valid converter metadata and custom-iterator Maps
+remain unchanged. The internal type explicitly includes Map metadata. The core74
+build passes in22.06 seconds; the same six component suites pass **913/913** in
+50.749 seconds. Root TypeScript and lint/formatting across **137** authored paths
+pass. The four relevant existing normal public source/config gates pass **4/4**
+(256 filtered,260 defined) in20.749 seconds. The latest unfiltered result remains
+the **259/260** frozen run in increment56; no newer full-run result is claimed.
+
+An additional direct engine Promise observer was tested on Chromium149 and156:
+five constructor/then/prototype/species controls per engine observe no authored
+getter/trap calls. Its remote callback still resumes after a timer that native
+`await` runs before, so it is rejected as a runtime repair. No shipping origin
+inference, source change or heap query was added. Evidence and closed browser
+ownership records remain in `/private/tmp/next-testing-promise-native-observer74/`.
+The genuine Promise gate remains open. Further metadata shape checks, runtime
+config receipts/watch reload and actual native tsconfig provenance are being
+staged separately and are not closed by this increment. No stable exception is
+approved, performance budgets remain deferred and stableReady remains false.
+
+## Increment 58: runtime configuration receipts and actual native tsconfig inputs
+
+Runtime configuration receipts now cover actual selected runtime entries even when
+compile-only source expansion has no requests. Parent-issued revisions precede
+endpoint creation; source and runtime config-module proofs have distinct fields,
+request identities and validators. The parent reads the actual loaded graph before
+execution, seals only after worker cleanup under its artifact lease, and rechecks
+current and retained per-profile receipts at cache and report publication fences.
+Retained facts keep their original request IDs/revisions. Stale facts broaden real
+execution rather than borrowing a fresh receipt. List/collect/empty selections gain
+no compilation. Failed-body generation and sticky quit behavior stay intact.
+
+Actual active config filename reloads start complete source expansion and full
+invalidation. Helper-only edits do not receive automatic reload authority; the
+pristine helper-only control did not rerun. Both retention modes match complete
+pristine public coverage maps/metadata/counters through initial execution, partial
+addition, actual config/helper reload and manual full rerun. Empty source-plan
+helper mutation executes both unchanged real assertions, then vetoes JSON/LCOV in
+both development and production. The eight relevant normal public controls pass
+**8/8**, with **264** total gates defined. Earlier helper-watch and host failures
+remain retained; none is recast as a parity pass.
+
+The private native tsconfig producer now records actual existing parser, finder,
+resolver and option-consumer operations for TypeScript, decorators, JSX and aliases.
+Typed collectibles preserve selected config bytes, inherited reads, ordered extends
+results, finite candidate alternatives and actual absence/type/realpath probes.
+Unsupported or incomplete shapes refuse a complete certificate. The opt-in native
+revision is separate from execution role; `sourceCoverage` names only the actual
+source-preservation option. The real receipt asset and content hash are returned
+in native endpoint inventory. Ordinary unrequested calls preserve their old ABI
+and lazy native path.
+
+Whole-crate checking caught private-import/TurboTasks type errors and a test-only
+unused import; those were repaired before building. The full Next core/API/NAPI
+check passes, genuine Turbopack observation and resolver tests pass, and all four
+Next API ordering/deduplication/conflict controls pass. Rust formatting is clean.
+Native build passes in54.37 seconds; bootstrap passes **18/18** in36.883 seconds.
+The six affected component suites pass **971/971** with no skips; root repository
+TypeScript and lint/formatting over **140** authored JS/TS paths pass.
+
+The actual producer proof uses the retained old native72 binary and new native75
+binary against identical sealed current dist inputs and one unchanged fixture.
+All four development/production and source-preservation false/true profiles keep
+**every JavaScript/map byte exact** for old-native versus new-unrequested and
+new-unrequested versus requested output. All four genuine returned receipts have
+`complete:true`, empty reasons,137 observations, all four consumer roles, exact
+script/map hashes and actual custom/base config bytes. All12 compiler owners
+close. The281-file evidence seal is independently verified. Native and Session
+artifact revisions intentionally differ in this low-level adapter proof, so it
+confers **no parent publication authority**. Retained copies are historical bytes,
+not new native issuers or live leases.
+
+Those unchanged assertions also expose an existing inherited `jsxImportSource`
+limitation: two bodies pass and the inherited JSX body fails in every profile.
+The producer truthfully records the compiler's actual behavior; that red body is
+not counted as semantic parity. A separate semantic repair and the private parent
+native reader/lease integration remain work. Public JSX runtime coverage remains
+guarded. Complete import-exclusion metadata preservation and malformed present
+metadata rejection are included without changing genuine Maps, coordinates or
+counters.
+
+The subsequent full unfiltered run passes **258/264**, with **zero skipped**,
+in690.290 seconds. All **713** source files and **9,255** build outputs plus HEAD
+verify unchanged. Five new failures are browser-coverage early aborts: the runtime
+parent sidecar was appended after native client output inventory was finalized.
+The strict native browser closure check correctly refuses this mismatch. A separate
+parent-metadata reference correction is being prepared; no repaired full result is
+claimed. The sixth failure is the unchanged genuine Promise matrix (**5/13** bodies
+pass,**8/13** fail). Full results and verification are retained in
+`next-testing-batch75-full-results.json` and
+`next-testing-batch75-manifest-verification.json`.
+
+The browser correction keeps parent-authored proof metadata outside native
+client files/outputs and pins it by its separate exact reference/hash under the
+parent lease. Native browser asset validation stays unchanged. All **326/326**
+coverage controls pass, including real HTTP **200** for a native asset and **404**
+for the private proof. The rebuilt core76 passes all **13/13** relevant public
+config/import/browser gates and **982/982** tests in the same six component suites.
+Build completes in21.78 seconds; repository types, lint and formatting pass. The
+original full failure and freeze remain intact; no repaired unfiltered result is
+claimed here. Correction evidence is in `next-testing-browser-closure76-*` and
+`next-testing-runtime-config-browser-closure82/` under `/private/tmp/`.
+
+Evidence is retained under `/private/tmp/next-testing-batch75-*`,
+`next-testing-runtime-config-receipts73/` and
+`next-testing-native-config-provenance72/`. Both protected requirements remain
+unchanged. No stable exception is approved, performance budgets remain deferred
+and stableReady remains false.
+
+## Increment 59: inherited JSX semantics and private native parent validation
+
+The native JSX option accessor now follows the actual inherited config chain when
+the leaf has no string jsxImportSource. It merges that one override into the
+original automatic-runtime, development, refresh, Emotion and RSC defaults.
+Explicit child values, including the empty string, retain precedence. Six genuine
+Rust tests cover 38 scenarios. Two test-only fixes use the public NextConfig
+constructor and a strongly consistent TurboTasks operation; production code and
+all scenario assertions remain unchanged.
+
+The rebuilt native77 executes all three original authored assertions in each of
+four development/production and coverage-off/on profiles, for both ordinary and
+receipt-requested compilation. Every repaired None/Some JavaScript and map byte
+matches (18 files in development,12 in production). Four actual listed receipts
+remain complete with 137 records and all four consumer roles; all eight compiler
+owners dispose. The 199-file evidence seal is independently verified. Native and
+runtime Session revisions still differ in this low-level adapter proof, so it
+supplies no parent publication authority. Earlier native75 red/no-op evidence is
+preserved.
+
+Normal Next Turbopack theme-ui, Emotion SWC and app-dir Emotion development cases
+pass 3/3; production app-dir Emotion passes 1/1. The temporary inherited theme-ui
+fixture also exposes an existing webpack leaf-only jsconfig loader gap. Its
+unchanged passing Turbopack and failing webpack assertions and exact fixture bytes
+are retained separately. The shared repository fixture is restored byte-for-byte
+to its original direct config, with its test body unchanged; both bundlers pass
+that original case. No webpack inheritance repair is claimed.
+
+Private runtime JSX remapping is a separate explicit parent API. It snapshots the
+original authority and descriptors before awaiting, pins exact source/profile,
+entry/run/revision/artifact identity, validates actual native import metadata and
+production source preservation independently, and checks the live lease around
+conversion. It retains genuine closed-worker capture and full standard metadata,
+Maps, raw maps and counters. The sealed actual JSX/TSX development/production
+proof passes 4/4 with 38 real refusal cases and all owners closed; its 238 regular
+files and 152 symlink targets were independently verified. This remains private;
+ordinary runtime JSX admission stays guarded.
+
+The separate native config reader validates exact native schema and observation
+relations, actual script/map inventory and bytes, physical/native path mappings,
+source/profile/revision identity, current filesystem facts and synchronous leases.
+It stages and seals under the original live authorization, and only its original
+frozen locally issued facts can pass later publication-input rechecks. The lease
+callback must return synchronous undefined and retains its original receiver.
+Historical native fixtures prove schema only; their closed owners and different
+revisions cannot grant current origin or publication authority. No Session, IPC,
+planner, public coverage or cache wiring is added by this reader slice.
+
+Fresh native build passes in 21.58 seconds and bootstrap passes 18/18 in 38.697
+seconds. The six affected component suites pass **1,109/1,109** with zero skipped.
+Root repository TypeScript, lint over 142 authored JS/TS paths and formatting over
+145 paths pass. The complete unfiltered public corpus passes **263/264**, with **zero skipped**,
+in 705.842 seconds. HEAD plus all **720** source files and **9,261** build outputs
+verify unchanged. All five browser coverage regressions are repaired. The sole
+remaining failure is the unchanged genuine Promise gate (**5/13** bodies pass,
+**8/13** fail); it has not been rewritten, filtered or granted an exception.
+
+Stock browser Promise ownership remains open. Primary Chromium/V8 source review
+finds no qualifying stock CDP/Playwright owner binding. A conditional custom-engine
+capability design records exact native Await/job requirements and unresolved
+bootstrap, adoption, cleanup, broader async-flow and distribution obligations. It
+is architecture only: no custom browser requirement, implementation or stable
+exception is approved. The 62-file research and 5-file design seals are independently
+verified. An independent subsequent issuer review found that the existing opaque native
+content hash does not itself bind the first on-disk sidecar SHA-256 read. A
+receipt-only raw-byte SHA-256 binding is being staged before any genuine Session
+issuer qualification. No corrected native binding or actual Session publication
+qualification is claimed here.
+
+Evidence is retained in `/private/tmp/next-testing-batch77-*`,
+`next-testing-jsx-import-source76/proof-source/repaired-native-evidence-DH0qpr/`,
+`next-testing-runtime-jsx81/`, and `next-testing-native-config-reader85/`. Both
+protected requirements remain unchanged. All requirements remain open, performance
+budgets remain deferred and stableReady remains false.
+
+## Increment 60: genuine native config receipt origin and Session ownership
+
+Native receipt-requested output inventories now carry canonical standard Base64
+SHA-256 of the actual raw asset bytes. Ordinary None emission retains its existing
+hash behavior and byte output. The receipt JSON schema and v1 capability stay
+unchanged; the parent rejects old XXH inventories before issuing any trusted
+wrapper. Five genuine Rust tests, Cargo formatting and the core/API/NAPI check
+pass.
+
+Private Session runtime and compiler-source operations capture the independent
+parent selection and revision before creating the native endpoint, retain actual
+factory filesystem/project roots, and bind the original unique native sidecar row
+to its first stable canonical file read. Original frozen wrapper identity, exact
+role/profile/source/inventory and detached original cancellation/disposal state
+control preparation and one-shot sealing. Retained original facts hold bounded
+immutable data and grant no current live conversion authority. Legacy standard
+and private JSX entries, plus the source-analysis wrapper, refuse own native marker
+presence before reading authority or capture fields, including undefined,
+non-enumerable and accessor markers. Subsequent review found that the lower
+zero-descriptor helper and the separate line-metric entry need their own native
+marker guards; those repairs are staged for the next increment.
+
+The direct genuine Session proof passes runtime/compiler-source across development
+and production. All four receipts are complete with 137 records, all four native
+consumers and exact parent/native/artifact/request revisions. Every ordinary/private
+JavaScript and map byte matches (18/20/12/12 files). Four real runtime workers pass
+12 original inherited TypeScript/decorator/JSX case bodies with complete original
+V8 captures. Compile-only artifacts are never executed. All 37 actual refusal
+controls pass, including old native77 before wrapper issuance, original-operation
+abort followed by a fresh signal, changed sidecar/map/config bytes, cloned
+identities and synchronous disposal. All seven Sessions dispose; all tracked
+allocations and actual development/production allocation parents are clean. The
+339 regular files and four symlink targets are independently verified, including
+original native Base64/raw SHA binding, all paired bytes and unchanged shared
+source/dist/native manifests. No adapter, receipt restamp or synthetic origin is
+used. This qualifies the bounded original issuer/input slice; runtime JSX
+composition, public/planner/watch/IPC admission and report publication remain open.
+
+The native build passes in 15.82 seconds and full bootstrap passes 18/18 in 35.601
+seconds. Six compiled component suites pass **1,173/1,173**, zero skipped, in
+57.895 seconds. Repository types, lint and formatting of 143 authored JS/TS paths
+and diff checks pass. The appended writable Jest facades preserve the real reader
+WeakMaps and all original 196 compiler test assertions while allowing controlled
+spies on immutable compiled SWC export getters. No production export is changed.
+
+The complete unfiltered public corpus passes **263/264**, with **zero skipped**,
+in 709.343 seconds. The actual process is CLOSED; HEAD plus all **721** authored
+source files and **9,261** build outputs verify unchanged. The only failing gate
+remains the original genuine Promise matrix: **5/13** bodies pass and **8/13** fail.
+No case body or assertion was rewritten, filtered or granted an exception.
+
+The reviewed next private composition design requires an original wrapper/fact
+link and an independent live, one-shot allocation grant. A cached original input
+fact cannot be promoted to runtime authority by equal IDs, paths, revisions or
+bytes from a later Session. This is staged work, not current JSX/public coverage
+qualification. Static Chromium scheduler.asyncData research also establishes no
+qualifying Promise repair: full native attribution restoration and private owner
+authority are unresolved. No browser flag, custom engine or exception is approved.
+The original Promise failure remains open.
+
+Evidence is retained in `/private/tmp/next-testing-batch78-*`,
+`next-testing-native-config-session-proof93/actual-session-evidence-VDvTRJ/`,
+`next-testing-native-session-test-facades94/`,
+`next-testing-runtime-native-live-grant92/` and
+`next-testing-scheduler-async-data91/`. Both protected requirements remain
+unchanged. All requirements remain open, performance budgets remain deferred and
+stableReady remains false.
+
+## Increment 61: private runtime coverage with original native config authority
+
+The private runtime coverage path can now compose the original Session-issued native TypeScript configuration fact with the independent parent runtime JSX lease. This path requires the original wrapper, artifact and sealed fact from the same live emission. An empty per-emission identity separates otherwise identical allocations; it does not provide a reverse lookup from cached facts to a live Session. A short-lived conversion grant revalidates current inputs, original-operation cancellation and allocation ownership, compares a fresh reader observation to the original fact, then retires in `finally`.
+
+The runtime retainer captures own data descriptors, original pointers, the original signal and the independent runtime JSX capability before its deferred compiler lookup. It binds exact retained artifact/completion/expected copies to the real compiler grant. The existing raw line validator and Standard conversion algorithm remain private and unchanged behind their gates. Standard runtime, private JSX runtime, lower source analysis, source wrapper and bare line entry points all continue to refuse an own native-config marker. Source roles and JavaScript module-configuration authority do not acquire runtime permission through this composition.
+
+The compiled-host check caught seven failures hidden by the source overlay: native `import()` required a Jest VM callback unavailable in the actual built host. A genuine deferred CommonJS lookup fixes that host boundary while preserving pre-await snapshots and all post-await fences. The final lint-required direct `typeof import(...)` cast is erased: all 3,699 emitted runtime JS files were byte-identical before and after that type-only change. Both failed checks and their narrow repairs remain in the evidence.
+
+Verification for the combined core79 build:
+
+- The six original component suites passed 1,228/1,228 with zero pending tests. Repo TypeScript, authored-file lint and formatting passed. The native binary stayed at SHA256 `d0f888de5ddfa7aa60aa379e7d78e03c6b13d8ca38f9ac295662d34024d0d940`.
+- The unchanged direct Session origin runner passed all four role/profile cases and all 37 rejection controls. Seven Sessions were disposed; four runtime workers retained 12 original passing bodies; source artifacts were never executed. All 12 tracked allocations were removed, both mode parents were clean, and final source/build/native inputs matched the fresh READY snapshot.
+- The separate actual composition run passed development/production JSX and TSX with their original authored fixtures. Nine complete outputs matched pristine Vitest 5.0.4 Standard data, including every location, statement/function/branch map, counter, metadata field, genuine `fnNames` Map and `Infinity` coordinate. Ordinary None and private Some used independent closed-worker captures and had 18/12/18/10 byte-identical JS/map files for the four cases.
+- The actual run retained 59 composed operations, 406 original raw-map observations, 148 genuine converter invocations and 54 late actions completed after genuine conversion. All 148 labelled rejection receipts were independently checked: 89 boundary/late refusals and 59 exact retained-copy revocations. Ten genuine native receipts retained 1,370 complete records. The dedicated genuine compiler-source case refused runtime authority and launched zero workers.
+- A live old grant was separately minted and checked before disposal. Replacement Session B reused A's full request, source/profile/revision/IDs/root and all 22 artifact files byte for byte. B rejected A's fact with the original-emission diagnostic, the old grant rejected the closed original allocation, and valid B converted successfully without restamping.
+- All 14 Sessions and 13 runtime workers closed; worker exits were zero with no signal. All owned allocation roots and both mode parents were clean, original fixture/capture/input bytes were unchanged, and the copied package and its owned resolution alias were removed. A first runner attempt failed before any Session or worker because the isolated copy lacked its `next` resolution alias. Its 32-file failure seal was retained; only that runner packaging was repaired before the successful attempt.
+
+Root and the independent reviewer checked the successful composition seal's 1,364 regular files and eight symlink strings. The seal and its later administrative verification receipt are explicitly outside the sealed member list; the latter is separately hashed. Runtime grant probes on live issues establish revocation. Closed/aborted grant probes use a broader error matcher and establish refusal; they do not independently demonstrate deletion of every private WeakMap entry. The production `finally` retirement/deletion path was also inspected directly.
+
+The unfiltered stable-release-gap corpus passed 263/264 tests with zero pending/skipped tests in 716.793 seconds. Its only failure remains the original browser Promise observability contract: pristine Vitest passed all 13 bodies and Next passed five, with the same eight failures. Original acceptance bodies and assertions were preserved. The pre-run and post-close manifest confirmed all 721 authored files, 9,261 build outputs and HEAD were unchanged throughout the run.
+
+Evidence is retained under `/private/tmp/next-testing-native-session-origin-recheck79/actual-session-evidence-vNCZ6U` (seal `28450f50...`) and `/private/tmp/next-testing-runtime-native-composition-proof103/actual-evidence-5mJ8VG` (seal `40408184...`). Root verification and independent audit receipts retain complete hashes and the bounded conclusions.
+
+This qualifies a private in-process runtime/native-config composition slice. Public admission, reports, planner/cache/watch/IPC integration, compiler-source zero coverage, JavaScript configuration coexistence and the wider stable requirements remain open. All requirements remain OPEN, no stable exception is approved, performance budgets remain deferred and stableReady remains false.
+
+## Increment 62: private native compiler-source zero coverage
+
+The private compiler-source path now composes the original Session-issued native
+TypeScript configuration fact with a separate, live source conversion grant.
+The grant binds the original wrapper, value, artifact, sealed fact, selection,
+source/profile/revision, original compile cancellation and allocation lease.
+A fresh reader observation must fully match the original fact; it never replaces
+or refreshes that fact. Source and runtime grants use separate private maps and
+cannot substitute for one another. Each grant retires after conversion or failure.
+
+The new source retainer captures original pointers and own data descriptors before
+its deferred genuine CommonJS compiler lookup. It requires the independent parent
+import permission as well as the genuine source grant. Istanbul owns an unexported
+zero-conversion scope that can advance only after the complete source validator
+succeeds. The full validator runs before and after the unchanged zero algorithm,
+followed by the genuine native seal and the final synchronous cancellation and
+identity checks. The legacy source validator, source-ID recipe, raw zero algorithm
+and Standard conversion algorithm retain their original bytes. Legacy entry points
+continue to refuse own native markers and module-configuration authority.
+
+Verification for the combined core80 build:
+
+- Six compiled component suites passed **1,294/1,294**, with zero pending tests.
+  The 66 appended controls preserve the complete original test prefixes and all
+  original assertions. Repository TypeScript, lint and formatting of all 144
+  authored JS/TS paths passed. The native binary remained at SHA256
+  `d0f888de5ddfa7aa60aa379e7d78e03c6b13d8ca38f9ac295662d34024d0d940`.
+- An independently copied, unpatched Vitest 5.0.4/coverage-v8 installation with
+  Vite 8.3.4 produced actual uncovered-source references for both original JSX and
+  TSX subjects. Empty tests did not import those subjects, their URLs were absent
+  from actual worker V8 coverage, and complete final raw data matched the real
+  uncovered-provider conversion result. All original metadata, genuine `fnNames`
+  Maps, two `Infinity` statement endpoints and zero counters were retained. A
+  separate disposable explicit-import canary triggered the exact evaluation
+  detector with a matching raw URL and worker-PID sentinel. The two positive CLIs
+  exited zero; the detector CLI exited one with its single assertion passed. Its
+  three ordinary pristine workers are counted separately from Next source work.
+  All eight oracle processes, the owned group, descriptors and copied roots
+  closed; original installed inputs and subject bytes remained unchanged. This
+  is an installed-byte pin, not an independent registry-integrity claim.
+- The actual native source proof passed development/production × JSX/TSX. All
+  nine complete zero outputs (four None, four Some and a valid replacement B)
+  matched the independent pristine data after only source-path substitution.
+  None/Some JS/map bytes matched in all four cases (20/20/12/10 files). Complete
+  raw results were retained before assertions, including baseline converter/map
+  observations. No runtime coverage was converted into zero counts, no coverage
+  capture was constructed and no source artifact was executed.
+- The source proof retained 91 composed source operations, four baseline observer
+  scopes, 237 genuine converter inputs/results, 729 original raw maps, 86 completed
+  late actions and 165 refusal receipts. Ten actual native receipts contained
+  1,370 complete records. Independent checks retained canonical Base64/raw SHA
+  binding, source/config lookup and absence relationships, original fact/request
+  revisions, original compile abort, final-await cancellation and genuine role
+  refusals. Late controls must finish after genuine zero conversion and receive
+  the exact captured production API error; observer, persistence, mutation and
+  cleanup failures cannot qualify as production refusals.
+- The original A grant was active before disposal. Replacement B reused A's full
+  request, root, source/profile/revision/IDs and all 15 artifact files byte for
+  byte. B refused A's fact, the old grant refused A's closed original allocation,
+  and valid B independently sealed its own grant and produced correct full zero
+  data. All 14 Sessions disposed, all allocations and both mode parents were
+  clean, and all 17 independent parent import operations retired. These import
+  operations never claim Session allocation liveness; the genuine source grant
+  supplies that check. The source proof created **zero Next workers**.
+- The original runtime proof also passed on the current build: nine complete
+  pristine comparisons, 59 composed operations, 406 raw maps, 148 converter calls,
+  54 completed late actions and 148 independently checked refusal receipts. All
+  14 Sessions and 13 genuine runtime workers closed with zero exits and no signal.
+  Its original 32 functions, native case/assertion tail and pristine references
+  remain unchanged. The bounded parent verified all 13 exact worker records and
+  their detached groups; it does not claim ownership certification for an abrupt
+  unrecorded-fork window. Such a failure remains explicitly uncertain and CLOSED
+  false. No such failure occurred in this actual run.
+
+All actual shared input snapshots remained unchanged. The proof scripts preserve
+their prelaunch revisions and the withdrawn source114 readiness-only capture;
+source114 created no native Session or worker. The source115 proof was the single
+actual source attempt. Successful retained-authority checks and real retirement
+delegates demonstrate revocation. Failed-phase checks alone cannot directly prove
+private WeakMap deletion; the unconditional production deletion path was also
+inspected. Auditor-only diagnostic corrections and their original logs are
+retained separately and did not rerun or change actual proof results.
+
+The complete unfiltered original corpus passed **263/264**, with **zero pending or
+skipped tests**, in 719.373 seconds. The only failure remains the unchanged browser
+Promise observability contract: pristine Vitest 5.0.4 passed all 13 original bodies
+and Next passed five, with the same eight failures. The actual process closed
+before the final manifest check; all **722** authored source files, **9,264** build
+outputs and HEAD remained unchanged. No original acceptance body or assertion was
+rewritten, filtered or granted an exception.
+
+Evidence includes the independent oracle under
+`next-testing-native-source-zero-oracle-prep111/owner-attempt-R2Ky5U/evidence`
+(seal `94751705...`), native source proof115 under
+`next-testing-native-source-composition-proof115/actual-evidence-aaDUZ3`
+(seal `ccf3af5f...`, 1,822 regular files and eight link strings) and runtime recheck80 under
+`next-testing-runtime-composition-recheck80/actual-evidence-JJ9SR4`
+(seal `81b4981a...`, 1,473 regular files and eight link strings), all under `/private/tmp/`. Root and independent audit
+receipts retain complete hashes and bounded conclusions.
+
+This qualifies the private native compiler-source composition slice and rechecks
+the private runtime slice. Public admission, reports, planner/cache/watch/IPC,
+module-configuration coexistence and the wider stable requirements remain open.
+Both protected requirements remain unchanged. All requirements remain OPEN, no
+stable exception is approved, performance budgets remain deferred and stableReady
+remains false.
+
+## Increment 63: original config-load provenance and native filesystem utilities
+
+This batch adds a dormant provenance record for the original ordinary Next config
+load, a separate native atomic destination no-replace utility, and fresh opaque
+compiler/grant identities. The full supervised filesystem service remains
+unapplied. None of these utilities grants public compiler, module, coverage or
+report admission by itself.
+
+The fixed ordinary config load keeps its original arguments, one load await,
+selected config-file read and three returned fields. Its canonical leaf records
+only the genuine returned object against the original private observer before
+mutable facades escape. Unknown copies, caller graphs and callbacks cannot issue
+this origin. The fresh reader reuses the genuinely recorded imports and returns
+an explicitly unqualified graph; it does not add an atomic concurrent ESM cut or
+module-configuration permission. Original observer/loader and legacy routines
+retain their protected bytes. Fresh null-prototype identities use the captured
+freeze operation for its side effect and ignore its return, preventing a later
+replacement from substituting a reused token. This is a narrow identity fix, not
+process or arbitrary-intrinsic isolation.
+
+The native no-replace utility holds directory descriptors, validates canonical
+sibling paths and expected physical identity, and uses the platform's atomic
+destination no-replace operation. Its separate SWC wrapper captures the original
+functions and receiver without querying capability during ordinary binding load.
+Unsupported or malformed calls refuse without a replacing Node fallback. The
+utility guarantees atomic destination exclusion; source inode comparison is not
+an atomic source-inode CAS, and pre/post checks cannot erase intervening namespace
+effects. Consumer ownership, supervised cleanup and parent-death recovery remain
+separate requirements.
+
+Verification on the matching frozen rebuild:
+
+- The combined native binding rebuild and all 18 bootstrap tasks passed. Seven
+  compiled suites passed **1,340/1,340**, with zero skipped or pending tests.
+  The complete original 249-test compiler prefix and assertions are unchanged;
+  eleven controls were appended and the generated provenance suite adds 35.
+  Repository types, lint and formatting of 150 authored JS/TS paths passed.
+- Rust formatting and the locked complete NAPI crate check passed. The standalone
+  crate test executable failed to link Node's N-API symbols; that failure is
+  retained and is not counted as a utility-test pass.
+- The fresh actual macOS binding plus compiled wrapper passed six filesystem
+  cases: successful publication, existing directory/file/symlink destinations,
+  replaced source before the call and wrong original identity. Complete raw
+  returns/errors and held identities precede the assertions. All six held
+  descriptors, the child process/group, parent descriptors and private root
+  closed. This is utility qualification only; concurrent source CAS was not
+  demonstrated.
+- Two fresh ordinary Node children loaded the exact original named/development
+  empty config and named-imports/development helper config. The retained, fresh
+  and restored graphs matched the complete expected hashes, with input/edge
+  counts 1/0 and 2/1. All 19 actual refusal controls passed, including changed
+  files/hooks, unknown/copy/token origins, a replaced getter without invocation
+  and original abort identity. Each child loaded config once; both children,
+  their parent, groups, output descriptors and fixtures closed. These controls
+  created zero native Sessions and zero Next execution workers.
+
+The current frozen footprint has 732 source files, 9,275 build outputs and the
+original HEAD. Native SHA256 is
+`2cf5c03f5000237de7f8c053e4b363b1787cd793b60b058ac034dc677cddb8d3`.
+Root and independent raw audits retain the actual utility seven-file seal
+`2d66098e...` and ordinary-load 50-file seal `062f2f3e...`. Original failure/setup
+captures and all previous qualified evidence remain intact.
+
+The matching source and runtime composition rechecks also passed with their
+original case bodies and assertions preserved. Source coverage matched nine
+complete pristine zero-coverage results, including real Map and Infinity
+metadata, across 91 composed operations, 237 genuine converter calls and 729 raw
+maps. Its 86 completed late mutations produced 165 production refusals. All 14
+Sessions disposed; source artifacts executed zero times. Runtime coverage matched
+the complete pristine results across all four None/Some pairs and the strict ABA
+case, with 59 composed operations, 148 genuine converter calls, 406 raw maps and
+54 completed late mutations. Its 148 refusal receipts matched the owner record.
+All 14 runtime Sessions disposed and all 13 actual workers closed with exit zero.
+The matching source and runtime evidence seals contain 1,784 and 1,364 regular
+files respectively, each with eight literal symlink targets. None/Some emitted
+JavaScript and map bytes remain exact. Root and independent raw audits compare
+the full data rather than selected counters.
+
+The launchers signal only their actual still-unclosed direct child. Runtime
+worker PID/group observations are status-only and grant no signal authority;
+the outer launcher marks missing normal receipts or remaining processes
+uncertain. All recorded processes and groups were independently absent after
+normal closure. Execution packages, self aliases and generated allocations were
+removed. Original authored fixtures and ordinary compiler caches are retained
+and sealed as evidence; their presence is not a cleanup failure. These completed
+runs do not establish abrupt unrecorded-fork ownership, a final concurrent ESM
+cut, module/configuration coexistence, public admission or report publication.
+
+The unfiltered original acceptance corpus passed **263/264**, with no skipped or
+pending tests. The only failed gate remains the original Promise comparison:
+pristine Vitest passes 13/13 and Next passes 5/13. All thirteen statuses and full
+outcomes are data-identical to the preceding rebuild, including the same eight
+failures. No original assertion or acceptance body was changed. The full source,
+built output, native binary and HEAD footprint stayed unchanged through all
+actual rechecks and full acceptance. This increment was added only after those
+owners closed; the earlier ledger bytes and both protected requirement files
+remain exact.
+
+The held-directory deletion utility and strict wrapper are separate scratch
+candidates. Their isolated controls do not qualify the rebuilt actual binding or
+the still-unapplied supervised filesystem service. All requirements remain OPEN,
+performance budgets remain deferred, no stable exception is approved and
+stableReady remains false.
+
+## Increment 64: native held-directory deletion observation
+
+This increment integrates the previously staged native held-directory deletion
+utility and its strict SWC wrapper. The matching actual macOS binding and compiled
+wrapper now have bounded utility qualification. The supervised filesystem service
+remains unapplied; these utility objects do not grant allocation, compiler,
+coverage, module or public admission.
+
+The native factory validates the numeric descriptor and canonical physical
+identity, holds its own CLOEXEC duplicate and private event queue, and retains the
+original directory referent across pathname changes. It does not reopen a caller
+path or close the caller's original descriptor. Polling is nonblocking; sticky
+error, revoke or identity uncertainty suppresses a positive deletion result.
+Close performs a final poll and independently consumes its two descriptors, with
+idempotent repeated closure and an explicit poll-after-close refusal. A close
+receipt has no deleted field and cannot substitute for a positive observation.
+
+The SWC wrapper captures the original native functions and receivers without
+querying capability during ordinary binding load. It captures the returned
+instance's original own or immediate-prototype data methods, rejects accessors
+without invoking them, and validates exact synchronous result records. Returned
+primitive fields and errors arrays are copied and frozen; fresh null-prototype
+wrappers and records ignore the captured freeze operation's return. Every explicit
+poll and close calls the original native method. Post-factory validation failure
+attempts the captured native close independently and retains any cleanup
+uncertainty. Missing or unsupported methods refuse without a Node fallback. This
+is not arbitrary-intrinsic or process isolation.
+
+Verification on the matching frozen rebuild:
+
+- The native binding rebuild and all 18 bootstrap tasks passed. Rust formatting,
+  the locked complete NAPI crate check and whole-crate test compilation passed.
+  The previous standalone crate executable's Node N-API link failure remains
+  retained; no new standalone execution pass is claimed. The separate isolated
+  native utility controls passed **14/14**: eight groups exercise real filesystem
+  operations and lifetimes, and six are explicitly synthetic classifier/error
+  delivery controls. Synthetic revoke, saturation and close-error delivery are
+  not presented as actual kernel failures.
+- Seven compiled suites passed **1,428/1,428**, with zero pending tests. The
+  complete original **260-test compiler prefix** remains byte-exact; its 88
+  appended synthetic wrapper controls bring that compiler suite to **348/348**.
+  These are compiler component counts, not coverage or full acceptance counts.
+  Repository types, lint and formatting of 151 authored JS/TS paths passed.
+- The fresh actual proof exercised both the original raw NAPI methods and genuine
+  compiled SWC `loadBindings` utilities. It retained 88 raw observations before
+  assertions, six successful watches and their explicit closure, 30 expected API
+  refusals across the native and wrapper paths, and four failed operating-system
+  removal attempts. Failed removals, renaming the original directory and deleting
+  a foreign replacement did not count as original deletion. Actual removal of
+  the held original referent produced the positive observation with its exact
+  device/inode, including after the caller closed its original descriptor.
+- Actual class constructors and foreign receivers refused; own/prototype method
+  descriptors, final-poll closure, repeated close and poll-after-close behavior
+  were checked. Raw result shapes and the wrapper's copied null-prototype frozen
+  records and errors arrays matched their contracts. Twenty actual CJS modules
+  and the single original loaded native binary were pinned. All **11,984** tracked
+  inputs stayed exact. The actual child closed with exit zero and no signal;
+  parent, child and process group were independently absent, and fixture,
+  standard-input, log and parent descriptors closed.
+
+The frozen footprint contains **735** source files and **9,280** build outputs,
+with the original HEAD unchanged. Native SHA256 is
+`ce248de82262178754e28b5b20164194d16f2f006d72be3603c6616aadf7dd52`.
+The immutable build/check record is `a4119486...`, and the source/output freeze is
+`805f30d0...`. Root and independent raw audits retain the actual utility evidence
+under
+`/private/tmp/next-testing-native-directory-deletion-binding-proof82/owner-attempt82-kohkrtqe/evidence`,
+seal `e5f593d4...`, with 110 regular files and no symlink entries. Independent raw
+audit `c6af29be...` and final seal binding `e6b766...` qualify only these exercised
+utility behaviors. Earlier failure captures, ledger bytes and both protected
+requirement files remain unchanged.
+
+The matching private source and runtime composition rechecks both closed with
+exit zero on this rebuild. Their original case bodies and assertions were
+preserved, and complete pristine None/Some JavaScript and source-map inventories
+remained byte-exact: 20/20/12/10 files for source and 18/12/18/10 for runtime.
+Source retained nine complete zero-coverage oracle comparisons, 91 composed
+operations, 729 raw maps, 237 genuine converter calls, 86 completed late actions
+and 165 production refusals. Runtime retained 59 composed operations, 406 raw
+maps, 148 genuine converter calls, 54 completed late actions and 148 refusals.
+Each proof retained ten original native receipts with 1,370 complete records.
+Strict ABA controls compared all 15 source or 22 runtime artifact files, their
+complete requests and artifacts, a separately active original grant before
+disposal, stale-authority refusals and a fresh live positive control.
+
+All 14 Sessions in each proof disposed. Source executed no test artifacts or
+workers; runtime's 13 actual workers closed with exit zero and no signal. Root
+and independent checks confirmed process/group absence and unchanged tracked
+inputs. Authored fixture inputs stayed exact; ordinary compiler caches and their
+fixture directories were deliberately retained and sealed. Generated allocations,
+execution packages and self aliases were absent. Runtime's outer worker receipts
+provide status only and grant no birth identity or worker-signalling authority.
+The source evidence seal is `c753ded5...` (1,784 regular files and eight literal
+symlinks), bound by independent final receipt `ae4b6cf6...`; runtime seal is
+`03f20e3d...` (1,364 regular files and eight literal symlinks), bound by
+`2baaae2d...`. These rechecks qualify their private composition slices; they grant
+no module/configuration coexistence, public admission or report authority.
+
+The complete unfiltered acceptance corpus passed **263/264**, with zero pending,
+skipped or todo tests, in 710.868 seconds. Its sole failure remains the original
+browser Promise observability matrix: pristine Vitest 5.0.4 passed all 13 original
+bodies and Next passed five. All 13 statuses and complete outcomes in both lanes
+were data-equivalent to the preceding rebuild, including the same eight Next
+failures. Original acceptance bodies and assertions were preserved. The pre-run
+and post-close manifest verified all 735 source files, 9,280 build outputs and
+HEAD remained unchanged throughout the run. Root comparison receipt is
+`c5aa83be...`. This result retains the known failure; it does not establish full
+Vitest compatibility.
+
+This utility supplies no atomic source-inode CAS, proof that moved descendant
+contents disappeared, whole-parent-death recovery or preemption of synchronous
+kernel calls. Full supervised cleanup, native origin/grants, module/configuration
+coexistence, a final concurrent ESM cut, public admission and report publication
+retain their separate gates. All requirements remain OPEN, performance budgets
+remain deferred, no stable exception is approved and stableReady remains false.
+
+## Increment 65: mocked helper compatibility and private default-policy refusals
+
+This increment integrates the bounded `vi.mocked` identity adapter, the selected
+stable mock-type exports and a private default-configuration refusal policy. The
+original public production case now exercises the helper-name correction. These
+changes grant no public compiler, configuration, coverage or module authority.
+
+`vi.mocked` returns its first argument without inspecting the argument or its
+options. The common and client facades preserve the original value, ignore the
+receiver and extra arguments, and retain a nonconstructable one-argument helper.
+A production run exposed minification of its function name to `S`; the narrow
+correction defines the existing helper's name as `mocked`. Its identity and body
+remain unchanged. Thirteen selected mock-type names are reexported from the real
+bundled `@vitest/spy` symbols. Existing `Mock` and `MockInstance` declarations are
+unchanged. The rejected hand-written aliases and their actual type differences
+remain retained.
+
+The maintained mock controls retain their three original case bodies and append
+one type-only case. In the fresh combined run, five original plain Node TAP cases
+and ten ownership observations passed; two original child handles closed with
+exit zero and complete stdio. Six existing type programs retained 20 probes, and
+eight common/client named-type programs retained 60 probes. All fourteen actual
+type programs had zero diagnostics. Complete named inference observations matched
+the pinned reference. The earlier isolated reference matrix also retained twelve
+programs and 90 probes. These declaration tests do not qualify bare editor,
+global or clean installed-consumer resolution.
+
+The private `default-only` configuration policy refuses non-default inputs before
+loading arbitrary configuration. For supported plain option objects, it snapshots
+own enumerable data fields and refuses inherited policy fields, custom option
+prototypes and accessors without invoking those accessors. It requires the
+normalized absolute directory and production phase, and refuses unsupported
+selectors before and after dotenv loading and before config discovery. Named
+configuration, custom configuration, raw configuration, explicit nonsilent
+logging, feature-report callbacks and unsupported cache paths refuse. Explicit browser targets, including an empty array, refuse rather
+than falling through to a resolver scan. The private native binding path refuses
+preloaded or pending ordinary bindings, custom or Wasm selectors and native-load
+failure before any fallback/download. A private attempt neither shares nor clears
+an ordinary pending load. Ordinary loader behavior remains separately exercised.
+This is a refusal-only private boundary, not a configuration sandbox or a public
+configuration/compiler grant.
+
+The sealed private policy preparation used genuine package/root declaration
+compilation and unchanged Taskr SWC emission. Its actual private unit run passed
+409/409; its loader probe passed 9/9, retaining 604 observed CJS input bindings and
+no native execution. Named-config side effects were absent in the private lane
+and present in the ordinary control. The first combined core84 run then failed
+three new synthetic native-loader cases: 1,490/1,493 passed. Those actual failures
+remain unchanged in the archive. A separate test-only repair resolves native mock
+targets from the real SWC importer and uses virtual mocks only when the module is
+absent. Complete case bodies, factories, counters and the original 348-case
+compiler prefix remain byte-exact. The exact Jest resolver cache priming call was
+not observed; the source-backed explanation is not presented as a runtime cache
+trace.
+
+The repaired fresh combined run passed **1,493/1,493** across nine suites, with
+zero pending tests. Repository and package types, focused lint, Prettier CHECK and
+diff checks passed. No production rebuild was required after the test-only repair;
+all production source and actual package outputs stayed unchanged. The matching
+core84 freeze binds **777** source files and **9,285** build outputs at the same
+HEAD. Native SHA256 remains
+`ce248de82262178754e28b5b20164194d16f2f006d72be3603c6616aadf7dd52`;
+its latest actual utility proof remains the separate core82 proof. Core84 root
+record is `696e22b0...`, and source/output freeze is `a0013f82...`.
+
+The fresh original two-case Next Node production fixture passed **2/2**, including
+all helper identities, option forms, zero-trap observations, name/length,
+nonconstructability and the genuine mock chain. The real production CLI exited
+zero. Its two distinct original watch/execution workers both spawned and closed
+with exit zero and complete stdio; the 14-event journal retained no worker-thread
+or forced-drain uncertainty. Input inventories before, after and after cleanup
+matched for 174,321 selected regular files and 10,953 literal links. The fixture
+was removed and the original owner wait/logs closed in 118.381 seconds. Root raw
+verification is retained at
+`/private/tmp/next-testing-mocked-name138-production84-root-actual-verification.json`.
+This qualifies the fresh production name correction only. Static input inventories
+are not observed module-import inventories or arbitrary-import completeness.
+A later independent current-inventory audit failed on an absent pinned cache
+file after 153,662 matching entries; the symlink loop was not reached. Its OS1
+and full raw log remain retained. The deletion producer was not observed. Saved
+checks describe the completed row; no current full-inventory equality or reusable
+release is claimed. The bounded source/actual/history archive seal is
+`50dab441...`.
+
+The original six public rows remain historical: the Next production row was 1/2,
+and the Next browser row's three test bodies passed while its owner retained an
+unresolved worker-thread/resource HOLD. That original held fixture remains
+unchanged. Completion of its original OS waits does not qualify resource closure,
+worker origin or all six rows. The earlier full core83 run also remains 263/264,
+with the original browser Promise observability failure retained.
+
+The complete unfiltered core84 acceptance corpus passed **262/264**, with zero
+pending or todo tests, in 915.199 seconds. All 264 original case names and all
+432 frozen corpus source files remain unchanged. The original Promise gate
+retained pristine 13/13 and Next 5/13; all thirteen statuses and complete outcomes
+in both lanes matched core83 exactly. A second actual failure is retained in
+TypeScript watch coverage: after adding a test file, pristine ran only that file,
+while Next actually reran both the added and existing file. Its addition report
+contained two tests where the unchanged oracle expected one. The cause remains
+under investigation, and the unchanged expected count remains one. The full actual result and post-close unchanged 777-source,
+9,285-output/HEAD verification are bound by
+`/private/tmp/next-testing-batch84-full-root-verification.json`.
+
+Pristine Vitest 5.0.4 Chai discovery passed seven original cases across three
+separate actual commands, retaining full namespace/plugin, raw-vs-wrapped
+counter/task, should and retained-assertion observations. Both cache directories
+were owned by the fresh fixture; the 7,795-file/333-link reference input inventory
+stayed unchanged. Its 33 additional cache files relative to the older inventory
+were retained explicitly; none of the older 7,762 regular inputs changed. The
+worker-exit should observation never arrived, so post-file restoration remains
+unqualified. The raw discovery archive seal is `ffea26fc...`.
+
+The unchanged original three-case Chai contract was then run through genuine
+Next Node development compilation and execution. It failed during collection at
+`chai.use` on original line 30 because `chai` was undefined. The actual report
+contains one failed file and zero collected or executed tests; the observation
+file is empty. None of the three authored bodies ran, and no passes, skips or
+counter observations were manufactured. Both actual watch and execution workers
+spawned and closed with exit zero and complete stdio. The CLI exited one; its
+separate operational owner closed zero in 116.694 seconds, removed its fixture,
+and retained matching before/after/post-cleanup selected input checks for 170,670
+regular files and 10,953 literal links. Root actual verification is
+`/private/tmp/next-testing-chai141-next-diagnostic84-root-actual-verification.json`.
+This records a real missing-namespace collection failure. Chai compatibility
+remains unqualified.
+
+No named Chai namespace, raw assertion ownership, Browser Mode, editor/global
+bridge, public config/compiler admission or complete stable contract is qualified
+by these bounded results. Original acceptance bodies and assertions remain
+unchanged. All requirements remain OPEN, performance budgets remain deferred,
+no stable exception is approved and stableReady remains false.
+
+## Increment 66: parallel compatibility work and repaired watch/editor integration
+
+Independent browser compilation, Chai ownership, editor declarations and watch
+scheduling work now runs in separate owned copies. Shared source application and
+normal builds remain coordinated. These bounded results do not close a stable
+requirement or replace the original acceptance corpus.
+
+Core85 integrated the guarded Chai assertion constructor prerequisite, explicit
+editor type opt-ins and settled watch readiness. Its normal package build passed,
+but the complete ten-suite focused run retained **1,536/1,538**, with zero pending
+or todo tests. Repository types, lint and formatting passed. The two failures
+were the original snapshot keyboard interaction and the installed editor-type
+producer. Both actual failures and the unchanged post-run source/output freeze
+remain retained at `/private/tmp/next-testing-batch85-red-root-verification.json`.
+
+The Chai prerequisite preserves the original 108-case lifecycle prefix and adds
+two constructor/retained-owner cases. It uses the real assertion primitive and
+original task scope; it does not export the full namespace. The explicit type
+bridge supports bare/config imports, globals and import-meta declarations through
+named Next opt-ins. A fresh packed consumer runs eight original compiler programs
+without an installed Vitest or Vite package: five succeed and three retain their
+expected unresolved errors. The ordinary upstream `types: ["vitest/globals"]`
+configuration remains unsupported. No runtime, browser or in-source admission
+follows from declaration checks.
+
+The first watch fix publishes terminal readiness only after cleanup, dependency
+baseline commitment and cancellation release. A private delay probe reproduced
+the extra-run symptom and the repaired ordering avoided it, but the exact cause
+of the earlier unmodified full84 watch failure is still unproven. Core85 exposed
+a separate snapshot regression: deferred filesystem notifications aborted the
+completed writer before its readiness notification. The successor carries a
+complete follow-up request through cleanup, publishes the closed generation,
+then queues the follow-up even if publication throws. Unsafe cleanup stops before
+either action. Three appended controls first produced 43/45 and then passed with
+the fix. The unchanged whole 272-case CLI suite plus all 45 watch cases passed
+317/317 in the private host after repairing omitted fixture packaging; that
+earlier packaging failure remains retained. The watch packet seal is
+`7a2ae1aa...`.
+
+The editor producer originally selected pnpm 10 in the repository and pnpm 11
+from its fresh consumer directory. The repair pins owned project metadata and
+checks the actual dispatcher version for every pack/install operation. Packing
+starts from the pinned workspace while retaining each dependency's original
+manifest. A subsequent real check correctly exposed that packing strips a
+TypeScript metadata field; the installed manifest is now compared with the
+actual archive, while both compiler JavaScript files remain byte-exact to their
+selected source. All failed attempts remain separate. Genuine Corepack private
+verification passed the whole five-case suite, types, lint and formatting. The
+sealed helper-only handoff has 1,324 regular files and no links, seal
+`57659e35...`. Root's independent final check on the exact core85 host also
+passed all eight original compiler expectations, with all 18 operations selecting
+pnpm 10.33.0 and all 45 original tool owners closed. Its actual result is
+`/private/tmp/next-testing-editor-pnpm-repair85-root-actual02/root-verification.json`.
+
+Core86 applied the reviewed three-file watch successor and one-file producer
+repair after exact before/after guards and private patch replay. The owned watch
+builder closed before the normal `pnpm --filter=next build`, which exited zero.
+The fresh complete ten-suite run passed **1,541/1,541**, with zero pending or todo
+tests; all 1,538 preceding case rows and their name multiplicities remain, plus
+three appended watch controls. Both original core85 failures now pass. Repository
+types, focused lint, Prettier CHECK and diff checks also pass. The post-run freeze
+retains all **793** selected source files and **9,285** outputs at the same HEAD,
+with the native binary unchanged. Root verification is
+`/private/tmp/next-testing-batch86-root-verification.json`. The original whole
+264-case acceptance suite has not been rerun for core86.
+
+The full Chai namespace and default native browser creator transform remain
+separate, unapplied successors under review. Private native execution passed the
+original promise/startup/Proxy cases and additional unchanged browser fixtures;
+existing compiler/resource controls also passed. Source review retained an actual labeled-loop failure; a direct-eval callee
+wrapper concern is still being tested before promotion. Chai review retained
+raw receiver/prototype escape and observable Proxy-trap failures; a private
+primitive identity repair is still being verified. Earlier loader-only browser
+results, private native results and component Chai comparisons are not a new
+combined public or stable qualification.
+
+The original full84 result remains 262/264. The held public134 fixture, its
+resource HOLD, older public failures and all original acceptance bodies and
+assertions remain unchanged. Both protected requirements files remain unchanged.
+All requirements remain OPEN, performance budgets remain deferred, no stable
+exception is approved and stableReady remains false.
+
+## Increment 67: normal native browser and Chai integration
+
+The independent browser, assertion and dependency tracks now have a combined
+normal build. Earlier red results remain evidence. Core87's normal native and
+bootstrap builds passed, but its complete thirteen-suite run passed
+**1,555/1,556**: the original immutable startup-classifier case failed, and the
+genuine repository Rust formatting check failed on four touched files. The
+private native browser positives did not override that whole-root regression.
+The red is retained at
+`/private/tmp/next-testing-batch87-red-root-verification.json`.
+
+The native successor restores the byte-exact legacy classifier for ordinary
+untransformed helpers. The actual Browser compiler resolves its canonical
+framework import to a separate engine classifier, requires that module and its
+framework issuer in the validated graph, refuses the legacy route, and emits a
+route descriptor only after validation. The reader and executor require that
+descriptor; an older native artifact refuses before Browser launch. Both routes
+use the original single async-context/Scope module. There is no caller-supplied
+owner, registration setter or ambient-scope inference. The real root Rust
+configuration also fixes the retained formatting failure.
+
+Private native verification retained all thirteen complete pristine Promise
+trace/outcome objects across six genuine Browser controls, twenty-one ingress
+and semantic refusals, the old-native descriptor refusal, **444/444** existing
+compiler/resource controls, **122/122** maintained controls, nine Rust tests and
+zero type/lint/format failures. The immutable final archive binds 1,352 regular
+files and no links, seal `4cac80ca...`; root independently verified the complete
+tree. These private results remain distinct from the normal shared build and
+its actual public acceptance results.
+
+Chai's original constructor now supplies an opaque read-only identity for its
+raw target and real proxy; the genuine Vitest resolves/rejects factories retain
+that same identity. Assertion ownership still comes from an admitted producer
+and its original Scope, never merely from a token's existence. Unknown and
+revoked receiver lookups cause no traps. The public Chai namespace preserves its
+nine-key shape. Earlier receiver/prototype escapes, hostile receiver traps and
+hidden-target failures remain archived.
+
+The normal bundle entries also needed a declared direct Chai 6.3.0 build input.
+Private alias builds had hidden its absence. The matching Next importer and
+patched package references were added; an existing duplicate Storybook mapping
+was repaired by removing only its three duplicate lines. Fresh frozen offline
+validation retained all 940 copied inputs. Root then performed the real pinned
+pnpm installation and the normal Taskr primitive build; both passed, exact
+installed patch bytes matched their independently reconstructed package sources,
+and direct/transitive Chai resolved to the same file. No private generated bundle
+or native binary was copied into the shared implementation.
+
+Core88's normal native build and full bootstrap passed. All **1,568/1,568** tests
+in thirteen complete focused suites passed, with all preceding case names and
+their multiplicities retained. Types, lint, formatting, Rust formatting and all
+nine Rust tests passed. Its post-check and post-public freezes retained **809**
+selected source files and **9,291** outputs exactly. The original public Chai CLI
+contract passed **3/3** and matched all seventeen complete pristine dictionaries;
+both original watch/execution workers exited and closed zero, their stdio closed,
+and the owned fixture was removed. Root verification and the public receipt are
+`/private/tmp/next-testing-batch88-root-verification.json` and
+`/private/tmp/next-testing-chai-public-built88-actual01/owner-result.json`.
+
+A further genuine pristine comparison exposed hidden `assert.strictEqual` and
+`should.equal` plugin receivers. The Chai successor keeps the entire upstream
+777-line assertion-interface block and 1,899-byte should body literal inside
+pure factories. Their only inputs are the genuine admitted constructor and
+flag operation. Callback receiver checks remain lookup-only. This repairs real
+construction before callbacks without changing zero-count/null-task semantics
+or allowing unknown raw factories and closed owners to borrow another file.
+The original 111-case prefix and all old three/seventeen fixture predicates are
+literal; three appended fresh-process controls retain the six new pristine
+dictionaries, nested helpers, original failure payloads and A-to-B tombstones.
+The private complete run passed **112/112**, package/root types, lint and
+formatting. All earlier harness/type/double-admission failures remain archived.
+Its immutable archive has 4,915 regular files and 255 literal links, seal
+`5a41f33d...`; neither root nor peer qualifies the link targets by dereferencing
+them.
+
+Core89 integrated only thirteen authored files from that successor, preserving
+the preceding creator controls and canonical dependency fixes. A new real
+frozen offline install, normal Taskr regeneration and normal core-package build
+all passed. The normal native binary remains the core88 binary, and the Rust
+source hashes are unchanged. All **1,569/1,569** tests in the complete thirteen
+focused suites passed; all preceding 1,568 case-name multiplicities remain.
+Root types, lint and formatting passed. The freeze binds **812** selected source
+files and **9,291** outputs. Root verification is
+`/private/tmp/next-testing-batch89-root-verification.json`.
+
+Both core89 public CLI consumers passed independently: the unchanged original
+**3/3** cases matched all seventeen complete observations, and the unchanged
+pristine-discovered hidden-helper **2/2** cases matched all six observations.
+All four original watch/execution workers exited and closed zero with stdio
+closed, no intervention, and both owned fixtures removed. Their receipts are
+`/private/tmp/next-testing-chai-public-built89-actual01/owner-result.json` and
+`/private/tmp/next-testing-chai-hidden-public-built89-actual01/owner-result.json`.
+
+The unchanged unfiltered original whole acceptance suite now passes
+**264/264**, with zero pending or todo tests, in 730.904 seconds. All original
+case-name multiplicities are exact. Both full84 failures now pass: genuine
+Browser Promise await semantics and compiler-source TypeScript watch coverage
+with default retention. The complete Promise outcome objects match pristine;
+both runners' watch stages have the original `[1, 1, 2]` counts. All **812**
+selected source files and **9,291** outputs remain exact after the original owner
+closed zero. The whole-run record is
+`/private/tmp/next-testing-batch89-full-root-verification.json`. A complete
+passing finite corpus does not close the remaining functional/release matrix.
+
+The unchanged six Browser fixtures were also replayed against the actual normal
+core89 package and native binary, with no private binary selection or substitute
+outputs. All thirteen complete pristine Promise trace/outcome objects compare
+with `deepStrictEqual`, the two startup and four Proxy cases pass, both additional
+adoption/return controls pass, and the intentional mapped failure remains at
+`contract.case.mjs:9:9`. All twenty-one original ingress bodies/reasons refuse.
+Twenty-seven compiler Sessions disposed; all six original Chromium handles
+exited/closed zero with stdio closed, twenty-eight owned roots are absent, and
+the owned browser temporary directory is empty. The selected root input hashes
+remain exact. The independent normal replay is
+`/private/tmp/next-testing-browser-creator-normal89/evidence/verification.json`,
+with a 245-file/no-link archive, seal `d5f87748...`. It does not establish a
+complete descendant/module inventory or borrow the separate 264-case outcome.
+
+Another fresh Node lifecycle component found a remaining actual assertion
+lifetime bypass. An authored replacement of global `Proxy` can intercept a raw
+constructor target during genuine public `chai.expect` construction. After
+restoring the builtin and disposing the original runtime, that raw target's
+method and flags remain accessible outside A and inside B. The initial probe
+that retained only the opaque presentation failed closed; both attempts remain
+at `/private/tmp/next-testing-chai-proxy-builtin-probe89*.cjs` with their raw JSON
+results. This is a real normal-package component observation, not a public CLI
+worker origin qualification. The user clarified that this is functional
+compatibility work, not security work. No builtin hardening change or additional
+release gate is being pursued from that observation; ordinary pristine behavior
+must be preserved.
+
+The normal bootstrap's generated-output comparison also retained an unrelated
+font declaration's `fallbackFont` precision change from `string` to `any`; its
+cause is not established, and semantic equivalence is not claimed. The detailed
+bounded inventory review is
+`/private/tmp/next-testing-batch88-freeze-independent-review/review.json`.
+
+The old held public134 fixture and resource HOLD remain untouched. Ordinary
+Chai `addLengthGuard`, `proxify` and event compatibility, broader types/editor
+integration, fixture/lifecycle behavior, platform/downstream/stress and release
+requirements remain work. Independent implementation tracks continue. Both
+protected requirements documents remain unchanged. All requirements remain OPEN,
+performance budgets remain deferred, no stable exception is approved, and
+stableReady remains false.
+
+## Increment 68: normal Chai utility and matcher-type compatibility
+
+October 17, 2026. Core90 first integrated genuine `addLengthGuard` delegation,
+with all 124 lifecycle cases and repository types/lint/style passing. Core91 then
+combined `proxify`, registration events and the public `MatcherResult`,
+`SyncMatcherResult` and `AsyncMatcherResult` aliases. Proxified assertions,
+methods and `.resolves`/`.rejects` inputs retain their normal assertion behavior
+and file lifecycle. Events preserve caller callbacks and native listener
+semantics while removing file listeners during disposal. Event targets retain
+file-owned wrapper methods; complete native object-shape parity is not claimed.
+The matcher aliases reexport the pinned primitive result types, with no runtime
+JavaScript addition.
+
+A real frozen offline dependency installation, normal primitive regeneration and
+normal Next package build all pass. The native binary remains the normal core88
+binary. All **1,573/1,573** cases in the thirteen focused suites pass, with zero
+pending or todo tests; all previous 1,569 names and multiplicities remain.
+Repository types, ESLint and formatting pass. The installed-package checks also
+exercise the three matcher aliases through a real helper package and preserve
+missing-opt-in/unsupported-import diagnostics. The focused record is
+`/private/tmp/next-testing-batch91-root-verification.json`.
+
+The original unfiltered acceptance suite passes **264/264** in 745.870 seconds,
+with no pending or todo tests. All original names/multiplicities and all 432
+release-gap source inputs remain unchanged. The complete inventory of **825**
+source files and **9,294** outputs is exact after the full owner closes zero.
+Full and focused validation ran in parallel; an intermediate inventory snapshot
+recorded the full suite's live temporary fixture tree, and the final complete
+comparison passes after cleanup. No test bodies or assertions were filtered to
+obtain the passing result. The whole-run record is
+`/private/tmp/next-testing-batch91-full-root-verification.json`.
+
+Three independent public `next test` consumers also close zero: the unchanged
+original Chai three-body/seventeen-record contract, the hidden-helper
+two-body/six-record contract, and all three utility bodies with all six complete
+pristine observation records. Actual dictionaries compare exactly with genuine
+Vitest 5.0.4. Original CLI/worker handles and stdio close normally, temporary
+fixtures are removed, and selected source/build inputs remain unchanged.
+Records are in `/private/tmp/next-testing-chai-public-built91-actual01/`,
+`/private/tmp/next-testing-chai-hidden-public-built91-actual01/` and
+`/private/tmp/next-testing-chai-utilities-public-built91-actual01/`.
+
+Work continues on ordinary functional gaps: `vi.when`/`isWhenChain`, real
+compiler-backed `vi.importMock`/`vi.unmock`, Browser `chai`/`should`, and Chai's two
+legacy static settings aliases. Scratch/reference results are not normal shared
+integration claims. The user-directed scope remains functional compatibility;
+no builtin tamper-hardening work or additional security release gate is added.
+The protected requirements files remain unchanged, performance work remains
+deferred, no stable exception is approved, and stableReady remains false.
+
+## Increment 69: conditional mocks, Browser output and mock-import cache ordering
+
+October 18, 2026. Core92 integrated `vi.when`/`isWhenChain`, Browser
+`chai`/`should`, and Chai's `includeStack`/`showDiff` static aliases. Its normal
+package/primitive builds, 1,576 focused cases and repository types/lint/style
+passed. Public Node consumers matched all six conditional-mock bodies and both
+static-settings bodies, including their complete pristine observations. The
+Browser consumer passed its three bodies but initially emitted no console rows;
+that comparison remained red against four pristine dictionaries. Core92 did not
+rerun the original full264 corpus. Its record is
+`/private/tmp/next-testing-batch92-root-verification.json`.
+
+Core93 integrated literal compiler-backed `vi.importMock` and hoisted
+`vi.unmock` for the bounded development Node ESM lane, ordinary Browser console
+forwarding, and `toHaveBeenExhausted`. Normal native compilation and bootstrap
+both exited zero; no private native binary or generated substitute was copied.
+The three public mock consumers passed **18/18** cases and all eighteen complete
+dictionaries: original five, additive seven and six identifier-collision cases.
+They cover factory/manual identity, fresh automock without registration,
+source-order unmock, setup-held namespaces and authored/escaped helper names.
+The independent comparison is
+`/private/tmp/next-testing-import-mock-public93-independent-review.json`.
+
+The unchanged Browser Chai public consumer now passes **3/3** with all four
+complete pristine dictionaries, preserving the earlier missing-output red.
+The matcher public consumer passes **6/6** and all twenty-six complete pristine
+observations. Original CLI waits and ordinary fixture cleanup pass. Across the
+complete fifteen focused suites, **1,793/1,793** cases pass: 1,577 in the prior
+thirteen suites plus 216 in the complete mocking/execution suites. Root types,
+Prettier and Rust formatting pass. One ESLint `no-shadow` callback-parameter
+error remains recorded; its local rename is corrected and verified in core94 below.
+
+The unchanged unfiltered whole run is **233/264**, with thirty-one coverage or
+coverage-watch failures, zero pending/todo, in 614.955 seconds. All 264 original
+names/multiplicities and 432 release-gap source files remain exact; selected
+source/build bytes are unchanged after all readers close. Runtime remapping
+reports `Coverage mapping coordinate exceeds source content`; compiler-source
+analysis reports `Compiler coverage analysis coordinate exceeds retained content`.
+Focused/public greens do not replace this red. The consolidated actual record is
+`/private/tmp/next-testing-batch93-red-root-verification.json`.
+
+An actual compile-only standard-coverage diagnostic retained the native chunk
+and maps before disposing its Session. Among eight maps and 137,846 mappings,
+exactly two generated positions exceed their line lengths. Both are removed
+inline `@ts-expect-error` comment ends in `assertions/when.ts`; both original
+positions are valid. The raw diagnostic is
+`/private/tmp/next-testing-coverage93-coordinate-diagnostic/all-invalid-02.json`.
+The core94 workaround moves those comments above their whole calls, preserving
+comment text and runtime syntax; package types and formatting pass privately.
+No decoder bounds are relaxed; the normal regenerated-map result is recorded below.
+
+A separate genuine pending setup-factory case observes B/spec first, then late
+A/setup, with later calls returning A while held B remains B. Normal93 instead
+returns B for the pending A call and later reads. Both actual results remain.
+The core94 cache-order repair reads the existing cache before awaiting factory
+resolution, matching Vitest's ordering; its complete maintained suite is 38/38.
+The same batch adds `expect.unreachable` and genuine Browser console argument
+formatting; the private red/green histories remain separate from normal results.
+
+Core94 normal package/declaration build, repository types, ESLint and Prettier
+all exit zero. All **1,802/1,802** cases across sixteen complete focused suites
+pass, retaining all 1,793 prior focused names and multiplicities. The native
+binary and primitive inputs are unchanged from their verified normal builds.
+Normal public comparisons pass all original eighteen mock cases/rows plus the
+pending-factory case and its complete identity dictionary; all three unreachable
+bodies/nine rows; all six exhaustion bodies/twenty-six rows; and all three
+Browser Chai bodies/four rows. Browser formatting passes both original bodies
+and all seven exact payloads/streams without duplicates, covering objects,
+arrays, substitutions, errors, warnings and error output. Original CLI waits
+and fixture cleanup pass. The interim record is
+`/private/tmp/next-testing-batch94-interim-verification.json`.
+The actual normal94 compile-only scan checks eight maps and **137,875**
+mapping points with **zero invalid coordinates** in either domain. It disposes
+the Session and removes its artifact/fixture; the comparison predicates are
+unchanged. Its retained result is
+`/private/tmp/next-testing-coverage94-coordinate-diagnostic/attempt-01/coordinates.json`.
+The unchanged unfiltered acceptance run now passes **264/264**, with zero
+failed, pending or todo cases, in 816.522 seconds. All 264 original names
+and multiplicities and all 432 release-gap source files remain exact.
+After all readers close, every selected source and build-output byte is
+unchanged. This includes the thirty-one coverage and coverage-watch cases
+that failed in core93. The complete normal94 record is
+`/private/tmp/next-testing-batch94-root-verification.json`.
+
+The protected requirements documents remain unchanged. Remaining ordinary
+functional, downstream, platform and release work stays OPEN; performance budgets
+remain deferred, no stable exception is approved, and stableReady remains false.
+
+## Increment 70: Browser global stubs and assertion helper callsites
+
+October 18, 2026. Core95 composes the Browser global-stub/fluent-facade repair
+with `vi.defineHelper` and its Node diagnostic presentation. The normal package
+and declaration build exits zero in 22.917 seconds, including the actual package
+`generate_types` task. The verified native binary and bundled primitives are
+unchanged and reused; this batch does not claim another native compilation.
+
+The genuine Browser global-stub consumer previously produced one passing and
+two failing cases in normal94, with false bulk-method return identities in its
+raw rows. The same three literal bodies now pass, and all five complete pristine
+observations match. The implementation reuses the actual backend for descriptors,
+aliases, absent and symbol properties, explicit restoration and cross-case
+lifetime. Stable forwarding methods return the public Browser `vi` facade,
+including a detached clear call, bulk resets/restoration and subsequent chains.
+
+The unchanged helper consumer previously failed normal94 collection because
+`vi.defineHelper` was absent. Normal95 now matches all five expected outcomes:
+two successful cases and three deliberate assertion failures, with the expected
+CLI exit one. All five complete semantic dictionaries match the actual reference,
+including receiver/argument/value identities, object and function thenables,
+rejection values and the real soft-assertion return object. The three mapped and
+human failure locations match the exact outer, async and soft callers at
+`helpers.test.mjs:130:3`, `135:3` and `139:18`. Each JSON failure message equals
+the retained complete raw helper stack. Common and client declaration consumers
+preserve the exact generic, receiver, overload and async function types.
+
+All **1,915/1,915** cases pass across seventeen complete focused suites, retaining
+all 1,802 prior focused names and multiplicities. This includes all 111 reporting
+cases with actual normal Jest controller exit zero. The earlier private harness
+failure after passing case bodies remains recorded and is not counted as a
+private controller success. Repository types and ESLint exit zero. The existing
+Browser Chai consumer still matches all three bodies/four complete rows, and the
+Browser console consumer matches both bodies/all seven payloads and streams.
+Every public consumer completes its original CLI wait and fixture cleanup.
+
+The unchanged unfiltered acceptance run passes **264/264**, with zero failed,
+pending or todo cases, in **727.256 seconds**. All original names/multiplicities
+and 432 release-gap source files remain exact. After all acceptance and public
+readers close, all 860 selected sources and 9,303 build outputs remain unchanged.
+The complete actual checkpoint is
+`/private/tmp/next-testing-batch95-root-verification.json`.
+
+An expanded formatting check exposed three older reference fixtures. The
+follow-up keeps the executable Chai reference bytes exact in a `.mjs.txt` fixture
+and updates only its copy-source path; the copied executable filename is the
+same. The two JSON files change whitespace only, with identical parsed values.
+The complete lifecycle suite passes **129/129**, changed-loader lint exits zero,
+and the broader formatting selection passes all 83 eligible authored files.
+Framework source, all build outputs and the full acceptance corpus are unchanged
+by this unit-fixture follow-up. Its separate result is
+`/private/tmp/next-testing-reference-format-followup95/verification.json`.
+
+The protected requirements documents remain unchanged. Browser helper diagnostic
+parity, Browser mock integration, artifact/report callbacks and the wider release
+matrix remain open. Performance budgets remain deferred, no stable exception is
+approved, and stableReady remains false.
+
+## Increment 71: Browser imports and Node artifact records
+
+October 18, 2026. The integrated Browser `vi.importMock`/`vi.unmock` path uses
+Next’s actual native loader and per-file alias/cache lifetime. The unchanged
+public consumers match all fifteen Browser bodies and twenty complete observation
+rows, plus the separate autospy body and row. The Node consumers retain all
+eighteen original bodies and the separate pending-thenable body. Completed
+asynchronous imports keep their original file backend; unfinished imports are
+not drained. URL presentation still differs between Next and Vite, and broader
+Browser profiles remain unqualified.
+
+The named Node `recordArtifact(task, artifact)` API now retains serializable
+artifact data and original started-task attribution for the file lifetime,
+including late records for a completed case. Its four unchanged public bodies
+match the genuine complete dictionaries, task completion artifact counts
+`[3, 0, 0, 1]`, event ordering, and all retained attachment bytes. The returned
+clone and task entry preserve the measured identity behavior. The standard JSON
+assertion result gains no artifacts field. Live custom reporter hooks, Browser
+artifact parity and collected-but-unrun tasks remain open.
+
+Artifact locations use retained source-map content and parsed call/token
+locations. All seven measured call forms now match genuine coordinates,
+including the optional call’s actual opening parenthesis at `15:29`. The earlier
+`15:27` observation and the distinct fixture output-asset resolution failure
+remain recorded. The operational replacement changed only the observer output
+path, retained all seven call lines literally, and was measured against the
+genuine reference before the Next run.
+
+Normal100 passes all **1,931/1,931** focused cases, retaining all prior 1,915
+names and multiplicities, and the unchanged full acceptance suite passes
+**264/264** in **717.706 seconds**. All 432 release-gap sources remain exact.
+Types, lint and formatting pass; all selected sources and build outputs remain
+unchanged after the readers close. The complete checkpoint is
+`/private/tmp/next-testing-batch100-root-verification.json`.
+
+Normal101 also passes all **1,931/1,931** focused cases on the pinned Node 26
+runtime, with repository types, lint and formatting passing. The first launcher
+accidentally used the shell’s Node 20 and produced 33 runtime-dependent failures;
+that complete output is retained, and the corrected full-suite launch changes
+only the runtime/environment selection. All source and build outputs remain
+exact after the public and regression readers close. Its actual checkpoint is
+`/private/tmp/next-testing-batch101-root-verification.json`.
+
+Normal101 additionally removes the compiler’s blanket rejection of ordinary
+nested function declarations while preserving normal SWC declaration emission
+and the separate try/finally scope restriction. All ten focused Rust transform
+controls pass, and actual native and bootstrap builds exit zero. The unchanged
+Browser helper consumer now reaches all five bodies and matches the two passes,
+three intentional failures and all five semantic dictionaries. Its three
+presented caller locations still differ from the reference, so Browser helper
+diagnostic parity remains open. The next full acceptance run follows that
+repair; the normal100 full result is not attributed to the changed native build.
+
+The protected requirements documents remain unchanged. Performance budgets are
+deferred, no stable exception is approved, and stableReady remains false.
+
+## Increment 72: Browser real waits and helper diagnostics
+
+October 18, 2026. Development Chromium now preserves the measured real-timer
+`vi.waitFor`/`vi.waitUntil` behavior across test boundaries and `afterAll`.
+The fifteen unchanged public bodies match all twenty-one complete observation
+rows, including immediate values, detached calls, asynchronous polling, original
+errors, timeout and thenable behavior. Unused waits stop at file cleanup without
+being forced to settle. Bare/extracted `expect` follows the current common test
+state, while held `context.expect` retains its local state; completed assertion
+counts are checked at their original boundary.
+
+Browser progress reports now queue without waiting for a network response at
+each test boundary, and drain before terminal completion. Each payload is
+serialized when queued, preserving the event's original data. Ordered delivery,
+transport and serialization failures, and cleanup have focused regression
+controls. The earlier extra-poll failures remain recorded; the unchanged public
+replay now matches the reference counters exactly.
+
+The native creator transform preserves strict block function declaration names
+without converting declarations to expressions or changing hoisting, mutable
+recursion, identity or ordinary function-body declarations. All thirteen Rust
+controls pass. The original three public cases and five additional declaration
+cases match their complete reference observations on the actual native build.
+
+Browser helper diagnostics now use retained source-map content and parsed await
+call locations to present the actual outer caller. All five unchanged helper
+bodies match, including their two passes and three intentional failures. The
+three diagnostic locations are exactly `130:3`, `135:3` and `139:18`; raw helper
+stacks remain intact. The thirty-five module-mocking regression bodies also
+retain their complete observations.
+
+Normal105 passes all **1,940/1,940** focused cases across the same seventeen
+whole suites, retaining every prior 1,915 baseline name and multiplicity. The
+unchanged full acceptance suite passes **264/264** in **727.614 seconds**;
+all 432 release-gap sources remain exact. Repository types, lint and formatting
+pass, and the selected sources and build outputs remain unchanged after all
+readers close. Normal105 adds only the scoped capability metadata over the
+normal104 public Browser runtime and normal103 native declaration transform.
+The complete checkpoint is `/private/tmp/next-testing-batch105-root-verification.json`.
+
+Qualification remains bounded to the measured development Chromium profiles.
+Browser numeric retry/repeat admission, fake timers and broader late assertion,
+snapshot and plugin interactions remain open. The protected requirements
+files are unchanged, performance budgets remain deferred and stableReady
+remains false.
+
+## Increment 73: Serial Browser retries and repeats
+
+October 18, 2026. Development Chromium client files now use the existing runner
+for numeric project retry defaults and suite/test retry and repeat counts.
+Each logical test keeps its published context, task, signal and local expect
+identity through its attempts, within the same file page. Retry completion
+replaces an earlier failed attempt for the final logical outcome; a failed
+repeat remains failed. Earlier attempt diagnostics and original error stacks
+remain in the report. Hook and file failures remain independent of a recovered
+test.
+
+The fourteen-case genuine corpus now matches all four complete observation
+dictionaries, final case statuses, error headings and counts, and every attempt
+sequence. It includes recovered and exhausted retries, failed and successful
+repeats, combined retries/repeats, inheritance and explicit overrides, runtime
+skip, blocked suites, hook failure and the held local-expect afterAll case.
+The genuine and Next CLIs both exit one for the intentional failures. All
+twenty-four starts and twenty-seven ends retain their actual IDs and ordinals.
+The earlier normal106 mismatch in context/local-expect wrapper identity remains
+recorded; normal107 matches the unchanged inputs and expectations.
+
+The thirty-five module-mocking regression bodies, fifteen real-wait bodies and
+twenty-one complete wait observations, and five helper/diagnostic bodies also
+retain their expected results. All public owners and fixtures close normally.
+
+Normal108 passes all **1,951/1,951** focused cases across the same seventeen
+whole suites. Every prior 1,915 baseline name and all 1,940 normal105 cases
+remain, with exactly eleven additions. The unchanged full acceptance suite
+passes **264/264** in **726.596 seconds**; all 432 release-gap sources remain
+exact. Repository types, lint and formatting pass. All selected sources and
+build outputs remain unchanged after the readers close. Normal108 adds only
+the scoped capability metadata over the normal107 runtime. The complete
+checkpoint is `/private/tmp/next-testing-batch108-root-verification.json`.
+
+Object retry, concurrent Browser execution, deadline/cancellation breadth,
+exact URL-bearing stack presentation and other Browser profiles remain
+unqualified. The protected requirements files are unchanged. Performance budgets
+remain deferred, and stableReady remains false.
+
+## Increment 74: Browser clocks, project defaults and real runner timing
+
+October 18, 2026. Serial development Chromium uses the existing pinned fake-clock
+algorithms for public timer operations. The unchanged eight-case reference
+matches all twelve complete observations, including Date-only system time,
+synchronous and asynchronous advancement, nested callbacks, real waits advancing
+the active clock, cross-case clock persistence, held local expectations and
+explicit restoration that discards pending timers.
+
+Project fakeTimers settings reach the Browser runtime before collection. The
+four-case corpus matches every complete dictionary and raw case outcome for
+numeric now, selected toFake arrays, loopLimit and shouldClearNativeTimers.
+Per-call options shallowly override project settings and replace timer arrays.
+The ordinary native-clear warning and original raw stacks remain recorded.
+
+Two integration defects found by these unchanged inputs are repaired. The
+Turbopack fallback Refresh signature returns the callback it annotates, so a
+valid afterAll callback containing useRealTimers stays callable. Case and suite
+durations use the runner's captured real clock, so a retained fake Date cannot
+produce negative durations. Maintained controls exercise actual fallback module
+execution and real lifecycle results through the unchanged Browser result
+collector. The earlier collection and retained-clock failures remain recorded.
+
+The fifteen real-wait cases and twenty-one observations, fourteen retry cases
+and four dictionaries, thirty-five mocking cases and five helper cases all
+retain their expected outcomes and ordinary cleanup. Final normal113 passes
+**1,958/1,958** cases across the same seventeen complete suites. All prior
+1,951 cases remain with exactly seven additions. Repository types, lint and
+formatting pass. The unchanged full acceptance suite passes **264/264** in
+**749.018 seconds**, with all 432 release-gap sources unchanged. All selected
+source and build outputs remain exact after readers close. The complete
+checkpoint is `/private/tmp/next-testing-batch113-root-verification.json`.
+
+Separate read-only observations also match four animation-frame/performance
+cases and five complete rows. The Date-valued executable-project comparison
+retains the pinned reference's one pass and three epoch-validation failures.
+These additional observations do not broaden the capability declarations.
+A separate five-case next-timer/pending corpus records one raw-row mismatch in
+public extra-argument handling; the current public adapter forwards steps that
+the pinned reference ignores. That bounded adapter repair remains next work.
+
+Broader timer options, tick modes, Browser profiles and stable-release
+requirements remain open. The protected requirements files are unchanged,
+performance budgets remain deferred and stableReady remains false.
+
+## Increment 75: Pinned public next-timer argument behavior
+
+October 18, 2026. The two public next-timer methods and their declarations now
+match the pinned zero-argument Vitest 5.0.4 surface. Extra JavaScript arguments
+are ignored, so each call advances one deadline without coercing an argument.
+The internal clock's step-aware algorithm remains unchanged.
+
+The original five-case timer corpus now matches all five complete dictionaries,
+raw case and file outcomes, totals and output streams. A separate two-case
+reference matches six sync/async snapshots for extra zero, two and coercible
+object arguments. The earlier normal113 one-row mismatch remains recorded.
+A maintained fresh-process control also checks extracted method return identity,
+unchanged scope errors, unused throwing argument coercion and restored globals;
+repository type checking verifies the actual public zero-argument tuples.
+
+Normal114 passes **1,959/1,959** cases across the same seventeen whole suites.
+All previous 1,958 names and multiplicities remain with exactly one addition.
+Repository types, lint and formatting pass. The unchanged public timer8,
+animation-frame4, project4, retry14, wait15, mocking35 and helper5 corpora retain
+their expected complete observations and outcomes. The executable Date-valued
+project comparison still matches one pass and three epoch-validation failures.
+All original owners and streams close normally, owned fixtures are removed,
+and all selected source and build outputs remain unchanged after readers close.
+
+The full acceptance baseline is normal113's **264/264** in **749.018 seconds**,
+before this six-line public-adapter repair. It was not rerun for this bounded
+change; the current verification uses the complete component suites, public
+reference corpora and repository types. All 432 release-gap source files remain
+unchanged. The checkpoint is
+`/private/tmp/next-testing-batch114-root-verification.json`.
+
+Broader timer option combinations, profiles and stable-release requirements
+remain open. The protected requirements documents remain unchanged, performance
+budgets remain deferred and stableReady remains false.
+
+## Increment 76: Browser mutable clock configuration
+
+October 18, 2026. The Browser facade now admits the existing shared
+vi.setConfig and vi.resetConfig methods. The two-line production change preserves
+their void return types and existing file-owned configuration implementation.
+The measured scope is fake-timer configuration; broader RuntimeOptions
+combinations remain unqualified.
+
+The genuine four-case Browser reference and normal115 now match all four complete
+dictionaries and raw case/file outcomes. It covers cross-case defaults, shallow
+per-call overrides, saved project defaults, inherited loop limits and the fact
+that changing or resetting configuration does not replace an installed clock.
+The earlier unchanged normal114 run retains all four unsupported-method failures.
+A maintained control executes the same literal bodies through the real Browser
+assertion backend, checks full observations and preserves failure cleanup.
+
+Normal115 passes **1,960/1,960** cases across the same seventeen whole suites,
+retaining all previous 1,959 names and multiplicities with one new control.
+Repository types, lint and formatting pass. Public timer15/21-row, mocking35,
+project4 and retry14 regressions retain their complete expected observations.
+The executable Date-valued project still matches one pass and three expected
+epoch-validation errors. All original readers and output streams close normally,
+owned fixtures are removed and the selected source/build inventory remains
+unchanged after completion. The checkpoint is
+`/private/tmp/next-testing-batch115-root-verification.json`.
+
+The last full acceptance baseline remains normal113's **264/264** before the
+bounded normal114 and normal115 facade repairs; it was not rerun for these
+changes. All 432 release-gap sources and both protected requirements documents
+remain unchanged. Broader release requirements stay open, performance budgets
+remain deferred and stableReady remains false.
+
+## Increment 77: Browser provided values and project mock resets
+
+October 18, 2026. The serial development Chromium lane now forwards project
+provided values to named inject before collection, using the measured JSON
+projection. Three literal JSON cases and one rich-value projection case match
+all seven complete reference dictionaries and raw outcomes. TestContext.inject,
+arbitrary serialization and wider Browser profiles are not claimed.
+
+The same normal116 build forwards clearMocks, mockReset, restoreMocks and
+unstubGlobals into the existing shared file initializer. It does not change
+reset algorithms or defaults: Vitest 5.0.4's clearMocks:true default remains,
+while explicit false preserves earlier call histories. Five two-case project
+configurations match all ten full reference dictionaries, including original
+implementations, spy-property identity and global restoration. unstubEnvs and
+broader flag combinations remain unqualified. The unchanged normal115 explicit
+false mismatch and truthy-option refusal before collection remain retained.
+
+Normal116 passes **1,962/1,962** cases across the same seventeen whole suites,
+retaining every previous 1,960 name and multiplicity with exactly two new
+controls. Repository types, scoped lint and formatting pass. Public clock-config4,
+project4, retry14, timer15/21-row, mocking35, next-timer7, waits15/21-row and
+helper5 regressions retain their measured observations. The helper keeps its
+two passes and three intentional failures; executable Date-valued project config
+keeps one pass and three expected epoch errors. Raw URL/path stack presentation
+remains unqualified. Ten initial operational evidence-parent errors occurred
+before CLI launch and remain retained alongside the corrected public sequence.
+
+All original readers and output streams close, temporary fixtures are removed
+and the selected 897-source/9,318-output inventory remains unchanged after
+completion. The checkpoint is
+`/private/tmp/next-testing-batch116-root-verification.json`.
+
+The last full acceptance baseline remains normal113's **264/264**, before the
+bounded normal114 through normal116 changes; no normal116 full acceptance run
+is claimed. All 432 release-gap sources and both protected requirements
+documents remain unchanged. Broader release work stays open, performance
+budgets remain deferred and stableReady remains false.
+
+## Increment 78: Browser globals and resolved ESM parsing
+
+October 18, 2026. The serial development Chromium lane now supports project
+`globals: true`, loading the Browser facade before collection. Both runners
+install all nineteen measured globals, including `chai`, and retain the existing
+property ownership and descriptor restoration rules. The public globals type
+adapter includes the same Chai binding.
+
+The native parser now uses resolved ESM grammar before resolver for Browser
+creator instrumentation, including no-import `.mjs` and package-type-module
+`.js` files. Ordinary parser callers keep their existing signatures and grammar.
+Two actual parser controls and all thirteen existing creator controls pass.
+The unchanged normal116 Node missing-Chai failure and Browser script refusal
+remain retained, alongside the initial compile and new-control failures resolved
+during this increment.
+
+Normal117 passes **1,964/1,964** cases across the same seventeen whole suites,
+retaining all 1,962 prior names and multiplicities with exactly two appended
+globals controls. Repository types, scoped lint and formatting pass. Five public
+globals cases match all eleven full rows and raw outcomes. The existing sixteen
+Browser mocking cases retain all twenty-one measured rows; their known URL
+layout difference remains explicit and unqualified.
+
+The full unchanged acceptance suite also passes **264/264** on this normal117
+native build in 725.815 seconds, retaining every normal113 case name and
+multiplicity. All readers close and owned fixtures are removed. The complete
+898-source/9,318-output inventory is unchanged after validation; all 432 release-gap
+sources and both protected requirement documents remain unchanged.
+
+The actual normal native build and full bootstrap pass. The current checkpoint
+will be `/private/tmp/next-testing-batch117-root-verification.json`. Broader
+release requirements stay open, performance budgets remain deferred and
+`stableReady` remains false.
+
+## Increment 79: Browser artifact records and ordered completion output
+
+October 18, 2026. The serial development Chromium lane now supports data-only
+`recordArtifact`, preserving the measured task and attempt ownership, synchronous
+location mutation, deferred JSON cloning, returned object identity and parent
+artifact history. Existing named and `vi` facade differences and plain-object
+transport rejection behavior remain literal. Accepted operations may finish after
+file disposal; new calls still follow the existing lifetime rules.
+
+Browser callsite mapping uses the existing standalone Acorn parser and shared
+AST traversal. The Node wrapper retains its original Babel parsing and stack
+selection. Browser TypeScript and JSX retain conservative mapped-point fallback.
+Native console events arriving after the stop marker now wait for older queued
+RPC output and all cleanup owners, preserving their original text, stream and
+timestamp before file completion.
+
+Normal118 attempt03 passes **1,970/1,970** cases across the same seventeen whole
+suites, retaining all 1,964 normal117 names and multiplicities with six appended
+controls. Repository types, scoped lint and formatting pass. All seven unchanged
+public Browser artifact cases match eleven full ordered observation rows, all
+six parent artifact payloads and histories, and complete raw case/file outcomes.
+The initial Browser compilation failure and the later output-order mismatch are
+retained alongside the final passing results; no expected rows were reordered.
+
+The core package build passes using the unchanged normal117 native binary. The
+latest full unchanged acceptance run remains **264/264 on normal117**, before
+this artifact change. All readers close and owned fixtures are removed. The
+complete 907-source/9,324-output inventory is unchanged after validation; all 432
+release-gap sources and both protected requirement documents remain unchanged.
+The next file-format baselines retain two passing Browser `.cjs` cases and
+the actual precollection failure for package-type-commonjs `.js`.
+
+The checkpoint is `/private/tmp/next-testing-batch118-root-verification.json`.
+Attachments, rich artifact transport, cross-file targets and live custom reporter
+callbacks remain open. Broader release requirements stay open, performance
+budgets remain deferred and `stableReady` remains false.
+
+## Increment 80: Browser module entries, async hooks and environment stubs
+
+October 19, 2026. The serial development Chromium lane now applies ESM grammar
+and module treatment to the exact processed Browser test entry, including plain
+`.js` and package-type-commonjs `.js`. The corrected control uses the real
+`ModuleAssetContext.process` path and parent-directory options; the earlier
+leaf-only control missed that seam. Ordinary dependencies and Node contexts keep
+their existing module policy. Browser `.cjs` was already passing before this fix;
+no general CommonJS compatibility claim is added.
+
+`vi.dynamicImportSettled` uses the actual entry's import tracker and independent
+cleanup. Browser per-test hooks, bodies and listeners share the same public test context
+and local expectation. Suite-hook result settlement consumes genuine async work
+and preserves beforeAll cleanup functions before ordinary assertion returns leave
+the bound invocation. Native Promise adoption may read an absent `then` on a
+known live noncallable Chai assertion without changing its payload identity.
+Present protocol properties, assertion methods, disposal and Node behavior retain
+their existing checks. The template injection marker now survives ambient type
+declaration erasure; the actual emitted-template expander controls retain both
+original failures and repaired empty/registered injection results.
+
+Watch filtering excludes the configured output root, including its development
+subdirectory's parent. Aborted standard-coverage generations honor the actual
+coordinator cancellation signal even when the child summary says failed; ordinary
+missing coverage and unsafe cleanup still fail. The full normal119 run remains
+**263/264**, with the retained-watch addition selecting two cases instead of one.
+Later isolated default and retained flows match the measured coverage fields,
+source bytes, LCOV and **1/1/2** stage counts using the existing file-key/path
+projection. The default result required a saved-data-only
+comparator correction: its genuine addition map contains only the subject source.
+No CLI was rerun for that correction, and the original selection cause remains
+unattributed. [Saved watch comparison](/private/tmp/next-testing-watch-output-root121-normal120-attempt03-saved-reanalysis01/result.json).
+
+Browser project `env`, `unstubEnvs`, `vi.stubEnv` and `vi.unstubAllEnvs` now share
+one mutable file record. A generic optional Turbopack request/export descriptor
+resolves its runtime getter without embedding Next paths in Turbopack. The actual
+client template seeds compiler-derived defaults and configured strings before
+initialization and authored evaluation. Direct and aliased reads remain mutable;
+stubbing before the first authored reader preserves saved configured and Boolean
+originals. Node's existing process.env implementation remains unchanged.
+
+Earlier compiler/control, template-injection, hook-settlement and unsupported-env
+failures remain retained; the fixed public fixtures and oracles stay literal.
+Normal122 attempt05 passes both actual native env-binding controls, a fresh
+`55b83cfc…` native build, the normal bootstrap with a fresh core build and genuine
+declaration emission, and repository type checking. Its recorded input set is 921 sources and
+9,327 outputs; this is the build freeze, not a final post-reader inventory claim.
+[Actual build record](/private/tmp/next-testing-batch122-attempt05-normal-build-verification.json).
+
+The unchanged primary seventeen public groups match **41 cases**, **69 complete
+records** and **six parent artifact payload/completion records**, retaining one
+intentional failing case and its expected CLI exit 1. Separate env groups match
+the original four cases/five rows and two fresh cold-reader cases/two rows.
+All original public owners and streams close naturally, temporary fixtures are
+removed and selected inputs remain unchanged. Raw URL/stack and stamped-import
+layout differences remain explicit and unqualified.
+[Primary public proof](/private/tmp/next-testing-browser-public122-attempt05-verification.json),
+[env public proof](/private/tmp/next-testing-browser-env122-normal122-attempt05-actual01/ACTUAL-REVIEW.json).
+
+The attempt05 focused run records **1,983/1,984** across the same seventeen whole
+suites. Its sole failure is an obsolete helper assertion expecting `stubEnv` to
+remain unsupported. That raw result is retained; two unit-test adapter expectations
+are corrected to check callable, stable identity without changing the genuine bodies or expected rows.
+[Retained focused result](/private/tmp/next-testing-batch122-attempt05-components-results.json).
+
+The attempt06 whole-suite rerun passes **1,984/1,984** across all seventeen suites; original process 7720 closes with exit 0 in 169.283s. Every prior 1,980 name and multiplicity remains, with four new environment controls, and all names from the failed attempt05 remain. Repository TypeScript, scoped ESLint and formatting checks pass. Only the two obsolete unit-test adapter assertions changed from attempt05; all implementation, Rust and 9,327 built outputs remain byte-identical, so its actual build and public proofs remain applicable. Attempt06 does not claim a new native/package build. [Focused verification](/private/tmp/next-testing-batch122-attempt06-focused-independent-data-verification.json).
+
+The fresh, unfiltered attempt06 regression run passes **264/264**; original process 11214 closes with exit 0 in 755.043s. Names and multiplicities match both the normal117 green baseline and the retained normal119 failure. The original full command, coverage/watch fixtures and expectations are unchanged. This current pass does not identify the cause of the historical normal119 addition selecting two cases. [Full result](/private/tmp/next-testing-batch122-attempt06-full-results.json).
+
+The post-reader audit verifies all **921 sources / 9,327 outputs**, all **432 protected release-gap sources**, both requirement-document hashes, the exact native binary, closed original owners/streams/fixtures, and the clean main checkout. The status ledger is then the sole authored-source update; a separate post-ledger inventory binds that documentation update without changing the implementation or built outputs. [Final verification](/private/tmp/next-testing-batch122-attempt06-final-verification.json), [post-ledger inventory](/private/tmp/next-testing-batch122-attempt06-post-ledger-verification.json).
+
+Broader Browser profiles, production/watch/concurrency interactions, environment
+configuration and stub combinations, complete module/lifecycle/utility parity,
+artifact attachments and live reporter callbacks remain open. The protected
+requirements and release-work table are not relaxed. Performance budgets remain
+deferred and `stableReady` remains false.
+
 ## Requirements that remain release work
 
 | Surface                         | Remaining blockers                                                                                                                                                                                                                                                                                                                                                                                                                                 |

@@ -1,0 +1,35 @@
+import { vi, expectTypeOf } from 'vitest'
+const sync = vi.fn<(name: string, count: number) => number>()
+const chain = vi.when(sync, {
+  onUnmatched: (name, count) => name.length + count,
+})
+const branch = chain.calledWith('one', 1).thenReturn(2).thenReturnOnce(3)
+branch.thenResolve(4).thenThrow(new Error('example')).thenReject('example')
+branch[Symbol.dispose]()
+expectTypeOf(sync('a', 1)).toEqualTypeOf<number>()
+expectTypeOf(vi.isWhenChain(branch)).toEqualTypeOf<boolean>()
+const asyncMock = vi.fn<(value: string) => Promise<{ value: string }>>()
+vi.when(asyncMock)
+  .calledWith('value')
+  .thenResolve({ value: 'ok' })
+  .thenReturn(Promise.resolve({ value: 'ok' }))
+// @ts-expect-error The configured arguments retain their original types.
+chain.calledWith(1, 'one')
+// @ts-expect-error Synchronous return values retain their original type.
+branch.thenReturn('wrong')
+// @ts-expect-error Async resolved values retain their awaited original type.
+vi.when(asyncMock).calledWith('x').thenResolve({ value: 1 })
+// @ts-expect-error Unmatched callbacks keep their mock's return type.
+vi.when(sync, { onUnmatched: () => 'wrong' })
+// @ts-expect-error Only supported unmatched policies are accepted.
+vi.when(sync, { onUnmatched: 'ignore' })
+const candidate: object = {}
+if (vi.isWhenChain(candidate)) {
+  candidate.calledWith('value').thenReturn(1)
+}
+
+// @ts-expect-error Conditional helpers are vi members, not standalone public exports.
+import { when, isWhenChain } from 'vitest'
+void [when, isWhenChain]
+
+vi.when(sync, { onUnmatched: undefined })

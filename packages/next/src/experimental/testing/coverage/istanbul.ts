@@ -1,3 +1,26 @@
+import {
+  retainNativeCompilerSourceAuthorization,
+  validateNativeCompilerSourceBefore,
+  assertBeforeValidatedNativeCompilerSource,
+  validateNativeCompilerSourceAfter,
+  sealNativeCompilerSourceAuthorization,
+  assertSealedNativeCompilerSourceAuthorization,
+  retireNativeCompilerSourceAuthorization,
+  type SourceNativeInputsAuthorization,
+  type RetainedNativeCompilerSource,
+} from './source-authorization'
+import type { CoverageSourceAuthorization } from './source-analysis'
+import type { CompiledCoverageSource, CompilerSourceCoverage } from './types'
+import {
+  associateArrowBindings,
+  arrowBindingMap,
+  bindOriginalArrowLocations,
+} from './arrow-bindings'
+import { parse as parseAuthored } from 'next/dist/compiled/babel/parser'
+import {
+  excludeNativeImportInitializers,
+  assertNativeImportExclusion,
+} from './import-roles'
 import { parse, type Comment } from 'next/dist/compiled/acorn'
 import {
   SourceMapGenerator,
@@ -6,16 +29,34 @@ import {
 } from 'next/dist/compiled/source-map'
 import { convert } from '../../../compiled/next-test-coverage'
 import { join } from 'path'
+import { isDeepStrictEqual } from 'util'
 import { pathToFileURL } from 'url'
-import type { CompiledTestArtifact } from '../contracts'
+import type { CompiledTestArtifact, TestCoverageCompletion } from '../contracts'
+import {
+  assertCompilerRuntimeCoverage,
+  retainRuntimeCoverageAuthorization,
+  type CoverageRuntimeAuthorization,
+  type RuntimeNativeInputsAuthorization,
+  retainNativeRuntimeCoverageAuthorization,
+  assertNativeCompilerRuntimeCoverage,
+  sealNativeRuntimeCoverageAuthorization,
+  assertSealedNativeRuntimeCoverageAuthorization,
+  retireNativeRuntimeCoverageAuthorization,
+} from './runtime-authorization'
 import { coverageHash, readArtifactFile } from './artifact'
 import { decodeCoverageMap } from './maps'
-import { remapCoverage } from './remap'
+import { remapCoverage, validateNativeRuntimeLineCoverage } from './remap'
 import type {
   CoverageCapture,
   StandardFileCoverage,
   StandardCoverageData,
 } from './types'
+
+/** Internal exact-file permission after independent parent authorization. */
+interface CompilerSyntax {
+  jsxFile?: string
+  jsxFiles?: ReadonlySet<string>
+}
 
 /** Convert only retained compiler bytes, V8 counts and allowlisted source maps. */
 export async function remapStandardCoverage(
@@ -23,110 +64,145 @@ export async function remapStandardCoverage(
   capture: CoverageCapture,
   selectSource?: (file: string) => boolean
 ): Promise<StandardFileCoverage> {
+  if (Object.hasOwn(artifact, 'nativeTsConfigInputs'))
+    throw new Error(
+      'Native TypeScript config inputs require separate parent authorization'
+    )
+  return remapCompiledStandardCoverage(artifact, capture, selectSource)
+}
+
+/** Private actual-runtime path; declaration-only artifacts cannot enter here. */
+export async function remapCompilerRuntimeCoverage(
+  artifact: CompiledTestArtifact,
+  completion: TestCoverageCompletion,
+  expected: CoverageRuntimeAuthorization,
+  signal: AbortSignal
+): Promise<StandardFileCoverage> {
+  if (Object.hasOwn(artifact, 'nativeTsConfigInputs')) {
+    signal.throwIfAborted()
+    throw new Error(
+      'Native TypeScript config inputs require separate parent authorization'
+    )
+  }
+  const retained = retainRuntimeCoverageAuthorization(
+    artifact,
+    completion,
+    expected,
+    signal
+  )
+  const selected = await assertCompilerRuntimeCoverage(
+    retained.artifact,
+    retained.completion,
+    retained.expected,
+    signal
+  )
+  if (!retained.completion.complete)
+    throw new Error('Incomplete runtime coverage')
+  const result = await remapCompiledStandardCoverage(
+    retained.artifact,
+    retained.completion.data,
+    (file) => selected.has(file),
+    { jsxFiles: selected }
+  )
+  await assertCompilerRuntimeCoverage(
+    retained.artifact,
+    retained.completion,
+    retained.expected,
+    signal
+  )
+  return result
+}
+
+/** Private composition; native origin and runtime JSX remain separate authorities. */
+export async function remapCompilerRuntimeCoverageWithNativeTsConfigInputs(
+  artifact: CompiledTestArtifact,
+  completion: TestCoverageCompletion,
+  expected: CoverageRuntimeAuthorization,
+  native: RuntimeNativeInputsAuthorization,
+  signal: AbortSignal
+): Promise<StandardFileCoverage> {
+  const retained = await retainNativeRuntimeCoverageAuthorization(
+    artifact,
+    completion,
+    expected,
+    native,
+    signal
+  )
+  try {
+    const selected = await assertNativeCompilerRuntimeCoverage(
+      retained.artifact,
+      retained.completion,
+      retained.expected,
+      signal
+    )
+    await validateNativeRuntimeLineCoverage(
+      retained.artifact,
+      retained.completion,
+      retained.expected,
+      signal
+    )
+    if (!retained.completion.complete)
+      throw new Error('Incomplete runtime coverage')
+    const result = await convertCompiledStandardCoverage(
+      retained.artifact,
+      retained.completion.data,
+      (file) => selected.has(file),
+      { jsxFiles: selected }
+    )
+    await assertNativeCompilerRuntimeCoverage(
+      retained.artifact,
+      retained.completion,
+      retained.expected,
+      signal
+    )
+    await sealNativeRuntimeCoverageAuthorization(retained, signal)
+    assertSealedNativeRuntimeCoverageAuthorization(retained, signal)
+    return result
+  } finally {
+    retireNativeRuntimeCoverageAuthorization(retained)
+  }
+}
+
+async function remapCompiledStandardCoverage(
+  artifact: CompiledTestArtifact,
+  capture: CoverageCapture,
+  selectSource?: (file: string) => boolean,
+  declarationSyntax?: CompilerSyntax
+): Promise<StandardFileCoverage> {
   // The legacy validator also checks every generated/original coordinate, nested
   // V8 range, original source identity/hash and entry capture before conversion.
   await remapCoverage(artifact, capture)
+  return convertCompiledStandardCoverage(
+    artifact,
+    capture,
+    selectSource,
+    declarationSyntax
+  )
+}
+
+async function convertCompiledStandardCoverage(
+  artifact: CompiledTestArtifact,
+  capture: CoverageCapture,
+  selectSource?: (file: string) => boolean,
+  declarationSyntax?: CompilerSyntax
+): Promise<StandardFileCoverage> {
   const files: StandardFileCoverage['files'] = []
-  const sources = artifact.coverage!.sources
   for (const script of capture.scripts) {
     const metadata = artifact.coverage!.scripts.find(
       (item) => item.path === script.path
     )!
-    const [bytes, mapBytes] = await Promise.all([
-      readArtifactFile(artifact.rootDir, script.path),
-      readArtifactFile(artifact.rootDir, metadata.mapPath!),
-    ])
-    // Do not assume the lease protects against changed bytes between reads.
-    if (
-      coverageHash(bytes) !== script.sha256 ||
-      coverageHash(mapBytes) !== metadata.mapSha256
+    if (artifact.coverage!.browser?.generatedScripts[script.path]) continue
+    files.push(
+      ...(await convertCompiledScript(
+        artifact,
+        metadata,
+        script.functions,
+        selectSource,
+        declarationSyntax
+      ))
     )
-      throw new Error(
-        `Coverage artifact changed before standard conversion: ${script.path}`
-      )
-    const code = bytes.toString('utf8')
-    const decoded = decodeCoverageMap(JSON.parse(mapBytes.toString('utf8')))
-    const map = new SourceMapGenerator()
-    const sourceContent = new Map<string, string>()
-    for (const mapping of decoded.mappings) {
-      const candidate = mapping.source === null ? null : sources[mapping.source]
-      const source =
-        candidate && (!selectSource || selectSource(candidate.file))
-          ? candidate
-          : null
-      const generated = {
-        line: mapping.generatedLine,
-        column: mapping.generatedColumn,
-      }
-      if (source) {
-        map.addMapping({
-          generated,
-          source: source.file,
-          original: {
-            line: mapping.originalLine!,
-            column: mapping.originalColumn!,
-          },
-        })
-      } else {
-        // source-map supports an unmapped segment; its 0.6 declarations omit
-        // that overload. Keep the boundary instead of mapping excluded code.
-        ;(map.addMapping as (mapping: Pick<Mapping, 'generated'>) => void)({
-          generated,
-        })
-      }
-    }
-    for (const [identity, content] of decoded.sources) {
-      const source = sources[identity]
-      if (source && (!selectSource || selectSource(source.file))) {
-        if (
-          typeof content !== 'string' ||
-          coverageHash(content) !== source.sha256
-        )
-          throw new Error(
-            `Coverage original source changed before standard conversion: ${identity}`
-          )
-        map.setSourceContent(source.file, content)
-        sourceContent.set(source.file, content)
-      }
-    }
-    const sourceMap = JSON.parse(map.toString()) as RawSourceMap
-    if (!sourceMap.sources.length) continue
-    const comments: Comment[] = []
-    const ast = Object.assign(
-      parse(code, {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        locations: true,
-        onComment: comments,
-      }),
-      { comments }
-    )
-    const mapped = await convert({
-      code,
-      sourceMap,
-      ast,
-      coverage: {
-        url: pathToFileURL(join(artifact.rootDir, script.path)).href,
-        functions: script.functions,
-      },
-    })
-    for (const [file, data] of Object.entries(mapped)) {
-      if (file !== data.path || !sourceContent.has(file))
-        throw new Error(
-          `Standard coverage returned an undeclared original source: ${file}`
-        )
-      const content = sourceContent.get(file)!
-      files.push({
-        file,
-        sha256: coverageHash(content),
-        data: await recoverJavaScriptFunctions(
-          file,
-          content,
-          data as StandardCoverageData
-        ),
-      })
-    }
   }
+
   return {
     version: 1,
     entryId: artifact.entryId,
@@ -135,6 +211,339 @@ export async function remapStandardCoverage(
     errors: [],
     files,
   }
+}
+
+/** Both observed coverage and explicit declaration analysis use the emitted JS AST. */
+async function convertCompiledScript(
+  artifact: CompiledTestArtifact,
+  metadata: NonNullable<CompiledTestArtifact['coverage']>['scripts'][number],
+  functions: CoverageCapture['scripts'][number]['functions'],
+  selectSource?: (file: string) => boolean,
+  declarationSyntax?: CompilerSyntax
+): Promise<StandardFileCoverage['files']> {
+  const sources = artifact.coverage!.sources
+  const files: StandardFileCoverage['files'] = []
+  const [bytes, mapBytes] = await Promise.all([
+    readArtifactFile(artifact.rootDir, metadata.path),
+    readArtifactFile(artifact.rootDir, metadata.mapPath!),
+  ])
+  // Do not assume the lease protects against changed bytes between reads.
+  if (
+    coverageHash(bytes) !== metadata.sha256 ||
+    coverageHash(mapBytes) !== metadata.mapSha256
+  )
+    throw new Error(
+      `Coverage artifact changed before standard conversion: ${metadata.path}`
+    )
+  const code = bytes.toString('utf8')
+  const rawMap = JSON.parse(mapBytes.toString('utf8'))
+  const decoded = decodeCoverageMap(rawMap)
+  const map = new SourceMapGenerator()
+  const sourceContent = new Map<string, string>()
+  for (const mapping of decoded.mappings) {
+    const candidate = mapping.source === null ? null : sources[mapping.source]
+    const source =
+      candidate && (!selectSource || selectSource(candidate.file))
+        ? candidate
+        : null
+    const generated = {
+      line: mapping.generatedLine,
+      column: mapping.generatedColumn,
+    }
+    if (source) {
+      map.addMapping({
+        generated,
+        source: source.file,
+        original: {
+          line: mapping.originalLine!,
+          column: mapping.originalColumn!,
+        },
+      })
+    } else {
+      // source-map supports an unmapped segment; its 0.6 declarations omit
+      // that overload. Keep the boundary instead of mapping excluded code.
+      ;(map.addMapping as (mapping: Pick<Mapping, 'generated'>) => void)({
+        generated,
+      })
+    }
+  }
+  for (const [identity, content] of decoded.sources) {
+    const source = sources[identity]
+    if (source && (!selectSource || selectSource(source.file))) {
+      if (
+        typeof content !== 'string' ||
+        coverageHash(content) !== source.sha256
+      )
+        throw new Error(
+          `Coverage original source changed before standard conversion: ${identity}`
+        )
+      map.setSourceContent(source.file, content)
+      sourceContent.set(source.file, content)
+    }
+  }
+  const sourceMap = JSON.parse(map.toString()) as RawSourceMap
+  if (!sourceMap.sources.length && !artifact.coverage?.importRoles) {
+    await excludeNativeImportInitializers({
+      artifact,
+      code,
+      rawMap,
+      ast: undefined,
+      selectedSources: sourceContent,
+      metadata,
+    })
+    return []
+  }
+  const comments: Comment[] = []
+  const ast = Object.assign(
+    parse(code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      locations: true,
+      onComment: comments,
+    }),
+    { comments }
+  )
+  const native = await excludeNativeImportInitializers({
+    artifact,
+    code,
+    rawMap,
+    ast,
+    selectedSources: sourceContent,
+    metadata,
+  })
+  if (!sourceMap.sources.length) return []
+  const mapped = await convert({
+    code,
+    sourceMap,
+    ast: native.ast,
+    coverage: {
+      url: pathToFileURL(join(artifact.rootDir, metadata.path)).href,
+      functions: functions,
+    },
+  })
+  if (native.excluded.length) {
+    const unfiltered = await convert({
+      code,
+      sourceMap,
+      ast,
+      coverage: {
+        url: pathToFileURL(join(artifact.rootDir, metadata.path)).href,
+        functions,
+      },
+    })
+    assertNativeImportExclusion(
+      unfiltered as Record<string, StandardCoverageData>,
+      mapped as Record<string, StandardCoverageData>,
+      native.excluded
+    )
+  }
+  for (const [file, data] of Object.entries(mapped)) {
+    if (file !== data.path || !sourceContent.has(file))
+      throw new Error(
+        `Standard coverage returned an undeclared original source: ${file}`
+      )
+    const content = sourceContent.get(file)!
+    files.push({
+      file,
+      sha256: coverageHash(content),
+      data: await recoverJavaScriptLocations(
+        file,
+        content,
+        data as StandardCoverageData,
+        {
+          code,
+          ast: native.ast,
+          sourceMap,
+          coverage: {
+            url: pathToFileURL(join(artifact.rootDir, metadata.path)).href,
+            functions,
+          },
+        },
+        declarationSyntax
+      ),
+    })
+  }
+  return files
+}
+
+interface NativeSourceZeroScope {
+  value: CompiledCoverageSource
+  expected: CoverageSourceAuthorization
+  signal: AbortSignal
+  phase:
+    | 'fully-before-validated'
+    | 'converting'
+    | 'converted'
+    | 'post-validated'
+    | 'sealing'
+    | 'sealed'
+}
+const nativeSourceZeroScopes = new WeakMap<
+  RetainedNativeCompilerSource,
+  NativeSourceZeroScope
+>()
+function sourceZeroScope(
+  retained: RetainedNativeCompilerSource,
+  signal: AbortSignal,
+  phase: NativeSourceZeroScope['phase']
+): NativeSourceZeroScope {
+  const scope = nativeSourceZeroScopes.get(retained)
+  if (
+    !scope ||
+    scope.value !== retained.value ||
+    scope.expected !== retained.expected ||
+    scope.signal !== signal ||
+    scope.phase !== phase
+  )
+    throw new Error(
+      'Missing fully validated private compiler source zero scope'
+    )
+  signal.throwIfAborted()
+  return scope
+}
+async function convertNativeCompilerSource(
+  retained: RetainedNativeCompilerSource,
+  signal: AbortSignal
+): Promise<StandardCoverageData> {
+  const scope = sourceZeroScope(retained, signal, 'fully-before-validated')
+  assertBeforeValidatedNativeCompilerSource(retained, signal)
+  scope.phase = 'converting'
+  const file = retained.value.source.file
+  const data = await analyzeCompiledSourceDataCore(
+    retained.value.artifact,
+    file,
+    /\.[jt]sx$/.test(file) ? { jsxFile: file } : undefined
+  )
+  sourceZeroScope(retained, signal, 'converting')
+  assertBeforeValidatedNativeCompilerSource(retained, signal)
+  scope.phase = 'converted'
+  return data
+}
+/** Private source-only composition; no runtime capture or caller syntax override. */
+export async function analyzeCompiledCoverageSourceWithNativeTsConfigInputs(
+  value: CompiledCoverageSource,
+  expected: CoverageSourceAuthorization,
+  native: SourceNativeInputsAuthorization,
+  signal: AbortSignal
+): Promise<CompilerSourceCoverage> {
+  const retained = await retainNativeCompilerSourceAuthorization(
+    value,
+    expected,
+    native,
+    signal
+  )
+  try {
+    await validateNativeCompilerSourceBefore(retained, signal)
+    assertBeforeValidatedNativeCompilerSource(retained, signal)
+    nativeSourceZeroScopes.set(retained, {
+      value: retained.value,
+      expected: retained.expected,
+      signal,
+      phase: 'fully-before-validated',
+    })
+    const data = await convertNativeCompilerSource(retained, signal)
+    sourceZeroScope(retained, signal, 'converted')
+    await validateNativeCompilerSourceAfter(retained, signal)
+    const scope = sourceZeroScope(retained, signal, 'converted')
+    scope.phase = 'post-validated'
+    const result: CompilerSourceCoverage = {
+      version: 1,
+      kind: 'next-compiler-declarations',
+      source: { ...retained.value.source },
+      profile: { ...retained.value.artifact.profile },
+      compiler: {
+        entryId: retained.value.artifact.entryId,
+        revision: retained.value.artifact.revision,
+      },
+      data,
+    }
+    scope.phase = 'sealing'
+    await sealNativeCompilerSourceAuthorization(retained, signal)
+    sourceZeroScope(retained, signal, 'sealing').phase = 'sealed'
+    assertSealedNativeCompilerSourceAuthorization(retained, signal)
+    return result
+  } finally {
+    nativeSourceZeroScopes.delete(retained)
+    retireNativeCompilerSourceAuthorization(retained)
+  }
+}
+
+/** Compiler declaration-only analysis; this never constructs a runtime capture. */
+export async function analyzeCompiledSourceData(
+  artifact: CompiledTestArtifact,
+  file: string,
+  declarationSyntax?: CompilerSyntax
+): Promise<StandardCoverageData> {
+  if (Object.hasOwn(artifact, 'nativeTsConfigInputs'))
+    throw new Error(
+      'Native TypeScript config inputs require separate parent authorization'
+    )
+  if (
+    artifact.coverage?.sourceAnalysis?.version !== 1 ||
+    artifact.coverage.sourceAnalysis.file !== file ||
+    artifact.coverage.sourceAnalysis.sha256 !== artifact.sourceHash
+  )
+    throw new Error(
+      'Compiler declaration analysis requires its source-analysis role'
+    )
+  return analyzeCompiledSourceDataCore(artifact, file, declarationSyntax)
+}
+
+/** Unexported exact zero algorithm, reached only by its guarded callers. */
+async function analyzeCompiledSourceDataCore(
+  artifact: CompiledTestArtifact,
+  file: string,
+  declarationSyntax?: CompilerSyntax
+): Promise<StandardCoverageData> {
+  const values: StandardCoverageData[] = []
+  for (const metadata of artifact.coverage!.scripts) {
+    if (!metadata.mapPath) continue
+    const bytes = await readArtifactFile(artifact.rootDir, metadata.path)
+    if (coverageHash(bytes) !== metadata.sha256)
+      throw new Error('Coverage analysis output changed before conversion')
+    const code = bytes.toString('utf8')
+    // Explicit compile-only zero descriptors, never observed V8 counts.
+    const functions = code.length
+      ? [
+          {
+            isBlockCoverage: true,
+            ranges: [{ startOffset: 0, endOffset: code.length, count: 0 }],
+          },
+        ]
+      : []
+    const files = await convertCompiledScript(
+      artifact,
+      metadata,
+      functions,
+      (source) => source === file,
+      declarationSyntax
+    )
+    for (const result of files) {
+      if (result.file !== file)
+        throw new Error('Coverage analysis returned an unselected source')
+      values.push(result.data)
+    }
+  }
+  if (!values.length)
+    throw new Error(
+      `Selected compiler source has no analyzable mapped declarations: ${file}`
+    )
+  if (values.some((value) => !isDeepStrictEqual(value, values[0])))
+    throw new Error(
+      `Coverage source has incompatible duplicate compiler emissions: ${file}`
+    )
+  const value = values[0]
+  if (
+    [
+      ...Object.values(value.s),
+      ...Object.values(value.f),
+      ...Object.values(value.b).flat(),
+    ].some((count) => count !== 0)
+  )
+    throw new Error(
+      'Compiler declaration analysis cannot contain observed hits'
+    )
+  return value
 }
 
 function identityMap(file: string, source: string) {
@@ -150,6 +559,113 @@ function identityMap(file: string, source: string) {
   }
   map.setSourceContent(file, source)
   return JSON.parse(map.toString()) as RawSourceMap
+}
+
+/** Parse authored locations only; never transform or execute the source. */
+function authoredAst(
+  file: string,
+  source: string,
+  declarationSyntax?: CompilerSyntax
+) {
+  const jsx =
+    (declarationSyntax?.jsxFile === file ||
+      declarationSyntax?.jsxFiles?.has(file) === true) &&
+    /\.[jt]sx$/.test(file)
+  if (!/\.[cm]?ts$/.test(file) && !jsx)
+    throw new Error(
+      `JSX standard coverage requires profile-bound compiler source analysis: ${file}`
+    )
+  let ast: ReturnType<typeof parseAuthored>
+  try {
+    ast = parseAuthored(source, {
+      sourceType: 'module',
+      plugins: [
+        'estree',
+        ...(/\.[cm]?tsx?$/.test(file) ? ['typescript' as const] : []),
+        ...(jsx ? ['jsx' as const] : []),
+        'decorators-legacy',
+      ],
+    })
+  } catch (cause) {
+    throw new Error(
+      `Standard coverage cannot parse the authored TypeScript source: ${file}`,
+      { cause }
+    )
+  }
+  const forbidden = new Set([
+    'TSEnumDeclaration',
+    'TSModuleDeclaration',
+    'TSImportEqualsDeclaration',
+    'TSExportAssignment',
+    'TSParameterProperty',
+    'Decorator',
+  ])
+  function visit(value: unknown): void {
+    if (!value || typeof value !== 'object') return
+    if (Array.isArray(value)) {
+      for (const child of value) visit(child)
+      return
+    }
+    const node = value as {
+      type?: string
+      loc?: { start: { line: number; column: number } }
+    }
+    if (node.type && forbidden.has(node.type))
+      throw new Error(
+        `Standard coverage cannot associate generated ${node.type} bodies: ${file}:${node.loc?.start.line}:${node.loc?.start.column}`
+      )
+    for (const [key, child] of Object.entries(value))
+      if (!['loc', 'comments', 'tokens'].includes(key)) visit(child)
+  }
+  visit(ast.program)
+  return Object.assign(ast.program, { comments: ast.comments })
+}
+
+/** Location descriptors only; none of these zero hits may become runtime facts. */
+async function createOriginalSourceModel(
+  file: string,
+  source: string,
+  declarationSyntax?: CompilerSyntax
+) {
+  if (/\.[cm]?js$/.test(file))
+    return {
+      data: await createUncoveredJavaScript(file, source),
+      ast: undefined,
+    }
+  const ast = authoredAst(file, source, declarationSyntax)
+  const data = await convert({
+    code: source,
+    ast,
+    sourceMap: identityMap(file, source),
+    coverage: {
+      url: pathToFileURL(file).href,
+      functions: source.length
+        ? [
+            {
+              isBlockCoverage: true,
+              ranges: [{ startOffset: 0, endOffset: source.length, count: 0 }],
+            },
+          ]
+        : [],
+    },
+  })
+  const result = data[file]
+  if (!result || result.path !== file || Object.keys(data).length !== 1)
+    throw new Error(
+      `Authored coverage descriptors returned an unexpected source identity: ${file}`
+    )
+  return { data: result as StandardCoverageData, ast }
+}
+
+/** Unexecuted typed sources need metadata from the effective Next compiler context. */
+export async function createUncoveredSource(
+  file: string,
+  source: string
+): Promise<StandardCoverageData> {
+  if (/\.[cm]?js$/.test(file)) return createUncoveredJavaScript(file, source)
+  throw new Error(
+    `Unimported TypeScript/JSX coverage requires profile-bound compiler source analysis: ${file}`
+  )
 }
 
 /** Declaration-only coverage. This never imports or executes the source file. */
@@ -204,17 +720,88 @@ export async function createUncoveredJavaScript(
   return result as StandardCoverageData
 }
 
-/** Restore JS function locations only after a complete one-to-one association. */
-async function recoverJavaScriptFunctions(
+/** Restore authored JS locations only after complete one-to-one associations. */
+async function recoverJavaScriptLocations(
   file: string,
   source: string,
-  data: StandardCoverageData
+  data: StandardCoverageData,
+  emitted?: {
+    code: string
+    ast: unknown
+    sourceMap: RawSourceMap
+    coverage: {
+      url: string
+      functions: CoverageCapture['scripts'][number]['functions']
+    }
+  },
+  declarationSyntax?: CompilerSyntax
 ): Promise<StandardCoverageData> {
-  const original = await createUncoveredJavaScript(file, source)
+  const model = await createOriginalSourceModel(file, source, declarationSyntax)
+  const original = model.data
+  if (model.ast) {
+    const associations = associateArrowBindings(
+      file,
+      model.ast,
+      emitted?.ast,
+      emitted?.sourceMap ?? identityMap(file, source)
+    )
+    if (associations.length) {
+      if (!emitted)
+        throw new Error(
+          'Arrow binding association requires actual emitted compiler bytes'
+        )
+      const mapped = await convert({
+        ...emitted,
+        sourceMap: arrowBindingMap(file, emitted.sourceMap, associations),
+      })
+      const rebound = mapped[file] as StandardCoverageData
+      if (
+        !rebound ||
+        !isDeepStrictEqual(
+          [data.s, data.f, data.b],
+          [rebound.s, rebound.f, rebound.b]
+        )
+      )
+        throw new Error(
+          'Arrow binding association changed observed V8 counter identities'
+        )
+      data = rebound
+      bindOriginalArrowLocations(file, original, data, associations)
+    }
+  }
   if (Object.keys(original.fnMap).length !== Object.keys(data.fnMap).length)
     throw new Error(
       `Standard coverage generated and original function counts differ: ${file}`
     )
+  if (
+    Object.keys(original.statementMap).length !==
+    Object.keys(data.statementMap).length
+  )
+    throw new Error(
+      `Standard coverage generated and original statement counts differ: ${file}`
+    )
+  const statements = new Set<string>()
+  const statementMap: StandardCoverageData['statementMap'] = {}
+  const s: StandardCoverageData['s'] = {}
+  for (const [id, location] of Object.entries(original.statementMap)) {
+    const candidates = Object.entries(data.statementMap).filter(
+      ([, mapped]) =>
+        mapped.start.line === location.start.line &&
+        mapped.start.column === location.start.column
+    )
+    if (candidates.length !== 1 || statements.has(candidates[0][0]))
+      throw new Error(
+        `Standard coverage statement association is ambiguous or absent: ${file}:${location.start.line}:${location.start.column}`
+      )
+    const [mappedId, mapped] = candidates[0]
+    if (mapped.end.line !== location.end.line)
+      throw new Error(
+        `Standard coverage statement transformation is unsupported: ${file}`
+      )
+    statements.add(mappedId)
+    statementMap[id] = /\.[cm]?js$/.test(file) ? location : mapped
+    s[id] = data.s[mappedId]
+  }
   const used = new Set<string>()
   const fnMap: StandardCoverageData['fnMap'] = {}
   const f: StandardCoverageData['f'] = {}
@@ -226,7 +813,7 @@ async function recoverJavaScriptFunctions(
     )
     if (candidates.length !== 1 || used.has(candidates[0][0]))
       throw new Error(
-        `Standard coverage function association is ambiguous or absent: ${file}`
+        `Standard coverage function association is ambiguous or absent: ${file}:${fn.decl.start.line}:${fn.decl.start.column}`
       )
     const [mappedId, mapped] = candidates[0]
     if (
@@ -241,33 +828,99 @@ async function recoverJavaScriptFunctions(
         `Standard coverage function transformation is unsupported: ${file}`
       )
     used.add(mappedId)
-    fnMap[id] = fn
+    fnMap[id] = /\.[cm]?js$/.test(file) ? fn : { ...fn, decl: mapped.decl }
     f[id] = data.f[mappedId]
+  }
+  let branchMap = data.branchMap
+  let b = data.b
+  if (!/\.[cm]?js$/.test(file)) {
+    if (
+      Object.keys(original.branchMap).length !==
+      Object.keys(data.branchMap).length
+    )
+      throw new Error(
+        `Standard coverage generated and original branch counts differ: ${file}`
+      )
+    const usedBranches = new Set<string>()
+    branchMap = {}
+    b = {}
+    for (const [id, branch] of Object.entries(original.branchMap)) {
+      const candidates = Object.entries(data.branchMap).filter(
+        ([, mapped]) =>
+          mapped.loc.start.line === branch.loc.start.line &&
+          mapped.loc.start.column === branch.loc.start.column
+      )
+      if (candidates.length !== 1 || usedBranches.has(candidates[0][0]))
+        throw new Error(
+          `Standard coverage branch association is ambiguous or absent: ${file}:${branch.loc.start.line}:${branch.loc.start.column}`
+        )
+      const [mappedId, mapped] = candidates[0]
+      if (
+        mapped.type !== branch.type ||
+        mapped.loc.end.line !== branch.loc.end.line ||
+        mapped.locations.length !== branch.locations.length ||
+        mapped.locations.some(
+          (location, index) =>
+            location.start.line !== branch.locations[index].start.line ||
+            location.start.column !== branch.locations[index].start.column ||
+            location.end.line !== branch.locations[index].end.line
+        )
+      )
+        throw new Error(
+          `Standard coverage branch transformation is unsupported: ${file}:${branch.loc.start.line}:${branch.loc.start.column}`
+        )
+      usedBranches.add(mappedId)
+      branchMap[id] = mapped
+      b[id] = data.b[mappedId]
+    }
   }
   const meta = data.meta
   if (meta && original.meta) {
     const seen = Object.fromEntries(
-      Object.entries(meta.seen).filter(([key]) => !key.startsWith('f:'))
-    )
-    Object.assign(
-      seen,
-      Object.fromEntries(
-        Object.entries(original.meta.seen).filter(([key]) =>
-          key.startsWith('f:')
-        )
+      Object.entries(meta.seen).filter(
+        ([key]) =>
+          !key.startsWith('f:') &&
+          !key.startsWith('s:') &&
+          (/\.[cm]?js$/.test(file) || !key.startsWith('b:'))
       )
     )
+    for (const [id, fn] of Object.entries(fnMap)) {
+      const { start, end } = fn.decl
+      seen[`f:${start.line}:${start.column}:${end.line}:${end.column}`] =
+        Number(id)
+    }
+    for (const [id, { start, end }] of Object.entries(statementMap))
+      seen[`s:${start.line}:${start.column}:${end.line}:${end.column}`] =
+        Number(id)
+    if (!/\.[cm]?js$/.test(file))
+      for (const [id, branch] of Object.entries(branchMap))
+        seen[
+          `b:${branch.locations
+            .flatMap(({ start, end }) => [
+              start.line,
+              start.column,
+              end.line,
+              end.column,
+            ])
+            .map(String)
+            .join(':')}`
+        ] = Number(id)
     return {
       ...data,
+      statementMap,
+      s,
+      branchMap,
+      b,
       fnMap,
       f,
       meta: {
         ...meta,
+        lastStatement: original.meta.lastStatement,
         lastFunction: original.meta.lastFunction,
         fnNames: original.meta.fnNames,
         seen,
       },
     }
   }
-  return { ...data, fnMap, f }
+  return { ...data, statementMap, s, branchMap, b, fnMap, f }
 }

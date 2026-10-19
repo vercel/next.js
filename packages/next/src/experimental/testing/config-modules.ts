@@ -1,3 +1,4 @@
+import type { CompilerAliases } from './compiler/aliases'
 import { runTestProcess } from './execution/process'
 import { readFile, readdir, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
@@ -5,6 +6,12 @@ import { promisify } from 'node:util'
 import globOriginal from 'next/dist/compiled/glob'
 import type { TestConfig, TestProjectConfig } from './config'
 import { inheritGlobalTestSequence } from './runner/sequence'
+import { randomUUID } from 'node:crypto'
+import { openCompilerTransformBroker } from './compiler/transform-broker'
+import type {
+  CompilerTransformInput,
+  CompilerTransformResult,
+} from './compiler/transform-hooks'
 
 interface SetupProject {
   name: string
@@ -29,7 +36,8 @@ function remoteError(value: RemoteError): Error {
 export async function openTestConfigModule(
   file: string | undefined,
   projectDir: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  context: 'root' | 'project' = 'root'
 ) {
   let send!: (message: unknown) => Promise<void>
   let pending:
@@ -41,11 +49,32 @@ export async function openTestConfigModule(
     | undefined
   let closing = false
   let closed = false
+  let transformsRevoked = false
   let terminalError: unknown
+  let transformBroker:
+    | Awaited<ReturnType<typeof openCompilerTransformBroker>>
+    | undefined
+  const transformInputs = new Set<string>()
+  const transforms = new Map<
+    string,
+    {
+      resolve(value: CompilerTransformResult): void
+      reject(error: unknown): void
+      timer: ReturnType<typeof setTimeout>
+    }
+  >()
+  function rejectTransforms(error: unknown) {
+    for (const transform of transforms.values()) {
+      clearTimeout(transform.timer)
+      transform.reject(error)
+    }
+    transforms.clear()
+  }
+  let ownerSignal = signal
   const controller = new AbortController()
-  const cancel = () => controller.abort(signal?.reason)
-  if (signal?.aborted) cancel()
-  else signal?.addEventListener('abort', cancel, { once: true })
+  const cancel = () => controller.abort(ownerSignal?.reason)
+  if (ownerSignal?.aborted) cancel()
+  else ownerSignal?.addEventListener('abort', cancel, { once: true })
   const request = (message: object, timeoutMs = 120000): Promise<any> => {
     if (pending || closing || closed)
       return Promise.reject(
@@ -78,13 +107,33 @@ export async function openTestConfigModule(
   const exit = runTestProcess(require.resolve('./config-worker'), {
     cwd: projectDir,
     env: process.env,
-    input: { file, persistent: true },
+    input: {
+      file,
+      persistent: true,
+      ...(context === 'project' ? { projectConfig: true } : {}),
+    },
     signal: controller.signal,
     shutdownGraceMs: 10000,
     onReady(value) {
       send = value
     },
     onMessage(message: any) {
+      if (message?.type === 'compiler-transform-result') {
+        const response = transforms.get(message.id)
+        if (!response) {
+          if (closing || transformsRevoked || controller.signal.aborted) return
+          throw new Error('Unexpected compiler transform response.')
+        }
+        transforms.delete(message.id)
+        clearTimeout(response.timer)
+        if (message.error) response.reject(remoteError(message.error))
+        else {
+          for (const dependency of message.value.dependencies)
+            transformInputs.add(dependency)
+          response.resolve(message.value)
+        }
+        return
+      }
       if (!pending) {
         if (message?.type === 'test-config-failed') {
           terminalError ??= remoteError(message.error)
@@ -102,7 +151,15 @@ export async function openTestConfigModule(
         message?.type === 'test-config-loaded' ||
         message?.type === 'test-config-result'
       ) {
-        response.resolve(message.value)
+        response.resolve(
+          message.type === 'test-config-loaded'
+            ? {
+                value: message.value,
+                compilerTransforms: message.compilerTransforms,
+                compilerAliases: message.compilerAliases,
+              }
+            : message.value
+        )
       } else {
         response.reject(new Error('Invalid test configuration response.'))
         throw new Error('Invalid test configuration response.')
@@ -114,8 +171,10 @@ export async function openTestConfigModule(
   }).then(
     (result) => {
       closed = true
+      void transformBroker?.dispose().catch(() => {})
+      rejectTransforms(new Error('Configuration transform owner exited.'))
       if (
-        !(result.reason === 'cancelled' && signal?.aborted) &&
+        !(result.reason === 'cancelled' && ownerSignal?.aborted) &&
         (result.reason !== 'exit' || result.code !== 0 || !closing)
       )
         terminalError ??= new Error(
@@ -124,8 +183,8 @@ export async function openTestConfigModule(
       clearTimeout(pending?.timer)
       pending?.reject(
         terminalError ??
-          (signal?.aborted
-            ? signal.reason
+          (ownerSignal?.aborted
+            ? ownerSignal.reason
             : new Error('Test configuration closed.'))
       )
       pending = undefined
@@ -134,28 +193,38 @@ export async function openTestConfigModule(
     (error) => {
       terminalError = error
       closed = true
+      void transformBroker?.dispose().catch(() => {})
+      rejectTransforms(error)
       clearTimeout(pending?.timer)
       pending?.reject(error)
       pending = undefined
     }
   )
   async function dispose() {
-    if (signal?.aborted && !closed) {
+    transformsRevoked = true
+    try {
+      await transformBroker?.dispose()
+    } catch (error) {
+      terminalError ??= error
+    }
+    rejectTransforms(new Error('Configuration transform owner closed.'))
+    if (ownerSignal?.aborted && !closed) {
       closing = true
-      controller.abort(signal.reason)
+      controller.abort(ownerSignal.reason)
     }
     if (!closing && !closed) {
       try {
         await request({ type: 'shutdown' }, 10000)
       } catch (error) {
-        if (!signal?.aborted || error !== signal.reason) terminalError ??= error
+        if (!ownerSignal?.aborted || error !== ownerSignal.reason)
+          terminalError ??= error
         controller.abort(error)
       } finally {
         closing = true
       }
     }
     await exit
-    signal?.removeEventListener('abort', cancel)
+    ownerSignal?.removeEventListener('abort', cancel)
     if (terminalError) throw terminalError
   }
   const deadline = setTimeout(
@@ -164,10 +233,82 @@ export async function openTestConfigModule(
     120000
   )
   try {
-    const value = await loaded
+    const result = (await loaded) as {
+      value: unknown
+      compilerAliases?: CompilerAliases
+      compilerTransforms?: {
+        realm: string
+        names: string[]
+        dependencies: string[]
+      }
+    }
+    if (result.compilerTransforms) {
+      const realm = result.compilerTransforms.realm
+      for (const dependency of result.compilerTransforms.dependencies)
+        transformInputs.add(dependency)
+      transformBroker = await openCompilerTransformBroker(
+        realm,
+        (input: CompilerTransformInput) => {
+          if (
+            closing ||
+            closed ||
+            transformsRevoked ||
+            controller.signal.aborted
+          )
+            return Promise.reject(
+              new Error('Configuration transform owner is closed.')
+            )
+          return new Promise<CompilerTransformResult>((resolve, reject) => {
+            const id = randomUUID()
+            const timer = setTimeout(() => {
+              const error = new Error('Configuration transform timed out.')
+              transforms.delete(id)
+              reject(error)
+              controller.abort(error)
+            }, 30000)
+            transforms.set(id, { resolve, reject, timer })
+            send({ type: 'compiler-transform', id, realm, input }).catch(
+              (error) => {
+                clearTimeout(timer)
+                transforms.delete(id)
+                reject(error)
+                controller.abort(error)
+              }
+            )
+          })
+        },
+        {
+          signal: controller.signal,
+          configFile: file,
+          configDependencies: [...transformInputs],
+          onCancelled: () =>
+            controller.abort(
+              new Error(
+                'Compiler transform consumer closed during its request.'
+              )
+            ),
+        }
+      )
+    }
     clearTimeout(deadline)
     return {
-      value,
+      value: result.value,
+      compilerAliases: result.compilerAliases,
+      compilerTransform: transformBroker?.descriptor,
+      compilerTransformNames: result.compilerTransforms?.names ?? [],
+      get compilerTransformInputs() {
+        return [...transformInputs]
+      },
+      retainCompilerTransformsForWatch(lifetime: AbortSignal) {
+        if (!transformBroker || closing || closed || controller.signal.aborted)
+          throw new Error(
+            'The retained compiler configuration realm is unavailable; restart test watch.'
+          )
+        ownerSignal?.removeEventListener('abort', cancel)
+        ownerSignal = lifetime
+        if (ownerSignal.aborted) cancel()
+        else ownerSignal.addEventListener('abort', cancel, { once: true })
+      },
       async setup(projects: SetupProject[]) {
         return request({ type: 'setup', projects }) as Promise<
           Record<string, Record<string, unknown>>
@@ -187,9 +328,10 @@ export async function openTestConfigModule(
     }
   } catch (error) {
     clearTimeout(deadline)
+    await transformBroker?.dispose()
     controller.abort(error)
     await exit
-    signal?.removeEventListener('abort', cancel)
+    ownerSignal?.removeEventListener('abort', cancel)
     throw error
   }
 }
@@ -344,7 +486,12 @@ export async function openTestProjectModules(
     )
     for (const file of files) {
       signal?.throwIfAborted()
-      const realm = await openTestConfigModule(file, projectDir, signal)
+      const realm = await openTestConfigModule(
+        file,
+        projectDir,
+        signal,
+        'project'
+      )
       realms.push(realm)
       const child = realm.value
       if (!record(child) || !record(child.test)) {
@@ -402,6 +549,7 @@ export async function openTestProjectModules(
         project.sequence,
         validated.projects[0].sequence
       )
+      if (realm.compilerAliases) project.compilerAliases = realm.compilerAliases
       configs.push(project)
       owners.set(project.profile.id, realm)
     }
@@ -417,13 +565,28 @@ export async function openTestProjectModules(
     return {
       config: { ...validated, projects: configs },
       /** Exact project configuration sources, not their transitive imports. */
-      watchInputs: files,
+      get watchInputs() {
+        return [
+          ...new Set([
+            ...files,
+            ...realms.flatMap((realm) => [
+              ...realm.compilerTransformInputs,
+              ...(realm.compilerAliases?.inputs ?? []),
+            ]),
+          ]),
+        ]
+      },
       rootProject: {
         name: typeof test.name === 'string' ? test.name : '',
         globalSetup: validated.projects[0].globalSetup ?? [],
         provide: validated.projects[0].provide ?? {},
       },
       owns: (project: TestProjectConfig) => owners.has(project.profile.id),
+      compilerTransform: (project: TestProjectConfig) =>
+        owners.get(project.profile.id)?.compilerTransform,
+      compilerTransformNames: realms.flatMap(
+        (realm) => realm.compilerTransformNames
+      ),
       async setup(projects: SetupProject[]) {
         const contexts: Record<string, Record<string, unknown>> = Object.create(
           null

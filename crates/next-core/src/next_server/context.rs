@@ -402,6 +402,72 @@ pub async fn get_server_module_options_context(
     client_environment: ResolvedVc<Environment>,
     enable_tracing: bool,
 ) -> Result<Vc<ModuleOptionsContext>> {
+    get_server_module_options_context_impl(
+        project_path,
+        execution_context,
+        ty,
+        mode,
+        next_config,
+        next_runtime,
+        encryption_key,
+        environment,
+        client_environment,
+        enable_tracing,
+        None,
+    )
+    .await
+}
+
+#[turbo_tasks::function]
+pub async fn get_server_module_options_context_with_native_provenance(
+    project_path: FileSystemPath,
+    execution_context: ResolvedVc<ExecutionContext>,
+    ty: ServerContextType,
+    mode: Vc<NextMode>,
+    next_config: Vc<NextConfig>,
+    next_runtime: NextRuntime,
+    encryption_key: ResolvedVc<RcStr>,
+    environment: ResolvedVc<Environment>,
+    client_environment: ResolvedVc<Environment>,
+    enable_tracing: bool,
+    native_probe: ResolvedVc<
+        turbopack_core::resolve::tsconfig_provenance::NativeTsConfigProbeContext,
+    >,
+) -> Result<Vc<ModuleOptionsContext>> {
+    if !matches!(ty, ServerContextType::Test) {
+        anyhow::bail!("Native config provenance requires the explicit testing context");
+    }
+    get_server_module_options_context_impl(
+        project_path,
+        execution_context,
+        ty,
+        mode,
+        next_config,
+        next_runtime,
+        encryption_key,
+        environment,
+        client_environment,
+        enable_tracing,
+        Some(native_probe),
+    )
+    .await
+}
+
+async fn get_server_module_options_context_impl(
+    project_path: FileSystemPath,
+    execution_context: ResolvedVc<ExecutionContext>,
+    ty: ServerContextType,
+    mode: Vc<NextMode>,
+    next_config: Vc<NextConfig>,
+    next_runtime: NextRuntime,
+    encryption_key: ResolvedVc<RcStr>,
+    environment: ResolvedVc<Environment>,
+    client_environment: ResolvedVc<Environment>,
+    enable_tracing: bool,
+    native_probe: Option<
+        ResolvedVc<turbopack_core::resolve::tsconfig_provenance::NativeTsConfigProbeContext>,
+    >,
+) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
         next_config,
@@ -486,12 +552,44 @@ pub async fn get_server_module_options_context(
         .map(|p| project_path.join(p))
         .transpose()?;
 
-    // ModuleOptionsContext related options
-    let tsconfig = get_typescript_transform_options(project_path.clone(), tsconfig_path.clone())
-        .to_resolved()
-        .await?;
-    let decorators_options =
-        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone());
+    // These exact option values remain the ones consumed by compilation.
+    let native_scope = async |consumer| -> Result<_> {
+        if let Some(context) = native_probe {
+            let mut context = context.owned().await?;
+            context.consumer = consumer;
+            context.configured_path = tsconfig_path.clone();
+            Ok(Some(
+                turbopack_core::resolve::tsconfig_provenance::NativeTsConfigProbeScope::new(
+                    context.resolved_cell(),
+                ),
+            ))
+        } else {
+            Ok(None)
+        }
+    };
+    use turbopack_core::resolve::tsconfig_provenance::NativeTsConfigConsumer;
+    let tsconfig = match native_scope(NativeTsConfigConsumer::TypeScript).await? {
+        Some(scope) => {
+            crate::transform_options::get_typescript_transform_options_with_native_provenance(
+                project_path.clone(),
+                tsconfig_path.clone(),
+                scope,
+            )
+        }
+        None => get_typescript_transform_options(project_path.clone(), tsconfig_path.clone()),
+    }
+    .to_resolved()
+    .await?;
+    let decorators_options = match native_scope(NativeTsConfigConsumer::Decorators).await? {
+        Some(scope) => {
+            crate::transform_options::get_decorators_transform_options_with_native_provenance(
+                project_path.clone(),
+                tsconfig_path.clone(),
+                scope,
+            )
+        }
+        None => get_decorators_transform_options(project_path.clone(), tsconfig_path.clone()),
+    };
     let enable_mdx_rs = *next_config.mdx_rs().await?;
 
     // Get the jsx transform options for the `client` side.
@@ -501,24 +599,46 @@ pub async fn get_server_module_options_context(
     //
     // This enables correct emotion transform and other hydration between server and
     // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
-    let jsx_runtime_options = get_jsx_transform_options(
-        project_path.clone(),
-        mode,
-        None,
-        false,
-        next_config,
-        tsconfig_path.clone(),
-    )
+    let jsx_runtime_options = match native_scope(NativeTsConfigConsumer::Jsx).await? {
+        Some(scope) => crate::transform_options::get_jsx_transform_options_with_native_provenance(
+            project_path.clone(),
+            mode,
+            None,
+            false,
+            next_config,
+            tsconfig_path.clone(),
+            scope,
+        ),
+        None => get_jsx_transform_options(
+            project_path.clone(),
+            mode,
+            None,
+            false,
+            next_config,
+            tsconfig_path.clone(),
+        ),
+    }
     .to_resolved()
     .await?;
-    let rsc_jsx_runtime_options = get_jsx_transform_options(
-        project_path.clone(),
-        mode,
-        None,
-        true,
-        next_config,
-        tsconfig_path,
-    )
+    let rsc_jsx_runtime_options = match native_scope(NativeTsConfigConsumer::Jsx).await? {
+        Some(scope) => crate::transform_options::get_jsx_transform_options_with_native_provenance(
+            project_path.clone(),
+            mode,
+            None,
+            true,
+            next_config,
+            tsconfig_path.clone(),
+            scope,
+        ),
+        None => get_jsx_transform_options(
+            project_path.clone(),
+            mode,
+            None,
+            true,
+            next_config,
+            tsconfig_path.clone(),
+        ),
+    }
     .to_resolved()
     .await?;
 

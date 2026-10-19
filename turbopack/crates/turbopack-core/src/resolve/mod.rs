@@ -44,7 +44,7 @@ use crate::{
         },
         origin::ResolveOrigin,
         parse::{Request, stringify_data_uri},
-        pattern::{Pattern, PatternMatch, read_matches},
+        pattern::{Pattern, PatternMatch, read_matches, read_matches_with_native_tsconfig_probes},
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin},
         remap::{ExportImport, ExportsField, ImportsField},
     },
@@ -60,6 +60,7 @@ pub mod parse;
 pub mod pattern;
 pub mod plugin;
 pub(crate) mod remap;
+pub mod tsconfig_provenance;
 
 pub use alias_map::{
     AliasKey, AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern,
@@ -69,6 +70,10 @@ use remap::TerminalState;
 pub use remap::{
     ReplacedSubpathValue, ReplacedSubpathValueResult, ReplacedSubpathValueResultType,
     ResolveAliasMap, SubpathValue,
+};
+
+use crate::resolve::tsconfig_provenance::{
+    NativeTsConfigProbe, NativeTsConfigProbeRequest, NativeTsConfigProbeScope,
 };
 
 /// Controls how resolve errors are handled.
@@ -1172,36 +1177,58 @@ async fn exists(
     fs_path: &FileSystemPath,
     refs: Option<&mut Vec<ResolvedVc<Box<dyn Source>>>>,
 ) -> Result<Option<FileSystemPath>> {
-    type_exists(fs_path, FileSystemEntryType::File, refs).await
+    type_exists(fs_path, FileSystemEntryType::File, refs, None).await
 }
 
 async fn dir_exists(
     fs_path: &FileSystemPath,
     refs: Option<&mut Vec<ResolvedVc<Box<dyn Source>>>>,
 ) -> Result<Option<FileSystemPath>> {
-    type_exists(fs_path, FileSystemEntryType::Directory, refs).await
+    type_exists(fs_path, FileSystemEntryType::Directory, refs, None).await
 }
 
 async fn type_exists(
     fs_path: &FileSystemPath,
     ty: FileSystemEntryType,
     refs: Option<&mut Vec<ResolvedVc<Box<dyn Source>>>>,
+    native_probe: Option<&NativeTsConfigProbeScope>,
 ) -> Result<Option<FileSystemPath>> {
-    let Some(path) = realpath_if_exists(fs_path, refs).await? else {
+    let Some(path) =
+        realpath_if_exists_with_native_tsconfig_probes(fs_path, refs, native_probe).await?
+    else {
         return Ok(None);
     };
-    Ok(if *path.get_type().await? == ty {
-        Some(path)
-    } else {
-        None
-    })
+    let observed = *path.get_type().await?;
+    if let Some(scope) = native_probe {
+        scope.record(NativeTsConfigProbe::Candidate {
+            path: fs_path.clone(),
+            requested: NativeTsConfigProbeRequest::Type(ty),
+            observed,
+        });
+    }
+    Ok(if observed == ty { Some(path) } else { None })
 }
 
 async fn realpath_if_exists(
     fs_path: &FileSystemPath,
     refs: Option<&mut Vec<ResolvedVc<Box<dyn Source>>>>,
 ) -> Result<Option<FileSystemPath>> {
+    realpath_if_exists_with_native_tsconfig_probes(fs_path, refs, None).await
+}
+
+async fn realpath_if_exists_with_native_tsconfig_probes(
+    fs_path: &FileSystemPath,
+    refs: Option<&mut Vec<ResolvedVc<Box<dyn Source>>>>,
+    native_probe: Option<&NativeTsConfigProbeScope>,
+) -> Result<Option<FileSystemPath>> {
     let result = fs_path.realpath_with_links().await?;
+    if let Some(scope) = native_probe {
+        scope.record(NativeTsConfigProbe::RealPath {
+            path: fs_path.clone(),
+            result: result.path_result.clone(),
+            symlinks: result.symlinks.to_vec(),
+        });
+    }
     if let Some(refs) = refs {
         refs.extend(
             result
@@ -1324,16 +1351,60 @@ pub async fn find_context_file(
     names: Vc<Vec<RcStr>>,
     collect_affecting_sources: bool,
 ) -> Result<Vc<FindContextFileResult>> {
+    find_context_file_impl(lookup_path, names, collect_affecting_sources, None).await
+}
+
+/// The same native finder, retaining observations from its real existence probes.
+#[turbo_tasks::function]
+pub async fn find_context_file_with_native_tsconfig_probes(
+    lookup_path: FileSystemPath,
+    names: Vc<Vec<RcStr>>,
+    collect_affecting_sources: bool,
+    native_probe: Option<NativeTsConfigProbeScope>,
+) -> Result<Vc<FindContextFileResult>> {
+    find_context_file_impl(lookup_path, names, collect_affecting_sources, native_probe).await
+}
+
+fn nested_find_context_file(
+    lookup_path: FileSystemPath,
+    names: Vc<Vec<RcStr>>,
+    collect_affecting_sources: bool,
+    native_probe: Option<NativeTsConfigProbeScope>,
+) -> Vc<FindContextFileResult> {
+    if native_probe.is_some() {
+        find_context_file_with_native_tsconfig_probes(
+            lookup_path,
+            names,
+            collect_affecting_sources,
+            native_probe,
+        )
+    } else {
+        find_context_file(lookup_path, names, collect_affecting_sources)
+    }
+}
+
+async fn find_context_file_impl(
+    lookup_path: FileSystemPath,
+    names: Vc<Vec<RcStr>>,
+    collect_affecting_sources: bool,
+    native_probe: Option<NativeTsConfigProbeScope>,
+) -> Result<Vc<FindContextFileResult>> {
     let mut refs = Vec::new();
-    for name in &*names.await? {
+    let names_value = names.await?;
+    for (index, name) in names_value.iter().enumerate() {
         let fs_path = lookup_path.join(name)?;
-        if let Some(fs_path) = exists(
+        if let Some(fs_path) = type_exists(
             &fs_path,
+            FileSystemEntryType::File,
             if collect_affecting_sources {
                 Some(&mut refs)
             } else {
                 None
             },
+            native_probe
+                .as_ref()
+                .map(|scope| scope.child(index))
+                .as_ref(),
         )
         .await?
         {
@@ -1345,14 +1416,24 @@ pub async fn find_context_file(
     }
     if refs.is_empty() {
         // Tailcall
-        Ok(find_context_file(
+        Ok(nested_find_context_file(
             lookup_path.parent(),
             names,
             collect_affecting_sources,
+            native_probe
+                .as_ref()
+                .map(|scope| scope.child(names_value.len())),
         ))
     } else {
-        let parent_result =
-            find_context_file(lookup_path.parent(), names, collect_affecting_sources).await?;
+        let parent_result = nested_find_context_file(
+            lookup_path.parent(),
+            names,
+            collect_affecting_sources,
+            native_probe
+                .as_ref()
+                .map(|scope| scope.child(names_value.len())),
+        )
+        .await?;
         Ok(match &*parent_result {
             FindContextFileResult::Found(p, r) => {
                 refs.extend(r.iter().copied());
@@ -2296,6 +2377,12 @@ async fn resolve_into_folder(
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let options_value = options.await?;
+    if let Some(scope) = &options_value.native_tsconfig_probe {
+        scope.record(NativeTsConfigProbe::Incomplete {
+            path: package_path.clone(),
+            reason: "native config directory/package expansion".into(),
+        });
+    }
 
     let mut affecting_sources = vec![];
     if let Some(package_json_path) = exists(
@@ -2634,12 +2721,23 @@ async fn resolve_relative_request(
         }
     }
 
-    let matches = read_matches(
-        lookup_path.clone(),
-        rcstr!(""),
-        force_in_lookup_dir,
-        *Pattern::new(new_path.clone()).to_resolved().await?,
-    )
+    let pattern = *Pattern::new(new_path.clone()).to_resolved().await?;
+    let matches = if let Some(scope) = &options_value.native_tsconfig_probe {
+        read_matches_with_native_tsconfig_probes(
+            lookup_path.clone(),
+            rcstr!(""),
+            force_in_lookup_dir,
+            pattern,
+            Some(scope.clone()),
+        )
+    } else {
+        read_matches(
+            lookup_path.clone(),
+            rcstr!(""),
+            force_in_lookup_dir,
+            pattern,
+        )
+    }
     .await?;
 
     // This loop is necessary to 'undo' the modifications to 'new_path' that were performed above.
@@ -3198,6 +3296,15 @@ async fn resolved(
     fragment: RcStr,
 ) -> Result<ResolveResultOrCell> {
     let result = &*fs_path.realpath_with_links().await?;
+    if let Some(scope) = &options_value.native_tsconfig_probe {
+        scope
+            .child(u32::MAX as usize)
+            .record(NativeTsConfigProbe::RealPath {
+                path: fs_path.clone(),
+                result: result.path_result.clone(),
+                symlinks: result.symlinks.to_vec(),
+            });
+    }
     let path = match &result.path_result {
         Ok(path) => path,
         Err(error) => bail!(error.clone()),

@@ -1,3 +1,8 @@
+import type {
+  RuntimeConfigurationPlan,
+  RuntimeConfigurationReceipt,
+} from '../experimental/testing/coverage/runtime-configuration'
+import type { CoverageSourcePlan } from '../experimental/testing/coverage/source-analysis-plan'
 import {
   openCustomCoverageSession,
   type CustomCoverageSession,
@@ -10,6 +15,7 @@ import type {
 import { realpath } from 'fs/promises'
 import { parseStandardCoverageOptions } from '../experimental/testing/coverage/options'
 import type {
+  CompilerSourceCoverage,
   StandardCoverageOptions,
   StandardFileCoverage,
 } from '../experimental/testing/coverage/types'
@@ -58,6 +64,7 @@ export interface NextTestRunnerOptions {
   'coverage.exclude'?: string[]
   'coverage.reportsDirectory'?: string
   'coverage.reportOnFailure'?: boolean | string
+  'coverage.cleanOnRerun'?: boolean | string
   'coverage.thresholds.statements'?: string
   'coverage.thresholds.functions'?: string
   'coverage.thresholds.branches'?: string
@@ -196,9 +203,12 @@ export async function nextTestRunner(
   if (options.coverage && options.update) {
     throw new Error('--coverage cannot be combined with --update.')
   }
-  if (options.coverage && (options.watch || options.list)) {
+  if (options.coverage && options.list) {
+    throw new Error('--coverage cannot be combined with --list.')
+  }
+  if (options.coverage && options.watch && !standardCoverageOptions) {
     throw new Error(
-      '--coverage requires a one-shot execution; --watch and --list are unsupported.'
+      'Watch coverage requires explicit standard coverage options.'
     )
   }
   if (options.coverage) requireTestCapability('coverage')
@@ -301,6 +311,14 @@ export async function nextTestRunner(
   let pendingCoverage:
     | {
         facts: StandardFileCoverage[]
+        runtimeConfiguration: {
+          receipts: RuntimeConfigurationReceipt[]
+          plan: RuntimeConfigurationPlan
+        }
+        sourceAnalysis: {
+          facts: CompilerSourceCoverage[]
+          plan: CoverageSourcePlan
+        }
         expected: Set<string>
         excludedFiles: string[]
         config: StandardCoverageOptions
@@ -537,6 +555,9 @@ export async function nextTestRunner(
           '../experimental/testing/orchestrator.js'
         )
         summary = await runTests(projectDir, projects, {
+          ...(configuration.compilerTransformNames.length
+            ? { compilerTransforms: configuration.compilerTransforms(projects) }
+            : {}),
           collectOnly: true,
           signal: controller.signal,
           write: () => {},
@@ -646,6 +667,7 @@ export async function nextTestRunner(
           files: options.filter,
           testNamePattern: options.testNamePattern,
           maxWorkers: options.maxWorkers === undefined ? undefined : maxWorkers,
+          standardCoverageOptions,
           resultReporters: reporters,
           outputFile: options.outputFile,
           writeReport: (text) => process.stdout.write(text),
@@ -709,6 +731,9 @@ export async function nextTestRunner(
       )
       customExecutionStarted = customProjects.length > 0
       const summary = await runTests(projectDir, projects, {
+        ...(configuration.compilerTransformNames.length
+          ? { compilerTransforms: configuration.compilerTransforms(projects) }
+          : {}),
         signal: controller.signal,
         write: (text) => {
           if (human) terminal.write(text)
@@ -730,6 +755,7 @@ export async function nextTestRunner(
         testNamePattern: options.testNamePattern,
         coverage: options.coverage ?? false,
         standardCoverageOptions,
+        coverageInputs: configuration.watchInputs,
         ...(customProjects.length ? { customCoverageRequests } : {}),
         inspect,
         maxWorkers,
@@ -773,6 +799,18 @@ export async function nextTestRunner(
           )
         pendingCoverage = {
           facts: summary.standardCoverage,
+          runtimeConfiguration: {
+            receipts: summary.runtimeConfigurationReceipts ?? [],
+            plan: summary.runtimeConfigurationPlan!,
+          },
+          sourceAnalysis: {
+            facts: summary.compilerSourceCoverage ?? [],
+            plan: summary.coverageSourcePlan ?? {
+              version: 1,
+              requests: [],
+              inputs: [],
+            },
+          },
           expected: new Set(entries.map((entry) => entry.id)),
           excludedFiles: projects.flatMap((project) => [
             ...project.setupFiles,

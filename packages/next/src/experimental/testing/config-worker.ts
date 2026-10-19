@@ -1,5 +1,14 @@
+import { prepareCompilerAliases } from './compiler/aliases'
+import { MessageChannel } from 'node:worker_threads'
+import { randomUUID } from 'node:crypto'
+import { validateTestConfigCompilerOptions } from './config'
+import {
+  retainCompilerTransforms,
+  runCompilerTransforms,
+  type RetainedCompilerTransforms,
+} from './compiler/transform-hooks'
 import Module, { register } from 'node:module'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -14,6 +23,8 @@ let queue = Promise.resolve()
 const teardowns: (() => unknown)[] = []
 let setupStarted = false
 let rootSetupStarted = false
+let compilerTransforms: RetainedCompilerTransforms | undefined
+let compilerDependencies = async (): Promise<string[]> => []
 async function shutdown() {
   const errors: unknown[] = []
   for (const teardown of teardowns.splice(0).reverse()) {
@@ -30,6 +41,32 @@ process.on('message', (message: any) => {
   queue = queue.then(() => handle(message))
 })
 async function handle(message: any) {
+  if (message?.type === 'compiler-transform') {
+    try {
+      if (
+        !compilerTransforms ||
+        message.realm !== compilerTransforms.realm ||
+        typeof message.id !== 'string'
+      )
+        throw new Error('Invalid configuration transform owner.')
+      const value = await runCompilerTransforms(
+        compilerTransforms,
+        message.input
+      )
+      value.dependencies = [
+        ...new Set([...value.dependencies, ...(await compilerDependencies())]),
+      ]
+      await send({ type: 'compiler-transform-result', id: message.id, value })
+    } catch (error) {
+      const value = error instanceof Error ? error : new Error(String(error))
+      await send({
+        type: 'compiler-transform-result',
+        id: message.id,
+        error: { name: value.name, message: value.message, stack: value.stack },
+      })
+    }
+    return
+  }
   try {
     if (message?.type === 'teardown') {
       await shutdown()
@@ -121,13 +158,15 @@ async function handle(message: any) {
     }
     if (message?.type !== 'run')
       throw new Error('Invalid configuration request.')
-    const { file, persistent } = message.input
+    const { file, persistent, projectConfig } = message.input
     // These hooks exist only in the owned configuration realm.
     // Node's async ESM hooks do not intercept ordinary CommonJS require calls.
     const nodeModule = Module as unknown as {
       _resolveFilename: (...args: any[]) => string
     }
     const originalResolve = nodeModule._resolveFilename
+    const localDependencies = new Set<string>(file ? [realpathSync(file)] : [])
+    const ownedConfigFiles = new Set(localDependencies)
     nodeModule._resolveFilename = function (
       specifier: string,
       ...args: unknown[]
@@ -142,7 +181,17 @@ async function handle(message: any) {
         throw new Error(
           `Test configuration cannot load the ${specifier} runner/controller. Use the inert vitest/config adapter.`
         )
-      return originalResolve.call(this, specifier, ...args)
+      const resolved = originalResolve.call(this, specifier, ...args)
+      const parent = args[0] as { filename?: string } | undefined
+      if (
+        parent?.filename &&
+        ownedConfigFiles.has(parent.filename) &&
+        path.isAbsolute(resolved)
+      ) {
+        localDependencies.add(resolved)
+        ownedConfigFiles.add(resolved)
+      }
+      return resolved
     }
     const swc = require('../../build/swc') as typeof import('../../build/swc')
     await swc.loadBindings()
@@ -178,12 +227,32 @@ async function handle(message: any) {
     }
     const loader = pathToFileURL(require.resolve('./config-loader')).href
     const shim = `import hooks from ${JSON.stringify(loader)};export const initialize=hooks.initialize,resolve=hooks.resolve,load=hooks.load;`
+    const { port1, port2 } = new MessageChannel()
+    const snapshots = new Map<string, (files: string[]) => void>()
+    port1.on('message', (snapshot: { id: string; files: string[] }) => {
+      snapshots.get(snapshot.id)?.(snapshot.files)
+      snapshots.delete(snapshot.id)
+    })
+    port1.unref()
+    compilerDependencies = async () => {
+      const files = await new Promise<string[]>((resolve) => {
+        const id = randomUUID()
+        snapshots.set(id, resolve)
+        port1.postMessage(id)
+      })
+      return [...new Set([...localDependencies, ...files])]
+    }
     register(
       `data:text/javascript,${encodeURIComponent(shim)}`,
       pathToFileURL(__filename).href,
       {
         parentURL: pathToFileURL(__filename).href,
-        data: { entry: file, apiPath: require.resolve('./config-api') },
+        data: {
+          entry: file,
+          apiPath: require.resolve('./config-api'),
+          dependencyPort: port2,
+        },
+        transferList: [port2],
       }
     )
     const imported = file
@@ -198,7 +267,34 @@ async function handle(message: any) {
           isPreview: false,
         })
       : exported)
-    await send({ type: 'test-config-loaded', value })
+    const prepared = retainCompilerTransforms(value)
+    const mapped = prepareCompilerAliases(prepared.value)
+    validateTestConfigCompilerOptions(
+      mapped.value,
+      projectConfig === true ? { projectConfig: true } : undefined
+    )
+    compilerTransforms = prepared.retained
+    await send({
+      type: 'test-config-loaded',
+      value: mapped.value,
+      ...(mapped.aliases
+        ? {
+            compilerAliases: {
+              ...mapped.aliases,
+              inputs: await compilerDependencies(),
+            },
+          }
+        : {}),
+      ...(compilerTransforms
+        ? {
+            compilerTransforms: {
+              realm: compilerTransforms.realm,
+              names: compilerTransforms.hooks.map((plugin) => plugin.name),
+              dependencies: await compilerDependencies(),
+            },
+          }
+        : {}),
+    })
     if (!persistent) process.exit(0)
   } catch (error) {
     let value = error instanceof Error ? error : new Error(String(error))

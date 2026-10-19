@@ -1,0 +1,30 @@
+[
+  {
+    "stream": "stdout",
+    "text": "FORMAT_SINGLE plain\n"
+  },
+  {
+    "stream": "stdout",
+    "text": "FORMAT_MULTI word 42 true null undefined\n"
+  },
+  {
+    "stream": "stdout",
+    "text": "FORMAT_OBJECT {\n  name: 'Ada',\n  nested: {\n    active: true,\n  },\n} [\n  'a',\n  2,\n  {\n    flag: false,\n  },\n]\n"
+  },
+  {
+    "stream": "stdout",
+    "text": "FORMAT_SUBSTITUTIONS name 7 {\n  n: 1,\n}\n"
+  },
+  {
+    "stream": "stdout",
+    "text": "FORMAT_ERROR_VALUE [Error: displayed error]\n"
+  },
+  {
+    "stream": "stderr",
+    "text": "FORMAT_WARN {\n  code: 7,\n} [\n  'x',\n  2,\n]\n"
+  },
+  {
+    "stream": "stderr",
+    "text": "FORMAT_ERROR [Error: console error] {\n  ok: false,\n}\n"
+  }
+]

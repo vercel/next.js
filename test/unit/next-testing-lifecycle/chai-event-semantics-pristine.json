@@ -1,0 +1,21 @@
+{
+  "coercionAfterAdd": ["once", "capture", "passive", "signal", "type"],
+  "nativeTarget": true,
+  "nativePrototype": true,
+  "stable": true,
+  "dispatchResult": false,
+  "defaultPrevented": true,
+  "seen": [
+    ["once", "custom", true],
+    ["object", "custom", true],
+    ["object", "custom", true],
+    ["capture", true],
+    ["capture", true],
+    ["capture", true],
+    ["cancel", true, true, true],
+    ["registration", "events08ReentrantOuter", true, true, true],
+    ["registration", "events08ReentrantInner", true, true, true],
+    ["direct", true, true],
+    ["coerced", true]
+  ]
+}

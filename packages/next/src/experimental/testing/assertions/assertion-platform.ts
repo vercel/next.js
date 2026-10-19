@@ -1,3 +1,21 @@
+import { assertScopeActive } from '../runner/async-context'
+import type { EnvironmentStubs } from './utilities'
+
+export function createEnvironmentStubs(): EnvironmentStubs | undefined {
+  return undefined
+}
+
+export const fileAssertionLifetime: boolean = false
+export function beginAssertionFile(): () => void {
+  return () => {}
+}
+export function getFileAssertionOrigin(): { id: string } | undefined {
+  return undefined
+}
+export function assertAssertionRuntimeAccess(): void {
+  assertScopeActive()
+}
+
 /** Node already propagates public assertion scope through AsyncLocalStorage. */
 export function assertAssertionScope(): void {}
 

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { AssertionError } from 'node:assert'
 import {
   createServer,
   type IncomingMessage,
@@ -6,11 +7,16 @@ import {
 } from 'node:http'
 import type { Socket } from 'node:net'
 import type { CompiledBrowserClientTestArtifact } from '../contracts'
-import type { ClientConfiguration, ClientMessage } from './protocol'
+import type {
+  ClientConfiguration,
+  ClientMessage,
+  ClientBrowserCommand,
+} from './protocol'
 import { assertClientIdentity } from './protocol'
 import { createClientAssetReader } from './assets'
 import { createClientSnapshotAccess } from './snapshot-access'
 import { createClientSourceMapResolver } from './source-maps'
+import { mapClientDiagnosticStack } from './helper-diagnostics'
 
 type Completion = Extract<ClientMessage, { type: 'complete' }>
 function record(value: unknown): value is Record<string, unknown> {
@@ -35,9 +41,10 @@ export async function createClientServer(options: {
     ClientConfiguration,
     'authorization' | 'rpcURL' | 'sourceMaps'
   >
+  onBrowserCommand?(command: ClientBrowserCommand): Promise<unknown>
   onMessage(
-    message: Exclude<ClientMessage, { type: 'snapshot' }>
-  ): void | Promise<void>
+    message: Exclude<ClientMessage, { type: 'snapshot' | 'browser-command' }>
+  ): unknown | Promise<unknown>
   onFailure(error: unknown): void
 }) {
   const { artifact, configuration } = options
@@ -197,9 +204,42 @@ export async function createClientServer(options: {
         let result: unknown = null
         if (message.type === 'snapshot')
           result = await snapshots.request(message.method, message.args)
-        else {
+        else if (message.type === 'artifact') {
+          try {
+            result = await options.onMessage(message)
+          } catch (error) {
+            if (!(error instanceof AssertionError)) throw error
+            const values: Record<string, unknown> = {
+              name: error.name,
+              message: error.message,
+              stack: error.stack,
+              ...Object.fromEntries(
+                Object.getOwnPropertyNames(error).map((key) => [
+                  key,
+                  Reflect.get(error, key),
+                ])
+              ),
+            }
+            response.setHeader('Content-Type', 'application/json')
+            response.end(
+              JSON.stringify({
+                artifactError: Object.entries(values).map(([key, value]) => ({
+                  key,
+                  value,
+                })),
+              })
+            )
+            return
+          }
+        } else if (message.type === 'browser-command') {
+          if (!options.onBrowserCommand)
+            throw new Error('Browser Mode commands are unavailable.')
+          result = await options.onBrowserCommand(message.command)
+        } else {
           if (
             ![
+              'collected',
+              'output',
               'case-start',
               'case-end',
               'suite-end',
@@ -300,21 +340,7 @@ export async function createClientServer(options: {
       await assets.verify()
     },
     mapStack(stack: string) {
-      const frames: import('../reporting/events').SourceLocation[] = []
-      for (const line of stack.split('\n')) {
-        const match = /(https?:\/\/[^\s)]+):(\d+):(\d+)\)?$/.exec(line)
-        if (!match) continue
-        try {
-          frames.push(
-            mapper.mapLocation({
-              file: match[1],
-              line: Number(match[2]),
-              column: Number(match[3]),
-            })
-          )
-        } catch {}
-      }
-      return frames
+      return mapClientDiagnosticStack(stack, mapper)
     },
     fail,
     assertClean() {

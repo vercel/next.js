@@ -633,6 +633,9 @@ export function createTestReporter(options: TestReporterOptions) {
           `${paint(90, `${event.stream} | ${context(event)}`)}\n${event.text}${event.text.endsWith('\n') ? '' : '\n'}\n`
         )
         break
+      case 'test-artifact':
+        // Structured artifact data is retained for machine/completion consumers.
+        break
       case 'test-annotation': {
         if (event.annotation.attachment) attachments++
         write(

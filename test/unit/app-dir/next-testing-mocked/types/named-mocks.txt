@@ -1,0 +1,208 @@
+import type {
+  Mock, MockInstance, MockContext,
+  MockResult, MockResultIncomplete, MockResultReturn, MockResultThrow,
+  MockSettledResult, MockSettledResultFulfilled,
+  MockSettledResultIncomplete, MockSettledResultRejected,
+  Mocked, MockedClass, MockedFunction, MockedObject,
+} from 'vitest'
+
+type DefaultMock = Mock
+type DefaultInstance = MockInstance
+type DefaultContext = MockContext
+type PrimitiveMapped = Mocked<1>
+type NullMappedObject = MockedObject<null>
+
+type AsyncCall = (this: { owner: 'owner' }, id: number) => Promise<{ ok: true }>
+declare const context: MockContext<AsyncCall>
+const calls: [id: number][] = context.calls
+const instances: { owner: 'owner' }[] = context.instances
+const contexts: { owner: 'owner' }[] = context.contexts
+const order: number[] = context.invocationCallOrder
+const last: [id: number] | undefined = context.lastCall
+const raw: MockResult<Promise<{ ok: true }>>[] = context.results
+const settled: MockSettledResult<{ ok: true }>[] = context.settledResults
+// @ts-expect-error original argument tuple is numeric
+const wrongCalls: [id: string][] = context.calls
+// @ts-expect-error original this context is preserved
+const wrongContext: { owner: 'wrong' }[] = context.contexts
+
+const returned: MockResultReturn<number> = { type: 'return', value: 1 }
+const incomplete: MockResultIncomplete = { type: 'incomplete', value: undefined }
+const thrown: MockResultThrow = { type: 'throw', value: Symbol('any thrown value') }
+const resultUnion: MockResult<number>[] = [returned, incomplete, thrown]
+// @ts-expect-error return result retains T
+const wrongReturn: MockResultReturn<number> = { type: 'return', value: 'wrong' }
+// @ts-expect-error raw result discriminant is not fulfilled
+const wrongReturnTag: MockResultReturn<number> = { type: 'fulfilled', value: 1 }
+// @ts-expect-error incomplete result value is undefined
+const wrongIncomplete: MockResultIncomplete = { type: 'incomplete', value: 1 }
+// @ts-expect-error throw discriminant is exact
+const wrongThrowTag: MockResultThrow = { type: 'return', value: 1 }
+
+const fulfilled: MockSettledResultFulfilled<number> = { type: 'fulfilled', value: 1 }
+const pending: MockSettledResultIncomplete = { type: 'incomplete', value: undefined }
+const rejected: MockSettledResultRejected = { type: 'rejected', value: 42 }
+const settledUnion: MockSettledResult<number>[] = [fulfilled, pending, rejected]
+// The alias T itself is not implicitly Awaited: only MockContext applies Awaited.
+const promiseValue: MockSettledResultFulfilled<Promise<number>> = {
+  type: 'fulfilled', value: Promise.resolve(1),
+}
+// @ts-expect-error fulfilled value retains T
+const wrongFulfilled: MockSettledResultFulfilled<number> = { type: 'fulfilled', value: 'wrong' }
+// @ts-expect-error settled result does not use the raw return tag
+const wrongSettledTag: MockSettledResultFulfilled<number> = { type: 'return', value: 1 }
+// @ts-expect-error incomplete settled value is undefined
+const wrongPending: MockSettledResultIncomplete = { type: 'incomplete', value: 1 }
+// @ts-expect-error rejected discriminant is exact
+const wrongRejectedTag: MockSettledResultRejected = { type: 'throw', value: 42 }
+
+if (raw[0].type === 'return') {
+  const exactPromise: Promise<{ ok: true }> = raw[0].value
+  // @ts-expect-error a raw async result still contains its Promise
+  const notAwaited: { ok: true } = raw[0].value
+}
+if (settled[0].type === 'fulfilled') {
+  const exactAwaited: { ok: true } = settled[0].value
+  // @ts-expect-error settled context result is Awaited
+  const notPromise: Promise<{ ok: true }> = settled[0].value
+}
+
+declare class Service {
+  constructor(id: number)
+  fetch(value: string): number
+}
+interface Tree {
+  readonly literal: 'fixed'
+  method(value: number): string
+  nested: { method(value: number): string }
+  Model: typeof Service
+}
+declare const shallow: Mocked<Tree>
+declare const object: MockedObject<Tree>
+shallow.method.mockReturnValue('ok')
+object.method.mockReturnValue('ok')
+const fixed: 'fixed' = object.literal
+// @ts-expect-error field value type is preserved, no stronger readonly claim
+const wrongLiteral: 'changed' = object.literal
+// @ts-expect-error shallow method retains its return type
+shallow.method.mockReturnValue(1)
+// @ts-expect-error nested ordinary method is not deeply mocked
+shallow.nested.method.mockClear()
+// @ts-expect-error MockedObject is shallow too
+object.nested.method.mockClear()
+
+declare const constructor: MockedClass<typeof Service>
+const instance: Service = new constructor(1)
+constructor.prototype.fetch.mockReturnValue(1)
+// @ts-expect-error constructor parameters remain numeric
+new constructor('wrong')
+// @ts-expect-error prototype method return remains numeric
+constructor.prototype.fetch.mockReturnValue('wrong')
+declare const constructableFunction: MockedFunction<typeof Service>
+const constructed: Service = new constructableFunction(1)
+declare const constructorContext: MockContext<typeof Service>
+const constructorCalls: [id: number][] = constructorContext.calls
+const constructorInstances: Service[] = constructorContext.instances
+
+declare const callable: MockedFunction<(id: number) => Promise<{ ok: true }>>
+callable.mockResolvedValue({ ok: true })
+// @ts-expect-error async return value retains its property literal
+callable.mockResolvedValue({ ok: false })
+// @ts-expect-error original callable argument type is preserved
+callable('wrong')
+declare const generic: MockedFunction<<T extends string | number>(value: T) => T>
+declare function overloaded(value: string): string
+declare function overloaded(value: number): number
+declare const overloadedMock: MockedFunction<typeof overloaded>
+
+export const probeContextCalls = context.calls
+export const probeContextSettled = context.settledResults
+export const probeRawThrowAny = thrown.value
+export const probeRejectedAny = rejected.value
+export const probeFunctionReturn = callable(1)
+export const probeGenericGetter = generic.getMockImplementation()
+export const probeOverloadedGetter = overloadedMock.getMockImplementation()
+export const probeConstructor = new constructor(1)
+
+// Constraints/defaults/arity must be upstream exact; these are separate directives.
+// @ts-expect-error object is not a procedure or constructor
+type BadFunction = MockedFunction<{ value: 1 }>
+// @ts-expect-error arrow function is not constructable
+type BadClass = MockedClass<() => number>
+// @ts-expect-error number is not a procedure or constructor
+type BadContext = MockContext<number>
+// @ts-expect-error existing Mock constraint stays intact
+type BadExistingMock = Mock<number>
+// @ts-expect-error existing MockInstance constraint stays intact
+type BadExistingInstance = MockInstance<number>
+
+// @ts-expect-error required unconstrained generic has no default
+type MissingMocked = Mocked
+// @ts-expect-error required constructor generic has no default
+type MissingClass = MockedClass
+// @ts-expect-error required callable/constructor generic has no default
+type MissingFunction = MockedFunction
+// @ts-expect-error required unconstrained generic has no default
+type MissingObject = MockedObject
+// @ts-expect-error raw result T is required
+type MissingResult = MockResult
+// @ts-expect-error return result T is required
+type MissingReturn = MockResultReturn
+// @ts-expect-error settled result T is required
+type MissingSettled = MockSettledResult
+// @ts-expect-error fulfilled result T is required
+type MissingFulfilled = MockSettledResultFulfilled
+
+// @ts-expect-error record takes no type argument
+type ExtraIncomplete = MockResultIncomplete<string>
+// @ts-expect-error record takes no type argument
+type ExtraThrow = MockResultThrow<string>
+// @ts-expect-error record takes no type argument
+type ExtraPending = MockSettledResultIncomplete<string>
+// @ts-expect-error record takes no type argument
+type ExtraRejected = MockSettledResultRejected<string>
+
+// @ts-expect-error not a pinned public Vitest named export
+import type { Constructable as PrivateConstructable } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MaybeMocked as PrivateMaybeMocked } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MaybeMockedConstructor as PrivateMaybeConstructor } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MaybeMockedDeep as PrivateMaybeDeep } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MaybePartiallyMocked as PrivateMaybePartial } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MaybePartiallyMockedDeep as PrivateMaybePartialDeep } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MockInstanceOption as PrivateInstanceOption } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MockParameters as PrivateParameters } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MockProcedureContext as PrivateContext } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MockReturnType as PrivateReturnType } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MockedFunctionDeep as PrivateFunctionDeep } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { MockedObjectDeep as PrivateObjectDeep } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { PartialMock as PrivatePartial } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { PartiallyMockedFunction as PrivatePartialFunction } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { PartiallyMockedFunctionDeep as PrivatePartialFunctionDeep } from 'vitest'
+// @ts-expect-error not a pinned public Vitest named export
+import type { Procedure as PrivateProcedure } from 'vitest'
+
+type Assert<T extends true> = T
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends
+  (<T>() => T extends B ? 1 : 2) ? true : false
+type MockNames = 'Mock' | 'MockInstance' | 'MockContext' | 'MockResult' |
+  'MockResultIncomplete' | 'MockResultReturn' | 'MockResultThrow' |
+  'MockSettledResult' | 'MockSettledResultFulfilled' |
+  'MockSettledResultIncomplete' | 'MockSettledResultRejected' |
+  'Mocked' | 'MockedClass' | 'MockedFunction' | 'MockedObject'
+type NoRuntimeMockExports = Assert<Equal<
+  Extract<keyof typeof import('vitest'), MockNames>, never
+>>

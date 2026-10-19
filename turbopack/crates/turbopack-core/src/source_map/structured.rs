@@ -46,6 +46,8 @@ pub struct StructuredSourceMap {
     x_facebook_sources: Option<Rope>,
     debug_id_old: Option<Rope>,
     debug_id: Option<Rope>,
+    // Native-owned only. External JSON deserialization deliberately has no matching field.
+    native_test_import_coverage_roles: Option<Rope>,
 }
 
 /// The `sources` field. Kept verbatim until a rewrite actually changes an entry, so maps whose
@@ -290,6 +292,7 @@ impl StructuredSourceMap {
             x_facebook_sources: into_rope(fields.x_facebook_sources),
             debug_id_old: into_rope(fields.debug_id_old),
             debug_id: into_rope(fields.debug_id),
+            native_test_import_coverage_roles: None,
         })
     }
 
@@ -328,6 +331,47 @@ impl StructuredSourceMap {
             }
         }
         Ok(result)
+    }
+
+    /// Insert explicit source-less positions into a generated basic map, after
+    /// upstream composition. Other fields and shared source-content ropes stay intact.
+    pub fn with_unmapped_segments(mut self, positions: &[(u32, u32)]) -> Result<Self> {
+        if positions.is_empty() {
+            return Ok(self);
+        }
+        anyhow::ensure!(
+            self.sections.is_none(),
+            "unmapped positions require a basic map"
+        );
+        let mappings: String = self
+            .mappings
+            .as_ref()
+            .map(|value| serde_json::from_slice(&value.to_bytes()))
+            .transpose()?
+            .unwrap_or_default();
+        let ranges: Option<String> = self
+            .range_mappings
+            .as_ref()
+            .map(|value| serde_json::from_slice(&value.to_bytes()))
+            .transpose()?;
+        let (mappings, ranges) = insert_unmapped_segments(&mappings, ranges.as_deref(), positions)?;
+        self.mappings = Some(Rope::from(serde_json::to_vec(&mappings)?));
+        self.range_mappings = ranges
+            .map(|ranges| serde_json::to_vec(&ranges).map(Rope::from))
+            .transpose()?;
+        Ok(self)
+    }
+
+    /// Constructed only by opted-in native test code generation after upstream composition.
+    /// `from_json_slice`/`from_serialize` never confer this authority on vendor fields.
+    pub fn with_native_test_import_coverage_roles(mut self, roles: Rope) -> Self {
+        self.native_test_import_coverage_roles = Some(roles);
+        self
+    }
+
+    /// Native authority is carried only in this typed field, never source-map JSON.
+    pub fn native_test_import_coverage_roles(&self) -> Option<&Rope> {
+        self.native_test_import_coverage_roles.as_ref()
     }
 
     /// Rewrites each `sources` entry, keeping every other field (including the shared
@@ -480,14 +524,189 @@ impl StructuredSourceMap {
 
 impl DeterministicHash for StructuredSourceMap {
     fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
-        // Hashing the serialized form covers every field.
+        // Preserve the existing hash for ordinary maps. Native-owned metadata is not part of
+        // the JSON map, but must participate in task/cache identity when it is present.
         self.to_rope().deterministic_hash(state);
+        if let Some(roles) = &self.native_test_import_coverage_roles {
+            state.write_bytes(b"\0native-test-import-coverage-v1\0");
+            roles.deterministic_hash(state);
+        }
     }
+}
+
+/// Add generated source-less boundaries without decoding source/name/content data.
+fn insert_unmapped_segments(
+    mappings: &str,
+    range_mappings: Option<&str>,
+    positions: &[(u32, u32)],
+) -> Result<(String, Option<String>)> {
+    const BASE64: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let positions = positions
+        .iter()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut tokens = Vec::new();
+    let mut state = [0_i64; 4];
+    let ranges = range_mappings
+        .unwrap_or_default()
+        .split(';')
+        .collect::<Vec<_>>();
+    for (line, row) in mappings.split(';').enumerate() {
+        let mut column = 0_i64;
+        let range = ranges.get(line).copied().unwrap_or_default().as_bytes();
+        for (index, segment) in row.split(',').enumerate() {
+            if segment.is_empty() {
+                continue;
+            }
+            let values = swc_sourcemap::vlq::parse_vlq_segment(segment)?;
+            anyhow::ensure!(
+                matches!(values.len(), 1 | 4 | 5),
+                "invalid source map segment"
+            );
+            column += values[0];
+            let point = (u32::try_from(line)?, u32::try_from(column)?);
+            let original = if values.len() == 1 {
+                None
+            } else {
+                for field in 0..3 {
+                    state[field] += values[field + 1];
+                }
+                let name = if values.len() == 5 {
+                    state[3] += values[4];
+                    Some(state[3])
+                } else {
+                    None
+                };
+                Some((state[0], state[1], state[2], name))
+            };
+            let is_range = if let Some(value) = range.get(index / 6) {
+                let value = BASE64
+                    .iter()
+                    .position(|candidate| candidate == value)
+                    .ok_or_else(|| anyhow::anyhow!("invalid range mapping character"))?;
+                value & (1 << (index % 6)) != 0
+            } else {
+                false
+            };
+            if !positions.contains(&point) {
+                tokens.push((point, original, is_range));
+            }
+        }
+    }
+    tokens.extend(positions.into_iter().map(|point| (point, None, false)));
+    tokens.sort_by_key(|(point, _, _)| *point);
+    let mut output = String::new();
+    let mut output_ranges = String::new();
+    let mut line = 0_u32;
+    let mut column = 0_i64;
+    let mut range_index = 0_usize;
+    let mut range_bits = Vec::<u8>::new();
+    let mut any_range = false;
+    let mut state = [0_i64; 4];
+    for (point, original, is_range) in tokens {
+        while line < point.0 {
+            while range_bits.last() == Some(&0) {
+                range_bits.pop();
+            }
+            output_ranges.extend(
+                range_bits
+                    .drain(..)
+                    .map(|bits| BASE64[bits as usize] as char),
+            );
+            output.push(';');
+            output_ranges.push(';');
+            line += 1;
+            column = 0;
+            range_index = 0;
+        }
+        if range_index > 0 {
+            output.push(',');
+        }
+        let mut values = vec![i64::from(point.1) - column];
+        column = i64::from(point.1);
+        if let Some((source, original_line, original_column, name)) = original {
+            for (index, value) in [source, original_line, original_column]
+                .into_iter()
+                .enumerate()
+            {
+                values.push(value - state[index]);
+                state[index] = value;
+            }
+            if let Some(name) = name {
+                values.push(name - state[3]);
+                state[3] = name;
+            }
+        }
+        output.push_str(&swc_sourcemap::vlq::generate_vlq_segment(&values)?);
+        if is_range {
+            range_bits.resize(range_bits.len().max(range_index / 6 + 1), 0);
+            range_bits[range_index / 6] |= 1 << (range_index % 6);
+            any_range = true;
+        }
+        range_index += 1;
+    }
+    while range_bits.last() == Some(&0) {
+        range_bits.pop();
+    }
+    output_ranges.extend(
+        range_bits
+            .into_iter()
+            .map(|bits| BASE64[bits as usize] as char),
+    );
+    Ok((output, any_range.then_some(output_ranges)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_import_roles_affect_cache_hash_without_changing_json() -> Result<()> {
+        use turbo_tasks_hash::hash_xxh3_hash128;
+
+        let plain = StructuredSourceMap::from_json_slice(
+            br#"{"version":3,"sources":["a.js"],"mappings":"AAAA"}"#,
+        )?;
+        let first = plain
+            .clone()
+            .with_native_test_import_coverage_roles(Rope::from("first"));
+        let second = plain
+            .clone()
+            .with_native_test_import_coverage_roles(Rope::from("second"));
+        assert_eq!(plain.to_rope(), first.to_rope());
+        assert_eq!(first.to_rope(), second.to_rope());
+        assert_eq!(
+            hash_xxh3_hash128(&plain),
+            hash_xxh3_hash128(plain.to_rope())
+        );
+        assert_ne!(hash_xxh3_hash128(&plain), hash_xxh3_hash128(&first));
+        assert_ne!(hash_xxh3_hash128(&first), hash_xxh3_hash128(&second));
+        Ok(())
+    }
+
+    #[test]
+    fn native_import_roles_survive_native_codec_but_never_json() -> Result<()> {
+        let plain = StructuredSourceMap::from_json_slice(
+            br#"{"version":3,"sources":["a.js"],"mappings":"AAAA"}"#,
+        )?;
+        let owned = plain
+            .clone()
+            .with_native_test_import_coverage_roles(Rope::from(r#"{"version":1,"roles":[]}"#));
+        let configuration = bincode::config::standard();
+        let encoded = bincode::encode_to_vec(&owned, configuration)?;
+        let (decoded, consumed): (StructuredSourceMap, usize) =
+            bincode::decode_from_slice(&encoded, configuration)?;
+        assert_eq!(consumed, encoded.len());
+        assert_eq!(decoded, owned);
+        assert_eq!(decoded.to_rope(), plain.to_rope());
+        assert_eq!(StructuredSourceMap::from_json(&decoded.to_rope())?, plain);
+        let forged = StructuredSourceMap::from_json_slice(
+            br#"{"version":3,"sources":["a.js"],"mappings":"AAAA","native_test_import_coverage_roles":{"version":1,"roles":[]},"x_next_import_roles":{"version":1,"roles":[]}}"#,
+        )?;
+        assert!(forged.native_test_import_coverage_roles().is_none());
+        assert_eq!(forged, plain);
+        Ok(())
+    }
 
     /// `to_rope(from_swc_map(m))` must be byte-identical to `m.to_writer()` — this pins the
     /// emitter to `swc_sourcemap`'s format so emitted maps (and snapshot fixtures) don't change.
@@ -622,6 +841,42 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&rewritten.to_rope().to_bytes())?;
         assert_eq!(json["sources"][0], "file:///root/a.js");
         assert_eq!(json["sourcesContent"][0], "text");
+        Ok(())
+    }
+
+    #[test]
+    fn unmapped_boundaries_preserve_mapping_state_ranges_and_shared_fields() -> Result<()> {
+        let input = br#"{"version":3,"sources":["a.js","b.js"],"sourcesContent":["x\ud800y",null],"names":["first","second"],"mappings":"AAAAA,KCAKC;ADCLD","rangeMappings":"C;B","ignoreList":[1]}"#;
+        let before = StructuredSourceMap::from_json_slice(input)?;
+        for positions in [&[(0, 0), (0, 3)][..], &[(0, 0), (0, 5), (0, 5)][..]] {
+            let after = before.clone().with_unmapped_segments(positions)?;
+            assert_eq!(after.sources, before.sources);
+            assert_eq!(after.sources_content, before.sources_content);
+            assert_eq!(after.names, before.names);
+            assert_eq!(after.ignore_list, before.ignore_list);
+            let mut validation = after;
+            // Source-content bytes are deliberately opaque, including a lone surrogate.
+            validation.sources_content = None;
+            let map = swc_sourcemap::SourceMap::from_slice(&validation.to_rope().to_bytes())?;
+            for (line, column) in positions {
+                let token = map.lookup_token(*line, *column).unwrap();
+                assert_eq!(
+                    (token.get_dst_line(), token.get_dst_col()),
+                    (*line, *column)
+                );
+                assert!(!token.has_source());
+            }
+            let token = map.lookup_token(1, 0).unwrap();
+            assert_eq!(token.get_source().unwrap(), "a.js");
+            assert_eq!((token.get_src_line(), token.get_src_col()), (1, 0));
+            assert_eq!(token.get_name().unwrap(), "first");
+            assert!(token.is_range());
+            let unique = map
+                .tokens()
+                .filter(|token| token.get_dst_line() == 0 && token.get_dst_col() == 0)
+                .count();
+            assert_eq!(unique, 1);
+        }
         Ok(())
     }
 }

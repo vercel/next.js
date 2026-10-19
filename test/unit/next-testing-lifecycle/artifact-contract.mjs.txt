@@ -1,0 +1,69 @@
+import { test, recordArtifact, vi } from 'vitest'
+import { writeFileSync } from 'node:fs'
+import { join, isAbsolute } from 'node:path'
+
+function observe(name, raw) {
+  writeFileSync(join(process.env.ARTIFACT_PROBE_EVIDENCE, name + '.json'), JSON.stringify(raw, null, 2) + '\n', { flag: 'wx' })
+  console.log('ARTIFACT_RAW ' + JSON.stringify({ name, raw }))
+}
+let firstTask
+
+test('records structured artifacts attachments and repeated input objects', async ({ task }) => {
+  firstTask = task
+  const data = { value: 7 }
+  const input = { type: 'probe:custom', label: 'first', data, attachments: [
+    { body: new Uint8Array([0, 255, 65]) },
+    { body: 'hello', bodyEncoding: 'utf-8', contentType: 'text/plain' },
+    { path: './artifact.txt' },
+    { path: 'https://example.invalid/artifact.txt' },
+  ] }
+  const pending = recordArtifact(task, input)
+  const immediately = { locationInjected: !!input.location, byteBody: input.attachments[0].body, encoding: input.attachments[0].bodyEncoding, taskCount: task.artifacts.length }
+  const first = await pending
+  const firstLocation = { ...first.location }
+  const second = await recordArtifact(task, input)
+  observe('structured', {
+    namedType: typeof recordArtifact,
+    viMemberType: typeof vi.recordArtifact,
+    immediately,
+    returnSame: first === input,
+    returnDataSame: first.data === data,
+    storedSame: task.artifacts[0] === first,
+    repeatedReturnSame: second === first,
+    storedSecondSame: task.artifacts[1] === second,
+    taskCount: task.artifacts.length,
+    inputPathUnchanged: input.attachments[2].path === './artifact.txt',
+    outputPathAbsolute: isAbsolute(first.attachments[2].path),
+    outputPathRetained: first.attachments[2].path.includes('/.vitest/attachments/'),
+    localContentType: first.attachments[2].contentType,
+    attachments: first.attachments.map(({ body, bodyEncoding, contentType, path }) => ({ body, bodyEncoding, contentType, path: path && (isAbsolute(path) ? '<retained-file>' : path) })),
+    firstLocation,
+    firstLocationUnchanged: JSON.stringify(first.location) === JSON.stringify(firstLocation),
+    firstLocationSameInput: first.location === input.location,
+    assertionCalls: 0,
+  })
+})
+
+test('normalizes errors and leaves raw internal annotations on their existing route', async ({ task }) => {
+  const failures = []
+  for (const attachment of [{}, { body: 'body', path: 'path' }, { path: 'path', bodyEncoding: 'utf-8' }]) {
+    const input = { type: 'probe:invalid', attachments: [attachment] }
+    try { await recordArtifact(task, input) }
+    catch (error) { failures.push({ name: error.name, message: error.message, locationInjected: !!input.location }) }
+  }
+  const annotation = { type: 'internal:annotation', annotation: { message: 'raw annotation', type: 'notice' } }
+  const returned = await recordArtifact(task, annotation)
+  observe('validation-annotation', { failures, returnSame: returned === annotation, locationSame: returned.location === returned.annotation.location, artifactCount: task.artifacts.length, annotationCount: task.annotations.length })
+})
+
+test('records an explicitly supplied earlier test task', async ({ task }) => {
+  const count = firstTask.artifacts.length
+  const recorded = await recordArtifact(firstTask, { type: 'probe:late', value: 'from next test' })
+  observe('prior-task', { earlierState: firstTask.result.state, originalCount: count, currentCount: firstTask.artifacts.length, currentTaskCount: task.artifacts.length, storedSame: firstTask.artifacts.at(-1) === recorded })
+})
+
+test('retains the normalized empty-body local-file combination', async ({ task }) => {
+  const input = { type: 'probe:empty', attachments: [{ body: '', path: './artifact.txt' }] }
+  const recorded = await recordArtifact(task, input)
+  observe('empty-body', { inputBody: input.attachments[0].body, inputPath: input.attachments[0].path, inputEncoding: input.attachments[0].bodyEncoding, returnedBody: recorded.attachments[0].body, outputPathAbsolute: isAbsolute(recorded.attachments[0].path), returnedEncoding: recorded.attachments[0].bodyEncoding, storedSame: task.artifacts[0] === recorded })
+})

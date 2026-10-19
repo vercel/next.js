@@ -31,10 +31,13 @@ Next result counts as a confirmed gap. Deliberate assertion/type/timeout failure
 must have their specified reference exit code. Raw outcomes, reports and stdout/
 stderr are retained per contract when the evidence variable is set.
 
-Install the Playwright 1.64.0 Chromium/headless-shell binaries or point
-`PLAYWRIGHT_BROWSERS_PATH` at an existing 1.64.0 cache. The pristine Browser Mode
-provider and ordinary-app browser both use that exact driver. Browser tests run
-in Chromium itself; a Node driver is not accepted as the Browser Mode reference.
+Install the Chromium/headless-shell revisions required by both the pinned
+Playwright 1.64.0 reference driver and the workspace Playwright driver. If setting
+`PLAYWRIGHT_BROWSERS_PATH`, use a cache containing both revisions. The pristine
+Browser Mode provider uses its exact pinned driver; production mounting also
+exercises the workspace browser driver. A cache containing only the reference
+revision cannot qualify that production prerequisite. Browser tests run in
+Chromium itself; a Node driver is not accepted as the Browser Mode reference.
 Python 3 and a POSIX PTY are needed for terminal interaction checks. They directly
 exercise default watch behavior, help and test-name filtering in an xterm
 terminal. Windows terminal/process qualification needs its own CI execution.

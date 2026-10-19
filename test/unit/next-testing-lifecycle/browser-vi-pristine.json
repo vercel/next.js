@@ -1,0 +1,72 @@
+[
+  {
+    "label": "stubbed",
+    "value": {
+      "aliases": true,
+      "methodStable": true,
+      "firstSame": true,
+      "againSame": true,
+      "symbolSame": true,
+      "accessorSame": true,
+      "globalValue": "replacement",
+      "windowValue": "replacement",
+      "selfValue": "replacement",
+      "symbolValueSame": true,
+      "getterReads": 0,
+      "descriptor": {
+        "configurable": true,
+        "enumerable": true,
+        "writable": true,
+        "value": 42
+      }
+    }
+  },
+  {
+    "label": "restored",
+    "value": {
+      "same": true,
+      "absentRemoved": true,
+      "symbolRemoved": true,
+      "accessorSame": true,
+      "configurable": true,
+      "enumerable": false,
+      "originalValue": "original",
+      "getterReads": 1,
+      "repeatedSame": true
+    }
+  },
+  {
+    "label": "bulk",
+    "value": {
+      "clearSame": true,
+      "resetSame": true,
+      "restoreSame": true,
+      "clearStable": true,
+      "afterClear": {
+        "mock": 0,
+        "spy": 0
+      },
+      "afterReset": {
+        "mock": 0,
+        "spy": 0
+      },
+      "originalRestored": true
+    }
+  },
+  {
+    "label": "chain",
+    "value": {
+      "same": true,
+      "value": 17,
+      "throughWindow": 17
+    }
+  },
+  {
+    "label": "persistence",
+    "value": {
+      "before": 17,
+      "same": true,
+      "absentAfter": true
+    }
+  }
+]

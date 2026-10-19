@@ -1,8 +1,14 @@
 import { TestFakeTimers } from './fake-timers'
 import { createTimerWaits } from './wait'
+import { createEnvironmentStubs } from './assertion-platform'
 import type { FakeTimerConfig } from '../../../compiled/next-test-primitives/timers'
 
 export type FakeTimerOptions = FakeTimerConfig
+
+export interface EnvironmentStubs {
+  stub(name: string, value: string | boolean | undefined): void
+  restore(): void
+}
 
 /** Runtime-mutable fields of the pinned public configuration contract. */
 export interface RuntimeOptions {
@@ -29,7 +35,12 @@ export interface AttemptUtilities
   setConfig(config: RuntimeOptions): void
   resetConfig(): void
   stubGlobal(name: string | symbol | number, value: unknown): AttemptUtilities
-  stubEnv(name: string, value: string | boolean | undefined): AttemptUtilities
+  stubEnv<T extends string>(
+    name: T,
+    value: T extends 'DEV' | 'PROD' | 'SSR'
+      ? boolean | undefined
+      : string | undefined
+  ): AttemptUtilities
   unstubAllGlobals(): AttemptUtilities
   unstubAllEnvs(): AttemptUtilities
   useFakeTimers(options?: FakeTimerOptions): AttemptUtilities
@@ -42,8 +53,8 @@ export interface AttemptUtilities
   setSystemTime(value?: number | string | Date): AttemptUtilities
   advanceTimersByTime(ms: number): AttemptUtilities
   advanceTimersByTimeAsync(ms: number): Promise<AttemptUtilities>
-  advanceTimersToNextTimer(steps?: number): AttemptUtilities
-  advanceTimersToNextTimerAsync(steps?: number): Promise<AttemptUtilities>
+  advanceTimersToNextTimer(): AttemptUtilities
+  advanceTimersToNextTimerAsync(): Promise<AttemptUtilities>
   advanceTimersToNextFrame(): AttemptUtilities
   runAllTicks(): AttemptUtilities
   setTimerTickMode(
@@ -62,12 +73,14 @@ export function createAttemptUtilities(
   assertActive: () => void,
   fakeTimerConfig?: FakeTimerOptions,
   runtimeConfig?: RuntimeOptions,
-  waitForImports?: () => Promise<void>
+  waitForImports?: () => Promise<void>,
+  onClock?: (clock: TestFakeTimers) => void
 ): AttemptUtilities {
   const globalDescriptors = new Map<
     PropertyKey,
     PropertyDescriptor | undefined
   >()
+  const environmentStubs = createEnvironmentStubs()
   const envValues = new Map<string, string | undefined>()
   const defaults: FakeTimerOptions = {
     loopLimit: 10000,
@@ -77,8 +90,13 @@ export function createAttemptUtilities(
   let originalConfig: RuntimeOptions | undefined
   const mutableConfig = runtimeConfig ?? { fakeTimers: defaults }
   let clock: TestFakeTimers | undefined
-  const getClock = () =>
-    (clock ??= new TestFakeTimers({ global: globalThis, config: defaults }))
+  const getClock = () => {
+    if (!clock) {
+      clock = new TestFakeTimers({ global: globalThis, config: defaults })
+      onClock?.(clock)
+    }
+    return clock
+  }
 
   function rememberGlobal(name: PropertyKey) {
     if (!globalDescriptors.has(name)) {
@@ -103,6 +121,10 @@ export function createAttemptUtilities(
 
   function stubEnv(name: string, value: string | boolean | undefined) {
     assertActive()
+    if (environmentStubs) {
+      environmentStubs.stub(name, value)
+      return api
+    }
     if (!envValues.has(name)) envValues.set(name, process.env[name])
     if (value === undefined) delete process.env[name]
     else process.env[name] = String(value)
@@ -118,6 +140,10 @@ export function createAttemptUtilities(
   }
 
   function restoreEnvs() {
+    if (environmentStubs) {
+      environmentStubs.restore()
+      return
+    }
     for (const [name, value] of envValues) {
       if (value === undefined) delete process.env[name]
       else process.env[name] = value
@@ -214,14 +240,14 @@ export function createAttemptUtilities(
       await getClock().advanceTimersByTimeAsync(ms)
       return api
     },
-    advanceTimersToNextTimer(steps?: number) {
+    advanceTimersToNextTimer() {
       assertActive()
-      getClock().advanceTimersToNextTimer(steps)
+      getClock().advanceTimersToNextTimer()
       return api
     },
-    async advanceTimersToNextTimerAsync(steps?: number) {
+    async advanceTimersToNextTimerAsync() {
       assertActive()
-      await getClock().advanceTimersToNextTimerAsync(steps)
+      await getClock().advanceTimersToNextTimerAsync()
       return api
     },
     advanceTimersToNextFrame() {

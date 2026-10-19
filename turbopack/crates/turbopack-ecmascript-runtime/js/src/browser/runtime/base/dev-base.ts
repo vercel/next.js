@@ -194,7 +194,7 @@ function instantiateModule(
 
 const DUMMY_REFRESH_CONTEXT = {
   register: (_type: unknown, _id: unknown) => {},
-  signature: () => (_type: unknown) => {},
+  signature: () => (type: unknown) => type,
   registerExports: (_module: unknown, _helpers: unknown) => {},
 }
 

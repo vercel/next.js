@@ -1,0 +1,75 @@
+{
+  "dictionaries": {
+    "nested-before": {
+      "assertionCalls": 0
+    },
+    "soft-after": {
+      "continued": true,
+      "returnUndefined": false,
+      "originalReturnType": "object",
+      "returnType": "object",
+      "returnSame": true,
+      "originalThenType": "undefined",
+      "returnThenType": "undefined",
+      "assertionCalls": 1
+    },
+    "sync": {
+      "helperType": "function",
+      "helperName": "__VITEST_HELPER__",
+      "helperLength": 0,
+      "receiverSame": true,
+      "argumentsLength": 2,
+      "argumentSame": true,
+      "secondArgument": 7,
+      "returnSame": true,
+      "errorSame": true,
+      "errorStackUnchanged": true,
+      "primitive": 37,
+      "assertionCalls": 0
+    },
+    "async-before": {
+      "assertionCalls": 0
+    },
+    "async": {
+      "returnPromise": true,
+      "returnSame": true,
+      "receiverSame": true,
+      "argumentSame": true,
+      "objectThenablePromise": true,
+      "objectThenableSame": false,
+      "thenableValueSame": true,
+      "thenCalls": 1,
+      "functionThenableSame": true,
+      "functionThenCalls": 0,
+      "errorSame": true,
+      "errorMessage": "original async error",
+      "errorStackChanged": true,
+      "errorStackHasHelper": true,
+      "errorStackMessage": "Error: original async error",
+      "primitiveSame": true,
+      "assertionCalls": 0
+    }
+  },
+  "cases": [
+    {
+      "name": "async helper failure reports the caller after suspension",
+      "status": "failed"
+    },
+    {
+      "name": "async helper preserves values receiver thenables and rejected payloads",
+      "status": "passed"
+    },
+    {
+      "name": "nested helper failure reports the outer caller",
+      "status": "failed"
+    },
+    {
+      "name": "soft helper failure continues and reports its caller",
+      "status": "failed"
+    },
+    {
+      "name": "sync helper preserves module creation receiver arguments and payloads",
+      "status": "passed"
+    }
+  ]
+}

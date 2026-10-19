@@ -735,6 +735,10 @@ program
     'Dedicated standard coverage report directory inside the project.'
   )
   .option(
+    '--coverage.cleanOnRerun [boolean]',
+    'Replace prior standard coverage on watch reruns (default: true).'
+  )
+  .option(
     '--coverage.reportOnFailure [boolean]',
     'Publish complete standard coverage after failed test execution.'
   )

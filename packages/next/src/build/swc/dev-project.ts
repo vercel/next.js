@@ -61,62 +61,67 @@ export async function createDevTurbopackProject({
     })
   }
 
-  const projectResult = await getBindingsSync().turbo.createProject(
-    {
-      rootPath,
-      browserFixtureHost: browserFixtureHost
-        ? JSON.stringify({
-            routePrefix: browserFixtureHost.routePrefix,
-            fixtures: browserFixtureHost.fixtures.map((fixture) => {
-              const module = relative(projectPath, fixture.module)
-              if (
-                !isAbsolute(fixture.module) ||
-                !module ||
-                isAbsolute(module) ||
-                module === '..' ||
-                module.startsWith(`..${sep}`)
-              ) {
-                throw new Error(
-                  'Browser fixture modules must be contained in the application project'
-                )
-              }
-              return { ...fixture, module: module.split(sep).join('/') }
-            }),
-          })
-        : undefined,
-      projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
-      distDir,
-      nextConfig: nextConfig,
-      watch: {
-        enable: dev,
-        pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
-      },
-      dev,
-      env: process.env as Record<string, string>,
-      defineEnv: createDefineEnv({
-        isTurbopack: true,
-        clientRouterFilters,
-        config: nextConfig,
-        dev,
-        distDir,
-        projectPath,
-        fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-        hasRewrites,
-        // TODO: Implement
-        middlewareMatchers: undefined,
-        rewrites: fsChecker.rewrites,
-      }),
-      buildId,
-      encryptionKey,
-      previewProps: fsChecker.previewProps,
-      browserslistQuery: supportedBrowsers.join(', '),
-      noMangling: false,
-      writeRoutesHashesManifest: false,
-      currentNodeJsVersion,
-      isPersistentCachingEnabled: isFileSystemCacheEnabledForDev(nextConfig),
-      nextVersion: process.env.__NEXT_VERSION as string,
-      serverHmr: serverFastRefresh,
+  const projectOptions: ProjectOptions = {
+    rootPath,
+    browserFixtureHost: browserFixtureHost
+      ? JSON.stringify({
+          routePrefix: browserFixtureHost.routePrefix,
+          fixtures: browserFixtureHost.fixtures.map((fixture) => {
+            const module = relative(projectPath, fixture.module)
+            if (
+              !isAbsolute(fixture.module) ||
+              !module ||
+              isAbsolute(module) ||
+              module === '..' ||
+              module.startsWith(`..${sep}`)
+            ) {
+              throw new Error(
+                'Browser fixture modules must be contained in the application project'
+              )
+            }
+            return { ...fixture, module: module.split(sep).join('/') }
+          }),
+        })
+      : undefined,
+    projectPath: normalizePath(relative(rootPath, projectPath) || '.'),
+    distDir,
+    nextConfig: nextConfig,
+    watch: {
+      enable: dev,
+      pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
     },
+    dev,
+    env: process.env as Record<string, string>,
+    defineEnv: createDefineEnv({
+      isTurbopack: true,
+      clientRouterFilters,
+      config: nextConfig,
+      dev,
+      distDir,
+      projectPath,
+      fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+      hasRewrites,
+      // TODO: Implement
+      middlewareMatchers: undefined,
+      rewrites: fsChecker.rewrites,
+    }),
+    buildId,
+    encryptionKey,
+    previewProps: fsChecker.previewProps,
+    browserslistQuery: supportedBrowsers.join(', '),
+    noMangling: false,
+    writeRoutesHashesManifest: false,
+    currentNodeJsVersion,
+    isPersistentCachingEnabled: isFileSystemCacheEnabledForDev(nextConfig),
+    nextVersion: process.env.__NEXT_VERSION as string,
+    serverHmr: serverFastRefresh,
+  }
+  const nativeProjectPaths = Object.freeze({
+    rootPath: projectOptions.rootPath,
+    projectPath: projectOptions.projectPath,
+  })
+  const projectResult = await getBindingsSync().turbo.createProject(
+    projectOptions,
     {
       turbopackMemoryEviction:
         nextConfig.experimental.turbopackMemoryEvictionMode,
@@ -127,5 +132,5 @@ export async function createDevTurbopackProject({
   for (const issue of projectResult.issues) {
     printNonFatalIssue(issue)
   }
-  return { project: projectResult.value, encryptionKey }
+  return { project: projectResult.value, encryptionKey, nativeProjectPaths }
 }

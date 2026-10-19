@@ -402,12 +402,12 @@ it('aroundAll restores real assertion counts after an inner setup failure', asyn
       })
     })
     const result = await runner.run(options())
-    assert.equal(result.cases[0].status, 'failed')
+    assert.equal(result.cases[0].status, 'skipped')
+    assert.deepEqual(result.cases[0].errors, [])
     assert.deepEqual(
-      result.cases[0].errors.map(({ phase }) => phase),
+      result.errors.map(({ phase }) => phase),
       ['beforeAll']
     )
-    assert.deepEqual(result.errors, [])
   })
 })
 
@@ -543,11 +543,12 @@ it('rejects test fixture requests from bound suite hooks in the real assertion r
       })
     })
     const result = await runner.run(options())
-    assert.equal(result.cases[0].status, 'failed')
-    assert.equal(result.cases[0].errors.length, 1)
-    assert.equal(result.cases[0].errors[0].phase, 'beforeAll')
+    assert.equal(result.cases[0].status, 'skipped')
+    assert.deepEqual(result.cases[0].errors, [])
+    assert.equal(result.errors.length, 1)
+    assert.equal(result.errors[0].phase, 'beforeAll')
     assert.match(
-      String(result.cases[0].errors[0].error),
+      String(result.errors[0].error),
       /Test-scoped fixtures cannot be used inside beforeAll/
     )
   })
@@ -992,7 +993,7 @@ it('preserves setup spies across cases and restores them at file disposal', asyn
   assert.equal(subject.value(), 'original')
 })
 
-it('fails descendants on setup assertions and restores setup spies at file disposal', async () => {
+it('skips descendants on setup assertions and restores setup spies at file disposal', async () => {
   const subject = { value: () => 'original' }
   await withFile(async (runner) => {
     await runner.collect(async () => {
@@ -1005,8 +1006,9 @@ it('fails descendants on setup assertions and restores setup spies at file dispo
       })
     })
     const result = await runner.run(options())
-    assert.equal(result.cases[0].status, 'failed')
-    assert.equal(result.cases[0].errors[0].phase, 'beforeAll')
+    assert.equal(result.cases[0].status, 'skipped')
+    assert.deepEqual(result.cases[0].errors, [])
+    assert.equal(result.errors[0].phase, 'beforeAll')
   })
   assert.equal(subject.value(), 'original')
 })

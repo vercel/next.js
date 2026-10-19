@@ -39,7 +39,8 @@ type Truthy<T> = T extends false | '' | 0 | null | undefined ? never : T
 
 export function createTimerWaits(
   vi: { isFakeTimers(): boolean; advanceTimersByTime(ms: number): unknown },
-  assertActive: () => void
+  assertActive: () => void,
+  { rejectOnDispose = true }: { rejectOnDispose?: boolean } = {}
 ) {
   const pending = new Set<() => void>()
   function waitFor<T>(
@@ -91,7 +92,8 @@ export function createTimerWaits(
         if (timeoutId) clearTimeout(timeoutId)
         if (intervalId) clearInterval(intervalId)
         pending.delete(cancel)
-        reject(new Error('Test utility wait cancelled during file cleanup.'))
+        if (rejectOnDispose)
+          reject(new Error('Test utility wait cancelled during file cleanup.'))
       }
       const checkCallback = () => {
         try {
@@ -196,8 +198,13 @@ export function createTimerWaits(
         return true
       }
 
-      const cancel = () =>
-        onReject(new Error('Test utility wait cancelled during file cleanup.'))
+      const cancel = () => {
+        pending.delete(cancel)
+        if (timeoutId) clearTimeout(timeoutId)
+        if (intervalId) clearInterval(intervalId)
+        if (rejectOnDispose)
+          reject(new Error('Test utility wait cancelled during file cleanup.'))
+      }
       const checkCallback = () => {
         try {
           assertActive()

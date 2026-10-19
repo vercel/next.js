@@ -117,6 +117,9 @@ turbo-tasks-malloc = { workspace = true, default-features = false, features = [
     "custom_allocator",
 ] }
 
+[target.'cfg(any(target_os = "linux", target_os = "macos"))'.dependencies]
+rustix = { version = "=1.0.7", features = ["event", "fs", "try_close"] }
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = "0.60"
 
@@ -131,6 +134,9 @@ turbo-tasks-malloc = { workspace = true, default-features = false }
 [target.wasm32-wasip1-threads.dependencies]
 # this requires tokio_unstable currently.
 tokio = { workspace = true, features = ["full"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "=0.2.186"
 
 [build-dependencies]
 anyhow = { workspace = true }

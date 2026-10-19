@@ -359,6 +359,58 @@ describe('test input filesystem watcher', () => {
     }
   })
 
+  it('watches exact compiler package dependencies while ignoring unrelated installed files', async () => {
+    const root = await mkdtemp(
+      path.join(tmpdir(), 'next-testing-watch-config-deps-')
+    )
+    class Subscription extends EventEmitter {
+      close() {
+        queueMicrotask(() => this.emit('close'))
+      }
+      ref() {
+        return this
+      }
+      unref() {
+        return this
+      }
+    }
+    const nativeWatch = jest
+      .spyOn(fs, 'watch')
+      .mockReturnValueOnce(new Subscription())
+      .mockReturnValueOnce(new Subscription())
+    const dependency = path.join(
+      root,
+      'node_modules/transform/internal/helper.js'
+    )
+    const events: FileChange[] = []
+    const changed = deferred()
+    const source = await watchTestFiles({
+      directories: [root],
+      outputDirectories: [],
+      dependencyFiles: [dependency],
+      onChange: (event) => {
+        events.push(event)
+        changed.resolve()
+      },
+      onError: (error) => {
+        throw error
+      },
+    })
+    try {
+      const listener: unknown = Reflect.get(nativeWatch.mock.calls[0], 2)
+      if (typeof listener !== 'function')
+        throw new Error('Expected native root watch callback')
+      listener('change', 'node_modules/transform/unrelated.js')
+      listener('change', 'node_modules/transform/internal/helper.js')
+      await changed.promise
+      expect(events).toEqual([{ changed: [dependency], removed: [] }])
+    } finally {
+      await source.close()
+      nativeWatch.mockRestore()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('invalidates conservatively when a native event omits its filename', async () => {
     const root = await mkdtemp(
       path.join(tmpdir(), 'next-testing-watch-unknown-')
@@ -997,3 +1049,261 @@ describe('matching-new-test registry policy', () => {
     }
   })
 })
+
+describe('settled watch readiness', () => {
+  const root = path.join(tmpdir(), 'next-watch-settled-registry')
+  const original = {
+    id: 'old',
+    file: path.join(root, 'old.test.ts'),
+    sourceHash: 'old',
+  }
+  const added = {
+    id: 'new',
+    file: path.join(root, 'new.test.ts'),
+    sourceHash: 'new',
+  }
+  function discovery(entries = [original]): WatchDiscovery {
+    return {
+      entryIds: entries.map((entry) => entry.id),
+      discoveryRevision: entries.map((entry) => entry.id).join(','),
+      registry: { configurationRevision: 'config', entries, inputs: [] },
+    }
+  }
+
+  it('waits for cleanup and commits the baseline before a readiness-triggered addition', async () => {
+    const started = deferred()
+    const cleanup = deferred()
+    const runs: WatchRun<WatchDiscovery>[] = []
+    const settled: string[] = []
+    const errors: unknown[] = []
+    let current = discovery()
+    const session = createWatchSession({
+      discover: async () => current,
+      async run(input) {
+        runs.push(input)
+        if (runs.length === 1) {
+          started.resolve()
+          await cleanup.promise
+        }
+        return { status: 'passed' }
+      },
+      onRunSettled(status) {
+        settled.push(status)
+        if (settled.length === 1) {
+          current = discovery([original, added])
+          session.invalidate({ registryPaths: [added.file] })
+          expect(runs[0].signal.aborted).toBe(false)
+        }
+      },
+      onError: (error) => errors.push(error),
+    })
+    try {
+      await started.promise
+      expect(settled).toEqual([])
+      cleanup.resolve()
+      await session.waitForIdle()
+      expect(runs.map((run) => run.selection.entryIds)).toEqual([
+        ['old'],
+        ['new'],
+      ])
+      expect(runs[1].selection.reason).toBe('test-registry-addition')
+      expect(settled).toEqual(['passed', 'passed'])
+      expect(errors).toEqual([])
+    } finally {
+      cleanup.resolve()
+      await session.close()
+    }
+  })
+
+  it('does not announce a superseded run while its cleanup is outstanding', async () => {
+    const started = deferred()
+    const cleanup = deferred()
+    const runs: WatchRun<WatchDiscovery>[] = []
+    const settled: string[] = []
+    const errors: unknown[] = []
+    let current = discovery()
+    const session = createWatchSession({
+      discover: async () => current,
+      async run(input) {
+        runs.push(input)
+        if (runs.length === 1) {
+          started.resolve()
+          await cleanup.promise
+        }
+        return { status: 'passed' }
+      },
+      onRunSettled: (_status, snapshot) =>
+        settled.push(snapshot.discoveryRevision),
+      onError: (error) => errors.push(error),
+    })
+    try {
+      await started.promise
+      current = discovery([original, added])
+      session.invalidate({ registryPaths: [added.file] })
+      expect(runs[0].signal.aborted).toBe(true)
+      expect(settled).toEqual([])
+      cleanup.resolve()
+      await session.waitForIdle()
+      expect(settled).toEqual(['old,new'])
+      expect(runs[1].selection.entryIds).toEqual(['old', 'new'])
+      expect(errors).toEqual([])
+    } finally {
+      cleanup.resolve()
+      await session.close()
+    }
+  })
+
+  it('reports a readiness publication failure and requires a complete retry', async () => {
+    const failure = new Error('terminal publication failed')
+    const runs: WatchRun<WatchDiscovery>[] = []
+    const errors: unknown[] = []
+    let current = discovery()
+    let publications = 0
+    const session = createWatchSession({
+      discover: async () => current,
+      async run(input) {
+        runs.push(input)
+        return { status: 'passed' }
+      },
+      onRunSettled() {
+        if (++publications === 1) throw failure
+      },
+      onError: (error) => errors.push(error),
+    })
+    try {
+      await session.waitForIdle()
+      expect(errors).toEqual([failure])
+      current = discovery([original, added])
+      session.invalidate({ registryPaths: [added.file] })
+      await session.waitForIdle()
+      expect(runs[1].selection.entryIds).toEqual(['old', 'new'])
+      expect(runs[1].selection.reason).toBe('global-invalidation')
+      expect(publications).toBe(2)
+      expect(errors).toEqual([failure])
+    } finally {
+      await session.close()
+    }
+  })
+})
+
+describe('follow-up runs requested by closed snapshot generations', () => {
+  const snapshot = { entryIds: ['one'], discoveryRevision: 'same-inputs' }
+
+  it('publishes the closed generation before scheduling its complete follow-up', async () => {
+    const runs: WatchRun<WatchDiscovery>[] = []
+    const settled: string[] = []
+    const errors: unknown[] = []
+    const session = createWatchSession({
+      discover: async () => snapshot,
+      async run(input) {
+        runs.push(input)
+        return { status: 'passed', rerunAfterSettled: runs.length === 1 }
+      },
+      onRunSettled(status) {
+        settled.push(status)
+        expect(runs.at(-1)!.signal.aborted).toBe(false)
+      },
+      onError: (error) => errors.push(error),
+    })
+    try {
+      await session.waitForIdle()
+      expect(runs.map((run) => run.generation)).toEqual([1, 2])
+      expect(runs[1].selection.reason).toBe('global-invalidation')
+      expect(settled).toEqual(['passed', 'passed'])
+      expect(errors).toEqual([])
+    } finally {
+      await session.close()
+    }
+  })
+
+  it('retains the complete follow-up when readiness publication throws', async () => {
+    const failure = new Error('readiness output failed')
+    const runs: WatchRun<WatchDiscovery>[] = []
+    const errors: unknown[] = []
+    let publications = 0
+    const session = createWatchSession({
+      discover: async () => snapshot,
+      async run(input) {
+        runs.push(input)
+        return { status: 'passed', rerunAfterSettled: runs.length === 1 }
+      },
+      onRunSettled() {
+        if (++publications === 1) throw failure
+      },
+      onError: (error) => errors.push(error),
+    })
+    try {
+      await session.waitForIdle()
+      expect(runs.map((run) => run.generation)).toEqual([1, 2])
+      expect(runs[1].selection.reason).toBe('global-invalidation')
+      expect(publications).toBe(2)
+      expect(errors).toEqual([failure])
+    } finally {
+      await session.close()
+    }
+  })
+
+  it('never publishes or follows up a generation with unsafe cleanup', async () => {
+    const runs: WatchRun<WatchDiscovery>[] = []
+    const settled: string[] = []
+    const errors: unknown[] = []
+    const session = createWatchSession({
+      discover: async () => snapshot,
+      async run(input) {
+        runs.push(input)
+        return {
+          status: 'passed',
+          unsafeCleanup: true,
+          rerunAfterSettled: true,
+        }
+      },
+      onRunSettled: (status) => settled.push(status),
+      onError: (error) => errors.push(error),
+    })
+    try {
+      await session.closed
+      await session.waitForIdle()
+      expect(runs).toHaveLength(1)
+      expect(settled).toEqual([])
+      expect(errors).toEqual([])
+    } finally {
+      await session.close()
+    }
+  })
+})
+
+it.each(['development', 'production'] as const)(
+  'excludes the configured %s output parent while retaining sibling and unknown notifications',
+  async (mode) => {
+    const result = await promisify(execFile)(
+      process.execPath,
+      [
+        path.join(__dirname, 'watch-output-root.cjs'),
+        require.resolve(
+          'next/dist/experimental/testing/compiler/watch-options'
+        ),
+        require.resolve(
+          'next/dist/experimental/testing/incremental/watch-files'
+        ),
+        mode,
+      ],
+      { env: { ...process.env, NODE_ENV: mode }, timeout: 15000 }
+    )
+    // The genuine config observer uses module.register on Node 26.
+    expect(result.stderr).toMatch(
+      /^(?:\(node:\d+\) \[DEP0205\] DeprecationWarning: `module\.register\(\)` is deprecated\. Use `module\.registerHooks\(\)` instead\.\n\(Use `node --trace-deprecation \.\.\.` to show where the warning was created\)\n)?$/
+    )
+    expect(JSON.parse(result.stdout)).toEqual({
+      mode,
+      configuredOutputRootExcluded: true,
+      actualArtifactParentPreserved: true,
+      changedRelative: [
+        'custom-cache-like/ordinary.mjs',
+        'added.case.mjs',
+        '.',
+      ],
+      errors: [],
+      nativeSubscriptionsClosed: true,
+    })
+  }
+)

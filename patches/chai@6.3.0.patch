@@ -1,0 +1,95 @@
+--- a/index.js
++++ b/index.js
+@@ -1396,6 +1396,14 @@
+ __name(getPathInfo, "getPathInfo");
+ 
+ // lib/chai/assertion.js
++// Next-private provenance: no target, registration function or reverse map escapes.
++const nextAssertionIdentities = new WeakMap();
++const nextGetAssertionIdentity = WeakMap.prototype.get.bind(nextAssertionIdentities);
++const nextSetAssertionIdentity = WeakMap.prototype.set.bind(nextAssertionIdentities);
++const nextFreezeAssertionIdentity = Object.freeze;
++function getChaiAssertionIdentity(value) {
++  return nextGetAssertionIdentity(value);
++}
+ var _Assertion = class _Assertion {
+   /**
+    * Creates object for chaining.
+@@ -1440,7 +1448,12 @@
+     flag(this, "object", obj);
+     flag(this, "message", msg);
+     flag(this, "eql", config.deepEqual || deep_eql_default);
+-    return proxify(this);
++    const identity = { __proto__: null };
++    nextFreezeAssertionIdentity(identity);
++    const assertion = proxify(this);
++    nextSetAssertionIdentity(this, identity);
++    nextSetAssertionIdentity(assertion, identity);
++    return assertion;
+   }
+   /** @returns {boolean} */
+   static get includeStack() {
+@@ -1659,7 +1672,7 @@
+ var builtins = ["__flags", "__methods", "_obj", "assert"];
+ function proxify(obj, nonChainableMethodName) {
+   if (!isProxyEnabled()) return obj;
+-  return new Proxy(obj, {
++  const proxy = new Proxy(obj, {
+     get: /* @__PURE__ */ __name(function proxyGetter(target, property) {
+       if (typeof property === "string" && config.proxyExcludedKeys.indexOf(property) === -1 && !Reflect.has(target, property)) {
+         if (nonChainableMethodName) {
+@@ -1696,6 +1709,9 @@
+       return Reflect.get(target, property);
+     }, "proxyGetter")
+   });
++  const identity = nextGetAssertionIdentity(obj);
++  if (identity) nextSetAssertionIdentity(proxy, identity);
++  return proxy;
+ }
+ __name(proxify, "proxify");
+ function stringDistanceCapped(strA, strB, cap) {
+@@ -3417,6 +3433,7 @@
+   Should: () => Should,
+   should: () => should
+ });
++function createChaiShouldInterface(Assertion) {
+ function loadShould() {
+   function shouldGetter() {
+     if (this instanceof String || this instanceof Number || this instanceof Boolean || typeof Symbol === "function" && this instanceof Symbol || typeof BigInt === "function" && this instanceof BigInt) {
+@@ -3480,9 +3497,12 @@
+   return should2;
+ }
+ __name(loadShould, "loadShould");
+-var should = loadShould;
+-var Should = loadShould;
+-
++  return loadShould;
++}
++var should = createChaiShouldInterface(Assertion);
++var Should = should;
++
++function createChaiAssertInterface(Assertion, flag) {
+ // lib/chai/interface/assert.js
+ function assert(express, errmsg) {
+   let test2 = new Assertion(null, null, assert, true);
+@@ -4260,6 +4280,10 @@
+   assert[as] = assert[name];
+ }
+ 
++  return assert;
++}
++var assert = createChaiAssertInterface(Assertion, flag);
++
+ // lib/chai.js
+ var used = [];
+ function use(fn) {
+@@ -4281,6 +4305,9 @@
+ }
+ __name(use, "use");
+ export {
++  createChaiAssertInterface,
++  createChaiShouldInterface,
++  getChaiAssertionIdentity,
+   Assertion,
+   AssertionError,
+   Should,

@@ -1,4 +1,5 @@
 import path from 'path'
+import type { TestingDefaultConfiguration } from '../../server/config-testing-policy'
 import type { BrowserFixtureHost } from '../../experimental/testing/contracts'
 import { serializeBrowserFixtureHost } from './browser-fixtures'
 import { createDefineEnv } from './index'
@@ -19,6 +20,7 @@ export function createProductionProjectOptions({
   clientRouterFilters,
   noMangling = false,
   browserFixtureHost,
+  testingDefaultConfiguration,
 }: {
   dir: string
   distDir: string
@@ -32,10 +34,14 @@ export function createProductionProjectOptions({
   >[0]['clientRouterFilters']
   noMangling?: boolean
   browserFixtureHost?: BrowserFixtureHost
+  testingDefaultConfiguration?: TestingDefaultConfiguration
 }): Omit<ProjectOptions, 'debugBuildPaths'> {
   const dev = false
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
-  const supportedBrowsers = getSupportedBrowsers(dir, dev)
+  const supportedBrowsers =
+    testingDefaultConfiguration === undefined
+      ? getSupportedBrowsers(dir, dev)
+      : getSupportedBrowsers(dir, dev, testingDefaultConfiguration)
   const currentNodeJsVersion = process.versions.node
   const persistentCaching =
     config.experimental.turbopackFileSystemCacheForBuild || false

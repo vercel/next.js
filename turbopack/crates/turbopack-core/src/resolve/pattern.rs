@@ -16,6 +16,10 @@ use turbo_tasks_fs::{
 };
 use turbo_unix_path::normalize_path;
 
+use crate::resolve::tsconfig_provenance::{
+    NativeTsConfigProbe, NativeTsConfigProbeRequest, NativeTsConfigProbeScope,
+};
+
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug, Default, ValueToString)]
 #[value_to_string(self.describe_as_string())]
@@ -1538,9 +1542,31 @@ pub struct PatternMatches(Vec<PatternMatch>);
 ///
 /// A path that cannot be resolved (a dangling or cyclic link) is read as-is, which yields
 /// [`RawDirectoryContent::NotFound`] just as it did before.
-async fn raw_read_dir_resolved(path: &FileSystemPath) -> Result<ReadRef<RawDirectoryContent>> {
-    let resolved = path.realpath().await?.unwrap_or_else(|_| path.clone());
-    resolved.raw_read_dir().await
+async fn raw_read_dir_resolved(
+    path: &FileSystemPath,
+    native_probe: Option<&NativeTsConfigProbeScope>,
+) -> Result<ReadRef<RawDirectoryContent>> {
+    // This is the same realpath computation previously consumed by path.realpath().
+    let realpath = path.realpath_with_links().await?;
+    let resolved = realpath
+        .path_result
+        .clone()
+        .unwrap_or_else(|_| path.clone());
+    if let Some(scope) = native_probe {
+        scope.record(NativeTsConfigProbe::RealPath {
+            path: path.clone(),
+            result: realpath.path_result.clone(),
+            symlinks: realpath.symlinks.to_vec(),
+        });
+    }
+    let content = resolved.raw_read_dir().await?;
+    if let Some(scope) = native_probe {
+        scope.record(NativeTsConfigProbe::Directory {
+            path: path.clone(),
+            found: matches!(&*content, RawDirectoryContent::Entries(_)),
+        });
+    }
+    Ok(content)
 }
 
 /// Find all files or directories that match the provided `pattern` with the
@@ -1558,6 +1584,57 @@ pub async fn read_matches(
     prefix: RcStr,
     force_in_lookup_dir: bool,
     pattern: Vc<Pattern>,
+) -> Result<Vc<PatternMatches>> {
+    read_matches_impl(lookup_dir, prefix, force_in_lookup_dir, pattern, None).await
+}
+
+/// The original matcher with optional observations from its actual native probes.
+/// No alternative, directory lookup or selection is reconstructed by the observer.
+#[turbo_tasks::function]
+pub async fn read_matches_with_native_tsconfig_probes(
+    lookup_dir: FileSystemPath,
+    prefix: RcStr,
+    force_in_lookup_dir: bool,
+    pattern: Vc<Pattern>,
+    native_probe: Option<NativeTsConfigProbeScope>,
+) -> Result<Vc<PatternMatches>> {
+    read_matches_impl(
+        lookup_dir,
+        prefix,
+        force_in_lookup_dir,
+        pattern,
+        native_probe,
+    )
+    .await
+}
+
+fn nested_read_matches(
+    lookup_dir: FileSystemPath,
+    prefix: RcStr,
+    force_in_lookup_dir: bool,
+    pattern: Vc<Pattern>,
+    native_probe: Option<NativeTsConfigProbeScope>,
+) -> Vc<PatternMatches> {
+    if native_probe.is_some() {
+        read_matches_with_native_tsconfig_probes(
+            lookup_dir,
+            prefix,
+            force_in_lookup_dir,
+            pattern,
+            native_probe,
+        )
+    } else {
+        // Preserve the ordinary recursive task graph and diagnostic names.
+        read_matches(lookup_dir, prefix, force_in_lookup_dir, pattern)
+    }
+}
+
+async fn read_matches_impl(
+    lookup_dir: FileSystemPath,
+    prefix: RcStr,
+    force_in_lookup_dir: bool,
+    pattern: Vc<Pattern>,
+    native_probe: Option<NativeTsConfigProbeScope>,
 ) -> Result<Vc<PatternMatches>> {
     let mut prefix = prefix.to_string();
     let pat = pattern.await?;
@@ -1580,6 +1657,12 @@ pub async fn read_matches(
                     }
                     let (parent_path, last_segment) = split_last_segment(str);
                     if last_segment.is_empty() {
+                        if let Some(scope) = &native_probe {
+                            scope.child(index).record(NativeTsConfigProbe::Incomplete {
+                                path: lookup_dir.clone(),
+                                reason: "unprobed directory candidate".into(),
+                            });
+                        }
                         // This means we don't have a last segment, so we just have a directory
                         let joined = if force_in_lookup_dir {
                             lookup_dir.try_join_inside(parent_path)
@@ -1605,7 +1688,19 @@ pub async fn read_matches(
                                 lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
-                                Some(e.insert((raw_read_dir_resolved(&path).await?, path)))
+                                Some(
+                                    e.insert((
+                                        raw_read_dir_resolved(
+                                            &path,
+                                            native_probe
+                                                .as_ref()
+                                                .map(|scope| scope.child(index))
+                                                .as_ref(),
+                                        )
+                                        .await?,
+                                        path,
+                                    )),
+                                )
                             } else {
                                 None
                             }
@@ -1615,9 +1710,26 @@ pub async fn read_matches(
                         continue;
                     };
                     let RawDirectoryContent::Entries(entries) = &**read_dir else {
+                        // The actual algorithm stops at the missing parent. Do not fabricate
+                        // a child entry probe that it never performed.
                         continue;
                     };
-                    let Some(entry) = entries.get(last_segment) else {
+                    let entry = entries.get(last_segment);
+                    if let Some(scope) = &native_probe {
+                        let observed = match entry {
+                            Some(RawDirectoryEntry::File) => FileSystemEntryType::File,
+                            Some(RawDirectoryEntry::Directory) => FileSystemEntryType::Directory,
+                            Some(RawDirectoryEntry::Symlink) => FileSystemEntryType::Symlink,
+                            Some(RawDirectoryEntry::Other) => FileSystemEntryType::Other,
+                            None => FileSystemEntryType::NotFound,
+                        };
+                        scope.child(index).record(NativeTsConfigProbe::Candidate {
+                            path: parent_fs_path.join(last_segment)?,
+                            requested: NativeTsConfigProbeRequest::Entry,
+                            observed,
+                        });
+                    }
+                    let Some(entry) = entry else {
                         continue;
                     };
                     match *entry {
@@ -1667,11 +1779,12 @@ pub async fn read_matches(
                         };
                         nested.push((
                             index,
-                            read_matches(
+                            nested_read_matches(
                                 fs_path.clone(),
                                 concat(&prefix, subpath).into(),
                                 force_in_lookup_dir,
                                 pattern,
+                                native_probe.as_ref().map(|scope| scope.child(index)),
                             ),
                         ));
                     }
@@ -1686,6 +1799,12 @@ pub async fn read_matches(
     };
 
     if slow_path {
+        if let Some(scope) = &native_probe {
+            scope.record(NativeTsConfigProbe::Incomplete {
+                path: lookup_dir.clone(),
+                reason: "unbounded native pattern enumeration".into(),
+            });
+        }
         async {
             // Slow path: There are infinite matches for the pattern
             // We will enumerate the filesystem to find matches
@@ -1710,7 +1829,13 @@ pub async fn read_matches(
                 if let Some(pos) = pat.could_match_position(&prefix) {
                     nested.push((
                         pos,
-                        read_matches(lookup_dir.parent(), prefix.clone().into(), false, pattern),
+                        nested_read_matches(
+                            lookup_dir.parent(),
+                            prefix.clone().into(),
+                            false,
+                            pattern,
+                            native_probe.clone(),
+                        ),
                     ));
                 }
                 prefix.pop();
@@ -1738,7 +1863,13 @@ pub async fn read_matches(
                 if let Some(pos) = pat.could_match_position("./") {
                     nested.push((
                         pos,
-                        read_matches(lookup_dir.clone(), rcstr!("./"), false, pattern),
+                        nested_read_matches(
+                            lookup_dir.clone(),
+                            rcstr!("./"),
+                            false,
+                            pattern,
+                            native_probe.clone(),
+                        ),
                     ));
                 }
             } else {
@@ -1747,11 +1878,12 @@ pub async fn read_matches(
                 if let Some(pos) = pat.could_match_position(&prefix) {
                     nested.push((
                         pos,
-                        read_matches(
+                        nested_read_matches(
                             lookup_dir.clone(),
                             prefix.to_string().into(),
                             false,
                             pattern,
+                            native_probe.clone(),
                         ),
                     ));
                 }
@@ -1761,18 +1893,19 @@ pub async fn read_matches(
                 if let Some(pos) = pat.could_match_position(&prefix) {
                     nested.push((
                         pos,
-                        read_matches(
+                        nested_read_matches(
                             lookup_dir.clone(),
                             prefix.to_string().into(),
                             false,
                             pattern,
+                            native_probe.clone(),
                         ),
                     ));
                 }
                 prefix.pop();
                 prefix.pop();
             }
-            match &*raw_read_dir_resolved(&lookup_dir).await? {
+            match &*raw_read_dir_resolved(&lookup_dir, native_probe.as_ref()).await? {
                 RawDirectoryContent::Entries(map) => {
                     for (key, entry) in map.iter() {
                         match entry {
@@ -1816,7 +1949,13 @@ pub async fn read_matches(
                                     let path = lookup_dir.join(key)?;
                                     nested.push((
                                         pos,
-                                        read_matches(path, prefix.clone().into(), true, pattern),
+                                        nested_read_matches(
+                                            path,
+                                            prefix.clone().into(),
+                                            true,
+                                            pattern,
+                                            native_probe.clone(),
+                                        ),
                                     ));
                                 }
                                 prefix.truncate(len)
@@ -1879,11 +2018,12 @@ pub async fn read_matches(
                                     {
                                         nested.push((
                                             pos,
-                                            read_matches(
+                                            nested_read_matches(
                                                 target.file_system_path().clone(),
                                                 prefix.clone().into(),
                                                 true,
                                                 pattern,
+                                                native_probe.clone(),
                                             ),
                                         ));
                                     }
@@ -2784,6 +2924,242 @@ mod tests {
         let disk_root: RcStr = root.to_str().unwrap().into();
         tt.run_once(async move {
             operation(disk_root).read_strongly_consistent().await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn native_tsconfig_probe_observations_follow_actual_operations() {
+        use anyhow::Result;
+        use turbo_tasks::CollectiblesSource;
+        use turbo_tasks_fs::FileSystemEntryType;
+
+        use super::{PatternMatches, read_matches_with_native_tsconfig_probes};
+        use crate::resolve::{
+            FindContextFileResult, find_context_file,
+            find_context_file_with_native_tsconfig_probes,
+            tsconfig_provenance::{
+                NativeTsConfigConsumer, NativeTsConfigObservation, NativeTsConfigProbe,
+                NativeTsConfigProbeContext, NativeTsConfigProbeScope,
+            },
+        };
+        let scratch = tempfile::tempdir().unwrap();
+        std::fs::write(scratch.path().join("base.json"), "{}").unwrap();
+        std::fs::write(scratch.path().join("tsconfig.json"), "{}").unwrap();
+        std::fs::create_dir(scratch.path().join("child")).unwrap();
+
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(
+            disk_root: RcStr,
+            observed: bool,
+            dynamic: bool,
+        ) -> Result<Vc<PatternMatches>> {
+            let root = DiskFileSystem::new(rcstr!("native-tsconfig-probe"), Vc::cell(disk_root))
+                .root()
+                .owned()
+                .await?;
+            let context = NativeTsConfigProbeContext {
+                filesystem_root: root.clone(),
+                project_path: root.clone(),
+                consumer: NativeTsConfigConsumer::Aliases,
+                configured_path: Some(root.join("tsconfig.json")?),
+                consumer_path: root.clone(),
+                lookup_path: root.clone(),
+                request: rcstr!("./base.json"),
+                chain_index: 0,
+                attempt_index: 0,
+            }
+            .resolved_cell();
+            let scope = observed.then_some(NativeTsConfigProbeScope {
+                context,
+                order: Vec::new(),
+            });
+            let pattern = if dynamic {
+                Pattern::Dynamic
+            } else {
+                Pattern::Alternatives(vec![
+                    Pattern::Constant(rcstr!("./base.json")),
+                    Pattern::Constant(rcstr!("./base.json.json")),
+                ])
+            };
+            let pattern = Pattern::new(pattern);
+            let result = if observed {
+                read_matches_with_native_tsconfig_probes(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    pattern,
+                    scope,
+                )
+            } else {
+                read_matches(root.clone(), rcstr!(""), false, pattern)
+            }
+            .await?;
+            let names = Vc::cell(vec![rcstr!("tsconfig.json"), rcstr!("jsconfig.json")]);
+            let found = if observed {
+                let context = NativeTsConfigProbeContext {
+                    filesystem_root: root.clone(),
+                    project_path: root.clone(),
+                    consumer: NativeTsConfigConsumer::TypeScript,
+                    configured_path: None,
+                    consumer_path: root.join("child")?,
+                    lookup_path: root.join("child")?,
+                    request: rcstr!("context-file"),
+                    chain_index: 0,
+                    attempt_index: 0,
+                }
+                .resolved_cell();
+                find_context_file_with_native_tsconfig_probes(
+                    root.join("child")?,
+                    names,
+                    false,
+                    Some(NativeTsConfigProbeScope {
+                        context,
+                        order: Vec::new(),
+                    }),
+                )
+            } else {
+                find_context_file(root.join("child")?, names, false)
+            }
+            .await?;
+            let FindContextFileResult::Found(path, _) = &*found else {
+                anyhow::bail!("actual context selection missing");
+            };
+            assert_eq!(path, &root.join("tsconfig.json")?);
+            Ok(Vc::cell(result.iter().cloned().collect()))
+        }
+
+        #[turbo_tasks::value(transparent)]
+        struct ProbeViews(
+            Vec<(
+                NativeTsConfigConsumer,
+                Vec<u32>,
+                RcStr,
+                RcStr,
+                Option<FileSystemEntryType>,
+            )>,
+        );
+
+        #[turbo_tasks::function(operation, root)]
+        async fn collect_operation(
+            source: turbo_tasks::OperationVc<PatternMatches>,
+        ) -> Result<Vc<ProbeViews>> {
+            source.read_strongly_consistent().await?;
+            let mut views = Vec::new();
+            for receipt in source.peek_collectibles::<Box<dyn NativeTsConfigObservation>>() {
+                let data = receipt.data().await?;
+                let context = data.context.await?;
+                let (kind, path, observed) = match &data.probe {
+                    NativeTsConfigProbe::Selection { path, .. } => ("selection", path, None),
+                    NativeTsConfigProbe::FixedMetadata { path, .. } => {
+                        ("fixed-metadata", path, None)
+                    }
+                    NativeTsConfigProbe::ConfigRead { path, .. } => ("config-read", path, None),
+                    NativeTsConfigProbe::Extends { path, .. } => ("extends", path, None),
+                    NativeTsConfigProbe::RealPath { path, .. } => ("realpath", path, None),
+                    NativeTsConfigProbe::Directory { path, .. } => ("directory", path, None),
+                    NativeTsConfigProbe::Candidate { path, observed, .. } => {
+                        ("candidate", path, Some(*observed))
+                    }
+                    NativeTsConfigProbe::Incomplete { path, .. } => ("incomplete", path, None),
+                };
+                views.push((
+                    context.consumer,
+                    data.order.clone(),
+                    kind.into(),
+                    path.path.clone(),
+                    observed,
+                ));
+            }
+            Ok(Vc::cell(views))
+        }
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let disk_root: RcStr = scratch
+            .path()
+            .canonicalize()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .into();
+        tt.run_once(async move {
+            let ordinary = operation(disk_root.clone(), false, false);
+            let ordinary_result = ordinary.read_strongly_consistent().await?;
+            assert!(
+                ordinary
+                    .peek_collectibles::<Box<dyn NativeTsConfigObservation>>()
+                    .is_empty()
+            );
+            let native = operation(disk_root.clone(), true, false);
+            let native_result = native.read_strongly_consistent().await?;
+            let semantic_matches = |matches: &[PatternMatch]| {
+                matches
+                    .iter()
+                    .map(|item| match item {
+                        PatternMatch::File(name, path) => {
+                            ("file", name.to_string(), path.path.to_string())
+                        }
+                        PatternMatch::Directory(name, path) => {
+                            ("directory", name.to_string(), path.path.to_string())
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            };
+            // Separate operations own separate filesystem handles. Compare actual choices,
+            // not internal cell identities from those independently owned filesystems.
+            assert_eq!(
+                semantic_matches(&ordinary_result),
+                semantic_matches(&native_result)
+            );
+            let mut aliases = Vec::new();
+            let mut finder = Vec::new();
+            // The actual child operation supplies typed observations to a serializer
+            // operation; no second filesystem lookup reconstructs these facts.
+            let snapshot = collect_operation(native).read_strongly_consistent().await?;
+            for (consumer, order, kind, path, observed) in snapshot.iter() {
+                match (consumer, kind.as_str()) {
+                    (NativeTsConfigConsumer::Aliases, "candidate") => {
+                        aliases.push((order.clone(), path.to_string(), observed.unwrap()))
+                    }
+                    (NativeTsConfigConsumer::TypeScript, "realpath") => {
+                        finder.push((order.clone(), path.to_string()))
+                    }
+                    _ => {}
+                }
+            }
+            aliases.sort_by(|a, b| a.0.cmp(&b.0));
+            assert_eq!(aliases.len(), 2);
+            assert_eq!(aliases[0].0, vec![0]);
+            assert_eq!(aliases[0].1, "base.json");
+            assert_eq!(aliases[0].2, FileSystemEntryType::File);
+            assert_eq!(aliases[1].0, vec![1]);
+            assert_eq!(aliases[1].1, "base.json.json");
+            assert_eq!(aliases[1].2, FileSystemEntryType::NotFound);
+            finder.sort();
+            assert_eq!(
+                finder,
+                vec![
+                    (vec![0], "child/tsconfig.json".to_string()),
+                    (vec![1], "child/jsconfig.json".to_string()),
+                    (vec![2, 0], "tsconfig.json".to_string()),
+                ]
+            );
+            let unbounded = operation(disk_root, true, true);
+            unbounded.read_strongly_consistent().await?;
+            let snapshot = collect_operation(unbounded)
+                .read_strongly_consistent()
+                .await?;
+            assert!(
+                snapshot
+                    .iter()
+                    .any(|(_, _, kind, _, _)| kind == "incomplete"),
+                "dynamic enumeration cannot issue a bounded receipt"
+            );
             anyhow::Ok(())
         })
         .await

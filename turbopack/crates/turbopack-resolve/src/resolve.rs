@@ -5,15 +5,20 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::resolve::{
     AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult, find_context_file,
+    find_context_file_with_native_tsconfig_probes,
     options::{
         ConditionValue, ImportMap, ImportMapping, ResolutionConditions, ResolveInPackage,
         ResolveIntoPackage, ResolveModules, ResolveOptions,
     },
+    tsconfig_provenance::{NativeTsConfigProbe, NativeTsConfigProbeScope},
 };
 
 use crate::{
     resolve_options_context::{ResolveOptionsContext, TsConfigHandling},
-    typescript::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
+    typescript::{
+        apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options,
+        tsconfig_resolve_options_with_native_provenance,
+    },
 };
 
 #[turbo_tasks::function]
@@ -222,20 +227,49 @@ pub async fn resolve_options(
 
     let resolve_options = base_resolve_options(options_context);
 
+    let native_probe = if let Some(context) = options_context_value.native_tsconfig_probe {
+        let mut context = context.owned().await?;
+        context.consumer_path = resolve_path.clone();
+        context.lookup_path = resolve_path.clone();
+        Some(NativeTsConfigProbeScope::new(context.resolved_cell()))
+    } else {
+        None
+    };
+    let config_options = |path| match &native_probe {
+        Some(scope) => tsconfig_resolve_options_with_native_provenance(path, scope.clone()),
+        None => tsconfig_resolve_options(path),
+    };
     let resolve_options = if options_context_value.enable_typescript {
         let find_tsconfig = async || {
             // Otherwise, attempt to find a tsconfig up the file tree
-            let tsconfig = find_context_file(
-                resolve_path.clone(),
-                tsconfig(),
-                options_context_value.collect_affecting_sources,
-            )
+            let tsconfig = if let Some(scope) = &native_probe {
+                find_context_file_with_native_tsconfig_probes(
+                    resolve_path.clone(),
+                    tsconfig(),
+                    options_context_value.collect_affecting_sources,
+                    Some(scope.clone()),
+                )
+            } else {
+                find_context_file(
+                    resolve_path.clone(),
+                    tsconfig(),
+                    options_context_value.collect_affecting_sources,
+                )
+            }
             .await?;
+            if let Some(scope) = &native_probe {
+                scope.record(NativeTsConfigProbe::Selection {
+                    path: resolve_path.clone(),
+                    selected: match &*tsconfig {
+                        FindContextFileResult::Found(path, _) => Some(path.clone()),
+                        FindContextFileResult::NotFound(_) => None,
+                    },
+                });
+            }
             anyhow::Ok::<Vc<ResolveOptions>>(match &*tsconfig {
-                FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
-                    resolve_options,
-                    tsconfig_resolve_options(path.clone()),
-                ),
+                FindContextFileResult::Found(path, _) => {
+                    apply_tsconfig_resolve_options(resolve_options, config_options(path.clone()))
+                }
                 FindContextFileResult::NotFound(_) => resolve_options,
             })
         };
@@ -243,15 +277,39 @@ pub async fn resolve_options(
         // Use a specified tsconfig path if provided. In Next.js, this is always provided by the
         // default config, at the very least.
         match &options_context_value.tsconfig_path {
-            TsConfigHandling::Disabled => resolve_options,
+            TsConfigHandling::Disabled => {
+                if let Some(scope) = &native_probe {
+                    scope.record(NativeTsConfigProbe::Incomplete {
+                        path: resolve_path.clone(),
+                        reason: "native alias TypeScript handling disabled".into(),
+                    });
+                }
+                resolve_options
+            }
             TsConfigHandling::ContextFile => find_tsconfig().await?,
             TsConfigHandling::Fixed(tsconfig_path) => {
                 let meta = tsconfig_path.metadata().await;
+                if let Some(scope) = &native_probe {
+                    let identity = tsconfig_path.realpath_with_links().await?;
+                    scope.record(NativeTsConfigProbe::FixedMetadata {
+                        path: tsconfig_path.clone(),
+                        succeeded: meta.is_ok(),
+                        real_path: identity.path_result.clone(),
+                        symlinks: identity.symlinks.to_vec(),
+                        observed: *tsconfig_path.get_type().await?,
+                    });
+                }
                 if meta.is_ok() {
+                    if let Some(scope) = &native_probe {
+                        scope.record(NativeTsConfigProbe::Selection {
+                            path: resolve_path.clone(),
+                            selected: Some(tsconfig_path.clone()),
+                        });
+                    }
                     // If the file exists, use it.
                     apply_tsconfig_resolve_options(
                         resolve_options,
-                        tsconfig_resolve_options(tsconfig_path.clone()),
+                        config_options(tsconfig_path.clone()),
                     )
                 } else {
                     // Otherwise, try and find one.

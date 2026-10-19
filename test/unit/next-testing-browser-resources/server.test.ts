@@ -432,6 +432,80 @@ describe('Browser Mode immutable parent transport', () => {
   let artifact: any
   let configuration: any
   const hash = (text: string) => createHash('sha256').update(text).digest('hex')
+  function collected(collector: any, name = 'actual', mode = 'run') {
+    collector.accept({
+      type: 'collected',
+      declarations: [
+        { type: 'suite', id: 'entry', parentId: null, name: '', mode: 'run' },
+        { type: 'test', id: 'entry/0', parentId: 'entry', name, mode },
+      ],
+    })
+  }
+  function rootSuite(
+    collector: any,
+    status = 'passed',
+    errors: any[] = [],
+    blockedDescendants = false
+  ) {
+    collector.accept({
+      type: 'suite-end',
+      result: {
+        entryId: 'entry',
+        suiteId: 'entry',
+        name: '',
+        ancestors: [],
+        mode: 'run',
+        blockedDescendants,
+        status,
+        durationMs: 0,
+        errors,
+      },
+    })
+  }
+  function startCase(collector: any, id = 'entry/0', name = 'actual') {
+    collector.accept({
+      type: 'case-start',
+      context: {
+        fileId: 'entry',
+        id: `run/${id}/0/0`,
+        testId: id,
+        name,
+        retry: 0,
+        repeat: 0,
+      },
+    })
+  }
+  function endCase(
+    collector: any,
+    id = 'entry/0',
+    name = 'actual',
+    extra = {}
+  ) {
+    collector.accept({
+      type: 'case-end',
+      result: {
+        entryId: 'entry',
+        caseId: id,
+        name,
+        attempt: { id: `run/${id}/0/0`, retry: 0, repeat: 0 },
+        status: 'passed',
+        mode: 'run',
+        durationMs: 0,
+        errors: [],
+        ...extra,
+      },
+    })
+  }
+  function finish(collector: any, caseCount = 1, extra = {}) {
+    collector.accept({
+      type: 'complete',
+      status: 'passed',
+      interrupted: false,
+      caseCount,
+      updates: [],
+      ...extra,
+    })
+  }
   beforeEach(async () => {
     root = await realpath(
       await mkdtemp(join(tmpdir(), 'next-client-transport-'))
@@ -462,6 +536,7 @@ describe('Browser Mode immutable parent transport', () => {
       diagnostics: [],
       client: {
         version: 1,
+        asyncScope: 'promise-continuations-v1',
         sourceFile: file,
         scripts: ['static/entry.js'],
         styles: [],
@@ -495,7 +570,9 @@ describe('Browser Mode immutable parent transport', () => {
       server = undefined
     }
   })
-  async function open(onMessage = () => {}) {
+  async function open(
+    onMessage: (message: any) => void | Promise<void> = () => {}
+  ) {
     server = await createClientServer({
       artifact,
       configuration,
@@ -521,6 +598,101 @@ describe('Browser Mode immutable parent transport', () => {
       })
     return { cookie, config, post }
   }
+  it('transports closed collection facts before the first browser attempt', async () => {
+    const collector = createClientResultCollector(artifact, { runId: 'run' })
+    const { post } = await open((message) => collector.accept(message))
+    expect(
+      (
+        await post({
+          type: 'collected',
+          declarations: [
+            {
+              type: 'suite',
+              id: 'entry',
+              parentId: null,
+              name: '',
+              mode: 'run',
+            },
+            {
+              type: 'test',
+              id: 'entry/0',
+              parentId: 'entry',
+              name: 'actual',
+              mode: 'run',
+            },
+          ],
+        })
+      ).status
+    ).toBe(200)
+    expect(
+      (
+        await post({
+          type: 'case-start',
+          sequence: 1,
+          context: {
+            fileId: 'entry',
+            id: 'run/entry/0/0/0',
+            testId: 'entry/0',
+            name: 'actual',
+            retry: 0,
+            repeat: 0,
+          },
+        })
+      ).status
+    ).toBe(200)
+    expect(
+      (
+        await post({
+          type: 'case-end',
+          sequence: 2,
+          result: {
+            entryId: 'entry',
+            caseId: 'entry/0',
+            name: 'actual',
+            attempt: { id: 'run/entry/0/0/0', retry: 0, repeat: 0 },
+            status: 'passed',
+            mode: 'run',
+            durationMs: 0,
+            errors: [],
+          },
+        })
+      ).status
+    ).toBe(200)
+    expect(
+      (
+        await post({
+          type: 'suite-end',
+          sequence: 3,
+          result: {
+            entryId: 'entry',
+            suiteId: 'entry',
+            name: '',
+            ancestors: [],
+            status: 'passed',
+            mode: 'run',
+            durationMs: 0,
+            errors: [],
+          },
+        })
+      ).status
+    ).toBe(200)
+    expect(
+      (
+        await post({
+          type: 'complete',
+          sequence: 4,
+          status: 'passed',
+          interrupted: false,
+          caseCount: 1,
+          updates: [],
+        })
+      ).status
+    ).toBe(200)
+    await server!.completion
+    await server!.dispose()
+    server!.assertClean()
+    expect(collector.result().status).toBe('passed')
+  })
   it('serves only exact compiler-issued assets after the page capability is acquired', async () => {
     const { cookie } = await open()
     const origin = new URL(server!.url).origin
@@ -627,22 +799,143 @@ describe('Browser Mode immutable parent transport', () => {
       files = [...artifact.files, path]
     await writeFile(
       join(artifact.rootDir, path),
-      JSON.stringify({ version: 1, scripts: ['static/entry.js'], styles: [] })
+      JSON.stringify({
+        version: 1,
+        asyncScope: 'promise-continuations-v1',
+        scripts: ['static/entry.js'],
+        styles: [],
+      })
     )
     await expect(
       readClientDescriptor(artifact.rootDir, path, files, 'entry')
-    ).resolves.toEqual({ version: 1, scripts: ['static/entry.js'], styles: [] })
+    ).resolves.toEqual({
+      version: 1,
+      asyncScope: 'promise-continuations-v1',
+      scripts: ['static/entry.js'],
+      styles: [],
+    })
     await writeFile(
       join(artifact.rootDir, path),
-      JSON.stringify({ version: 1, scripts: ['../escape.js'], styles: [] })
+      JSON.stringify({
+        version: 1,
+        asyncScope: 'promise-continuations-v1',
+        scripts: ['../escape.js'],
+        styles: [],
+      })
     )
     await expect(
       readClientDescriptor(artifact.rootDir, path, files, 'entry')
     ).rejects.toThrow()
   })
+  it('retains setup-blocked skipped cases without inventing a body start', () => {
+    const options = { runId: 'run', updateSnapshots: false }
+    const collector = createClientResultCollector(artifact, options)
+    collected(collector, 'blocked')
+    const result = {
+      entryId: 'entry',
+      caseId: 'entry/0',
+      name: 'blocked',
+      attempt: { id: 'run/entry/0/0/0', retry: 0, repeat: 0 },
+      status: 'skipped',
+      mode: 'skip',
+      durationMs: 0,
+      errors: [],
+    }
+    expect(() =>
+      collector.accept({
+        type: 'case-end',
+        result: { ...result, status: 'passed', errors: [] },
+      })
+    ).toThrow(/immutable attempt/)
+    expect(() =>
+      collector.accept({
+        type: 'case-end',
+        result: { ...result, attempt: { ...result.attempt, id: 'foreign' } },
+      })
+    ).toThrow(/immutable attempt/)
+    collector.accept({ type: 'case-end', result })
+    expect(collector.events).toEqual([])
+    expect(() => collector.accept({ type: 'case-end', result })).toThrow(
+      /immutable attempt/
+    )
+    rootSuite(
+      collector,
+      'failed',
+      [{ phase: 'beforeAll', error: new Error('setup failed') }],
+      true
+    )
+    collector.accept({
+      type: 'complete',
+      status: 'failed',
+      interrupted: false,
+      caseCount: 1,
+      updates: [],
+    })
+    expect(collector.result().status).toBe('failed')
+    expect(collector.events.map((event) => event.type)).toEqual([
+      'case-end',
+      'suite-end',
+    ])
+  })
+  it('cannot turn an unstarted skipped case into a passing browser file', () => {
+    const collector = createClientResultCollector(artifact, {
+      runId: 'run',
+      updateSnapshots: false,
+    })
+    collected(collector, 'blocked')
+    collector.accept({
+      type: 'case-end',
+      result: {
+        entryId: 'entry',
+        caseId: 'entry/0',
+        name: 'blocked',
+        attempt: { id: 'run/entry/0/0/0', retry: 0, repeat: 0 },
+        mode: 'skip',
+        status: 'skipped',
+        durationMs: 0,
+        errors: [],
+      },
+    })
+    expect(() =>
+      collector.accept({
+        type: 'complete',
+        status: 'passed',
+        interrupted: false,
+        caseCount: 1,
+        updates: [],
+      })
+    ).toThrow(/omitted/)
+    collector.accept({
+      type: 'suite-end',
+      result: {
+        entryId: 'entry',
+        suiteId: 'entry',
+        name: '',
+        ancestors: [],
+        mode: 'run',
+        status: 'failed',
+        durationMs: 0,
+        blockedDescendants: true,
+        errors: [{ phase: 'beforeAll', error: new Error('setup failed') }],
+      },
+    })
+    collector.accept({
+      type: 'complete',
+      status: 'failed',
+      interrupted: false,
+      caseCount: 1,
+      updates: [],
+    })
+    expect(collector.result().status).toBe('failed')
+    expect(collector.events.map((event) => event.type)).toEqual([
+      'case-end',
+      'suite-end',
+    ])
+  })
   it('binds one actual result to its started attempt and refuses fabricated passes', () => {
     const options = { runId: 'run', updateSnapshots: false }
     const collector = createClientResultCollector(artifact, options)
+    collected(collector, 'original')
     expect(() =>
       collector.accept({
         type: 'complete',
@@ -677,6 +970,7 @@ describe('Browser Mode immutable parent transport', () => {
     )
     result.attempt.id = 'run/entry/0/0/0'
     collector.accept({ type: 'case-end', result })
+    rootSuite(collector)
     collector.accept({
       type: 'complete',
       status: 'passed',
@@ -687,6 +981,556 @@ describe('Browser Mode immutable parent transport', () => {
     expect(collector.result().status).toBe('passed')
     collector.fail(new Error('late failure'))
     expect(collector.result()).toMatchObject({ status: 'failed', updates: [] })
+  })
+  it('binds every serial case to closed declarations and retains inactive metadata', () => {
+    const collector = createClientResultCollector(artifact, {
+      runId: 'run',
+      testNamePattern: '^(?!filtered$)',
+    })
+    const declarations = [
+      { type: 'suite', id: 'entry', parentId: null, name: '', mode: 'run' },
+      {
+        type: 'suite',
+        id: 'entry/0',
+        parentId: 'entry',
+        name: 'group > literal',
+        mode: 'run',
+      },
+      {
+        type: 'test',
+        id: 'entry/0/0',
+        parentId: 'entry/0',
+        name: 'same',
+        mode: 'run',
+      },
+      {
+        type: 'test',
+        id: 'entry/0/1',
+        parentId: 'entry/0',
+        name: 'same',
+        mode: 'run',
+      },
+      {
+        type: 'test',
+        id: 'entry/0/2',
+        parentId: 'entry/0',
+        name: 'skip',
+        mode: 'skip',
+      },
+      {
+        type: 'test',
+        id: 'entry/0/3',
+        parentId: 'entry/0',
+        name: 'todo',
+        mode: 'todo',
+      },
+      {
+        type: 'test',
+        id: 'entry/1',
+        parentId: 'entry',
+        name: 'filtered',
+        mode: 'run',
+      },
+    ]
+    collector.accept({ type: 'collected', declarations })
+    // Later mutation of a child's wire object cannot rename its declaration.
+    declarations[2].name = 'borrowed'
+    for (const id of ['entry/0/0', 'entry/0/1']) {
+      startCase(collector, id, 'group > literal > same')
+      endCase(collector, id, 'group > literal > same')
+    }
+    for (const [id, name, mode] of [
+      ['entry/0/2', 'group > literal > skip', 'skip'],
+      ['entry/0/3', 'group > literal > todo', 'todo'],
+      ['entry/1', 'filtered', 'skip'],
+    ])
+      endCase(collector, id, name, { mode, status: 'skipped' })
+    collector.accept({
+      type: 'suite-end',
+      result: {
+        entryId: 'entry',
+        suiteId: 'entry/0',
+        name: 'group > literal',
+        ancestors: [],
+        mode: 'run',
+        status: 'passed',
+        durationMs: 0,
+        errors: [],
+      },
+    })
+    rootSuite(collector)
+    finish(collector, 5)
+    const events = collector.result().events
+    expect(
+      events.filter((event: any) => event.type === 'case-start')
+    ).toHaveLength(2)
+    expect(
+      events
+        .filter((event: any) => event.type === 'case-end')
+        .map((event: any) => ({
+          id: event.caseId,
+          testName: event.testName,
+          mode: event.mode,
+          ancestors: event.ancestors,
+        }))
+    ).toEqual([
+      {
+        id: 'entry/0/0',
+        testName: 'same',
+        mode: 'run',
+        ancestors: [{ id: 'entry/0', name: 'group > literal' }],
+      },
+      {
+        id: 'entry/0/1',
+        testName: 'same',
+        mode: 'run',
+        ancestors: [{ id: 'entry/0', name: 'group > literal' }],
+      },
+      {
+        id: 'entry/0/2',
+        testName: 'skip',
+        mode: 'skip',
+        ancestors: [{ id: 'entry/0', name: 'group > literal' }],
+      },
+      {
+        id: 'entry/0/3',
+        testName: 'todo',
+        mode: 'todo',
+        ancestors: [{ id: 'entry/0', name: 'group > literal' }],
+      },
+      { id: 'entry/1', testName: 'filtered', mode: 'skip', ancestors: [] },
+    ])
+  })
+  it.each([
+    'duplicate',
+    'missing-parent',
+    'noncanonical-id',
+    'reopened-subtree',
+    'extra-fact',
+  ])('refuses %s collected declaration facts before any attempt', (kind) => {
+    const collector = createClientResultCollector(artifact, { runId: 'run' })
+    const declarations: any[] = [
+      { type: 'suite', id: 'entry', parentId: null, name: '', mode: 'run' },
+      {
+        type: 'suite',
+        id: 'entry/0',
+        parentId: 'entry',
+        name: 'suite',
+        mode: 'run',
+      },
+      {
+        type: 'test',
+        id: 'entry/0/0',
+        parentId: 'entry/0',
+        name: 'case',
+        mode: 'run',
+      },
+    ]
+    if (kind === 'duplicate') declarations.push({ ...declarations[2] })
+    if (kind === 'missing-parent') declarations[2].parentId = 'foreign'
+    if (kind === 'noncanonical-id') declarations[2].id = 'entry/0/1'
+    if (kind === 'extra-fact') declarations[2].selected = true
+    if (kind === 'reopened-subtree')
+      declarations.push(
+        {
+          type: 'test',
+          id: 'entry/1',
+          parentId: 'entry',
+          name: 'sibling',
+          mode: 'run',
+        },
+        {
+          type: 'test',
+          id: 'entry/0/1',
+          parentId: 'entry/0',
+          name: 'late child',
+          mode: 'run',
+        }
+      )
+    expect(() => collector.accept({ type: 'collected', declarations })).toThrow(
+      /collected declarations/
+    )
+    expect(collector.events).toEqual([])
+  })
+  it('derives focus, filtering, and empty-name ancestry from declarations', () => {
+    const {
+      resolveClientDeclarations,
+    } = require('next/dist/experimental/testing/client/collection')
+    const declarations = [
+      { type: 'suite', id: 'entry', parentId: null, name: '', mode: 'run' },
+      {
+        type: 'suite',
+        id: 'entry/0',
+        parentId: 'entry',
+        name: '',
+        mode: 'run',
+      },
+      {
+        type: 'test',
+        id: 'entry/0/0',
+        parentId: 'entry/0',
+        name: 'focused',
+        mode: 'only',
+      },
+      {
+        type: 'test',
+        id: 'entry/1',
+        parentId: 'entry',
+        name: 'inactive',
+        mode: 'run',
+      },
+    ]
+    expect(
+      [
+        ...resolveClientDeclarations(declarations, 'entry', {
+          testNamePattern: '^ > focused$',
+        }).cases.values(),
+      ].map((test: any) => [test.id, test.mode, test.name])
+    ).toEqual([
+      ['entry/0/0', 'run', 'focused'],
+      ['entry/1', 'skip', 'inactive'],
+    ])
+    expect(() =>
+      resolveClientDeclarations(declarations, 'entry', { allowOnly: false })
+    ).toThrow(/collected declarations/)
+  })
+  it.each(['missing', 'duplicate', 'late'])(
+    'refuses %s post-collection declarations',
+    (kind) => {
+      const collector = createClientResultCollector(artifact, { runId: 'run' })
+      if (kind === 'missing') {
+        expect(() => startCase(collector)).toThrow(/owner/)
+        return
+      }
+      collected(collector)
+      if (kind === 'late') startCase(collector)
+      expect(() => collected(collector)).toThrow(/Duplicate/)
+    }
+  )
+  it('refuses overlapping serial attempts, duplicate ends, and results after completion', () => {
+    const collector = createClientResultCollector(artifact, { runId: 'run' })
+    collector.accept({
+      type: 'collected',
+      declarations: [
+        { type: 'suite', id: 'entry', parentId: null, name: '', mode: 'run' },
+        {
+          type: 'test',
+          id: 'entry/0',
+          parentId: 'entry',
+          name: 'actual',
+          mode: 'run',
+        },
+        {
+          type: 'test',
+          id: 'entry/1',
+          parentId: 'entry',
+          name: 'second',
+          mode: 'run',
+        },
+      ],
+    })
+    startCase(collector)
+    expect(() => startCase(collector, 'entry/1', 'second')).toThrow(/owner/)
+    expect(() => endCase(collector, 'entry/1', 'second')).toThrow(
+      /immutable attempt/
+    )
+    endCase(collector)
+    expect(() => endCase(collector)).toThrow(/immutable attempt/)
+    startCase(collector, 'entry/1', 'second')
+    endCase(collector, 'entry/1', 'second')
+    rootSuite(collector)
+    finish(collector, 2)
+    expect(() => endCase(collector)).toThrow(/after terminal/)
+    expect(() => collected(collector)).toThrow(/after terminal/)
+  })
+  it.each(['unknown', 'renamed', 'unstarted', 'inactive'])(
+    'refuses an %s case from borrowing a declared attempt',
+    (kind) => {
+      const collector = createClientResultCollector(artifact, { runId: 'run' })
+      collected(collector, 'actual', kind === 'inactive' ? 'skip' : 'run')
+      if (kind === 'unknown')
+        expect(() => startCase(collector, 'entry/1')).toThrow(/owner/)
+      if (kind === 'renamed')
+        expect(() => startCase(collector, 'entry/0', 'borrowed')).toThrow(
+          /owner/
+        )
+      if (kind === 'unstarted')
+        expect(() => endCase(collector)).toThrow(/immutable attempt/)
+      if (kind === 'inactive')
+        expect(() => startCase(collector)).toThrow(/owner/)
+      expect(collector.events).toEqual([])
+    }
+  )
+  it('requires every declared case and suite before a file may complete', () => {
+    const collector = createClientResultCollector(artifact, { runId: 'run' })
+    collector.accept({
+      type: 'collected',
+      declarations: [
+        { type: 'suite', id: 'entry', parentId: null, name: '', mode: 'run' },
+        {
+          type: 'suite',
+          id: 'entry/0',
+          parentId: 'entry',
+          name: 'group',
+          mode: 'run',
+        },
+        {
+          type: 'test',
+          id: 'entry/0/0',
+          parentId: 'entry/0',
+          name: 'actual',
+          mode: 'run',
+        },
+      ],
+    })
+    expect(() => rootSuite(collector)).toThrow(/omitted declared descendants/)
+    expect(() => finish(collector, 0)).toThrow(/omitted declared tasks/)
+    startCase(collector, 'entry/0/0', 'group > actual')
+    endCase(collector, 'entry/0/0', 'group > actual')
+    expect(() => rootSuite(collector)).toThrow(/omitted declared descendants/)
+    collector.accept({
+      type: 'suite-end',
+      result: {
+        entryId: 'entry',
+        suiteId: 'entry/0',
+        name: 'group',
+        ancestors: [],
+        mode: 'run',
+        status: 'passed',
+        durationMs: 0,
+        errors: [],
+      },
+    })
+    expect(() => finish(collector)).toThrow(/omitted declared tasks/)
+    rootSuite(collector)
+    expect(() => finish(collector, 0)).toThrow(/completion facts/)
+    finish(collector)
+    expect(collector.result().status).toBe('passed')
+  })
+  it('retains pending skips while refusing unproven inactive snapshot writes', () => {
+    const collector = createClientResultCollector(artifact, { runId: 'run' })
+    collected(collector)
+    startCase(collector)
+    endCase(collector, 'entry/0', 'actual', {
+      status: 'skipped',
+      mode: 'skip',
+      pending: true,
+      note: 'condition',
+    })
+    rootSuite(collector, 'skipped')
+    finish(collector)
+    expect(
+      collector.result().events.find((event: any) => event.type === 'case-end')
+    ).toMatchObject({ pending: true, note: 'condition', mode: 'skip' })
+    const inactive = createClientResultCollector(artifact, {
+      runId: 'run',
+      updateSnapshots: true,
+    })
+    collected(inactive, 'actual', 'todo')
+    endCase(inactive, 'entry/0', 'actual', { status: 'skipped', mode: 'todo' })
+    rootSuite(inactive, 'skipped')
+    expect(() =>
+      finish(inactive, 1, {
+        updates: [
+          {
+            path: artifact.client.sourceFile,
+            content: 'changed',
+            previousContent: 'original',
+          },
+        ],
+      })
+    ).toThrow(/executed case/)
+    finish(inactive)
+    expect(inactive.result().status).toBe('passed')
+  })
+  it.each(['afterAll', 'aroundAll-teardown', 'foreign-suite'])(
+    'cannot authorize unstarted skipped metadata with %s failure',
+    (kind) => {
+      const collector = createClientResultCollector(artifact, { runId: 'run' })
+      const declarations: any[] = [
+        { type: 'suite', id: 'entry', parentId: null, name: '', mode: 'run' },
+        {
+          type: 'test',
+          id: 'entry/0',
+          parentId: 'entry',
+          name: 'actual',
+          mode: 'run',
+        },
+      ]
+      if (kind === 'foreign-suite')
+        declarations.push({
+          type: 'suite',
+          id: 'entry/1',
+          parentId: 'entry',
+          name: 'unrelated',
+          mode: 'run',
+        })
+      collector.accept({ type: 'collected', declarations })
+      endCase(collector, 'entry/0', 'actual', {
+        status: 'skipped',
+        mode: 'skip',
+      })
+      if (kind === 'foreign-suite')
+        collector.accept({
+          type: 'suite-end',
+          result: {
+            entryId: 'entry',
+            suiteId: 'entry/1',
+            name: 'unrelated',
+            ancestors: [],
+            mode: 'run',
+            status: 'failed',
+            durationMs: 0,
+            errors: [{ phase: 'beforeAll', error: new Error('unrelated') }],
+          },
+        })
+      rootSuite(
+        collector,
+        'failed',
+        kind !== 'foreign-suite'
+          ? [
+              {
+                phase: kind === 'afterAll' ? 'afterAll' : 'aroundAll',
+                error: new Error('teardown'),
+              },
+            ]
+          : []
+      )
+      expect(() => finish(collector, 1, { status: 'failed' })).toThrow(
+        /suite failure/
+      )
+      expect(
+        collector.events.some((event: any) => event.type === 'case-end')
+      ).toBe(false)
+    }
+  )
+  it('requires an interrupted terminal owner for cancelled declared cases', () => {
+    const collector = createClientResultCollector(artifact, { runId: 'run' })
+    collected(collector)
+    endCase(collector, 'entry/0', 'actual', { status: 'cancelled' })
+    expect(() => rootSuite(collector)).toThrow(/contradicts/)
+    rootSuite(collector, 'cancelled')
+    expect(() => finish(collector, 1, { status: 'failed' })).toThrow(
+      /suite failure/
+    )
+    finish(collector, 1, { status: 'failed', interrupted: true })
+    expect(
+      collector.events.filter((event: any) => event.type === 'case-start')
+    ).toEqual([])
+    expect(collector.result().status).toBe('failed')
+  })
+  it('validates fixture admission using the exact sticky-filter traversal including todo cases', async () => {
+    const {
+      createCollector,
+    } = require('next/dist/experimental/testing/runner/collector')
+    const {
+      validateSynchronousClient,
+    } = require('next/dist/experimental/testing/client/validate')
+    const {
+      resolveClientDeclarations,
+      clientDeclarations,
+    } = require('next/dist/experimental/testing/client/collection')
+    const body = jest.fn()
+    const file = createCollector('entry')
+    file.api.test('x', body)
+    file.api.test.todo('x')
+    file.api.test.extend({ value: 42 })('x', ({ value }: { value: number }) =>
+      body(value)
+    )
+    await file.settle()
+    const root = file.close()
+    expect(
+      [
+        ...resolveClientDeclarations(clientDeclarations(root), 'entry', {
+          testNamePattern: /x/y,
+        }).cases.values(),
+      ].map((test: any) => test.mode)
+    ).toEqual(['run', 'skip', 'run'])
+    expect(() =>
+      validateSynchronousClient(root, { testNamePattern: /x/y })
+    ).toThrow(/Browser Mode.*fixtures/)
+    expect(body).not.toHaveBeenCalled()
+  })
+  it('refuses cancellation facts for a started attempt instead of accepting an uninterrupted file', () => {
+    const collector = createClientResultCollector(artifact, { runId: 'run' })
+    collected(collector)
+    startCase(collector)
+    expect(() =>
+      endCase(collector, 'entry/0', 'actual', { status: 'cancelled' })
+    ).toThrow(/immutable attempt/)
+    endCase(collector)
+    rootSuite(collector, 'failed', [
+      { phase: 'afterAll', error: new Error('teardown') },
+    ])
+    finish(collector, 1, { status: 'failed' })
+    expect(
+      collector.events
+        .filter((event: any) => event.type === 'case-end')
+        .map((event: any) => event.status)
+    ).toEqual(['passed'])
+  })
+  it.each(['beforeAll', 'aroundAll'])(
+    'refuses %s blocked-descendant proof when a descendant has started',
+    (phase) => {
+      const collector = createClientResultCollector(artifact, { runId: 'run' })
+      collected(collector)
+      startCase(collector)
+      endCase(collector)
+      expect(() =>
+        rootSuite(
+          collector,
+          'failed',
+          [{ phase, error: new Error('setup') }],
+          true
+        )
+      ).toThrow(/blocked suite contradicts/)
+      // A real teardown failure can follow the executed descendant.
+      rootSuite(collector, 'failed', [
+        { phase: 'aroundAll', error: new Error('teardown') },
+      ])
+      finish(collector, 1, { status: 'failed' })
+      expect(collector.result().status).toBe('failed')
+    }
+  )
+  it('refuses an invented unstarted case failure in place of its failed setup suite', () => {
+    const collector = createClientResultCollector(artifact, { runId: 'run' })
+    collected(collector)
+    expect(() =>
+      endCase(collector, 'entry/0', 'actual', {
+        status: 'failed',
+        errors: [{ phase: 'beforeAll', error: new Error('setup') }],
+      })
+    ).toThrow(/immutable attempt/)
+    endCase(collector, 'entry/0', 'actual', { status: 'skipped', mode: 'skip' })
+    rootSuite(
+      collector,
+      'failed',
+      [{ phase: 'beforeAll', error: new Error('setup') }],
+      true
+    )
+    finish(collector, 1, { status: 'failed' })
+    expect(
+      collector.events.filter((event: any) => event.type === 'case-start')
+    ).toEqual([])
+  })
+  it('cannot claim blocked setup after filtering made all descendants inactive', () => {
+    const collector = createClientResultCollector(artifact, {
+      runId: 'run',
+      testNamePattern: '^unmatched$',
+    })
+    collected(collector)
+    endCase(collector, 'entry/0', 'actual', { status: 'skipped', mode: 'skip' })
+    expect(() =>
+      rootSuite(
+        collector,
+        'failed',
+        [{ phase: 'beforeAll', error: new Error('setup') }],
+        true
+      )
+    ).toThrow(/blocked suite contradicts/)
+    rootSuite(collector, 'skipped')
+    finish(collector)
+    expect(collector.result().status).toBe('passed')
   })
   it('keeps explicit client admission separate from ordinary browser drivers', () => {
     const {
@@ -821,6 +1665,7 @@ describe('Browser Mode immutable parent transport', () => {
     'rejects a %s identity borrowed from another owner',
     (mode) => {
       const collector = createClientResultCollector(artifact, { runId: 'run' })
+      collected(collector)
       const context = {
         fileId: 'entry',
         id: 'run/entry/0/0/0',
@@ -892,6 +1737,7 @@ describe('Browser Mode immutable parent transport', () => {
     'keeps the parent event discriminator for malformed %s wire facts',
     (kind) => {
       const collector = createClientResultCollector(artifact, { runId: 'run' })
+      collected(collector)
       const common = {
         type: 'run-end',
         entryId: 'entry',
@@ -920,11 +1766,37 @@ describe('Browser Mode immutable parent transport', () => {
             attempt: { id: 'run/entry/0/0/0', retry: 0, repeat: 0 },
           },
         })
-      } else
+      } else {
+        collector.accept({
+          type: 'case-start',
+          context: {
+            id: 'run/entry/0/0/0',
+            fileId: 'entry',
+            testId: 'entry/0',
+            name: 'actual',
+            retry: 0,
+            repeat: 0,
+          },
+        })
+        collector.accept({
+          type: 'case-end',
+          result: {
+            ...common,
+            caseId: 'entry/0',
+            attempt: { id: 'run/entry/0/0/0', retry: 0, repeat: 0 },
+          },
+        })
         collector.accept({
           type: 'suite-end',
-          result: { ...common, suiteId: 'entry', ancestors: [], mode: 'run' },
+          result: {
+            ...common,
+            name: '',
+            suiteId: 'entry',
+            ancestors: [],
+            mode: 'run',
+          },
         })
+      }
       expect(collector.events.at(-1).type).toBe(kind + '-end')
       expect(
         collector.events.some((event: any) => event.type === 'run-end')
@@ -938,6 +1810,7 @@ describe('Browser Mode immutable parent transport', () => {
         runId: 'run',
         updateSnapshots: true,
       })
+      collected(collector)
       collector.accept({
         type: 'case-start',
         context: {
@@ -961,6 +1834,7 @@ describe('Browser Mode immutable parent transport', () => {
           errors: [],
         },
       })
+      rootSuite(collector)
       expect(() =>
         collector.accept({
           type: 'complete',
@@ -994,4 +1868,753 @@ describe('Browser Mode immutable parent transport', () => {
     await symlink(join(root, 'elsewhere'), join(root, '__snapshots__'))
     await expect(server!.verify()).rejects.toThrow(/symbolic link/)
   })
+})
+
+describe('Browser helper diagnostic presentation', () => {
+  function mapper(
+    source: string | null,
+    points: { line: number; column: number }[]
+  ) {
+    const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+    const {
+      createClientSourceMapResolver,
+    } = require('next/dist/experimental/testing/client/source-maps')
+    const map = new SourceMapGenerator({ file: 'helper.js' })
+    points.forEach((point, index) => {
+      map.addMapping({
+        generated: { line: index + 1, column: 0 },
+        original: { line: point.line, column: point.column - 1 },
+        source: 'original-helper',
+      })
+    })
+    if (source !== null) map.setSourceContent('original-helper', source)
+    map.setSourceContent('unselected', 'not the selected original source')
+    return createClientSourceMapResolver({
+      filePath: '/original/helpers.test.mjs',
+      sourceMaps: [
+        {
+          url: 'http://127.0.0.1:1234/helper.js',
+          map: map.toJSON(),
+          originalSources: ['original-helper'],
+        },
+      ],
+    })
+  }
+
+  it('trims the actual last helper frame before mapping and retains the raw nested async and soft stacks', async () => {
+    const {
+      mapClientDiagnosticStack,
+    } = require('next/dist/experimental/testing/client/helper-diagnostics')
+    const {
+      serializeDiagnostic,
+    } = require('next/dist/experimental/testing/reporting/diagnostics')
+    const source = await readFile(
+      join(
+        __dirname,
+        '../app-dir/next-testing-mocked/fixtures/define-helper.case.mjs'
+      ),
+      'utf8'
+    )
+    const points = [
+      { line: 16, column: 56 },
+      { line: 17, column: 42 },
+      { line: 130, column: 3 },
+      { line: 135, column: 9 },
+      { line: 24, column: 43 },
+      { line: 139, column: 18 },
+    ]
+    const original = mapper(source, points)
+    expect(
+      original.getSourceContent({
+        file: 'http://127.0.0.1:1234/helper.js',
+        line: 1,
+        column: 1,
+      })
+    ).toBe(source)
+    const user = (line: number) =>
+      `    at user (http://127.0.0.1:1234/helper.js:${line}:1)`
+    const helper =
+      '    at __VITEST_HELPER__ (http://127.0.0.1:1234/framework.js:1:1)'
+    const cases = [
+      {
+        lines: [user(1), helper, user(2), helper, user(3)],
+        expected: { line: 130, column: 3 },
+      },
+      { lines: [helper, user(4)], expected: { line: 135, column: 3 } },
+      {
+        lines: [user(5), helper, user(6)],
+        expected: { line: 139, column: 18 },
+      },
+    ]
+    for (const { lines, expected } of cases) {
+      const stack = ['AssertionError: genuine helper mismatch', ...lines].join(
+        '\n'
+      )
+      const diagnostic = serializeDiagnostic(
+        { name: 'AssertionError', message: 'genuine helper mismatch', stack },
+        {
+          phase: 'runtime',
+          mapStack: (value: string) =>
+            mapClientDiagnosticStack(value, original),
+        }
+      )
+      expect(diagnostic.frames).toEqual([
+        {
+          file: '/original/helpers.test.mjs',
+          ...expected,
+          methodName: undefined,
+          original: true,
+        },
+      ])
+      expect(diagnostic.stack).toBe(stack)
+      expect(JSON.parse(JSON.stringify(diagnostic)).stack).toBe(stack)
+    }
+  })
+
+  it('keeps ordinary await callers and helper arguments unchanged and falls back on missing or invalid source', () => {
+    const {
+      mapClientDiagnosticStack,
+    } = require('next/dist/experimental/testing/client/helper-diagnostics')
+    const source = "async function body() {\n  await helper('value')\n}\n"
+    const point = { line: 2, column: 9 }
+    const user = '    at body (http://127.0.0.1:1234/helper.js:1:1)'
+    const helper =
+      '    at __VITEST_HELPER__ (http://127.0.0.1:1234/framework.js:1:1)'
+    const raw = ['Error: no helper frame', user].join('\n')
+    const original = mapper(source, [point])
+    expect(mapClientDiagnosticStack(raw, original)[0]).toMatchObject(point)
+    const withHelper = ['Error: helper frame', helper, user].join('\n')
+    expect(mapClientDiagnosticStack(withHelper, original)[0]).toMatchObject({
+      line: 2,
+      column: 3,
+    })
+    for (const content of [null, 'not valid JavaScript']) {
+      expect(
+        mapClientDiagnosticStack(withHelper, mapper(content, [point]))[0]
+      ).toMatchObject(point)
+    }
+    expect(
+      mapClientDiagnosticStack(withHelper, {
+        ...original,
+        getSourceContent() {
+          throw new Error('missing retained content')
+        },
+      })[0]
+    ).toMatchObject(point)
+    const argument = {
+      line: 2,
+      column: source.split('\n')[1].indexOf("'value'") + 1,
+    }
+    expect(
+      mapClientDiagnosticStack(withHelper, mapper(source, [argument]))[0]
+    ).toMatchObject(argument)
+  })
+
+  it('uses UTF16 and CRLF source positions rather than fixed caller columns', () => {
+    const {
+      mapClientDiagnosticStack,
+    } = require('next/dist/experimental/testing/client/helper-diagnostics')
+    for (const newline of ['\n', '\r\n']) {
+      const prefix = "  const emoji = '😀'; "
+      const line = prefix + "await helper('value')"
+      const source = ['async function body() {', line, '}', ''].join(newline)
+      const original = mapper(source, [
+        { line: 2, column: line.indexOf('helper') + 1 },
+      ])
+      const stack =
+        'Error: measured caller\n    at __VITEST_HELPER__ (http://127.0.0.1:1234/framework.js:1:1)\n    at body (http://127.0.0.1:1234/helper.js:1:1)'
+      expect(mapClientDiagnosticStack(stack, original)[0]).toMatchObject({
+        line: 2,
+        column: prefix.length + 1,
+      })
+    }
+  })
+
+  it('uses the mapped frame source when different selected maps appear in either insertion order', () => {
+    const { SourceMapGenerator } = require('next/dist/compiled/source-map')
+    const {
+      createClientSourceMapResolver,
+    } = require('next/dist/experimental/testing/client/source-maps')
+    const {
+      mapClientDiagnosticStack,
+    } = require('next/dist/experimental/testing/client/helper-diagnostics')
+    const correct = "async function body() {\n  await helper('value')\n}\n"
+    const other =
+      "async function body() {\n  const padding = true; await other('value')\n}\n"
+    const records = [other, correct].map((source, index) => {
+      const map = new SourceMapGenerator({ file: `${index}.js` })
+      map.addMapping({
+        generated: { line: 1, column: 0 },
+        original: { line: 2, column: 8 },
+        source: `original-${index}`,
+      })
+      map.setSourceContent(`original-${index}`, source)
+      return {
+        url: `http://127.0.0.1:1234/${index}.js`,
+        map: map.toJSON(),
+        originalSources: [`original-${index}`],
+      }
+    })
+    const frame = { file: records[1].url, line: 1, column: 1 }
+    const stack =
+      'Error: mapped helper\n    at __VITEST_HELPER__ (http://127.0.0.1:1234/framework.js:1:1)\n    at body (http://127.0.0.1:1234/1.js:1:1)'
+    for (const sourceMaps of [records, [...records].reverse()]) {
+      const original = createClientSourceMapResolver({
+        filePath: '/original/helpers.test.mjs',
+        sourceMaps,
+      })
+      expect(original.getSourceContent(frame)).toBe(correct)
+      expect(mapClientDiagnosticStack(stack, original)[0]).toMatchObject({
+        line: 2,
+        column: 3,
+      })
+    }
+  })
+})
+
+describe('Browser numeric retries and repeats', () => {
+  const sourceFile = '/project/retry.test.mjs'
+  function client(names = ['actual'], extra = {}) {
+    const {
+      createClientResultCollector,
+    } = require('next/dist/experimental/testing/client/results')
+    const collector = createClientResultCollector(
+      { entryId: 'entry', revision: 'revision', client: { sourceFile } },
+      { runId: 'run', ...extra }
+    )
+    collector.accept({
+      type: 'collected',
+      declarations: [
+        { type: 'suite', id: 'entry', parentId: null, name: '', mode: 'run' },
+        ...names.map((name, index) => ({
+          type: 'test',
+          id: `entry/${index}`,
+          parentId: 'entry',
+          name,
+          mode: 'run',
+        })),
+      ],
+    })
+    return collector
+  }
+  function start(
+    collector: any,
+    retry = 0,
+    repeat = 0,
+    index = 0,
+    name = 'actual'
+  ) {
+    collector.accept({
+      type: 'case-start',
+      context: {
+        fileId: 'entry',
+        testId: `entry/${index}`,
+        id: `run/entry/${index}/${retry}/${repeat}`,
+        name,
+        retry,
+        repeat,
+      },
+    })
+  }
+  function end(
+    collector: any,
+    status = 'passed',
+    retry = 0,
+    repeat = 0,
+    index = 0,
+    name = 'actual',
+    extra = {}
+  ) {
+    collector.accept({
+      type: 'case-end',
+      result: {
+        entryId: 'entry',
+        caseId: `entry/${index}`,
+        name,
+        attempt: { id: `run/entry/${index}/${retry}/${repeat}`, retry, repeat },
+        status,
+        durationMs: 1,
+        errors:
+          status === 'failed'
+            ? [{ phase: 'test', error: new Error(`failed-${retry}-${repeat}`) }]
+            : [],
+        ...extra,
+      },
+    })
+  }
+  function suite(collector: any, status = 'passed', extra = {}) {
+    collector.accept({
+      type: 'suite-end',
+      result: {
+        entryId: 'entry',
+        suiteId: 'entry',
+        name: '',
+        ancestors: [],
+        mode: 'run',
+        status,
+        durationMs: 1,
+        errors: [],
+        ...extra,
+      },
+    })
+  }
+  function complete(
+    collector: any,
+    status = 'passed',
+    caseCount = 1,
+    extra = {}
+  ) {
+    collector.accept({
+      type: 'complete',
+      status,
+      interrupted: false,
+      caseCount,
+      updates: [],
+      ...extra,
+    })
+  }
+
+  it('replaces an intermediate failed retry while retaining both original attempt events and errors', () => {
+    const collector = client()
+    start(collector)
+    end(collector, 'failed')
+    expect(collector.hasFailure()).toBe(true)
+    start(collector, 1)
+    end(collector, 'passed', 1)
+    expect(collector.hasFailure()).toBe(false)
+    suite(collector)
+    complete(collector)
+    expect(collector.result().status).toBe('passed')
+    const attempts = collector.events.filter(
+      (event: any) => event.type === 'case-end'
+    )
+    expect(
+      attempts.map((event: any) => [
+        event.attempt.retry,
+        event.attempt.repeat,
+        event.status,
+      ])
+    ).toEqual([
+      [0, 0, 'failed'],
+      [1, 0, 'passed'],
+    ])
+    expect(attempts[0].errors[0].message).toBe('failed-0-0')
+    expect(attempts[1].errors).toEqual([])
+  })
+
+  it('keeps a failed repeat in the final outcome after a later repeat passes', () => {
+    const collector = client()
+    start(collector)
+    end(collector, 'failed')
+    start(collector, 0, 1)
+    end(collector, 'passed', 0, 1)
+    expect(() => suite(collector)).toThrow(/contradicts/)
+    suite(collector, 'failed')
+    complete(collector, 'failed')
+    expect(collector.result().status).toBe('failed')
+    expect(
+      collector.events.filter((event: any) => event.type === 'case-end')
+    ).toHaveLength(2)
+  })
+
+  it('accepts serial retries within each repeat and counts one logical case', () => {
+    const collector = client()
+    for (let repeat = 0; repeat < 2; repeat++) {
+      start(collector, 0, repeat)
+      end(collector, 'failed', 0, repeat)
+      start(collector, 1, repeat)
+      end(collector, 'passed', 1, repeat)
+    }
+    suite(collector)
+    expect(() => complete(collector, 'passed', 4)).toThrow(/completion/)
+    complete(collector)
+    expect(collector.result().status).toBe('passed')
+    expect(
+      collector.events
+        .filter((event: any) => event.type === 'case-end')
+        .map((event: any) => event.attempt.id)
+    ).toEqual([
+      'run/entry/0/0/0',
+      'run/entry/0/1/0',
+      'run/entry/0/0/1',
+      'run/entry/0/1/1',
+    ])
+  })
+
+  it('refuses duplicate, overlapping, skipped-ordinal and successful-try retries', () => {
+    const overlapping = client()
+    start(overlapping)
+    expect(() => start(overlapping, 1)).toThrow(/attempt owner/)
+    end(overlapping, 'failed')
+    expect(() => start(overlapping, 2)).toThrow(/attempt owner/)
+    start(overlapping, 1)
+    end(overlapping, 'passed', 1)
+    expect(() => end(overlapping, 'passed', 1)).toThrow(/immutable attempt/)
+    expect(() => start(overlapping, 2)).toThrow(/attempt owner/)
+    const initial = client()
+    expect(() => start(initial, 1)).toThrow(/attempt owner/)
+    expect(() => start(initial, 0, 1)).toThrow(/attempt owner/)
+  })
+
+  it('does not reopen an earlier case after another logical case has started', () => {
+    const collector = client(['actual', 'next'])
+    start(collector)
+    end(collector, 'failed')
+    start(collector, 0, 0, 1, 'next')
+    end(collector, 'passed', 0, 0, 1, 'next')
+    expect(() => start(collector, 1)).toThrow(/attempt owner/)
+    suite(collector, 'failed')
+    complete(collector, 'failed', 2)
+    expect(collector.result().status).toBe('failed')
+  })
+
+  it('retains independent file and suite errors after a recovered retry', () => {
+    for (const failure of ['file', 'suite']) {
+      const collector = client()
+      start(collector)
+      end(collector, 'failed')
+      start(collector, 1)
+      end(collector, 'passed', 1)
+      if (failure === 'file') {
+        suite(collector)
+        collector.accept({ type: 'failure', error: new Error('file error') })
+      } else
+        suite(collector, 'failed', {
+          errors: [{ phase: 'afterAll', error: new Error('afterAll error') }],
+        })
+      complete(collector, 'failed')
+      expect(collector.result().status).toBe('failed')
+    }
+  })
+
+  it('stops runtime skipped attempts without generating further retries or repeats', () => {
+    const collector = client()
+    start(collector)
+    end(collector, 'skipped', 0, 0, 0, 'actual', {
+      mode: 'skip',
+      pending: true,
+      note: 'ordinary skip',
+    })
+    expect(() => start(collector, 1)).toThrow(/attempt owner/)
+    expect(() => start(collector, 0, 1)).toThrow(/attempt owner/)
+    suite(collector, 'skipped')
+    complete(collector)
+    expect(collector.result().status).toBe('passed')
+  })
+
+  it('permits only numeric serial retry and repeat authoring in the existing Browser validator', async () => {
+    const {
+      createCollector,
+    } = require('next/dist/experimental/testing/runner/collector')
+    const {
+      validateSynchronousClient,
+    } = require('next/dist/experimental/testing/client/validate')
+    const file = createCollector('entry')
+    file.api.describe('repeated', { retry: 2, repeats: 1 }, () => {
+      file.api.test('numeric', { retry: 1, repeats: 2 }, () => {})
+    })
+    await file.settle()
+    expect(validateSynchronousClient(file.close(), { retry: 1 })).toHaveLength(
+      3
+    )
+    const object = createCollector('object')
+    object.api.test('object retry', { retry: { count: 1 } }, () => {})
+    await object.settle()
+    expect(() => validateSynchronousClient(object.close(), {})).toThrow(
+      /numeric/
+    )
+    const concurrent = createCollector('concurrent')
+    concurrent.api.test.concurrent('concurrent', () => {})
+    await concurrent.settle()
+    expect(() => validateSynchronousClient(concurrent.close(), {})).toThrow(
+      /concurrency/
+    )
+  })
+
+  it('keeps recovered Browser retry failures in JSON while reporting the passed final logical case', () => {
+    const {
+      createMachineReporter,
+    } = require('next/dist/experimental/testing/reporting/machine')
+    const collector = client()
+    start(collector)
+    end(collector, 'failed')
+    start(collector, 1)
+    end(collector, 'passed', 1)
+    suite(collector)
+    complete(collector)
+    const reporter = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const envelope = { version: 1, runId: 'run', timestamp: 1 }
+    const entry = {
+      id: 'entry',
+      file: sourceFile,
+      profile: {
+        id: 'browser',
+        environment: 'browser',
+        mode: 'development',
+        runtime: 'nodejs',
+        bundler: 'turbopack',
+        browserClient: true,
+      },
+    }
+    try {
+      reporter.onEvent({ ...envelope, type: 'run-start' })
+      reporter.onEvent({ ...envelope, type: 'file-start', entry })
+      for (const event of collector.events) reporter.onEvent(event)
+      reporter.onEvent({
+        ...envelope,
+        type: 'file-end',
+        entryId: 'entry',
+        status: 'passed',
+        durationMs: 1,
+      })
+      reporter.onEvent({
+        ...envelope,
+        type: 'run-end',
+        status: 'passed',
+        durationMs: 1,
+      })
+      const report = reporter.getJson()
+      expect(report).toMatchObject({
+        success: true,
+        numTotalTests: 1,
+        numPassedTests: 1,
+        numFailedTests: 0,
+      })
+      expect(
+        report.testResults[0].assertionResults[0].failureMessages
+      ).toHaveLength(1)
+      expect(
+        report.testResults[0].assertionResults[0].failureMessages[0]
+      ).toContain('failed-0-0')
+      expect(
+        report.next.events.filter((event: any) => event.type === 'case-end')
+      ).toHaveLength(2)
+    } finally {
+      reporter.dispose()
+    }
+  })
+})
+
+describe('Browser callback context identity across attempts', () => {
+  it('retains the published context and local expect through fresh retry and repeat scopes', () => {
+    const {
+      createAsyncScope,
+    } = require('next/dist/experimental/testing/client/async-context')
+    const {
+      invokeTestCallback,
+    } = require('next/dist/experimental/testing/client/invocation-platform')
+    const late: Error[] = []
+    const original = Object.assign((value: unknown) => value, {
+      getState() {
+        return { receiver: this, value: 'local' }
+      },
+    })
+    let reads = 0
+    const context = {
+      task: {},
+      signal: new AbortController().signal,
+      get expect() {
+        reads++
+        return original
+      },
+    }
+    const rows: {
+      context: unknown
+      local: unknown
+      receiver: unknown
+      value: unknown
+    }[] = []
+    for (const [retry, repeat] of [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+    ]) {
+      const owner = {
+        id: `identity/entry/0/${retry}/${repeat}`,
+        fileId: 'entry',
+        testId: 'entry/0',
+        name: 'stable',
+        retry,
+        repeat,
+      }
+      const scope = createAsyncScope(
+        { kind: 'attempt', context: owner },
+        (error: Error) => late.push(error)
+      )
+      try {
+        const returned = scope.run(() =>
+          invokeTestCallback(
+            (published: any) => {
+              const local = published.expect
+              expect(published.expect).toBe(local)
+              const state = local.getState()
+              rows.push({
+                context: published,
+                local,
+                receiver: state.receiver,
+                value: local('payload'),
+              })
+              return context.task
+            },
+            context,
+            owner
+          )
+        )
+        expect(returned).toBe(context.task)
+      } finally {
+        scope.close()
+      }
+    }
+    expect(rows).toHaveLength(3)
+    expect(rows.every((row) => row.context === rows[0].context)).toBe(true)
+    expect(rows.every((row) => row.local === rows[0].local)).toBe(true)
+    expect(
+      rows.every((row) => row.receiver === original && row.value === 'payload')
+    ).toBe(true)
+    expect(reads).toBe(6)
+    expect(late).toEqual([])
+    expect(() =>
+      invokeTestCallback(() => {}, context, { id: 'identity/entry/0/0/1' })
+    ).toThrow(/attempt ownership/)
+  })
+
+  it('reads the current expect getter each time and preserves guards on retained wrappers', () => {
+    const {
+      createAsyncScope,
+    } = require('next/dist/experimental/testing/client/async-context')
+    const {
+      invokeTestCallback,
+    } = require('next/dist/experimental/testing/client/invocation-platform')
+    const first = (value: unknown) => value
+    const second = (value: unknown) => value
+    const failure = new Error('actual getter failed')
+    let selected = first,
+      rejected = false,
+      reads = 0
+    const context = {
+      get expect() {
+        reads++
+        if (rejected) throw failure
+        return selected
+      },
+    }
+    const other = {
+      get expect() {
+        return second
+      },
+    }
+    const owner = {
+      id: 'identity-current',
+      fileId: 'entry',
+      testId: 'entry/0',
+      name: 'current',
+    }
+    const scope = createAsyncScope(
+      { kind: 'attempt', context: owner },
+      () => {}
+    )
+    let held: any
+    try {
+      scope.run(() =>
+        invokeTestCallback(
+          (published: any) => {
+            held = published.expect
+            expect(published.expect).toBe(held)
+            selected = second
+            expect(published.expect).not.toBe(held)
+            selected = first
+            expect(published.expect).toBe(held)
+            rejected = true
+            expect(() => published.expect).toThrow(failure)
+            expect(
+              invokeTestCallback((value: unknown) => value, other, owner)
+            ).not.toBe(published)
+          },
+          context,
+          owner
+        )
+      )
+    } finally {
+      scope.close()
+    }
+    expect(reads).toBe(5)
+    expect(() => held('late')).toThrow(/Browser Mode API access/)
+  })
+})
+it('preserves callback values through the Browser runtime fallback refresh signatures', async () => {
+  const { runInNewContext } = require('node:vm') as typeof import('node:vm')
+  const ts = require('typescript') as typeof import('typescript')
+  const filename = join(
+    __dirname,
+    '../../../turbopack/crates/turbopack-ecmascript-runtime/js/src/browser/runtime/base/dev-base.ts'
+  )
+  const source = await readFile(filename, 'utf8')
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.CommonJS,
+    },
+    reportDiagnostics: true,
+  })
+  expect(compiled.diagnostics).toEqual([])
+  const context: Record<string, any> = {
+    Context: function Context() {},
+    devModuleCache: undefined,
+    runtimeModules: undefined,
+    createModuleWithDirectionFlag: false,
+  }
+  const execute = runInNewContext(
+    `${compiled.outputText}\nrunModuleExecutionHooks`,
+    context,
+    { filename }
+  )
+  const receiver = {}
+  let callbackCalls = 0
+  let customHookCalls = 0
+  let signature: Function
+  function callback(this: unknown, value: number) {
+    callbackCalls++
+    expect(signature()).toBeUndefined()
+    return { receiver: this, value }
+  }
+  execute({ id: 'fallback-module' }, (refresh: any) => {
+    signature = refresh.signature()
+    expect(signature()).toBeUndefined()
+    const associated = signature(callback, 'signature-key', false, () => {
+      customHookCalls++
+      return []
+    })
+    expect(associated).toBe(callback)
+    expect(Reflect.apply(associated, receiver, [7])).toEqual({
+      receiver,
+      value: 7,
+    })
+    expect(refresh.register(callback, 'callback')).toBeUndefined()
+    expect(refresh.registerExports({}, {})).toBeUndefined()
+  })
+  expect(callbackCalls).toBe(1)
+  expect(customHookCalls).toBe(0)
+
+  const trace: string[] = []
+  const failure = new Error('actual refresh execution failed')
+  const realRegister = () => {}
+  const realSignature = () => callback
+  context.$RefreshReg$ = realRegister
+  context.$RefreshSig$ = realSignature
+  context.$RefreshInterceptModuleExecution$ = (id: string) => {
+    trace.push(`start:${id}`)
+    return () => trace.push('cleanup')
+  }
+  expect(() =>
+    execute({ id: 'real-refresh-module' }, (refresh: any) => {
+      expect(refresh.register).toBe(realRegister)
+      expect(refresh.signature).toBe(realSignature)
+      expect(refresh.signature()).toBe(callback)
+      throw failure
+    })
+  ).toThrow(failure)
+  expect(trace).toEqual(['start:real-refresh-module', 'cleanup'])
 })

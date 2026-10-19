@@ -1,0 +1,10 @@
+import { vi } from 'vitest'
+// Observation input, not an assumed passing/negative fixture. Run unchanged in
+// both lanes and compare FULL diagnostics. Same-value writes are not presumed
+// readonly or writable: pinned non-homomorphic mappings may change modifiers.
+const input = { value: 1, nested: { label: 'fixed' } } as const
+const actual = vi.mocked(input, true)
+actual.value = 1
+actual.nested.label = 'fixed'
+export const probeReadonlyValue = actual.value
+export const probeReadonlyNestedLabel = actual.nested.label

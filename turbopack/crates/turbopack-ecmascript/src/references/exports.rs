@@ -1,7 +1,7 @@
 use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use swc_core::{
-    common::source_map::SmallPos,
+    common::{GLOBALS, source_map::SmallPos},
     ecma::ast::{Expr, Ident, ImportDecl, MemberProp, Program, Stmt},
 };
 use tracing::Instrument;
@@ -14,9 +14,13 @@ use turbopack_core::{
 };
 
 use crate::{
-    EcmascriptModuleAsset, EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType,
-    analyzer::imports::{ImportAnnotations, ImportedSymbol},
-    chunk::EcmascriptExports,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType,
+    analyzer::{
+        Bump,
+        graph::{EvalContext, create_graph},
+        imports::{ImportAnnotations, ImportedSymbol},
+    },
+    chunk::{CjsStaticExports, EcmascriptExports},
     module_fragments::{part_of_module, split_module},
     parse::ParseResult,
     references::{
@@ -260,6 +264,69 @@ pub async fn compute_ecmascript_module_exports(
     .cell())
 }
 
+/// Read the actual post-transform CommonJS export analysis without changing
+/// execution options. Consumers must treat `None` as an uncertified namespace.
+/// The disposable graph's effects/codegens are never returned or emitted.
+pub async fn read_static_cjs_exports(
+    module: ResolvedVc<EcmascriptModuleAsset>,
+) -> Result<Option<CjsStaticExports>> {
+    let parsed = module.failsafe_parse().await?;
+    let ParseResult::Ok {
+        program,
+        eval_context,
+        globals,
+        ..
+    } = &*parsed
+    else {
+        return Ok(None);
+    };
+    let raw_module = module.await?;
+    let mode = raw_module.options.await?.analyze_mode;
+    let supports_block_scoping = *raw_module
+        .compile_time_info
+        .environment()
+        .runtime_versions()
+        .supports_block_scoping()
+        .await?;
+    let specified_type = module.determine_module_type().await?.module_type;
+    Ok(GLOBALS.set(globals, || {
+        project_static_cjs_exports(
+            program,
+            eval_context,
+            mode,
+            supports_block_scoping,
+            specified_type,
+        )
+    }))
+}
+
+fn project_static_cjs_exports(
+    program: &Program,
+    eval_context: &EvalContext,
+    mode: AnalyzeMode,
+    supports_block_scoping: bool,
+    specified_type: SpecifiedModuleType,
+) -> Option<CjsStaticExports> {
+    if !mode.is_codegen || !eval_context.is_cjs(specified_type) {
+        return None;
+    }
+    let arena = Bump::default();
+    // Scope-hoisting enables the existing collector in this temporary analysis.
+    // No module/context options are mutated; require narrowing is disabled and
+    // every effect, binding and suggested export-drop codegen is discarded.
+    create_graph(
+        &arena,
+        program,
+        eval_context,
+        mode,
+        supports_block_scoping,
+        specified_type,
+        false,
+        true,
+    )
+    .cjs_static_exports
+}
+
 #[derive(Debug)]
 enum DetectedDynamicExportType {
     CommonJs,
@@ -377,4 +444,119 @@ pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
 
 pub fn is_swc_helper_import(import: &ImportDecl) -> bool {
     import.src.value.starts_with("@swc/helpers/")
+}
+
+#[cfg(test)]
+mod static_cjs_export_projection_tests {
+    use swc_core::{
+        common::{FileName, GLOBALS, Globals, Mark, SourceMap},
+        ecma::{
+            ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
+            visit::VisitMutWith,
+        },
+    };
+
+    use crate::{
+        AnalyzeMode, SpecifiedModuleType, analyzer::graph::EvalContext, chunk::CjsStaticExports,
+        references::exports::project_static_cjs_exports,
+    };
+
+    fn project(source: &str, mode: AnalyzeMode) -> Option<CjsStaticExports> {
+        GLOBALS.set(&Globals::new(), || {
+            let cm = SourceMap::default();
+            let file = cm.new_source_file(
+                FileName::Custom("implementation.cjs".into()).into(),
+                source.to_owned(),
+            );
+            let mut errors = Vec::new();
+            let mut program = parse_file_as_program(
+                &file,
+                Default::default(),
+                EsVersion::latest(),
+                None,
+                &mut errors,
+            )
+            .unwrap();
+            assert!(errors.is_empty());
+            let unresolved = Mark::new();
+            let top_level = Mark::new();
+            program.visit_mut_with(&mut resolver(unresolved, top_level, false));
+            let context = EvalContext::new(
+                Some(&program),
+                unresolved,
+                top_level,
+                Default::default(),
+                None,
+            );
+            project_static_cjs_exports(
+                &program,
+                &context,
+                mode,
+                true,
+                SpecifiedModuleType::CommonJs,
+            )
+        })
+    }
+
+    #[test]
+    fn cjs_projection_retains_native_names_and_interop_without_emitting_codegen() {
+        let names = project(
+            "const implementation=()=>42;exports.arbitrary=implementation;module.exports.\
+             other=implementation",
+            AnalyzeMode::code_generation(),
+        )
+        .unwrap();
+        assert_eq!(
+            names
+                .export_names
+                .iter()
+                .map(|name| name.as_str())
+                .collect::<Vec<_>>(),
+            ["arbitrary", "other"]
+        );
+        assert!(!names.has_es_module);
+        let replaced = project(
+            "module.exports={first:()=>1,second:()=>2}",
+            AnalyzeMode::code_generation(),
+        )
+        .unwrap();
+        assert_eq!(replaced.export_names.len(), 2);
+        let interop = project(
+            "exports.__esModule=true;exports.arbitrary=()=>42",
+            AnalyzeMode::code_generation(),
+        )
+        .unwrap();
+        assert!(interop.has_es_module);
+        assert!(
+            project(
+                "exports.arbitrary=()=>42",
+                AnalyzeMode::tracing_import_only()
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn cjs_projection_preserves_unknown_getter_nested_and_escape_taints() {
+        for source in [
+            "exports[name]=()=>42",
+            "exports['arbitrary']=()=>42",
+            "Object.defineProperty(exports,'arbitrary',{get(){return ()=>42}})",
+            "exports.arbitrary=()=>42;exports.change=()=>{exports.arbitrary=()=>43}",
+            "if(flag){exports.arbitrary=()=>42}",
+            "exports.arbitrary=()=>42;globalThis.escaped=exports",
+            "module.exports={...unknown}",
+        ] {
+            assert!(
+                project(source, AnalyzeMode::code_generation()).is_none(),
+                "{source}"
+            );
+        }
+        let shadowed = project(
+            "const exports={};exports.arbitrary=()=>42",
+            AnalyzeMode::code_generation(),
+        )
+        .unwrap();
+        assert!(shadowed.export_names.is_empty());
+    }
 }

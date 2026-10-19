@@ -27,6 +27,7 @@ mod merged_module;
 pub mod minify;
 pub mod module_canonicalization;
 pub mod module_fragments;
+mod native_import_coverage;
 pub mod parse;
 mod path_visitor;
 pub mod references;
@@ -121,7 +122,7 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
-    parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
+    parse::{IdentCollector, ParseResult, generate_js_source_map, parse_with_module_grammar},
     path_visitor::{ApplyVisitors, Visitors},
     references::{
         analyze_ecmascript_module,
@@ -205,6 +206,14 @@ pub enum TypeofWindow {
     Undefined,
 }
 
+/// Optional runtime that materializes an import.meta.env object from native defaults.
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone)]
+pub struct ImportMetaEnvRuntime {
+    pub request: RcStr,
+    pub export: RcStr,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
@@ -261,6 +270,14 @@ pub struct EcmascriptOptions {
     pub cross_module_constants: bool,
     /// Whether dynamic import targets are compiled after their runtime proxy is activated.
     pub lazy_compilation: bool,
+    /// Use Promise-driven generators for async continuations, including module wrappers.
+    pub lower_async_to_generator: bool,
+    /// Native browser-test creator pass selected; not a public config value.
+    pub browser_creator_scope: bool,
+    /// Selected Browser test entry with an ESM import contract.
+    pub browser_test_entry: Option<ResolvedVc<FileSystemPath>>,
+    /// Runtime module/export supplying mutable import.meta.env values, when configured.
+    pub import_meta_env_runtime: Option<ResolvedVc<ImportMetaEnvRuntime>>,
 }
 
 #[turbo_tasks::value(task_input)]
@@ -585,8 +602,15 @@ impl EcmascriptModuleAsset {
                 .owned()
                 .await?
                 .unwrap_or_else(|| rcstr!("development"));
-            crate::parse::parse_from_rope(rope, self.source, self.ty, self.transforms, node_env)
-                .await
+            crate::parse::parse_from_rope_with_module_grammar(
+                rope,
+                self.source,
+                self.ty,
+                self.transforms,
+                node_env,
+                self.parse_as_browser_module().await?,
+            )
+            .await
         }
         .await;
         match result {
@@ -652,11 +676,17 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         let this = self.await?;
 
         let parsed = this.parse().await?;
+        let options = this.options.await?;
+        let specified_module_type = if this.is_browser_test_entry().await? {
+            this.resolved_module_type().await?.module_type
+        } else {
+            options.specified_module_type
+        };
 
         Ok(EcmascriptModuleContent::new_without_analysis(
             parsed,
             self.ident(),
-            this.options.await?.specified_module_type,
+            specified_module_type,
             generate_source_map,
         ))
     }
@@ -840,6 +870,56 @@ async fn compute_ecmascript_module_side_effects(
 }
 
 impl EcmascriptModuleAsset {
+    /// Creator instrumentation needs the resolved ESM grammar even when the
+    /// source contains no import/export. Keep all other parsing unchanged.
+    async fn parse_as_browser_module(&self) -> Result<bool> {
+        let options = self.options.await?;
+        if !options.browser_creator_scope {
+            return Ok(false);
+        }
+        Ok(matches!(
+            self.resolved_module_type().await?.module_type,
+            SpecifiedModuleType::EcmaScript
+        ))
+    }
+
+    async fn is_browser_test_entry(&self) -> Result<bool> {
+        let options = self.options.await?;
+        if !options.browser_creator_scope {
+            return Ok(false);
+        }
+        let Some(target) = options.browser_test_entry else {
+            return Ok(false);
+        };
+        Ok(&*target.await? == &self.origin_path)
+    }
+
+    async fn resolved_module_type(&self) -> Result<ReadRef<ModuleTypeResult>> {
+        let options = self.options.await?;
+        let resolved = match options.specified_module_type {
+            SpecifiedModuleType::EcmaScript => {
+                ModuleTypeResult::new(SpecifiedModuleType::EcmaScript).await?
+            }
+            SpecifiedModuleType::CommonJs => {
+                ModuleTypeResult::new(SpecifiedModuleType::CommonJs).await?
+            }
+            SpecifiedModuleType::Automatic => {
+                determine_module_type_for_directory(self.origin_path.parent()).await?
+            }
+        };
+        if self.is_browser_test_entry().await?
+            && !matches!(resolved.module_type, SpecifiedModuleType::EcmaScript)
+        {
+            return ModuleTypeResult {
+                module_type: SpecifiedModuleType::EcmaScript,
+                referenced_package_json: resolved.referenced_package_json.clone(),
+            }
+            .cell()
+            .await;
+        }
+        Ok(resolved)
+    }
+
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
         analyze_ecmascript_module(self, None)
     }
@@ -854,7 +934,7 @@ impl EcmascriptModuleAsset {
             .owned()
             .await?
             .unwrap_or_else(|| rcstr!("development"));
-        Ok(parse(
+        Ok(parse_with_module_grammar(
             *self.source,
             self.ty,
             *self.transforms,
@@ -863,24 +943,13 @@ impl EcmascriptModuleAsset {
             // warnings instead.
             !options.analyze_mode.is_codegen,
             options.inline_helpers,
+            self.parse_as_browser_module().await?,
         ))
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) async fn determine_module_type(self: Vc<Self>) -> Result<ReadRef<ModuleTypeResult>> {
-        let this = self.await?;
-
-        match this.options.await?.specified_module_type {
-            SpecifiedModuleType::EcmaScript => {
-                return ModuleTypeResult::new(SpecifiedModuleType::EcmaScript).await;
-            }
-            SpecifiedModuleType::CommonJs => {
-                return ModuleTypeResult::new(SpecifiedModuleType::CommonJs).await;
-            }
-            SpecifiedModuleType::Automatic => {}
-        }
-
-        determine_module_type_for_directory(this.origin_path.parent()).await
+        self.await?.resolved_module_type().await
     }
 }
 
@@ -1370,6 +1439,7 @@ impl EcmascriptModuleContent {
                     original_source_maps,
                 ),
                 minify: *options.chunking_context.minify_type().await?,
+                native_import_coverage: Vec::new(),
                 scope_hoisting_syntax_contexts: None,
             };
 
@@ -1944,6 +2014,7 @@ struct CodeGenResult {
     strict: bool,
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
+    native_import_coverage: Vec<native_import_coverage::NativeImportCoverageRole>,
     #[allow(clippy::type_complexity)]
     /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports_ids`)
     scope_hoisting_syntax_contexts: Option<(
@@ -2078,7 +2149,7 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
-            let early_hoisted_count = process_content_with_code_gens(
+            let (early_hoisted_count, native_import_coverage) = process_content_with_code_gens(
                 &mut program,
                 globals,
                 ast_paths.as_deref().map(|p| &p.ast_paths),
@@ -2175,6 +2246,7 @@ async fn process_parse_result(
                 strict,
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
                 minify,
+                native_import_coverage,
                 scope_hoisting_syntax_contexts: retain_syntax_context
                     // TODO ideally don't clone here
                     .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),
@@ -2214,6 +2286,7 @@ async fn process_parse_result(
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
+                        native_import_coverage: Vec::new(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2243,6 +2316,7 @@ async fn process_parse_result(
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
+                        native_import_coverage: Vec::new(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2358,8 +2432,24 @@ async fn emit_content(
         original_source_map,
         minify,
         scope_hoisting_syntax_contexts: _,
+        native_import_coverage,
     } = content;
 
+    let owned_imports = if native_import_coverage.is_empty() {
+        Vec::new()
+    } else {
+        if !matches!(minify, MinifyType::NoMinify) {
+            bail!("Native import coverage roles cannot survive minification");
+        }
+        let CodeGenResultSourceMap::Single { source_map } = &source_map else {
+            bail!("Native import coverage roles require a single unmerged source map");
+        };
+        native_import_coverage::prepare_native_import_coverage(
+            &program,
+            source_map,
+            native_import_coverage,
+        )?
+    };
     let generate_source_map = source_map.is_some();
 
     // Collect identifier names for source maps before emitting
@@ -2432,6 +2522,16 @@ async fn emit_content(
         None
     };
 
+    let source_map = if owned_imports.is_empty() {
+        source_map
+    } else {
+        let roles = native_import_coverage::emitted_native_import_coverage(&bytes, owned_imports)?;
+        Some(
+            source_map
+                .context("Native import coverage source map is absent")?
+                .with_native_test_import_coverage_roles(serde_json::to_vec(&roles)?.into()),
+        )
+    };
     Ok(EcmascriptModuleContent {
         inner_code: bytes.into(),
         source_map,
@@ -2449,7 +2549,7 @@ fn process_content_with_code_gens(
     globals: &Globals,
     trie: Option<&AstPathTrie>,
     code_gens: &mut Vec<CodeGeneration>,
-) -> usize {
+) -> (usize, Vec<native_import_coverage::NativeImportCoverageRole>) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
     let mut early_hoisted_stmts = FxIndexMap::default();
@@ -2457,16 +2557,18 @@ fn process_content_with_code_gens(
     let mut early_late_stmts = FxIndexMap::default();
     let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
-            hoisted_stmts.entry(key).or_insert(stmt);
+        for statement in code_gen.hoisted_stmts.drain(..) {
+            hoisted_stmts
+                .entry(statement.key.clone())
+                .or_insert(statement);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.late_stmts.drain(..) {
             late_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_late_stmts.drain(..) {
             early_late_stmts.insert(key.clone(), stmt);
         }
         for (path, visitor) in &code_gen.visitors {
@@ -2494,6 +2596,10 @@ fn process_content_with_code_gens(
         }
     });
 
+    let native_import_coverage = hoisted_stmts
+        .values()
+        .filter_map(|statement| statement.native_import_coverage.clone())
+        .collect();
     let early_hoisted_count = early_hoisted_stmts.len();
     match program {
         Program::Module(ast::Module { body, .. }) => {
@@ -2501,7 +2607,7 @@ fn process_content_with_code_gens(
                 0..0,
                 early_hoisted_stmts
                     .into_values()
-                    .chain(hoisted_stmts.into_values())
+                    .chain(hoisted_stmts.into_values().map(|statement| statement.stmt))
                     .map(ModuleItem::Stmt),
             );
             body.extend(
@@ -2516,7 +2622,7 @@ fn process_content_with_code_gens(
                 0..0,
                 early_hoisted_stmts
                     .into_values()
-                    .chain(hoisted_stmts.into_values()),
+                    .chain(hoisted_stmts.into_values().map(|statement| statement.stmt)),
             );
             body.extend(
                 early_late_stmts
@@ -2525,7 +2631,7 @@ fn process_content_with_code_gens(
             );
         }
     };
-    early_hoisted_count
+    (early_hoisted_count, native_import_coverage)
 }
 
 /// Like `hygiene`, but only renames the Atoms without clearing all SyntaxContexts

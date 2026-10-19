@@ -1,8 +1,14 @@
+import { assertBrowserCoverageArtifact } from '../client/coverage-artifact'
+import { verifySourceCoverageArtifact } from './source-profile'
 import {
   assertMockCoverageArtifact,
   assertNativeMockCoverageBytes,
 } from './mock-sources'
-import type { CompiledTestArtifact } from '../contracts'
+import type { CompiledTestArtifact, TestCoverageCompletion } from '../contracts'
+import {
+  assertNativeCompilerRuntimeCoverage,
+  type CoverageRuntimeAuthorization,
+} from './runtime-authorization'
 import { coverageHash, readArtifactFile } from './artifact'
 import { decodeCoverageMap } from './maps'
 import type {
@@ -136,14 +142,62 @@ export async function remapCoverage(
   artifact: CompiledTestArtifact & { coverage?: CoverageArtifactMetadata },
   capture: CoverageCapture
 ): Promise<FileCoverage> {
+  if (Object.hasOwn(artifact, 'nativeTsConfigInputs'))
+    throw new Error(
+      'Native TypeScript config inputs require separate parent authorization'
+    )
+  return remapCoverageImpl(artifact, capture)
+}
+
+/** Validation only: this does not publish a native line-report result. */
+export async function validateNativeRuntimeLineCoverage(
+  artifact: CompiledTestArtifact,
+  completion: TestCoverageCompletion,
+  expected: CoverageRuntimeAuthorization,
+  signal: AbortSignal
+): Promise<void> {
+  await assertNativeCompilerRuntimeCoverage(
+    artifact,
+    completion,
+    expected,
+    signal
+  )
+  if (!completion.complete) throw new Error('Incomplete runtime coverage')
+  await remapCoverageImpl(artifact, completion.data)
+  await assertNativeCompilerRuntimeCoverage(
+    artifact,
+    completion,
+    expected,
+    signal
+  )
+}
+
+async function remapCoverageImpl(
+  artifact: CompiledTestArtifact & { coverage?: CoverageArtifactMetadata },
+  capture: CoverageCapture
+): Promise<FileCoverage> {
+  const browser =
+    artifact.kind === 'browser' && artifact.profile.browserClient === true
   if (
+    artifact.coverage?.sourceAnalysis ||
     capture.version !== 1 ||
     artifact.coverage?.version !== 1 ||
-    artifact.profile.environment !== 'node' ||
-    artifact.profile.mode !== 'development'
+    (browser
+      ? capture.kind !== 'browser-cdp' ||
+        artifact.profile.environment !== 'browser'
+      : capture.kind !== undefined ||
+        artifact.profile.environment !== 'node') ||
+    (browser && artifact.profile.mode !== 'development')
   ) {
     throw new Error('Unsupported coverage capture or artifact')
   }
+  if (artifact.profile.mode === 'production')
+    await verifySourceCoverageArtifact(artifact)
+  else if (artifact.coverage.sourcePreservation)
+    throw new Error('Unrequested production source coverage provenance.')
+  if (browser) await assertBrowserCoverageArtifact(artifact)
+  else if (artifact.coverage.browser)
+    throw new Error('Unrequested browser coverage provenance.')
   assertMockCoverageArtifact(artifact)
   const native = artifact.moduleMocking?.coverage?.nativeMetadata
   if (native)
@@ -166,15 +220,28 @@ export async function remapCoverage(
     if (
       !declared ||
       seen.has(script.path) ||
-      script.sha256 !== declared.sha256 ||
-      !declared.mapPath ||
-      !declared.mapSha256
+      script.sha256 !== declared.sha256
     ) {
       throw new Error(
         `Missing, duplicate or unmapped coverage script: ${script.path}`
       )
     }
     seen.add(script.path)
+    const certified = browser && metadata.browser!.generatedScripts[script.path]
+    if (certified) {
+      const bytes = await readArtifactFile(artifact.rootDir, script.path)
+      if (
+        certified.sha256 !== declared.sha256 ||
+        coverageHash(bytes) !== declared.sha256
+      )
+        throw new Error(
+          'Native browser bookkeeping script changed before remapping.'
+        )
+      validateRanges(script, bytes.toString('utf8').length)
+      continue
+    }
+    if (!declared.mapPath || !declared.mapSha256)
+      throw new Error(`Unmapped coverage script: ${script.path}`)
     const [bytes, mapBytes] = await Promise.all([
       readArtifactFile(artifact.rootDir, script.path),
       readArtifactFile(artifact.rootDir, declared.mapPath),
@@ -261,7 +328,11 @@ export async function remapCoverage(
         record.covered.add(mapping.originalLine!)
     }
   }
-  if (!seen.has(artifact.entryPath))
+  if (
+    browser
+      ? artifact.client.scripts.some((path) => !seen.has(path))
+      : !seen.has(artifact.entryPath)
+  )
     throw new Error('Coverage capture is missing the entry script')
   return {
     version: 1,

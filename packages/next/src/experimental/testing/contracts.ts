@@ -55,7 +55,7 @@ export interface TestEntry {
 /** The first coverage protocol is opt-in and deliberately narrower than profiles. */
 export interface TestCoverageRequest {
   version: 1
-  kind: 'node-line'
+  kind: 'node-line' | 'browser-v8'
 }
 
 export type TestCoverageCompletion = {
@@ -92,6 +92,11 @@ export interface CompiledSourceDependencies {
 }
 
 export interface CompileTestOptions {
+  /** Parent-issued ordinary runtime config receipt; distinct from compile-only roles. */
+  runtimeConfigurationImports?: {
+    authorization: import('./compiler/config-import-proof').ConfigurationImportAuthorization
+    entry: import('./compiler/runtime-config-proof').RuntimeConfigurationEntry
+  }
   /** Compile-only planner request; never a runtime execution option. */
   dependencyPlan?: boolean
   setupFilesSequence?: 'list' | 'parallel'
@@ -104,6 +109,14 @@ export interface CompileTestOptions {
 
 /** Allocated before emission so an outer watch owner can reclaim crash leftovers. */
 export interface TestCompilerSessionOptions {
+  /** Internal extra refusals only; never native/client/transport authority. */
+  testingDefaultConfiguration?: import('../../server/config-testing-policy').TestingDefaultConfiguration
+  /** Private producer qualification only; not a public config or capability claim. */
+  nativeImportCoverageRoles?: boolean
+  /** Validated config data translated into the actual Next resolver. */
+  compilerAliases?: import('./compiler/aliases').CompilerAliases
+  /** Exact retained executable configuration realm; never a public config value. */
+  compilerTransforms?: import('./compiler/transform-broker').CompilerTransformDescriptor
   /** Caller retains deletion ownership through every worker and compiler shutdown. */
   allocateArtifact?: (parentDir: string) => Promise<{
     stagingDir: string
@@ -155,6 +168,10 @@ interface CompiledTestArtifactBase<
   version: 2
   /** Exact emitted script/map identities, produced only on explicit request. */
   coverage?: CoverageArtifactMetadata
+  /** Exact ordinary compiler config module graph for parent runtime authorization. */
+  runtimeConfigurationImports?: import('./compiler/config-import-proof').ConfigurationImportProof
+  /** Data-only native input reference; legacy coverage APIs refuse its presence. */
+  nativeTsConfigInputs?: import('./coverage/native-tsconfig-inputs').NativeTsConfigInputsReference
   entryId: string
   profile: TestProfile & { environment: Environment }
   revision: string
@@ -171,6 +188,17 @@ interface CompiledTestArtifactBase<
   /** Compiler-issued graph bridge; never inferred from a user execution option. */
   moduleMocking?: {
     version: 1
+    /** Native static-export and direct named-import ownership certificate. */
+    cjsNamedSpy?: 1
+    /** Ordered native setup/spec plans share actual module-cache identities. */
+    setupInputs?: 1
+    /** Native factory-only production plan and its immutable source/output closure. */
+    productionStaticFactory?: {
+      version: 1
+      metadata: { path: string; sha256: string }
+      sourceMetadata: { path: string; sha256: string }
+      outputs: readonly { path: string; sha256: string }[]
+    }
     coverage?: MockCoverageSources & {
       nativeMetadata: { path: string; sha256: string }
     }
@@ -280,6 +308,9 @@ export interface CompiledBrowserClientTestArtifact
   kind: 'browser'
   client: {
     version: 1
+    asyncScope?: 'promise-continuations-v1'
+    creatorScope?: 'synchronous-source-v1'
+    creatorPromiseRoute?: 'native-engine-v1'
     /** Canonical selected source bound to the native sidecar's raw SHA256. */
     sourceFile: string
     scripts: readonly string[]
@@ -352,6 +383,7 @@ export interface ExecuteTestOptions {
   passWithNoTests?: boolean
   sequence?: import('./runner/sequence').TestSequenceOptions
   provide?: Record<string, unknown>
+  env?: Record<string, string>
   testTimeout: number
   hookTimeout: number
   /** Outer process deadline, independent of the case/hook timeout. */

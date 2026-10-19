@@ -1,16 +1,28 @@
 /// <reference lib="es2021.promise" />
 import { VitestSnapshotEnvironment } from './snapshot-environment'
-import { assertAssertionScope } from './assertion-platform'
+import {
+  assertAssertionScope,
+  beginAssertionFile,
+  fileAssertionLifetime,
+  getFileAssertionOrigin,
+} from './assertion-platform'
+import { createChaiEvents } from './chai-events'
+import type { FileAutomockMaterializer } from '../mocking/fresh-module'
+import { MockPlugin } from './when'
 import {
   resolveSnapshotUpdateMode,
   stageSnapshotUpdates,
   type SnapshotUpdateMode,
 } from './snapshot-common'
 import { createAttemptUtilities, type AttemptUtilities } from './utilities'
+import { createTimerWaits } from './wait'
 import {
   ASYMMETRIC_MATCHERS_OBJECT,
   GLOBAL_EXPECT,
   chai,
+  getChaiAssertionIdentity,
+  createChaiAssertInterface,
+  createChaiShouldInterface,
   ChaiStyleAssertions,
   JestAsymmetricMatchers,
   JestChaiExpect,
@@ -75,7 +87,9 @@ export interface AssertionHook {
 
 // Declaration merging supplies user-defined matcher methods through the facade.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface Matchers<R = void, T = unknown> {}
+export interface Matchers<R = void, T = unknown> {
+  toHaveBeenExhausted(): R
+}
 
 export interface Assertion<R extends void | Promise<void> = void, T = unknown>
   extends PrimitiveAssertion<R, T>,
@@ -116,6 +130,8 @@ export interface TestExpect extends ExpectStatic, AsymmetricMatchersContaining {
     actual: (options: { signal: AbortSignal }) => T | Promise<T>,
     options?: { interval?: number; timeout?: number; message?: string }
   ): TestAssertion<Awaited<T>> & PromiseLike<void>
+  assert: typeof chai.assert
+  unreachable(message?: string): never
   addSnapshotSerializer(plugin: Parameters<typeof addSerializer>[0]): void
   addEqualityTesters(
     testers: Parameters<typeof addCustomEqualityTesters>[0]
@@ -130,6 +146,43 @@ interface AssertionTask {
   promises?: Promise<unknown>[]
   onFinished?: (() => void)[]
   result?: { state: string; errors?: unknown[] }
+}
+
+const chaiCallbackDispatches = new WeakMap<
+  object,
+  (
+    callback: Function,
+    receiver: unknown,
+    args: unknown[],
+    prototype: object,
+    factory: boolean
+  ) => unknown
+>()
+const chaiPluginDelegates = new WeakMap<
+  Function,
+  Parameters<typeof chai.use>[0]
+>()
+const chaiRegistrationCallbacks = new WeakMap<Function, Function>()
+function wrapChaiRegistrationCallback(
+  callback: Function,
+  prototype: object,
+  factory: boolean
+): Function {
+  const delegate = function (this: unknown, ...args: unknown[]) {
+    // Resolve through the genuine runner at invocation, not through the runtime
+    // that first installed a process-wide Chai plugin in a previous test file.
+    const runtime = (
+      require('../runner') as typeof import('../runner')
+    ).getAssertionRuntime()
+    const dispatch = chaiCallbackDispatches.get(runtime)
+    if (!dispatch) throw new Error('Missing original Chai callback runtime')
+    const result = dispatch(callback, this, args, prototype, factory)
+    return factory && typeof result === 'function'
+      ? wrapChaiRegistrationCallback(result, prototype, false)
+      : result
+  }
+  chaiRegistrationCallbacks.set(delegate, callback)
+  return delegate
 }
 
 let runtimeActive = false
@@ -163,10 +216,18 @@ export async function createAssertionRuntime(options: {
   if (runtimeActive)
     throw new Error('Only one assertion runtime may own a test realm')
   runtimeActive = true
+  let closeAssertionFile: () => void
+  try {
+    closeAssertionFile = beginAssertionFile()
+  } catch (error) {
+    runtimeActive = false
+    throw error
+  }
   chai.use(JestExtend)
   chai.use(JestChaiExpect)
   chai.use(ChaiStyleAssertions)
   chai.use(JestAsymmetricMatchers)
+  chai.use(MockPlugin)
 
   const snapshots = new SnapshotClient({
     isEqual: (received, expected) =>
@@ -191,6 +252,7 @@ export async function createAssertionRuntime(options: {
         snapshotEnvironment: stagedSnapshots.environment,
       })
   } catch (error) {
+    closeAssertionFile()
     runtimeActive = false
     throw error
   }
@@ -206,7 +268,15 @@ export async function createAssertionRuntime(options: {
     utilities: AttemptUtilities
   }
   const scopes = new Map<string, AssertionScope>()
-  function originatingScope() {
+  let runningAttempt: AssertionScope | undefined
+  function runningAttemptTask() {
+    return runningAttempt?.task
+  }
+  function originatingScope(strict = false) {
+    if (fileAssertionLifetime && !strict) {
+      const origin = getFileAssertionOrigin()
+      return origin ? scopes.get(origin.id) : undefined
+    }
     // Read all origin accessors so C still attributes closed asynchronous work
     // to its original owner, even after this runtime or another scope finishes.
     const attempt = options.getCurrentAttempt()
@@ -224,7 +294,7 @@ export async function createAssertionRuntime(options: {
     // Consult origin accessors even after disposal: C records late work here,
     // including when user code retained a direct assertion/spy function.
     const active = originatingScope()
-    if (disposed || !active || active.finalized) {
+    if (disposed || !active || (active.finalized && !fileAssertionLifetime)) {
       throw new Error(
         'expect() requires an active Next test attempt or suite hook'
       )
@@ -233,8 +303,16 @@ export async function createAssertionRuntime(options: {
   }
 
   function requireScopeAccess() {
-    if (scopes.size) current()
-    else {
+    if (scopes.size) {
+      if (!fileAssertionLifetime) current()
+      else {
+        const active = originatingScope(true)
+        if (disposed || !active || active.finalized)
+          throw new Error(
+            'expect() requires an active Next test attempt or suite hook'
+          )
+      }
+    } else {
       const originatingAttempt = options.getCurrentAttempt()
       const originatingHook = options.getCurrentHook?.()
       if (
@@ -246,6 +324,31 @@ export async function createAssertionRuntime(options: {
         throw new Error('Cannot access a disposed assertion scope')
       }
     }
+  }
+
+  function requireAssertionAccess() {
+    if (!fileAssertionLifetime) return requireScopeAccess()
+    if (disposed) throw new Error('Cannot access a disposed assertion scope')
+    if (scopes.size) current()
+  }
+
+  let fileTimerClock:
+    | { isFakeTimers(): boolean; advanceTimersByTime(ms: number): void }
+    | undefined
+  let realTimerWaits: ReturnType<typeof createTimerWaits> | undefined
+  function getRealTimerWaits() {
+    requireScopeAccess()
+    return (realTimerWaits ??= createTimerWaits(
+      {
+        isFakeTimers: () => fileTimerClock?.isFakeTimers() ?? false,
+        advanceTimersByTime: (ms) => fileTimerClock?.advanceTimersByTime(ms),
+      },
+      () => {
+        if (disposed)
+          throw new Error('Cannot access a disposed assertion scope')
+      },
+      { rejectOnDispose: false }
+    ))
   }
 
   const runtimeConfig = options.runtimeConfig ?? {
@@ -265,7 +368,10 @@ export async function createAssertionRuntime(options: {
         requireScopeAccess,
         options.fakeTimers,
         runtimeConfig,
-        options.waitForImports
+        options.waitForImports,
+        (clock) => {
+          fileTimerClock = clock
+        }
       )
     : undefined
 
@@ -278,15 +384,47 @@ export async function createAssertionRuntime(options: {
       options.waitForImports
     )
 
+  // Chai and the async matcher extension keep separate primitive maps. A real
+  // proxify result retains the exact identity of its already known input.
+  const proxifiedAssertionIdentities = new WeakMap<object, object>()
+  function chaiAssertionIdentity(value: unknown) {
+    return (
+      getChaiAssertionIdentity(value) ??
+      (value && (typeof value === 'object' || typeof value === 'function')
+        ? proxifiedAssertionIdentities.get(value)
+        : undefined)
+    )
+  }
+  const assertionOrigins = new WeakMap<object, AssertionScope>()
+  const legacyAssertionRecords = new WeakMap<
+    object,
+    { raw: object; scope: AssertionScope }
+  >()
+  function recordAssertionOrigin(assertion: object, scope: AssertionScope) {
+    const identity = chaiAssertionIdentity(assertion)
+    if (!identity) throw new Error('Unrecognized Chai assertion origin')
+    const previous = assertionOrigins.get(identity)
+    if (previous && previous !== scope) assertStrictScope(previous)
+    else assertionOrigins.set(identity, scope)
+  }
   function guardAssertion(assertion: object, scope: AssertionScope) {
+    recordAssertionOrigin(assertion, scope)
     const proxies = new WeakMap<object, object>()
     function check() {
       assertAssertionScope()
-      if (current() !== scope) {
+      if (
+        fileAssertionLifetime
+          ? disposed || scopes.get(scope.context.id) !== scope
+          : current() !== scope
+      ) {
         throw new Error(
           'Assertion was created in a different Next assertion scope'
         )
       }
+    }
+    function wrapProducedAssertion(value: object): object {
+      recordAssertionOrigin(value, scope)
+      return wrap(value)
     }
     function wrap(
       value: object,
@@ -297,6 +435,19 @@ export async function createAssertionRuntime(options: {
       if (cached) return cached
       const handler: ProxyHandler<object> = {
         get(target, property) {
+          // Native Promise adoption reads then after a callback's scope exits.
+          // A known live Browser assertion without that protocol stays the
+          // same nonthenable payload; present properties keep their guards.
+          if (
+            property === 'then' &&
+            fileAssertionLifetime &&
+            typeof target === 'object' &&
+            !disposed &&
+            scopes.get(scope.context.id) === scope &&
+            chaiAssertionIdentity(target) &&
+            !Reflect.has(target, property)
+          )
+            return undefined
           check()
           const result = Reflect.get(target, property, target)
           if (typeof result === 'function')
@@ -306,8 +457,16 @@ export async function createAssertionRuntime(options: {
               property === 'toMatchInlineSnapshot' ||
                 property === 'toThrowErrorMatchingInlineSnapshot'
             )
-          if (result instanceof chai.Assertion) return wrap(result)
+          if (result instanceof chai.Assertion)
+            return wrapProducedAssertion(result)
           return result
+        },
+        construct(target, args, newTarget) {
+          check()
+          const result = Reflect.construct(target as Function, args, newTarget)
+          return result instanceof chai.Assertion
+            ? wrapProducedAssertion(result)
+            : result
         },
         // The pinned snapshot primitive recognizes this marker and uses the
         // next frame. Capture at invocation, before Chai adds wrappers or an
@@ -323,7 +482,9 @@ export async function createAssertionRuntime(options: {
             args
           )
           // Promise results retain the primitive's own consumption tracking.
-          return result instanceof chai.Assertion ? wrap(result) : result
+          return result instanceof chai.Assertion
+            ? wrapProducedAssertion(result)
+            : result
         },
       }
       // Production compilation minifies function identifiers. This runtime
@@ -334,9 +495,499 @@ export async function createAssertionRuntime(options: {
       })
       const proxy = new Proxy(value, handler)
       proxies.set(value, proxy)
+      if (
+        chaiAssertionIdentity(value) &&
+        assertionOrigins.get(chaiAssertionIdentity(value)!) === scope
+      )
+        legacyAssertionRecords.set(proxy, { raw: value, scope })
       return proxy
     }
     return wrap(assertion)
+  }
+
+  // Chai's public raw construction does not increment Vitest's wrapped expect
+  // counter or attach its task flag. Admission still belongs to this exact
+  // original Next scope; a retained assertion cannot borrow a later owner.
+  function createChaiAssertion<T>(
+    actual: T,
+    message?: string
+  ): TestAssertion<T> {
+    assertAssertionScope()
+    const scope = current()
+    return guardAssertion(
+      chai.expect(actual, message),
+      scope
+    ) as TestAssertion<T>
+  }
+
+  const chaiUserResults = new WeakSet<object>()
+  const defaultChaiPrototype = Object.create(null) as object
+  const strictAssertionRecords = new WeakMap<
+    object,
+    {
+      raw: object
+      scope: AssertionScope
+      proxy: object
+      prototype: object
+    }
+  >()
+  const strictRawRecords = new WeakMap<
+    object,
+    {
+      raw: object
+      scope: AssertionScope
+      proxy: object
+      prototype: object
+    }
+  >()
+  function assertStrictScope(scope: AssertionScope) {
+    assertAssertionScope()
+    if (
+      fileAssertionLifetime
+        ? disposed || scopes.get(scope.context.id) !== scope
+        : current() !== scope
+    ) {
+      throw new Error(
+        'Assertion was created in a different Next assertion scope'
+      )
+    }
+  }
+  function strictUnwrap(value: unknown) {
+    if (!value || (typeof value !== 'object' && typeof value !== 'function'))
+      return value
+    const record =
+      strictAssertionRecords.get(value) ?? legacyAssertionRecords.get(value)
+    if (!record) return value
+    assertStrictScope(record.scope)
+    return record.raw
+  }
+  function strictResult(
+    value: unknown,
+    scope: AssertionScope,
+    prototype: object
+  ): unknown {
+    if (
+      value &&
+      (typeof value === 'object' || typeof value === 'function') &&
+      chaiUserResults.has(value)
+    )
+      return value
+    return chaiAssertionIdentity(value)
+      ? guardStrictChaiAssertion(value as object, scope, prototype)
+      : value
+  }
+  const strictFunctionRecords = new WeakMap<
+    Function,
+    {
+      raw: Function
+      scope: AssertionScope
+      prototype: object
+      receiver?: object
+    }
+  >()
+  function strictFunction(
+    fn: Function,
+    scope: AssertionScope,
+    prototype: object,
+    receiver?: object
+  ): Function {
+    const invoke = function (this: unknown, ...args: unknown[]) {
+      assertStrictScope(scope)
+      let actualReceiver = receiver
+      if (actualReceiver === undefined) {
+        const record =
+          this && (typeof this === 'object' || typeof this === 'function')
+            ? (strictAssertionRecords.get(this) ??
+              legacyAssertionRecords.get(this))
+            : undefined
+        if (!record)
+          throw new Error(
+            'Chai prototype methods require an admitted assertion receiver'
+          )
+        assertStrictScope(record.scope)
+        actualReceiver = record.raw
+      }
+      return strictResult(
+        Reflect.apply(fn, actualReceiver, args),
+        scope,
+        prototype
+      )
+    }
+    const proxy = new Proxy(invoke, {
+      get(target, key, proxyReceiver) {
+        assertStrictScope(scope)
+        if (key === '__flags')
+          throw new Error('Raw Chai assertion flags are not exposed')
+        if (
+          key === 'prototype' ||
+          key === 'constructor' ||
+          key === 'call' ||
+          key === 'apply' ||
+          key === 'bind'
+        )
+          return Reflect.get(target, key, proxyReceiver)
+        const value = Reflect.get(fn, key, fn)
+        if (
+          key === '_obj' ||
+          (value &&
+            (typeof value === 'object' || typeof value === 'function') &&
+            chaiUserResults.has(value))
+        )
+          return value
+        if (typeof value === 'function')
+          return strictFunction(value, scope, prototype, fn)
+        return strictResult(value, scope, prototype)
+      },
+      construct(_target, args) {
+        assertStrictScope(scope)
+        return guardStrictChaiAssertion(
+          Reflect.construct(fn, args),
+          scope,
+          prototype
+        )
+      },
+      getOwnPropertyDescriptor() {
+        assertStrictScope(scope)
+        throw new Error(
+          'This Chai assertion reflection API is not yet supported'
+        )
+      },
+    })
+    strictFunctionRecords.set(proxy, { raw: fn, scope, prototype, receiver })
+    return proxy
+  }
+  function guardStrictChaiAssertion(
+    raw: object,
+    scope: AssertionScope,
+    prototype: object
+  ): object {
+    recordAssertionOrigin(raw, scope)
+    const prior = strictRawRecords.get(raw)
+    if (prior) {
+      assertStrictScope(prior.scope)
+      return prior.proxy
+    }
+    const methods = new Map<
+      PropertyKey,
+      { value: Function; method: Function }
+    >()
+    const Constructor = function (...args: unknown[]) {
+      assertStrictScope(scope)
+      return guardStrictChaiAssertion(
+        Reflect.construct(chai.Assertion, args),
+        scope,
+        prototype
+      )
+    }
+    Object.defineProperty(Constructor, 'prototype', { value: prototype })
+    Object.defineProperty(Constructor, Symbol.hasInstance, {
+      value(value: unknown) {
+        assertStrictScope(scope)
+        return (
+          !!value &&
+          (typeof value === 'object' || typeof value === 'function') &&
+          strictAssertionRecords.has(value)
+        )
+      },
+    })
+    const proxy = new Proxy(Object.create(null), {
+      get(_target, key) {
+        assertStrictScope(scope)
+        if (key === '__flags')
+          throw new Error('Raw Chai assertion flags are not exposed')
+        if (key === 'constructor') return Constructor
+        const value = Reflect.get(raw, key, raw)
+        // _obj is the caller's original assertion subject, not an API capability.
+        if (
+          key === '_obj' ||
+          (value &&
+            (typeof value === 'object' || typeof value === 'function') &&
+            chaiUserResults.has(value))
+        )
+          return value
+        if (typeof value === 'function') {
+          let cached = methods.get(key)
+          if (!cached || cached.value !== value) {
+            cached = {
+              value,
+              method: strictFunction(value, scope, prototype, raw),
+            }
+            methods.set(key, cached)
+          }
+          return cached.method
+        }
+        return strictResult(value, scope, prototype)
+      },
+      getPrototypeOf() {
+        assertStrictScope(scope)
+        return prototype
+      },
+      getOwnPropertyDescriptor() {
+        assertStrictScope(scope)
+        throw new Error(
+          'This Chai assertion reflection API is not yet supported'
+        )
+      },
+      defineProperty() {
+        assertStrictScope(scope)
+        throw new Error('Direct Chai assertion mutation is not yet supported')
+      },
+      set() {
+        assertStrictScope(scope)
+        throw new Error('Direct Chai assertion mutation is not yet supported')
+      },
+    })
+    const record = { raw, scope, proxy, prototype }
+    strictAssertionRecords.set(proxy, record)
+    strictRawRecords.set(raw, record)
+    return proxy
+  }
+  function assertChaiNamespaceAccess() {
+    requireAssertionAccess()
+    assertAssertionScope()
+  }
+  let eventBridge: ReturnType<typeof createChaiEvents> | undefined
+  function chaiEvents() {
+    assertChaiNamespaceAccess()
+    eventBridge ??= createChaiEvents(
+      Reflect.get(chai.util, 'events') as EventTarget,
+      assertChaiNamespaceAccess,
+      (callback) =>
+        typeof callback === 'function'
+          ? (chaiRegistrationCallbacks.get(callback) ?? callback)
+          : callback
+    )
+    return eventBridge.target
+  }
+
+  function createChaiNamespaceAssertion(args: unknown[], prototype: object) {
+    assertChaiNamespaceAccess()
+    const subject = args[0]
+    if (
+      subject &&
+      (typeof subject === 'object' || typeof subject === 'function')
+    )
+      chaiUserResults.add(subject)
+    return guardStrictChaiAssertion(
+      Reflect.apply(chai.expect, undefined, args),
+      current(),
+      prototype
+    )
+  }
+  function constructChaiNamespaceAssertion(args: unknown[], prototype: object) {
+    assertChaiNamespaceAccess()
+    const subject = args[0]
+    if (
+      subject &&
+      (typeof subject === 'object' || typeof subject === 'function')
+    )
+      chaiUserResults.add(subject)
+    return guardStrictChaiAssertion(
+      Reflect.construct(chai.Assertion, args),
+      current(),
+      prototype
+    )
+  }
+  function callChaiPluginCallback(
+    callback: Function,
+    receiver: unknown,
+    args: unknown[],
+    prototype: object,
+    factory: boolean
+  ) {
+    assertChaiNamespaceAccess()
+    const scope = current()
+    const originalScope =
+      receiver &&
+      (typeof receiver === 'object' || typeof receiver === 'function')
+        ? assertionOrigins.get(chaiAssertionIdentity(receiver)!)
+        : undefined
+    if (originalScope) assertStrictScope(originalScope)
+    else if (!factory || receiver != null)
+      throw new Error('Unrecognized Chai plugin assertion receiver')
+    const guardedReceiver = originalScope
+      ? guardStrictChaiAssertion(receiver as object, originalScope, prototype)
+      : receiver
+    const values = factory
+      ? args.map((value) =>
+          typeof value === 'function'
+            ? strictFunction(value, scope, prototype)
+            : value
+        )
+      : args
+    const result = Reflect.apply(callback, guardedReceiver, values)
+    // Returning a caller value is not permission to inspect its prototype (a
+    // revoked Proxy is a valid payload). Only our own assertion proxies unwrap.
+    if (
+      result &&
+      (typeof result === 'object' || typeof result === 'function') &&
+      !strictAssertionRecords.has(result)
+    )
+      chaiUserResults.add(result)
+    return strictUnwrap(result)
+  }
+  function readChaiPrototype(key: PropertyKey, prototype: object): unknown {
+    assertChaiNamespaceAccess()
+    const descriptor = Reflect.getOwnPropertyDescriptor(
+      chai.Assertion.prototype,
+      key
+    )
+    if (descriptor && !('value' in descriptor))
+      throw new Error('Chai prototype accessors are not yet supported')
+    const value = descriptor?.value
+    if (typeof value === 'function')
+      return strictFunction(value, current(), prototype)
+    if (value === undefined || value === null || typeof value !== 'object')
+      return value
+    throw new Error('This Chai prototype value is not yet supported')
+  }
+  function registerChaiAssertionMember(
+    key: string,
+    args: unknown[],
+    prototype: object
+  ) {
+    assertChaiNamespaceAccess()
+    if (
+      ![
+        'addMethod',
+        'addProperty',
+        'addChainableMethod',
+        'overwriteMethod',
+        'overwriteProperty',
+        'overwriteChainableMethod',
+      ].includes(key)
+    )
+      throw new Error('Unsupported Chai registration utility')
+    const fn = Reflect.get(chai.util, key)
+    const values = args.map((value, index) =>
+      index > 0 && typeof value === 'function'
+        ? wrapChaiRegistrationCallback(
+            value,
+            prototype,
+            key.startsWith('overwrite')
+          )
+        : value
+    )
+    return Reflect.apply(fn, chai.util, [chai.Assertion.prototype, ...values])
+  }
+  function callChaiUtility(key: string, args: unknown[], prototype: object) {
+    assertChaiNamespaceAccess()
+    const fn = Reflect.get(chai.util, key)
+    if (key === 'proxify' && typeof fn === 'function') {
+      const input = args[0]
+      const assertion =
+        input && (typeof input === 'object' || typeof input === 'function')
+          ? (strictAssertionRecords.get(input) ??
+            legacyAssertionRecords.get(input))
+          : undefined
+      if (assertion) {
+        assertStrictScope(assertion.scope)
+        const result = Reflect.apply(fn, chai.util, [
+          assertion.raw,
+          ...args.slice(1),
+        ])
+        if (result === assertion.raw) return input
+        const identity = chaiAssertionIdentity(assertion.raw)
+        if (identity)
+          proxifiedAssertionIdentities.set(result as object, identity)
+        return guardStrictChaiAssertion(
+          result as object,
+          assertion.scope,
+          strictAssertionRecords.get(input as object)?.prototype ?? prototype
+        )
+      }
+      const method =
+        typeof input === 'function'
+          ? strictFunctionRecords.get(input)
+          : undefined
+      if (method) {
+        assertStrictScope(method.scope)
+        const result = Reflect.apply(fn, chai.util, [
+          method.raw,
+          ...args.slice(1),
+        ])
+        return result === method.raw
+          ? input
+          : strictFunction(
+              result as Function,
+              method.scope,
+              method.prototype,
+              method.receiver
+            )
+      }
+      // Ordinary payloads use Chai's exact proxy and property behavior.
+      return Reflect.apply(fn, chai.util, args)
+    }
+    if (
+      typeof fn !== 'function' ||
+      ![
+        'addLengthGuard',
+        'compareByInspect',
+        'eql',
+        'expectTypes',
+        'flag',
+        'getActual',
+        'getMessage',
+        'getName',
+        'getOperator',
+        'getOwnEnumerableProperties',
+        'getOwnEnumerablePropertySymbols',
+        'getPathInfo',
+        'hasProperty',
+        'inspect',
+        'isNaN',
+        'isNumeric',
+        'isProxyEnabled',
+        'isRegExp',
+        'objDisplay',
+        'test',
+        'transferFlags',
+        'type',
+      ].includes(key)
+    )
+      throw new Error('This Chai utility is not yet supported')
+    if (key === 'flag') {
+      const value = Reflect.apply(fn, chai.util, [
+        strictUnwrap(args[0]),
+        ...args.slice(1),
+      ])
+      if (
+        args.length === 2 &&
+        args[1] === 'ssfi' &&
+        typeof value === 'function'
+      )
+        return strictFunction(value, current(), prototype)
+      return value
+    }
+    if (
+      key === 'transferFlags' &&
+      !args
+        .slice(0, 2)
+        .every(
+          (value) =>
+            !!value &&
+            (typeof value === 'object' || typeof value === 'function') &&
+            strictAssertionRecords.has(value)
+        )
+    )
+      throw new Error(
+        'Chai flags can only transfer between admitted assertions'
+      )
+    const values =
+      key === 'transferFlags'
+        ? [strictUnwrap(args[0]), strictUnwrap(args[1]), ...args.slice(2)]
+        : [
+              'expectTypes',
+              'getActual',
+              'getMessage',
+              'getOperator',
+              'test',
+            ].includes(key)
+          ? [strictUnwrap(args[0]), ...args.slice(1)]
+          : args
+    // These selected utilities return user data/primitives, not new owned
+    // assertions. In particular getActual must not probe a Proxy subject.
+    return Reflect.apply(fn, chai.util, values)
   }
 
   const localExpectations = new Map<string, TestExpect>()
@@ -344,8 +995,26 @@ export async function createAssertionRuntime(options: {
     id: string
     fullTestName?: string
   }): TestExpect {
-    requireScopeAccess()
+    requireAssertionAccess()
     function expectationScope() {
+      if (test && fileAssertionLifetime) {
+        requireAssertionAccess()
+        const origin = originatingScope()
+        if (
+          origin &&
+          'testId' in origin.context &&
+          origin.context.testId === test.id
+        )
+          return origin
+        const retained = [...scopes.values()].filter(
+          (scope) =>
+            'testId' in scope.context && scope.context.testId === test.id
+        )
+        const latest = retained[retained.length - 1]
+        if (!latest)
+          throw new Error('Expectation belongs to a different Next test.')
+        return latest
+      }
       const scope = current()
       if (
         test &&
@@ -358,18 +1027,19 @@ export async function createAssertionRuntime(options: {
       return scope
     }
     function requireExpectationAccess() {
-      requireScopeAccess()
+      requireAssertionAccess()
       if (test && scopes.size) expectationScope()
     }
     const expect = ((value: unknown, message?: string) => {
       const scope = expectationScope()
-      const { task } = scope
+      const task =
+        fileAssertionLifetime && !test ? runningAttempt?.task : scope.task
       const state = getState(expect)
       state.assertionCalls++
       const assertion = chai.expect(value, message)
       // The standalone matcher library uses this small bookkeeping object for
       // async assertions. It does not register or execute a Vitest test.
-      chai.util.flag(assertion, 'vitest-test', task)
+      if (task) chai.util.flag(assertion, 'vitest-test', task)
       return guardAssertion(assertion, scope)
     }) as TestExpect
     Object.assign(expect, chai.expect)
@@ -516,6 +1186,12 @@ export async function createAssertionRuntime(options: {
       })
       return proxy
     }) as TestExpect['poll']
+    expect.unreachable = (message) => {
+      requireExpectationAccess()
+      chai.assert.fail(
+        `expected${message ? ` "${message}" ` : ' '}not to be reached`
+      )
+    }
     expect.addSnapshotSerializer = (plugin) => {
       requireExpectationAccess()
       addSerializer(plugin)
@@ -556,11 +1232,20 @@ export async function createAssertionRuntime(options: {
               this: NextTestChai.AssertionStatic,
               ...args: unknown[]
             ) {
-              const { task } = current()
+              const scope = current()
+              // Raw construction has no task. Browser common expect follows
+              // the running test; context.expect keeps its explicit test task.
+              const flagged = chai.util.flag(this, 'vitest-test')
+              const task =
+                flagged === scope.task ||
+                (fileAssertionLifetime && flagged === runningAttemptTask())
+                  ? flagged
+                  : undefined
               const callsite = new Error()
               Error.captureStackTrace?.(callsite, customAssertion)
               const result = original.apply(this, args)
-              if (!result || typeof result.then !== 'function') return result
+              if (!task || !result || typeof result.then !== 'function')
+                return result
               const promise = Promise.resolve(result).catch(
                 (error: unknown) => {
                   if (error instanceof Error && callsite.stack) {
@@ -884,6 +1569,19 @@ export async function createAssertionRuntime(options: {
   }
 
   const registeredMocks = new WeakSet<MockInstance>()
+  function registerMock(mock: MockInstance, restore: boolean, file = false) {
+    // Setup/hook spies live through the cases and are restored at file disposal.
+    // A case only restores the spies created by that case.
+    if (!registeredMocks.has(mock)) {
+      registeredMocks.add(mock)
+      guardMockMutators(mock)
+      const active = file ? undefined : originatingScope()
+      if (!file && !fileOwned && active?.kind === 'attempt')
+        active.mocks.add({ mock, restore })
+      else fileMocks.add({ mock, restore })
+    }
+  }
+
   function trackMock<T extends (...args: any[]) => MockInstance>(
     method: T,
     restore: boolean
@@ -891,16 +1589,7 @@ export async function createAssertionRuntime(options: {
     return ((...args: Parameters<T>) => {
       requireScopeAccess()
       const mock = Reflect.apply(method, undefined, args) as MockInstance
-      // Setup/hook spies live through the cases and are restored at file disposal.
-      // A case only restores the spies created by that case.
-      if (!registeredMocks.has(mock)) {
-        registeredMocks.add(mock)
-        guardMockMutators(mock)
-        const active = originatingScope()
-        if (!fileOwned && active?.kind === 'attempt')
-          active.mocks.add({ mock, restore })
-        else fileMocks.add({ mock, restore })
-      }
+      registerMock(mock, restore)
       return mock
     }) as T
   }
@@ -918,6 +1607,37 @@ export async function createAssertionRuntime(options: {
       },
       { value }
     ).value
+  }
+
+  function captureFileMockObject(): FileAutomockMaterializer {
+    requireScopeAccess()
+    if (!fileOwned)
+      throw new Error('Browser importMock requires file-owned mock resources.')
+    const createMockInstance = (
+      ...args: Parameters<typeof spies.createMockInstance>
+    ) => {
+      if (disposed)
+        throw new Error('The originating mock file has been disposed.')
+      const mock = Reflect.apply(
+        spies.createMockInstance,
+        undefined,
+        args
+      ) as MockInstance
+      registerMock(mock, true, true)
+      return mock
+    }
+    return <T>(value: T, mockOptions?: { spy?: boolean }): T => {
+      if (disposed)
+        throw new Error('The originating mock file has been disposed.')
+      return automockObject(
+        {
+          type: mockOptions?.spy ? 'autospy' : 'automock',
+          globalConstructors: { Object, Function, RegExp, Array, Map },
+          createMockInstance,
+        },
+        { value }
+      ).value as T
+    }
   }
 
   const trackedSpies: typeof spies & { mockObject: typeof mockObject } = {
@@ -1041,6 +1761,7 @@ export async function createAssertionRuntime(options: {
         options.waitForImports
       )
     scopes.set(context.id, scope)
+    if (kind === 'attempt') runningAttempt = scope
     if (kind === 'attempt') {
       try {
         // Published 5.0.4 resets before every try, before user setup/fixtures.
@@ -1060,6 +1781,7 @@ export async function createAssertionRuntime(options: {
         if (options.unstubGlobals) scope.utilities.unstubAllGlobals()
       } catch (error) {
         scopes.delete(context.id)
+        if (runningAttempt === scope) runningAttempt = undefined
         throw error
       }
     }
@@ -1067,25 +1789,31 @@ export async function createAssertionRuntime(options: {
       snapshotTests.delete(context.testId)
       snapshots.clearTest(options.testPath, context.testId)
     }
-    setState(
-      {
-        assertionCalls: 0,
-        expectedAssertionsNumber: null,
-        expectedAssertionsNumberErrorGen: null,
-        isExpectingAssertions: false,
-        isExpectingAssertionsError: null,
-        currentTestName: context.name,
-        testPath: options.testPath,
-      },
-      expect
-    )
+    if (!fileAssertionLifetime || kind !== 'hook') {
+      setState(
+        {
+          assertionCalls: 0,
+          expectedAssertionsNumber: null,
+          expectedAssertionsNumberErrorGen: null,
+          isExpectingAssertions: false,
+          isExpectingAssertionsError: null,
+          currentTestName:
+            fileAssertionLifetime && kind === 'collection'
+              ? undefined
+              : context.name,
+          testPath: options.testPath,
+        },
+        expect
+      )
+    }
     let checkedFinished = 0
     const checkedPromises = new Set<Promise<unknown>>()
     let checkedErrors = 0
     let checkedAssertions = false
     let rejectedPromises = 0
     function assertionCountErrors(): unknown[] {
-      if (kind === 'collection') return []
+      if (kind === 'collection' || (fileAssertionLifetime && kind === 'hook'))
+        return []
       // The reference lazily selects the test-local instance, if accessed.
       // Local state survives retries/repeats; manual instances are independent.
       const selected =
@@ -1166,18 +1894,22 @@ export async function createAssertionRuntime(options: {
           if (
             disposed ||
             scope.finalized ||
-            [...scopes.values()].some((inner) =>
-              inner.ancestors.includes(context.id)
+            [...scopes.values()].some(
+              (inner) =>
+                (!fileAssertionLifetime || !inner.finalized) &&
+                inner.ancestors.includes(context.id)
             )
           )
             throw new Error(
               'Cannot resume aroundAll assertions before inner scopes are disposed'
             )
-          const innerState = getState(expect)
-          for (const key of Reflect.ownKeys(innerState))
-            if (!Object.prototype.hasOwnProperty.call(state, key))
-              Reflect.deleteProperty(innerState, key)
-          setState(state, expect)
+          if (!fileAssertionLifetime) {
+            const innerState = getState(expect)
+            for (const key of Reflect.ownKeys(innerState))
+              if (!Object.prototype.hasOwnProperty.call(state, key))
+                Reflect.deleteProperty(innerState, key)
+            setState(state, expect)
+          }
           scopes.set(context.id, scope)
         }
       },
@@ -1253,7 +1985,8 @@ export async function createAssertionRuntime(options: {
           removeSerializers(scope.serializers)
           errors.push(...drainMocks(scope.mocks))
         } finally {
-          scopes.delete(context.id)
+          if (!fileAssertionLifetime) scopes.delete(context.id)
+          if (runningAttempt === scope) runningAttempt = undefined
         }
         if (errors.length)
           throw new AggregateError(errors, 'Test assertion cleanup failed')
@@ -1261,22 +1994,57 @@ export async function createAssertionRuntime(options: {
     }
   }
 
+  // Each helper uses the literal upstream algorithm. Its lexical constructor
+  // is a genuine admitted public construction, before a plugin can run. A
+  // hidden callback never adopts an assertion from the ambient current scope.
+  const helperInterfaces = new WeakMap<object, typeof chai.assert>()
+  function helperAssertionConstructor(prototype: object) {
+    return function (...args: unknown[]) {
+      return constructChaiNamespaceAssertion(args, prototype)
+    } as unknown as typeof chai.Assertion
+  }
+  function ownedAssertInterface(prototype: object) {
+    let helpers = helperInterfaces.get(prototype)
+    if (!helpers) {
+      helpers = createChaiAssertInterface(
+        helperAssertionConstructor(prototype),
+        function (...args: Parameters<typeof chai.util.flag>) {
+          assertChaiNamespaceAccess()
+          return Reflect.apply(chai.util.flag, chai.util, [
+            strictUnwrap(args[0]),
+            ...args.slice(1),
+          ])
+        }
+      )
+      helperInterfaces.set(prototype, helpers)
+    }
+    return helpers
+  }
+  function callChaiAssert(
+    key: PropertyKey | undefined,
+    args: unknown[],
+    prototype: object = defaultChaiPrototype
+  ) {
+    assertChaiNamespaceAccess()
+    const helpers = ownedAssertInterface(prototype)
+    return Reflect.apply(
+      key === undefined ? helpers : Reflect.get(helpers, key),
+      helpers,
+      args
+    )
+  }
   const assertMethods = new Map<PropertyKey, Function>()
   const assert = new Proxy(chai.assert, {
-    apply(target, thisArg, args) {
-      requireScopeAccess()
-      return Reflect.apply(target, thisArg, args)
+    apply(_target, _thisArg, args) {
+      return callChaiAssert(undefined, args)
     },
     get(target, key) {
-      requireScopeAccess()
+      requireAssertionAccess()
       const value = Reflect.get(target, key)
       if (typeof value !== 'function') return value
       let method = assertMethods.get(key)
       if (!method) {
-        method = (...args: unknown[]) => {
-          requireScopeAccess()
-          return Reflect.apply(Reflect.get(chai.assert, key), chai.assert, args)
-        }
+        method = (...args: unknown[]) => callChaiAssert(key, args)
         assertMethods.set(key, method)
       }
       return method
@@ -1285,22 +2053,30 @@ export async function createAssertionRuntime(options: {
 
   let previousShould: PropertyDescriptor | undefined
   let ownedShould: (() => unknown) | undefined
-  function should(): ReturnType<typeof chai.should> {
-    requireScopeAccess()
+  function should(
+    prototype: object = defaultChaiPrototype
+  ): ReturnType<typeof chai.should> {
+    requireAssertionAccess()
     if (!ownedShould)
       previousShould = Object.getOwnPropertyDescriptor(
         Object.prototype,
         'should'
       )
-    const helpers = chai.should()
+    const helpers = createChaiShouldInterface(
+      helperAssertionConstructor(prototype)
+    )()
     const descriptor = Object.getOwnPropertyDescriptor(
       Object.prototype,
       'should'
     )!
     const getter = descriptor.get!
     ownedShould = function (this: unknown) {
-      requireScopeAccess()
-      return guardAssertion(Reflect.apply(getter, this, []), current())
+      requireAssertionAccess()
+      const assertion = Reflect.apply(getter, this, [])
+      const record = strictAssertionRecords.get(assertion)
+      if (!record) throw new Error('Unrecognized owned Chai should assertion')
+      assertStrictScope(record.scope)
+      return assertion
     }
     // eslint-disable-next-line no-extend-native -- Chai's should plugin installs a file-owned prototype getter.
     Object.defineProperty(Object.prototype, 'should', {
@@ -1312,22 +2088,45 @@ export async function createAssertionRuntime(options: {
       let proxy = objects.get(target)
       if (!proxy) {
         const methods = new Map<PropertyKey, Function>()
-        proxy = new Proxy(target, {
-          get(object, key, receiver) {
-            requireScopeAccess()
-            const value = Reflect.get(object, key, receiver)
+        proxy = new Proxy(Object.create(null) as object, {
+          get(_object, key) {
+            requireAssertionAccess()
+            const value = Reflect.get(target, key, target)
             if (typeof value === 'function') {
               let method = methods.get(key)
               if (!method) {
                 method = (...args: unknown[]) => {
-                  requireScopeAccess()
-                  return Reflect.apply(value, object, args)
+                  requireAssertionAccess()
+                  return Reflect.apply(value, target, args)
                 }
                 methods.set(key, method)
               }
               return method
             }
             return value && typeof value === 'object' ? guard(value) : value
+          },
+          ownKeys() {
+            requireAssertionAccess()
+            return Reflect.ownKeys(target)
+          },
+          getOwnPropertyDescriptor(_object, key) {
+            requireAssertionAccess()
+            const memberDescriptor = Reflect.getOwnPropertyDescriptor(
+              target,
+              key
+            )
+            return (
+              memberDescriptor && {
+                configurable: true,
+                enumerable: memberDescriptor.enumerable,
+                writable: true,
+                value: Reflect.get(proxy!, key),
+              }
+            )
+          },
+          getPrototypeOf() {
+            requireAssertionAccess()
+            return null
           },
         })
         objects.set(target, proxy)
@@ -1337,12 +2136,77 @@ export async function createAssertionRuntime(options: {
     return guard(helpers)
   }
 
-  return {
+  const runtime = {
     expect,
     createExpect,
+    createChaiAssertion,
+    createChaiNamespaceAssertion,
+    constructChaiNamespaceAssertion,
+    assertChaiNamespaceAccess,
+    chaiEvents,
+    readChaiPrototype,
+    registerChaiAssertionMember,
+    callChaiUtility,
+    isChaiNamespaceAssertion(value: unknown) {
+      assertChaiNamespaceAccess()
+      return (
+        !!value &&
+        (typeof value === 'object' || typeof value === 'function') &&
+        strictAssertionRecords.has(value)
+      )
+    },
+    callChaiExpectFail(args: unknown[]) {
+      assertChaiNamespaceAccess()
+      return Reflect.apply(chai.expect.fail, chai.expect, args)
+    },
+    chaiUtilityKeys() {
+      assertChaiNamespaceAccess()
+      return Reflect.ownKeys(chai.util)
+    },
+    callChaiCheckError(key: PropertyKey, args: unknown[]) {
+      assertChaiNamespaceAccess()
+      const utilities = Reflect.get(chai.util, 'checkError')
+      const fn = utilities && Reflect.get(utilities, key)
+      if (typeof fn !== 'function')
+        throw new Error('Unknown Chai error utility')
+      return Reflect.apply(fn, utilities, args)
+    },
+    readChaiConfig(key: PropertyKey, legacyAssertion = false) {
+      assertChaiNamespaceAccess()
+      return Reflect.get(legacyAssertion ? chai.Assertion : chai.config, key)
+    },
+    writeChaiConfig(key: PropertyKey, value: unknown, legacyAssertion = false) {
+      assertChaiNamespaceAccess()
+      return Reflect.set(
+        legacyAssertion ? chai.Assertion : chai.config,
+        key,
+        value
+      )
+    },
+    chaiConfigKeys() {
+      assertChaiNamespaceAccess()
+      return Reflect.ownKeys(chai.config)
+    },
+    chaiAssertionError() {
+      assertChaiNamespaceAccess()
+      return chai.AssertionError
+    },
+    useChaiPlugin(plugin: Parameters<typeof chai.use>[0]) {
+      assertChaiNamespaceAccess()
+      let delegate = chaiPluginDelegates.get(plugin)
+      if (!delegate) {
+        delegate = () => Reflect.apply(plugin, undefined, [])
+        chaiPluginDelegates.set(plugin, delegate)
+      }
+      // No internal caller receives the raw Chai exports/utility arguments.
+      chai.use(delegate)
+    },
     assert,
+    callChaiAssert,
     should,
     spies: trackedSpies,
+    captureFileMockObject,
+    getRealTimerWaits,
     utilities: new Proxy({} as AttemptUtilities, {
       get(_target, property) {
         requireScopeAccess()
@@ -1399,11 +2263,21 @@ export async function createAssertionRuntime(options: {
         : []
     },
     async finishFile() {
-      if (scopes.size || suspendedScopes.size)
+      if (
+        (fileAssertionLifetime
+          ? [...scopes.values()].some((scope) => !scope.finalized)
+          : scopes.size) ||
+        suspendedScopes.size
+      )
         throw new Error('Cannot finish assertions with an active attempt')
       if (disposed) return
       disposed = true
       const errors: unknown[] = []
+      try {
+        eventBridge?.dispose()
+      } catch (error) {
+        errors.push(error)
+      }
       let result: Awaited<ReturnType<SnapshotClient['finish']>> | undefined
       try {
         if (!options.collectOnly) {
@@ -1431,6 +2305,11 @@ export async function createAssertionRuntime(options: {
       }
       try {
         collectionUtilities.dispose()
+      } catch (error) {
+        errors.push(error)
+      }
+      try {
+        realTimerWaits?.dispose()
       } catch (error) {
         errors.push(error)
       }
@@ -1469,6 +2348,8 @@ export async function createAssertionRuntime(options: {
         errors.push(error)
       }
       runtimeActive = false
+      closeAssertionFile()
+      scopes.clear()
       localExpectations.clear()
       snapshots.clear()
       try {
@@ -1483,4 +2364,6 @@ export async function createAssertionRuntime(options: {
       return result
     },
   }
+  chaiCallbackDispatches.set(runtime, callChaiPluginCallback)
+  return runtime
 }

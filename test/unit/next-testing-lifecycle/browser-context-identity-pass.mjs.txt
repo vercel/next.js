@@ -1,0 +1,12 @@
+import { test, onTestFinished, onTestFailed } from 'vitest'
+
+test('Browser listener context identity passes', (context) => {
+  const owner = context
+  const task = context.task
+  const expectation = context.expect
+  const signal = context.signal
+  const record = (phase, actual) => console.log('BROWSER_HOOK_CONTEXT_RAW ' + JSON.stringify({ phase, name: task.name, contextSame: actual === owner, taskSame: actual.task === task, taskContextIsBody: actual.task.context === owner, taskContextIsArgument: actual.task.context === actual, expectSame: actual.expect === expectation, signalSame: actual.signal === signal }))
+  record('body', context)
+  context.onTestFinished(finished => record('context-finished', finished))
+  onTestFinished(finished => record('named-finished', finished))
+})

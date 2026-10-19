@@ -21,6 +21,21 @@ jest.mock('next/dist/experimental/testing/execution/execute-cohort', () => ({
 import { promises as fs } from 'fs'
 import { basename } from 'path'
 
+jest.mock('next/dist/experimental/testing/browser/server', () => ({
+  __esModule: true,
+  ...jest.requireActual('next/dist/experimental/testing/browser/server'),
+}))
+
+jest.mock('next/dist/experimental/testing/browser/host', () => ({
+  __esModule: true,
+  ...jest.requireActual('next/dist/experimental/testing/browser/host'),
+}))
+
+jest.mock('next/dist/experimental/testing/execution/execute', () => ({
+  __esModule: true,
+  ...jest.requireActual('next/dist/experimental/testing/execution/execute'),
+}))
+
 const profile = {
   id: 'unit',
   mode: 'development' as const,
@@ -941,4 +956,272 @@ describe('shared cohort broker', () => {
       )
     ).toBe(false)
   })
+})
+
+describe('parent-owned browser watch leases', () => {
+  const browserProfile = { ...profile, environment: 'browser' as const }
+  const browserEntry = { ...entry, profile: browserProfile }
+  const browserArtifact = {
+    ...artifact,
+    profile: browserProfile,
+    applicationServer: {
+      mode: 'development' as const,
+      lockDistDir: true as const,
+      distDir: '/project/.next',
+    },
+  }
+  it.each(['profile', 'application'] as const)(
+    'refuses child escalation of parent %s metadata before acquisition',
+    async (changed) => {
+      const server = await import(
+        'next/dist/experimental/testing/browser/server'
+      )
+      const start = jest.spyOn(server, 'createApplicationServer')
+      const delivered = deferred<void>(),
+        messages: ExecutionBrokerResponse[] = []
+      const host = createExecutionBrokerHost({
+        signal: options.signal,
+        browserProjects: [{ profile: browserProfile, entries: [browserEntry] }],
+        browserApplications: [
+          {
+            profile: browserProfile,
+            projectDir: '/project',
+            distDir: '/project/.next',
+            lockDistDir: true,
+          },
+        ],
+        async send(message) {
+          messages.push(message)
+          delivered.resolve()
+        },
+      })
+      try {
+        host.handle({
+          type: 'execution-broker-request',
+          id: 'escalation',
+          action: 'execute',
+          artifact:
+            changed === 'profile'
+              ? {
+                  ...browserArtifact,
+                  profile: { ...browserProfile, browserClient: true },
+                }
+              : {
+                  ...browserArtifact,
+                  applicationServer: {
+                    ...browserArtifact.applicationServer,
+                    distDir: '/outside',
+                  },
+                },
+          options: { ...options, entry: browserEntry },
+          env: { ...process.env },
+        })
+        await delivered.promise
+        expect(start).not.toHaveBeenCalled()
+        expect(messages).toEqual([expect.objectContaining({ action: 'error' })])
+      } finally {
+        await host.close().catch(() => {})
+        start.mockRestore()
+      }
+    }
+  )
+  it('retains application and host owners until driver cleanup finishes after coordinator cancellation', async () => {
+    const server = await import('next/dist/experimental/testing/browser/server')
+    const browser = await import('next/dist/experimental/testing/browser/host')
+    const execution = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const started = deferred<void>(),
+      cancelled = deferred<void>(),
+      cleanup = deferred<void>()
+    const order: string[] = []
+    const serverDispose = jest.fn(async () => {
+      order.push('server')
+    })
+    const hostDispose = jest.fn(async () => {
+      order.push('host')
+    })
+    const spies = [
+      jest.spyOn(server, 'createApplicationServer').mockResolvedValue({
+        baseURL: 'http://127.0.0.1:1',
+        pid: 123,
+        lifetime: 'file',
+        attachments: [],
+        dispose: serverDispose,
+      }),
+      jest.spyOn(browser, 'createBrowserHost').mockResolvedValue({
+        wsEndpoint: 'ws://127.0.0.1:2',
+        dispose: hostDispose,
+      }),
+      jest
+        .spyOn(execution, 'executeWithEnvironment')
+        .mockImplementation(async (_, values) => {
+          expect(values.browser).toMatchObject({
+            baseURL: 'http://127.0.0.1:1',
+            wsEndpoint: 'ws://127.0.0.1:2',
+          })
+          values.signal.addEventListener('abort', () => cancelled.resolve(), {
+            once: true,
+          })
+          started.resolve()
+          await cleanup.promise
+          order.push('driver')
+          return { ...result, status: 'cancelled' }
+        }),
+    ]
+    const host = createExecutionBrokerHost({
+      signal: new AbortController().signal,
+      browserProjects: [{ profile: browserProfile, entries: [browserEntry] }],
+      browserApplications: [
+        {
+          profile: browserProfile,
+          projectDir: '/project',
+          distDir: '/project/.next',
+          lockDistDir: true,
+        },
+      ],
+      async send() {},
+    })
+    try {
+      host.handle({
+        type: 'execution-broker-request',
+        action: 'execute',
+        id: 'browser',
+        artifact: browserArtifact,
+        options: { ...options, entry: browserEntry },
+        env: { ...process.env },
+      })
+      await started.promise
+      const closing = host.close()
+      await cancelled.promise
+      expect(hostDispose).not.toHaveBeenCalled()
+      expect(serverDispose).not.toHaveBeenCalled()
+      cleanup.resolve()
+      await closing
+      expect(order).toEqual(['driver', 'host', 'server'])
+      expect(host.ownershipClosed).toBe(true)
+    } finally {
+      cleanup.resolve()
+      await host.close()
+      for (const spy of spies) spy.mockRestore()
+    }
+  })
+})
+
+it.each(['passed', 'failed'] as const)(
+  'holds the %s runtime acknowledgement until the parent post-cleanup receipt seal',
+  async (status) => {
+    const execution = await import(
+      'next/dist/experimental/testing/execution/execute'
+    )
+    const order: string[] = [],
+      worker = deferred<void>(),
+      sealing = deferred<void>(),
+      started = deferred<void>(),
+      sealingStarted = deferred<void>(),
+      finished = deferred<void>()
+    const spy = jest
+      .spyOn(execution, 'executeWithEnvironment')
+      .mockImplementation(async () => {
+        order.push('worker')
+        started.resolve()
+        await worker.promise
+        order.push('worker-closed')
+        return { ...result, status }
+      })
+    const sent: ExecutionBrokerResponse[] = []
+    const host = createExecutionBrokerHost({
+      signal: new AbortController().signal,
+      allowCoverage: true,
+      async onRuntimeConfiguration() {
+        order.push('parent-check')
+        return async () => {
+          order.push('seal')
+          sealingStarted.resolve()
+          await sealing.promise
+          order.push('sealed')
+        }
+      },
+      async send(value) {
+        sent.push(value)
+        if (value.action === 'result') finished.resolve()
+      },
+    })
+    try {
+      host.handle({
+        type: 'execution-broker-request',
+        action: 'execute',
+        id: 'runtime',
+        artifact,
+        options: { ...options, coverage: { version: 1, kind: 'node-line' } },
+        env: { ...process.env },
+      })
+      await started.promise
+      expect(order).toEqual(['parent-check', 'worker'])
+      worker.resolve()
+      await sealingStarted.promise
+      expect(sent.some((value) => value.action === 'result')).toBe(false)
+      sealing.resolve()
+      await finished.promise
+      expect(order).toEqual([
+        'parent-check',
+        'worker',
+        'worker-closed',
+        'seal',
+        'sealed',
+      ])
+      expect(sent.at(-1)).toMatchObject({
+        action: 'result',
+        result: { status },
+      })
+    } finally {
+      worker.resolve()
+      sealing.resolve()
+      await host.close()
+      spy.mockRestore()
+    }
+  }
+)
+it('refuses a runtime config artifact before launching a worker without parent authorization', async () => {
+  const execution = await import(
+      'next/dist/experimental/testing/execution/execute'
+    ),
+    spy = jest.spyOn(execution, 'executeWithEnvironment')
+  const completed = deferred<void>(),
+    sent: ExecutionBrokerResponse[] = []
+  const host = createExecutionBrokerHost({
+    signal: new AbortController().signal,
+    allowCoverage: true,
+    async send(value) {
+      sent.push(value)
+      completed.resolve()
+    },
+  })
+  try {
+    host.handle({
+      type: 'execution-broker-request',
+      action: 'execute',
+      id: 'runtime-unowned',
+      artifact: {
+        ...artifact,
+        runtimeConfigurationImports: {
+          path: 'unowned',
+          sha256: '0'.repeat(64),
+        },
+      },
+      options: { ...options, coverage: { version: 1, kind: 'node-line' } },
+      env: { ...process.env },
+    })
+    await completed.promise
+    expect(spy).not.toHaveBeenCalled()
+    expect(sent[0]).toMatchObject({
+      action: 'error',
+      error: {
+        message: expect.stringContaining('parent-authorized standard coverage'),
+      },
+    })
+  } finally {
+    await host.close()
+    spy.mockRestore()
+  }
 })

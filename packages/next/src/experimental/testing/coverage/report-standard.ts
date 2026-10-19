@@ -1,4 +1,14 @@
 import {
+  assertRuntimeConfigurationReceipts,
+  type RuntimeConfigurationPlan,
+  type RuntimeConfigurationReceipt,
+} from './runtime-configuration'
+import { isDeepStrictEqual, types } from 'util'
+import {
+  assertCompilerSourceCoverage,
+  type CoverageSourcePlan,
+} from './source-analysis-plan'
+import {
   lstat,
   readdir,
   readFile,
@@ -11,9 +21,10 @@ import {
 } from 'fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'path'
 import { coverageHash, within } from './artifact'
-import { createUncoveredJavaScript } from './istanbul'
+import { createUncoveredSource } from './istanbul'
 import { standardCoverageSourceSelector } from './options'
 import type {
+  CompilerSourceCoverage,
   StandardCoverageData,
   StandardCoverageLocation,
   StandardCoverageMetric,
@@ -31,6 +42,15 @@ const object = (value: unknown): value is Record<string, any> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
 const count = (value: unknown): value is number =>
   Number.isSafeInteger(value) && (value as number) >= 0
+/** Converter metadata retains a genuine Map through advanced worker serialization. */
+function functionNames(value: unknown): boolean {
+  if (types.isMap(value)) {
+    for (const [name, occurrences] of Map.prototype.entries.call(value))
+      if (typeof name !== 'string' || !count(occurrences)) return false
+    return true
+  }
+  return object(value) && Object.values(value).every(count)
+}
 const sameKeys = (left: object, right: object) =>
   JSON.stringify(Object.keys(left).sort()) ===
   JSON.stringify(Object.keys(right).sort())
@@ -142,17 +162,16 @@ function validateData(
     for (const range of branch.locations) location(range, true)
   }
   if (
-    data.meta &&
+    data.meta !== undefined &&
     (!object(data.meta) ||
       !object(data.meta.seen) ||
-      !object(data.meta.fnNames) ||
+      !functionNames(data.meta.fnNames) ||
       ![
         data.meta.lastStatement,
         data.meta.lastFunction,
         data.meta.lastBranch,
       ].every(count) ||
-      !Object.values(data.meta.seen).every(count) ||
-      !Object.values(data.meta.fnNames).every(count))
+      !Object.values(data.meta.seen).every(count))
   )
     throw new Error(`Invalid standard coverage metadata: ${file}`)
 }
@@ -192,7 +211,7 @@ export async function assertStandardCoverageFacts(
         !isAbsolute(file.file) ||
         !within(root, file.file) ||
         file.file.split(sep).includes('node_modules') ||
-        !/\.[cm]?js$/.test(file.file) ||
+        !/\.[cm]?[jt]s$/.test(file.file) ||
         typeof file.sha256 !== 'string' ||
         !/^[a-f0-9]{64}$/.test(file.sha256)
       )
@@ -379,7 +398,7 @@ export function standardCoverageLcov(
   return output.join('\n') + '\n'
 }
 
-/** All worker/compiler/config cleanup completes before this publication function is called. */
+/** All capture writers and worker/compiler owners close before publication. */
 export async function publishStandardCoverage(options: {
   projectDir: string
   facts: StandardFileCoverage[]
@@ -387,6 +406,14 @@ export async function publishStandardCoverage(options: {
   excludedFiles: readonly string[]
   config: StandardCoverageOptions
   status: 'passed' | 'failed' | 'cancelled'
+  /** Parent scheduling evidence; partial watch reruns omit unimported sources. */
+  includeUnimported?: boolean
+  /** Parent-authorized actual compiler declaration analyses, separate from captures. */
+  sourceAnalysis?: { facts: CompilerSourceCoverage[]; plan: CoverageSourcePlan }
+  runtimeConfiguration?: {
+    receipts: readonly RuntimeConfigurationReceipt[]
+    plan?: RuntimeConfigurationPlan
+  }
   signal?: AbortSignal
 }) {
   const { config, signal } = options
@@ -401,6 +428,24 @@ export async function publishStandardCoverage(options: {
     options.expected
   )
   const root = await realpath(options.projectDir)
+  const analysisSignal = signal ?? new AbortController().signal
+  const assertRuntime = () =>
+    options.runtimeConfiguration
+      ? assertRuntimeConfigurationReceipts({
+          ...options.runtimeConfiguration,
+          facts: options.facts,
+          signal: analysisSignal,
+        })
+      : Promise.resolve()
+  await assertRuntime()
+  const analyses = options.sourceAnalysis
+    ? await assertCompilerSourceCoverage(
+        options.sourceAnalysis.facts,
+        options.sourceAnalysis.plan,
+        analysisSignal
+      )
+    : []
+  const declarations = new Map(analyses.map((fact) => [fact.source.file, fact]))
   const selected = standardCoverageSourceSelector(root, config)
   const excluded = new Set(options.excludedFiles)
   const output = resolve(root, config.reportsDirectory)
@@ -412,6 +457,35 @@ export async function publishStandardCoverage(options: {
   for (const fact of options.facts)
     for (const file of fact.files) {
       if (!selected(file.file) || excluded.has(file.file)) continue
+      const declaration = declarations.get(file.file)
+      if (
+        options.sourceAnalysis &&
+        config.include &&
+        options.includeUnimported !== false &&
+        !/\.[cm]?js$/.test(file.file) &&
+        !declaration
+      )
+        throw new Error(
+          `Selected typed coverage source was not authorized by the parent analysis: ${file.file}`
+        )
+      if (
+        declaration &&
+        (declaration.source.sha256 !== file.sha256 ||
+          // Both facts are serialized coverage dictionaries; preserve every
+          // descriptor/ID/metadata value across parent and IPC object realms.
+          !isDeepStrictEqual(
+            structuredClone({
+              ...file.data,
+              s: declaration.data.s,
+              f: declaration.data.f,
+              b: declaration.data.b,
+            }),
+            structuredClone(declaration.data)
+          ))
+      )
+        throw new Error(
+          `Runtime and compiler analysis disagree on original coverage descriptors: ${file.file}`
+        )
       const previous = files.get(file.file)
       if (previous && previous.hash !== file.sha256)
         throw new Error(
@@ -424,7 +498,18 @@ export async function publishStandardCoverage(options: {
           : structuredClone(file.data),
       })
     }
-  if (config.include) {
+  for (const fact of analyses) {
+    if (!selected(fact.source.file) || excluded.has(fact.source.file))
+      throw new Error(
+        'Compiler source analysis is outside the final coverage selection'
+      )
+    validateData(
+      fact.data,
+      fact.source.file,
+      await readFile(fact.source.file, 'utf8')
+    )
+  }
+  if (config.include && options.includeUnimported !== false) {
     async function visit(dir: string) {
       for (const item of await readdir(dir, { withFileTypes: true })) {
         signal?.throwIfAborted()
@@ -452,7 +537,9 @@ export async function publishStandardCoverage(options: {
           const source = await readFile(file, 'utf8')
           files.set(file, {
             hash: coverageHash(source),
-            data: await createUncoveredJavaScript(file, source),
+            data: declarations.has(file)
+              ? structuredClone(declarations.get(file)!.data)
+              : await createUncoveredSource(file, source),
           })
         }
       }
@@ -526,12 +613,19 @@ export async function publishStandardCoverage(options: {
   try {
     for (const [name, value] of Object.entries(artifacts))
       await writeFile(join(staging, name), value, { flag: 'wx', signal })
+    await assertRuntime()
     // Recheck all source bytes after unimported discovery and before committing.
     for (const [file, value] of files)
       if (coverageHash(await readFile(file)) !== value.hash)
         throw new Error(
           `Standard coverage source changed before publication: ${file}`
         )
+    if (options.sourceAnalysis)
+      await assertCompilerSourceCoverage(
+        options.sourceAnalysis.facts,
+        options.sourceAnalysis.plan,
+        analysisSignal
+      )
     signal?.throwIfAborted()
     if (existed) {
       await rename(output, backup)
@@ -540,8 +634,29 @@ export async function publishStandardCoverage(options: {
     signal?.throwIfAborted()
     await rename(staging, output)
     published = true
+    await assertRuntime()
+    if (options.sourceAnalysis)
+      await assertCompilerSourceCoverage(
+        options.sourceAnalysis.facts,
+        options.sourceAnalysis.plan,
+        analysisSignal
+      )
+    // A queued rename can complete after cancellation. Keep the previous
+    // report recoverable until this transaction confirms the committed output.
+    signal?.throwIfAborted()
   } catch (error) {
-    if (displaced) await rename(backup, output)
+    try {
+      if (published) {
+        await rename(output, staging)
+        published = false
+      }
+      if (displaced) await rename(backup, output)
+    } catch (rollbackError) {
+      throw new AggregateError(
+        [error, rollbackError],
+        'Standard coverage publication rollback failed.'
+      )
+    }
     throw error
   } finally {
     if (!published) await rm(staging, { recursive: true, force: true })

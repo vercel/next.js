@@ -1283,6 +1283,7 @@ impl AppEndpoint {
             &path,
             &id.into(),
             context,
+            false,
         )
         .await?;
         if prepared.module_reset {

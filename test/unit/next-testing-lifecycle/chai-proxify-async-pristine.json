@@ -1,0 +1,37 @@
+[
+  {
+    "label": "resolves-input-created",
+    "value": {
+      "trackedDifferent": true,
+      "rawDifferent": true,
+      "calls": 1
+    }
+  },
+  {
+    "label": "resolves-input-completed",
+    "value": {
+      "calls": 1
+    }
+  },
+  {
+    "label": "resolves-input-disabled",
+    "value": {
+      "trackedSame": true,
+      "rawSame": true
+    }
+  },
+  {
+    "label": "rejects-input-created",
+    "value": {
+      "trackedDifferent": true,
+      "rawDifferent": true,
+      "calls": 1
+    }
+  },
+  {
+    "label": "rejects-input-completed",
+    "value": {
+      "calls": 1
+    }
+  }
+]

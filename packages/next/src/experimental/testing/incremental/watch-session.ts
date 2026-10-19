@@ -31,15 +31,24 @@ export interface WatchRun<Discovery extends WatchDiscovery> {
   signal: AbortSignal
 }
 
+export interface WatchRunResult {
+  status: 'passed' | 'failed' | 'cancelled'
+  /** Stop permanently if resource/output ownership could not be released. */
+  unsafeCleanup?: boolean
+  /** A committed snapshot change needs a complete run after this one settles. */
+  rerunAfterSettled?: boolean
+}
+
 export interface WatchSessionOptions<Discovery extends WatchDiscovery> {
   signal?: AbortSignal
   discover(signal: AbortSignal): Promise<Discovery>
   /** Resolves only after all workers, compiler graphs and output owners close. */
-  run(run: WatchRun<Discovery>): Promise<{
-    status: 'passed' | 'failed' | 'cancelled'
-    /** Stop permanently if resource/output ownership could not be released. */
-    unsafeCleanup?: boolean
-  }>
+  run(run: WatchRun<Discovery>): Promise<WatchRunResult>
+  /** Publishes readiness after cleanup, baseline commitment and cancellation release. */
+  onRunSettled?(
+    status: 'passed' | 'failed' | 'cancelled',
+    discovery: Discovery
+  ): void
   /** Configuration/compilation errors are recoverable on the next invalidation. */
   onError(error: unknown): void
   /** A report owner must replace results when discovery becomes empty. */
@@ -55,9 +64,10 @@ export class SupersededTestRun extends Error {
 }
 
 /**
- * Own scheduling only. Discovery reloads config each time; run owns fresh
- * compilation and execution. No evaluated state or live output writer survives
- * its Promise. The change source must be acquired before creating this session.
+ * Own scheduling only. Discovery validates configuration identities each time;
+ * run owns fresh compilation and test execution. The coordinator may retain a
+ * compiler configuration service across runs. No evaluated test state or live
+ * output writer survives run. Acquire the change source before this session.
  */
 export function createWatchSession<Discovery extends WatchDiscovery>(
   options: WatchSessionOptions<Discovery>
@@ -136,7 +146,7 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
           })
         // Empty discovery is a valid watch state (e.g. the last test deleted).
         // Do not ask the one-shot runner to report "No test files selected".
-        const result =
+        const result: WatchRunResult =
           selection.entryIds.length || options.runEmpty
             ? await options.run({
                 discovery,
@@ -157,6 +167,15 @@ export function createWatchSession<Discovery extends WatchDiscovery>(
           previousRegistry = discovery.registry
             ? structuredClone(discovery.registry)
             : undefined
+        }
+        // A terminal can trigger the next edit immediately. Release this run
+        // only after its baseline is committed, before publishing readiness.
+        active = undefined
+        try {
+          if (!closed && !pending && result.status !== 'cancelled')
+            options.onRunSettled?.(result.status, discovery)
+        } finally {
+          if (result.rerunAfterSettled) invalidate({ invalidateAll: true })
         }
       } catch (error) {
         // Failed or cancelled runs never certify a dependency baseline. A

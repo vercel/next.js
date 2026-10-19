@@ -1,0 +1,40 @@
+import { appendFileSync } from 'node:fs'
+import { chai, expect, test } from 'vitest'
+
+function record(label, value) {
+  appendFileSync(process.env.NEXT_TESTING_CHAI141_EVIDENCE, JSON.stringify({ label, value }) + '\n')
+}
+
+function state(assertion, util) {
+  const task = util.flag(assertion, 'vitest-test')
+  return { calls: expect.getState().assertionCalls, taskIsNull: task === undefined || task === null }
+}
+
+chai.use((_chai, util) => {
+  _chai.Assertion.overwriteMethod('equal', (original) => function (...args) {
+    record('callback-enter', { subject: util.flag(this, 'object'), ...state(this, util) })
+    const result = original.apply(this, args)
+    record('callback-return', { returnedUndefined: result === undefined, returnedThis: result === this, ...state(this, util) })
+    return result
+  })
+})
+
+function action(label, callback) {
+  let outcome
+  try {
+    const result = callback()
+    outcome = { threw: false, returnedUndefined: result === undefined }
+  } catch (error) {
+    outcome = { threw: true, name: error.name, message: error.message }
+  }
+  record(label, { ...outcome, calls: expect.getState().assertionCalls })
+}
+
+test('hidden assert strictEqual preserves real plugin execution', () => {
+  action('assert-strict-equal', () => chai.assert.strictEqual('same', 'same'))
+})
+
+test('hidden should equal preserves real plugin execution', () => {
+  const helpers = chai.should()
+  action('should-equal', () => helpers.equal('same', 'same'))
+})

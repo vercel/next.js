@@ -1027,7 +1027,7 @@ impl ProjectContainer {
 pub struct Project {
     browser_fixture_host: Option<RcStr>,
     /// Only explicit test consumers set this; ordinary application projects never do.
-    test_entry: Option<ResolvedVc<crate::testing::TestEntryOptions>>,
+    pub(crate) test_entry: Option<ResolvedVc<crate::testing::TestEntryOptions>>,
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
@@ -2443,35 +2443,79 @@ impl Project {
         Ok(crate::testing_client::context(*self.to_resolved().await?))
     }
 
+    /// Only an explicit compiler-owned coverage entry retains source denominators.
+    #[turbo_tasks::function]
+    pub(crate) async fn source_coverage(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self.test_entry {
+            Some(entry) => entry.await?.source_coverage,
+            None => false,
+        }))
+    }
+
     /// A non-RSC Node module context for explicit unit and browser-driver specs.
     #[turbo_tasks::function]
     pub(crate) async fn node_test_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        let alias_finds = if let Some(entry) = self.await?.test_entry {
+            entry.await?.alias_finds.clone()
+        } else {
+            Vec::new()
+        };
+        let native_probe = if let Some(entry) = self.await?.test_entry {
+            if entry.await?.tsconfig_input_revision.is_some() {
+                let project_path = self.project_path().owned().await?;
+                Some(turbopack_core::resolve::tsconfig_provenance::NativeTsConfigProbeContext {
+                    filesystem_root: self.project_root_path().owned().await?,
+                    project_path: project_path.clone(),
+                    consumer: turbopack_core::resolve::tsconfig_provenance::NativeTsConfigConsumer::TypeScript,
+                    configured_path: None,
+                    consumer_path: project_path.clone(),
+                    lookup_path: project_path,
+                    request: rcstr!("native-options"),
+                    chain_index: 0,
+                    attempt_index: 0,
+                }.resolved_cell())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         Ok(ModuleAssetContext::new(
             TransitionOptions::default().cell(),
             self.server_compile_time_info(),
-            crate::testing::test_module_options_context(get_server_module_options_context(
-                self.project_path().owned().await?,
-                self.execution_context(),
-                ServerContextType::Test,
-                self.next_mode(),
-                self.next_config(),
-                NextRuntime::NodeJs,
-                self.encryption_key(),
-                self.server_compile_time_info().environment(),
-                self.client_compile_time_info().environment(),
-                false,
-            )),
-            crate::testing::test_resolve_options_context(
-                get_server_resolve_options_context(
+            crate::testing::test_module_options_context(
+                crate::testing_tsconfig_inputs::module_options_context(
+                    native_probe,
                     self.project_path().owned().await?,
+                    self.execution_context(),
                     ServerContextType::Test,
                     self.next_mode(),
                     self.next_config(),
-                    self.execution_context(),
-                    None,
+                    NextRuntime::NodeJs,
+                    self.encryption_key(),
+                    self.server_compile_time_info().environment(),
+                    self.client_compile_time_info().environment(),
+                    false,
                 ),
-                self.project_path().owned().await?,
-                true,
+                *self.source_coverage().await?,
+            ),
+            crate::testing_aliases::alias_resolve_options_context(
+                crate::testing::test_resolve_options_context(
+                    crate::testing_tsconfig_inputs::resolve_options_context(
+                        get_server_resolve_options_context(
+                            self.project_path().owned().await?,
+                            ServerContextType::Test,
+                            self.next_mode(),
+                            self.next_config(),
+                            self.execution_context(),
+                            None,
+                        ),
+                        native_probe.map(|context| *context),
+                    ),
+                    self.project_path().owned().await?,
+                    true,
+                ),
+                alias_finds,
             ),
             Layer::new_with_user_friendly_name(rcstr!("next-test-node"), rcstr!("Node Test")),
         ))
@@ -2863,10 +2907,11 @@ impl Project {
     /// Compute the used exports for each module.
     #[turbo_tasks::function]
     pub async fn export_usage(self: Vc<Self>) -> Result<Vc<OptionBindingUsageInfo>> {
-        if *self
-            .next_config()
-            .turbopack_remove_unused_exports(self.next_mode())
-            .await?
+        if !*self.source_coverage().await?
+            && *self
+                .next_config()
+                .turbopack_remove_unused_exports(self.next_mode())
+                .await?
         {
             Ok(Vc::cell(Some(
                 self.binding_usage_info().to_resolved().await?,
@@ -2879,10 +2924,11 @@ impl Project {
     /// Compute the unused references that were removed (inner graph tree shaking).
     #[turbo_tasks::function]
     pub async fn unused_references(self: Vc<Self>) -> Result<Vc<UnusedReferences>> {
-        if *self
-            .next_config()
-            .turbopack_remove_unused_imports(self.next_mode())
-            .await?
+        if !*self.source_coverage().await?
+            && *self
+                .next_config()
+                .turbopack_remove_unused_imports(self.next_mode())
+                .await?
         {
             Ok(self.binding_usage_info().unused_references())
         } else {
@@ -3003,10 +3049,11 @@ async fn whole_app_module_graph_operation(
 
         let base = ModuleGraph::from_graphs(vec![base_single_module_graph], None);
 
-        let turbopack_remove_unused_imports = *project
-            .next_config()
-            .turbopack_remove_unused_imports(next_mode)
-            .await?;
+        let turbopack_remove_unused_imports = !*project.source_coverage().await?
+            && *project
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?;
 
         let base = if turbopack_remove_unused_imports {
             // TODO suboptimal that we do compute_binding_usage_info twice (once for the base

@@ -1,3 +1,4 @@
+import { captureProductionStaticMockClosure } from '../mocking/production-artifact'
 import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import '../../../server/require-hook'
 import '../../../server/node-environment'
@@ -16,6 +17,7 @@ import {
   mapTestAnnotationLocation,
   serializeSourceMappedDiagnostic as serializeDiagnostic,
 } from '../reporting/source-mapped-diagnostics'
+import { mapTestArtifactLocation } from '../reporting/artifact-location'
 import type { ResultEvent, ResultStatus } from '../reporting/events'
 import { getFinalCaseResults } from '../reporting/final-cases'
 import type { RunnerFailure } from '../runner/lifecycle'
@@ -150,6 +152,7 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
   let mockBinding:
     | ReturnType<typeof import('../mocking/runtime').initializeModuleMocking>
     | undefined
+  let verifyProductionStaticMock: (() => Promise<void>) | undefined
   try {
     if (
       options.collectOnly &&
@@ -159,6 +162,34 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
           options.snapshotUpdateMode !== 'none'))
     )
       throw new Error('Collection cannot request coverage or snapshot updates.')
+    if (
+      artifact.moduleMocking?.setupInputs !== undefined &&
+      (artifact.moduleMocking.setupInputs !== 1 ||
+        artifact.kind !== 'node' ||
+        artifact.profile.environment !== 'node' ||
+        artifact.profile.mode !== 'development' ||
+        !options.setupFiles.length ||
+        artifact.moduleMocking.cjsNamedSpy !== undefined ||
+        artifact.moduleCache ||
+        artifact.dynamicModuleMocking ||
+        artifact.cohort)
+    )
+      throw new Error('Unsupported compiled setup module mock input profile')
+    if (
+      artifact.moduleMocking?.cjsNamedSpy !== undefined &&
+      (artifact.moduleMocking.cjsNamedSpy !== 1 ||
+        artifact.kind !== 'node' ||
+        artifact.profile.environment !== 'node' ||
+        artifact.profile.mode !== 'development' ||
+        ('cohort' in artifact && artifact.cohort) ||
+        options.setupFiles.length ||
+        options.snapshotSerializers?.length ||
+        options.coverage ||
+        options.inspect ||
+        options.entry.inSource ||
+        options.entry.executionEnvironment)
+    )
+      throw new Error('Unsupported CommonJS named-import spy execution profile')
     if (
       options.inspect &&
       !(require('node:inspector') as typeof import('node:inspector')).url()
@@ -217,7 +248,8 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       (artifact.moduleMocking.version !== 1 ||
         !['node', 'rsc'].includes(artifact.profile.environment) ||
         artifact.kind !== artifact.profile.environment ||
-        artifact.profile.mode !== 'development' ||
+        (artifact.profile.mode !== 'development' &&
+          !artifact.moduleMocking.productionStaticFactory) ||
         (options.coverage && artifact.moduleMocking.coverage?.version !== 1) ||
         ('moduleCache' in artifact && artifact.moduleCache !== undefined) ||
         (artifact.kind === 'rsc' &&
@@ -229,6 +261,10 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
     ) {
       throw new Error('Unsupported compiled module mocking profile or version')
     }
+    verifyProductionStaticMock = await captureProductionStaticMockClosure(
+      artifact,
+      options
+    )
     if (
       artifact.kind === 'node' &&
       artifact.moduleCache &&
@@ -571,6 +607,22 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
             annotation,
           })
         },
+        getArtifactLocation: (error) =>
+          mapTestArtifactLocation(error, options.entry.file),
+        onArtifact(context, artifactRecord) {
+          return event({
+            type: 'test-artifact',
+            entryId: artifact.entryId,
+            caseId: context.testId,
+            attempt: {
+              id: context.id,
+              retry: context.retry,
+              repeat: context.repeat,
+            },
+            revision: artifact.revision,
+            artifact: artifactRecord,
+          })
+        },
         testTimeout: options.testTimeout,
         hookTimeout: options.hookTimeout,
         sequence: options.sequence,
@@ -750,6 +802,14 @@ async function run({ artifact, options, cacheScope }: WorkerInput) {
       status = 'failed'
       await diagnostic(error, 'cleanup')
     }
+  }
+  try {
+    // Factory/original callbacks have retired; no publication precedes this check.
+    await verifyProductionStaticMock?.()
+  } catch (error) {
+    coverageComplete = false
+    status = 'failed'
+    await diagnostic(error, 'cleanup')
   }
   // Give already-rejected promises a turn to reach the unhandled-rejection
   // handler before publishing a successful file result.

@@ -4,12 +4,14 @@ This is an internal runner. It does not load application modules or
 start Vitest/Vite. The emitted Next test entry must expose this module as its
 `testRunner` namespace and resolve the Vitest facade to this same module instance.
 The execution host calls `initializeTestFile`, `collect(loadTestModule)`, `run`,
-and `dispose`. Each file requires a fresh evaluated realm.
+and `dispose`. Isolated files require fresh evaluated realms; explicit serial
+development Node cohorts retain one compiler closure and worker across files.
 
 The supported authoring surface is `test`/`it`, `describe`/`suite`, `skip`,
 `only`, `todo`, `fails`, `skipIf`, `runIf`, callback-name and callback-less todo
 declarations, `test.each`/`test.for`, `describe.each`/`describe.for`, synchronous
-suite declarations, `beforeAll`, `afterAll`, `beforeEach`, `afterEach`, returned
+and asynchronous suite declarations, `beforeAll`, `afterAll`, `beforeEach`,
+`afterEach`, `aroundEach`, `aroundAll`, returned
 setup cleanup, `onTestFinished`, `onTestFailed`, test timeouts, numeric retries,
 and repeated execution. Declaration options support `skip`, `only`, `todo`,
 `fails`, `repeats`, and inherited boolean `concurrent` settings. `test.concurrent` and
@@ -27,16 +29,16 @@ suite hooks. Disposing a setup hook's assertion scope preserves its spies across
 cases until file disposal restores them.
 
 `test.extend<T>()` supports static values and asynchronous `use` factories with
-test/file scopes and automatic fixtures. Factories resolve lazily from
+test/file/worker scopes and automatic fixtures. Factories resolve lazily from
 object-destructured dependencies, including aliases and defaults. Dependencies
 finish setup before their consumers, and teardown reverses that order. Test
 fixtures are recreated for every retry and repeat; file fixtures live until the
 file finishes. `test.override({...})` replaces known fixtures for the current
 suite and descendants, can depend on the base fixture by its own name, and
 inherits the original scope and automatic setting when omitted. A wider scope
-cannot depend on a narrower scope or attempt context. Worker scope, rest/nested/
-computed destructuring and fixture options beyond `scope`/`auto` remain
-unsupported. The stable additions below support builder fixture forms.
+cannot depend on a narrower scope or attempt context. Rest/nested/computed
+destructuring and fixture options beyond `scope`/`auto` remain unsupported. The
+stable additions below describe builder forms and worker lifetimes.
 
 Other unsupported modifiers/options fail explicitly. The facade
 exposes D's `expect` runtime and the verified spy, global/environment stub, and
@@ -55,8 +57,9 @@ integration begins before setup, finalizes after teardown, and disposes before
 sealing. Raw failures remain local to the realm; the execution
 host serializes C-originated case callbacks through the reporting contract. The
 assertion runtime initializes before setup/spec collection and finishes during
-file disposal, including collection failures. Snapshot I/O is read-only by default.
-Explicit external, inline, and raw updates stage a coordinated byte set only; the
+file disposal, including collection failures. Snapshot I/O creates missing snapshots
+locally and in watch, and remains read-only in CI unless updates are requested.
+External, inline, and raw updates stage a coordinated byte set only; the
 execution parent commits after clean worker exit and cleanup. Inline writes also
 require the source hash captured across compilation, so a concurrent edit refuses
 the entire plan. The historical stage-two implementation preserved every unchecked snapshot.
@@ -92,13 +95,15 @@ The `next-testing-stage2-api-compiled` acceptance fixture exercises the expanded
 declarations and fixtures through real Turbopack-compiled entries and the public
 runner.
 
-## Stage two compatibility inventory
+## Historical stage-two compatibility inventory
 
 Reference: Vitest source `0780a8e5b7967a4168173599e9c74fb79aab2483`,
 `packages/vitest/src/runtime/runner/{hooks,run,context,types}.ts`, and
 `packages/snapshot/src/{client,port/state}.ts`. The reused assertion, spy and
-snapshot primitives are pinned to 5.0.1 in Next's package. This inventory describes
-the bounded Next implementation; it does not advertise the entire Vitest API.
+snapshot primitives were pinned to 5.0.1 at that stage. The table records that
+historical implementation, including limits superseded by the additions below.
+The current reference is Vitest 5.0.4; current bounded support is described by
+[`capabilities.ts`](../capabilities.ts), not this historical table.
 
 | Surface                       | Supported behavior and limit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -162,15 +167,17 @@ around-all teardown. The runner still attempts owned file disposal after a faile
 suite teardown; complete failure-path equivalence remains release work, not an
 approved compatibility exception.
 
-Worker fixtures, cross-file sharing and `isolate: false` require a real worker
-lease across files. They remain unsupported rather than mapping worker scope to
-file scope. The original combined worker/file fixture type acceptance contract
-therefore remains a release gap.
+Worker fixtures retain real execution-worker ownership. Explicit `isolate: false`
+now shares that owner across serial development Node files through an immutable
+compiler cohort, as described below. Broader profiles and fixture interactions
+remain release work.
 
 The facade now exposes Chai's `assert` API with scope-access guards, `assertType`,
 and the pinned standalone `expectTypeOf` implementation. Public type contracts
-include positive and negative assertions and typed mock inference. Executing
-compiler-backed type-test suites and `typecheck` configuration remains missing.
+include positive and negative assertions and typed mock inference. One-shot
+`tsc` type-test files run through an owned consumer compiler with original AST
+locations. Alternate checkers, watch/list/debug and full type-tooling conformance
+remain unqualified.
 
 Inline snapshot invocation locations are captured before assertion wrappers or
 promise continuations, mapped using the execution host's immutable artifact,
@@ -182,7 +189,8 @@ rest of the stable lifecycle/fixture contract remain release work.
 Async suite callbacks now retain collection context across awaits, including
 nested and parameterized suites. Collection drains all registered jobs before
 execution and retains rejected siblings. The unchanged-body 5.0.4 corpus verifies
-suite ownership and outcomes; concurrent case execution remains missing.
+suite ownership and outcomes. Concurrent cases and seeded ordering are supported
+with the separate scopes and remaining interaction limits described below.
 
 The public CLI now uses the reference's new-only snapshot mode for local and
 watch runs, read-only mode in CI, and all mode for explicit updates. External,
@@ -386,7 +394,7 @@ Native test-entry setup ABI 2 carries serializer modules explicitly and rejects
 older bindings when serializers are requested.
 
 The compiler provides an inert vitest/config alias for supported configuration
-helpers. This does not supply the missing public defaults or a Vitest controller.
+helpers and public defaults. It does not instantiate a Vitest controller.
 Durable snapshot crash recovery, broader custom environment/serializer cases and
 remaining watch policy interactions still require their release acceptance gates.
 
@@ -483,22 +491,32 @@ handoffs do not shuffle an already shuffled input again. Multi-project grouping,
 custom sequencers, watch seed lifetime and the wider sequence matrix remain
 independent release work.
 
-### Explicit runtime collection
+### Static discovery and explicit runtime collection
 
-`next test --list` retains the existing file listing. Collected JSON currently
-requires `--list --json --staticParse=false`, explicitly opting into evaluation
-of configured setup and test modules through the Next compiler and owned file
-worker. Hooks, fixture factories and test bodies do not run. Static/default JSON
-collection remains unsupported and is rejected before loading application
-configuration; full source-location and cross-file focus metadata remain open.
-Listing a focused tree with `allowOnly:false` also rejects explicitly until
-Vitest's failed-task projection for forbidden focus is modeled, including focus
-inside a skipped suite. Ordinary no-focus CI collection remains supported.
+`next test --list` displays selected files. Default `--list --json` parses
+declaration syntax through the native SWC parser without evaluating configured
+global setup, setup or specification modules. It preserves literal/expression
+names, parameter placeholders, explicit project names, original UTF-16 locations
+and cross-file focus across selected files before applying name filters. Tables
+and conditions remain syntax rather than evaluated values. Configuration still
+loads in its isolated retained realm; custom application transforms and
+re-exported declaration helpers are not applied during static discovery.
+Complete transform, project/focus and source-location parity remain unqualified.
 
-Successful name/file facts remain separate from execution outcomes and are
-published only after worker, process group, cache, compiler, configuration and
-run-lock cleanup. Collection-only assertions skip snapshot setup/finalization,
-summaries and staged publication while still restoring their owned resources.
+Static parse errors and forbidden focus with `allowOnly:false` withhold public
+JSON. `--list --json --staticParse=false` explicitly evaluates configured global
+setup, setup and test modules through the Next compiler and owned file worker.
+Hooks, fixture factories and test bodies do not run; this path publishes name/file
+facts without the static path's location/project metadata. Runtime listing still
+rejects focused trees with `allowOnly:false`, including focus inside a skipped
+suite, until the pinned failed-task projection is modeled. Ordinary no-focus CI
+collection remains supported.
+
+Successful runtime name/file facts remain separate from execution outcomes and
+are published only after worker, process group, cache, compiler, configuration
+and run-lock cleanup. Collection-only assertions skip snapshot
+setup/finalization, summaries and staged publication while still restoring their
+owned resources.
 
 ### Isolated execution worker fixtures
 
@@ -511,7 +529,7 @@ only on worker fixtures; file fixtures can depend on worker fixtures, and test
 fixtures can depend on all three scopes. Scope and automatic-option override
 validation remains unchanged.
 
-The current scheduler starts one isolated process per file. That process owns the
+The default scheduler starts one isolated process per file. That process owns the
 worker phase independently: file fixtures finish during execution, while worker
 fixtures drain in reverse dependency order during host disposal, before assertion
 resource restoration and snapshot publication. Cleanup failures drain remaining
@@ -522,12 +540,11 @@ responsible for terminating uncooperative worker setup or cleanup.
 The public declarations model `$worker` values and worker-to-file dependencies,
 and builder contexts exclude narrower scopes. Focused reference proofs include
 the unchanged single-file worker fixture and fixture-overload contracts. This is
-a foundation for isolated file workers; `isolate:false` cross-file reuse remains
-unsupported until persistent execution, compiler/module identity and cached
-collector dispatch are implemented. It does not qualify the full worker/profile,
-watch, Browser Mode or fixture-type interaction matrix.
+the foundation for isolated file workers and the serial development Node shared
+cohorts below. It does not qualify the full worker/profile, watch, Browser Mode
+or fixture-type interaction matrix.
 
-### Private shared-worker runtime prerequisite
+### Shared-worker runtime and public cohorts
 
 `initializeTestWorker` owns one fixture owner across sequential file collectors.
 Cached extended declarations, bound hooks and parameter tables dispatch to its
@@ -543,12 +560,12 @@ until all file disposal and final worker-fixture cleanup succeed. Interrupted
 execution, unexpected runtime/collection errors, cleanup failures and late owners
 retire the worker and veto every file's staged writes.
 
-This is an internal host prerequisite. The public scheduler still rejects
-`isolate:false`; a native compiler cohort and persistent worker integration are
-required before the original public cross-file acceptance gate can pass. Source
-proofs run the unchanged original helper/case bodies using actual cached modules,
-and independently verify closed-origin API/rejection handling. Setup, mock,
-profile and broader cross-file fixture/utility interactions remain unqualified.
+The public scheduler connects this runtime to one immutable native compiler
+cohort and a parent-owned worker for serial development Node `isolate:false`
+files. The original cross-file fixture bodies pass with one shared fixture
+initialization. Setup, serializers, mocks, coverage, inspection, collection,
+custom realms, in-source/type-test entries and broader profiles remain outside
+this bounded shared-worker execution path.
 
 
 ### Runtime factory registration for isolated Node entries
@@ -576,3 +593,67 @@ prototype mutation remain unsupported. Static/hoisted mock mixtures, setup,
 serializers, coverage, custom realms, in-source entries, inspectors, shared
 cohorts, RSC/browser and production profiles require separate qualification.
 These initial boundaries do not remove their stable release requirements.
+
+
+### Named ESM consumers of a CommonJS spy
+
+An isolated development Node entry can use `vi.mock(literal, { spy: true })`
+for one project-local leaf CommonJS implementation. Turbopack's actual static
+CommonJS export table certifies each name, and its unspecialized ESM import
+references certify direct named consumers before namespace optimization or dead
+code removal. The automatic spy reads the real compiler-owned original namespace
+and retains function behavior and mock call state. No export names or module IDs
+are inferred from paths or source text.
+
+Default, namespace, reexport, dynamic and require consumers, unknown/dynamic
+export tables, `__esModule` interop, helper graphs and cycles remain unsupported.
+This slice also rejects factories/value mocks, setup, serializers, coverage,
+custom realms, in-source entries, inspectors, shared cohorts, RSC/browser and
+production profiles. These boundaries leave the broader stable requirements open.
+
+### Current profile, watch and coverage qualification
+
+The current static mock profile bounds are recorded in
+[`capabilities.ts`](../capabilities.ts). Development Node also supports one
+compiler-certified static ESM original cycle: deferred evaluation keeps existing
+pending ancestor bindings while preserving new members' own awaits, namespace
+identity and lazy fully mocked originals. Multiple mocked targets, dynamic-only
+cycles, manual/setup layers and competing actual imports remain unqualified.
+
+Development Node/RSC watch and bounded serial development Chromium client
+watch retain fresh execution and parent-owned browser/application resources.
+Standard V8 coverage is qualified for syntax-preserved JavaScript in development
+and production Node and development Chromium clients. Explicit standard flags
+also support development Node/client watch with per-entry replacement; RSC,
+production client coverage and production watch remain unqualified. Type-erasure
+TypeScript standard coverage is qualified for development/production Node with
+uniquely associated authored declarations and real V8 counters, including proven
+direct variable-arrow bindings. The converter checks binding, initializer,
+parameter and body mappings while retaining the compiler's stack/error map.
+
+Parent-selected untouched typed sources compile through the same native Node
+profile without evaluation. Their distinct declaration facts contain zero hits;
+publication requires exact agreement with runtime descriptors and unchanged
+selected sources, checked config files and supported config filename inventory.
+Arbitrary Next config import dependencies, custom TypeScript config paths, other
+arrow forms, runtime-generating TypeScript and JSX remain unqualified. Ambiguous
+or incomplete associations fail before publication. Named TypeScript watch
+coverage has initial, added-file and full-rerun comparisons under both default
+and retained coverage. The historical bare line-coverage mode has separate bounds.
+
+Serial Chromium files send their immutable declaration manifest before execution.
+The parent recomputes selection, accepts one active case at a time, requires every
+declared case and suite to finish, and checks explicit setup-blocking facts before
+accepting skipped descendants. Suite teardown failures cannot supply those facts.
+
+Browser continuation controls cover native Promise awaits, ordinary final-return
+object identity/getter counts, sampled microtask ordering and exact mapped
+post-await errors. Awaited Proxy values can still trigger observable prototype
+operations, including a trap that native await never invokes. Final
+callable-thenable bodies can still lose their originating
+scope and remain a release blocker. These focused results do not establish full
+Promise/thenable, browser-engine or platform compatibility. See the recorded
+implementation checkpoints in
+[`NEXT_TESTING_STABLE_PROGRESS.md`](../../../../../../NEXT_TESTING_STABLE_PROGRESS.md).
+Stable readiness remains false; focused batches do not replace full-corpus and
+release qualification.

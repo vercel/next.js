@@ -1,0 +1,70 @@
+import { chai, should, assert, expect, test } from 'vitest'
+
+function record(label, value) {
+  const row = { label, value }
+  ;(globalThis.__chaiBrowserRows ??= []).push(row)
+  console.log('CHAI_BROWSER_ROW ' + JSON.stringify(row))
+}
+
+test('Browser Chai preserves its named helper identities and raw counts', () => {
+  record('exports', {
+    chai: typeof chai,
+    assertSame: chai.assert === assert,
+    shouldSame: chai.should === should,
+    capitalShouldSame: chai.Should === should,
+    expectAssertSame: expect.assert === assert,
+    rawExpectDifferent: chai.expect !== expect,
+  })
+  chai.expect(3).to.equal(3)
+  chai.assert.equal(3, 3)
+  assert.equal(4, 4)
+  record('raw-count', { calls: expect.getState().assertionCalls })
+})
+
+test('Browser should installs the actual getter and keeps helper calls raw', () => {
+  const helper = should()
+  const second = chai.should()
+  ;(42).should.equal(42)
+  helper.equal(43, 43)
+  second.exist('present')
+  record('should', {
+    helperObject: typeof helper,
+    secondObject: typeof second,
+    getter: typeof Object.getOwnPropertyDescriptor(Object.prototype, 'should').get,
+    calls: expect.getState().assertionCalls,
+  })
+})
+
+test('Browser Chai delegates useProxy and plugin assertions', () => {
+  const previous = chai.config.useProxy
+  let pluginCalls = 0
+  const plugin = (_chai, utils) => {
+    _chai.Assertion.addMethod('browserChaiValue', function (expected) {
+      pluginCalls++
+      this.assert(utils.flag(this, 'object') === expected, 'expected browser value', 'expected different browser value', expected)
+    })
+  }
+  try {
+    const first = chai.use(plugin)
+    const second = chai.use(plugin)
+    chai.config.useProxy = true
+    const payload = { marker: 7 }
+    const enabled = chai.util.proxify(payload)
+    let typo
+    try { enabled.mraker } catch (error) { typo = { name: error.name, message: error.message } }
+    chai.expect(8).browserChaiValue(8)
+    chai.config.useProxy = false
+    record('proxy-plugin', {
+      freshUseRecords: first !== second,
+      sharedPluginUtility: first.util === second.util,
+      enabledDifferent: enabled !== payload,
+      enabledValue: enabled.marker,
+      disabledSame: chai.util.proxify(payload) === payload,
+      typo,
+      pluginCalls,
+      calls: expect.getState().assertionCalls,
+    })
+  } finally {
+    chai.config.useProxy = previous
+  }
+})

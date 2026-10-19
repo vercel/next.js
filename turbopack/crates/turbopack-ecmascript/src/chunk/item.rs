@@ -28,6 +28,7 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleContent,
+    async_chunk::module::AsyncLoaderModule,
     chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
@@ -154,13 +155,27 @@ impl EcmascriptChunkItemContent {
 
         if self.options.async_module.is_some() {
             write!(code, "return {TURBOPACK_ASYNC_MODULE}")?;
-            if self.options.supports_arrow_functions {
+            if self
+                .options
+                .async_module
+                .as_ref()
+                .is_some_and(|options| options.lower_async_to_generator)
+            {
+                code += "(function*(";
+            } else if self.options.supports_arrow_functions {
                 code += "(async (";
             } else {
                 code += "(async function(";
             }
             code += "__turbopack_handle_async_dependencies__, __turbopack_async_result__";
-            if self.options.supports_arrow_functions {
+            if self
+                .options
+                .async_module
+                .as_ref()
+                .is_some_and(|options| options.lower_async_to_generator)
+            {
+                code += "){";
+            } else if self.options.supports_arrow_functions {
                 code += ") => {";
             } else {
                 code += "){";
@@ -184,8 +199,13 @@ impl EcmascriptChunkItemContent {
             write!(
                 code,
                 "__turbopack_async_result__();\n}} catch(e) {{ __turbopack_async_result__(e); }} \
-                 }}, {});",
-                opts.has_top_level_await
+                 }}, {}{});",
+                opts.has_top_level_await,
+                if opts.lower_async_to_generator {
+                    ", globalThis[Symbol.for(\"turbopack.asyncContinuation\")]()"
+                } else {
+                    ""
+                }
             )?;
         }
 
@@ -343,6 +363,15 @@ pub struct EcmascriptModuleChunkItem {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
+}
+
+/// Certifies generated loader code only through both concrete compiler types.
+/// A custom chunk item that reports a loader module cannot qualify its own code.
+pub async fn is_async_loader_chunk_item(item: ResolvedVc<Box<dyn ChunkItem>>) -> Result<bool> {
+    let Some(item) = ResolvedVc::try_downcast_type::<EcmascriptModuleChunkItem>(item) else {
+        return Ok(false);
+    };
+    Ok(ResolvedVc::try_downcast_type::<AsyncLoaderModule>(item.await?.module).is_some())
 }
 
 /// Factory function to create an EcmascriptModuleChunkItem.

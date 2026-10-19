@@ -19,6 +19,8 @@ pub(crate) struct StaticMockPlan {
     pub declarations: Vec<StaticMockDeclaration>,
     pub hoisted: Vec<HoistedDeclaration>,
     pub actual_imports: Vec<StaticActualImport>,
+    pub mock_imports: Vec<StaticActualImport>,
+    pub unmocks: Vec<StaticUnmockDeclaration>,
     pub api_bindings: Vec<(String, String)>,
     pub reset_modules: bool,
     pub runtime_requests: Vec<String>,
@@ -28,6 +30,8 @@ impl StaticMockPlan {
         self.declarations.is_empty()
             && self.hoisted.is_empty()
             && self.actual_imports.is_empty()
+            && self.mock_imports.is_empty()
+            && self.unmocks.is_empty()
             && !self.reset_modules
             && self.runtime_requests.is_empty()
     }
@@ -44,6 +48,11 @@ pub(crate) struct HoistedDeclaration {
 pub(crate) struct StaticActualImport {
     pub request: String,
     pub local: String,
+}
+
+pub(crate) struct StaticUnmockDeclaration {
+    pub request: String,
+    pub start: usize,
 }
 
 struct SourceEdit {
@@ -137,6 +146,66 @@ pub(crate) fn validate_mock_target_source(source: &str, filename: &str) -> Resul
     })
 }
 
+/// This bounded spy profile has only direct static ESM consumers. Inspect the
+/// original syntax too, so dead branches and opaque CommonJS loader spellings
+/// cannot disappear before the native consumer certificate is checked.
+pub(crate) fn validate_cjs_spy_entry_source(source: &str, filename: &str) -> Result<()> {
+    GLOBALS.set(&Default::default(), || {
+        let (program, _) = parse_source(source, filename)?;
+        let mut syntax = CjsSpyLoaderSyntax::default();
+        program.visit_with(&mut syntax);
+        if syntax.0 {
+            bail!(
+                "CommonJS spies require direct static ESM consumers without CommonJS or \
+                 reflective loaders ({filename})."
+            );
+        }
+        Ok(())
+    })
+}
+
+#[derive(Default)]
+struct CjsSpyLoaderSyntax(bool);
+impl Visit for CjsSpyLoaderSyntax {
+    fn visit_expr(&mut self, expression: &Expr) {
+        if matches!(expression, Expr::Ident(name) if matches!(name.sym.as_ref(), "require" | "module" | "eval" | "Function"))
+        {
+            self.0 = true;
+        }
+        expression.visit_children_with(self);
+    }
+    fn visit_import_decl(&mut self, import: &ImportDecl) {
+        if matches!(import.src.value.as_str(), Some("node:module" | "module")) {
+            self.0 = true;
+        }
+        import.visit_children_with(self);
+    }
+    fn visit_call_expr(&mut self, call: &CallExpr) {
+        if matches!(call.callee, Callee::Import(_)) {
+            self.0 = true;
+        }
+        call.visit_children_with(self);
+    }
+    fn visit_member_expr(&mut self, member: &MemberExpr) {
+        let loader = |name: &str| {
+            matches!(
+                name,
+                "require" | "createRequire" | "getBuiltinModule" | "eval" | "Function"
+            )
+        };
+        if match &member.prop {
+            MemberProp::Ident(name) => loader(&name.sym),
+            MemberProp::Computed(property) => {
+                matches!(&*property.expr, Expr::Lit(Lit::Str(name)) if name.value.as_str().is_some_and(loader))
+            }
+            MemberProp::PrivateName(_) => false,
+        } {
+            self.0 = true;
+        }
+        member.visit_children_with(self);
+    }
+}
+
 /// Manual redirects use their original ESM source, without spec-only transforms.
 pub(crate) fn validate_manual_mock_source(source: &str, filename: &str) -> Result<()> {
     validate_mock_target_source(source, filename)?;
@@ -185,6 +254,8 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             declarations: Vec::new(),
             hoisted: Vec::new(),
             actual_imports: Vec::new(),
+            mock_imports: Vec::new(),
+            unmocks: Vec::new(),
             api_bindings: Vec::new(),
             reset_modules: false,
             runtime_requests: Vec::new(),
@@ -229,6 +300,8 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         calls: Vec::new(),
         hoisted_calls: Vec::new(),
         actual_calls: Vec::new(),
+        mock_import_calls: Vec::new(),
+        unmock_calls: Vec::new(),
         reset_calls: Vec::new(),
         runtime_calls: Vec::new(),
         allow_runtime,
@@ -261,6 +334,8 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             && (!calls.calls.is_empty()
                 || !calls.hoisted_calls.is_empty()
                 || !calls.actual_calls.is_empty()
+                || !calls.mock_import_calls.is_empty()
+                || !calls.unmock_calls.is_empty()
                 || !calls.reset_calls.is_empty()
                 || !calls.runtime_calls.is_empty()))
     {
@@ -275,7 +350,9 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     if !calls.reset_calls.is_empty()
         && (!calls.calls.is_empty()
             || !calls.hoisted_calls.is_empty()
-            || !calls.actual_calls.is_empty())
+            || !calls.actual_calls.is_empty()
+            || !calls.mock_import_calls.is_empty()
+            || !calls.unmock_calls.is_empty())
     {
         bail!(
             "vi.resetModules cannot currently combine with static mock, hoisted or actual-import \
@@ -291,6 +368,8 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         if !calls.calls.is_empty()
             || !calls.hoisted_calls.is_empty()
             || !calls.actual_calls.is_empty()
+            || !calls.mock_import_calls.is_empty()
+            || !calls.unmock_calls.is_empty()
         {
             bail!("Runtime module mocks cannot combine with hoisted mock helpers ({filename}).");
         }
@@ -353,6 +432,8 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             declarations: Vec::new(),
             hoisted: Vec::new(),
             actual_imports: Vec::new(),
+            mock_imports: Vec::new(),
+            unmocks: Vec::new(),
             api_bindings,
             reset_modules: !calls.reset_calls.is_empty(),
             runtime_requests,
@@ -364,7 +445,9 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     // explicitly rather than slicing a factory at the wrong source offset.
     if (!calls.calls.is_empty()
         || !calls.hoisted_calls.is_empty()
-        || !calls.actual_calls.is_empty())
+        || !calls.actual_calls.is_empty()
+        || !calls.mock_import_calls.is_empty()
+        || !calls.unmock_calls.is_empty())
         && source.starts_with('\u{feff}')
     {
         bail!("Static module mocks in BOM-prefixed specs are unsupported ({filename}).");
@@ -411,6 +494,53 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
             replacement: padded_replacement(&source[start..end], &local)?,
         });
         actual_imports.push(StaticActualImport {
+            request: request.into(),
+            local,
+        });
+    }
+    let mut identifier_names = IdentifierNames::default();
+    module.visit_with(&mut identifier_names);
+    let mut mock_imports = Vec::new();
+    for call in &calls.mock_import_calls {
+        if call.args.len() != 1 || call.args[0].spread.is_some() {
+            bail!("vi.importMock requires one literal target ({filename}).");
+        }
+        let Expr::Lit(Lit::Str(request)) = &*call.args[0].expr else {
+            bail!("vi.importMock target must be a string literal ({filename}).");
+        };
+        let Some(request) = request.value.as_str().filter(|request| !request.is_empty()) else {
+            bail!("vi.importMock target must be a nonempty string literal ({filename}).");
+        };
+        if request.contains('?') || request.strip_prefix('#').unwrap_or(request).contains('#') {
+            bail!(
+                "vi.importMock targets with query strings or fragments are unsupported \
+                 ({filename})."
+            );
+        }
+        let mut index = mock_imports.len();
+        let local = loop {
+            let candidate = format!("_m{index}");
+            if !source.contains(&candidate)
+                && !identifier_names.0.contains(&candidate)
+                && !mock_imports
+                    .iter()
+                    .any(|import: &StaticActualImport| import.local == candidate)
+            {
+                break candidate;
+            }
+            index += 1;
+        };
+        let Callee::Expr(callee) = &call.callee else {
+            unreachable!()
+        };
+        let start = offset(callee.span());
+        let end = (callee.span().hi.0 - start_pos) as usize;
+        actual_edits.push(SourceEdit {
+            start,
+            end,
+            replacement: padded_replacement(&source[start..end], &local)?,
+        });
+        mock_imports.push(StaticActualImport {
             request: request.into(),
             local,
         });
@@ -512,6 +642,64 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
     }
     let mut declarations = Vec::new();
     let mut masks = Vec::new();
+    if calls.mock_import_calls.iter().any(|import| {
+        calls
+            .hoisted_calls
+            .iter()
+            .chain(calls.calls.iter())
+            .any(|outer| import.span.lo >= outer.span.lo && import.span.hi <= outer.span.hi)
+    }) {
+        bail!(
+            "vi.importMock inside hoisted callbacks or mock factories is not implemented \
+             ({filename})."
+        );
+    }
+    if !calls.unmock_calls.is_empty() && hoisted.iter().any(|helper| helper.has_dynamic_import) {
+        bail!(
+            "vi.unmock cannot currently combine with dynamic imports in vi.hoisted ({filename})."
+        );
+    }
+    let mut unmocks = Vec::new();
+    for call in &calls.unmock_calls {
+        let top_level = module.body.iter().any(|item| matches!(item,
+            ModuleItem::Stmt(Stmt::Expr(stmt)) if matches!(&*stmt.expr, Expr::Call(top) if top.span == call.span)));
+        if !top_level || call.args.len() != 1 || call.args[0].spread.is_some() {
+            bail!("vi.unmock requires one literal target in a top-level expression ({filename}).");
+        }
+        let request = match &*call.args[0].expr {
+            Expr::Lit(Lit::Str(request)) => request,
+            Expr::Call(import)
+                if matches!(import.callee, Callee::Import(_))
+                    && import.args.len() == 1
+                    && import.args[0].spread.is_none() =>
+            {
+                let Expr::Lit(Lit::Str(request)) = &*import.args[0].expr else {
+                    bail!("vi.unmock import() target must contain a string literal ({filename}).");
+                };
+                request
+            }
+            _ => {
+                bail!("vi.unmock target must be a string literal or literal import() ({filename}).")
+            }
+        };
+        let Some(request) = request.value.as_str().filter(|request| !request.is_empty()) else {
+            bail!("vi.unmock requires a nonempty literal target ({filename}).");
+        };
+        if request.contains('?') || request.strip_prefix('#').unwrap_or(request).contains('#') {
+            bail!("vi.unmock query and fragment targets are unsupported ({filename}).");
+        }
+        let start = offset(call.span);
+        let end = (call.span.hi.0 - start_pos) as usize;
+        masks.push(SourceEdit {
+            start,
+            end,
+            replacement: padded_replacement(&source[start..end], "")?,
+        });
+        unmocks.push(StaticUnmockDeclaration {
+            request: request.into(),
+            start,
+        });
+    }
     for call in calls.calls {
         let top_level = module.body.iter().any(|item| matches!(item,
             ModuleItem::Stmt(Stmt::Expr(stmt)) if matches!(&*stmt.expr, Expr::Call(top) if top.span == call.span)));
@@ -584,6 +772,9 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         let mut locals = LocalBindings::default();
         factory.visit_with(&mut locals);
         locals.0.extend(hoisted_ids.iter().cloned());
+        // The emitted registration imports these exact API bindings before any
+        // factory runs. Ordinary spec imports remain unavailable during hoisting.
+        locals.0.extend(bindings.iter().cloned());
         let mut captures = FactoryReferences {
             locals: &locals.0,
             unresolved,
@@ -691,6 +882,8 @@ fn extract(source: &str, filename: &str, allow_runtime: bool) -> Result<StaticMo
         declarations,
         hoisted,
         actual_imports,
+        mock_imports,
+        unmocks,
         api_bindings,
         reset_modules,
         runtime_requests: Vec::new(),
@@ -848,6 +1041,8 @@ struct MockCalls<'a> {
     calls: Vec<CallExpr>,
     hoisted_calls: Vec<CallExpr>,
     actual_calls: Vec<CallExpr>,
+    mock_import_calls: Vec<CallExpr>,
+    unmock_calls: Vec<CallExpr>,
     reset_calls: Vec<CallExpr>,
     runtime_calls: Vec<(bool, CallExpr)>,
     allow_runtime: bool,
@@ -947,6 +1142,15 @@ impl Visit for MockCalls<'_> {
                                 self.actual_calls.push(call.clone());
                                 return;
                             }
+                            MemberProp::Ident(name) if name.sym == "importMock" => {
+                                self.mock_import_calls.push(call.clone());
+                                return;
+                            }
+                            MemberProp::Ident(name) if name.sym == "unmock" => {
+                                self.unmock_calls.push(call.clone());
+                                call.args.visit_with(self);
+                                return;
+                            }
                             MemberProp::Ident(name)
                                 if !matches!(
                                     name.sym.as_ref(),
@@ -984,6 +1188,14 @@ impl Visit for MockCalls<'_> {
             }
         }
         member.visit_children_with(self);
+    }
+}
+
+#[derive(Default)]
+struct IdentifierNames(HashSet<String>);
+impl Visit for IdentifierNames {
+    fn visit_ident(&mut self, ident: &Ident) {
+        self.0.insert(ident.sym.to_string());
     }
 }
 
@@ -1374,6 +1586,37 @@ mod tests {
                     .is_err(),
                 "accepted {body}"
             );
+        }
+    }
+
+    #[test]
+    fn retains_imported_test_api_bindings_for_factory_closures() {
+        for (import, api) in [
+            ("vi", "vi"),
+            ("vi as tools", "tools"),
+            ("vitest as tools", "tools"),
+        ] {
+            let source = format!(
+                "import {{{import}}} from 'vitest';{api}.mock('./dep',async original=>({{...await \
+                 original(),value:{api}.fn(()=>42)}}))"
+            );
+            let plan = extract_static_mocks(&source, "spec.mjs").unwrap();
+            assert_eq!(plan.declarations.len(), 1);
+            assert_eq!(plan.declarations[0].export_names, ["value"]);
+            assert!(
+                plan.declarations[0]
+                    .factory_source
+                    .contains(&format!("{api}.fn"))
+            );
+            assert_eq!(plan.api_bindings[0].1, api);
+        }
+        for source in [
+            "import {vi} from 'vitest';import {other} from \
+             './other';vi.mock('./dep',()=>({value:vi.fn(other)}))",
+            "import {vi} from 'vitest';const \
+             other=42;vi.mock('./dep',()=>({value:vi.fn(()=>other)}))",
+        ] {
+            assert!(extract_static_mocks(source, "spec.mjs").is_err());
         }
     }
 
@@ -1773,7 +2016,6 @@ mod tests {
             "const mock = vi.mock; mock('./dep', () => ({ value: 1 }));",
             "const {mock} = vi; mock('./dep', () => ({value: 1}));",
             "const {mock: alias} = vi; alias('./dep', () => ({value: 1}));",
-            "vi.mock('./dep', () => ({ value: vi.fn() }));",
         ] {
             assert!(
                 extract_static_mocks(&format!("import {{vi}} from 'vitest';{body}"), "spec.ts")
@@ -1838,5 +2080,119 @@ mod tests {
         .unwrap();
         assert_eq!(plan.declarations.len(), 1);
         assert!(plan.source.contains("vi.mock('unrelated')"));
+    }
+    #[test]
+    fn cjs_spy_consumers_reject_loaders_before_dead_code_removal() {
+        use crate::testing_mock_source::validate_cjs_spy_entry_source;
+        for source in [
+            "if(false) import('./implementation.cjs')",
+            "if(false) require('./implementation.cjs')",
+            "if(false) module.require('./implementation.cjs')",
+            "const r = require; r('./implementation.cjs')",
+            "import {createRequire as make} from 'node:module'; \
+             make(import.meta.url)('./implementation.cjs')",
+            "process.getBuiltinModule('module')",
+            "globalThis['require']('./implementation.cjs')",
+            "eval('require(\"./implementation.cjs\")')",
+            "new Function('return 1')",
+        ] {
+            assert!(
+                validate_cjs_spy_entry_source(source, "entry.mjs").is_err(),
+                "{source}"
+            );
+        }
+        assert!(
+            validate_cjs_spy_entry_source(
+                "import { arbitrary as alias } from \
+                 './implementation.cjs';test('case',()=>alias())",
+                "entry.mjs"
+            )
+            .is_ok()
+        );
+        assert!(
+            validate_cjs_spy_entry_source(
+                "const text='require ./implementation.cjs'; // import('./implementation.cjs')",
+                "entry.mjs"
+            )
+            .is_ok()
+        );
+    }
+}
+
+#[cfg(test)]
+mod import_mock_unmock_tests {
+    use super::*;
+
+    #[test]
+    fn excludes_escaped_authored_identifiers_from_import_mock_helper_names() {
+        let source = r"import{vi}from'vitest';const \u005fm0=1;vi.importMock('./dep');";
+        let plan = extract_test_mocks(source, "entry.mjs").unwrap();
+        assert_eq!(plan.mock_imports[0].local, "_m1");
+        assert!(plan.source.contains(r"const \u005fm0=1"));
+    }
+
+    #[test]
+    fn extracts_import_mock_callees_without_rewriting_requests_or_utf16_positions() {
+        let source = "import{vi as v}from'vitest';const _m0=1;const note='é😀';const \
+                      first=v.importMock('./dep');const second=v\n.importMock('./dep');";
+        let plan = extract_test_mocks(source, "entry.mjs").unwrap();
+        assert_eq!(plan.mock_imports.len(), 2);
+        assert_eq!(plan.mock_imports[0].request, "./dep");
+        assert_eq!(plan.mock_imports[0].local, "_m1");
+        assert_eq!(plan.mock_imports[1].local, "_m2");
+        assert_eq!(
+            plan.source.encode_utf16().count(),
+            source.encode_utf16().count()
+        );
+        assert_eq!(
+            plan.source.matches('\n').count(),
+            source.matches('\n').count()
+        );
+        assert!(!plan.source.contains("importMock"));
+        assert!(plan.source.contains("('./dep')"));
+        assert!(!plan.is_empty());
+    }
+
+    #[test]
+    fn retains_unmock_source_order_and_masks_literal_import_arguments() {
+        let source = "import{vi}from'vitest';vi.mock('./dep',()=>({value:1}));vi.unmock(import('./\
+                      dep'));vi.unmock('./other');vi.mock('./other',()=>({value:2}));";
+        let plan = extract_test_mocks(source, "entry.mjs").unwrap();
+        assert_eq!(plan.declarations.len(), 2);
+        assert_eq!(plan.unmocks.len(), 2);
+        assert!(plan.declarations[0].factory_start < plan.unmocks[0].start);
+        assert!(plan.unmocks[1].start < plan.declarations[1].factory_start);
+        assert_eq!(plan.unmocks[0].request, "./dep");
+        assert_eq!(plan.unmocks[1].request, "./other");
+        assert!(!plan.source.contains("unmock"));
+        assert!(!plan.source.contains("import('./dep')"));
+        assert!(!plan.is_empty());
+    }
+
+    #[test]
+    fn rejects_unsupported_new_helper_shapes_before_planning() {
+        for statement in [
+            "vi.importMock(name)",
+            "vi.importMock('./dep',{})",
+            "vi.importMock('./dep?x')",
+            "vi.unmock(name)",
+            "vi.unmock(import(name))",
+            "vi.unmock('./dep',{})",
+            "function nested(){vi.unmock('./dep')}",
+            "const {importMock}=vi;importMock('./dep')",
+            "vi['unmock']('./dep')",
+            "const alias=vi;alias.unmock('./dep')",
+            "vi.resetModules();vi.importMock('./dep')",
+            "vi.doUnmock('./dep');vi.unmock('./dep')",
+            "vi.hoisted(async()=>{await import('./dep')});vi.unmock('./dep')",
+            "vi.hoisted(async()=>vi.importMock('./dep'))",
+            "vi.mock('./dep',async()=>({value:await vi.importMock('./other')}))",
+        ] {
+            let source = format!("import{{vi}}from'vitest';{statement}");
+            assert!(
+                extract_test_mocks(&source, "entry.mjs").is_err(),
+                "{statement}"
+            );
+        }
     }
 }

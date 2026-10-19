@@ -1,3 +1,5 @@
+import type { TestSnapshotNoReplaceMethods } from './test-snapshot-no-replace'
+import type { TestSnapshotDirectoryDeletionMethods } from './test-snapshot-directory-deletion'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
 import type {
@@ -37,7 +39,9 @@ export interface TurbopackProjectCallbacks {
   onBeforeDeferredEntries?: () => Promise<void>
 }
 
-export interface Binding {
+export interface Binding
+  extends TestSnapshotNoReplaceMethods,
+    TestSnapshotDirectoryDeletionMethods {
   isWasm: boolean
   turbo: {
     createProject(
@@ -339,6 +343,16 @@ export interface Project {
     dependencyPlan?: boolean
     /** Native client test realm; omitted for ordinary Node browser drivers. */
     browserClient?: boolean
+    /** Require native output-role certificates; no additional NAPI argument. */
+    browserCoverage?: boolean
+    /** Native source-preserving coverage context; runtime remains production. */
+    sourceCoverage?: boolean
+    /** Private producer qualification; ordinary app/test compilation defaults off. */
+    importCoverageRoles?: boolean
+    /** Private parent revision; requires native config-input capability v1. */
+    tsconfigInputRevision?: string
+    /** Parent-owned alias finds requiring native raw-request admission. */
+    aliasFinds?: readonly string[]
     /** Actual AppProject route; requires native route capability negotiation. */
     route?: string
     snapshotSerializers?: readonly string[]

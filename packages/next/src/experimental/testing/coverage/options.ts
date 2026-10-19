@@ -56,7 +56,11 @@ export function parseStandardCoverageOptions(
   const reportOnFailure = flags['coverage.reportOnFailure'] ?? false
   if (![true, false, 'true', 'false'].includes(reportOnFailure as boolean))
     throw new Error('--coverage.reportOnFailure must be true or false.')
+  const cleanOnRerun = flags['coverage.cleanOnRerun'] ?? true
+  if (![true, false, 'true', 'false'].includes(cleanOnRerun as boolean))
+    throw new Error('--coverage.cleanOnRerun must be true or false.')
   return {
+    cleanOnRerun: cleanOnRerun === true || cleanOnRerun === 'true',
     reporter: [...new Set(reporter)] as StandardCoverageOptions['reporter'],
     include: list('include'),
     exclude: list('exclude') ?? [],

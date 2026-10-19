@@ -1,3 +1,5 @@
+import { pathToFileURL } from 'node:url'
+import type { ResultEvent } from 'next/dist/experimental/testing/reporting/events'
 import { execFile, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { retry, findPort } from 'next-test-utils'
@@ -32,6 +34,10 @@ const consumerDependencyVersions = {
   '@testing-library/jest-dom': '7.0.1',
   react: '19.2.0',
   'react-dom': '19.2.0',
+  'vitest-browser-react': '2.3.0',
+  playwright: '1.64.0',
+  pathe: '2.0.3',
+  'magic-string': '1.4.3',
 } as const
 const evidenceDirectory = process.env.NEXT_TESTING_RELEASE_GAP_EVIDENCE
 let directory: string
@@ -39,6 +45,8 @@ let referenceRoot: string
 let referenceBin: string
 
 type Contract = (typeof contracts)[number]
+type ConsumerContract = Pick<Contract, 'id'> &
+  Partial<Pick<Contract, 'browser' | 'nextProject'>>
 type Runner = 'vitest' | 'next'
 interface Report {
   success: boolean
@@ -106,14 +114,21 @@ function observable(report: Report | null) {
   }
 }
 
-function consumerDependencies(contract: Contract) {
+function consumerDependencies(contract: ConsumerContract) {
   const names: (keyof typeof consumerDependencyVersions)[] = []
+  if (contract.browser || contract.nextProject?.environment === 'browser')
+    names.push('playwright')
+  if (contract.id === 'external-esm-target') names.push('pathe')
+  if (contract.id === 'compiler-plugin-mapped-failure')
+    names.push('magic-string')
   if (
     contract.nextProject?.environment === 'jsdom' ||
     contract.id === 'per-file-environment'
   )
     names.push('jsdom')
   if (contract.nextProject?.environment === 'happy-dom') names.push('happy-dom')
+  if (contract.id === 'browser-react-render')
+    names.push('vitest-browser-react', 'react', 'react-dom')
   if (contract.id === 'testing-library-react')
     names.push(
       '@testing-library/react',
@@ -125,7 +140,7 @@ function consumerDependencies(contract: Contract) {
 }
 
 async function prepareConsumerModules(
-  contract: Contract,
+  contract: ConsumerContract,
   runner: Runner,
   root: string
 ) {
@@ -171,15 +186,14 @@ async function prepareConsumerModules(
   const dependencies = await Promise.all(
     names.map(async (name) => {
       const entry = await realpath(fixtureRequire.resolve(name))
-      const manifestPath = await realpath(
-        fixtureRequire.resolve(`${name}/package.json`)
-      )
+      const manifestPath = await realpath(join(modules, name, 'package.json'))
       const manifest = JSON.parse(await readFile(manifestPath, 'utf8'))
       if (
+        manifest.name !== name ||
         manifest.version !== consumerDependencyVersions[name] ||
         entry !== (await realpath(referenceRequire.resolve(name))) ||
         manifestPath !==
-          (await realpath(referenceRequire.resolve(`${name}/package.json`)))
+          (await realpath(join(referenceModules, name, 'package.json')))
       )
         throw new Error(
           `Release consumer dependency ${name} must use the pristine pinned artifact`
@@ -242,6 +256,14 @@ async function prepare(
   }
   if (contract.fixtureConfigFile) {
     // An unchanged real executable configuration is loaded by both runners.
+  } else if (runner === 'next' && contract.testNamePatternRegExp) {
+    const { source, flags } = contract.testNamePatternRegExp
+    // JSON cannot carry a RegExp. Recreate the same public option used below
+    // by the pristine runner while preserving the existing browser adapter.
+    await writeFile(
+      join(root, 'next.test.config.mjs'),
+      `const config=${JSON.stringify(config)};\nconfig.projects[0].testNamePattern=new RegExp(${JSON.stringify(source)},${JSON.stringify(flags)});\nexport default config;\n`
+    )
   } else if (runner === 'next' && contract.nextConfigFile) {
     const source = contract.nextConfigFile.startsWith('vitest')
       ? `import {defineConfig} from 'vitest/config'; export default defineConfig(${JSON.stringify({ test: { include: ['*.case.mjs'], ...contract.vitest }, ...(contract.vitestAlias ? { resolve: { alias: { '@release-subject': join(root, 'subject.mjs') } } } : {}) })})\n`
@@ -335,6 +357,9 @@ async function invoke(contract: Contract, runner: Runner, root: string) {
           : '') +
         (contract.browser
           ? 'config.test.browser.provider=playwright();\n'
+          : '') +
+        (contract.testNamePatternRegExp
+          ? `config.test.testNamePattern=new RegExp(${JSON.stringify(contract.testNamePatternRegExp.source)},${JSON.stringify(contract.testNamePatternRegExp.flags)});\n`
           : '') +
         'export default config;\n'
     )
@@ -536,11 +561,6 @@ it.each(contracts)(
           `REFERENCE PROVIDER FIXTURE INVALID\n${JSON.stringify(trace)}`
         )
     }
-    if (contract.vitestAlias && actual.code !== 0) {
-      expect(actual.stdout + actual.stderr).toContain('resolve.alias')
-      expect(actual.stdout + actual.stderr).toContain('@release-subject')
-      return
-    }
     if (actual.code !== reference.code || !actual.report) {
       throw new Error(
         `NEXT RELEASE GAP (${contract.id}): expected exit ${reference.code}, received ${actual.code}\n${actual.stdout}\n${actual.stderr}\n${JSON.stringify(actual.outcomes)}`
@@ -562,6 +582,24 @@ it.each(contracts)(
       expect(
         actual.stdout + actual.stderr + JSON.stringify(actual.report)
       ).toContain(text)
+    if (contract.mappedFailure) {
+      const source = join(roots.next, contract.mappedFailure.file)
+      const events = actual.report.next?.events as ResultEvent[] | undefined
+      const frames = events?.flatMap((event) =>
+        event.type === 'case-end'
+          ? event.errors.flatMap((error) => error.frames ?? [])
+          : []
+      )
+      expect(
+        frames?.some(
+          (frame) =>
+            frame.original &&
+            (frame.file === source ||
+              frame.file === pathToFileURL(source).href) &&
+            frame.line === contract.mappedFailure!.line
+        )
+      ).toBe(true)
+    }
     if (contract.compareFailureMessages) {
       const failures = (report: Report) =>
         report.testResults.flatMap((file) =>
@@ -798,11 +836,10 @@ async function watchProbe(
 ) {
   const root = join(directory, id, runner)
   await mkdir(root, { recursive: true })
-  await symlink(
-    runner === 'vitest'
-      ? join(referenceRoot, 'node_modules')
-      : join(__dirname, '../../../../node_modules'),
-    join(root, 'node_modules')
+  await prepareConsumerModules(
+    { id, browser: environment === 'browser' },
+    runner,
+    root
   )
   await writeFile(
     join(root, 'package.json'),
@@ -1641,6 +1678,144 @@ it.each(['body', 'beforeEach', 'fixture', 'finished'] as const)(
   60000
 )
 
+it.each(['retained', 'restart'] as const)(
+  '7 PTY: transform configuration closures match pinned %s watch behavior',
+  async (flow) => {
+    const contract = contracts.find(
+      (item) => item.id === 'compiler-plugin-helper-closure'
+    )!
+    interface Stage {
+      label: string
+      report: Report
+      sources: Record<string, { sha256: string; source: string }>
+    }
+    const results = {} as Record<
+      Runner,
+      {
+        completed: boolean
+        code: number
+        error: string | null
+        raw: string
+        transformStages: Stage[]
+      }
+    >
+    for (const runner of ['vitest', 'next'] as const) {
+      const root = await prepare(contract, runner, `transform-watch-${flow}`)
+      const helper = await readFile(join(root, 'transform-helper.mjs'), 'utf8')
+      const config = await readFile(join(root, 'vitest.config.mjs'), 'utf8')
+      const steps =
+        flow === 'retained'
+          ? [
+              {
+                label: 'helper4-retains3',
+                file: 'transform-helper.mjs',
+                failed: 0,
+                source: helper.replace(
+                  'Promise.resolve(3)',
+                  'Promise.resolve(4)'
+                ),
+              },
+              {
+                label: 'helper3-retains3',
+                file: 'transform-helper.mjs',
+                failed: 0,
+                source: helper,
+              },
+              { label: 'manual-r-retains3', key: 'r', failed: 0 },
+            ]
+          : [
+              {
+                label: 'helper4-retains3',
+                file: 'transform-helper.mjs',
+                failed: 0,
+                source: helper.replace(
+                  'Promise.resolve(3)',
+                  'Promise.resolve(4)'
+                ),
+              },
+              {
+                label: 'config-restart-loads4',
+                file: 'vitest.config.mjs',
+                failed: 1,
+                source: config + '\n// restart captured configuration\n',
+              },
+            ]
+      const args =
+        runner === 'vitest'
+          ? [
+              process.execPath,
+              referenceBin,
+              '--watch',
+              '--root',
+              root,
+              '--config',
+              join(root, 'vitest.config.mjs'),
+              '--reporter=json',
+              '--reporter=default',
+              '--outputFile=result.json',
+            ]
+          : [
+              process.execPath,
+              nextBin,
+              'test',
+              root,
+              '--watch',
+              '--reporter=json',
+              '--reporter=default',
+              '--outputFile=result.json',
+            ]
+      const result = await output(
+        'python3',
+        [
+          join(__dirname, 'pty-driver.py'),
+          JSON.stringify({
+            args,
+            cwd: root,
+            action: 'transform-config-watch',
+            ordinaryTerminal: true,
+            waitTimeout: 25,
+            steps,
+          }),
+        ],
+        root
+      )
+      expect(result.code).toBe(0)
+      results[runner] = JSON.parse(result.stdout)
+      if (evidenceDirectory)
+        await writeFile(
+          join(evidenceDirectory, `transform-watch-${flow}-${runner}.json`),
+          JSON.stringify(results[runner], null, 2)
+        )
+      expect(results[runner].completed).toBe(true)
+      expect(results[runner].error).toBeNull()
+      expect(results[runner].code).toBe(flow === 'restart' ? 1 : 0)
+      expect(
+        results[runner].transformStages.map((stage) => stage.label)
+      ).toEqual(['initial', ...steps.map((step) => step.label)])
+      expect(
+        results[runner].transformStages.map(
+          (stage) => stage.report.numFailedTests
+        )
+      ).toEqual([0, ...steps.map((step) => step.failed)])
+      for (const [index, step] of steps.entries())
+        if ('file' in step)
+          expect(
+            results[runner].transformStages[index + 1].sources[step.file!]
+              .source
+          ).toBe(step.source)
+    }
+    expect(
+      results.next.transformStages.map((stage) => observable(stage.report))
+    ).toEqual(
+      results.vitest.transformStages.map((stage) => observable(stage.report))
+    )
+    expect(results.next.transformStages.map((stage) => stage.sources)).toEqual(
+      results.vitest.transformStages.map((stage) => stage.sources)
+    )
+  },
+  90000
+)
+
 it.each(['default', 'help', 'filter'] as const)(
   '8 PTY: interactive %s behavior matches the pinned CLI',
   async (action) => {
@@ -1776,4 +1951,1241 @@ it.each(['browser', 'parallel'] as const)(
     expect(actual).toEqual(expected)
   },
   90000
+)
+
+type BrowserCoverageWatchMap = Record<
+  string,
+  { path: string; [field: string]: unknown }
+>
+interface BrowserCoverageWatchResult {
+  completed: boolean
+  code: number
+  stages: string[]
+  raw: string
+  error: string | null
+  coverageStages: {
+    label: string
+    report: Report
+    coverage: BrowserCoverageWatchMap
+    lcov: string
+    sources: Record<string, { source: string; sha256: string }>
+  }[]
+}
+
+async function browserCoverageWatchProbe(
+  runner: Runner,
+  scenario: 'default' | 'false' | 'threshold-initial' | 'threshold-rerun'
+) {
+  const contract = contracts.find((item) => item.id === 'coverage-browser')!
+  const label = `browser-coverage-watch-${scenario}`
+  // Use the unchanged real browser fixture and the same pinned consumer install.
+  const root = await prepare(contract, runner, label)
+  const testSource = await readFile(join(root, 'contract.case.mjs'), 'utf8')
+  const subjectSource = await readFile(join(root, 'subject.mjs'), 'utf8')
+  const threshold = scenario.startsWith('threshold-')
+  const configPath = join(referenceRoot, `${label}.config.mjs`)
+  const coverage = {
+    enabled: true,
+    provider: 'v8',
+    reporter: ['json', 'lcov'],
+    include: threshold ? ['subject.mjs'] : ['subject.mjs', 'unimported.mjs'],
+    exclude: ['excluded.mjs'],
+    ...(scenario === 'false' ? { cleanOnRerun: false } : {}),
+    ...(threshold
+      ? {
+          thresholds: {
+            functions: scenario === 'threshold-initial' ? 100 : 50,
+          },
+        }
+      : {}),
+  }
+  await writeFile(
+    configPath,
+    "import {playwright} from '@vitest/browser-playwright';\n" +
+      `const config=${JSON.stringify({ test: { include: ['*.case.mjs'], coverage, browser: { enabled: true, headless: true, instances: [{ browser: 'chromium' }] } } })};\n` +
+      'config.test.browser.provider=playwright();export default config;\n'
+  )
+  const args =
+    runner === 'vitest'
+      ? [
+          process.execPath,
+          referenceBin,
+          '--watch',
+          '--root',
+          root,
+          '--config',
+          configPath,
+          '--reporter=json',
+          '--reporter=default',
+          '--outputFile=result.json',
+        ]
+      : [
+          process.execPath,
+          nextBin,
+          'test',
+          root,
+          '--watch',
+          '--coverage',
+          '--coverage.reporter=json',
+          '--coverage.reporter=lcov',
+          '--coverage.include=subject.mjs',
+          ...(threshold ? [] : ['--coverage.include=unimported.mjs']),
+          '--coverage.exclude=excluded.mjs',
+          '--reporter=json',
+          '--reporter=default',
+          '--outputFile=result.json',
+          ...(scenario === 'false' ? ['--coverage.cleanOnRerun=false'] : []),
+          ...(threshold
+            ? [
+                `--coverage.thresholds.functions=${scenario === 'threshold-initial' ? 100 : 50}`,
+              ]
+            : []),
+        ]
+  const steps =
+    scenario === 'threshold-initial'
+      ? []
+      : scenario === 'threshold-rerun'
+        ? [
+            {
+              label: 'threshold-rerun',
+              file: 'subject.mjs',
+              source:
+                subjectSource +
+                '\nexport function laterUnused() { return "later unused" }\n',
+            },
+          ]
+        : [
+            {
+              label: 'addition',
+              file: 'added.case.mjs',
+              source: testSource.replace(
+                "'browser original source'",
+                "'browser original source added'"
+              ),
+            },
+            { label: 'full-rerun', key: 'r' },
+          ]
+  const driven = await output(
+    'python3',
+    [
+      join(__dirname, 'pty-driver.py'),
+      JSON.stringify({
+        args,
+        cwd: root,
+        action: 'coverage-watch',
+        ordinaryTerminal: true,
+        waitTimeout: 25,
+        steps,
+      }),
+    ],
+    root
+  )
+  if (driven.code !== 0)
+    throw new Error(
+      `BROWSER COVERAGE WATCH DRIVER FAILED (${runner}/${scenario})\n${driven.stdout}${driven.stderr}`
+    )
+  const result = JSON.parse(driven.stdout) as BrowserCoverageWatchResult
+  if (evidenceDirectory)
+    await writeFile(
+      join(evidenceDirectory, `${label}-${runner}.json`),
+      JSON.stringify({ runner, scenario, root, ...result }, null, 2)
+    )
+  expect(result.error).toBeNull()
+  expect(result.completed).toBe(true)
+  expect(result.coverageStages.map((stage) => stage.label)).toEqual([
+    'initial',
+    ...steps.map((step) => step.label),
+  ])
+  const owner = await realpath(root)
+  for (const stage of result.coverageStages) {
+    expect(Object.keys(stage.coverage).length).toBeGreaterThan(0)
+    for (const [file, data] of Object.entries(stage.coverage)) {
+      expect(isAbsolute(file)).toBe(true)
+      expect(data.path).toBe(file)
+      const portable = relative(owner, file).split(sep).join('/')
+      expect(['subject.mjs', 'unimported.mjs']).toContain(portable)
+      expect(await realpath(file)).toBe(file)
+      const source = stage.sources[portable]
+      expect(createHash('sha256').update(source.source).digest('hex')).toBe(
+        source.sha256
+      )
+    }
+    expect(stage.lcov).toContain('BRDA:')
+    if (runner === 'next') {
+      const events = stage.report.next?.events as ResultEvent[] | undefined
+      const starts = events?.filter((event) => event.type === 'file-start')
+      expect(starts?.length).toBeGreaterThan(0)
+      for (const event of starts ?? [])
+        if (event.type === 'file-start')
+          expect(event.entry.profile).toMatchObject({
+            environment: 'browser',
+            browserClient: true,
+            mode: 'development',
+          })
+      expect(events?.filter((event) => event.type === 'run-end')).toHaveLength(
+        1
+      )
+    }
+  }
+  return result
+}
+
+function portableBrowserWatchCoverage(
+  stage: BrowserCoverageWatchResult['coverageStages'][number],
+  root: string
+) {
+  return Object.fromEntries(
+    Object.entries(stage.coverage).map(([file, data]) => {
+      const portable = relative(root, file).split(sep).join('/')
+      return [portable, { ...data, path: portable }]
+    })
+  )
+}
+
+it.each(['default', 'false'] as const)(
+  '9 coverage watch browser-client: %s retention matches complete pristine maps',
+  async (scenario) => {
+    const expected = await browserCoverageWatchProbe('vitest', scenario)
+    const actual = await browserCoverageWatchProbe('next', scenario)
+    expect(expected.code).toBe(0)
+    expect(actual.code).toBe(expected.code)
+    for (const [index, stage] of actual.coverageStages.entries()) {
+      const reference = expected.coverageStages[index]
+      expect(stage.sources).toEqual(reference.sources)
+      const root = dirname(Object.keys(stage.coverage)[0])
+      const referenceRoot = dirname(Object.keys(reference.coverage)[0])
+      expect(portableBrowserWatchCoverage(stage, root)).toEqual(
+        portableBrowserWatchCoverage(reference, referenceRoot)
+      )
+      expect(stage.report.success).toBe(true)
+    }
+  },
+  180000
+)
+
+it.each(['threshold-initial', 'threshold-rerun'] as const)(
+  '9 coverage watch browser-client: %s seals the failed parent terminal and normal exit',
+  async (scenario) => {
+    const expected = await browserCoverageWatchProbe('vitest', scenario)
+    const actual = await browserCoverageWatchProbe('next', scenario)
+    expect(expected.code).toBe(1)
+    expect(actual.code).toBe(1)
+    for (const [index, stage] of actual.coverageStages.entries()) {
+      const reference = expected.coverageStages[index]
+      expect(stage.sources).toEqual(reference.sources)
+      expect(
+        portableBrowserWatchCoverage(
+          stage,
+          dirname(Object.keys(stage.coverage)[0])
+        )
+      ).toEqual(
+        portableBrowserWatchCoverage(
+          reference,
+          dirname(Object.keys(reference.coverage)[0])
+        )
+      )
+    }
+    if (scenario === 'threshold-rerun')
+      expect(actual.coverageStages[0].report.success).toBe(true)
+    const report = actual.coverageStages.at(-1)!.report
+    expect(report.success).toBe(false)
+    const events = report.next?.events as ResultEvent[] | undefined
+    expect(
+      events
+        ?.filter((event) => event.type === 'run-end')
+        .map((event) => event.type === 'run-end' && event.status)
+    ).toEqual(['failed'])
+    expect(
+      events?.some(
+        (event) =>
+          event.type === 'diagnostic' &&
+          event.diagnostic.message.includes('Coverage for functions') &&
+          event.diagnostic.message.includes('global threshold')
+      )
+    ).toBe(true)
+    expect(actual.stages.at(-1)).toContain(
+      'Tests failed. Watching for file changes'
+    )
+  },
+  180000
+)
+
+it.each(['development', 'production'] as const)(
+  '9 imported TypeScript coverage: %s retains exact pristine maps and counters',
+  async (mode) => {
+    const results: Partial<Record<Runner, Record<string, unknown>>> = {}
+    for (const runner of ['vitest', 'next'] as const) {
+      const contract: Contract = {
+        id: 'coverage-production',
+        surface: '9 imported TypeScript coverage',
+        coverage: true,
+        mode,
+        nextProject: { mode },
+      }
+      const root = await prepare(
+        contract,
+        runner,
+        `coverage-imported-typescript-${mode}`
+      )
+      await cp(join(__dirname, 'fixtures/coverage-imported-typescript'), root, {
+        recursive: true,
+      })
+      const configPath = join(
+        referenceRoot,
+        `coverage-imported-typescript-${mode}.config.mjs`
+      )
+      await writeFile(
+        configPath,
+        'export default ' +
+          JSON.stringify({
+            test: {
+              include: ['*.case.mjs'],
+              coverage: {
+                enabled: true,
+                provider: 'v8',
+                reporter: ['json', 'lcov'],
+                include: ['subject.ts'],
+              },
+            },
+          })
+      )
+      const args =
+        runner === 'vitest'
+          ? [
+              referenceBin,
+              'run',
+              '--root',
+              root,
+              '--config',
+              configPath,
+              '--reporter=json',
+              '--outputFile=result.json',
+            ]
+          : [
+              nextBin,
+              'test',
+              root,
+              '--run',
+              '--coverage',
+              '--coverage.reporter=json',
+              '--coverage.reporter=lcov',
+              '--coverage.include=subject.ts',
+              '--reporter=json',
+              '--outputFile=result.json',
+            ]
+      const executed = await output(
+        process.execPath,
+        args,
+        root,
+        true,
+        mode === 'production' ? 'production' : 'development'
+      )
+      const report = JSON.parse(
+        await readFile(join(root, 'result.json'), 'utf8')
+      ) as Report
+      expect({ code: executed.code, success: report.success }).toEqual({
+        code: 0,
+        success: true,
+      })
+      const coverage = JSON.parse(
+        await readFile(join(root, 'coverage/coverage-final.json'), 'utf8')
+      ) as BrowserCoverageWatchMap
+      expect(Object.keys(coverage)).toEqual([
+        await realpath(join(root, 'subject.ts')),
+      ])
+      const source = await readFile(join(root, 'subject.ts'), 'utf8')
+      const canonical = Object.fromEntries(
+        Object.entries(coverage).map(([file, data]) => {
+          expect(data.path).toBe(file)
+          const portable = relative(root, file).split(sep).join('/')
+          return [portable, { ...data, path: portable }]
+        })
+      )
+      results[runner] = canonical
+      if (evidenceDirectory)
+        await writeFile(
+          join(
+            evidenceDirectory,
+            `coverage-imported-typescript-${mode}-${runner}.json`
+          ),
+          JSON.stringify(
+            {
+              runner,
+              mode,
+              source,
+              sha256: createHash('sha256').update(source).digest('hex'),
+              report,
+              coverage,
+              stdout: executed.stdout,
+              stderr: executed.stderr,
+            },
+            null,
+            2
+          )
+        )
+    }
+    expect(results.next).toEqual(results.vitest)
+  },
+  180000
+)
+
+async function unpublishedCoverageWatchProbe(runner: Runner) {
+  const contract: Contract = {
+    id: 'coverage-production',
+    surface: '9 unpublished watch coverage',
+    coverage: true,
+    mode: 'development',
+    nextProject: { mode: 'development' },
+  }
+  const label = 'coverage-watch-unpublished-initial'
+  const root = await prepare(contract, runner, label)
+  const testSource = await readFile(join(root, 'contract.case.mjs'), 'utf8')
+  const failedTask =
+    "\ntest('initial unpublished body', () => expect(1).toBe(2))\n"
+  const repairedTask =
+    "\ntest('initial unpublished body', () => expect(1).toBe(1))\n"
+  await writeFile(join(root, 'contract.case.mjs'), testSource + failedTask)
+  const configPath = join(referenceRoot, `${label}.config.mjs`)
+  await writeFile(
+    configPath,
+    'export default ' +
+      JSON.stringify({
+        test: {
+          include: ['*.case.mjs'],
+          coverage: {
+            enabled: true,
+            provider: 'v8',
+            reporter: ['json', 'lcov'],
+            include: ['subject.mjs', 'unimported.mjs'],
+            reportOnFailure: false,
+          },
+        },
+      })
+  )
+  const args =
+    runner === 'vitest'
+      ? [
+          process.execPath,
+          referenceBin,
+          '--watch',
+          '--root',
+          root,
+          '--config',
+          configPath,
+          '--reporter=json',
+          '--reporter=default',
+          '--outputFile=result.json',
+        ]
+      : [
+          process.execPath,
+          nextBin,
+          'test',
+          root,
+          '--watch',
+          '--coverage',
+          '--coverage.reportOnFailure=false',
+          '--coverage.reporter=json',
+          '--coverage.reporter=lcov',
+          '--coverage.include=subject.mjs',
+          '--coverage.include=unimported.mjs',
+          '--reporter=json',
+          '--reporter=default',
+          '--outputFile=result.json',
+        ]
+  const driven = await output(
+    'python3',
+    [
+      join(__dirname, 'pty-driver.py'),
+      JSON.stringify({
+        args,
+        cwd: root,
+        action: 'coverage-watch',
+        ordinaryTerminal: true,
+        initialUnpublished: true,
+        waitTimeout: 25,
+        steps: [
+          {
+            label: 'first-published',
+            file: 'contract.case.mjs',
+            source: testSource + repairedTask,
+          },
+        ],
+      }),
+    ],
+    root
+  )
+  if (driven.code !== 0)
+    throw new Error(
+      `UNPUBLISHED COVERAGE WATCH DRIVER FAILED (${runner})\n${driven.stdout}${driven.stderr}`
+    )
+  const result = JSON.parse(driven.stdout) as BrowserCoverageWatchResult & {
+    unpublishedInitial: { report: Report; coverageFilesAbsent: boolean }
+  }
+  if (evidenceDirectory)
+    await writeFile(
+      join(evidenceDirectory, `${label}-${runner}.json`),
+      JSON.stringify({ runner, root, ...result }, null, 2)
+    )
+  expect(result.error).toBeNull()
+  expect(result.completed).toBe(true)
+  expect(result.code).toBe(1)
+  expect(result.unpublishedInitial.coverageFilesAbsent).toBe(true)
+  expect(result.unpublishedInitial.report.success).toBe(false)
+  expect(result.unpublishedInitial.report.numFailedTests).toBeGreaterThan(0)
+  expect(result.coverageStages.map((stage) => stage.label)).toEqual([
+    'first-published',
+  ])
+  expect(result.coverageStages[0].report.success).toBe(true)
+  const portable = portableBrowserWatchCoverage(result.coverageStages[0], root)
+  expect(Object.keys(portable)).toEqual(['subject.mjs'])
+  const taskTitles = (report: Report) =>
+    report.testResults
+      .flatMap((file) => file.assertionResults.map((test) => test.title))
+      .sort()
+  expect(result.unpublishedInitial.report.numTotalTests).toBe(2)
+  expect(result.coverageStages[0].report.numTotalTests).toBe(2)
+  expect(result.coverageStages[0].report.numPassedTests).toBe(2)
+  expect(taskTitles(result.coverageStages[0].report)).toEqual(
+    taskTitles(result.unpublishedInitial.report)
+  )
+  expect(taskTitles(result.coverageStages[0].report)).toEqual([
+    'initial unpublished body',
+    'production original source',
+  ])
+  return { result, portable }
+}
+
+it('9 coverage watch Node: a failed body consumes initial source expansion and quit retains its failure history', async () => {
+  const reference = await unpublishedCoverageWatchProbe('vitest')
+  const actual = await unpublishedCoverageWatchProbe('next')
+  expect(actual.portable).toEqual(reference.portable)
+}, 90000)
+
+it.each([
+  ['named', 'development'],
+  ['named', 'production'],
+  ['arrow', 'development'],
+  ['arrow', 'production'],
+  ['named-imports', 'development'],
+  ['named-imports', 'production'],
+] as const)(
+  '9 compiler source TypeScript coverage: %s/%s matches complete pristine maps including untouched sources',
+  async (syntax, mode) => {
+    const results: Partial<Record<Runner, Record<string, unknown>>> = {}
+    for (const runner of ['vitest', 'next'] as const) {
+      const contract: Contract = {
+        id: 'coverage-production',
+        surface: '9 compiler source TypeScript coverage',
+        coverage: true,
+        mode,
+        nextProject: { mode },
+      }
+      const root = await prepare(
+        contract,
+        runner,
+        `coverage-compiler-source-typescript-${syntax}-${mode}`
+      )
+      await cp(
+        join(
+          __dirname,
+          `fixtures/coverage-compiler-source-typescript${syntax === 'arrow' ? '-arrow' : ''}`
+        ),
+        root,
+        { recursive: true }
+      )
+      const importedConfig = syntax === 'named-imports'
+      if (importedConfig) {
+        await writeFile(
+          join(root, 'compiler-helper.mjs'),
+          "export const provenance = 'before'\n"
+        )
+        await writeFile(
+          join(root, 'next.config.mjs'),
+          `import {provenance} from './compiler-helper.mjs'; export default {turbopack:{root:${JSON.stringify(await realpath(join(__dirname, '../../../..')))}},env:{COVERAGE_INPUT_PROVENANCE:provenance}}\n`
+        )
+        const testPath = join(root, 'contract.case.mjs')
+        await writeFile(
+          testPath,
+          (await readFile(testPath, 'utf8')) +
+            "\ntest('actual ordinary Next config imported value',()=>expect(process.env.COVERAGE_INPUT_PROVENANCE).toBe('before'))\n"
+        )
+      }
+      const configPath = join(
+        referenceRoot,
+        `coverage-compiler-source-typescript-${syntax}-${mode}.config.mjs`
+      )
+      await writeFile(
+        configPath,
+        'export default ' +
+          JSON.stringify({
+            test: {
+              include: ['*.case.mjs'],
+              coverage: {
+                enabled: true,
+                provider: 'v8',
+                reporter: ['json', 'lcov'],
+                include: ['subject.ts', 'unimported.ts'],
+              },
+            },
+          })
+      )
+      const args =
+        runner === 'vitest'
+          ? [
+              referenceBin,
+              'run',
+              '--root',
+              root,
+              '--config',
+              configPath,
+              '--reporter=json',
+              '--outputFile=result.json',
+            ]
+          : [
+              nextBin,
+              'test',
+              root,
+              '--run',
+              '--coverage',
+              '--coverage.reporter=json',
+              '--coverage.reporter=lcov',
+              '--coverage.include=subject.ts',
+              '--coverage.include=unimported.ts',
+              '--reporter=json',
+              '--outputFile=result.json',
+            ]
+      const executed = await output(
+        process.execPath,
+        args,
+        root,
+        true,
+        mode,
+        importedConfig
+          ? { COVERAGE_INPUT_PROVENANCE: runner === 'vitest' ? 'before' : '' }
+          : {}
+      )
+      const report = JSON.parse(
+        await readFile(join(root, 'result.json'), 'utf8')
+      ) as Report
+      expect({
+        code: executed.code,
+        success: report.success,
+        total: report.numTotalTests,
+        passed: report.numPassedTests,
+        failed: report.numFailedTests,
+      }).toEqual({
+        code: 0,
+        success: true,
+        total: importedConfig ? 2 : 1,
+        passed: importedConfig ? 2 : 1,
+        failed: 0,
+      })
+      const coverage = JSON.parse(
+        await readFile(join(root, 'coverage/coverage-final.json'), 'utf8')
+      ) as BrowserCoverageWatchMap
+      const portable = Object.fromEntries(
+        Object.entries(coverage).map(([file, data]) => {
+          const name = relative(root, file).split(sep).join('/')
+          return [name, { ...data, path: name }]
+        })
+      )
+      expect(Object.keys(portable).sort()).toEqual([
+        'subject.ts',
+        'unimported.ts',
+      ])
+      for (const field of ['s', 'f', 'b'] as const)
+        expect(
+          Object.values(
+            portable['unimported.ts'][field] as Record<
+              string,
+              number | number[]
+            >
+          )
+            .flat()
+            .every((value) => value === 0)
+        ).toBe(true)
+      const lcov = await readFile(join(root, 'coverage/lcov.info'), 'utf8')
+      expect(lcov).toContain('SF:unimported.ts')
+      expect(lcov).toContain('FNDA:0,untouched')
+      if (runner === 'next')
+        expect(
+          report.next?.events.filter((event) => event.type === 'file-start')
+        ).toHaveLength(1)
+      const sources = Object.fromEntries(
+        await Promise.all(
+          ['subject.ts', 'unimported.ts'].map(async (file) => {
+            const source = await readFile(join(root, file), 'utf8')
+            return [
+              file,
+              {
+                source,
+                sha256: createHash('sha256').update(source).digest('hex'),
+              },
+            ]
+          })
+        )
+      )
+      if (evidenceDirectory)
+        await writeFile(
+          join(
+            evidenceDirectory,
+            `coverage-compiler-source-typescript-${syntax}-${mode}-${runner}.json`
+          ),
+          JSON.stringify(
+            {
+              runner,
+              mode,
+              root,
+              report,
+              coverage,
+              sources,
+              stdout: executed.stdout,
+              stderr: executed.stderr,
+            },
+            null,
+            2
+          )
+        )
+      results[runner] = portable
+    }
+    expect(results.next).toEqual(results.vitest)
+  },
+  180000
+)
+
+it.each([
+  'source',
+  'configuration',
+  'configuration-addition',
+  'configuration-import-development',
+  'configuration-import-production',
+] as const)(
+  '9 compiler source TypeScript coverage: late %s mutation vetoes publication after actual test execution',
+  async (mutation) => {
+    const importedConfig = mutation.startsWith('configuration-import-')
+    const mode =
+      mutation === 'configuration-import-production'
+        ? 'production'
+        : 'development'
+    const contract: Contract = {
+      id: 'coverage-production',
+      surface: '9 compiler source TypeScript coverage',
+      coverage: true,
+      mode,
+      nextProject: { mode },
+    }
+    const root = await prepare(
+      contract,
+      'next',
+      `coverage-compiler-source-typescript-mutation-${mutation}`
+    )
+    await cp(
+      join(__dirname, 'fixtures/coverage-compiler-source-typescript'),
+      root,
+      { recursive: true }
+    )
+    if (importedConfig) {
+      await writeFile(
+        join(root, 'compiler-helper.mjs'),
+        "export const provenance = 'before'\n"
+      )
+      await writeFile(
+        join(root, 'next.config.mjs'),
+        `import {provenance} from './compiler-helper.mjs'; export default {turbopack:{root:${JSON.stringify(await realpath(join(__dirname, '../../../..')))}},env:{COVERAGE_INPUT_PROVENANCE:provenance}}\n`
+      )
+    }
+    const target = join(
+        root,
+        importedConfig
+          ? 'compiler-helper.mjs'
+          : mutation === 'source'
+            ? 'unimported.ts'
+            : mutation === 'configuration'
+              ? 'next.config.mjs'
+              : 'next.config.js'
+      ),
+      before =
+        mutation === 'configuration-addition'
+          ? ''
+          : await readFile(target, 'utf8')
+    const changed = importedConfig
+      ? "export const provenance = 'after'\n"
+      : mutation === 'configuration-addition'
+        ? "export default {env:{COVERAGE_INPUT_PROVENANCE:'changed'}}\n"
+        : before + '\n// changed after compiler analysis\n'
+    const testPath = join(root, 'contract.case.mjs'),
+      original = await readFile(testPath, 'utf8')
+    await writeFile(
+      testPath,
+      original +
+        `\nimport { writeFileSync } from 'node:fs'\ntest('mutates a selected compiler input after analysis', () => { ${importedConfig ? "expect(process.env.COVERAGE_INPUT_PROVENANCE).toBe('before');" : ''} writeFileSync(${JSON.stringify(target)}, ${JSON.stringify(changed)}) })\n`
+    )
+    const executed = await output(
+      process.execPath,
+      [
+        nextBin,
+        'test',
+        root,
+        '--run',
+        '--coverage',
+        '--coverage.reporter=json',
+        '--coverage.reporter=lcov',
+        '--coverage.include=subject.ts',
+        '--coverage.include=unimported.ts',
+        '--reporter=json',
+        '--outputFile=result.json',
+      ],
+      root,
+      true,
+      mode,
+      importedConfig ? { COVERAGE_INPUT_PROVENANCE: '' } : {}
+    )
+    const report = JSON.parse(
+      await readFile(join(root, 'result.json'), 'utf8')
+    ) as Report
+    expect({
+      code: executed.code,
+      success: report.success,
+      total: report.numTotalTests,
+      passed: report.numPassedTests,
+    }).toEqual({ code: 1, success: false, total: 2, passed: 2 })
+    expect(
+      (report.next?.events as ResultEvent[] | undefined)?.some(
+        (event) =>
+          event.type === 'diagnostic' &&
+          event.diagnostic.message.includes(
+            importedConfig
+              ? 'Next config imported module changed after its actual load'
+              : mutation === 'configuration-addition'
+                ? 'Compiler coverage configuration inventory changed after selection'
+                : 'Compiler coverage analysis inputs changed after selection'
+          )
+      )
+    ).toBe(true)
+    for (const file of ['coverage-final.json', 'lcov.info'])
+      await expect(
+        readFile(join(root, 'coverage', file))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(target, 'utf8')).toBe(changed)
+    if (evidenceDirectory)
+      await writeFile(
+        join(
+          evidenceDirectory,
+          `coverage-compiler-source-typescript-mutation-${mutation}.json`
+        ),
+        JSON.stringify(
+          { root, report, stdout: executed.stdout, stderr: executed.stderr },
+          null,
+          2
+        )
+      )
+  },
+  120000
+)
+
+it.each(['default', 'false'] as const)(
+  '9 compiler source TypeScript watch coverage: %s retention matches complete pristine maps',
+  async (retention) => {
+    const outcomes: Partial<
+      Record<Runner, { label: string; coverage: Record<string, unknown> }[]>
+    > = {}
+    for (const runner of ['vitest', 'next'] as const) {
+      const contract: Contract = {
+        id: 'coverage-production',
+        surface: '9 compiler source TypeScript watch coverage',
+        coverage: true,
+        mode: 'development',
+        nextProject: { mode: 'development' },
+      }
+      const label = `compiler-source-typescript-watch-${retention}`
+      const root = await prepare(contract, runner, label)
+      await cp(
+        join(__dirname, 'fixtures/coverage-compiler-source-typescript'),
+        root,
+        { recursive: true }
+      )
+      const testSource = await readFile(join(root, 'contract.case.mjs'), 'utf8')
+      const configPath = join(referenceRoot, `${label}.config.mjs`)
+      await writeFile(
+        configPath,
+        'export default ' +
+          JSON.stringify({
+            test: {
+              include: ['*.case.mjs'],
+              coverage: {
+                enabled: true,
+                provider: 'v8',
+                reporter: ['json', 'lcov'],
+                include: ['subject.ts', 'unimported.ts'],
+                ...(retention === 'false' ? { cleanOnRerun: false } : {}),
+              },
+            },
+          })
+      )
+      const args =
+        runner === 'vitest'
+          ? [
+              process.execPath,
+              referenceBin,
+              '--watch',
+              '--root',
+              root,
+              '--config',
+              configPath,
+              '--reporter=json',
+              '--reporter=default',
+              '--outputFile=result.json',
+            ]
+          : [
+              process.execPath,
+              nextBin,
+              'test',
+              root,
+              '--watch',
+              '--coverage',
+              '--coverage.reporter=json',
+              '--coverage.reporter=lcov',
+              '--coverage.include=subject.ts',
+              '--coverage.include=unimported.ts',
+              '--reporter=json',
+              '--reporter=default',
+              '--outputFile=result.json',
+              ...(retention === 'false'
+                ? ['--coverage.cleanOnRerun=false']
+                : []),
+            ]
+      const driven = await output(
+        'python3',
+        [
+          join(__dirname, 'pty-driver.py'),
+          JSON.stringify({
+            args,
+            cwd: root,
+            action: 'coverage-watch',
+            ordinaryTerminal: true,
+            coverageSources: ['subject.ts', 'unimported.ts'],
+            waitTimeout: 25,
+            steps: [
+              {
+                label: 'addition',
+                file: 'added.case.mjs',
+                source: testSource.replace(
+                  'actual compiler full source TypeScript coverage',
+                  'actual compiler full source TypeScript coverage added'
+                ),
+              },
+              { label: 'full-rerun', key: 'r' },
+            ],
+          }),
+        ],
+        root
+      )
+      expect(driven.code).toBe(0)
+      const result = JSON.parse(driven.stdout) as BrowserCoverageWatchResult
+      if (evidenceDirectory)
+        await writeFile(
+          join(evidenceDirectory, `${label}-${runner}.json`),
+          JSON.stringify({ runner, retention, root, ...result }, null, 2)
+        )
+      expect(result.error).toBeNull()
+      expect(result.completed).toBe(true)
+      expect(result.code).toBe(0)
+      expect(result.coverageStages.map((stage) => stage.label)).toEqual([
+        'initial',
+        'addition',
+        'full-rerun',
+      ])
+      for (const stage of result.coverageStages) {
+        expect(stage.sources).toEqual(result.coverageStages[0].sources)
+        for (const [file, data] of Object.entries(stage.coverage)) {
+          expect(isAbsolute(file)).toBe(true)
+          expect(data.path).toBe(file)
+          expect(await realpath(file)).toBe(file)
+        }
+      }
+      outcomes[runner] = result.coverageStages.map((stage) => {
+        expect(stage.report.success).toBe(true)
+        expect(stage.report.numTotalTests).toBe(
+          stage.label === 'initial' ? 1 : stage.label === 'addition' ? 1 : 2
+        )
+        const coverage = portableBrowserWatchCoverage(stage, root)
+        for (const [file, data] of Object.entries(coverage)) {
+          expect(['subject.ts', 'unimported.ts']).toContain(file)
+          const source = stage.sources[file]
+          expect(createHash('sha256').update(source.source).digest('hex')).toBe(
+            source.sha256
+          )
+          if (file === 'unimported.ts')
+            for (const field of ['s', 'f', 'b'] as const)
+              expect(
+                Object.values(data[field] as Record<string, number | number[]>)
+                  .flat()
+                  .every((value) => value === 0)
+              ).toBe(true)
+        }
+        if (runner === 'next') {
+          const terminal = (
+            stage.report.next?.events as ResultEvent[] | undefined
+          )?.filter((event) => event.type === 'run-end')
+          expect(terminal).toHaveLength(1)
+          expect(terminal?.[0]).toMatchObject({
+            type: 'run-end',
+            status: 'passed',
+          })
+        }
+        return { label: stage.label, coverage }
+      })
+    }
+    expect(outcomes.next).toEqual(outcomes.vitest)
+  },
+  180000
+)
+
+it.each(['default', 'false'] as const)(
+  '9 runtime config coverage watch: %s retention matches pristine through an active config restart',
+  async (retention) => {
+    const outcomes: Partial<Record<Runner, unknown[]>> = {}
+    for (const runner of ['vitest', 'next'] as const) {
+      const contract: Contract = {
+        id: 'coverage-production',
+        surface: '9 runtime config coverage watch',
+        coverage: true,
+        mode: 'development',
+        nextProject: { mode: 'development' },
+      }
+      const label = `runtime-config-coverage-watch-${retention}`
+      const root = await prepare(contract, runner, label)
+      await cp(
+        join(__dirname, 'fixtures/coverage-compiler-source-typescript'),
+        root,
+        { recursive: true }
+      )
+      const helper = join(root, 'compiler-helper.mjs'),
+        helperBefore = "export const marker = 'before'\n",
+        helperAfter = "export const marker = 'after'\n"
+      await writeFile(helper, helperBefore)
+      const configPath = join(root, 'vitest.config.mjs')
+      const referenceConfig = `import {marker} from './compiler-helper.mjs'; export default ${JSON.stringify({ test: { include: ['*.case.mjs'], coverage: { enabled: true, provider: 'v8', reporter: ['json', 'lcov'], include: ['subject.ts', 'unimported.ts'], ...(retention === 'false' ? { cleanOnRerun: false } : {}) } } }).replace('"test":{', '"test":{"env":{"RUNTIME_CONFIG_MARKER":marker},')}\n`
+      const nextConfig = `import {marker} from './compiler-helper.mjs'; export default {turbopack:{root:${JSON.stringify(await realpath(join(__dirname, '../../../..')))}},env:{RUNTIME_CONFIG_MARKER:marker}}\n`
+      await writeFile(configPath, referenceConfig)
+      await writeFile(join(root, 'next.config.mjs'), nextConfig)
+      const testPath = join(root, 'contract.case.mjs'),
+        original = await readFile(testPath, 'utf8')
+      await writeFile(
+        testPath,
+        original +
+          `\nimport {readFileSync} from 'node:fs'\ntest('actual ordinary config helper reload',()=>{expect(process.env.RUNTIME_CONFIG_MARKER).toBe(readFileSync(${JSON.stringify(helper)},'utf8').includes("'after'")?'after':'before')})\n`
+      )
+      const testSource = await readFile(testPath, 'utf8')
+      expect(testSource.slice(0, original.length)).toBe(original)
+      const args =
+        runner === 'vitest'
+          ? [
+              process.execPath,
+              referenceBin,
+              '--watch',
+              '--root',
+              root,
+              '--config',
+              configPath,
+              '--reporter=json',
+              '--reporter=default',
+              '--outputFile=result.json',
+            ]
+          : [
+              process.execPath,
+              nextBin,
+              'test',
+              root,
+              '--watch',
+              '--coverage',
+              '--coverage.reporter=json',
+              '--coverage.reporter=lcov',
+              '--coverage.include=subject.ts',
+              '--coverage.include=unimported.ts',
+              '--reporter=json',
+              '--reporter=default',
+              '--outputFile=result.json',
+              ...(retention === 'false'
+                ? ['--coverage.cleanOnRerun=false']
+                : []),
+            ]
+      const driven = await output(
+        'python3',
+        [
+          join(__dirname, 'pty-driver.py'),
+          JSON.stringify({
+            args,
+            cwd: root,
+            action: 'coverage-watch',
+            ordinaryTerminal: true,
+            coverageSources: ['subject.ts', 'unimported.ts'],
+            waitTimeout: 25,
+            steps: [
+              { label: 'addition', file: 'added.case.mjs', source: testSource },
+              {
+                label: 'config-reload',
+                changes: [
+                  { file: 'compiler-helper.mjs', source: helperAfter },
+                  {
+                    file:
+                      runner === 'vitest'
+                        ? 'vitest.config.mjs'
+                        : 'next.config.mjs',
+                    source:
+                      (runner === 'vitest' ? referenceConfig : nextConfig) +
+                      '\n// reload changed helper\n',
+                  },
+                ],
+              },
+              { label: 'full-rerun', key: 'r' },
+            ],
+          }),
+        ],
+        root,
+        false,
+        'development',
+        { RUNTIME_CONFIG_MARKER: '' }
+      )
+      expect(driven.code).toBe(0)
+      const result = JSON.parse(driven.stdout) as BrowserCoverageWatchResult
+      if (evidenceDirectory)
+        await writeFile(
+          join(evidenceDirectory, `${label}-${runner}.json`),
+          JSON.stringify({ runner, retention, root, ...result }, null, 2)
+        )
+      expect(result.error).toBeNull()
+      expect(result.completed).toBe(true)
+      expect(result.code).toBe(0)
+      expect(result.coverageStages.map((stage) => stage.label)).toEqual([
+        'initial',
+        'addition',
+        'config-reload',
+        'full-rerun',
+      ])
+      outcomes[runner] = result.coverageStages.map((stage) => {
+        expect(stage.report.success).toBe(true)
+        expect(stage.report.numTotalTests).toBe(
+          stage.label === 'initial' || stage.label === 'addition' ? 2 : 4
+        )
+        expect(stage.report.numPassedTests).toBe(stage.report.numTotalTests)
+        expect(stage.report.numFailedTests).toBe(0)
+        expect(stage.sources).toEqual(result.coverageStages[0].sources)
+        const coverage = portableBrowserWatchCoverage(stage, root)
+        for (const [file, data] of Object.entries(coverage)) {
+          expect(['subject.ts', 'unimported.ts']).toContain(file)
+          const source = stage.sources[file]
+          expect(createHash('sha256').update(source.source).digest('hex')).toBe(
+            source.sha256
+          )
+          if (file === 'unimported.ts')
+            for (const field of ['s', 'f', 'b'] as const)
+              expect(
+                Object.values(data[field] as Record<string, number | number[]>)
+                  .flat()
+                  .every((value) => value === 0)
+              ).toBe(true)
+        }
+        return {
+          label: stage.label,
+          tests: stage.report.numTotalTests,
+          passed: stage.report.numPassedTests,
+          coverage,
+        }
+      })
+      expect(await readFile(helper, 'utf8')).toBe(helperAfter)
+    }
+    expect(outcomes.next).toEqual(outcomes.vitest)
+  },
+  180000
+)
+
+it.each(['development', 'production'] as const)(
+  '9 runtime config coverage: empty compiler-source plan rejects late helper mutation in %s',
+  async (mode) => {
+    const contract: Contract = {
+      id: 'coverage-production',
+      surface: '9 runtime config coverage',
+      coverage: true,
+      mode,
+      nextProject: { mode },
+    }
+    const root = await prepare(
+      contract,
+      'next',
+      `runtime-config-empty-source-${mode}`
+    )
+    const helper = join(root, 'compiler-helper.mjs'),
+      before = "export const marker = 'before'\n",
+      after = "export const marker = 'after'\n"
+    await writeFile(helper, before)
+    await writeFile(
+      join(root, 'next.config.mjs'),
+      `import {marker} from './compiler-helper.mjs'; export default {turbopack:{root:${JSON.stringify(await realpath(join(__dirname, '../../../..')))}},env:{RUNTIME_CONFIG_MARKER:marker}}\n`
+    )
+    const testPath = join(root, 'contract.case.mjs'),
+      original = await readFile(testPath, 'utf8')
+    await writeFile(
+      testPath,
+      original +
+        `\nimport {writeFileSync} from 'node:fs'\ntest('actual runtime helper input changes after execution',()=>{expect(process.env.RUNTIME_CONFIG_MARKER).toBe('before');writeFileSync(${JSON.stringify(helper)},${JSON.stringify(after)})})\n`
+    )
+    expect((await readFile(testPath, 'utf8')).slice(0, original.length)).toBe(
+      original
+    )
+    const executed = await output(
+      process.execPath,
+      [
+        nextBin,
+        'test',
+        root,
+        '--run',
+        '--coverage',
+        '--coverage.reporter=json',
+        '--coverage.reporter=lcov',
+        '--coverage.include=subject.mjs',
+        '--coverage.include=unimported.mjs',
+        '--reporter=json',
+        '--outputFile=result.json',
+      ],
+      root,
+      true,
+      mode,
+      { RUNTIME_CONFIG_MARKER: '' }
+    )
+    const report = JSON.parse(
+      await readFile(join(root, 'result.json'), 'utf8')
+    ) as Report
+    if (evidenceDirectory)
+      await writeFile(
+        join(evidenceDirectory, `runtime-config-empty-source-${mode}.json`),
+        JSON.stringify(
+          { root, report, stdout: executed.stdout, stderr: executed.stderr },
+          null,
+          2
+        )
+      )
+    expect({
+      code: executed.code,
+      success: report.success,
+      total: report.numTotalTests,
+      passed: report.numPassedTests,
+      failed: report.numFailedTests,
+    }).toEqual({ code: 1, success: false, total: 2, passed: 2, failed: 0 })
+    expect(
+      (report.next?.events as ResultEvent[] | undefined)?.some(
+        (event) =>
+          event.type === 'diagnostic' &&
+          event.diagnostic.message.includes(
+            'Next config imported module changed after its actual load'
+          )
+      )
+    ).toBe(true)
+    for (const file of ['coverage-final.json', 'lcov.info'])
+      await expect(
+        readFile(join(root, 'coverage', file))
+      ).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(helper, 'utf8')).toBe(after)
+  },
+  120000
 )

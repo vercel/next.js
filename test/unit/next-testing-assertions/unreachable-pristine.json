@@ -1,0 +1,153 @@
+{
+  "names": [
+    "unreachable preserves default, undefined and empty diagnostics without assertion calls",
+    "unreachable preserves custom diagnostics and detached invocation",
+    "unreachable is available on local and context expectations with independent counts"
+  ],
+  "rows": [
+    {
+      "label": "default",
+      "value": {
+        "returned": false,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected not to be reached",
+          "actualOwn": true,
+          "actualType": "undefined",
+          "expectedOwn": true,
+          "expectedType": "undefined",
+          "operatorOwn": true,
+          "operatorType": "undefined"
+        },
+        "assertionCalls": 0
+      }
+    },
+    {
+      "label": "undefined",
+      "value": {
+        "returned": false,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected not to be reached",
+          "actualOwn": true,
+          "actualType": "undefined",
+          "expectedOwn": true,
+          "expectedType": "undefined",
+          "operatorOwn": true,
+          "operatorType": "undefined"
+        },
+        "assertionCalls": 0
+      }
+    },
+    {
+      "label": "empty",
+      "value": {
+        "returned": false,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected not to be reached",
+          "actualOwn": true,
+          "actualType": "undefined",
+          "expectedOwn": true,
+          "expectedType": "undefined",
+          "operatorOwn": true,
+          "operatorType": "undefined"
+        },
+        "assertionCalls": 0
+      }
+    },
+    {
+      "label": "branch",
+      "value": {
+        "returned": false,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected \"branch\" not to be reached",
+          "actualOwn": true,
+          "actualType": "undefined",
+          "expectedOwn": true,
+          "expectedType": "undefined",
+          "operatorOwn": true,
+          "operatorType": "undefined"
+        },
+        "assertionCalls": 0
+      }
+    },
+    {
+      "label": "quotes \" and\nline",
+      "value": {
+        "returned": false,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected \"quotes \" and\nline\" not to be reached",
+          "actualOwn": true,
+          "actualType": "undefined",
+          "expectedOwn": true,
+          "expectedType": "undefined",
+          "operatorOwn": true,
+          "operatorType": "undefined"
+        },
+        "assertionCalls": 0
+      }
+    },
+    {
+      "label": "λ 😀",
+      "value": {
+        "returned": false,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected \"λ 😀\" not to be reached",
+          "actualOwn": true,
+          "actualType": "undefined",
+          "expectedOwn": true,
+          "expectedType": "undefined",
+          "operatorOwn": true,
+          "operatorType": "undefined"
+        },
+        "assertionCalls": 0
+      }
+    },
+    {
+      "label": "local",
+      "value": {
+        "returned": false,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected \"local\" not to be reached",
+          "actualOwn": true,
+          "actualType": "undefined",
+          "expectedOwn": true,
+          "expectedType": "undefined",
+          "operatorOwn": true,
+          "operatorType": "undefined"
+        },
+        "assertionCalls": 0
+      }
+    },
+    {
+      "label": "context",
+      "value": {
+        "returned": false,
+        "error": {
+          "name": "AssertionError",
+          "message": "expected \"context\" not to be reached",
+          "actualOwn": true,
+          "actualType": "undefined",
+          "expectedOwn": true,
+          "expectedType": "undefined",
+          "operatorOwn": true,
+          "operatorType": "undefined"
+        },
+        "assertionCalls": 0
+      }
+    },
+    {
+      "label": "independent-counts",
+      "value": {
+        "global": 0,
+        "local": 0,
+        "context": 0
+      }
+    }
+  ]
+}

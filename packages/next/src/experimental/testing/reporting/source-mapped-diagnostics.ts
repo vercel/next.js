@@ -79,10 +79,14 @@ export function serializeSourceMappedDiagnostic(
   return serializeDiagnostic(error, {
     ...options,
     mapStack(stack) {
-      let capturedExcerpt = false
-      return getSourceMappedStackFrames(stack, {
+      const frames = getSourceMappedStackFrames(stack, {
         includeSourceContent: true,
-      }).flatMap((frame) => {
+      })
+      const helperIndex = frames.findLastIndex((frame) =>
+        frame.methodName?.includes('__VITEST_HELPER__')
+      )
+      let capturedExcerpt = false
+      return frames.slice(helperIndex + 1).flatMap((frame) => {
         if (frame.file === null) return []
         let codeFrame: string | undefined
         if (!capturedExcerpt && frame.getSourceContent) {

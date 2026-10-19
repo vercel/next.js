@@ -1,0 +1,11 @@
+import { vi } from 'vitest'
+const fn = (value: number) => value
+vi.mocked(fn, undefined)
+vi.mocked(fn, {})
+vi.mocked(fn, { partial: false })
+// @ts-expect-error exactOptionalPropertyTypes does not add explicit undefined.
+vi.mocked(fn, { deep: undefined })
+// @ts-expect-error exactOptionalPropertyTypes preserves the partial flag shape.
+vi.mocked(fn, { partial: undefined })
+// @ts-expect-error exact optional partial/deep options retain their written type.
+vi.mocked(fn, { partial: true, deep: undefined })

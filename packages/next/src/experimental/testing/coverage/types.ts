@@ -7,7 +7,25 @@ export interface MockCoverageSources {
 /** Internal, versioned data only. Coverage never supplies a compiler or runtime. */
 export interface CoverageArtifactMetadata {
   version: 1
+  /** Explicit native test producer proof; never a public configuration value. */
+  importRoles?: { version: 1; nativeMetadata: { path: string; sha256: string } }
+  /** Compile-only entry; never executable runtime coverage evidence. */
+  sourceAnalysis?: { version: 1; file: string; sha256: string }
   syntheticSources?: Record<string, { sha256: string }>
+  /** Production runtime with native source denominators retained for real V8 counts. */
+  sourcePreservation?: {
+    version: 1
+    nativeMetadata: { path: string; sha256: string }
+  }
+  /** Native concrete output roles, independently negotiated before compilation. */
+  browser?: {
+    version: 1
+    nativeMetadata: { path: string; sha256: string }
+    generatedScripts: Record<
+      string,
+      { sha256: string; role: 'native-ecmascript-bookkeeping' }
+    >
+  }
   scripts: {
     path: string
     sha256: string
@@ -26,6 +44,7 @@ export interface CoverageRange {
 
 export interface CoverageCapture {
   version: 1
+  kind?: 'browser-cdp'
   scripts: {
     path: string
     sha256: string
@@ -98,7 +117,7 @@ export interface StandardCoverageData {
     lastFunction: number
     lastStatement: number
     seen: Record<string, number>
-    fnNames: Record<string, number>
+    fnNames: Map<string, number> | Record<string, number>
   }
 }
 export interface StandardFileCoverage {
@@ -121,5 +140,34 @@ export interface StandardCoverageOptions {
   exclude: string[]
   reportsDirectory: string
   reportOnFailure: boolean
+  /** Watch generations replace prior facts by default. */
+  cleanOnRerun?: boolean
   thresholds: Partial<Record<StandardCoverageMetric, number>>
+}
+
+/** The native compiler emits this entry but no runtime may evaluate it. */
+export interface CompiledCoverageSource {
+  version: 1
+  kind: 'next-compiler-source'
+  source: { file: string; sha256: string }
+  artifact: import('../contracts').CompiledTestArtifact
+  /** Actual ordinary Next module-load graph, bound to this source artifact. */
+  configurationImports?: import('../compiler/config-import-proof').ConfigurationImportProof
+}
+
+/** Parent-derived declaration-only metadata, separate from observed runtime facts. */
+export interface CompilerSourceCoverage {
+  version: 1
+  kind: 'next-compiler-declarations'
+  source: { file: string; sha256: string }
+  profile: import('../contracts').TestProfile
+  compiler: {
+    entryId: string
+    revision: string
+    configurationImports?: {
+      request: import('../compiler/config-import-proof').ConfigurationImportAuthorization
+      graph: import('../compiler/config-imports').ConfigurationImportFiles
+    }
+  }
+  data: StandardCoverageData
 }

@@ -1,3 +1,5 @@
+mod jsx_source_spans;
+
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::{Result, bail};
@@ -245,6 +247,8 @@ impl EcmascriptInputTransform {
                     Runtime::Automatic
                 };
 
+                let jsx_props_spans = matches!(runtime, Runtime::Automatic)
+                    .then(|| jsx_source_spans::JsxPropsSourceSpans::capture(program));
                 let config = Options {
                     runtime: Some(runtime),
                     development: Some(*development),
@@ -275,6 +279,10 @@ impl EcmascriptInputTransform {
                         unresolved_mark,
                     ),
                 );
+
+                if let Some(spans) = jsx_props_spans {
+                    spans.restore(program);
+                }
 
                 if *refresh {
                     debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");

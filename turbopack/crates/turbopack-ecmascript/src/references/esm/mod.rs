@@ -14,7 +14,7 @@ pub use self::{
     dynamic::EsmAsyncAssetReference,
     export::{EsmExport, EsmExports, FoundExportType, Liveness},
     mangle::generated_export_key,
-    meta::{ImportMetaBinding, ImportMetaRef},
+    meta::{ImportMetaBinding, ImportMetaRef, encode_path},
     module_item::EsmModuleItem,
     url::{UrlAssetReference, UrlRewriteBehavior},
 };

@@ -147,6 +147,7 @@
     "@swc/helpers": "0.5.23",
     "@swc/types": "0.1.7",
     "@taskr/esnext": "1.1.0",
+    "@testing-library/dom": "10.1.0",
     "@testing-library/jest-dom": "6.1.2",
     "@testing-library/react": "^15.0.5",
     "@types/busboy": "1.5.3",
@@ -358,7 +359,9 @@
       "@vercel/agent-eval@2.2.1": "patches/@vercel__agent-eval@2.2.1.patch",
       "@vercel/og@1.0.1": "patches/@vercel__og@1.0.1.patch",
       "@vitest/snapshot@5.0.4": "patches/@vitest__snapshot@5.0.4.patch",
-      "@sinonjs/fake-timers@15.4.0": "patches/@sinonjs__fake-timers@15.4.0.patch"
+      "@sinonjs/fake-timers@15.4.0": "patches/@sinonjs__fake-timers@15.4.0.patch",
+      "chai@6.3.0": "patches/chai@6.3.0.patch",
+      "@vitest/expect@5.0.4": "patches/@vitest__expect@5.0.4.patch"
     }
   }
 }

@@ -1,3 +1,4 @@
+import type { CompiledCoverageSource } from '../coverage/types'
 import type { CustomCoverageCompletion } from '../coverage/custom-types'
 import { randomUUID } from 'node:crypto'
 import type {
@@ -22,6 +23,11 @@ import {
   type SnapshotUpdate,
 } from '../assertions/snapshots'
 import { parseMaxWorkers } from '../scheduling'
+import type { DiscoveredTestProject } from '../discovery'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { isDeepStrictEqual } from 'node:util'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 type SerializableOptions = Omit<
   ExecuteTestOptions,
@@ -47,9 +53,20 @@ export type ExecutionBrokerRequest =
       /** Private IPC only, including resolved compiler configuration effects. */
       env: NodeJS.ProcessEnv
     }
+  | {
+      type: 'execution-broker-request'
+      id: string
+      action: 'source-analysis'
+      compiled: CompiledCoverageSource
+    }
   | { type: 'execution-broker-request'; id: string; action: 'cancel' }
 
 export type ExecutionBrokerResponse =
+  | {
+      type: 'execution-broker-response'
+      id: string
+      action: 'source-analysis-result'
+    }
   | {
       type: 'execution-broker-response'
       id: string
@@ -90,6 +107,13 @@ export type ExecutionBrokerResponse =
       cancelled?: true
     }
 
+export interface BrowserApplicationOwnership {
+  profile: import('../contracts').TestProfile
+  projectDir: string
+  distDir: string
+  lockDistDir: boolean
+}
+
 /** The watch parent owns every detached file worker, including after child crash. */
 export function createExecutionBrokerHost(options: {
   signal: AbortSignal
@@ -99,6 +123,22 @@ export function createExecutionBrokerHost(options: {
   /** One-shot isolated-profile supervisors only; ordinary watch rejects cohorts. */
   allowCohorts?: boolean
   maxWorkers?: number
+  /** Parent authorization and byte-derived analysis; never invokes a test worker. */
+  onCoverageSource?: (
+    compiled: CompiledCoverageSource,
+    signal: AbortSignal
+  ) => Promise<void>
+  /** Parent validates before evaluation and seals after worker cleanup. */
+  onRuntimeConfiguration?: (
+    artifact: CompiledTestArtifact,
+    signal: AbortSignal
+  ) => Promise<() => Promise<void>>
+  browserApplications?: readonly BrowserApplicationOwnership[]
+  /** Parent-discovered registration; child endpoint/fixture metadata is never trusted. */
+  browserProjects?: readonly Pick<
+    DiscoveredTestProject,
+    'profile' | 'entries' | 'browserFixtures'
+  >[]
   /** Explicit parent authorization; plans are committed after generation cleanup. */
   onSnapshotUpdates?: (
     entryId: string,
@@ -167,7 +207,11 @@ export function createExecutionBrokerHost(options: {
           ?.controller.abort(new Error('Test file cancelled'))
         return true
       }
-      if (message.action !== 'execute' && message.action !== 'execute-cohort') {
+      if (
+        message.action !== 'execute' &&
+        message.action !== 'execute-cohort' &&
+        message.action !== 'source-analysis'
+      ) {
         throw new Error('Invalid execution broker request action')
       }
       if (closed || transportFailure || cleanupFailures.length > 0) {
@@ -194,6 +238,22 @@ export function createExecutionBrokerHost(options: {
       request.task = (async () => {
         let executing = false
         try {
+          if (message.action === 'source-analysis') {
+            if (!options.onCoverageSource)
+              throw new Error('Unrequested compiler coverage source analysis')
+            await options.onCoverageSource(
+              message.compiled,
+              request.controller.signal
+            )
+            request.controller.signal.throwIfAborted()
+            request.leased = false
+            await publish({
+              type: 'execution-broker-response',
+              id: message.id,
+              action: 'source-analysis-result',
+            })
+            return
+          }
           if (message.action === 'execute-cohort') {
             if (!options.allowCohorts)
               throw new Error(
@@ -248,14 +308,72 @@ export function createExecutionBrokerHost(options: {
             (resolveSnapshotUpdateMode(message.options) !== 'none' &&
               !options.onSnapshotUpdates) ||
             message.options.browser ||
-            message.artifact.profile.environment === 'browser'
+            (message.artifact.profile.environment === 'browser' &&
+              !options.browserProjects?.some(
+                (project) =>
+                  isDeepStrictEqual(
+                    project.profile,
+                    message.artifact.profile
+                  ) &&
+                  project.entries.some(
+                    (entry) =>
+                      entry.id === message.artifact.entryId &&
+                      isDeepStrictEqual(entry, message.options.entry)
+                  )
+              ))
           ) {
             throw new Error(
-              'Watch execution supports read-only Node and RSC files; browser, coverage and snapshot updates are unavailable'
+              'Watch execution requires authorized parent-owned browser resources; unauthorized coverage and snapshot updates are unavailable'
             )
           }
+          if (message.artifact.profile.environment === 'browser') {
+            if (
+              (message.artifact.kind === 'browser') !==
+              (message.artifact.profile.browserClient === true)
+            )
+              throw new Error(
+                'Browser artifact kind differs from its parent-authorized profile.'
+              )
+            if (
+              message.artifact.kind === 'node' &&
+              !message.options.collectOnly
+            ) {
+              const application = options.browserApplications?.find(
+                (candidate) =>
+                  isDeepStrictEqual(candidate.profile, message.artifact.profile)
+              )
+              if (
+                !application ||
+                application.projectDir !== message.options.projectDir ||
+                !isDeepStrictEqual(message.artifact.applicationServer, {
+                  mode: application.profile.mode,
+                  distDir: application.distDir,
+                  lockDistDir: application.lockDistDir,
+                })
+              )
+                throw new Error(
+                  'Browser application metadata differs from parent-resolved ownership.'
+                )
+            }
+          }
+          if (
+            (message.artifact.runtimeConfigurationImports ||
+              options.onRuntimeConfiguration) &&
+            (!options.onRuntimeConfiguration ||
+              !message.options.coverage ||
+              message.options.customCoverage)
+          )
+            throw new Error(
+              'Runtime config receipts require parent-authorized standard coverage execution'
+            )
+          const sealRuntimeConfiguration = options.onRuntimeConfiguration
+            ? await options.onRuntimeConfiguration(
+                message.artifact,
+                request.controller.signal
+              )
+            : undefined
           executing = true
-          const result = await executeWithEnvironment(
+          const result = await executeBrokerFile(
             message.artifact,
             {
               ...message.options,
@@ -292,6 +410,12 @@ export function createExecutionBrokerHost(options: {
                 : {}),
             },
             { ...message.env },
+            options.browserProjects?.find((project) =>
+              isDeepStrictEqual(project.profile, message.artifact.profile)
+            ),
+            options.browserApplications?.find((application) =>
+              isDeepStrictEqual(application.profile, message.artifact.profile)
+            ),
             options.onSnapshotUpdates
               ? (file, updates) =>
                   options.onSnapshotUpdates!(
@@ -304,6 +428,7 @@ export function createExecutionBrokerHost(options: {
           )
           executing = false
           request.leased = false
+          await sealRuntimeConfiguration?.()
           // Ordered delivery keeps all output/cleanup events before the result.
           await publish({
             type: 'execution-broker-response',
@@ -403,6 +528,7 @@ export function createExecutionBrokerClient(options: {
   type Pending = PendingBase &
     (
       | { kind: 'file'; resolve(result: TestExecutionResult): void }
+      | { kind: 'source-analysis'; resolve(): void }
       | {
           kind: 'cohort'
           entryIds: readonly string[]
@@ -482,6 +608,57 @@ export function createExecutionBrokerClient(options: {
           artifact,
           options: serializable,
           env: { ...process.env },
+        })
+      })
+      void sent.catch((error) => disconnect(asError(error)))
+      signal.addEventListener('abort', cancel, { once: true })
+      if (signal.aborted) cancel()
+    })
+  }
+
+  /** Wait for the parent to validate retained compiler bytes before lease disposal. */
+  const analyzeCoverageSource = (
+    compiled: CompiledCoverageSource,
+    signal: AbortSignal
+  ): Promise<void> => {
+    if (disconnected) return Promise.reject(disconnected)
+    if (!options.allowCoverage)
+      return Promise.reject(
+        new Error('Unrequested compiler coverage source analysis')
+      )
+    const id = randomUUID()
+    return new Promise<void>((resolve, reject) => {
+      let sent = Promise.resolve(),
+        cancellationSent = false
+      const cancel = () => {
+        if (cancellationSent) return
+        cancellationSent = true
+        sent = sent.then(() => {
+          if (disconnected) throw disconnected
+          return options.send({
+            type: 'execution-broker-request',
+            action: 'cancel',
+            id,
+          })
+        })
+        void sent.catch((error) => disconnect(asError(error)))
+      }
+      pending.set(id, {
+        kind: 'source-analysis',
+        resolve,
+        reject,
+        signal,
+        onAbort: cancel,
+        onEvent: () => {},
+        coverage: Promise.resolve(),
+      })
+      sent = Promise.resolve().then(() => {
+        if (disconnected) throw disconnected
+        return options.send({
+          type: 'execution-broker-request',
+          id,
+          action: 'source-analysis',
+          compiled,
         })
       })
       void sent.catch((error) => disconnect(asError(error)))
@@ -587,6 +764,7 @@ export function createExecutionBrokerClient(options: {
 
   return {
     execute,
+    analyzeCoverageSource,
     executeCohort,
     disconnect,
     handle(value: unknown): boolean {
@@ -604,6 +782,23 @@ export function createExecutionBrokerClient(options: {
       }
       const request = pending.get(message.id)
       if (!request) return true
+      if (
+        request.kind === 'source-analysis' &&
+        message.action !== 'source-analysis-result' &&
+        message.action !== 'error'
+      )
+        throw new Error(
+          'Runtime broker response cannot complete compiler coverage analysis'
+        )
+      if (
+        message.action === 'source-analysis-result' &&
+        Object.keys(message).some(
+          (key) => !['type', 'id', 'action'].includes(key)
+        )
+      )
+        throw new Error(
+          'Compiler coverage analysis acknowledgement cannot contain runtime facts'
+        )
       if (message.action === 'custom-coverage') {
         request.coverage = request.coverage
           .then(async () => {
@@ -642,6 +837,7 @@ export function createExecutionBrokerClient(options: {
       if (
         message.action !== 'result' &&
         message.action !== 'cohort-result' &&
+        message.action !== 'source-analysis-result' &&
         message.action !== 'error'
       ) {
         throw new Error('Invalid execution broker response action')
@@ -669,6 +865,12 @@ export function createExecutionBrokerClient(options: {
           )
         } else if (request.failure) {
           request.reject(request.failure.error)
+        } else if (
+          message.action === 'source-analysis-result' &&
+          request.kind === 'source-analysis'
+        ) {
+          if (request.signal.aborted) request.reject(request.signal.reason)
+          else request.resolve()
         } else if (message.action === 'result' && request.kind === 'file') {
           request.resolve(message.result)
         } else if (
@@ -695,4 +897,156 @@ export function createExecutionBrokerClient(options: {
 
 function asError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
+}
+
+/** Browser leases remain in this parent until its actual execution worker closes. */
+async function executeBrokerFile(
+  artifact: CompiledTestArtifact,
+  options: ExecuteTestOptions,
+  environment: NodeJS.ProcessEnv,
+  project:
+    | Pick<DiscoveredTestProject, 'profile' | 'entries' | 'browserFixtures'>
+    | undefined,
+  application: BrowserApplicationOwnership | undefined,
+  snapshotUpdates?: Parameters<typeof executeWithEnvironment>[3]
+): Promise<TestExecutionResult> {
+  if (
+    artifact.profile.environment !== 'browser' ||
+    artifact.kind === 'browser' ||
+    options.collectOnly
+  )
+    return executeWithEnvironment(
+      artifact,
+      options,
+      environment,
+      snapshotUpdates
+    )
+  if (
+    artifact.kind !== 'node' ||
+    !artifact.applicationServer ||
+    artifact.applicationServer.lockDistDir !== true ||
+    artifact.applicationServer.mode !== artifact.profile.mode ||
+    !project ||
+    project.profile.environment !== artifact.profile.environment ||
+    project.profile.mode !== artifact.profile.mode ||
+    !application ||
+    application.projectDir !== options.projectDir ||
+    !isDeepStrictEqual(application.profile, artifact.profile) ||
+    application.distDir !== artifact.applicationServer.distDir ||
+    application.lockDistDir !== artifact.applicationServer.lockDistDir
+  )
+    throw new Error(
+      'Browser broker requires compiler-resolved application server ownership.'
+    )
+  let server: import('../browser/server').ApplicationServer | undefined
+  let host: import('../browser/host').BrowserHost | undefined
+  const errors: unknown[] = []
+  let result: TestExecutionResult | undefined
+  let acquisition = true
+  let cleanCancellation = false
+  let ApplicationServerError:
+    | typeof import('../browser/server').ApplicationServerError
+    | undefined
+  const started = performance.now()
+  let outputDir: string | undefined
+  let retainedOutput = false
+  const retain = (
+    attachments: import('../browser/server').ApplicationServerAttachment[]
+  ) => {
+    for (const attachment of attachments) {
+      retainedOutput = true
+      options.onEvent({
+        version: 1,
+        runId: options.runId,
+        timestamp: Date.now(),
+        type: 'attachment',
+        entryId: artifact.entryId,
+        revision: artifact.revision,
+        attachment,
+      })
+    }
+  }
+  try {
+    outputDir = await mkdtemp(
+      join(tmpdir(), `next-test-browser-${options.runId}-`)
+    )
+    const applicationModule = await import('../browser/server.js')
+    const { createApplicationServer } = applicationModule
+    ApplicationServerError = applicationModule.ApplicationServerError
+    server = await createApplicationServer({
+      projectDir: options.projectDir,
+      mode: artifact.applicationServer.mode,
+      outputLockEnabled: artifact.applicationServer.lockDistDir,
+      distDir: artifact.applicationServer.distDir,
+      browserFixtures: project.browserFixtures,
+      outputDir,
+      signal: options.signal,
+    })
+    retain(server.attachments)
+    options.signal.throwIfAborted()
+    const { createBrowserHost } = await import('../browser/host.js')
+    host = await createBrowserHost({
+      projectDir: options.projectDir,
+      signal: options.signal,
+    })
+    options.signal.throwIfAborted()
+    acquisition = false
+    result = await executeWithEnvironment(
+      artifact,
+      {
+        ...options,
+        browser: {
+          wsEndpoint: host.wsEndpoint,
+          baseURL: server.baseURL,
+          outputDir,
+          ...(server.componentHost
+            ? { componentHost: server.componentHost }
+            : {}),
+        },
+      },
+      environment,
+      snapshotUpdates
+    )
+  } catch (error) {
+    if (ApplicationServerError && error instanceof ApplicationServerError)
+      retain(error.attachments)
+    cleanCancellation =
+      acquisition &&
+      options.signal.aborted &&
+      (error === options.signal.reason ||
+        (!!ApplicationServerError &&
+          error instanceof ApplicationServerError &&
+          error.errors.length === 1 &&
+          error.errors[0] === options.signal.reason))
+    if (!cleanCancellation) errors.push(error)
+  } finally {
+    // Cancellation never preempts driver teardown; acquisition signals only
+    // cancel startup. Every resource remains awaited even after another fails.
+    for (const resource of [host, server]) {
+      try {
+        await resource?.dispose()
+      } catch (error) {
+        errors.push(error)
+      }
+    }
+    // Reported server logs and attempt artifacts remain available after shutdown.
+    // An unused root from failed acquisition has no published artifact lifetime.
+    if (outputDir && !retainedOutput) {
+      try {
+        await rm(outputDir, { recursive: true, force: true })
+      } catch (error) {
+        errors.push(error)
+      }
+    }
+  }
+  if (errors.length === 1) throw errors[0]
+  if (errors.length)
+    throw new AggregateError(errors, 'Browser broker cleanup failed.')
+  return cleanCancellation
+    ? {
+        entryId: artifact.entryId,
+        status: 'cancelled',
+        durationMs: performance.now() - started,
+      }
+    : result!
 }

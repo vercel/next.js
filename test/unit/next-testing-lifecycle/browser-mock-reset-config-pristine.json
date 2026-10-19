@@ -1,0 +1,262 @@
+{
+  "scenarios": {
+    "default": {
+      "flags": {},
+      "totals": {
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "name": "seeds shared mocks spies and globals for the next case",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "observes configured reset behavior before the next test body",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": {
+        "seed": {
+          "fnValue": "changed:A",
+          "spyValue": "spy:A",
+          "fnCalls": [["A"]],
+          "spyCalls": [["A"]],
+          "methodIsSpy": true,
+          "methodIsOriginal": false,
+          "globalValue": "kept"
+        },
+        "next-case": {
+          "before": {
+            "fnCalls": [],
+            "spyCalls": [],
+            "methodIsSpy": true,
+            "methodIsOriginal": false,
+            "globalValue": "kept"
+          },
+          "after": {
+            "fnValue": "changed:B",
+            "spyValue": "spy:B",
+            "fnCalls": [["B"]],
+            "spyCalls": [["B"]],
+            "methodIsSpy": true,
+            "methodIsOriginal": false,
+            "globalValue": "kept"
+          }
+        }
+      }
+    },
+    "clear-false": {
+      "flags": {
+        "clearMocks": false
+      },
+      "totals": {
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "name": "seeds shared mocks spies and globals for the next case",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "observes configured reset behavior before the next test body",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": {
+        "seed": {
+          "fnValue": "changed:A",
+          "spyValue": "spy:A",
+          "fnCalls": [["A"]],
+          "spyCalls": [["A"]],
+          "methodIsSpy": true,
+          "methodIsOriginal": false,
+          "globalValue": "kept"
+        },
+        "next-case": {
+          "before": {
+            "fnCalls": [["A"]],
+            "spyCalls": [["A"]],
+            "methodIsSpy": true,
+            "methodIsOriginal": false,
+            "globalValue": "kept"
+          },
+          "after": {
+            "fnValue": "changed:B",
+            "spyValue": "spy:B",
+            "fnCalls": [["A"], ["B"]],
+            "spyCalls": [["A"], ["B"]],
+            "methodIsSpy": true,
+            "methodIsOriginal": false,
+            "globalValue": "kept"
+          }
+        }
+      }
+    },
+    "mock-reset": {
+      "flags": {
+        "mockReset": true
+      },
+      "totals": {
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "name": "seeds shared mocks spies and globals for the next case",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "observes configured reset behavior before the next test body",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": {
+        "seed": {
+          "fnValue": "changed:A",
+          "spyValue": "spy:A",
+          "fnCalls": [["A"]],
+          "spyCalls": [["A"]],
+          "methodIsSpy": true,
+          "methodIsOriginal": false,
+          "globalValue": "kept"
+        },
+        "next-case": {
+          "before": {
+            "fnCalls": [],
+            "spyCalls": [],
+            "methodIsSpy": true,
+            "methodIsOriginal": false,
+            "globalValue": "kept"
+          },
+          "after": {
+            "fnValue": "initial:B",
+            "spyValue": "original:B",
+            "fnCalls": [["B"]],
+            "spyCalls": [["B"]],
+            "methodIsSpy": true,
+            "methodIsOriginal": false,
+            "globalValue": "kept"
+          }
+        }
+      }
+    },
+    "restore-mocks": {
+      "flags": {
+        "restoreMocks": true
+      },
+      "totals": {
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "name": "seeds shared mocks spies and globals for the next case",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "observes configured reset behavior before the next test body",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": {
+        "seed": {
+          "fnValue": "changed:A",
+          "spyValue": "spy:A",
+          "fnCalls": [["A"]],
+          "spyCalls": [["A"]],
+          "methodIsSpy": true,
+          "methodIsOriginal": false,
+          "globalValue": "kept"
+        },
+        "next-case": {
+          "before": {
+            "fnCalls": [],
+            "spyCalls": [],
+            "methodIsSpy": false,
+            "methodIsOriginal": true,
+            "globalValue": "kept"
+          },
+          "after": {
+            "fnValue": "changed:B",
+            "spyValue": "original:B",
+            "fnCalls": [["B"]],
+            "spyCalls": [],
+            "methodIsSpy": false,
+            "methodIsOriginal": true,
+            "globalValue": "kept"
+          }
+        }
+      }
+    },
+    "unstub-globals": {
+      "flags": {
+        "unstubGlobals": true
+      },
+      "totals": {
+        "numTotalTests": 2,
+        "numPassedTests": 2,
+        "numFailedTests": 0,
+        "numPendingTests": 0
+      },
+      "cases": [
+        {
+          "name": "seeds shared mocks spies and globals for the next case",
+          "status": "passed",
+          "failureMessages": []
+        },
+        {
+          "name": "observes configured reset behavior before the next test body",
+          "status": "passed",
+          "failureMessages": []
+        }
+      ],
+      "observations": {
+        "seed": {
+          "fnValue": "changed:A",
+          "spyValue": "spy:A",
+          "fnCalls": [["A"]],
+          "spyCalls": [["A"]],
+          "methodIsSpy": true,
+          "methodIsOriginal": false,
+          "globalValue": "kept"
+        },
+        "next-case": {
+          "before": {
+            "fnCalls": [],
+            "spyCalls": [],
+            "methodIsSpy": true,
+            "methodIsOriginal": false,
+            "globalValue": null
+          },
+          "after": {
+            "fnValue": "changed:B",
+            "spyValue": "spy:B",
+            "fnCalls": [["B"]],
+            "spyCalls": [["B"]],
+            "methodIsSpy": true,
+            "methodIsOriginal": false,
+            "globalValue": null
+          }
+        }
+      }
+    }
+  }
+}

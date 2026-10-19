@@ -1,7 +1,7 @@
 //! Explicit testing entries into the existing Next.js compiler. This does
 //! not alter route discovery or add test entries to ordinary application builds.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -13,11 +13,16 @@ use next_core::{
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Completion, FxIndexMap, OperationVc, ResolvedVc, ValueToString, Vc, fxindexmap};
 use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath};
-use turbopack::{ModuleAssetContext, module_options::ModuleOptionsContext};
+use turbo_tasks_hash::HashAlgorithm;
+use turbopack::{
+    ModuleAssetContext,
+    module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
+    transition::{FullContextTransition, TransitionOptions},
+};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::{Asset, AssetContent, no_hash_salt},
     chunk::{
-        ChunkingContext, EntryChunkGroupResult, SourceMapSourceType,
+        ChunkingContext, ChunkingType, EntryChunkGroupResult, SourceMapSourceType,
         availability_info::AvailabilityInfo,
     },
     context::AssetContext,
@@ -31,7 +36,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets},
-    reference::{all_assets_from_entries, primary_referenced_modules},
+    reference::{ModuleReference, all_assets_from_entries, primary_referenced_modules},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         ResolveErrorMode, ResolveResult,
@@ -40,7 +45,9 @@ use turbopack_core::{
         parse::Request,
     },
     source::Source,
-    source_map::{structured::StructuredSourceMap, utils::absolute_fileify_source_map},
+    source_map::{
+        GenerateSourceMap, structured::StructuredSourceMap, utils::absolute_fileify_source_map,
+    },
     virtual_output::VirtualOutputAsset,
     virtual_source::VirtualSource,
 };
@@ -56,9 +63,10 @@ use crate::{
     project::{Project, ProjectContainer},
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
     testing_mock_graph::{
-        MockActualSource, MockGraphTarget, MockGraphTargets, MockHoistedSource,
-        MockRegistrationSource, MockResolvePlugin, mock_registration_source_with_helpers,
-        mock_spec_source_with_imports, mock_wrapper_source,
+        MockActualSource, MockGraphTarget, MockGraphTargets, MockHoistedSource, MockImportKind,
+        MockImportSource, MockRegistrationSource, MockResolvePlugin,
+        mock_registration_source_with_helpers, mock_spec_source_with_imports,
+        mock_wrapper_source_with_original_cycle,
     },
     testing_mock_source::{StaticMockPlan, extract_test_mocks},
 };
@@ -171,9 +179,17 @@ pub async fn test_endpoint_operation(
     cohort_files: Vec<RcStr>,
     runtime_env: bool,
     route: Option<RcStr>,
-    dependency_plan: bool,
-    browser_client: bool,
+    compiler_features: (bool, bool, bool, Vec<RcStr>, bool, Option<RcStr>),
 ) -> Result<Vc<OptionEndpoint>> {
+    // Keep the operation within turbo-tasks' twelve-argument input tuple limit.
+    let (
+        dependency_plan,
+        browser_client,
+        source_coverage,
+        alias_finds,
+        import_coverage_roles,
+        tsconfig_input_revision,
+    ) = compiler_features;
     let entry = TestEntryOptions {
         file,
         id,
@@ -185,6 +201,10 @@ pub async fn test_endpoint_operation(
         route,
         dependency_plan,
         browser_client,
+        source_coverage,
+        alias_finds,
+        import_coverage_roles,
+        tsconfig_input_revision,
     }
     .resolved_cell();
     let project = container
@@ -210,6 +230,10 @@ pub(crate) struct TestEntryOptions {
     pub route: Option<RcStr>,
     pub dependency_plan: bool,
     pub browser_client: bool,
+    pub source_coverage: bool,
+    pub import_coverage_roles: bool,
+    pub tsconfig_input_revision: Option<RcStr>,
+    pub alias_finds: Vec<RcStr>,
 }
 
 #[turbo_tasks::function]
@@ -228,7 +252,53 @@ pub(crate) async fn test_endpoint(
         route,
         dependency_plan,
         browser_client,
+        source_coverage,
+        alias_finds,
+        import_coverage_roles,
+        tsconfig_input_revision,
     } = &*entry.await?;
+    if !alias_finds.is_empty()
+        && (&**environment != "node"
+            || project.next_mode().await?.is_production()
+            || *browser_client
+            || route.is_some())
+    {
+        return Err(test_input_error(
+            project.project_path().owned().await?,
+            "Mapped compiler aliases currently require a route-less development Node profile",
+        ));
+    }
+    if let Some(revision) = tsconfig_input_revision {
+        if revision.is_empty()
+            || revision.len() > 256
+            || revision.contains('\0')
+            || *browser_client
+            || &*environment != "node"
+            || route.is_some()
+        {
+            bail!(
+                "Native TypeScript config provenance requires an opaque parent revision and \
+                 isolated Node test entry"
+            );
+        }
+    }
+    if *import_coverage_roles && (*browser_client || &*environment != "node" || route.is_some()) {
+        bail!("Native import coverage roles require an isolated Node test entry");
+    }
+    if *source_coverage
+        && (&**environment != "node"
+            || !project.next_mode().await?.is_production()
+            || *browser_client
+            || *runtime_env
+            || *dependency_plan
+            || route.is_some()
+            || !cohort_files.is_empty())
+    {
+        return Err(test_input_error(
+            project.project_path().owned().await?,
+            "Source coverage requires an isolated production Node entry",
+        ));
+    }
     if *dependency_plan && (&**environment != "node" || !cohort_files.is_empty()) {
         return Err(test_input_error(
             project.project_path().owned().await?,
@@ -336,15 +406,41 @@ pub(crate) async fn test_endpoint(
             "Runtime module mocks require isolated development Node without setup or serializers",
         ));
     }
-    if project.next_mode().await?.is_production() && !static_mock_plan(&path).await?.is_empty() {
+    let production_plan = static_mock_plan(&path).await?;
+    let browser_helpers = *browser_client
+        && project.next_mode().await?.is_development()
+        && route.is_none()
+        && setup_paths.is_empty()
+        && snapshot_serializers.is_empty()
+        && !production_plan.reset_modules;
+    if (!production_plan.mock_imports.is_empty() || !production_plan.unmocks.is_empty())
+        && ((&*environment != "node" && !browser_helpers)
+            || !project.next_mode().await?.is_development()
+            || route.is_some())
+    {
         return Err(test_input_error(
             path.clone(),
-            "Static module mocks are not supported in production test profiles",
+            "vi.importMock and vi.unmock currently require route-less development Node or Browser",
+        ));
+    }
+    if project.next_mode().await?.is_production()
+        && !production_plan.is_empty()
+        && (&*environment != "node"
+            || route.is_some()
+            || !setup_paths.is_empty()
+            || !snapshot_serializers.is_empty()
+            || !cohort_files.is_empty()
+            || !production_factory_plan(&production_plan))
+    {
+        return Err(test_input_error(
+            path.clone(),
+            "Production module mocks require isolated Node static relative factory declarations \
+             without setup, serializers, in-source entries or other mock features",
         ));
     }
     if &*environment != "node" {
         let plan = static_mock_plan(&path).await?;
-        let rsc_mocks_supported = &*environment == "rsc"
+        let rsc_mocks_supported = (&*environment == "rsc" || *browser_client)
             && project.next_mode().await?.is_development()
             && route.is_none()
             && setup_paths.is_empty()
@@ -359,10 +455,15 @@ pub(crate) async fn test_endpoint(
         }
     }
     for setup_path in &setup_paths {
-        if !static_mock_plan(setup_path).await?.is_empty() {
+        if !static_mock_plan(setup_path).await?.is_empty()
+            && (&*environment != "node"
+                || !project.next_mode().await?.is_development()
+                || route.is_some()
+                || !cohort_files.is_empty())
+        {
             return Err(test_input_error(
                 setup_path.clone(),
-                "Static module mocks in setup files are not supported yet",
+                "Setup module mocks require isolated development Node without routes or cohorts",
             ));
         }
     }
@@ -383,6 +484,8 @@ pub(crate) async fn test_endpoint(
                 cohort_files: cohort_files.clone(),
                 runtime_env: *runtime_env,
                 dependency_plan: *dependency_plan,
+                source_coverage: *source_coverage,
+                import_coverage_roles: *import_coverage_roles,
                 id,
             }
             .cell(),
@@ -403,7 +506,7 @@ pub(crate) async fn test_endpoint(
     ))
 }
 
-async fn static_mock_plan(path: &FileSystemPath) -> Result<StaticMockPlan> {
+pub(crate) async fn static_mock_plan(path: &FileSystemPath) -> Result<StaticMockPlan> {
     let source = file_content_rope(path.read()).await?.to_str()?.into_owned();
     // This pure analyzer returns only syntax/unsupported-input errors. Do not
     // include file reads, graph resolution, or generated-map invariants here.
@@ -425,6 +528,23 @@ async fn virtual_test_source(
     ))
 }
 
+fn production_factory_plan(plan: &StaticMockPlan) -> bool {
+    !plan.declarations.is_empty()
+        && plan.hoisted.is_empty()
+        && plan.actual_imports.is_empty()
+        && plan.mock_imports.is_empty()
+        && plan.unmocks.is_empty()
+        && !plan.reset_modules
+        && plan.runtime_requests.is_empty()
+        && plan.declarations.iter().all(|declaration| {
+            !declaration.automatic
+                && !declaration.spy
+                && declaration.has_object_return
+                && !declaration.has_spread
+                && (declaration.request.starts_with("./") || declaration.request.starts_with("../"))
+        })
+}
+
 /// Issue the same source identity that this actual Node chunker writes to its maps.
 /// This metadata-only map has no coordinates and cannot invent coverage ranges.
 async fn emitted_test_source_identity(
@@ -438,6 +558,16 @@ async fn emitted_test_source_identity(
     ) {
         bail!("Static mock source provenance requires absolute native source-map identities");
     }
+    canonical_test_source_identity(project, source).await
+}
+
+/// Authored inline maps use a canonical source URI before production codegen.
+/// The final native relative-map transform only rewrites Turbopack identities,
+/// so this preserves exact spec/factory locations without changing optimization.
+async fn canonical_test_source_identity(
+    project: ResolvedVc<Project>,
+    source: ResolvedVc<Box<dyn Source>>,
+) -> Result<String> {
     let source_ident = source.ident().to_string().await?;
     let map = StructuredSourceMap::from_json_slice(&serde_json::to_vec(&serde_json::json!({
         "version": 3,
@@ -445,8 +575,7 @@ async fn emitted_test_source_identity(
         "names": [],
         "mappings": "",
     }))?)?;
-    let map =
-        absolute_fileify_source_map(&map, chunking_context.root_path().owned().await?).await?;
+    let map = absolute_fileify_source_map(&map, project.project_root_path().owned().await?).await?;
     let map: serde_json::Value = serde_json::from_reader(map.to_rope().read())?;
     let sources = map["sources"]
         .as_array()
@@ -518,7 +647,7 @@ pub(crate) async fn snapshot_serializer_source(
 /// User-derived test source must participate in configured loader rules, which
 /// intentionally exclude VirtualSource. Synthetic mock wrappers stay virtual.
 #[turbo_tasks::value]
-struct TestSource {
+pub(crate) struct TestSource {
     ident: ResolvedVc<AssetIdent>,
     content: ResolvedVc<AssetContent>,
 }
@@ -571,11 +700,23 @@ pub(crate) async fn test_source(
 #[turbo_tasks::function]
 pub(crate) async fn test_module_options_context(
     options: Vc<ModuleOptionsContext>,
+    preserve_coverage_source: bool,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut options = options.owned().await?;
     options.module_fragments_enabled = false;
+    if preserve_coverage_source {
+        options.ecmascript.cross_module_constants = false;
+        options.ecmascript.mangle_export_names = false;
+        options.ecmascript.cjs_scope_hoisting = false;
+        options.ecmascript.cjs_tree_shaking = false;
+        options.ecmascript.infer_module_side_effects = false;
+        options.follow_reexports = false;
+        options.side_effect_free_packages = None;
+    }
     for (_, nested) in &mut options.rules {
-        *nested = test_module_options_context(**nested).to_resolved().await?;
+        *nested = test_module_options_context(**nested, preserve_coverage_source)
+            .to_resolved()
+            .await?;
     }
     Ok(options.cell())
 }
@@ -849,6 +990,8 @@ pub(crate) struct PreparedTestModule {
     pub module_reset: bool,
     pub coverage_sources: Vec<MockCoverageSource>,
     pub runtime_requests: Vec<String>,
+    pub cjs_named_spy: bool,
+    pub mock_wrappers: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
 async fn prepare_node_test(
@@ -857,25 +1000,152 @@ async fn prepare_node_test(
     id: &RcStr,
     runtime_env: bool,
 ) -> Result<PreparedTestModule> {
+    let context = node_test_input_context(project, path, runtime_env, None).await?;
+    prepare_test_module(project, path, id, context, true).await
+}
+
+pub(crate) async fn node_test_input_context(
+    project: ResolvedVc<Project>,
+    path: &FileSystemPath,
+    runtime_env: bool,
+    layer: Option<Layer>,
+) -> Result<ResolvedVc<ModuleAssetContext>> {
     let base_context = if runtime_env {
         crate::testing_env::context(*project).to_resolved().await?
     } else {
         project.node_test_context().to_resolved().await?
     };
     let base = base_context.await?;
+    let transitions = if layer.is_some() {
+        // Each authored input has its own substitution layer, while the emitted
+        // testing facade and runtime must retain one native file owner. Switch
+        // only the resolved Next testing package boundary to the original test
+        // context; its transitive runtime imports keep that same context too.
+        let testing_runtime = get_next_package(project.project_path().owned().await?)
+            .await?
+            .join("dist/experimental/testing")?;
+        let transition = FullContextTransition::new(*base_context)
+            .to_resolved()
+            .await?;
+        let existing = base.transitions.await?;
+        let mut rules = vec![TransitionRule::new_all(
+            RuleCondition::ResourcePathInExactDirectory(testing_runtime),
+            ResolvedVc::upcast(transition),
+        )];
+        rules.extend(existing.transition_rules.iter().cloned());
+        TransitionOptions {
+            named_transitions: existing.named_transitions.clone(),
+            transition_rules: rules,
+            ..Default::default()
+        }
+        .resolved_cell()
+    } else {
+        base.transitions
+    };
     // Only this explicit entry exposes the active facade through import.meta.
     // Imported helpers retain ordinary application semantics, even if they are
     // separately discovered in-source entries in another file invocation.
     let context = ModuleAssetContext::new(
-        *base.transitions,
+        *transitions,
         *base.compile_time_info,
         crate::testing_in_source::module_options(*base.module_options_context, path.clone()),
         *base.resolve_options_context,
-        base.layer.clone(),
+        layer.unwrap_or_else(|| base.layer.clone()),
     )
     .to_resolved()
     .await?;
-    prepare_test_module(project, path, id, context).await
+    Ok(context)
+}
+
+/// Certify the original's SCC from actual static ESM evaluation references.
+/// Dynamic loaders and resolver metadata cannot authorize a pending backedge.
+async fn static_original_cycle_members(
+    original: ResolvedVc<Box<dyn Module>>,
+    path: &FileSystemPath,
+) -> Result<Vec<ResolvedVc<Box<dyn Source>>>> {
+    let mut incoming: HashMap<ResolvedVc<Box<dyn Module>>, Vec<ResolvedVc<Box<dyn Module>>>> =
+        HashMap::new();
+    let mut queue = vec![original];
+    let mut seen = HashSet::new();
+    let mut self_edge = false;
+    while let Some(module) = queue.pop() {
+        if !seen.insert(module) {
+            continue;
+        }
+        for reference in module.references().await?.iter() {
+            if !matches!(
+                reference.into_trait_ref().await?.chunking_type(),
+                Some(ChunkingType::Parallel {
+                    inherit_async: true,
+                    ..
+                })
+            ) {
+                continue;
+            }
+            for dependency in reference
+                .resolve_reference()
+                .await?
+                .primary_modules()
+                .await?
+            {
+                self_edge |= module == original && dependency == original;
+                incoming.entry(dependency).or_default().push(module);
+                queue.push(dependency);
+            }
+        }
+    }
+    let mut members = HashSet::new();
+    let mut queue = vec![original];
+    while let Some(module) = queue.pop() {
+        if !members.insert(module) {
+            continue;
+        }
+        if let Some(parents) = incoming.get(&module) {
+            queue.extend(parents.iter().copied());
+        }
+    }
+    if members.len() < 2 && !self_edge {
+        return Err(test_input_error(
+            path.clone(),
+            "Cyclic factory originals require a compiler-certified static ESM cycle",
+        ));
+    }
+    let mut sources = Vec::new();
+    for module in members {
+        let ident = module.ident().await?;
+        let placeable = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+            .ok_or_else(|| {
+                test_input_error(path.clone(), "Cyclic originals require compiled ESM")
+            })?;
+        if !ident.query.is_empty()
+            || !ident.fragment.is_empty()
+            || !matches!(
+                *placeable.get_exports().await?,
+                EcmascriptExports::EsmExports(_)
+            )
+        {
+            return Err(test_input_error(
+                path.clone(),
+                "Cyclic original members require concrete ESM identities without queries/fragments",
+            ));
+        }
+        let source = (*module.source().await?).ok_or_else(|| {
+            test_input_error(
+                path.clone(),
+                "Cyclic originals require native source identities",
+            )
+        })?;
+        if module != original && !sources.contains(&source) {
+            sources.push(source);
+        }
+    }
+    // Stable generation order follows the full native source identity.
+    let mut keyed = Vec::new();
+    for source in sources {
+        keyed.push((source.ident().to_string().await?.to_string(), source));
+    }
+    keyed.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(keyed.into_iter().map(|(_, source)| source).collect())
 }
 
 /// Reuse the verified mock planner only within an explicitly supplied test context.
@@ -885,9 +1155,198 @@ pub(crate) async fn prepare_test_module(
     path: &FileSystemPath,
     id: &RcStr,
     context: ResolvedVc<ModuleAssetContext>,
+    allow_cjs_named_spy: bool,
+) -> Result<PreparedTestModule> {
+    prepare_test_module_with_inputs(project, path, id, context, allow_cjs_named_spy, false, &[])
+        .await
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MockImportLoading {
+    CachedOriginal,
+    BrowserStampedOriginal,
+}
+
+pub(crate) async fn prepare_browser_test_module(
+    project: ResolvedVc<Project>,
+    path: &FileSystemPath,
+    id: &RcStr,
+    context: ResolvedVc<ModuleAssetContext>,
+) -> Result<PreparedTestModule> {
+    prepare_test_module_with_loading(
+        project,
+        path,
+        id,
+        context,
+        false,
+        false,
+        &[],
+        MockImportLoading::BrowserStampedOriginal,
+    )
+    .await
+}
+
+/// Resolve new literal helpers from their authored input, before graph substitution.
+async fn resolve_mock_helper_target(
+    context: ResolvedVc<ModuleAssetContext>,
+    importer: &FileSystemPath,
+    request: &str,
+    api: &str,
+) -> Result<(FileSystemPath, ResolvedVc<Box<dyn Module>>)> {
+    if matches!(request, "next" | "react" | "react-dom" | "vitest")
+        || request.starts_with("next/")
+        || request.starts_with("react/")
+        || request.starts_with("react-dom/")
+        || request.starts_with("node:")
+    {
+        return Err(test_input_error(
+            importer.clone(),
+            format!(
+                "{api} currently requires compiled ESM targets; framework/native targets are \
+                 unsupported: {request}"
+            ),
+        ));
+    }
+    let origin = PlainResolveOrigin::new(*ResolvedVc::upcast(context), importer.clone());
+    let resolved = esm_resolve(
+        Vc::upcast(origin),
+        Request::parse(RcStr::from(request).into()),
+        EcmaScriptModulesReferenceSubType::Import,
+        ResolveErrorMode::Error,
+        None,
+    )
+    .await?;
+    let modules = resolved.await?.primary_modules().await?;
+    if modules.len() != 1 {
+        return Err(test_input_error(
+            importer.clone(),
+            format!("{api} target must resolve to exactly one compiled ESM module: {request}"),
+        ));
+    }
+    let original = modules[0];
+    let ident = original.ident().await?;
+    let target_path = ident.path.clone();
+    if !ident.query.is_empty() || !ident.fragment.is_empty() {
+        return Err(test_input_error(
+            importer.clone(),
+            format!("{api} resolved queries/fragments are unsupported: {request}"),
+        ));
+    }
+    if target_path == *importer {
+        return Err(test_input_error(
+            importer.clone(),
+            format!("The spec module cannot be its own {api} target: {request}"),
+        ));
+    }
+    if ResolvedVc::try_downcast_type::<CachedExternalModule>(original).is_some() {
+        return Err(test_input_error(
+            importer.clone(),
+            format!(
+                "{api} targets must be compiled by Next; configure the external package for \
+                 compilation: {request}"
+            ),
+        ));
+    }
+    let target_source = file_content_rope(target_path.read())
+        .await?
+        .to_str()?
+        .into_owned();
+    crate::testing_mock_source::validate_mock_target_source(
+        &target_source,
+        target_path.file_name(),
+    )
+    .map_err(|error| test_input_error(target_path.clone(), error.to_string()))?;
+    let transformed_source = (*original.source().await?).ok_or_else(|| {
+        test_input_error(
+            importer.clone(),
+            format!("{api} targets require an inspectable compiler source"),
+        )
+    })?;
+    let transformed_text = file_content_rope(transformed_source.content().file_content())
+        .await?
+        .to_str()?
+        .into_owned();
+    crate::testing_mock_source::validate_mock_target_source(
+        &transformed_text,
+        target_path.file_name(),
+    )
+    .map_err(|error| test_input_error(target_path.clone(), error.to_string()))?;
+    let placeable = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(original)
+        .ok_or_else(|| {
+            test_input_error(
+                importer.clone(),
+                format!("{api} target must be a compiled ESM module"),
+            )
+        })?;
+    if !matches!(
+        *placeable.get_exports().await?,
+        EcmascriptExports::EsmExports(_)
+    ) {
+        return Err(test_input_error(
+            importer.clone(),
+            format!("CommonJS/dynamic {api} targets are unsupported: {request}"),
+        ));
+    }
+    Ok((target_path, original))
+}
+
+/// Each declaration resolves from its own authored importer. Prefixes preserve
+/// target insertion order, so inherited targets retain their compiler-owned keys.
+pub(crate) async fn prepare_test_module_with_inputs(
+    project: ResolvedVc<Project>,
+    path: &FileSystemPath,
+    id: &RcStr,
+    context: ResolvedVc<ModuleAssetContext>,
+    allow_cjs_named_spy: bool,
+    layered_inputs: bool,
+    inherited: &[FileSystemPath],
+) -> Result<PreparedTestModule> {
+    prepare_test_module_with_loading(
+        project,
+        path,
+        id,
+        context,
+        allow_cjs_named_spy,
+        layered_inputs,
+        inherited,
+        MockImportLoading::CachedOriginal,
+    )
+    .await
+}
+
+async fn prepare_test_module_with_loading(
+    project: ResolvedVc<Project>,
+    path: &FileSystemPath,
+    id: &RcStr,
+    context: ResolvedVc<ModuleAssetContext>,
+    allow_cjs_named_spy: bool,
+    layered_inputs: bool,
+    inherited: &[FileSystemPath],
+    loading: MockImportLoading,
 ) -> Result<PreparedTestModule> {
     let plan = static_mock_plan(path).await?;
-    if plan.is_empty() || plan.reset_modules || !plan.runtime_requests.is_empty() {
+    let mut earlier_plans = Vec::new();
+    for input_path in inherited {
+        let input_plan = static_mock_plan(input_path).await?;
+        if input_plan.reset_modules || !input_plan.runtime_requests.is_empty() {
+            return Err(test_input_error(
+                input_path.clone(),
+                "Setup module mocks cannot reset or register runtime modules yet",
+            ));
+        }
+        earlier_plans.push((input_path, input_plan));
+    }
+    if !inherited.is_empty() && (plan.reset_modules || !plan.runtime_requests.is_empty()) {
+        return Err(test_input_error(
+            path.clone(),
+            "Setup module mocks cannot reset or register runtime modules yet",
+        ));
+    }
+    let has_inherited = earlier_plans.iter().any(|(_, plan)| !plan.is_empty());
+    if (plan.is_empty() && !has_inherited)
+        || plan.reset_modules
+        || !plan.runtime_requests.is_empty()
+    {
         return Ok(PreparedTestModule {
             context,
             setup_context: context,
@@ -896,6 +1355,8 @@ pub(crate) async fn prepare_test_module(
             module_reset: plan.reset_modules || !plan.runtime_requests.is_empty(),
             runtime_requests: plan.runtime_requests,
             coverage_sources: Vec::new(),
+            cjs_named_spy: false,
+            mock_wrappers: Vec::new(),
         });
     }
     // Node setup files retain the supplied context's unmocked graph while the
@@ -943,180 +1404,273 @@ pub(crate) async fn prepare_test_module(
     let mut automatic_originals = FxIndexMap::default();
     let mut manual_redirects = FxIndexMap::default();
     let mut registrations = Vec::new();
-    for declaration in &plan.declarations {
-        let request = declaration.request.as_str();
-        if matches!(request, "next" | "react" | "react-dom" | "vitest")
-            || request.starts_with("next/")
-            || request.starts_with("react/")
-            || request.starts_with("react-dom/")
-            || request.starts_with("node:")
-        {
-            return Err(test_input_error(
-                path.clone(),
-                format!("Framework and native module mock targets are not supported: {request}"),
-            ));
-        }
-        let resolved = esm_resolve(
-            Vc::upcast(origin),
-            Request::parse(RcStr::from(request).into()),
-            EcmaScriptModulesReferenceSubType::Import,
-            ResolveErrorMode::Error,
-            None,
-        )
-        .await?;
-        let modules = resolved.await?.primary_modules().await?;
-        if modules.len() != 1 {
-            return Err(test_input_error(
-                path.clone(),
-                format!("Mock target must resolve to exactly one compiled ESM module: {request}"),
-            ));
-        }
-        let original = modules[0];
-        let ident = original.ident().await?;
-        if !ident.query.is_empty() || !ident.fragment.is_empty() {
-            return Err(test_input_error(
-                path.clone(),
-                format!(
-                    "Module mock targets with resolved queries or fragments are unsupported: \
-                     {request}"
-                ),
-            ));
-        }
-        let target_path = ident.path.clone();
-        let relative = root.get_path_to(&target_path).ok_or_else(|| {
-            test_input_error(path.clone(), "Mock targets must be inside the Next project")
-        })?;
-        if relative.split('/').any(|part| part == "node_modules") || target_path == *path {
-            return Err(test_input_error(
-                path.clone(),
-                format!(
-                    "External, framework, and spec module mock targets are not supported: \
-                     {request}"
-                ),
-            ));
-        }
-        let manual_mock = if declaration.automatic && !declaration.spy {
-            let candidate = target_path
-                .parent()
-                .join(&format!("__mocks__/{}", target_path.file_name()))?;
-            if matches!(&*candidate.get_type().await?, FileSystemEntryType::NotFound) {
-                None
-            } else {
-                Some(candidate)
+    let mut cjs_named_spy = false;
+    let mut target_generations = FxIndexMap::default();
+    let mut import_mock_modes = FxIndexMap::default();
+    let inputs = earlier_plans
+        .iter()
+        .map(|(input_path, input_plan)| (*input_path, input_plan))
+        .chain(std::iter::once((path, &plan)))
+        .collect::<Vec<_>>();
+    let mut unmock_cuts = FxIndexMap::default();
+    let mut target_indexes = FxIndexMap::default();
+    if inputs.iter().any(|(_, input)| !input.unmocks.is_empty()) {
+        for (input_index, (input_path, input)) in inputs.iter().enumerate() {
+            // Retain first declaration indices even for cancelled targets. Setup
+            // namespaces already evaluated under those keys remain unchanged.
+            for declaration in &input.declarations {
+                let (target, _) = resolve_mock_helper_target(
+                    context,
+                    input_path,
+                    &declaration.request,
+                    "vi.mock",
+                )
+                .await?;
+                let next = target_indexes.len();
+                target_indexes.entry(target).or_insert(next);
             }
-        } else {
-            None
-        };
-        let target_source = file_content_rope(target_path.read())
-            .await?
-            .to_str()?
-            .into_owned();
-        // The isolated analyzer owns syntax-aware boundary validation.
-        crate::testing_mock_source::validate_mock_target_source(
-            &target_source,
-            target_path.file_name(),
-        )
-        .map_err(|error| test_input_error(target_path.clone(), error.to_string()))?;
-        let transformed_source = (*original.source().await?).ok_or_else(|| {
-            test_input_error(
-                path.clone(),
-                "Mock targets require an inspectable compiler source",
-            )
-        })?;
-        let transformed_text = file_content_rope(transformed_source.content().file_content())
-            .await?
-            .to_str()?
-            .into_owned();
-        crate::testing_mock_source::validate_mock_target_source(
-            &transformed_text,
-            target_path.file_name(),
-        )
-        .map_err(|error| test_input_error(target_path.clone(), error.to_string()))?;
-        let placeable = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(original)
-            .ok_or_else(|| {
-                test_input_error(path.clone(), "Mock target must be a compiled ESM module")
-            })?;
-        let EcmascriptExports::EsmExports(exports) = *placeable.get_exports().await? else {
-            return Err(test_input_error(
-                path.clone(),
-                format!("CommonJS and dynamic module mock targets are not supported: {request}"),
-            ));
-        };
-        let expanded = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
-        if !expanded.dynamic_exports.is_empty() {
-            return Err(test_input_error(
-                path.clone(),
-                format!("Mock targets require statically known exports: {request}"),
-            ));
+            for unmock in &input.unmocks {
+                let (target, _) =
+                    resolve_mock_helper_target(context, input_path, &unmock.request, "vi.unmock")
+                        .await?;
+                unmock_cuts.insert(target, (input_index, unmock.start));
+            }
         }
-        let index = targets.len();
-        let entry = targets.entry(target_path.clone()).or_insert_with(|| {
-            (
-                format!("next-test-node:{id}:{index}"),
-                format!("next-test-original:{id}:{index}"),
-                original,
-                Vec::new(),
-                Vec::new(),
-            )
-        });
-        entry.3 = declaration.export_names.clone();
-        entry.4 = declaration.export_names.clone();
-        if declaration.has_spread || !declaration.has_object_return {
-            entry
-                .3
-                .extend(expanded.exports.keys().map(|name| name.to_string()));
-        }
-        entry.3.sort();
-        entry.3.dedup();
-        if declaration.has_spread || declaration.automatic {
-            // Spread and automatic factories materialize an exports object.
-            // Read those copied values after the factory resolves, without adding
-            // eager imports or live bindings to the original module.
-            entry.4 = entry.3.clone();
-        }
-        if let Some(manual_mock) = manual_mock {
-            if plan
-                .hoisted
-                .iter()
-                .any(|helper| helper.has_dynamic_import && helper.start < declaration.factory_start)
+    }
+    for (input_index, (declaration_path, declaration_plan)) in inputs.into_iter().enumerate() {
+        let declaration_origin =
+            PlainResolveOrigin::new(*ResolvedVc::upcast(context), declaration_path.clone());
+        for declaration in &declaration_plan.declarations {
+            let request = declaration.request.as_str();
+            if matches!(request, "next" | "react" | "react-dom" | "vitest")
+                || request.starts_with("next/")
+                || request.starts_with("react/")
+                || request.starts_with("react-dom/")
+                || request.starts_with("node:")
             {
                 return Err(test_input_error(
                     path.clone(),
-                    "Dynamic import() inside an earlier vi.hoisted callback is not yet supported \
-                     with manual mock redirects; literal vi.importActual remains available for \
-                     actual imports",
+                    format!(
+                        "Framework and native module mock targets are not supported: {request}"
+                    ),
                 ));
             }
-            let redirect = prepare_manual_mock_source(context, &root, manual_mock).await?;
-            manual_redirects.insert(target_path.clone(), redirect);
-            continue;
-        }
-        manual_redirects.shift_remove(&target_path);
-        let factory_original_request = if declaration.automatic {
-            let automatic_request = format!("{}:automatic", entry.1);
-            let automatic_source = test_source(
-                target_path.clone(),
-                Some(rcstr!("next-test-automatic-original")),
-                target_source,
+            let resolved = esm_resolve(
+                Vc::upcast(declaration_origin),
+                Request::parse(RcStr::from(request).into()),
+                EcmaScriptModulesReferenceSubType::Import,
+                ResolveErrorMode::Error,
+                None,
             )
             .await?;
-            automatic_originals.insert(
+            let modules = resolved.await?.primary_modules().await?;
+            if modules.len() != 1 {
+                return Err(test_input_error(
+                    path.clone(),
+                    format!(
+                        "Mock target must resolve to exactly one compiled ESM module: {request}"
+                    ),
+                ));
+            }
+            let original = modules[0];
+            let ident = original.ident().await?;
+            if !ident.query.is_empty() || !ident.fragment.is_empty() {
+                return Err(test_input_error(
+                    path.clone(),
+                    format!(
+                        "Module mock targets with resolved queries or fragments are unsupported: \
+                         {request}"
+                    ),
+                ));
+            }
+            let target_path = ident.path.clone();
+            if unmock_cuts
+                .get(&target_path)
+                .is_some_and(|cut| *cut > (input_index, declaration.factory_start))
+            {
+                continue;
+            }
+            if target_path == *path {
+                return Err(test_input_error(
+                    path.clone(),
+                    format!("The spec module cannot be its own mock target: {request}"),
+                ));
+            }
+            // Resolution, source transforms and export analysis below are the same
+            // for authored and package ESM. A node_modules path is not an external
+            // runtime boundary; the actual resolved module decides that boundary.
+            if ResolvedVc::try_downcast_type::<CachedExternalModule>(original).is_some() {
+                return Err(test_input_error(
+                    path.clone(),
+                    format!(
+                        "Mock targets must be compiled by Next; configure the external package \
+                         for compilation: {request}"
+                    ),
+                ));
+            }
+            let manual_mock = if declaration.automatic && !declaration.spy {
+                let candidate = target_path
+                    .parent()
+                    .join(&format!("__mocks__/{}", target_path.file_name()))?;
+                if matches!(&*candidate.get_type().await?, FileSystemEntryType::NotFound) {
+                    None
+                } else {
+                    Some(candidate)
+                }
+            } else {
+                None
+            };
+            let target_source = file_content_rope(target_path.read())
+                .await?
+                .to_str()?
+                .into_owned();
+            // The isolated analyzer owns syntax-aware boundary validation.
+            crate::testing_mock_source::validate_mock_target_source(
+                &target_source,
+                target_path.file_name(),
+            )
+            .map_err(|error| test_input_error(target_path.clone(), error.to_string()))?;
+            let transformed_source = (*original.source().await?).ok_or_else(|| {
+                test_input_error(
+                    path.clone(),
+                    "Mock targets require an inspectable compiler source",
+                )
+            })?;
+            let transformed_text = file_content_rope(transformed_source.content().file_content())
+                .await?
+                .to_str()?
+                .into_owned();
+            crate::testing_mock_source::validate_mock_target_source(
+                &transformed_text,
+                target_path.file_name(),
+            )
+            .map_err(|error| test_input_error(target_path.clone(), error.to_string()))?;
+            let placeable = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(original)
+                .ok_or_else(|| {
+                    test_input_error(path.clone(), "Mock target must be a compiled ESM module")
+                })?;
+            let original_exports = match &*placeable.get_exports().await? {
+                EcmascriptExports::EsmExports(exports) => {
+                    let expanded = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
+                    if !expanded.dynamic_exports.is_empty() {
+                        return Err(test_input_error(
+                            path.clone(),
+                            format!("Mock targets require statically known exports: {request}"),
+                        ));
+                    }
+                    expanded
+                        .exports
+                        .keys()
+                        .map(|name| name.to_string())
+                        .collect::<Vec<_>>()
+                }
+                EcmascriptExports::CommonJs(_)
+                    if allow_cjs_named_spy
+                        && inherited.is_empty()
+                        && declaration.automatic
+                        && declaration.spy
+                        && plan.declarations.len() == 1
+                        && plan.hoisted.is_empty()
+                        && plan.actual_imports.is_empty()
+                        && plan.mock_imports.is_empty()
+                        && plan.unmocks.is_empty() =>
+                {
+                    cjs_named_spy = true;
+                    crate::testing_cjs_mock::named_spy_exports(project, context, path, original)
+                        .await?
+                }
+                _ => {
+                    return Err(test_input_error(
+                        path.clone(),
+                        format!(
+                            "CommonJS and dynamic module mock targets are not supported: {request}"
+                        ),
+                    ));
+                }
+            };
+            if layered_inputs {
+                target_generations.insert(
+                    target_path.clone(),
+                    RcStr::from(format!(
+                        "next-test-mock-generation:{declaration_path}:{}",
+                        declaration.factory_start
+                    )),
+                );
+            }
+            let index = target_indexes
+                .get(&target_path)
+                .copied()
+                .unwrap_or(targets.len());
+            import_mock_modes.insert(
                 target_path.clone(),
-                (automatic_request.clone(), automatic_source),
+                (declaration.automatic, declaration.spy),
             );
-            automatic_request
-        } else {
-            entry.1.clone()
-        };
-        registrations.push((
-            entry.0.clone(),
-            factory_original_request,
-            declaration.factory_source.clone(),
-            declaration.factory_start,
-            declaration.original_factory_source.clone(),
-            declaration.automatic,
-            declaration.spy,
-        ));
+            let entry = targets.entry(target_path.clone()).or_insert_with(|| {
+                (
+                    format!("next-test-node:{id}:{index}"),
+                    format!("next-test-original:{id}:{index}"),
+                    original,
+                    Vec::new(),
+                    Vec::new(),
+                )
+            });
+            entry.3 = declaration.export_names.clone();
+            entry.4 = declaration.export_names.clone();
+            if declaration.has_spread || !declaration.has_object_return {
+                entry.3.extend(original_exports);
+            }
+            entry.3.sort();
+            entry.3.dedup();
+            if declaration.has_spread || declaration.automatic {
+                // Spread and automatic factories materialize an exports object.
+                // Read those copied values after the factory resolves, without adding
+                // eager imports or live bindings to the original module.
+                entry.4 = entry.3.clone();
+            }
+            if let Some(manual_mock) = manual_mock {
+                if declaration_plan.hoisted.iter().any(|helper| {
+                    helper.has_dynamic_import && helper.start < declaration.factory_start
+                }) {
+                    return Err(test_input_error(
+                        path.clone(),
+                        "Dynamic import() inside an earlier vi.hoisted callback is not yet \
+                         supported with manual mock redirects; literal vi.importActual remains \
+                         available for actual imports",
+                    ));
+                }
+                let redirect = prepare_manual_mock_source(context, &root, manual_mock).await?;
+                manual_redirects.insert(target_path.clone(), redirect);
+                continue;
+            }
+            manual_redirects.shift_remove(&target_path);
+            let factory_original_request = if declaration.automatic {
+                let automatic_request = format!("{}:automatic", entry.1);
+                let automatic_source = test_source(
+                    target_path.clone(),
+                    Some(rcstr!("next-test-automatic-original")),
+                    target_source,
+                )
+                .await?;
+                automatic_originals.insert(
+                    target_path.clone(),
+                    (automatic_request.clone(), automatic_source),
+                );
+                automatic_request
+            } else {
+                entry.1.clone()
+            };
+            if declaration_path == path {
+                registrations.push((
+                    entry.0.clone(),
+                    factory_original_request,
+                    declaration.factory_source.clone(),
+                    declaration.factory_start,
+                    declaration.original_factory_source.clone(),
+                    declaration.automatic,
+                    declaration.spy,
+                ));
+            }
+        }
     }
     let mut actual_loaders = Vec::new();
     for (index, import) in plan.actual_imports.iter().enumerate() {
@@ -1130,8 +1684,8 @@ pub(crate) async fn prepare_test_module(
             return Err(test_input_error(
                 path.clone(),
                 format!(
-                    "vi.importActual currently requires project-local ESM targets; \
-                     framework/native targets are unsupported: {request}"
+                    "vi.importActual currently requires compiled ESM targets; framework/native \
+                     targets are unsupported: {request}"
                 ),
             ));
         }
@@ -1162,16 +1716,19 @@ pub(crate) async fn prepare_test_module(
                 format!("vi.importActual resolved queries/fragments are unsupported: {request}"),
             ));
         }
-        let relative = root.get_path_to(&target_path).ok_or_else(|| {
-            test_input_error(
-                path.clone(),
-                "vi.importActual targets must be inside the Next project",
-            )
-        })?;
-        if target_path == *path || relative.split('/').any(|part| part == "node_modules") {
+        if target_path == *path {
             return Err(test_input_error(
                 path.clone(),
-                format!("External and spec vi.importActual targets are unsupported: {request}"),
+                format!("The spec module cannot be its own vi.importActual target: {request}"),
+            ));
+        }
+        if ResolvedVc::try_downcast_type::<CachedExternalModule>(original).is_some() {
+            return Err(test_input_error(
+                path.clone(),
+                format!(
+                    "vi.importActual targets must be compiled by Next; configure the external \
+                     package for compilation: {request}"
+                ),
             ));
         }
         let target_source = file_content_rope(target_path.read())
@@ -1232,6 +1789,88 @@ pub(crate) async fn prepare_test_module(
         };
         actual_loaders.push((import.local.clone(), original_request));
     }
+    let mut mock_import_loaders = Vec::new();
+    // One dedicated source/request per resolved target keeps the native adapter
+    // function stable across aliases and repeated helper callsites.
+    let mut browser_originals: FxIndexMap<FileSystemPath, String> = FxIndexMap::default();
+    for (index, import) in plan.mock_imports.iter().enumerate() {
+        let (target_path, _) =
+            resolve_mock_helper_target(context, path, &import.request, "vi.importMock").await?;
+        let (request, kind) = if let Some(target) = targets.get(&target_path) {
+            if let Some((manual_source, _)) = manual_redirects.get(&target_path) {
+                let request = format!("next-test-import-mock:{id}:{index}:manual");
+                imports.insert_exact_alias(
+                    request.clone(),
+                    ImportMapping::Direct(ResolveResult::source(*manual_source).resolved_cell())
+                        .resolved_cell(),
+                );
+                (request, (None, None))
+            } else if let Some((true, spy)) = import_mock_modes.get(&target_path) {
+                // Ordinary automock materialization has its own original edge.
+                // importMock loads the actual edge and freshly mocks it per call.
+                let request = target.1.clone();
+                (request, (None, Some(*spy)))
+            } else {
+                (target.1.clone(), (Some(target.0.clone()), None))
+            }
+        } else {
+            let manual_path = target_path
+                .parent()
+                .join(&format!("__mocks__/{}", target_path.file_name()))?;
+            let request = format!("next-test-import-mock:{id}:{index}");
+            let (source, mode) = if matches!(
+                &*manual_path.get_type().await?,
+                FileSystemEntryType::NotFound
+            ) {
+                (
+                    ResolvedVc::upcast(FileSource::new(target_path.clone()).to_resolved().await?),
+                    Some(false),
+                )
+            } else {
+                (
+                    prepare_manual_mock_source(context, &root, manual_path)
+                        .await?
+                        .0,
+                    None,
+                )
+            };
+            imports.insert_exact_alias(
+                request.clone(),
+                ImportMapping::Direct(ResolveResult::source(source).resolved_cell())
+                    .resolved_cell(),
+            );
+            (request, (None, mode))
+        };
+        let request = if loading == MockImportLoading::BrowserStampedOriginal && kind.1.is_some() {
+            if let Some(request) = browser_originals.get(&target_path) {
+                request.clone()
+            } else {
+                let request = format!(
+                    "next-test-browser-import-mock:{id}:{}",
+                    browser_originals.len()
+                );
+                let source = test_source(
+                    target_path.clone(),
+                    Some(rcstr!("next-test-browser-import-mock-original")),
+                    file_content_rope(target_path.read())
+                        .await?
+                        .to_str()?
+                        .into_owned(),
+                )
+                .await?;
+                imports.insert_exact_alias(
+                    request.clone(),
+                    ImportMapping::Direct(ResolveResult::source(source).resolved_cell())
+                        .resolved_cell(),
+                );
+                browser_originals.insert(target_path.clone(), request.clone());
+                request
+            }
+        } else {
+            request
+        };
+        mock_import_loaders.push((import.local.clone(), request, kind));
+    }
     // After-resolve plugins receive the original request and a bare path, so
     // aliases can hide an effective query. Inspect the actual unspecialized
     // graph before replacing sources rather than collapsing distinct modules.
@@ -1262,27 +1901,44 @@ pub(crate) async fn prepare_test_module(
         }
         query_queue.extend(primary_referenced_modules(*module).await?.iter().copied());
     }
-    // Reject cycles involving mocked originals before creating asynchronous
-    // substitutions, which could otherwise turn a module cycle into a deadlock.
+    // A deferred actual import may bind static SCC ancestors through the native
+    // async runtime. Other cycles still fail before asynchronous substitution.
+    let mut deferred_members = FxIndexMap::default();
     for (target_path, (_, _, original, _, _)) in &targets {
         let mut seen = HashSet::new();
         let mut queue = primary_referenced_modules(**original).await?.to_vec();
+        let mut cyclic = false;
         while let Some(module) = queue.pop() {
             if !seen.insert(module) {
                 continue;
             }
             if module == *original {
-                return Err(test_input_error(
-                    path.clone(),
-                    format!(
-                        "Cyclic module mock targets are not supported: {}",
-                        target_path.path
-                    ),
-                ));
+                cyclic = true;
+                break;
             }
             // Foreign-code contexts are also substituted. A compiled package
             // can lead back to a mocked original just like a project module.
             queue.extend(primary_referenced_modules(*module).await?.iter().copied());
+        }
+        if cyclic {
+            if targets.len() != 1
+                || !manual_redirects.is_empty()
+                || !plan.actual_imports.is_empty()
+                || !plan.mock_imports.is_empty()
+                || !plan.unmocks.is_empty()
+                || !plan.hoisted.is_empty()
+                || layered_inputs
+            {
+                return Err(test_input_error(
+                    path.clone(),
+                    "Cyclic factory originals currently require one target without competing \
+                     actual imports, hoisted helpers, manual redirects or setup input layers",
+                ));
+            }
+            deferred_members.insert(
+                target_path.clone(),
+                static_original_cycle_members(*original, path).await?,
+            );
         }
     }
     // Overlay redirect edges while checking manual graphs, so A -> manual B ->
@@ -1314,18 +1970,27 @@ pub(crate) async fn prepare_test_module(
     let runtime_request = "next/dist/experimental/testing/mocking/runtime";
     let mut graph_targets = Vec::new();
     let mut coverage_sources = Vec::new();
+    let mut mock_wrappers = Vec::new();
     for (target_path, (key, original_request, _, exports, mocked_exports)) in targets {
-        imports.insert_exact_alias(
-            original_request.clone(),
-            ImportMapping::Direct(
-                ResolveResult::source(ResolvedVc::upcast(
-                    FileSource::new(target_path.clone()).to_resolved().await?,
-                ))
-                .resolved_cell(),
-            )
+        let original_mapping = ImportMapping::Direct(
+            ResolveResult::source(ResolvedVc::upcast(
+                FileSource::new(target_path.clone()).to_resolved().await?,
+            ))
             .resolved_cell(),
-        );
+        )
+        .resolved_cell();
+        imports.insert_exact_alias(original_request.clone(), original_mapping);
+        let deferred_original_request = if deferred_members.contains_key(&target_path) {
+            let request = format!("{original_request}:deferred");
+            imports.insert_exact_alias(request.clone(), original_mapping);
+            Some(request.into())
+        } else {
+            None
+        };
         let mut additional_original_requests = Vec::new();
+        if let Some(request) = browser_originals.get(&target_path) {
+            additional_original_requests.push(request.clone().into());
+        }
         if let Some((automatic_request, automatic_source)) =
             automatic_originals.shift_remove(&target_path)
         {
@@ -1343,18 +2008,55 @@ pub(crate) async fn prepare_test_module(
             source
         } else {
             let wrapper_path = target_path.append(".next-test-mock.js")?;
-            let code = mock_wrapper_source(
+            let cycle_requests = if let Some(members) = deferred_members.shift_remove(&target_path)
+            {
+                let mut requests = Vec::new();
+                for (index, source) in members.into_iter().enumerate() {
+                    let request = format!("next-test-cycle-member:{id}:{index}");
+                    imports.insert_exact_alias(
+                        request.clone(),
+                        ImportMapping::Direct(ResolveResult::source(source).resolved_cell())
+                            .resolved_cell(),
+                    );
+                    requests.push(request);
+                }
+                Some(requests)
+            } else {
+                None
+            };
+            let code = mock_wrapper_source_with_original_cycle(
                 runtime_request,
                 &key,
                 &original_request,
                 &exports,
                 &mocked_exports,
+                cycle_requests.as_deref(),
             )?;
-            let wrapper_source = virtual_test_source(wrapper_path, code.clone()).await?;
-            coverage_sources.push(MockCoverageSource {
-                source: emitted_test_source_identity(project, wrapper_source).await?,
-                code,
-            });
+            let wrapper_source = if let Some(generation) =
+                target_generations.shift_remove(&target_path)
+            {
+                ResolvedVc::upcast(
+                    VirtualSource::new_with_ident(
+                        AssetIdent::from_path(wrapper_path)
+                            .with_modifier(generation)
+                            .into_vc(),
+                        AssetContent::file(FileContent::Content(File::from(code.clone())).cell()),
+                    )
+                    .to_resolved()
+                    .await?,
+                )
+            } else {
+                virtual_test_source(wrapper_path, code.clone()).await?
+            };
+            if layered_inputs {
+                mock_wrappers.push(wrapper_source);
+            }
+            if project.next_mode().await?.is_development() {
+                coverage_sources.push(MockCoverageSource {
+                    source: emitted_test_source_identity(project, wrapper_source).await?,
+                    code,
+                });
+            }
             wrapper_source
         };
         graph_targets.push(
@@ -1362,13 +2064,14 @@ pub(crate) async fn prepare_test_module(
                 path: target_path,
                 original_request: original_request.into(),
                 additional_original_requests,
+                deferred_original_request,
                 wrapper_source,
             }
             .resolved_cell(),
         );
     }
     let original_source = file_content_rope(path.read()).await?.to_str()?.into_owned();
-    let original_source_url = emitted_test_source_identity(
+    let original_source_url = canonical_test_source_identity(
         project,
         ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
     )
@@ -1420,6 +2123,24 @@ pub(crate) async fn prepare_test_module(
                     original_request,
                 })
                 .collect::<Vec<_>>(),
+            &mock_import_loaders
+                .iter()
+                .map(|(local, request, (factory, spy))| MockImportSource {
+                    local,
+                    original_request: request,
+                    kind: if let Some(key) = factory {
+                        MockImportKind::Factory(key)
+                    } else if let Some(spy) = spy {
+                        if loading == MockImportLoading::BrowserStampedOriginal {
+                            MockImportKind::BrowserAutomatic { spy: *spy }
+                        } else {
+                            MockImportKind::Automatic { spy: *spy }
+                        }
+                    } else {
+                        MockImportKind::Redirect
+                    },
+                })
+                .collect::<Vec<_>>(),
             &plan.api_bindings,
         )?,
     )
@@ -1439,8 +2160,28 @@ pub(crate) async fn prepare_test_module(
             .await?;
         mock_resolve_options(*base.resolve_options_context, *imports, *plugin)
     };
+    let transitions = if browser_originals.is_empty() {
+        base.transitions
+    } else {
+        let existing = base.transitions.await?;
+        let mut named_transitions = existing.named_transitions.clone();
+        named_transitions.insert(
+            crate::testing_browser_mock_import::TRANSITION_NAME.into(),
+            ResolvedVc::upcast(
+                crate::testing_browser_mock_import::BrowserMockOriginalTransition::new()
+                    .to_resolved()
+                    .await?,
+            ),
+        );
+        TransitionOptions {
+            named_transitions,
+            transition_rules: existing.transition_rules.clone(),
+            ..Default::default()
+        }
+        .resolved_cell()
+    };
     let context = ModuleAssetContext::new(
-        *base.transitions,
+        *transitions,
         *base.compile_time_info,
         mock_module_options(*base.module_options_context),
         resolve_options,
@@ -1476,6 +2217,7 @@ pub(crate) async fn prepare_test_module(
                             .iter()
                             .map(|import| import.local.clone()),
                     )
+                    .chain(plan.mock_imports.iter().map(|import| import.local.clone()))
                     .collect::<Vec<_>>(),
             )?,
         )
@@ -1484,6 +2226,8 @@ pub(crate) async fn prepare_test_module(
         module_reset: false,
         coverage_sources,
         runtime_requests: Vec::new(),
+        cjs_named_spy,
+        mock_wrappers,
     })
 }
 
@@ -1499,6 +2243,8 @@ struct NodeTestEndpoint {
     cohort_files: Vec<RcStr>,
     runtime_env: bool,
     dependency_plan: bool,
+    source_coverage: bool,
+    import_coverage_roles: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -1557,6 +2303,18 @@ impl NodeTestEndpoint {
                 )
                 .module());
         }
+        if crate::testing_mock_inputs::has_mock_setups(&self.setup_paths).await? {
+            return crate::testing_mock_inputs::entry(
+                self.project,
+                &self.path,
+                &self.id,
+                &self.setup_paths,
+                &self.snapshot_serializers,
+                self.runtime_env,
+                &environment_bootstrap,
+            )
+            .await;
+        }
         if static_mock_plan(&self.path).await?.reset_modules
             && (!self.setup_paths.is_empty() || !self.snapshot_serializers.is_empty())
         {
@@ -1567,6 +2325,14 @@ impl NodeTestEndpoint {
         }
         let prepared =
             prepare_node_test(self.project, &self.path, &self.id, self.runtime_env).await?;
+        if prepared.cjs_named_spy
+            && (!self.setup_paths.is_empty() || !self.snapshot_serializers.is_empty())
+        {
+            return Err(test_input_error(
+                self.path.clone(),
+                "CommonJS named-import spies do not support setup or serializers yet",
+            ));
+        }
         let context = prepared.context;
         let setup_context = prepared.setup_context;
         let module = context
@@ -1701,9 +2467,18 @@ impl NodeTestEndpoint {
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let module = self.entry_module().to_resolved().await?;
-        let EntryChunkGroupResult { asset, .. } = *this
-            .project
-            .server_chunking_context(false)
+        let chunking_context = this.project.server_chunking_context(false);
+        let chunking_context = if this.source_coverage {
+            chunking_context.with_source_coverage()
+        } else {
+            chunking_context
+        };
+        let chunking_context = if this.import_coverage_roles {
+            chunking_context.with_native_test_import_coverage_roles()
+        } else {
+            chunking_context
+        };
+        let EntryChunkGroupResult { asset, .. } = *chunking_context
             .entry_chunk_group(
                 this.project
                     .node_root()
@@ -1717,6 +2492,74 @@ impl NodeTestEndpoint {
             )
             .await?;
         let mut assets = vec![asset];
+        if this.import_coverage_roles {
+            let mode = if this.project.next_mode().await?.is_production() {
+                "production"
+            } else {
+                "development"
+            };
+            let node_root = this.project.node_root().owned().await?;
+            let mut scripts = Vec::new();
+            let mut seen = HashSet::new();
+            for output in all_assets_from_entries(Vc::cell(assets.clone()))
+                .await?
+                .iter()
+            {
+                let Some(generator) =
+                    ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*output)
+                else {
+                    continue;
+                };
+                let owned = generator.native_test_import_coverage_roles().await?;
+                let FileContent::Content(file) = &*owned else {
+                    continue;
+                };
+                let sections: serde_json::Value =
+                    serde_json::from_slice(&file.content().to_bytes())?;
+                let path = output.path().await?;
+                let relative = node_root
+                    .get_path_to(&path)
+                    .context("Native coverage role asset escaped output root")?;
+                if relative.is_empty()
+                    || !relative.ends_with(".js")
+                    || !seen.insert(relative.to_string())
+                {
+                    bail!("Invalid native coverage role asset identity");
+                }
+                let script_hash = output
+                    .content()
+                    .content_hash(no_hash_salt(), HashAlgorithm::Sha256Base64)
+                    .owned()
+                    .await?
+                    .context("Native coverage role code is absent")?;
+                let map_hash = AssetContent::file(generator.generate_source_map())
+                    .content_hash(no_hash_salt(), HashAlgorithm::Sha256Base64)
+                    .owned()
+                    .await?
+                    .context("Native coverage role map is absent")?;
+                let hex = |value: &str| -> Result<String> {
+                    Ok(data_encoding::HEXLOWER
+                        .encode(&data_encoding::BASE64.decode(value.as_bytes())?))
+                };
+                scripts.push(serde_json::json!({"path":relative,"sha256":hex(&script_hash)?,"mapPath":format!("{relative}.map"),"mapSha256":hex(&map_hash)?,"sections":sections}));
+            }
+            scripts.sort_by(|a, b| a["path"].as_str().cmp(&b["path"].as_str()));
+            let entry_path = format!("server/next-test/{}.js", this.id);
+            assets.push(ResolvedVc::upcast(VirtualOutputAsset::new(
+                node_root.join(&format!("server/next-test/{}.import-coverage.json", this.id))?,
+                AssetContent::file(FileContent::Content(File::from(
+                    serde_json::json!({"version":1,"kind":"native-import-initializer-coverage","mode":mode,"entryPath":entry_path,"scripts":scripts}).to_string()
+                )).cell()),
+            ).to_resolved().await?));
+        }
+        if this.source_coverage {
+            assets.push(ResolvedVc::upcast(VirtualOutputAsset::new(
+                this.project.node_root().await?.join(&format!("server/next-test/{}.source-coverage.json", this.id))?,
+                AssetContent::file(FileContent::Content(File::from(
+                    serde_json::json!({"version":1,"kind":"node-source-coverage","mode":"production","sourceMaps":"absolute-file-uri","preserveOriginalSyntax":true}).to_string()
+                )).cell()),
+            ).to_resolved().await?));
+        }
         if this.dependency_plan {
             assets.push(ResolvedVc::upcast(
                 crate::testing_dependencies::dependency_asset(
@@ -1759,7 +2602,8 @@ impl NodeTestEndpoint {
             ));
         }
         let plan = static_mock_plan(&this.path).await?;
-        if !plan.is_empty() {
+        let setup_mocks = crate::testing_mock_inputs::has_mock_setups(&this.setup_paths).await?;
+        if !plan.is_empty() || setup_mocks {
             assets.push(ResolvedVc::upcast(
                 VirtualOutputAsset::new(
                     this.project
@@ -1767,13 +2611,25 @@ impl NodeTestEndpoint {
                         .await?
                         .join(&format!("server/next-test/{}.metadata.json", this.id))?,
                     AssetContent::file(
-                        FileContent::Content(File::from(if !plan.runtime_requests.is_empty() {
+                        FileContent::Content(File::from(if setup_mocks {
+                            crate::testing_mock_inputs::metadata(this.project, &this.path, &this.id, &this.setup_paths, this.runtime_env).await?
+                        } else if !plan.runtime_requests.is_empty() {
                             "{\"moduleCache\":{\"version\":1},\"dynamicModuleMocking\":{\"version\"\
                              :1}}"
                                 .to_string()
                         } else if plan.reset_modules {
                             "{\"moduleCache\":{\"version\":1}}".to_string()
                         } else {
+                            if this.project.next_mode().await?.is_production() {
+                                // No synthetic coverage inventory is claimed for production.
+                                // Admission above certifies only the static factory lane.
+                                serde_json::to_string(&serde_json::json!({
+                                    "moduleMocking": {
+                                        "version": 1,
+                                        "productionStaticFactory": 1,
+                                    },
+                                }))?
+                            } else {
                             let prepared = prepare_node_test(
                                 this.project,
                                 &this.path,
@@ -1781,15 +2637,20 @@ impl NodeTestEndpoint {
                                 this.runtime_env,
                             )
                             .await?;
-                            serde_json::to_string(&serde_json::json!({
-                                "moduleMocking": {
-                                    "version": 1,
-                                    "coverage": {
+                            if prepared.cjs_named_spy {
+                                serde_json::to_string(&serde_json::json!({"moduleMocking":{"version":1,"cjsNamedSpy":1}}))?
+                            } else {
+                                serde_json::to_string(&serde_json::json!({
+                                    "moduleMocking": {
                                         "version": 1,
-                                        "sources": prepared.coverage_sources,
+                                        "coverage": {
+                                            "version": 1,
+                                            "sources": prepared.coverage_sources,
+                                        },
                                     },
-                                },
-                            }))?
+                                }))?
+                            }
+                            }
                         }))
                         .cell(),
                     ),
@@ -1882,8 +2743,22 @@ pub async fn snapshot_endpoint_operation(
     {
         bail!("Test snapshot directory must be a generated .next-test-* basename");
     }
-    let endpoint = (*endpoint.connect().await?).context("Missing test endpoint")?;
-    let output = endpoint.output().await?;
+    let endpoint_value = (*endpoint.connect().await?).context("Missing test endpoint")?;
+    let endpoint_project = endpoint_value.project();
+    let config_entry = endpoint_project.await?.test_entry;
+    let config_revision = if let Some(entry) = config_entry {
+        entry.await?.tsconfig_input_revision.clone()
+    } else {
+        None
+    };
+    let observed_output = config_revision
+        .as_ref()
+        .map(|_| crate::testing_tsconfig_inputs::actual_endpoint_output_operation(endpoint));
+    let output = if let Some(operation) = observed_output {
+        operation.read_strongly_consistent().await?
+    } else {
+        endpoint_value.output().await?
+    };
     let project = output.project;
     let node_root = project.node_root().owned().await?;
     if node_root.file_name() == &*directory {
@@ -1919,6 +2794,39 @@ pub async fn snapshot_endpoint_operation(
                 .await?,
         ));
     }
+    let mut snapshot_output_paths = None;
+    if let Some(operation) = observed_output {
+        use turbo_tasks::CollectiblesSource;
+        let entry = config_entry.context("Native config input entry disappeared")?;
+        let receipt = crate::testing_tsconfig_inputs::receipt_asset(
+            &output,
+            entry,
+            operation.peek_collectibles::<Box<dyn turbopack_core::resolve::tsconfig_provenance::NativeTsConfigObservation>>().into_iter().collect(),
+            destination.join(&format!("server/next-test/{}.tsconfig-inputs.json", entry.await?.id))?,
+        ).await?;
+        let receipt_paths =
+            crate::testing_tsconfig_inputs::receipt_asset_paths(receipt, destination.clone())
+                .owned()
+                .await?;
+        if receipt_paths.len() != 1 {
+            bail!("Native config receipt must expose exactly one actual output asset");
+        }
+        let mut output_paths = output.output_paths.owned().await?;
+        let EndpointOutputPaths::NodeJs { server_paths, .. } = &mut output_paths else {
+            bail!("Native config receipt requires a Node snapshot output");
+        };
+        for receipt_path in receipt_paths {
+            if server_paths
+                .iter()
+                .any(|path| path.path == receipt_path.path)
+            {
+                bail!("Native config receipt duplicates an existing output asset");
+            }
+            server_paths.push(receipt_path);
+        }
+        snapshot_output_paths = Some(output_paths.cell());
+        assets.push(receipt);
+    }
     next_core::emit_assets(
         Vc::cell(assets),
         destination.clone(),
@@ -1927,5 +2835,40 @@ pub async fn snapshot_endpoint_operation(
     )
     .as_side_effect()
     .await?;
-    Ok(*output.output_paths)
+    Ok(snapshot_output_paths.unwrap_or(*output.output_paths))
+}
+
+#[cfg(test)]
+mod production_factory_tests {
+    use crate::testing::{extract_test_mocks, production_factory_plan};
+
+    #[test]
+    fn admits_only_relative_static_factory_plans_for_production() {
+        for body in [
+            "vi.mock('./dep', () => ({ value: 42 }))",
+            "vi.mock('../dep', () => { return { value: () => 42 } })",
+        ] {
+            let source = format!("import {{ vi }} from 'vitest'; {body}");
+            assert!(production_factory_plan(
+                &extract_test_mocks(&source, "entry.js").unwrap()
+            ));
+        }
+        for body in [
+            "vi.mock('./dep')",
+            "vi.mock('./dep', { spy: true })",
+            "vi.mock('./dep', () => ({ ...original, value: 42 }))",
+            "vi.mock('dependency', () => ({ value: 42 }))",
+            "const state = vi.hoisted(() => ({ value: 42 })); vi.mock('./dep', () => ({ value: \
+             state.value }))",
+            "vi.resetModules(); vi.mock('./dep', () => ({ value: 42 }))",
+            "vi.doMock('./dep', () => ({ value: 42 }))",
+            "const original = await vi.importActual('./dep'); vi.mock('./dep', () => ({ value: 42 \
+             }))",
+        ] {
+            let source = format!("import {{ vi }} from 'vitest'; {body}");
+            if let Ok(plan) = extract_test_mocks(&source, "entry.js") {
+                assert!(!production_factory_plan(&plan), "{body}");
+            }
+        }
+    }
 }

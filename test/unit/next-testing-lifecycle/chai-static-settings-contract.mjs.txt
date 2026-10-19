@@ -1,0 +1,48 @@
+import { chai, test } from 'vitest'
+import { appendFileSync } from 'node:fs'
+
+for (const key of ['includeStack', 'showDiff']) {
+  test(`Chai Assertion.${key}`, () => {
+    const warnings = []
+    const originalWarn = console.warn
+    const descriptor = Object.getOwnPropertyDescriptor(chai.Assertion, key)
+    const before = chai.config[key]
+    const marker = { setting: key }
+    console.warn = (...args) => warnings.push(args)
+    try {
+      const initial = chai.Assertion[key]
+      chai.Assertion[key] = !before
+      const changedConfig = chai.config[key]
+      const changedAlias = chai.Assertion[key]
+      chai.config[key] = before
+      const resetAlias = chai.Assertion[key]
+      chai.Assertion[key] = marker
+      const uncoerced = chai.config[key] === marker
+      const result = {
+        initial,
+        changedConfig,
+        changedAlias,
+        resetAlias,
+        uncoerced,
+        descriptor: descriptor
+          ? {
+              enumerable: descriptor.enumerable,
+              configurable: descriptor.configurable,
+              getter: typeof descriptor.get,
+              setter: typeof descriptor.set,
+            }
+          : null,
+        warnings,
+      }
+      appendFileSync(
+        process.env.NEXT_TESTING_CHAI_STATIC_EVIDENCE,
+        JSON.stringify({ key, result }) + '\n'
+      )
+    } finally {
+      chai.config[key] = before
+      console.warn = originalWarn
+      if (descriptor) Object.defineProperty(chai.Assertion, key, descriptor)
+      else delete chai.Assertion[key]
+    }
+  })
+}

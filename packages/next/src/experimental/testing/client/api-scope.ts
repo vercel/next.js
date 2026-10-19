@@ -13,10 +13,6 @@ export function guardedExpect<T extends Function>(fn: T): T {
       if (typeof selected !== 'function') return selected
       return (...args: unknown[]) => {
         assertBrowserApiScope('assertion')
-        if (key === 'poll')
-          throw new Error(
-            'Browser Mode asynchronous polling remains unsupported.'
-          )
         return Reflect.apply(selected, target, args)
       }
     },

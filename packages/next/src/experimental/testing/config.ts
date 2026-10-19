@@ -1,3 +1,4 @@
+import type { CompilerAliases } from './compiler/aliases'
 import { parseCustomCoverageConfig } from './coverage/custom-options'
 import type { CustomCoverageConfig } from './coverage/custom-types'
 import { validateOptions, type TestOptions } from './runner/collector'
@@ -18,6 +19,8 @@ import { parseExecutionEnvironment } from './environments/config'
 import type { TestExecutionEnvironment } from './contracts'
 
 export interface TestProjectConfig {
+  /** Private evaluated config mapping; raw public test settings cannot supply it. */
+  compilerAliases?: CompilerAliases
   customCoverage?: CustomCoverageConfig
   executionEnvironment?: TestExecutionEnvironment
   /** Explicit author name, distinct from the internal unnamed profile ID. */
@@ -32,6 +35,7 @@ export interface TestProjectConfig {
   globalSetup?: string[]
   globals?: boolean
   provide?: Record<string, unknown>
+  env?: Record<string, string>
   fakeTimers?: FakeTimerOptions
   clearMocks?: boolean
   mockReset?: boolean
@@ -142,6 +146,20 @@ function keys(
           `Unsupported setting ${label}.resolve.alias${names.length ? ` (${names.join(', ')})` : ''}. Map these module specifiers through next.config compiler aliases; Vitest/Vite resolution cannot override the Next application graph.`
         )
       }
+      if (key === 'plugins') {
+        const names = Array.isArray(value.plugins)
+          ? value.plugins.flatMap((plugin) =>
+              plugin &&
+              typeof plugin === 'object' &&
+              typeof plugin.name === 'string'
+                ? [plugin.name]
+                : []
+            )
+          : []
+        invalid(
+          `Unsupported setting ${label}.plugins${names.length ? ` (${names.join(', ')})` : ''}. Configure equivalent application transforms through next.config compiler rules; Vitest/Vite plugins cannot override the Next application graph.`
+        )
+      }
       invalid(
         `Unsupported setting ${label}.${key}. Application compilation is configured through next.config; test compiler overrides and Vitest/Vite plugins are not supported.`
       )
@@ -240,6 +258,7 @@ export function parseTestConfig(value: unknown): TestConfig {
           'globalSetup',
           'globals',
           'provide',
+          'env',
           'fakeTimers',
           'clearMocks',
           'mockReset',
@@ -420,6 +439,19 @@ export function parseTestConfig(value: unknown): TestConfig {
         (!Number.isSafeInteger(project.bail) || (project.bail as number) < 0)
       )
         invalid(`${label}.bail must be a nonnegative safe integer.`)
+      let env: Record<string, string> | undefined
+      if (project.env !== undefined) {
+        if (!browserClient)
+          invalid(
+            `${label}.env currently requires a development Browser client project.`
+          )
+        const configured = object(project.env, `${label}.env`)
+        for (const [envName, envValue] of Object.entries(configured)) {
+          if (typeof envValue !== 'string')
+            invalid(`${label}.env.${envName} must be a string.`)
+        }
+        env = configured as Record<string, string>
+      }
       let provide: Record<string, unknown> | undefined
       if (project.provide !== undefined) {
         provide = object(project.provide, `${label}.provide`)
@@ -587,6 +619,7 @@ export function parseTestConfig(value: unknown): TestConfig {
           ? {}
           : { globals: project.globals as boolean }),
         ...(provide === undefined ? {} : { provide }),
+        ...(env === undefined ? {} : { env }),
         ...(browserFixtures === undefined ? {} : { browserFixtures }),
         ...(tags === undefined ? {} : { tags }),
         ...(project.strictTags === undefined
@@ -639,11 +672,36 @@ export function parseTestConfig(value: unknown): TestConfig {
   }
 }
 
+/** Validate compiler fields in their owning realm, before IPC clones function values. */
+export function validateTestConfigCompilerOptions(
+  value: unknown,
+  context?: { projectConfig: true }
+): void {
+  if (
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    'test' in value
+  ) {
+    const config = value as Record<string, unknown>
+    keys(config, context?.projectConfig ? ['test', 'root'] : ['test'], 'config')
+    if (context?.projectConfig) {
+      const test =
+        config.test && typeof config.test === 'object'
+          ? (config.test as Record<string, unknown>)
+          : undefined
+      for (const root of [config.root, test?.root])
+        if (root !== undefined && typeof root !== 'string')
+          invalid('Project configuration root must be a string.')
+    }
+  }
+}
+
 /** Translate test settings; compiler-affecting fields remain explicit errors. */
 export function normalizeTestConfig(value: unknown): TestConfig {
   const config = object(value, 'config')
   if (!('test' in config)) return parseTestConfig(config)
-  keys(config, ['test'], 'config')
+  validateTestConfigCompilerOptions(config)
   const test = object(config.test, 'test')
   const { projects, maxWorkers, name, ...defaults } = test
   const rootSequence = object(test.sequence ?? {}, 'test.sequence')
@@ -682,6 +740,14 @@ export function normalizeTestConfig(value: unknown): TestConfig {
           } as TestSequenceOptions,
           defaults.sequence as TestSequenceOptions
         ),
+        ...(defaults.env || settings.env
+          ? {
+              env: {
+                ...object(defaults.env ?? {}, 'test.env'),
+                ...object(settings.env ?? {}, `test.projects[${index}].env`),
+              },
+            }
+          : {}),
         ...(defaults.provide || settings.provide
           ? {
               provide: {
@@ -722,11 +788,13 @@ export async function openTestConfiguration(
   signal?: AbortSignal
 ) {
   const filename = await testConfigSource(projectDir)
+  const sourceBytes = filename ? await readFile(filename) : undefined
   let realm: Awaited<ReturnType<typeof openTestConfigModule>> | undefined
   let projectModules:
     | Awaited<ReturnType<typeof openTestProjectModules>>
     | undefined
   let disposing: Promise<void> | undefined
+  let retainedTransforms = false
   function dispose() {
     return (disposing ??= (async () => {
       const failures: unknown[] = []
@@ -773,18 +841,96 @@ export async function openTestConfiguration(
       signal
     )
     const config = projectModules?.config ?? normalizeTestConfig(value)
+    if (realm?.compilerAliases) {
+      if (
+        projectModules &&
+        config.projects.some((project) => projectModules!.owns(project))
+      )
+        invalid(
+          'Root resolve.alias inheritance into external project configurations is not implemented; configure each project mapping explicitly.'
+        )
+      for (const project of config.projects)
+        project.compilerAliases = realm.compilerAliases
+    }
+    if (
+      realm?.compilerTransformNames.length &&
+      projectModules &&
+      config.projects.some((project) => projectModules!.owns(project))
+    )
+      invalid(
+        'Root transform plugins cannot yet be inherited by external project configurations; configure each owned project transform explicitly.'
+      )
     return {
       config,
-      /** Private watch identities; imported config dependencies still widen. */
-      watchInputs: [
-        ...(filename ? [filename] : []),
-        ...(projectModules?.watchInputs ?? []),
-        ...(projectModules?.rootProject.globalSetup ?? []).map((file) =>
-          path.resolve(projectDir, file)
-        ),
+      /** Root transform closures follow the watch service across ordinary runs. */
+      async retainCompilerTransformsForWatch(
+        lifetime: AbortSignal,
+        requireCurrent = false
+      ) {
+        if (
+          !realm?.compilerTransform ||
+          projectModules ||
+          config.projects.some((project) => project.globalSetup?.length)
+        )
+          return false
+        const selected = await testConfigSource(projectDir)
+        const current =
+          selected === filename &&
+          (await readFile(filename!)).equals(sourceBytes!)
+        if (!current) {
+          if (requireCurrent)
+            throw new Error(
+              'Test compiler configuration changed during evaluation.'
+            )
+          return false
+        }
+        realm.retainCompilerTransformsForWatch(lifetime)
+        retainedTransforms = true
+        return true
+      },
+      compilerTransformNames: [
+        ...(realm?.compilerTransformNames ?? []),
+        ...(projectModules?.compilerTransformNames ?? []),
       ],
+      compilerTransforms(projects: readonly TestProjectConfig[]) {
+        return Object.fromEntries(
+          projects.flatMap((project) => {
+            const descriptor = projectModules?.owns(project)
+              ? projectModules.compilerTransform(project)
+              : realm?.compilerTransform
+            return descriptor ? [[project.profile.id, descriptor]] : []
+          })
+        )
+      },
+      /** Private watch identities; imported config dependencies still widen. */
+      get watchInputs() {
+        return [
+          ...(filename ? [filename] : []),
+          ...(realm?.compilerTransformInputs ?? []),
+          ...(realm?.compilerAliases?.inputs ?? []),
+          ...(projectModules?.watchInputs ?? []),
+          ...(projectModules?.rootProject.globalSetup ?? []).map((file) =>
+            path.resolve(projectDir, file)
+          ),
+        ]
+      },
       watchRootProject: projectModules?.rootProject,
       async setup(projects: TestProjectConfig[]) {
+        if (retainedTransforms) {
+          // This owner admits no global setup or external project realm. Provide
+          // fresh cloned context per run without repeating the worker setup RPC.
+          for (const project of projects) {
+            const declared = config.projects.find(
+              (candidate) => candidate.profile.id === project.profile.id
+            )
+            if (!declared)
+              throw new Error(
+                'Unknown project in retained compiler configuration.'
+              )
+            project.provide = structuredClone(declared.provide ?? {})
+          }
+          return
+        }
         let rootContext = projectModules?.rootProject.provide ?? {}
         const selected = projects.map((project) => ({
           name: project.profile.id,
@@ -849,6 +995,10 @@ export async function openTestConfiguration(
 export async function loadTestConfig(projectDir: string): Promise<TestConfig> {
   const session = await openTestConfiguration(projectDir)
   try {
+    if (session.compilerTransformNames.length)
+      invalid(
+        `Unsupported setting config.plugins (${session.compilerTransformNames.join(', ')}). Configure equivalent application transforms through next.config compiler rules or retain openTestConfiguration through compilation; loadTestConfig cannot own executable compiler hooks.`
+      )
     return session.config
   } finally {
     await session.dispose()

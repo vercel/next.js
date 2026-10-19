@@ -1,3 +1,19 @@
+import {
+  createRuntimeConfigurationPlan,
+  assertRuntimeConfigurationPlan,
+  assertRuntimeConfigurationSelection,
+  prepareRuntimeConfigurationReceipt,
+  assertRuntimeConfigurationReceipts,
+  type RuntimeConfigurationPlan,
+  type RuntimeConfigurationReceipt,
+} from './coverage/runtime-configuration'
+import {
+  createCoverageSourcePlan,
+  assertCoverageSourcePlan,
+  assertCompilerSourceCoverage,
+  type CoverageSourcePlan,
+} from './coverage/source-analysis-plan'
+import { analyzeCompiledCoverageSource } from './coverage/source-analysis'
 import type {
   CustomCoverageRequest,
   CustomCoverageFact,
@@ -8,6 +24,8 @@ import { randomUUID } from 'crypto'
 import type {
   StandardCoverageOptions,
   StandardFileCoverage,
+  CompiledCoverageSource,
+  CompilerSourceCoverage,
 } from './coverage/types'
 import { mkdtemp } from 'fs/promises'
 import { tmpdir } from 'os'
@@ -46,12 +64,26 @@ interface PreparedTest {
 }
 
 export interface RunTestsOptions {
+  compilerTransforms?: Record<
+    string,
+    import('./compiler/transform-broker').CompilerTransformDescriptor
+  >
   signal: AbortSignal
   collectOnly?: boolean
   write(text: string): void
   reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
   coverage?: boolean
   standardCoverageOptions?: StandardCoverageOptions
+  /** Parent-issued source/profile selection; compiler children cannot authorize themselves. */
+  coverageSourcePlan?: CoverageSourcePlan
+  runtimeConfigurationPlan?: RuntimeConfigurationPlan
+  coverageInputs?: readonly string[]
+  includeUnimportedCoverage?: boolean
+  /** Separate parent broker channel; no runtime capture or child-derived declaration facts. */
+  onCoverageSource?: (
+    compiled: CompiledCoverageSource,
+    signal: AbortSignal
+  ) => Promise<void>
   customCoverageRequests?: Record<string, CustomCoverageRequest>
   inspect?: string
   updateSnapshots?: boolean
@@ -68,6 +100,8 @@ export interface RunTestsOptions {
   isolateProjects?: boolean
   /** Watch uses a parent-owned execution broker; compilation stays in this process. */
   execute?: ExecuteTest
+  /** The independent broker owns application/browser leases across compiler crashes. */
+  brokerOwnsBrowser?: boolean
   /** A supervisor must retain the whole shared cohort process independently. */
   executeCohort?: ExecuteTestCohort
   allocateArtifact?: TestCompilerSessionOptions['allocateArtifact']
@@ -83,7 +117,53 @@ export async function runTests(
 ) {
   if (options.standardCoverageOptions && !options.coverage)
     throw new Error('Standard coverage options require coverage collection.')
+  if (options.collectOnly && options.coverage)
+    throw new Error('Collection cannot request coverage or snapshot updates.')
   const standardCoverage: StandardFileCoverage[] = []
+  const compilerSourceCoverage: CompilerSourceCoverage[] = []
+  const runtimeConfigurationReceipts: RuntimeConfigurationReceipt[] = []
+  if (
+    (options.coverageSourcePlan ||
+      options.onCoverageSource ||
+      options.runtimeConfigurationPlan) &&
+    !options.standardCoverageOptions
+  )
+    throw new Error(
+      'Compiler source analysis requires standard coverage options'
+    )
+  const coverageSourcePlan = options.standardCoverageOptions
+    ? (options.coverageSourcePlan ??
+      (await createCoverageSourcePlan({
+        projectDir,
+        projects,
+        config: options.standardCoverageOptions,
+        inputs: options.coverageInputs,
+        includeUnimported: options.includeUnimportedCoverage,
+        signal: options.signal,
+      })))
+    : { version: 1 as const, requests: [], inputs: [] }
+  await assertCoverageSourcePlan(coverageSourcePlan, options.signal)
+  const runtimeConfigurationPlan = options.standardCoverageOptions
+    ? options.runtimeConfigurationPlan
+      ? structuredClone(options.runtimeConfigurationPlan)
+      : await createRuntimeConfigurationPlan({
+          projectDir,
+          projects,
+          inputs: options.coverageInputs,
+          signal: options.signal,
+        })
+    : undefined
+  if (runtimeConfigurationPlan) {
+    await assertRuntimeConfigurationPlan(
+      runtimeConfigurationPlan,
+      options.signal
+    )
+    assertRuntimeConfigurationSelection(
+      runtimeConfigurationPlan,
+      projectDir,
+      projects
+    )
+  }
   const customCoverage: CustomCoverageFact[] = []
   if (options.customCoverageRequests) {
     if (
@@ -198,12 +278,19 @@ export async function runTests(
       projects.some(
         (project) =>
           project.entries.length > 0 &&
-          (project.profile.mode !== 'development' ||
-            project.profile.environment !== 'node' ||
-            project.profile.route !== undefined)
+          (project.profile.route !== undefined ||
+            !(
+              (project.profile.environment === 'node' &&
+                !project.profile.browserClient) ||
+              (project.profile.environment === 'browser' &&
+                project.profile.browserClient === true &&
+                project.profile.mode === 'development')
+            ))
       )
     ) {
-      throw new Error('Coverage requires route-less development Node profiles.')
+      throw new Error(
+        'Coverage requires route-less Node or development Browser Mode client profiles.'
+      )
     }
   }
   if (options.updateSnapshots) {
@@ -420,6 +507,9 @@ export async function runTests(
     let server: import('./browser/server').ApplicationServer | undefined
     let browserHost: import('./browser/host').BrowserHost | undefined
     let browser: import('./contracts').ExecuteTestOptions['browser']
+    let stagedRuntimeConfiguration:
+      | Awaited<ReturnType<typeof prepareRuntimeConfigurationReceipt>>
+      | undefined
     let acquiringResource = false
     let executing = false
     const ownsFileEnd =
@@ -464,14 +554,22 @@ export async function runTests(
     }
     try {
       controller.signal.throwIfAborted()
+      if (runtimeConfigurationPlan && !options.execute)
+        stagedRuntimeConfiguration = await prepareRuntimeConfigurationReceipt({
+          artifact,
+          plan: runtimeConfigurationPlan,
+          artifactRoot: artifact.rootDir,
+          signal: controller.signal,
+        })
       if (options.coverage && !artifact.coverage) {
         throw new Error(
-          'Coverage requires an instrumented development Node artifact.'
+          'Coverage requires compiler-issued source metadata for the selected artifact.'
         )
       }
       if (
         project.profile.environment === 'browser' &&
         artifact.kind !== 'browser' &&
+        !options.brokerOwnsBrowser &&
         !options.collectOnly
       ) {
         if (
@@ -586,7 +684,12 @@ export async function runTests(
           : {}),
         ...(coverageReport || options.standardCoverageOptions
           ? {
-              coverage: { version: 1 as const, kind: 'node-line' as const },
+              coverage: {
+                version: 1 as const,
+                kind: artifact.profile.browserClient
+                  ? ('browser-v8' as const)
+                  : ('node-line' as const),
+              },
               onCoverage: async (
                 completion: import('./contracts').TestCoverageCompletion
               ) => {
@@ -653,6 +756,7 @@ export async function runTests(
         allowOnly: project.allowOnly ?? !process.env.CI,
         passWithNoTests: project.passWithNoTests,
         provide: project.provide,
+        env: project.env,
         testTimeout: project.testTimeout,
         hookTimeout: project.hookTimeout,
         testNamePattern: options.testNamePattern ?? project.testNamePattern,
@@ -755,6 +859,21 @@ export async function runTests(
           diagnostic(error, 'cleanup', entry)
         }
       }
+      if (
+        stagedRuntimeConfiguration &&
+        !controller.signal.aborted &&
+        !unsafeCleanup
+      ) {
+        try {
+          runtimeConfigurationReceipts.push(
+            await stagedRuntimeConfiguration.seal()
+          )
+        } catch (error) {
+          fileFailed = true
+          failed = true
+          diagnostic(error, 'cleanup', entry)
+        }
+      }
       if (ownsFileEnd) {
         if (!startedFiles.has(entry.id)) {
           onEvent({ ...envelope(), type: 'file-start', entry })
@@ -789,6 +908,9 @@ export async function runTests(
           operation: 'run',
           projectDir,
           projects: group,
+          ...(options.compilerTransforms
+            ? { compilerTransforms: options.compilerTransforms }
+            : {}),
           maxWorkers,
           isolatedProfile: true,
           collectOnly: options.collectOnly,
@@ -797,6 +919,27 @@ export async function runTests(
           snapshotUpdateMode,
           coverage: options.coverage,
           standardCoverageOptions: options.standardCoverageOptions,
+          ...(options.standardCoverageOptions
+            ? {
+                runtimeConfigurationPlan: {
+                  ...runtimeConfigurationPlan!,
+                  requests: runtimeConfigurationPlan!.requests.filter(
+                    (request) =>
+                      group.some(
+                        (project) => project.profile.id === request.profile.id
+                      )
+                  ),
+                },
+                coverageSourcePlan: {
+                  ...coverageSourcePlan,
+                  requests: coverageSourcePlan.requests.filter((request) =>
+                    group.some(
+                      (project) => project.profile.id === request.profile.id
+                    )
+                  ),
+                },
+              }
+            : {}),
           ...(options.customCoverageRequests
             ? {
                 customCoverageRequests: Object.fromEntries(
@@ -869,6 +1012,18 @@ export async function runTests(
             collectionRevisions
           ))
         )
+        if (!Array.isArray(completion.result.compilerSourceCoverage))
+          throw new Error(
+            'Isolated project omitted parent compiler source analyses'
+          )
+        compilerSourceCoverage.push(...completion.result.compilerSourceCoverage)
+        if (!Array.isArray(completion.result.runtimeConfigurationReceipts))
+          throw new Error(
+            'Isolated project omitted parent runtime config receipts'
+          )
+        runtimeConfigurationReceipts.push(
+          ...completion.result.runtimeConfigurationReceipts
+        )
       } else if (completion.result.standardCoverage !== undefined) {
         throw new Error('Unrequested standard coverage facts.')
       }
@@ -903,11 +1058,20 @@ export async function runTests(
           )),
       ],
     })
-    const selected = projects.filter((project) => project.entries.length > 0)
+    const selected = projects.filter(
+      (project) =>
+        project.entries.length > 0 ||
+        coverageSourcePlan.requests.some(
+          (request) => request.profile.id === project.profile.id
+        )
+    )
     const modes = new Set(selected.map((project) => project.profile.mode))
-    if (!selected.length && !options.passWithNoTests) {
+    if (
+      !projects.some((project) => project.entries.length) &&
+      !options.passWithNoTests
+    )
       diagnostic(new Error('No test files selected.'), 'configuration')
-    } else if (!selected.length) {
+    if (!selected.length) {
       // Successful empty selection still emits a complete machine report.
     } else if (
       modes.size === 1 &&
@@ -939,7 +1103,13 @@ export async function runTests(
           modes.size === 1 ? [selected] : selected.map((project) => [project])
         for (const group of groups) {
           if (controller.signal.aborted) break
-          if (group.every(bailReached)) break
+          if (
+            group.every(bailReached) &&
+            !coverageSourcePlan.requests.some((request) =>
+              group.some((project) => project.profile.id === request.profile.id)
+            )
+          )
+            break
           await runIsolatedProject(group)
         }
       }
@@ -957,7 +1127,13 @@ export async function runTests(
         ;(process.env as any).NODE_ENV = mode
         for (const project of selected) {
           if (controller.signal.aborted) break
-          if (bailReached(project)) continue
+          if (
+            bailReached(project) &&
+            !coverageSourcePlan.requests.some(
+              (request) => request.profile.id === project.profile.id
+            )
+          )
+            continue
           if (
             (options.isolateProjects ||
               (project.isolate === false && !options.executeCohort)) &&
@@ -1037,7 +1213,14 @@ export async function runTests(
           const runtimeEntries = project.entries.filter(
             (entry) => !entry.typecheck
           )
-          if (!runtimeEntries.length || controller.signal.aborted) continue
+          const sourceRequests = coverageSourcePlan.requests.filter(
+            (request) => request.profile.id === project.profile.id
+          )
+          if (
+            (!runtimeEntries.length && !sourceRequests.length) ||
+            controller.signal.aborted
+          )
+            continue
           let session:
             | Awaited<
                 ReturnType<
@@ -1053,10 +1236,53 @@ export async function runTests(
             session = await createTestCompilerSession(
               projectDir,
               project.profile,
-              { allocateArtifact: options.allocateArtifact }
+              {
+                allocateArtifact: options.allocateArtifact,
+                ...(project.compilerAliases
+                  ? { compilerAliases: project.compilerAliases }
+                  : {}),
+                ...(options.compilerTransforms?.[project.profile.id]
+                  ? {
+                      compilerTransforms:
+                        options.compilerTransforms[project.profile.id],
+                    }
+                  : {}),
+              }
             )
             const compilerSession = session
-            if (project.isolate === false) {
+            for (const request of sourceRequests) {
+              const compiled = await compilerSession.compileCoverageSource(
+                request.source,
+                {
+                  signal: controller.signal,
+                  revision: request.revision,
+                  configurationImports: request.configurationImports,
+                }
+              )
+              if (options.onCoverageSource)
+                await options.onCoverageSource(compiled, controller.signal)
+              else {
+                if (options.execute)
+                  throw new Error(
+                    'Compiler source analysis requires a parent broker consumer'
+                  )
+                compilerSourceCoverage.push(
+                  await analyzeCompiledCoverageSource(
+                    compiled,
+                    {
+                      projectDir,
+                      artifactRoot: compiled.artifact.rootDir,
+                      profile: request.profile,
+                      source: request.source,
+                      revision: request.revision,
+                      configurationImports: request.configurationImports,
+                    },
+                    controller.signal
+                  )
+                )
+              }
+            }
+            if (project.isolate === false && runtimeEntries.length) {
               const ordered = shuffleFiles(project.sequence?.shuffle)
                 ? shuffle(
                     [...runtimeEntries],
@@ -1108,6 +1334,7 @@ export async function runTests(
                     allowOnly: project.allowOnly ?? !process.env.CI,
                     passWithNoTests: project.passWithNoTests,
                     provide: project.provide,
+                    env: project.env,
                     testTimeout: project.testTimeout,
                     hookTimeout: project.hookTimeout,
                     fileTimeout: project.fileTimeout,
@@ -1159,7 +1386,29 @@ export async function runTests(
                 if (bailReached(project)) return
                 const fileStarted = performance.now()
                 try {
+                  const runtimeRequest =
+                    runtimeConfigurationPlan?.requests.find(
+                      (request) => request.profile.id === project.profile.id
+                    )
+                  const runtimeEntry = runtimeRequest?.entries.find(
+                    (candidate) => candidate.id === entry.id
+                  )
+                  if (
+                    runtimeConfigurationPlan &&
+                    (!runtimeRequest || !runtimeEntry)
+                  )
+                    throw new Error(
+                      'Missing parent runtime config request for selected entry'
+                    )
                   const artifact = await compilerSession.compile(entry, {
+                    ...(runtimeRequest && runtimeEntry
+                      ? {
+                          runtimeConfigurationImports: {
+                            authorization: runtimeRequest.authorization,
+                            entry: runtimeEntry,
+                          },
+                        }
+                      : {}),
                     signal: controller.signal,
                     setupFiles: project.setupFiles,
                     setupFilesSequence: project.sequence?.setupFiles ?? 'list',
@@ -1168,7 +1417,9 @@ export async function runTests(
                       ? {
                           coverage: {
                             version: 1 as const,
-                            kind: 'node-line' as const,
+                            kind: project.profile.browserClient
+                              ? ('browser-v8' as const)
+                              : ('node-line' as const),
                           },
                         }
                       : {}),
@@ -1207,6 +1458,7 @@ export async function runTests(
             }
           } catch (error) {
             if (!isOnlyCancellation(error)) {
+              if (!project.entries.length) diagnostic(error, projectPhase)
               for (const entry of project.entries) {
                 if (endedFiles.has(entry.id)) continue
                 diagnostic(error, projectPhase, entry)
@@ -1228,6 +1480,29 @@ export async function runTests(
       }
     }
   } finally {
+    if (
+      options.standardCoverageOptions &&
+      !options.onCoverageSource &&
+      !controller.signal.aborted &&
+      !unsafeCleanup
+    ) {
+      try {
+        if (runtimeConfigurationPlan && !options.execute)
+          await assertRuntimeConfigurationReceipts({
+            receipts: runtimeConfigurationReceipts,
+            facts: standardCoverage,
+            plan: runtimeConfigurationPlan,
+            signal: controller.signal,
+          })
+        await assertCompilerSourceCoverage(
+          compilerSourceCoverage,
+          coverageSourcePlan,
+          controller.signal
+        )
+      } catch (error) {
+        if (!isOnlyCancellation(error)) diagnostic(error, 'reporter')
+      }
+    }
     if (controller.signal.aborted) {
       for (const project of projects) {
         for (const entry of project.entries) {
@@ -1296,6 +1571,14 @@ export async function runTests(
     unsafeCleanup,
     ...(options.collectOnly ? { collections } : {}),
     ...(options.standardCoverageOptions ? { standardCoverage } : {}),
+    ...(options.standardCoverageOptions && !options.onCoverageSource
+      ? {
+          compilerSourceCoverage,
+          coverageSourcePlan,
+          runtimeConfigurationPlan,
+          runtimeConfigurationReceipts,
+        }
+      : {}),
     ...(options.customCoverageRequests ? { customCoverage } : {}),
   }
 }

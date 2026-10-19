@@ -1,0 +1,9 @@
+import { defineConfig, defineProject } from 'vitest/config'
+
+const project = defineProject({
+  test: { include: ['**/*.test.ts'], globals: true },
+})
+export default defineConfig({
+  test: { include: ['**/*.test.ts'], globals: true },
+})
+void project

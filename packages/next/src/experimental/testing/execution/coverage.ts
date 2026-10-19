@@ -1,4 +1,5 @@
 import { assertMockCoverageArtifact } from '../coverage/mock-sources'
+import { assertSourceCoverageArtifact } from '../coverage/source-profile'
 import type {
   CompiledTestArtifact,
   ExecuteTestOptions,
@@ -11,6 +12,10 @@ export function assertCoverageRequest(
   artifact: CompiledTestArtifact,
   options: Pick<ExecuteTestOptions, 'coverage' | 'onCoverage'>
 ): void {
+  if (artifact.coverage?.sourceAnalysis)
+    throw new Error(
+      'Compile-only coverage sources cannot enter runtime capture'
+    )
   if (!options.coverage) {
     if (options.onCoverage)
       throw new Error('Coverage callback requires a request')
@@ -21,11 +26,14 @@ export function assertCoverageRequest(
     options.coverage.kind !== 'node-line' ||
     artifact.kind !== 'node' ||
     artifact.profile.environment !== 'node' ||
-    artifact.profile.mode !== 'development' ||
     artifact.profile.route !== undefined
   ) {
-    throw new Error('Coverage requires a development Node profile')
+    throw new Error('Coverage requires an explicit Node coverage profile')
   }
+  if (artifact.profile.mode === 'production')
+    assertSourceCoverageArtifact(artifact)
+  else if (artifact.coverage?.sourcePreservation)
+    throw new Error('Unrequested production source coverage provenance.')
   assertMockCoverageArtifact(artifact)
   if (!artifact.coverage)
     throw new Error('Compiled artifact lacks coverage metadata')
@@ -89,6 +97,10 @@ export function assertCoverageCompletion(
   artifact: CompiledTestArtifact,
   runId: string
 ): asserts value is TestCoverageCompletion {
+  if (artifact.coverage?.sourceAnalysis)
+    throw new Error(
+      'Compile-only coverage sources cannot enter runtime capture'
+    )
   if (!value || typeof value !== 'object') {
     throw new Error('Missing test worker coverage completion')
   }

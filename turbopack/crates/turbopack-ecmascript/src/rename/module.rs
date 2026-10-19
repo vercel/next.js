@@ -64,18 +64,20 @@ impl EcmascriptModuleRenameModule {
 
     #[turbo_tasks::function]
     pub async fn async_module(&self) -> Result<Vc<AsyncModule>> {
-        let (import_externals, has_top_level_await) =
+        let (import_externals, has_top_level_await, lower_async_to_generator) =
             if let Some(async_module) = *self.module.get_async_module().await? {
                 (
                     async_module.await?.import_externals,
                     async_module.await?.has_top_level_await,
+                    async_module.await?.lower_async_to_generator,
                 )
             } else {
-                (false, false)
+                (false, false, false)
             };
         Ok(AsyncModule {
             has_top_level_await,
             import_externals,
+            lower_async_to_generator,
         }
         .cell())
     }

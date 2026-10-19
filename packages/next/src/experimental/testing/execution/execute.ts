@@ -56,12 +56,12 @@ export async function executeWithEnvironment(
     updateSnapshots: snapshotUpdateMode !== 'none',
   }
   if (artifact.kind === 'browser') {
-    if (deferSnapshotUpdates)
-      throw new Error('Browser Mode cannot execute in the Node broker worker.')
-    return (await import('../client/execute.js')).executeClient(
-      artifact,
-      options
-    )
+    return (await import('../client/execute.js')).executeClient(artifact, {
+      ...options,
+      ...(deferSnapshotUpdates
+        ? { onSnapshotUpdates: deferSnapshotUpdates }
+        : {}),
+    })
   }
   const {
     onEvent,

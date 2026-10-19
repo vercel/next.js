@@ -11,7 +11,7 @@ use turbo_tasks_fs::{
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
         ResolveResult, ResolveResultOption,
         parse::Request,
@@ -25,6 +25,7 @@ pub(crate) struct MockGraphTarget {
     pub path: FileSystemPath,
     pub original_request: RcStr,
     pub additional_original_requests: Vec<RcStr>,
+    pub deferred_original_request: Option<RcStr>,
     pub wrapper_source: ResolvedVc<Box<dyn Source>>,
 }
 
@@ -92,6 +93,9 @@ impl AfterResolvePlugin for MockResolvePlugin {
                     "Module mock targets with query strings or fragments are unsupported",
                 ));
             }
+            let deferred_original = original_request
+                .as_ref()
+                .is_some_and(|request| target.deferred_original_request.as_ref() == Some(request));
             if !matches!(
                 reference_type,
                 ReferenceType::EcmaScriptModules(
@@ -100,7 +104,12 @@ impl AfterResolvePlugin for MockResolvePlugin {
                         | EcmaScriptModulesReferenceSubType::DynamicImport
                         | EcmaScriptModulesReferenceSubType::Undefined
                 )
-            ) {
+            ) && !(deferred_original
+                && matches!(
+                    reference_type,
+                    ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)
+                ))
+            {
                 return Err(crate::testing::test_input_error(
                     fs_path.clone(),
                     "Module mock targets require normal ESM imports; CommonJS and import \
@@ -110,7 +119,8 @@ impl AfterResolvePlugin for MockResolvePlugin {
             // ImportMap::Direct still passes through after-resolve plugins.
             // Bypass this one compiler-issued edge, not the original module's
             // context: ordinary imports from the original remain substituted.
-            if original_request.as_ref() == Some(&target.original_request)
+            if deferred_original
+                || original_request.as_ref() == Some(&target.original_request)
                 || original_request
                     .as_ref()
                     .is_some_and(|request| target.additional_original_requests.contains(request))
@@ -146,6 +156,19 @@ pub(crate) struct MockActualSource<'a> {
     pub original_request: &'a str,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) enum MockImportKind<'a> {
+    Factory(&'a str),
+    Automatic { spy: bool },
+    BrowserAutomatic { spy: bool },
+    Redirect,
+}
+pub(crate) struct MockImportSource<'a> {
+    pub local: &'a str,
+    pub original_request: &'a str,
+    pub kind: MockImportKind<'a>,
+}
+
 /// Load this module before the stripped spec. Dynamic original imports must
 /// remain deferred until a factory invokes its supplied importOriginal helper.
 #[cfg(test)]
@@ -163,6 +186,7 @@ pub(crate) fn mock_registration_source(
         &[],
         &[],
         &[],
+        &[],
     )
 }
 
@@ -174,6 +198,7 @@ pub(crate) fn mock_registration_source_with_helpers(
     declarations: &[MockRegistrationSource<'_>],
     hoisted: &[MockHoistedSource<'_>],
     actual_imports: &[MockActualSource<'_>],
+    mock_imports: &[MockImportSource<'_>],
     api_bindings: &[(String, String)],
 ) -> Result<String> {
     let mut source = String::new();
@@ -181,20 +206,80 @@ pub(crate) fn mock_registration_source_with_helpers(
     let mut map = SourceMapBuilder::new(None);
     let source_id = map.add_source(original_path.to_owned().into());
     map.set_source_contents(source_id, Some(original_source.to_owned().into()));
-    append_unmapped(
-        &mut source,
-        &mut generated,
-        &mut map,
-        &format!(
-            "import {{ registerModuleMock }} from {};\n",
-            serde_json::to_string(runtime_request)?,
-        ),
-    );
+    if !declarations.is_empty() {
+        append_unmapped(
+            &mut source,
+            &mut generated,
+            &mut map,
+            &format!(
+                "import {{ registerModuleMock }} from {};\n",
+                serde_json::to_string(runtime_request)?,
+            ),
+        );
+    }
+    let mut import_mock_api = "__next_import_mock".to_owned();
+    while original_source.contains(&import_mock_api)
+        || api_bindings
+            .iter()
+            .any(|(_, local)| local == &import_mock_api)
+        || hoisted
+            .iter()
+            .any(|helper| helper.bindings.contains(&import_mock_api))
+    {
+        import_mock_api.push('_');
+    }
+    if !mock_imports.is_empty() {
+        append_unmapped(
+            &mut source,
+            &mut generated,
+            &mut map,
+            &format!(
+                "import {{ importModuleMock as {import_mock_api} }} from {};\n",
+                serde_json::to_string(runtime_request)?
+            ),
+        );
+    }
+    let mut fresh_import_api = "__next_import_fresh_mock".to_owned();
+    while original_source.contains(&fresh_import_api)
+        || api_bindings
+            .iter()
+            .any(|(_, local)| local == &fresh_import_api)
+        || hoisted
+            .iter()
+            .any(|helper| helper.bindings.contains(&fresh_import_api))
+    {
+        fresh_import_api.push('_');
+    }
+    if mock_imports
+        .iter()
+        .any(|import| matches!(import.kind, MockImportKind::BrowserAutomatic { .. }))
+    {
+        append_unmapped(
+            &mut source,
+            &mut generated,
+            &mut map,
+            &format!(
+                "import {{ importFreshModuleMock as {fresh_import_api} }} from {};\n",
+                serde_json::to_string(runtime_request)?
+            ),
+        );
+    }
     let mut automatic_api = "__next_automatic_mock_api".to_owned();
-    while original_source.contains(&automatic_api) {
+    while original_source.contains(&automatic_api)
+        || api_bindings
+            .iter()
+            .any(|(_, local)| local == &automatic_api)
+        || hoisted
+            .iter()
+            .any(|helper| helper.bindings.contains(&automatic_api))
+    {
         automatic_api.push('_');
     }
-    if declarations.iter().any(|declaration| declaration.automatic) {
+    if declarations.iter().any(|declaration| declaration.automatic)
+        || mock_imports
+            .iter()
+            .any(|import| matches!(import.kind, MockImportKind::Automatic { .. }))
+    {
         append_unmapped(
             &mut source,
             &mut generated,
@@ -202,7 +287,7 @@ pub(crate) fn mock_registration_source_with_helpers(
             &format!("import {{ vi as {automatic_api} }} from 'vitest';\n"),
         );
     }
-    if !hoisted.is_empty() {
+    if !api_bindings.is_empty() {
         let names = api_bindings
             .iter()
             .map(|(imported, local)| format!("{imported} as {local}"))
@@ -224,6 +309,59 @@ pub(crate) fn mock_registration_source_with_helpers(
                 "export const {} = () => import({});\n",
                 import.local,
                 serde_json::to_string(import.original_request)?
+            ),
+        );
+    }
+    for (index, import) in mock_imports.iter().enumerate() {
+        let mut browser_loader = format!("__next_browser_mock_original_{index}");
+        if matches!(import.kind, MockImportKind::BrowserAutomatic { .. }) {
+            while original_source.contains(&browser_loader)
+                || api_bindings
+                    .iter()
+                    .any(|(_, local)| local == &browser_loader)
+                || hoisted
+                    .iter()
+                    .any(|helper| helper.bindings.contains(&browser_loader))
+            {
+                browser_loader.push('_');
+            }
+            append_unmapped(
+                &mut source,
+                &mut generated,
+                &mut map,
+                &format!(
+                    "import {browser_loader} from {} with {{ \"turbopack-transition\": {} }};\n",
+                    serde_json::to_string(import.original_request)?,
+                    serde_json::to_string(crate::testing_browser_mock_import::TRANSITION_NAME)?,
+                ),
+            );
+        }
+        let expression = match import.kind {
+            MockImportKind::Factory(key) => {
+                format!("{import_mock_api}({})", serde_json::to_string(key)?)
+            }
+            MockImportKind::Automatic { spy } => format!(
+                "{import_mock_api}(() => import({}), (__next_original) => \
+                 {}.mockObject(__next_original{}))",
+                serde_json::to_string(import.original_request)?,
+                automatic_api,
+                if spy { ", { spy: true }" } else { "" }
+            ),
+            MockImportKind::BrowserAutomatic { spy } => {
+                format!("{fresh_import_api}({browser_loader}, {{ spy: {spy} }})")
+            }
+            MockImportKind::Redirect => format!(
+                "{import_mock_api}(() => import({}))",
+                serde_json::to_string(import.original_request)?
+            ),
+        };
+        append_unmapped(
+            &mut source,
+            &mut generated,
+            &mut map,
+            &format!(
+                "export const {} = async () => {};\n",
+                import.local, expression
             ),
         );
     }
@@ -484,6 +622,7 @@ pub(crate) fn mock_spec_source_with_imports(
 /// The selected export names are graph edges, not arbitrary factory keys.
 /// For a complete object factory the analyzer supplies them; partial factories
 /// additionally inherit statically known exports from the original target.
+#[cfg(test)]
 pub(crate) fn mock_wrapper_source(
     runtime_request: &str,
     key: &str,
@@ -491,9 +630,57 @@ pub(crate) fn mock_wrapper_source(
     export_names: &[String],
     mocked_export_names: &[String],
 ) -> Result<String> {
+    mock_wrapper_source_with_original_cycle(
+        runtime_request,
+        key,
+        original_request,
+        export_names,
+        mocked_export_names,
+        None,
+    )
+}
+
+pub(crate) fn mock_wrapper_source_with_original_cycle(
+    runtime_request: &str,
+    key: &str,
+    original_request: &str,
+    export_names: &[String],
+    mocked_export_names: &[String],
+    cycle_members: Option<&[String]>,
+) -> Result<String> {
+    let mut original_edge = String::new();
+    if let Some(members) = cycle_members {
+        // Observe IDs without ordinary eager ESM evaluation dependencies. A
+        // deferred shared require below retains the actual original factory.
+        original_edge.push_str(&format!(
+            "import {{ __turbopack_module_id__ as __next_original_id }} from {} with {{ \
+             \"turbopack-chunking-type\":\"none\" }};\n",
+            serde_json::to_string(original_request)?,
+        ));
+        for (index, request) in members.iter().enumerate() {
+            original_edge.push_str(&format!(
+                "import {{ __turbopack_module_id__ as __next_cycle_{index} }} from {} with {{ \
+                 \"turbopack-chunking-type\":\"none\" }};\n",
+                serde_json::to_string(request)?,
+            ));
+        }
+    }
+    let original_thunk = if let Some(members) = cycle_members {
+        format!(
+            ", () => Promise.resolve(__turbopack_context__.B(__next_original_id,[{}],() => \
+             require(/*turbopackChunkingType: shared*/ {})))",
+            (0..members.len())
+                .map(|index| format!("__next_cycle_{index}"))
+                .collect::<Vec<_>>()
+                .join(","),
+            serde_json::to_string(&format!("{original_request}:deferred"))?,
+        )
+    } else {
+        String::new()
+    };
     let mut source = format!(
-        "import {{ resolveModuleMock }} from {};\nconst __next_mock_exports = await \
-         resolveModuleMock({}, {});\n",
+        "{original_edge}import {{ resolveModuleMock }} from {};\nconst __next_mock_exports = \
+         await resolveModuleMock({}, {}{original_thunk});\n",
         serde_json::to_string(runtime_request)?,
         serde_json::to_string(key)?,
         serde_json::to_string(export_names)?,
@@ -520,8 +707,26 @@ pub(crate) fn mock_wrapper_source(
 #[cfg(test)]
 mod tests {
     use crate::testing_mock_graph::{
-        MockRegistrationSource, mock_registration_source, mock_spec_source, mock_wrapper_source,
+        MockRegistrationSource, mock_registration_source, mock_registration_source_with_helpers,
+        mock_spec_source, mock_wrapper_source,
     };
+
+    #[test]
+    fn cyclic_original_uses_id_only_edges_and_the_native_owner_thunk() {
+        let source = crate::testing_mock_graph::mock_wrapper_source_with_original_cycle(
+            "runtime",
+            "target",
+            "original",
+            &["value".into()],
+            &["value".into()],
+            Some(&["member".into()]),
+        )
+        .unwrap();
+        assert!(source.contains("turbopackChunkingType: shared*/ \"original:deferred\""));
+        assert!(source.contains("__turbopack_context__.B(__next_original_id,[__next_cycle_0],"));
+        assert!(!source.contains("import(\"original\")"));
+        assert!(!source.contains("from \"original\";"));
+    }
 
     #[test]
     fn emits_mapped_helpers_before_factories_and_imports_their_shared_bindings() {
@@ -562,6 +767,7 @@ mod tests {
                 local: &actual.local,
                 original_request: "original:dep",
             }],
+            &[],
             &plan.api_bindings,
         )
         .unwrap();
@@ -635,6 +841,35 @@ mod tests {
         assert!(generated.contains(".mockObject(await __next_original(), { spy: true })"));
         assert!(generated.contains("() => import(\"original:dep\")"));
         assert!(!generated.contains("import *"));
+    }
+
+    #[test]
+    fn imports_actual_api_aliases_for_factories_without_hoisted_helpers() {
+        let factory = "() => ({value: tools.fn(() => 42)})";
+        let original =
+            format!("import {{vi as tools}} from 'vitest';tools.mock('./dep',{factory});");
+        let generated = mock_registration_source_with_helpers(
+            "next/mock-runtime",
+            "spec.mjs",
+            &original,
+            &[MockRegistrationSource {
+                key: "dep",
+                factory_source: factory,
+                original_factory_source: Some(factory),
+                factory_start: original.find(factory).unwrap(),
+                original_request: "original:dep",
+                automatic: false,
+                spy: false,
+            }],
+            &[],
+            &[],
+            &[],
+            &[("vi".into(), "tools".into())],
+        )
+        .unwrap();
+        assert!(generated.contains("import { vi as tools } from 'vitest';"));
+        assert!(generated.contains(factory));
+        assert_eq!(generated.matches("import { vi as tools }").count(), 1);
     }
 
     #[test]
@@ -824,5 +1059,255 @@ mod tests {
             )
             .is_err()
         );
+    }
+}
+
+#[cfg(test)]
+mod import_mock_helper_tests {
+    use super::*;
+
+    #[test]
+    fn emits_distinct_factory_redirect_and_fresh_automatic_selections() {
+        let generated = mock_registration_source_with_helpers(
+            "runtime",
+            "entry.mjs",
+            "import{vi}from'vitest'",
+            &[],
+            &[],
+            &[],
+            &[
+                MockImportSource {
+                    local: "_m0",
+                    original_request: "original:factory",
+                    kind: MockImportKind::Factory("resolved:factory"),
+                },
+                MockImportSource {
+                    local: "_m1",
+                    original_request: "manual:redirect",
+                    kind: MockImportKind::Redirect,
+                },
+                MockImportSource {
+                    local: "_m2",
+                    original_request: "original:auto",
+                    kind: MockImportKind::Automatic { spy: false },
+                },
+                MockImportSource {
+                    local: "_m3",
+                    original_request: "original:spy",
+                    kind: MockImportKind::Automatic { spy: true },
+                },
+            ],
+            &[],
+        )
+        .unwrap();
+        assert!(
+            generated
+                .contains("import { importModuleMock as __next_import_mock } from \"runtime\";")
+        );
+        assert!(
+            generated.contains(
+                "export const _m0 = async () => __next_import_mock(\"resolved:factory\");"
+            )
+        );
+        assert!(generated.contains(
+            "export const _m1 = async () => __next_import_mock(() => import(\"manual:redirect\"));"
+        ));
+        assert!(generated.contains(
+            "__next_import_mock(() => import(\"original:auto\"), (__next_original) => \
+             __next_automatic_mock_api.mockObject(__next_original))"
+        ));
+        assert!(generated.contains("mockObject(__next_original, { spy: true })"));
+        assert!(!generated.contains("registerModuleMock(\"resolved:factory\""));
+    }
+    #[test]
+    fn keeps_authored_api_and_hoisted_names_distinct_from_the_runtime_helper() {
+        let original = "import{vi as importModuleMock}from'vitest';const \
+                        __next_import_mock=1;importModuleMock.importMock('./dep')";
+        let generated = mock_registration_source_with_helpers(
+            "runtime",
+            "entry.mjs",
+            original,
+            &[],
+            &[],
+            &[],
+            &[MockImportSource {
+                local: "_m0",
+                original_request: "actual:dep",
+                kind: MockImportKind::Automatic { spy: false },
+            }],
+            &[("vi".into(), "importModuleMock".into())],
+        )
+        .unwrap();
+        assert!(
+            generated
+                .contains("import { importModuleMock as __next_import_mock_ } from \"runtime\";")
+        );
+        assert!(generated.contains("import { vi as importModuleMock } from 'vitest';"));
+        assert!(generated.contains("export const _m0 = async () => __next_import_mock_("));
+    }
+    #[test]
+    fn excludes_normalized_escaped_api_names_from_the_runtime_helper() {
+        let generated = mock_registration_source_with_helpers(
+            "runtime",
+            "entry.mjs",
+            r"import{vi as \u005f_next_import_mock}from'vitest'",
+            &[],
+            &[],
+            &[],
+            &[MockImportSource {
+                local: "_m0",
+                original_request: "actual:dep",
+                kind: MockImportKind::Redirect,
+            }],
+            &[("vi".into(), "__next_import_mock".into())],
+        )
+        .unwrap();
+        assert!(
+            generated
+                .contains(r#"import { importModuleMock as __next_import_mock_ } from "runtime";"#)
+        );
+        assert!(generated.contains("import { vi as __next_import_mock } from 'vitest';"));
+    }
+    #[test]
+    fn omits_an_unused_register_import_for_import_mock_only_aliases() {
+        let generated = mock_registration_source_with_helpers(
+            "runtime",
+            "entry.mjs",
+            "import{vi as registerModuleMock}from'vitest';registerModuleMock.importMock('./dep')",
+            &[],
+            &[],
+            &[],
+            &[MockImportSource {
+                local: "_m0",
+                original_request: "actual:dep",
+                kind: MockImportKind::Automatic { spy: false },
+            }],
+            &[("vi".into(), "registerModuleMock".into())],
+        )
+        .unwrap();
+        assert!(generated.contains("import { vi as registerModuleMock } from 'vitest';"));
+        assert!(!generated.contains("import { registerModuleMock } from"));
+    }
+}
+
+#[cfg(test)]
+mod browser_import_mock_helper_tests {
+    use swc_core::{
+        common::{FileName, SourceMap},
+        ecma::{
+            ast::EsVersion,
+            parser::{Syntax, parse_file_as_program},
+        },
+    };
+
+    use crate::testing_mock_graph::{
+        MockImportKind, MockImportSource, mock_registration_source_with_helpers,
+    };
+
+    fn assert_parses(source: &str) {
+        let map = SourceMap::default();
+        let file = map.new_source_file(
+            FileName::Custom("browser-import-mock.mjs".into()).into(),
+            source.to_string(),
+        );
+        let mut errors = Vec::new();
+        parse_file_as_program(
+            &file,
+            Syntax::Es(Default::default()),
+            EsVersion::EsNext,
+            None,
+            &mut errors,
+        )
+        .unwrap();
+        assert!(errors.is_empty(), "{errors:?}");
+    }
+
+    #[test]
+    fn browser_automatic_helpers_use_direct_native_adapter_values() {
+        let generated = mock_registration_source_with_helpers(
+            "runtime",
+            "entry.mjs",
+            "import {vi} from 'vitest'",
+            &[],
+            &[],
+            &[],
+            &[
+                MockImportSource {
+                    local: "_m0",
+                    original_request: "fresh:shared",
+                    kind: MockImportKind::BrowserAutomatic { spy: false },
+                },
+                MockImportSource {
+                    local: "_m1",
+                    original_request: "fresh:shared",
+                    kind: MockImportKind::BrowserAutomatic { spy: true },
+                },
+            ],
+            &[],
+        )
+        .unwrap();
+        assert_parses(&generated);
+        assert_eq!(generated.matches("from \"fresh:shared\" with").count(), 2);
+        assert_eq!(
+            generated
+                .matches("\"turbopack-transition\": \"next-test-browser-import-mock\"")
+                .count(),
+            2
+        );
+        assert!(
+            generated.contains(
+                "__next_import_fresh_mock(__next_browser_mock_original_0, { spy: false })"
+            )
+        );
+        assert!(
+            generated.contains(
+                "__next_import_fresh_mock(__next_browser_mock_original_1, { spy: true })"
+            )
+        );
+        assert!(!generated.contains("import(\"fresh:shared\")"));
+        assert!(!generated.contains(".mockObject("));
+    }
+
+    #[test]
+    fn browser_helper_imports_keep_authored_names_and_node_selections_distinct() {
+        let original = "const __next_import_fresh_mock=0;const __next_browser_mock_original_0=0;";
+        let generated = mock_registration_source_with_helpers(
+            "runtime",
+            "entry.mjs",
+            original,
+            &[],
+            &[],
+            &[],
+            &[
+                MockImportSource {
+                    local: "_m0",
+                    original_request: "fresh:target",
+                    kind: MockImportKind::BrowserAutomatic { spy: false },
+                },
+                MockImportSource {
+                    local: "_m1",
+                    original_request: "cached:target",
+                    kind: MockImportKind::Automatic { spy: false },
+                },
+                MockImportSource {
+                    local: "_m2",
+                    original_request: "manual:target",
+                    kind: MockImportKind::Redirect,
+                },
+            ],
+            &[("vi".into(), "__next_import_fresh_mock_".into())],
+        )
+        .unwrap();
+        assert_parses(&generated);
+        assert!(generated.contains("importFreshModuleMock as __next_import_fresh_mock__"));
+        assert!(generated.contains("import __next_browser_mock_original_0_ from \"fresh:target\""));
+        assert!(generated.contains(
+            "__next_import_fresh_mock__(__next_browser_mock_original_0_, { spy: false })"
+        ));
+        assert!(generated.contains(
+            "__next_import_mock(() => import(\"cached:target\"), (__next_original) => \
+             __next_automatic_mock_api.mockObject(__next_original))"
+        ));
+        assert!(generated.contains("__next_import_mock(() => import(\"manual:target\"))"));
     }
 }

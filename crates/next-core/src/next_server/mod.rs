@@ -5,6 +5,6 @@ pub(crate) mod transforms;
 pub use context::{
     ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
     get_server_chunking_context_with_client_assets, get_server_compile_time_info,
-    get_server_module_options_context, get_server_resolve_options_context,
-    get_tracing_compile_time_info,
+    get_server_module_options_context, get_server_module_options_context_with_native_provenance,
+    get_server_resolve_options_context, get_tracing_compile_time_info,
 };

@@ -1,0 +1,9 @@
+import type { MockResultReturn } from 'vitest'
+import 'vitest'
+
+declare module 'vitest' {
+  interface MockResultReturn<T> {
+    helperMarker?: T
+  }
+}
+export type HelperResult = MockResultReturn<number>

@@ -1,0 +1,1 @@
+export { chai } from 'vitest'

@@ -917,13 +917,13 @@ async fn emit_compact_reexports(
     let stmt = if let Some(module) = scope_hoisting_context.module() {
         let id = module.chunk_item_id(chunking_context).await?;
         quote!("$reexport($list, $id);" as Stmt,
-            reexport: Expr = TURBOPACK_ESM_REEXPORT.into(),
+            reexport: Expr = TURBOPACK_ESM_REEXPORT.unmapped_expr(),
             list: Expr = list,
             id: Expr = module_id_to_lit(&id)
         )
     } else {
         quote!("$reexport($list);" as Stmt,
-            reexport: Expr = TURBOPACK_ESM_REEXPORT.into(),
+            reexport: Expr = TURBOPACK_ESM_REEXPORT.unmapped_expr(),
             list: Expr = list
         )
     };
@@ -1306,25 +1306,25 @@ impl EsmExports {
                 let id = module.chunk_item_id(chunking_context).await?;
                 if has_dynamic_exports {
                     quote!("$turbopack_esm($getters, $id, true);" as Stmt,
-                        turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                        turbopack_esm: Expr = TURBOPACK_ESM.unmapped_expr(),
                         getters: Expr = getters,
                         id: Expr = module_id_to_lit(&id)
                     )
                 } else {
                     quote!("$turbopack_esm($getters, $id);" as Stmt,
-                        turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                        turbopack_esm: Expr = TURBOPACK_ESM.unmapped_expr(),
                         getters: Expr = getters,
                         id: Expr = module_id_to_lit(&id)
                     )
                 }
             } else if has_dynamic_exports {
                 quote!("$turbopack_esm($getters, undefined, true);" as Stmt,
-                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                    turbopack_esm: Expr = TURBOPACK_ESM.unmapped_expr(),
                     getters: Expr = getters
                 )
             } else {
                 quote!("$turbopack_esm($getters);" as Stmt,
-                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                    turbopack_esm: Expr = TURBOPACK_ESM.unmapped_expr(),
                     getters: Expr = getters
                 )
             },

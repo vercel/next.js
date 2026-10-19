@@ -1,0 +1,20 @@
+import type {
+  AsyncMatcherResult,
+  MatcherResult,
+  MatcherState,
+  SyncMatcherResult,
+} from 'vitest'
+
+export declare function synchronousMatcher(
+  this: MatcherState,
+  received: number,
+  expected: number
+): SyncMatcherResult
+
+export declare function asynchronousMatcher(
+  this: MatcherState,
+  received: number,
+  expected: number
+): AsyncMatcherResult
+
+export type HelperMatcherResult = MatcherResult

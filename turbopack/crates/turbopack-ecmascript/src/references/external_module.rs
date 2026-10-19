@@ -395,6 +395,7 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
                 Some(
                     AsyncModule {
                         has_top_level_await: true,
+                        lower_async_to_generator: false,
                         import_externals: self.external_type
                             == CachedExternalType::EcmaScriptViaImport,
                     }

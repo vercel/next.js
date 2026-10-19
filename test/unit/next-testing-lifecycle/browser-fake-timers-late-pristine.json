@@ -1,0 +1,99 @@
+{
+  "vitest": "5.0.4",
+  "environment": "genuine development Chromium serial Browser file",
+  "cases": [
+    {
+      "name": "A schedules fake callbacks with its held local expectation",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "B advances retained fake callbacks with live common and held local state",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "rows": [
+    {
+      "id": "scheduled-A",
+      "state": {
+        "common": 0,
+        "localA": 1,
+        "commonName": "A schedules fake callbacks with its held local expectation",
+        "localName": "A schedules fake callbacks with its held local expectation"
+      },
+      "now": 8000,
+      "pending": 2,
+      "fake": true
+    },
+    {
+      "id": "sync-callback",
+      "before": {
+        "common": 1,
+        "localA": 1,
+        "commonName": "B advances retained fake callbacks with live common and held local state",
+        "localName": "A schedules fake callbacks with its held local expectation"
+      },
+      "after": {
+        "common": 2,
+        "localA": 2,
+        "commonName": "B advances retained fake callbacks with live common and held local state",
+        "localName": "A schedules fake callbacks with its held local expectation"
+      },
+      "now": 8005
+    },
+    {
+      "id": "async-callback",
+      "before": {
+        "common": 2,
+        "localA": 2,
+        "commonName": "B advances retained fake callbacks with live common and held local state",
+        "localName": "A schedules fake callbacks with its held local expectation"
+      },
+      "after": {
+        "common": 3,
+        "localA": 3,
+        "commonName": "B advances retained fake callbacks with live common and held local state",
+        "localName": "A schedules fake callbacks with its held local expectation"
+      },
+      "now": 8010
+    },
+    {
+      "id": "advanced-B",
+      "before": {
+        "common": 1,
+        "localA": 1,
+        "localB": 0,
+        "commonName": "B advances retained fake callbacks with live common and held local state",
+        "localName": "A schedules fake callbacks with its held local expectation"
+      },
+      "after": {
+        "common": 3,
+        "localA": 3,
+        "localB": 0,
+        "commonName": "B advances retained fake callbacks with live common and held local state",
+        "localName": "A schedules fake callbacks with its held local expectation"
+      },
+      "callbacks": ["sync", "async"],
+      "syncReturn": true,
+      "asyncReturn": true,
+      "differentContext": true,
+      "differentLocal": true,
+      "now": 8010,
+      "pending": 0,
+      "fake": true
+    },
+    {
+      "id": "cleanup",
+      "before": {
+        "common": 4,
+        "localA": 3,
+        "commonName": "B advances retained fake callbacks with live common and held local state",
+        "localName": "A schedules fake callbacks with its held local expectation"
+      },
+      "fake": false,
+      "dateRestored": true,
+      "timeoutRestored": true
+    }
+  ]
+}

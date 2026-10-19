@@ -208,6 +208,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
                 async_module: if has_top_level_await {
                     Some(AsyncModuleOptions {
                         has_top_level_await: true,
+                        lower_async_to_generator: false,
                     })
                 } else {
                     None

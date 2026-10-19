@@ -1,0 +1,20 @@
+import { expect, expectTypeOf, vi } from 'vitest'
+const chain = vi
+  .when(vi.fn<(value: string) => number>())
+  .calledWith('value')
+  .thenReturnOnce(1)
+const positive: void = expect(chain).toHaveBeenExhausted()
+const negative: void = expect(chain).not.toHaveBeenExhausted()
+const soft: void = expect.soft(chain).toHaveBeenExhausted()
+const resolved: Promise<void> = expect(
+  Promise.resolve(chain)
+).resolves.toHaveBeenExhausted()
+const rejected: Promise<void> = expect(
+  Promise.reject(chain)
+).rejects.not.toHaveBeenExhausted()
+expectTypeOf(expect(chain).toHaveBeenExhausted).returns.toEqualTypeOf<void>()
+// @ts-expect-error The matcher takes no expected-value argument.
+expect(chain).toHaveBeenExhausted(1)
+// @ts-expect-error Synchronous matcher types do not invent a numeric result.
+const wrong: number = expect(chain).toHaveBeenExhausted()
+void [positive, negative, soft, resolved, rejected, wrong]

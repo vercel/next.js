@@ -1,0 +1,135 @@
+import { afterAll, expect, test, vi } from 'vitest'
+
+const originalDate = globalThis.Date
+const originalSetTimeout = globalThis.setTimeout
+const rows = []
+function record(id, data) {
+  const row = { id, ...data }
+  rows.push(row)
+  console.log('BROWSER_FAKE_TIMERS_RAW ' + JSON.stringify(row))
+}
+
+afterAll(() => {
+  vi.useRealTimers()
+  record('file-cleanup', {
+    fake: vi.isFakeTimers(),
+    dateRestored: globalThis.Date === originalDate,
+    timeoutRestored: globalThis.setTimeout === originalSetTimeout,
+  })
+})
+
+test('date-only system time preserves real timer APIs', () => {
+  try {
+    const fluent = vi.setSystemTime(new originalDate(2000)) === vi
+    record('date-only', {
+      fluent,
+      fake: vi.isFakeTimers(),
+      now: Date.now(),
+      mocked: vi.getMockedSystemTime()?.getTime(),
+      dateReplaced: globalThis.Date !== originalDate,
+      timeoutUnchanged: globalThis.setTimeout === originalSetTimeout,
+      realClockUnchanged: vi.getRealSystemTime() >= 2000,
+    })
+    expect(Date.now()).toBe(2000)
+    expect(vi.isFakeTimers()).toBe(false)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('fake timeout interval and cancellation advance synchronously', () => {
+  try {
+    const fluent = vi.useFakeTimers({ now: 1000 }) === vi
+    const calls = []
+    const interval = setInterval((value) => {
+      calls.push(['interval', Date.now(), value])
+      if (calls.filter(([kind]) => kind === 'interval').length === 2) {
+        clearInterval(interval)
+      }
+    }, 4, 'argument')
+    setTimeout(() => {
+      calls.push(['timeout', Date.now()])
+      setTimeout(() => calls.push(['nested', Date.now()]), 2)
+    }, 6)
+    const cancelled = setTimeout(() => calls.push(['cancelled']), 3)
+    clearTimeout(cancelled)
+    const before = vi.getTimerCount()
+    const firstReturn = vi.advanceTimersByTime(7) === vi
+    const first = { now: Date.now(), pending: vi.getTimerCount(), calls: calls.map((row) => [...row]) }
+    const secondReturn = vi.advanceTimersByTime(5) === vi
+    record('synchronous', {
+      fluent, fake: vi.isFakeTimers(), before, firstReturn, first,
+      secondReturn, now: Date.now(), pending: vi.getTimerCount(), calls,
+      timeoutReplaced: globalThis.setTimeout !== originalSetTimeout,
+    })
+    expect(calls.map(([kind]) => kind)).toEqual(['interval', 'timeout', 'interval', 'nested'])
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('async advancement includes promise continuations and nested timers', async () => {
+  try {
+    vi.useFakeTimers({ now: 2000 })
+    const calls = []
+    setTimeout(async () => {
+      calls.push(['timeout', Date.now()])
+      await Promise.resolve()
+      calls.push(['microtask', Date.now()])
+      setTimeout(() => calls.push(['nested', Date.now()]), 3)
+    }, 5)
+    const advanceReturn = (await vi.advanceTimersByTimeAsync(8)) === vi
+    setTimeout(() => calls.push(['all', Date.now()]), 2)
+    const allReturn = (await vi.runAllTimersAsync()) === vi
+    record('asynchronous', { advanceReturn, allReturn, now: Date.now(), pending: vi.getTimerCount(), calls })
+    expect(calls.map(([kind]) => kind)).toEqual(['timeout', 'microtask', 'nested', 'all'])
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+test('real wait polling advances the active fake clock', async () => {
+  try {
+    vi.useFakeTimers({ now: 3000 })
+    let ready = false
+    let waitForCalls = 0
+    const forTimes = []
+    setTimeout(() => { ready = true }, 12)
+    const forResult = await vi.waitFor(() => {
+      waitForCalls++
+      forTimes.push(Date.now())
+      expect(ready).toBe(true)
+      return 'ready'
+    }, { interval: 5, timeout: 200 })
+    let untilReady = false
+    let waitUntilCalls = 0
+    const untilTimes = []
+    setTimeout(() => { untilReady = true }, 11)
+    const untilResult = await vi.waitUntil(() => {
+      waitUntilCalls++
+      untilTimes.push(Date.now())
+      return untilReady ? 'until-ready' : false
+    }, { interval: 4, timeout: 200 })
+    record('waits', { forResult, waitForCalls, forTimes, untilResult, waitUntilCalls, untilTimes, now: Date.now(), pending: vi.getTimerCount() })
+    expect(forResult).toBe('ready')
+    expect(untilResult).toBe('until-ready')
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+let retainedCallbackRan = false
+test('an active fake clock is left for the next serial case', () => {
+  vi.useFakeTimers({ now: 4000 })
+  setTimeout(() => { retainedCallbackRan = true }, 100)
+  record('retained-clock', { fake: vi.isFakeTimers(), now: Date.now(), pending: vi.getTimerCount() })
+  expect(vi.isFakeTimers()).toBe(true)
+})
+
+test('the next serial case observes clock state and restores real APIs', () => {
+  const before = { fake: vi.isFakeTimers(), now: Date.now(), pending: vi.isFakeTimers() ? vi.getTimerCount() : null, retainedCallbackRan }
+  const fluent = vi.useRealTimers() === vi
+  record('restored-clock', { before, fluent, fake: vi.isFakeTimers(), mocked: vi.getMockedSystemTime(), dateRestored: globalThis.Date === originalDate, timeoutRestored: globalThis.setTimeout === originalSetTimeout, retainedCallbackRan })
+  expect(globalThis.Date).toBe(originalDate)
+  expect(globalThis.setTimeout).toBe(originalSetTimeout)
+})

@@ -1,0 +1,54 @@
+import { afterAll, recordArtifact, test } from 'vitest'
+
+const trace = []
+const observe = (name, raw) => console.log('BROWSER_ARTIFACT_RAW ' + JSON.stringify({ name, raw }))
+let heldTask, pending, settled = false
+
+test('observes mutation between recordArtifact call and its awaited Browser RPC', async ({ task }) => {
+  const input = { type: 'probe:mutation', data: { stage: 'call' } }
+  const work = recordArtifact(task, input)
+  input.data.stage = 'sync'
+  trace.push('sync')
+  queueMicrotask(() => { input.data.stage = 'microtask'; trace.push('microtask') })
+  await Promise.resolve()
+  input.data.stage = 'after-one-await'
+  trace.push('after-one-await')
+  const value = await work
+  trace.push('recorded')
+  observe('mutation', { returnedStage: value.data.stage, inputStage: input.data.stage,
+    returnedSameInput: value === input, returnedDataSame: value.data === input.data,
+    storedSame: task.artifacts.at(-1) === value, count: task.artifacts.length, trace: [...trace],
+  })
+})
+
+test('starts an unawaited Browser artifact without registering a new task operation', ({ task }) => {
+  heldTask = task
+  const input = { type: 'probe:unawaited', data: { stage: 'call' } }
+  pending = recordArtifact(task, input)
+  pending.then(value => {
+    settled = true
+    trace.push('unawaited-settled')
+    observe('unawaited-settled', { stage: value.data.stage, state: task.result?.state,
+      count: task.artifacts.length, storedSame: task.artifacts.at(-1) === value, trace: [...trace],
+    })
+  }, error => {
+    trace.push('unawaited-rejected')
+    observe('unawaited-rejected', { name: error.name, message: error.message, trace: [...trace] })
+  })
+  input.data.stage = 'sync-unawaited'
+  queueMicrotask(() => { input.data.stage = 'microtask-unawaited'; trace.push('unawaited-microtask') })
+  trace.push('unawaited-body-return')
+  observe('unawaited-body', { settled, count: task.artifacts.length, trace: [...trace] })
+})
+
+test('observes the unawaited artifact from the following Browser case', async ({ task }) => {
+  observe('next-case', { settled, priorCount: heldTask.artifacts.length,
+    priorState: heldTask.result?.state, currentCount: task.artifacts.length, trace: [...trace] })
+  await Promise.resolve()
+  observe('next-case-microtask', { settled, priorCount: heldTask.artifacts.length, trace: [...trace] })
+})
+
+afterAll(() => {
+  observe('afterAll', { settled, priorCount: heldTask.artifacts.length,
+    priorState: heldTask.result?.state, trace: [...trace] })
+})

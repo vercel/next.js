@@ -1,0 +1,96 @@
+{
+  "rows": [
+    {
+      "name": "data-only",
+      "raw": {
+        "namedType": "function",
+        "viMemberType": "undefined",
+        "immediate": {
+          "promise": true,
+          "locationInjected": true,
+          "taskCount": 0
+        },
+        "returnSameInput": false,
+        "returnDataSame": false,
+        "storedSame": true,
+        "repeatedReturnSame": false,
+        "repeatedStoredSame": true,
+        "taskCount": 2,
+        "returned": {
+          "type": "probe:browser-json",
+          "label": "first",
+          "data": {
+            "value": 7,
+            "list": ["first", 2],
+            "enabled": false,
+            "empty": null
+          },
+          "location": {
+            "file": "/private/tmp/next-testing-browser-record-artifact117-reference/reference-attempt-01/fixture/artifacts.test.mjs",
+            "line": 18,
+            "column": 19
+          }
+        },
+        "inputLocation": {
+          "file": "/private/tmp/next-testing-browser-record-artifact117-reference/reference-attempt-01/fixture/artifacts.test.mjs",
+          "line": 8,
+          "column": 23
+        },
+        "inputDataUnchanged": true
+      }
+    },
+    {
+      "name": "prior-task",
+      "raw": {
+        "earlierState": "pass",
+        "originalCount": 2,
+        "currentCount": 3,
+        "currentTaskCount": 0,
+        "returned": {
+          "type": "probe:browser-prior",
+          "data": {
+            "from": "second"
+          },
+          "location": {
+            "file": "/private/tmp/next-testing-browser-record-artifact117-reference/reference-attempt-01/fixture/artifacts.test.mjs",
+            "line": 8,
+            "column": 23
+          }
+        },
+        "storedSame": true
+      }
+    },
+    {
+      "name": "file-task",
+      "raw": {
+        "fileType": "suite",
+        "fileSelf": true,
+        "currentTaskCount": 0,
+        "error": {
+          "name": "AssertionError",
+          "message": "Artifact can only be recorded on a test, instead got module"
+        }
+      }
+    },
+    {
+      "name": "afterAll",
+      "raw": {
+        "state": "pass",
+        "originalCount": 3,
+        "currentCount": 4,
+        "returned": {
+          "type": "probe:browser-after-all",
+          "data": {
+            "complete": true
+          },
+          "location": {
+            "file": "/private/tmp/next-testing-browser-record-artifact117-reference/reference-attempt-01/fixture/artifacts.test.mjs",
+            "line": 8,
+            "column": 23
+          }
+        },
+        "storedSame": true
+      }
+    }
+  ]
+}

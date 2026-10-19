@@ -1,12 +1,21 @@
+export { recordArtifact } from './runner/artifacts'
+import { defineHelper } from './assertions/define-helper'
+import { when, isWhenChain, type WhenApi } from './assertions/when'
+import {
+  createChaiNamespace,
+  getChaiNamespacePrototype,
+} from './assertions/chai-namespace'
 import { doMock, doUnmock } from './mocking/dynamic'
 import { resetModules } from './mocking/module-cache'
 import {
   getTestApi,
   getActiveAttempt,
   getAssertionRuntime,
+  getAssertionRuntimeForAssertions,
   getProvidedValue,
 } from './runner'
 import type { TestExpect } from './assertions'
+import type { spies } from '../../compiled/next-test-primitives'
 export type { TestContext, TestBody } from './runner/collector'
 export type {
   Test,
@@ -21,6 +30,12 @@ export type {
   TestAnnotation,
   TestAttachment,
   TestArtifactBase,
+  TestArtifactRegistry,
+  TestArtifact,
+  TestAnnotationArtifact,
+  BrowserTraceArtifact,
+  FailureScreenshotArtifact,
+  VisualRegressionArtifact,
   TestArtifactLocation,
   TestAnnotationLocation,
 } from './runner/tasks'
@@ -87,30 +102,36 @@ export function createExpect(task?: {
   id: string
   fullTestName?: string
 }): TestExpect {
-  return getAssertionRuntime().createExpect(task)
+  return getAssertionRuntimeForAssertions().createExpect(task)
 }
 
 export function should(): ReturnType<
   ReturnType<typeof getAssertionRuntime>['should']
 > {
-  return getAssertionRuntime().should()
+  return getAssertionRuntimeForAssertions().should(chai.Assertion.prototype)
 }
 
 const expectMethods = new Map<PropertyKey, Function>()
 export const expect: TestExpect = new Proxy(
   function (actual: unknown, message?: string) {
-    return getAssertionRuntime().expect(actual, message)
+    return getAssertionRuntimeForAssertions().expect(actual, message)
   } as TestExpect,
   {
     get(_target, key) {
-      const value = Reflect.get(getAssertionRuntime().expect, key)
+      // Chai exposes the same assert function through expect.assert and the
+      // named export. Resolve admission before returning that stable dispatcher.
+      if (key === 'assert') {
+        getAssertionRuntimeForAssertions()
+        return assert
+      }
+      const value = Reflect.get(getAssertionRuntimeForAssertions().expect, key)
       if (value === undefined && typeof key === 'string')
         unsupported(`expect.${key}`)
       if (typeof value === 'function') {
         let method = expectMethods.get(key)
         if (!method) {
           method = (...args: unknown[]) => {
-            const runtime = getAssertionRuntime()
+            const runtime = getAssertionRuntimeForAssertions()
             return Reflect.apply(
               Reflect.get(runtime.expect, key),
               runtime.expect,
@@ -149,11 +170,41 @@ type UtilityApi = Pick<BackendUtilities, 'waitFor' | 'waitUntil'> & {
           : Result
     : BackendUtilities[Key]
 }
-export type VitestUtils = SpyApi & UtilityApi & StaticMockApi
+type MockedHelper = (<T>(item: T, deep?: false) => spies.MaybeMocked<T>) &
+  (<T>(item: T, deep: true) => spies.MaybeMockedDeep<T>) &
+  (<T>(
+    item: T,
+    options: { partial?: false; deep?: false }
+  ) => spies.MaybeMocked<T>) &
+  (<T>(
+    item: T,
+    options: { partial?: false; deep: true }
+  ) => spies.MaybeMockedDeep<T>) &
+  (<T>(
+    item: T,
+    options: { partial: true; deep?: false }
+  ) => spies.MaybePartiallyMocked<T>) &
+  (<T>(
+    item: T,
+    options: { partial: true; deep: true }
+  ) => spies.MaybePartiallyMockedDeep<T>) &
+  (<T>(item: T) => spies.MaybeMocked<T>)
+export type VitestUtils = SpyApi &
+  UtilityApi &
+  StaticMockApi &
+  WhenApi & {
+    mocked: MockedHelper
+    defineHelper: typeof defineHelper
+  }
 type StaticMockApi = {
   hoisted<T>(factory: () => T): T
   /** Compiler-owned literal request: resolved in the original spec's Next graph. */
   importActual<T = Record<string, unknown>>(path: string): Promise<T>
+  importMock<T = Record<string, unknown>>(
+    path: string
+  ): Promise<spies.MaybeMockedDeep<T>>
+  unmock(path: string): void
+  unmock(module: Promise<unknown>): void
   /** Literal runtime registration stays at its original lexical call site. */
   doMock<T extends object = Record<string, unknown>>(
     path: string,
@@ -232,11 +283,26 @@ function hoisted<T>(factory: () => T): T {
   }
   return factory()
 }
+const mocked = {
+  mocked(item: unknown) {
+    return item
+  },
+}.mocked as MockedHelper
+Object.defineProperty(mocked, 'name', {
+  value: 'mocked',
+  configurable: true,
+})
 const spyCalls = new Map<string, Function>()
 export const vi: VitestUtils = new Proxy({} as VitestUtils, {
   get(_target, key) {
     // Promise-returning utilities resolve to this ordinary, non-thenable facade.
-    if (key === 'then') return undefined
+    if (key === 'then' || key === 'recordArtifact') return undefined
+    if (key === 'mocked') return mocked
+    if (key === 'defineHelper') return defineHelper
+    if (key === 'when' || key === 'isWhenChain') {
+      getAssertionRuntime()
+      return key === 'when' ? when : isWhenChain
+    }
     if (key === 'hoisted') return hoisted
     if (key === 'doMock') return doMock
     if (key === 'doUnmock') return doUnmock
@@ -246,9 +312,9 @@ export const vi: VitestUtils = new Proxy({} as VitestUtils, {
         resetModules()
         return vi
       }
-    if (key === 'importActual') {
+    if (key === 'importActual' || key === 'importMock' || key === 'unmock') {
       throw new Error(
-        'vi.importActual requires a direct literal request in a supported Next-compiled test entry.'
+        `vi.${key} requires a direct literal request in a supported Next-compiled test entry.`
       )
     }
     if (typeof key === 'string' && spyMethods.has(key)) {
@@ -327,17 +393,29 @@ export const assert: ReturnType<typeof getAssertionRuntime>['assert'] =
     function (
       ...args: Parameters<ReturnType<typeof getAssertionRuntime>['assert']>
     ) {
-      return Reflect.apply(getAssertionRuntime().assert, undefined, args)
+      return getAssertionRuntimeForAssertions().callChaiAssert(
+        undefined,
+        args,
+        getChaiNamespacePrototype(chai)
+      )
     } as ReturnType<typeof getAssertionRuntime>['assert'],
     {
-      get(_target, key) {
-        const value = Reflect.get(getAssertionRuntime().assert, key)
+      get(target, key) {
+        // Keep the function prototype attached to the admitted dispatcher.
+        if (key === 'prototype') {
+          getAssertionRuntimeForAssertions()
+          return Reflect.get(target, key)
+        }
+        const value = Reflect.get(
+          getAssertionRuntimeForAssertions().assert,
+          key
+        )
         return typeof value === 'function'
           ? (...args: unknown[]) =>
-              Reflect.apply(
-                Reflect.get(getAssertionRuntime().assert, key),
-                undefined,
-                args
+              getAssertionRuntimeForAssertions().callChaiAssert(
+                key,
+                args,
+                getChaiNamespacePrototype(chai)
               )
           : value
       },
@@ -345,3 +423,28 @@ export const assert: ReturnType<typeof getAssertionRuntime>['assert'] =
   )
 
 export type { TestError } from '../../compiled/next-test-primitives'
+
+export type {
+  MockContext,
+  MockResult,
+  MockResultIncomplete,
+  MockResultReturn,
+  MockResultThrow,
+  MockSettledResult,
+  MockSettledResultFulfilled,
+  MockSettledResultIncomplete,
+  MockSettledResultRejected,
+  Mocked,
+  MockedClass,
+  MockedFunction,
+  MockedObject,
+} from '../../compiled/next-test-primitives'
+
+export const chai = createChaiNamespace(assert, should)
+
+// Public custom-matcher result aliases from the pinned matcher primitives.
+export type {
+  AsyncExpectationResult as AsyncMatcherResult,
+  ExpectationResult as MatcherResult,
+  SyncExpectationResult as SyncMatcherResult,
+} from '../../compiled/next-test-primitives'

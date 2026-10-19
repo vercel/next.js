@@ -1,10 +1,34 @@
 import browserslist from 'next/dist/compiled/browserslist'
+import {
+  assertTestingDefaultConfiguration,
+  assertTestingDefaultConfigurationEnvironment,
+  type TestingDefaultConfiguration,
+} from '../server/config-testing-policy'
 import { MODERN_BROWSERSLIST_TARGET } from '../shared/lib/constants'
 
 export function getSupportedBrowsers(
   dir: string,
-  isDevelopment: boolean
+  isDevelopment: boolean,
+  testingDefaultConfiguration?: TestingDefaultConfiguration
 ): string[] {
+  assertTestingDefaultConfiguration(testingDefaultConfiguration)
+  if (testingDefaultConfiguration !== undefined) {
+    assertTestingDefaultConfigurationEnvironment(testingDefaultConfiguration)
+    if (isDevelopment) {
+      throw new Error(
+        'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: only production browser targets are available'
+      )
+    }
+    // loadConfig reads configuration data; resolving that data can load packages.
+    const selected = browserslist.loadConfig({ path: dir, env: 'production' })
+    if (selected !== undefined) {
+      throw new Error(
+        'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: project Browserslist selection is unavailable'
+      )
+    }
+    // Do not resolve undefined: that would permit a later project config rescan.
+    return MODERN_BROWSERSLIST_TARGET
+  }
   let browsers: any
   try {
     const browsersListConfig = browserslist.loadConfig({

@@ -1,0 +1,29 @@
+import { recordArtifact, vi, type TestArtifactBase, type TestArtifact, type TestArtifactRegistry, type TestAttachment, type TestAnnotationArtifact, type BrowserTraceArtifact, type FailureScreenshotArtifact, type VisualRegressionArtifact } from 'vitest'
+interface CustomArtifact extends TestArtifactBase { type: 'probe:typed'; value: number }
+declare module 'vitest' { interface TestArtifactRegistry { probe: CustomArtifact } }
+declare const task: Parameters<typeof recordArtifact>[0]
+const input = { type: 'probe:typed' as const, value: 7, extra: 'retained' as const }
+const promise = recordArtifact(task, input)
+type Equal<A,B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
+type Assert<T extends true> = T
+type ReturnExact = Assert<Equal<typeof promise, Promise<typeof input>>>
+const union: TestArtifact = input
+const registered: TestArtifactRegistry['probe'] = input
+recordArtifact(task, { type: 'internal:annotation', annotation: { message: 'notice', type: 'notice' } })
+// @ts-expect-error custom type requires the registered value field
+recordArtifact(task, { type: 'probe:typed' })
+// @ts-expect-error artifacts use a registered or builtin discriminant
+recordArtifact(task, { type: 'probe:unregistered' })
+// @ts-expect-error attachments accept text or bytes, never a number
+recordArtifact(task, { type: 'probe:typed', value: 1, attachments: [{ body: 7 }] })
+// @ts-expect-error the API is a named export, not a vi method
+vi.recordArtifact(task, input)
+export type Cases = ReturnExact
+export const observations = [promise, union, registered]
+
+const empty: TestAttachment = { body: undefined }
+const screenshot: FailureScreenshotArtifact = { type: 'internal:failureScreenshot', attachments: [{ path: 'output.png', originalPath: 'source.png', body: undefined }] }
+const trace: BrowserTraceArtifact = { type: 'internal:browserTrace', data: { value: 1 } }
+const annotation: TestAnnotationArtifact = { type: 'internal:annotation', annotation: { message: 'note', type: 'notice' } }
+const visual: VisualRegressionArtifact = { type: 'internal:toMatchScreenshot', kind: 'visual-regression', message: 'difference', attachments: [{ name: 'actual', width: 10, height: 10, body: new Uint8Array([1]) }] }
+export const artifactTypes = [empty, screenshot, trace, annotation, visual]

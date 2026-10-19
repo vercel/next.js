@@ -18,6 +18,7 @@ use crate::{
     ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    native_import_coverage::NativeImportCoverageRole,
     references::{
         amd::AmdDefineWithDependenciesCodeGen,
         cjs::{
@@ -117,11 +118,16 @@ impl CodeGeneration {
 pub struct CodeGenerationHoistedStmt {
     pub key: RcStr,
     pub stmt: Stmt,
+    pub(crate) native_import_coverage: Option<NativeImportCoverageRole>,
 }
 
 impl CodeGenerationHoistedStmt {
     pub fn new(key: RcStr, stmt: Stmt) -> Self {
-        CodeGenerationHoistedStmt { key, stmt }
+        CodeGenerationHoistedStmt {
+            key,
+            stmt,
+            native_import_coverage: None,
+        }
     }
 }
 
@@ -231,7 +237,9 @@ impl CodeGen {
             Self::ExportsInfoRef(v) => v.code_generation(trie, ctx).await,
             Self::CjsExportsDropCodeGen(v) => v.code_generation(trie, ctx, module, exports).await,
             Self::IdentReplacement(v) => v.code_generation(trie, ctx).await,
-            Self::ImportMetaBinding(v) => v.code_generation(trie, ctx).await,
+            Self::ImportMetaBinding(v) => {
+                v.code_generation(trie, ctx, scope_hoisting_context).await
+            }
             Self::ImportMetaRef(v) => v.code_generation(trie, ctx).await,
             Self::MemberReplacement(v) => v.code_generation(trie, ctx).await,
             Self::RemovalCodeGen(v) => v.code_generation(trie, ctx).await,

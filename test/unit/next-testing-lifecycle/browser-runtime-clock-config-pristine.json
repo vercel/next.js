@@ -1,0 +1,127 @@
+{
+  "totals": {
+    "numTotalTests": 4,
+    "numPassedTests": 4,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "cases": [
+    {
+      "name": "changes clock defaults and retains a shallow per-call override",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "observes cross-case settings and resets the saved project defaults",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "updates an installed clock only at the next explicit installation",
+      "status": "passed",
+      "failureMessages": []
+    },
+    {
+      "name": "keeps per-call timer options separate from mutable file configuration",
+      "status": "passed",
+      "failureMessages": []
+    }
+  ],
+  "observations": {
+    "set-and-override": {
+      "returnType": "undefined",
+      "fluent": true,
+      "configured": {
+        "now": 2000,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": false
+      },
+      "override": {
+        "now": 3000,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": false
+      },
+      "restored": true
+    },
+    "inherit-and-reset": {
+      "inherited": {
+        "now": 2000,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": false
+      },
+      "returnType": "undefined",
+      "activeAfterReset": {
+        "now": 2000,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": false
+      },
+      "reinstalled": {
+        "now": 1234,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": true
+      },
+      "restored": true
+    },
+    "active-clock": {
+      "before": {
+        "now": 1234,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": true
+      },
+      "returnType": "undefined",
+      "activeAfterSet": {
+        "now": 1234,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": true
+      },
+      "calls": [1239],
+      "advanced": {
+        "now": 1239,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": true
+      },
+      "reinstalled": {
+        "now": 4000,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": false
+      },
+      "restored": true
+    },
+    "config-isolation": {
+      "override": {
+        "now": 6001,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": true,
+        "calls": [6000, 6001],
+        "pending": 1,
+        "error": {
+          "name": "Error",
+          "message": "Aborting after running 2 timers, assuming an infinite loop!"
+        }
+      },
+      "configured": {
+        "now": 5000,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": false
+      },
+      "reset": {
+        "now": 1234,
+        "fake": true,
+        "dateReplaced": true,
+        "timeoutFaked": true
+      },
+      "restored": true
+    }
+  }
+}

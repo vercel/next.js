@@ -1,0 +1,9 @@
+const sourceURL: string = import.meta.url
+if (import.meta.vitest) {
+  const { test, expect, vi } = import.meta.vitest
+  test('optional in-source namespace', () =>
+    expect(vi.mocked(sourceURL)).toBe(sourceURL))
+}
+// @ts-expect-error No unrelated import-meta property is invented by the opt-in.
+import.meta.notARealProperty
+export {}

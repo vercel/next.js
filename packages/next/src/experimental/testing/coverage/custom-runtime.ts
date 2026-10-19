@@ -125,6 +125,10 @@ export function assertCustomCoverageRequest(
     | 'updateSnapshots'
   >
 ) {
+  if (artifact.coverage?.sourceAnalysis)
+    throw new Error(
+      'Compile-only coverage sources cannot enter runtime capture'
+    )
   const request = options.customCoverage
   if (!request) {
     if (options.onCustomCoverage)
@@ -160,6 +164,10 @@ export function assertCustomCoverageCompletion(
   runId: string,
   request: CustomCoverageRequest
 ): asserts value is CustomCoverageCompletion {
+  if (artifact.coverage?.sourceAnalysis)
+    throw new Error(
+      'Compile-only coverage sources cannot enter runtime capture'
+    )
   if (!value || typeof value !== 'object')
     throw new Error('Missing custom coverage completion.')
   const fact = value as CustomCoverageCompletion
@@ -233,6 +241,10 @@ export async function captureCustomCoverageClosure(
   artifact: CompiledTestArtifact,
   entry: ExecuteTestOptions['entry']
 ) {
+  if (artifact.coverage?.sourceAnalysis)
+    throw new Error(
+      'Compile-only coverage sources cannot enter runtime capture'
+    )
   if (!artifact.sourceHash || !/^[a-f0-9]{64}$/.test(artifact.sourceHash))
     throw new Error('Custom coverage requires compiler-issued source identity.')
   const source = await realpath(entry.file)

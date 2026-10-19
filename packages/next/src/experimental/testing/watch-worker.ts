@@ -62,7 +62,9 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       './execution/broker.js'
     )
     broker = createExecutionBrokerClient({
-      allowCoverage: request.isolatedProfile === true,
+      allowCoverage:
+        request.isolatedProfile === true ||
+        (request.watchCoverage === true && !!request.standardCoverageOptions),
       allowCohorts: request.isolatedProfile === true,
       send: (message) =>
         new Promise<void>((sent, failed) => {
@@ -75,6 +77,9 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
     })
     const { runTests } = await import('./orchestrator.js')
     const result = await runTests(request.projectDir, request.projects, {
+      ...(request.compilerTransforms
+        ? { compilerTransforms: request.compilerTransforms }
+        : {}),
       signal: controller.signal,
       collectOnly: request.collectOnly,
       inspect: request.inspect,
@@ -86,8 +91,16 @@ async function run(request: WatchProcessRequest): Promise<WatchProcessResult> {
       maxWorkers: request.maxWorkers,
       coverage: request.coverage,
       standardCoverageOptions: request.standardCoverageOptions,
+      ...(request.standardCoverageOptions
+        ? {
+            coverageSourcePlan: request.coverageSourcePlan,
+            runtimeConfigurationPlan: request.runtimeConfigurationPlan,
+            onCoverageSource: broker.analyzeCoverageSource,
+          }
+        : {}),
       customCoverageRequests: request.customCoverageRequests,
       execute: broker.execute,
+      brokerOwnsBrowser: true,
       ...(request.isolatedProfile === true
         ? { executeCohort: broker.executeCohort }
         : {}),

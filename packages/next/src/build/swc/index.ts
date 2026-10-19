@@ -1,4 +1,16 @@
-import { requireBrowserClientCapability } from './browser-client'
+import {
+  assertTestingDefaultConfigurationEnvironment,
+  type TestingDefaultConfiguration,
+} from '../../server/config-testing-policy'
+import { bindTestSnapshotNoReplaceMethods } from './test-snapshot-no-replace'
+import { bindTestSnapshotDirectoryDeletionMethods } from './test-snapshot-directory-deletion'
+import { withNativeTsConfigRevision } from './test-tsconfig-provenance'
+import { requireImportCoverageCapability } from './test-import-coverage'
+import { requireCompilerAliasCapability } from './test-aliases'
+import {
+  requireBrowserClientCapability,
+  requireBrowserCoverageCapability,
+} from './browser-client'
 import { requireProductionFixtureCapability } from './browser-fixtures'
 import { requireTestRouteCapability } from './test-route'
 import path from 'path'
@@ -199,8 +211,22 @@ export function getBindingsSync(): Binding {
  * This function is `async` as wasm requires an asynchronous import in browsers.
  */
 export async function loadBindings(
-  useWasmBinary: boolean = false
+  useWasmBinary: boolean = false,
+  testingDefaultConfiguration?: TestingDefaultConfiguration
 ): Promise<Binding> {
+  if (testingDefaultConfiguration !== undefined) {
+    assertTestingDefaultConfigurationEnvironment(testingDefaultConfiguration)
+    if (
+      loadedBindings ||
+      pendingBindings ||
+      __INTERNAL_CUSTOM_TURBOPACK_BINDINGS !== undefined ||
+      useWasmBinary !== false
+    ) {
+      throw new Error(
+        'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: existing, custom or Wasm bindings are unavailable'
+      )
+    }
+  }
   if (loadedBindings) {
     return loadedBindings
   }
@@ -229,76 +255,107 @@ export async function loadBindings(
     process.stderr._handle.setBlocking?.(true)
   }
 
-  pendingBindings = new Promise(async (resolve, reject) => {
-    let attempts: any[] = []
-    const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
-    const unsupportedPlatform = triples.some(
-      (triple: any) =>
-        !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
-    )
-    const isWebContainer = process.versions.webcontainer
-    // Normal execution relies on the param `useWasmBinary` flag to load, but
-    // in certain cases where there isn't a native binary we always load wasm fallback first.
-    const shouldLoadWasmFallbackFirst =
-      (!disableWasmFallback && useWasmBinary) ||
-      unsupportedPlatform ||
-      isWebContainer
-
-    if (!unsupportedPlatform && useWasmBinary) {
-      Log.warn(
-        `experimental.useWasmBinary is not an option for supported platform ${PlatformName}/${ArchName} and will be ignored.`
+  const bindingsAttempt: Promise<Binding> = new Promise(
+    async (resolve, reject) => {
+      let attempts: any[] = []
+      const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
+      const unsupportedPlatform = triples.some(
+        (triple: any) =>
+          !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
       )
-    }
+      const isWebContainer = process.versions.webcontainer
+      // Normal execution relies on the param `useWasmBinary` flag to load, but
+      // in certain cases where there isn't a native binary we always load wasm fallback first.
+      const shouldLoadWasmFallbackFirst =
+        (!disableWasmFallback && useWasmBinary) ||
+        unsupportedPlatform ||
+        isWebContainer
 
-    if (shouldLoadWasmFallbackFirst) {
-      lastNativeBindingsLoadErrorCode = 'unsupported_target'
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
-      if (fallbackBindings) {
-        return resolve(fallbackBindings)
+      if (!unsupportedPlatform && useWasmBinary) {
+        Log.warn(
+          `experimental.useWasmBinary is not an option for supported platform ${PlatformName}/${ArchName} and will be ignored.`
+        )
       }
-    }
 
-    // Trickle down loading `fallback` bindings:
-    //
-    // - First, try to load native bindings installed in node_modules.
-    // - If that fails with `ERR_MODULE_NOT_FOUND`, treat it as case of https://github.com/npm/cli/issues/4828
-    // that host system where generated package lock is not matching to the guest system running on, try to manually
-    // download corresponding target triple and load it. This won't be triggered if native bindings are failed to load
-    // with other reasons than `ERR_MODULE_NOT_FOUND`.
-    // - Lastly, falls back to wasm binding where possible.
-    try {
-      return resolve(loadNative())
-    } catch (a) {
       if (
-        Array.isArray(a) &&
-        a.every((m) => m.includes('it was not installed'))
+        testingDefaultConfiguration !== undefined &&
+        shouldLoadWasmFallbackFirst
       ) {
-        let fallbackBindings = await tryLoadNativeWithFallback(attempts)
+        return reject(
+          new Error(
+            'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: Wasm-first binding selection is unavailable'
+          )
+        )
+      }
 
+      if (shouldLoadWasmFallbackFirst) {
+        lastNativeBindingsLoadErrorCode = 'unsupported_target'
+        const fallbackBindings = await tryLoadWasmWithFallback(attempts)
         if (fallbackBindings) {
           return resolve(fallbackBindings)
         }
       }
 
-      attempts = attempts.concat(a)
-    }
+      // Trickle down loading `fallback` bindings:
+      //
+      // - First, try to load native bindings installed in node_modules.
+      // - If that fails with `ERR_MODULE_NOT_FOUND`, treat it as case of https://github.com/npm/cli/issues/4828
+      // that host system where generated package lock is not matching to the guest system running on, try to manually
+      // download corresponding target triple and load it. This won't be triggered if native bindings are failed to load
+      // with other reasons than `ERR_MODULE_NOT_FOUND`.
+      // - Lastly, falls back to wasm binding where possible.
+      try {
+        if (testingDefaultConfiguration !== undefined) {
+          assertTestingDefaultConfigurationEnvironment(
+            testingDefaultConfiguration
+          )
+        }
+        return resolve(loadNative())
+      } catch (a) {
+        if (testingDefaultConfiguration !== undefined) {
+          return reject(
+            new Error(
+              'ERR_NEXT_TEST_DEFAULT_CONFIGURATION: native binding fallback is unavailable'
+            )
+          )
+        }
+        if (
+          Array.isArray(a) &&
+          a.every((m) => m.includes('it was not installed'))
+        ) {
+          let fallbackBindings = await tryLoadNativeWithFallback(attempts)
 
-    // For these platforms we already tried to load wasm and failed, skip reattempt
-    if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
-      if (fallbackBindings) {
-        return resolve(fallbackBindings)
+          if (fallbackBindings) {
+            return resolve(fallbackBindings)
+          }
+        }
+
+        attempts = attempts.concat(a)
       }
-    }
 
-    await logLoadFailure(attempts, true)
-    // Reject the promise to propagate the error (process.exit was removed to allow telemetry flush)
-    reject(
-      new Error(
-        `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+      // For these platforms we already tried to load wasm and failed, skip reattempt
+      if (!shouldLoadWasmFallbackFirst && !disableWasmFallback) {
+        const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+        if (fallbackBindings) {
+          return resolve(fallbackBindings)
+        }
+      }
+
+      await logLoadFailure(attempts, true)
+      // Reject the promise to propagate the error (process.exit was removed to allow telemetry flush)
+      reject(
+        new Error(
+          `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
+        )
       )
-    )
-  })
+    }
+  )
+  // A refusal-only attempt must never publish its policy rejection into the
+  // ordinary shared pending slot or clear a different caller's pending owner.
+  if (testingDefaultConfiguration !== undefined) {
+    return bindingsAttempt
+  }
+  pendingBindings = bindingsAttempt
   loadedBindings = await pendingBindings
   pendingBindings = undefined
   return loadedBindings
@@ -711,6 +768,11 @@ function bindingToApi(
       runtimeEnv = false,
       dependencyPlan = false,
       browserClient = false,
+      browserCoverage = false,
+      sourceCoverage = false,
+      importCoverageRoles = false,
+      tsconfigInputRevision,
+      aliasFinds = [],
       route,
       snapshotSerializers = [],
       cohortFiles = [],
@@ -724,11 +786,47 @@ function bindingToApi(
       runtimeEnv?: boolean
       dependencyPlan?: boolean
       browserClient?: boolean
+      browserCoverage?: boolean
+      sourceCoverage?: boolean
+      importCoverageRoles?: boolean
+      tsconfigInputRevision?: string
+      aliasFinds?: readonly string[]
       route?: string
       snapshotSerializers?: readonly string[]
       cohortFiles?: readonly string[]
     }): Promise<Endpoint> {
+      if (
+        importCoverageRoles &&
+        (environment !== 'node' || browserClient || route !== undefined)
+      )
+        throw new Error(
+          'Native import coverage roles require isolated Node capability version 1'
+        )
+      if (
+        tsconfigInputRevision !== undefined &&
+        (environment !== 'node' || browserClient || route !== undefined)
+      )
+        throw new Error(
+          'Native TypeScript config provenance requires an isolated Node entry'
+        )
+      requireImportCoverageCapability(binding, importCoverageRoles)
+      requireCompilerAliasCapability(binding, aliasFinds.length > 0)
       requireBrowserClientCapability(binding, browserClient)
+      if (browserCoverage && !browserClient)
+        throw new Error(
+          'Browser coverage requires an actual client test entry.'
+        )
+      requireBrowserCoverageCapability(binding, browserCoverage)
+      if (sourceCoverage && (browserClient || environment !== 'node'))
+        throw new Error('Source coverage requires a Node test entry.')
+      if (
+        sourceCoverage &&
+        (typeof binding.projectTestEntrySourceCoverageVersion !== 'function' ||
+          binding.projectTestEntrySourceCoverageVersion() !== 1)
+      )
+        throw new Error(
+          'The installed Turbopack binding does not support source-preserving production coverage.'
+        )
       if (
         dependencyPlan &&
         (typeof binding.projectTestEntryDependenciesVersion !== 'function' ||
@@ -796,6 +894,29 @@ function bindingToApi(
         throw new Error(
           'The installed Turbopack binding does not support shared immutable test cohorts'
         )
+      const compilerArgs: [boolean?, boolean?, boolean?, string[]?, boolean?] =
+        importCoverageRoles
+          ? [
+              dependencyPlan,
+              browserClient,
+              sourceCoverage,
+              [...aliasFinds],
+              true,
+            ]
+          : aliasFinds.length
+            ? ([
+                dependencyPlan,
+                browserClient,
+                sourceCoverage,
+                [...aliasFinds],
+              ] as const)
+            : sourceCoverage
+              ? ([dependencyPlan, false, true] as const)
+              : browserClient
+                ? ([dependencyPlan, true] as const)
+                : dependencyPlan
+                  ? ([true] as const)
+                  : ([] as const)
       return new EndpointImpl(
         await binding.projectTestEntry(
           this._nativeProject,
@@ -807,11 +928,11 @@ function bindingToApi(
           [...cohortFiles],
           runtimeEnv,
           route,
-          ...(browserClient
-            ? ([dependencyPlan, true] as const)
-            : dependencyPlan
-              ? ([true] as const)
-              : ([] as const))
+          ...withNativeTsConfigRevision(
+            binding,
+            compilerArgs,
+            tsconfigInputRevision
+          )
         )
       )
     }
@@ -1537,6 +1658,8 @@ async function loadWasm(importPath = '') {
   // Note wasm binary does not support async intefaces yet, all async
   // interface coereces to sync interfaces.
   let wasmBindings = {
+    ...bindTestSnapshotNoReplaceMethods(undefined),
+    ...bindTestSnapshotDirectoryDeletionMethods(undefined),
     css: {
       lightning: {
         transform: function (_options: any) {
@@ -1781,6 +1904,8 @@ function loadNative(importPath?: string): Binding {
 
   if (bindings) {
     loadedBindings = {
+      ...bindTestSnapshotNoReplaceMethods(bindings),
+      ...bindTestSnapshotDirectoryDeletionMethods(bindings),
       isWasm: false,
       transform(src: string, options: any) {
         const isModule =

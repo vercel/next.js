@@ -18,7 +18,7 @@ export function createClientSourceMapResolver(
       },
     ])
   )
-  function mapLocation(frame: Frame): Frame {
+  function resolveLocation(frame: Frame) {
     // The pinned browser stack parser removes the origin from same-page URLs.
     // Accept only that exact compiler-issued pathname or its absolute URL.
     const base = config.sourceMaps[0]?.url
@@ -53,11 +53,23 @@ export function createClientSourceMapResolver(
         'Browser inline snapshot frame is not bound to the selected source bytes.'
       )
     return {
-      file: config.filePath,
-      line: mapped.line,
-      column: mapped.column + 1,
-      method: mapped.name ?? frame.method,
+      record,
+      source: mapped.source,
+      location: {
+        file: config.filePath,
+        line: mapped.line,
+        column: mapped.column + 1,
+        method: mapped.name ?? frame.method,
+      },
     }
   }
-  return { mapLocation }
+  return {
+    mapLocation(frame: Frame): Frame {
+      return resolveLocation(frame).location
+    },
+    getSourceContent(frame: Frame): string | null {
+      const { record, source } = resolveLocation(frame)
+      return record.consumer.sourceContentFor(source, true)
+    },
+  }
 }

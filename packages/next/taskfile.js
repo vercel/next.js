@@ -115,8 +115,25 @@ export async function ncc_next_test_primitives(task) {
     .target('src/compiled/next-test-primitives')
   await task
     .source('src/bundles/next-test-primitives/browser/index.js')
-    .ncc({ license: 'LICENSE', target: 'es2020' })
-    .target('src/compiled/next-test-primitives/browser')
+    .webpack({
+      name: 'next-test-primitives-browser',
+      config: {
+        mode: 'production',
+        target: ['web', 'es2020'],
+        entry: join(
+          __dirname,
+          'src/bundles/next-test-primitives/browser/index.js'
+        ),
+        output: {
+          path: join(__dirname, 'src/compiled/next-test-primitives/browser'),
+          filename: 'index.js',
+          library: { type: 'commonjs2' },
+        },
+        // The application compiler owns loading; expose a single static module.
+        module: { parser: { javascript: { dynamicImportMode: 'eager' } } },
+        optimization: { splitChunks: false, runtimeChunk: false },
+      },
+    })
   await task
     .source('src/bundles/next-test-primitives/browser/package.json')
     .target('src/compiled/next-test-primitives/browser')

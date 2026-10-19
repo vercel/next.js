@@ -1,11 +1,31 @@
+import {
+  createRuntimeConfigurationPlan,
+  assertRuntimeConfigurationPlan,
+  assertRuntimeConfigurationSelection,
+  prepareRuntimeConfigurationReceipt,
+  assertRuntimeConfigurationReceipts,
+  type RuntimeConfigurationPlan,
+  type RuntimeConfigurationReceipt,
+} from './coverage/runtime-configuration'
+import {
+  createCoverageSourcePlan,
+  assertCoverageSourcePlan,
+  assertCompilerSourceCoverage,
+  type CoverageSourcePlan,
+} from './coverage/source-analysis-plan'
+import { analyzeCompiledCoverageSource } from './coverage/source-analysis'
+import type { BrowserApplicationOwnership } from './execution/broker'
 import type { CustomCoverageRequest } from './coverage/custom-types'
 import { assertCustomCoverageFacts } from './coverage/custom-facts'
 import { fork, execFile } from 'child_process'
-import type { StandardCoverageOptions } from './coverage/types'
+import type {
+  StandardCoverageOptions,
+  CompilerSourceCoverage,
+} from './coverage/types'
 import { promisify } from 'node:util'
 import { randomUUID } from 'crypto'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
-import { join, isAbsolute } from 'path'
+import { join, isAbsolute, resolve as resolvePath } from 'path'
 import type { DiscoveredTestProject } from './discovery'
 import type { TestProfile } from './contracts'
 import type { WatchDirectories } from './incremental/watch-files'
@@ -35,6 +55,10 @@ export type WatchProcessRequest =
   | { operation: 'metadata'; projectDir: string; profiles: TestProfile[] }
   | {
       operation: 'run'
+      compilerTransforms?: Record<
+        string,
+        import('./compiler/transform-broker').CompilerTransformDescriptor
+      >
       collectOnly?: boolean
       inspect?: string
       projectDir: string
@@ -47,9 +71,16 @@ export type WatchProcessRequest =
       maxWorkers?: number
       coverage?: boolean
       standardCoverageOptions?: StandardCoverageOptions
+      /** Issued by an outer parent profile coordinator or this process before fork. */
+      coverageSourcePlan?: CoverageSourcePlan
+      runtimeConfigurationPlan?: RuntimeConfigurationPlan
+      coverageInputs?: readonly string[]
+      includeUnimportedCoverage?: boolean
       customCoverageRequests?: Record<string, CustomCoverageRequest>
       /** One-shot mixed-profile orchestration; never inherit another mode. */
       isolatedProfile?: boolean
+      /** Explicit standard watch generation; parent owns retained facts/publication. */
+      watchCoverage?: boolean
     }
 
 export type WatchProcessResult =
@@ -58,7 +89,11 @@ export type WatchProcessResult =
       plan: import('./incremental/source-selection').SourceSelectionPlan
     }
   | { operation: 'metadata'; directories: WatchDirectories }
-  | { operation: 'run'; result: Awaited<ReturnType<typeof runTests>> }
+  | {
+      operation: 'run'
+      result: Awaited<ReturnType<typeof runTests>>
+      /** Parent-sealed failed compilation; no partial coverage can publish. */ standardCoverageUnavailable?: true
+    }
 
 export type WatchProcessMessage =
   | { type: 'result'; value: WatchProcessResult }
@@ -155,6 +190,8 @@ export async function runWatchProcess(
     writeError?: (text: string) => void
     reporter?: Omit<TestReporterOptions, 'write' | 'projectDir' | 'fileCount'>
     onEvent?: (event: ResultEvent) => void
+    /** Parent-validated actual config module files; never child-provided watch paths. */
+    onRuntimeConfigurationInputs?: (files: readonly string[]) => Promise<void>
     onSnapshotCommitStart?: () => void
     onSnapshotCommitEnd?: () => void
     /** Keep event validation/aggregation but let an outer run render results. */
@@ -176,6 +213,86 @@ export async function runWatchProcess(
     request.operation === 'run'
       ? await import('./execution/broker.js')
       : undefined
+  options.signal.throwIfAborted()
+  const coverageSourcePlan =
+    request.operation === 'run' && request.standardCoverageOptions
+      ? (request.coverageSourcePlan ??
+        (await createCoverageSourcePlan({
+          projectDir: request.projectDir,
+          projects: request.projects,
+          config: request.standardCoverageOptions,
+          inputs: request.coverageInputs,
+          includeUnimported: request.includeUnimportedCoverage,
+          signal: options.signal,
+        })))
+      : undefined
+  if (coverageSourcePlan) {
+    await assertCoverageSourcePlan(coverageSourcePlan, options.signal)
+    if (request.operation !== 'run')
+      throw new Error(
+        'Compiler coverage source analysis requires a run request'
+      )
+    const selectedProjects = request.projects
+    if (
+      coverageSourcePlan.requests.some(
+        (candidate) =>
+          !selectedProjects.some(
+            (project) => project.profile.id === candidate.profile.id
+          )
+      )
+    )
+      throw new Error(
+        'Compiler coverage source analysis has an unselected project profile'
+      )
+    request = { ...request, coverageSourcePlan }
+  }
+  const runtimeConfigurationPlan =
+    request.operation === 'run' && request.standardCoverageOptions
+      ? (request.runtimeConfigurationPlan ??
+        (await createRuntimeConfigurationPlan({
+          projectDir: request.projectDir,
+          projects: request.projects,
+          inputs: request.coverageInputs,
+          signal: options.signal,
+        })))
+      : undefined
+  if (runtimeConfigurationPlan) {
+    await assertRuntimeConfigurationPlan(
+      runtimeConfigurationPlan,
+      options.signal
+    )
+    if (request.operation !== 'run')
+      throw new Error('Runtime configuration requires a run request')
+    assertRuntimeConfigurationSelection(
+      runtimeConfigurationPlan,
+      request.projectDir,
+      request.projects
+    )
+    request = { ...request, runtimeConfigurationPlan }
+  }
+  const browserApplications: BrowserApplicationOwnership[] = []
+  if (request.operation === 'run') {
+    const { loadTestCompilerConfig } = await import(
+      './compiler/watch-options.js'
+    )
+    for (const project of request.projects) {
+      if (
+        project.profile.environment !== 'browser' ||
+        project.profile.browserClient
+      )
+        continue
+      const { dir, config } = await loadTestCompilerConfig(
+        request.projectDir,
+        project.profile
+      )
+      browserApplications.push({
+        profile: project.profile,
+        projectDir: request.projectDir,
+        distDir: resolvePath(dir, config.distDir),
+        lockDistDir: Boolean(config.experimental.lockDistDir),
+      })
+    }
+  }
   options.signal.throwIfAborted()
   let disposeReporter: (() => void) | undefined
   return new Promise<WatchProcessResult>((resolve, reject) => {
@@ -210,6 +327,14 @@ export async function runWatchProcess(
     let ownershipFailed = false
     let forcedCancellation = false
     const artifactDirectories = new Set<string>()
+    const artifactRoots = new Set<string>()
+    const compilerSourceCoverage = new Map<string, CompilerSourceCoverage>()
+    const runtimeConfigurationReceipts = new Map<
+      string,
+      RuntimeConfigurationReceipt
+    >()
+    const claimedRuntimeRevisions = new Set<string>()
+    const claimedSourceRevisions = new Set<string>()
     const allocations = new Set<Promise<void>>()
     const reporter =
       request.operation === 'run'
@@ -248,6 +373,8 @@ export async function runWatchProcess(
           )
         : []
     )
+    const compilationFailures = new Set<string>()
+    const fileOutcomes = new Map<string, string>()
     const collectionRevisions = new Map<string, string>()
     const startedFiles = new Set<string>()
     const endedFiles = new Set<string>()
@@ -257,11 +384,80 @@ export async function runWatchProcess(
     }
     const broker = brokerModule?.createExecutionBrokerHost({
       signal: options.signal,
+      browserProjects:
+        request.operation === 'run' ? request.projects : undefined,
+      browserApplications,
       maxWorkers: request.operation === 'run' ? request.maxWorkers : undefined,
       allowCohorts:
         request.operation === 'run' && request.isolatedProfile === true,
       allowCoverage:
-        request.operation === 'run' && request.isolatedProfile === true,
+        request.operation === 'run' &&
+        (request.isolatedProfile === true ||
+          (request.watchCoverage === true &&
+            !!request.standardCoverageOptions)),
+      ...(runtimeConfigurationPlan
+        ? {
+            onRuntimeConfiguration: async (artifact, signal) => {
+              if (
+                !artifactRoots.has(artifact.rootDir) ||
+                claimedRuntimeRevisions.has(artifact.revision)
+              )
+                throw new Error(
+                  'Runtime config receipt lacks its parent artifact lease'
+                )
+              claimedRuntimeRevisions.add(artifact.revision)
+              const staged = await prepareRuntimeConfigurationReceipt({
+                artifact,
+                plan: runtimeConfigurationPlan,
+                artifactRoot: artifact.rootDir,
+                signal,
+              })
+              await options.onRuntimeConfigurationInputs?.(staged.inputs)
+              return async () => {
+                const receipt = await staged.seal()
+                runtimeConfigurationReceipts.set(
+                  receipt.compiler.entryId,
+                  receipt
+                )
+              }
+            },
+          }
+        : {}),
+      ...(coverageSourcePlan
+        ? {
+            onCoverageSource: async (compiled, signal) => {
+              const selected = coverageSourcePlan.requests.find(
+                (candidate) => candidate.revision === compiled.artifact.revision
+              )
+              if (
+                !selected ||
+                claimedSourceRevisions.has(selected.revision) ||
+                !artifactRoots.has(compiled.artifact.rootDir)
+              )
+                throw new Error(
+                  'Compiler coverage source analysis lacks a parent source/profile/artifact lease'
+                )
+              claimedSourceRevisions.add(selected.revision)
+              const fact = await analyzeCompiledCoverageSource(
+                compiled,
+                {
+                  projectDir: request.projectDir,
+                  artifactRoot: compiled.artifact.rootDir,
+                  profile: selected.profile,
+                  source: selected.source,
+                  revision: selected.revision,
+                  configurationImports: selected.configurationImports,
+                },
+                signal
+              )
+              signal.throwIfAborted()
+              compilerSourceCoverage.set(
+                selected.revision,
+                structuredClone(fact)
+              )
+            },
+          }
+        : {}),
       onSnapshotUpdates:
         request.operation === 'run' && request.updateSnapshots
           ? async (entryId, file, updates, sourceHash) => {
@@ -405,11 +601,23 @@ export async function runWatchProcess(
                 'case-end',
                 'suite-end',
                 'test-annotation',
+                'test-artifact',
                 'snapshot-summary',
               ].includes(event.type)
             )
               throw new Error('Collection process returned execution facts.')
-            if (event.type === 'file-end') endedFiles.add(event.entryId)
+            if (
+              event.type === 'diagnostic' &&
+              event.entryId &&
+              selectedFiles.has(event.entryId) &&
+              event.diagnostic.phase === 'compilation' &&
+              event.diagnostic.severity === 'error'
+            )
+              compilationFailures.add(event.entryId)
+            if (event.type === 'file-end') {
+              endedFiles.add(event.entryId)
+              fileOutcomes.set(event.entryId, event.status)
+            }
             if (event.type === 'run-end') {
               if (runEnd)
                 throw new Error('Watch process sent duplicate run-end events.')
@@ -444,6 +652,7 @@ export async function runWatchProcess(
               )
               artifactDirectories.add(stagingDir)
               artifactDirectories.add(rootDir)
+              artifactRoots.add(rootDir)
               response.allocation = { stagingDir, rootDir }
             } catch (error) {
               response.error =
@@ -528,6 +737,8 @@ export async function runWatchProcess(
         request.operation === 'run'
       ) {
         try {
+          // A child cannot grant itself incomplete-coverage publication rights.
+          delete message.value.standardCoverageUnavailable
           if (request.customCoverageRequests) {
             if (!request.isolatedProfile || message.value.result.unsafeCleanup)
               throw new Error(
@@ -553,18 +764,70 @@ export async function runWatchProcess(
             }
           } else if (message.value.result.customCoverage !== undefined)
             throw new Error('Unsolicited custom coverage facts.')
+          if (
+            message.value.result.compilerSourceCoverage !== undefined ||
+            message.value.result.coverageSourcePlan !== undefined ||
+            message.value.result.runtimeConfigurationReceipts !== undefined ||
+            message.value.result.runtimeConfigurationPlan !== undefined
+          )
+            throw new Error(
+              'Compiler child cannot supply parent declaration facts or source authorization'
+            )
           if (request.standardCoverageOptions) {
             if (message.value.result.unsafeCleanup)
               throw new Error('Standard coverage generation cleanup failed.')
-            const { assertStandardCoverageFacts } = await import(
-              './coverage/report-standard.js'
+            const { validateStandardWatchCoverage } = await import(
+              './coverage/generation-cache.js'
             )
-            await assertStandardCoverageFacts(
-              message.value.result.standardCoverage,
-              request.projectDir,
-              selectedFiles,
-              collectionRevisions
-            )
+            if (options.signal.aborted) {
+              // Superseded compilation may serialize a failed child summary.
+              // An aborted generation publishes no coverage regardless of that status.
+              delete message.value.result.standardCoverage
+            } else {
+              const facts = await validateStandardWatchCoverage({
+                projectDir: request.projectDir,
+                facts: message.value.result.standardCoverage,
+                expected: selectedFiles,
+                revisions: collectionRevisions,
+                status: message.value.result.status,
+                terminalStatus: runEnd?.status,
+                compilationFailures,
+                fileOutcomes,
+                allowCompilationFailure: request.watchCoverage === true,
+              })
+              if (!facts) {
+                delete message.value.result.standardCoverage
+                message.value.standardCoverageUnavailable = true
+              }
+            }
+            if (
+              !options.signal.aborted &&
+              !message.value.standardCoverageUnavailable
+            ) {
+              await assertCompilerSourceCoverage(
+                [...compilerSourceCoverage.values()],
+                coverageSourcePlan!,
+                options.signal
+              )
+              await assertRuntimeConfigurationReceipts({
+                receipts: [...runtimeConfigurationReceipts.values()],
+                facts: message.value.result.standardCoverage!,
+                plan: runtimeConfigurationPlan!,
+                signal: options.signal,
+              })
+              message.value.result.runtimeConfigurationReceipts = [
+                ...runtimeConfigurationReceipts.values(),
+              ].map((receipt) => structuredClone(receipt))
+              message.value.result.runtimeConfigurationPlan = structuredClone(
+                runtimeConfigurationPlan!
+              )
+              message.value.result.compilerSourceCoverage = [
+                ...compilerSourceCoverage.values(),
+              ].map((fact) => structuredClone(fact))
+              message.value.result.coverageSourcePlan = structuredClone(
+                coverageSourcePlan!
+              )
+            }
           } else if (message.value.result.standardCoverage !== undefined) {
             throw new Error(
               'Watch process returned unsolicited standard coverage facts.'
@@ -680,6 +943,17 @@ export async function runWatchProcess(
                 : {}),
               ...(message.value.result.standardCoverage
                 ? { standardCoverage: message.value.result.standardCoverage }
+                : {}),
+              ...(message.value.result.compilerSourceCoverage
+                ? {
+                    compilerSourceCoverage:
+                      message.value.result.compilerSourceCoverage,
+                    coverageSourcePlan: message.value.result.coverageSourcePlan,
+                    runtimeConfigurationReceipts:
+                      message.value.result.runtimeConfigurationReceipts,
+                    runtimeConfigurationPlan:
+                      message.value.result.runtimeConfigurationPlan,
+                  }
                 : {}),
               ...(message.value.result.customCoverage
                 ? { customCoverage: message.value.result.customCoverage }

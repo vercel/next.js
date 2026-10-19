@@ -131,6 +131,39 @@ function validAnnotation(value: unknown): boolean {
   return true
 }
 
+function validArtifact(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const artifact = value as Record<string, unknown>
+  if (typeof artifact.type !== 'string') return false
+  if (
+    !validAnnotation({
+      message: '',
+      type: artifact.type,
+      location: artifact.location,
+    })
+  )
+    return false
+  return (
+    artifact.attachments === undefined ||
+    (Array.isArray(artifact.attachments) &&
+      artifact.attachments.every((attachment) => {
+        // Normalization adds the default encoding to an allowed empty body/path pair.
+        const normalized =
+          attachment &&
+          attachment.body === '' &&
+          attachment.path &&
+          attachment.bodyEncoding === 'base64'
+            ? { ...attachment, bodyEncoding: undefined }
+            : attachment
+        return validAnnotation({
+          message: '',
+          type: artifact.type,
+          attachment: normalized,
+        })
+      }))
+  )
+}
+
 function validDiagnostic(value: unknown): boolean {
   const pending: unknown[] = [value]
   let visited = 0
@@ -436,6 +469,10 @@ export function createMachineReporter(options: {
                     return errors.map((childError) => {
                       // The target uses the bare message when no stack exists.
                       if (!childError.stack) return childError.message
+                      // Helper trimming belongs to human presentation. Vitest's
+                      // JSON reporter retains the complete saved helper stack.
+                      if (childError.stack.includes('__VITEST_HELPER__'))
+                        return childError.stack
                       const message = formatDiagnostic(
                         childError,
                         options.projectDir
@@ -687,6 +724,7 @@ export async function mergeResultReports(
     'output',
     'attachment',
     'test-annotation',
+    'test-artifact',
     'snapshot-summary',
   ])
   for (const name of paths) {
@@ -735,6 +773,7 @@ export async function mergeResultReports(
       if (
         (event.type === 'test-annotation' &&
           !validAnnotation(event.annotation)) ||
+        (event.type === 'test-artifact' && !validArtifact(event.artifact)) ||
         (event.type === 'diagnostic' && !validDiagnostic(event.diagnostic)) ||
         (event.type === 'output' &&
           (typeof event.text !== 'string' ||
@@ -785,6 +824,7 @@ export async function mergeResultReports(
           'case-start',
           'case-end',
           'test-annotation',
+          'test-artifact',
           'suite-end',
           'file-end',
           'snapshot-summary',
@@ -798,6 +838,7 @@ export async function mergeResultReports(
           'case-start',
           'case-end',
           'test-annotation',
+          'test-artifact',
           'suite-end',
           'file-end',
           'snapshot-summary',
@@ -847,11 +888,13 @@ export async function mergeResultReports(
       if (
         event.type === 'case-start' ||
         event.type === 'case-end' ||
-        event.type === 'test-annotation'
+        event.type === 'test-annotation' ||
+        event.type === 'test-artifact'
       ) {
         if (
           typeof event.caseId !== 'string' ||
           (event.type !== 'test-annotation' &&
+            event.type !== 'test-artifact' &&
             typeof event.name !== 'string') ||
           typeof event.attempt?.id !== 'string' ||
           !Number.isSafeInteger(event.attempt.retry) ||
@@ -875,6 +918,10 @@ export async function mergeResultReports(
         )
           throw new Error(
             `Annotation references an inactive attempt in blob: ${name}`
+          )
+        if (event.type === 'test-artifact' && !startedAttempts.has(scope))
+          throw new Error(
+            `Artifact references an unknown attempt in blob: ${name}`
           )
         if (event.type === 'case-end') {
           if (

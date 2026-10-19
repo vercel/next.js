@@ -1,0 +1,2 @@
+import type { Vitest } from 'vitest/node'
+export type ControllerMustNotAppear = Vitest

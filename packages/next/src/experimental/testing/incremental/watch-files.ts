@@ -8,6 +8,8 @@ export interface WatchDirectories {
   outputDirectories: readonly string[]
   /** Files published atomically with owned <file>.<UUID>.tmp siblings. */
   outputFiles?: readonly string[]
+  /** Exact compiler configuration dependencies, including installed helpers. */
+  dependencyFiles?: readonly string[]
   /** Compiler-owned temporary snapshots adjacent to the configured output. */
   artifactDirectories?: readonly {
     parentDirectory: string
@@ -54,6 +56,7 @@ export async function watchTestFiles(
   let directories: string[] = []
   let outputs: string[] = []
   let outputFiles: string[] = []
+  let dependencyFiles = new Set<string>()
   let artifacts: NonNullable<WatchDirectories['artifactDirectories']> = []
   const subscriptions = new Map<string, Subscription>()
   const stopping = new Set<Promise<void>>()
@@ -84,7 +87,10 @@ export async function watchTestFiles(
       directories.some((root) => {
         if (!contains(root, absolute)) return false
         const segments = path.relative(root, absolute).split(path.sep)
-        return segments.includes('node_modules') || segments.includes('.git')
+        return (
+          segments.includes('.git') ||
+          (segments.includes('node_modules') && !dependencyFiles.has(absolute))
+        )
       })
     )
   }
@@ -237,6 +243,9 @@ export async function watchTestFiles(
       directories = nextDirectories
       outputs = nextOutputs
       outputFiles = nextOutputFiles
+      dependencyFiles = new Set(
+        (next.dependencyFiles ?? []).map((file) => path.resolve(file))
+      )
       artifacts = nextArtifacts
       // Acquire replacements before releasing old roots: no subscription gap.
       for (const root of directories) {

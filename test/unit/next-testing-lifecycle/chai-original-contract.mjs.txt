@@ -1,0 +1,105 @@
+// PLAN ONLY: unparsed/unexecuted. Future parent owns the evidence path.
+import nodeAssert from 'node:assert/strict'
+import { appendFileSync } from 'node:fs'
+import * as api from 'vitest'
+import { chai, expect, test } from 'vitest'
+import { chai as helperChai } from './same-api.mjs'
+
+function record(label, value) {
+  appendFileSync(process.env.NEXT_TESTING_CHAI141_EVIDENCE, JSON.stringify({ label, value }) + '\n')
+}
+const calls = () => expect.getState().assertionCalls
+let pluginCalls = 0
+function plugin(c, utils) {
+  pluginCalls++
+  record('plugin-callback', {
+    calls: pluginCalls,
+    argumentIsNamespace: Object.is(c, chai),
+    util: Object.is(utils, chai.util),
+    utilMember: Object.is(c.util, chai.util),
+    Assertion: Object.is(c.Assertion, chai.Assertion),
+    expect: Object.is(c.expect, chai.expect),
+    assert: Object.is(c.assert, chai.assert),
+    should: Object.is(c.should, chai.should),
+    use: Object.is(c.use, chai.use),
+  })
+  utils.addMethod(c.Assertion.prototype, 'chai141Token', function (expected) {
+    this.assert(Object.is(utils.flag(this, 'object'), expected), 'token differs', 'token matches')
+  })
+}
+const firstUse = chai.use(plugin)
+const secondUse = chai.use(plugin)
+record('collection-plugin', { pluginCalls, returnsSame: Object.is(firstUse, secondUse), firstIsNamespace: Object.is(firstUse, chai) })
+
+const matcherState = []
+expect.extend({
+  chai141State(received) {
+    const actual = {
+      currentTestName: this.currentTestName,
+      taskType: this.task?.type ?? null,
+      taskName: this.task?.fullTestName ?? null,
+      assertionCalls: this.assertionCalls,
+      promise: this.promise,
+    }
+    matcherState.push(actual)
+    record('matcher-state-step', actual)
+    return { pass: received === 'ok', message: () => 'state assertion failed' }
+  },
+  async chai141Async(received) {
+    return { pass: await received === 'ok', message: () => 'async assertion failed' }
+  },
+})
+
+test('chai namespace and real plugin share the active worker registry', () => {
+  record('namespace', {
+    exportKeys: Object.keys(chai).sort(),
+    helperIdentity: Object.is(helperChai, chai),
+    namespaceIdentity: Object.is(api.chai, chai),
+    namedAssert: Object.is(api.assert, chai.assert),
+    namedShould: Object.is(api.should, chai.should),
+    expectAssert: Object.is(expect.assert, chai.assert),
+    rawExpectIsWrapper: Object.is(chai.expect, expect),
+    shouldAlias: Object.is(chai.Should, chai.should),
+    pluginCalls,
+    useReturnExpect: Object.is(firstUse.expect, chai.expect),
+    useReturnUtil: Object.is(firstUse.util, chai.util),
+  })
+  nodeAssert.equal(pluginCalls, 1)
+  nodeAssert.equal(helperChai, chai)
+  chai.expect('token').chai141Token('token')
+  expect('token').chai141Token('token')
+})
+
+test('raw Chai counters and matcher task facts are observed rather than injected', async () => {
+  record('counts-before', calls())
+  chai.expect(1).equal(1)
+  record('counts-raw-expect', calls())
+  chai.assert.equal(1, 1)
+  record('counts-raw-assert', calls())
+  new chai.Assertion(1).equal(1)
+  record('counts-constructor', calls())
+  firstUse.expect(1).equal(1)
+  record('counts-use-result', calls())
+  chai.expect('ok').chai141State()
+  record('counts-raw-custom', calls())
+  expect('ok').chai141State()
+  record('counts-wrapper-custom', calls())
+  await chai.expect(Promise.resolve('ok')).resolves.equal('ok')
+  record('counts-raw-resolves', calls())
+  await chai.expect('ok').chai141Async()
+  record('counts-raw-async-custom', calls())
+  await expect(Promise.resolve('ok')).resolves.toBe('ok')
+  record('counts-wrapper-resolves', calls())
+  record('matcher-state', matcherState)
+})
+
+test('throwing plugin registration retains original callback retry behavior', () => {
+  let attempts = 0
+  function throws() { attempts++; throw new Error('chai141 plugin refusal') }
+  const errors = []
+  for (let i = 0; i < 2; i++) {
+    try { chai.use(throws) } catch (error) { errors.push({ name: error.name, message: error.message }) }
+  }
+  record('throwing-plugin', { attempts, errors, counts: calls() })
+  nodeAssert.equal(errors.length, 2)
+})

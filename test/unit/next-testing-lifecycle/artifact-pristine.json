@@ -1,0 +1,87 @@
+{
+  "structured": {
+    "namedType": "function",
+    "viMemberType": "undefined",
+    "immediately": {
+      "locationInjected": true,
+      "byteBody": "AP9B",
+      "encoding": "base64",
+      "taskCount": 0
+    },
+    "returnSame": false,
+    "returnDataSame": false,
+    "storedSame": true,
+    "repeatedReturnSame": false,
+    "storedSecondSame": true,
+    "taskCount": 2,
+    "inputPathUnchanged": true,
+    "outputPathAbsolute": true,
+    "outputPathRetained": true,
+    "localContentType": "text/plain",
+    "attachments": [
+      {
+        "body": "AP9B",
+        "bodyEncoding": "base64"
+      },
+      {
+        "body": "hello",
+        "bodyEncoding": "utf-8",
+        "contentType": "text/plain"
+      },
+      {
+        "contentType": "text/plain",
+        "path": "<retained-file>"
+      },
+      {
+        "path": "https://example.invalid/artifact.txt"
+      }
+    ],
+    "firstLocation": {
+      "file": "artifacts.test.mjs",
+      "line": 20,
+      "column": 19
+    },
+    "firstLocationUnchanged": true,
+    "firstLocationSameInput": false,
+    "assertionCalls": 0
+  },
+  "validation-annotation": {
+    "failures": [
+      {
+        "name": "TypeError",
+        "message": "Test attachment requires \"body\" or \"path\" to be set. Both are missing.",
+        "locationInjected": true
+      },
+      {
+        "name": "TypeError",
+        "message": "Test attachment requires only one of \"body\" or \"path\" to be set. Both are specified.",
+        "locationInjected": true
+      },
+      {
+        "name": "TypeError",
+        "message": "Test attachment with \"path\" should not have \"bodyEncoding\" specified.",
+        "locationInjected": true
+      }
+    ],
+    "returnSame": true,
+    "locationSame": true,
+    "artifactCount": 0,
+    "annotationCount": 0
+  },
+  "prior-task": {
+    "earlierState": "pass",
+    "originalCount": 2,
+    "currentCount": 3,
+    "currentTaskCount": 0,
+    "storedSame": true
+  },
+  "empty-body": {
+    "inputBody": "",
+    "inputPath": "./artifact.txt",
+    "inputEncoding": "base64",
+    "returnedBody": "",
+    "outputPathAbsolute": true,
+    "returnedEncoding": "base64",
+    "storedSame": true
+  }
+}

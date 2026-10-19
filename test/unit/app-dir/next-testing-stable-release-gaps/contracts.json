@@ -1377,5 +1377,231 @@
   {
     "id": "manual-module-last-redirect",
     "surface": "4 compiler manual module redirects"
+  },
+  {
+    "id": "setup-mock-shared-generation",
+    "surface": "4 mocks",
+    "vitest": {
+      "setupFiles": ["./nested/first.mjs", "./nested/deeper/second.mjs"],
+      "sequence": {
+        "setupFiles": "list"
+      }
+    },
+    "nextProject": {
+      "setupFiles": ["./nested/first.mjs", "./nested/deeper/second.mjs"],
+      "sequence": {
+        "setupFiles": "list"
+      }
+    }
+  },
+  {
+    "id": "setup-mock-replacement-generations",
+    "surface": "4 mocks",
+    "vitest": {
+      "setupFiles": ["./nested/first.mjs", "./nested/deeper/second.mjs"],
+      "sequence": {
+        "setupFiles": "list"
+      }
+    },
+    "nextProject": {
+      "setupFiles": ["./nested/first.mjs", "./nested/deeper/second.mjs"],
+      "sequence": {
+        "setupFiles": "list"
+      }
+    }
+  },
+  {
+    "id": "setup-mock-parallel-inputs",
+    "surface": "4 mocks",
+    "vitest": {
+      "setupFiles": ["./nested/first.mjs", "./nested/deeper/second.mjs"],
+      "sequence": {
+        "setupFiles": "parallel"
+      }
+    },
+    "nextProject": {
+      "setupFiles": ["./nested/first.mjs", "./nested/deeper/second.mjs"],
+      "sequence": {
+        "setupFiles": "parallel"
+      }
+    }
+  },
+  {
+    "id": "browser-async-adoption",
+    "surface": "6 compiler browser async contexts",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "browser-async-mapped-failure",
+    "surface": "6 compiler browser async contexts",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    },
+    "expectedCode": 1,
+    "diagnosticIncludes": ["browser async mapped failure"],
+    "mappedFailure": {
+      "file": "contract.case.mjs",
+      "line": 9
+    }
+  },
+  {
+    "id": "browser-async-return-order",
+    "surface": "6 compiler browser async contexts",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "cycle-mock-actual-async-bindings",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "cycle-mock-full-laziness",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "cycle-mock-direct-original-own-await",
+    "surface": "4 mocks"
+  },
+  {
+    "id": "compiler-plugin-helper-closure",
+    "surface": "7 compiler transform migration",
+    "fixtureConfigFile": "vitest.config.mjs"
+  },
+  {
+    "id": "compiler-plugin-mapped-failure",
+    "surface": "7 compiler transform migration",
+    "fixtureConfigFile": "vitest.config.mjs",
+    "expectedCode": 1,
+    "diagnosticIncludes": ["mapped plugin subject failure"],
+    "mappedFailure": {
+      "file": "subject.mjs",
+      "line": 4
+    }
+  },
+  {
+    "id": "browser-suite-hooks",
+    "surface": "6 Browser Mode lifecycle",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "browser-suite-hook-failure",
+    "surface": "6 Browser Mode lifecycle",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    },
+    "expectedCode": 1,
+    "diagnosticIncludes": ["browser suite setup failure"]
+  },
+  {
+    "id": "suite-setup-failure",
+    "surface": "2 failed suite setup",
+    "expectedCode": 1,
+    "diagnosticIncludes": ["browser suite setup failure"]
+  },
+  {
+    "id": "browser-suite-teardown-failure",
+    "surface": "6 Browser Mode lifecycle",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    },
+    "expectedCode": 1,
+    "diagnosticIncludes": ["browser suite teardown failure"]
+  },
+  {
+    "id": "browser-around-setup-failure",
+    "surface": "6 Browser Mode lifecycle",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    },
+    "expectedCode": 1,
+    "diagnosticIncludes": ["browser around setup failure"]
+  },
+  {
+    "id": "browser-async-collection-hooks",
+    "surface": "6 Browser Mode lifecycle",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "compiler-alias-native",
+    "surface": "7 compiler alias migration",
+    "fixtureConfigFile": "vitest.config.mjs"
+  },
+  {
+    "id": "compiler-alias-ordered-native",
+    "surface": "7 compiler alias migration",
+    "fixtureConfigFile": "vitest.config.mjs"
+  },
+  {
+    "id": "browser-serial-file-lifecycle",
+    "surface": "6 Browser Mode serial file lifecycle",
+    "browser": true,
+    "vitest": {
+      "testNamePattern": "^(?!filtered$)"
+    },
+    "nextProject": {
+      "environment": "browser",
+      "testNamePattern": "^(?!filtered$)"
+    }
+  },
+  {
+    "id": "browser-serial-suite-failure",
+    "surface": "6 Browser Mode serial file lifecycle",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    },
+    "expectedCode": 1,
+    "diagnosticIncludes": ["browser serial suite setup failure"]
+  },
+  {
+    "id": "browser-regexp-filter",
+    "surface": "6 Browser Mode RegExp source and flags",
+    "browser": true,
+    "testNamePatternRegExp": {
+      "source": "^group > keep$",
+      "flags": "i"
+    },
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "browser-await-proxy-observability",
+    "surface": "6 Browser Mode async semantics",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "browser-await-brand-startup-capability",
+    "surface": "6 Browser Mode engine Promise startup capability",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
+  },
+  {
+    "id": "browser-promise-await-observability",
+    "surface": "6 Browser Mode genuine Promise await semantics",
+    "browser": true,
+    "nextProject": {
+      "environment": "browser"
+    }
   }
 ]

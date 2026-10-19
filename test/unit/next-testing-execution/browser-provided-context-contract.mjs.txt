@@ -1,0 +1,38 @@
+import { afterAll, beforeAll, expect, inject, test } from 'vitest'
+
+function record(name, raw) {
+  console.log('BROWSER_PROVIDED_RAW ' + JSON.stringify({ name, raw }))
+}
+const collectionData = inject('data')
+let hookData, heldInject
+record('collection', { answer:inject('answer'), label:inject('label'), enabled:inject('enabled'), empty:inject('empty'), missingUndefined:inject('missing')===undefined, count:collectionData.count })
+beforeAll(() => {
+  hookData=inject('data')
+  record('beforeAll', { sameObject:hookData===collectionData, count:hookData.count })
+})
+afterAll(() => {
+  record('afterAll', { sameObject:inject('data')===collectionData, count:inject('data').count, heldSameObject:heldInject('data')===collectionData })
+})
+
+test('named injection shares the file provided values', () => {
+  heldInject=inject
+  const value=inject('data')
+  record('first', { answer:inject('answer'), sameObject:value===collectionData, sameHookObject:value===hookData, list:value.list, missingUndefined:inject('missing')===undefined })
+  expect(value).toBe(collectionData)
+  expect(inject('answer')).toBe(42)
+  value.count++
+})
+
+test('held injection observes mutations in the same open file', () => {
+  const value=heldInject('data')
+  record('second', { count:value.count, sameObject:value===inject('data'), missingUndefined:heldInject('missing')===undefined })
+  expect(value.count).toBe(2)
+  expect(value).toBe(collectionData)
+})
+
+test('an extracted named injector ignores its receiver', () => {
+  const read=inject
+  const value=read.call({unrelated:true},'data')
+  record('extracted', { count:value.count, sameObject:value===collectionData, answer:read('answer') })
+  expect(value).toBe(collectionData)
+})

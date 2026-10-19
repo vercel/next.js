@@ -1,3 +1,4 @@
+import { requestCompilerTransform } from 'next/dist/experimental/testing/compiler/transform-broker'
 import { createHash } from 'crypto'
 import { getDefineEnv } from 'next/dist/build/define-env'
 import { usesInSourceTestMarker } from 'next/dist/experimental/testing/in-source'
@@ -36,6 +37,7 @@ import path from 'path'
 import {
   parseTestConfig,
   loadTestConfig,
+  openTestConfiguration,
   normalizeTestConfig,
   applyTestConfigOverrides,
 } from 'next/dist/experimental/testing/config'
@@ -593,6 +595,432 @@ describe('Next-owned test discovery and configuration', () => {
     )
   }, 30000)
 
+  it('diagnoses function-valued compiler plugins in their configuration realm', async () => {
+    const file = path.join(directory, 'vitest.config.mjs')
+    await writeFile(
+      file,
+      `export default {
+        plugins: [{ name: 'application-transform', transform(code) { return code } }],
+        test: { include: ['*.case.mjs'] }
+      }`
+    )
+    await expect(loadTestConfig(directory)).rejects.toThrow(
+      'Unsupported setting config.plugins (application-transform). Configure equivalent application transforms through next.config compiler rules'
+    )
+  })
+
+  it('retains transform closures, imported helper provenance and fresh configuration generations', async () => {
+    const file = path.join(directory, 'vitest.config.mjs')
+    const helper = path.join(directory, 'transform-value.mjs')
+    await writeFile(
+      file,
+      `import {value} from './transform-value.mjs';export default {plugins:[{name:'captured',async transform(code) {return code.replace('value = 1', 'value = '+value)}}],test:{include:['*.case.mjs']}}`
+    )
+    let previousRevision: string | undefined
+    for (const value of [2, 3]) {
+      await writeFile(helper, `export const value = ${value}`)
+      const session = await openTestConfiguration(directory)
+      const descriptors = session.compilerTransforms(session.config.projects)
+      const descriptor = descriptors[session.config.projects[0].profile.id]
+      try {
+        expect(descriptor.revision).not.toBe(previousRevision)
+        previousRevision = descriptor.revision
+        const output = await requestCompilerTransform(descriptor, {
+          file: path.join(directory, 'subject.mjs'),
+          query: '',
+          moduleType: 'js',
+          code: 'export const value = 1',
+        })
+        expect(output.code).toBe(`export const value = ${value}`)
+        expect(output.dependencies).toContain(await realpath(helper))
+        expect(session.watchInputs).toContain(await realpath(helper))
+      } finally {
+        await session.dispose()
+      }
+      await expect(
+        requestCompilerTransform(descriptor, {
+          file: path.join(directory, 'subject.mjs'),
+          query: '',
+          moduleType: 'js',
+          code: 'export const value = 1',
+        })
+      ).rejects.toThrow()
+    }
+  }, 30000)
+
+  it('retains the exact root transform owner across watch generations until direct config bytes change', async () => {
+    const file = path.join(directory, 'vitest.config.mjs')
+    const helper = path.join(directory, 'watch-helper.mjs')
+    const source =
+      "import {value} from './watch-helper.mjs';export default {plugins:[{name:'watch-owner',transform(code){return code.replace('value = 1','value = '+value)}}],test:{include:['*.case.mjs']}}"
+    await writeFile(file, source)
+    await writeFile(helper, 'export const value = 3')
+    const generation = new AbortController()
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory, generation.signal)
+    const descriptor = owner.compilerTransforms(owner.config.projects)[
+      owner.config.projects[0].profile.id
+    ]
+    const input = {
+      file: path.join(directory, 'subject.mjs'),
+      query: '',
+      moduleType: 'js',
+      code: 'export const value = 1',
+    }
+    try {
+      expect(
+        await owner.retainCompilerTransformsForWatch(lifetime.signal)
+      ).toBe(true)
+      const selected = structuredClone(owner.config.projects)
+      await owner.setup(selected)
+      selected[0].provide = { mutated: true }
+      const rerun = structuredClone(owner.config.projects)
+      await owner.setup(rerun)
+      expect(rerun[0].provide).toEqual({})
+      generation.abort(new Error('old generation closed'))
+      await writeFile(helper, 'export const value = 4')
+      expect(
+        await owner.retainCompilerTransformsForWatch(lifetime.signal)
+      ).toBe(true)
+      expect((await requestCompilerTransform(descriptor, input)).code).toBe(
+        'export const value = 3'
+      )
+      expect(
+        owner.compilerTransforms(owner.config.projects)[
+          owner.config.projects[0].profile.id
+        ]
+      ).toEqual(descriptor)
+      await writeFile(file, source + '\n// restart exact configuration owner\n')
+      expect(
+        await owner.retainCompilerTransformsForWatch(lifetime.signal)
+      ).toBe(false)
+      await owner.dispose()
+      const fresh = await openTestConfiguration(directory)
+      try {
+        const next = fresh.compilerTransforms(fresh.config.projects)[
+          fresh.config.projects[0].profile.id
+        ]
+        expect(next.revision).not.toBe(descriptor.revision)
+        expect((await requestCompilerTransform(next, input)).code).toBe(
+          'export const value = 4'
+        )
+      } finally {
+        await fresh.dispose()
+      }
+      await expect(
+        requestCompilerTransform(descriptor, input)
+      ).rejects.toThrow()
+    } finally {
+      await owner.dispose()
+    }
+  }, 30000)
+
+  it('revokes the watch transform owner on cancellation without silently reconstructing its closure', async () => {
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      "export default {plugins:[{name:'cancel-owner',transform(code){return code}}],test:{include:['*.case.mjs']}}"
+    )
+    const lifetime = new AbortController()
+    const owner = await openTestConfiguration(directory)
+    expect(await owner.retainCompilerTransformsForWatch(lifetime.signal)).toBe(
+      true
+    )
+    lifetime.abort(new Error('watch owner cancelled'))
+    await owner.dispose()
+    await expect(
+      owner.retainCompilerTransformsForWatch(new AbortController().signal)
+    ).rejects.toThrow('retained compiler configuration realm is unavailable')
+  }, 30000)
+
+  it('does not retain a transform realm across direct config selection or global setup ownership changes', async () => {
+    const source =
+      "export default {plugins:[{name:'watch-owner',transform(code){return code}}],test:{include:['*.case.mjs']}}"
+    await writeFile(path.join(directory, 'vitest.config.mjs'), source)
+    const owner = await openTestConfiguration(directory)
+    try {
+      expect(
+        await owner.retainCompilerTransformsForWatch(
+          new AbortController().signal
+        )
+      ).toBe(true)
+      await writeFile(path.join(directory, 'next.test.config.mjs'), source)
+      expect(
+        await owner.retainCompilerTransformsForWatch(
+          new AbortController().signal
+        )
+      ).toBe(false)
+    } finally {
+      await owner.dispose()
+    }
+    await writeFile(
+      path.join(directory, 'next.test.config.mjs'),
+      source.replace(
+        "include:['*.case.mjs']",
+        "include:['*.case.mjs'],globalSetup:['./setup.mjs']"
+      )
+    )
+    const setupOwner = await openTestConfiguration(directory)
+    try {
+      expect(
+        await setupOwner.retainCompilerTransformsForWatch(
+          new AbortController().signal
+        )
+      ).toBe(false)
+    } finally {
+      await setupOwner.dispose()
+    }
+  }, 30000)
+
+  it.each(['module', 'commonjs'])(
+    'tracks transitive %s package closure imports as compiler/watch inputs',
+    async (format) => {
+      const packageDir = path.join(directory, 'node_modules/transform-package')
+      await mkdir(path.join(packageDir, 'internal'), { recursive: true })
+      await writeFile(
+        path.join(packageDir, 'package.json'),
+        JSON.stringify({
+          name: 'transform-package',
+          type: format,
+          main: './index.js',
+        })
+      )
+      const helper = path.join(packageDir, 'internal/helper.js')
+      await writeFile(
+        helper,
+        format === 'module' ? 'export const value = 4' : 'exports.value = 4'
+      )
+      await writeFile(
+        path.join(packageDir, 'index.js'),
+        format === 'module'
+          ? `export {value} from './internal/helper.js'`
+          : `module.exports=require('./internal/helper.js')`
+      )
+      const file = path.join(
+        directory,
+        format === 'module' ? 'vitest.config.mjs' : 'vitest.config.cjs'
+      )
+      await writeFile(
+        file,
+        (format === 'module'
+          ? `import {value} from 'transform-package';export default `
+          : `const {value}=require('transform-package');module.exports=`) +
+          `{plugins:[{name:'package-closure',transform(code){return code.replace('1',String(value))}}],test:{include:['*.case.mjs']}}`
+      )
+      const session = await openTestConfiguration(directory)
+      try {
+        const descriptor = session.compilerTransforms(session.config.projects)[
+          session.config.projects[0].profile.id
+        ]
+        const result = await requestCompilerTransform(descriptor, {
+          file: path.join(directory, 'subject.mjs'),
+          query: '',
+          moduleType: 'js',
+          code: 'export const value = 1',
+        })
+        expect(result.code).toBe('export const value = 4')
+        expect(result.dependencies).toContain(await realpath(helper))
+        expect(session.watchInputs).toContain(await realpath(helper))
+      } finally {
+        await session.dispose()
+      }
+    },
+    30000
+  )
+
+  it('selects each project configuration closure even when plugin names coincide', async () => {
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `export default {test:{projects:['./vitest.first.config.mjs','./vitest.second.config.mjs']}}`
+    )
+    for (const [name, value] of [
+      ['first', 2],
+      ['second', 3],
+    ])
+      await writeFile(
+        path.join(directory, `vitest.${name}.config.mjs`),
+        `const value=${value};export default {plugins:[{name:'shared-name',transform(code){return code.replace('1',String(value))}}],test:{name:'${name}',include:['*.case.mjs']}}`
+      )
+    const session = await openTestConfiguration(directory)
+    try {
+      const descriptors = session.compilerTransforms(session.config.projects)
+      const results = []
+      for (const project of session.config.projects) {
+        const descriptor = descriptors[project.profile.id]
+        results.push(
+          await requestCompilerTransform(descriptor, {
+            file: path.join(directory, 'subject.mjs'),
+            query: '',
+            moduleType: 'js',
+            code: 'export const value = 1',
+          })
+        )
+      }
+      expect(results.map((result) => result.code)).toEqual([
+        'export const value = 2',
+        'export const value = 3',
+      ])
+      expect(Object.values(descriptors)[0].realm).not.toBe(
+        Object.values(descriptors)[1].realm
+      )
+    } finally {
+      await session.dispose()
+    }
+  }, 30000)
+
+  it('diagnoses unimplemented root-to-external plugin inheritance without dropping a hook', async () => {
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      `export default {plugins:[{name:'root-hook',transform(code){return code}}],test:{projects:['./vitest.child.config.mjs']}}`
+    )
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      `export default {test:{name:'child',include:['*.case.mjs']}}`
+    )
+    await expect(openTestConfiguration(directory)).rejects.toThrow(
+      'Root transform plugins cannot yet be inherited'
+    )
+  }, 30000)
+
+  it.each([false, true])(
+    'validates canonical shared Next ownership after evaluating external project roots (glob=%s)',
+    async (glob) => {
+      await mkdir(path.join(directory, 'projects'))
+      for (const name of ['first', 'second'])
+        await writeFile(
+          path.join(directory, 'projects', 'vitest.' + name + '.config.mjs'),
+          "import {fileURLToPath} from 'node:url';export default async () => ({root:fileURLToPath(new URL('..',import.meta.url)),test:{name:'" +
+            name +
+            "',include:['" +
+            name +
+            ".case.mjs'],provide:{owner:'" +
+            name +
+            "'}}})"
+        )
+      await writeFile(
+        path.join(directory, 'vitest.config.mjs'),
+        'export default ' +
+          JSON.stringify({
+            test: {
+              projects: glob
+                ? ['./projects/vitest.*.config.mjs']
+                : [
+                    './projects/vitest.first.config.mjs',
+                    './projects/vitest.second.config.mjs',
+                  ],
+            },
+          })
+      )
+      const session = await openTestConfiguration(directory)
+      try {
+        expect(
+          session.config.projects.map((project) => ({
+            name: project.profile.id,
+            include: project.include,
+            provide: project.provide,
+          }))
+        ).toEqual([
+          {
+            name: 'first',
+            include: ['first.case.mjs'],
+            provide: { owner: 'first' },
+          },
+          {
+            name: 'second',
+            include: ['second.case.mjs'],
+            provide: { owner: 'second' },
+          },
+        ])
+      } finally {
+        await session.dispose()
+      }
+    },
+    30000
+  )
+
+  it('rejects a project root outside the invoking Next application after realm evaluation', async () => {
+    await mkdir(path.join(directory, 'foreign'))
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      "export default {root:'./foreign',test:{name:'child'}}"
+    )
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      "export default {test:{projects:['./vitest.child.config.mjs']}}"
+    )
+    await expect(openTestConfiguration(directory)).rejects.toThrow(
+      'Next application compilation is owned by'
+    )
+  }, 30000)
+
+  it('rejects executable root values before project configuration IPC cloning', async () => {
+    await writeFile(
+      path.join(directory, 'vitest.child.config.mjs'),
+      "export default {root(){return '.'},test:{name:'child'}}"
+    )
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      "export default {test:{projects:['./vitest.child.config.mjs']}}"
+    )
+    await expect(openTestConfiguration(directory)).rejects.toThrow(
+      'Project configuration root must be a string'
+    )
+  }, 30000)
+
+  it('retains the explicit mapping diagnostic for root compiler overrides outside an owned project config', async () => {
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      "export default {root:'.',test:{include:['*.case.mjs']}}"
+    )
+    await expect(openTestConfiguration(directory)).rejects.toThrow(
+      'Unsupported setting config.root'
+    )
+  }, 30000)
+
+  it('transports native aliases as private project data and retains actual config helper watch inputs', async () => {
+    const helper = path.join(directory, 'alias-helper.mjs')
+    await writeFile(
+      helper,
+      "import {fileURLToPath} from 'node:url';export const target=fileURLToPath(new URL('./subject.mjs',import.meta.url))"
+    )
+    await writeFile(
+      path.join(directory, 'subject.mjs'),
+      'export const value=42'
+    )
+    await writeFile(
+      path.join(directory, 'vitest.config.mjs'),
+      "import {target} from './alias-helper.mjs';export default {resolve:{alias:{'@subject':target}},test:{include:['*.case.mjs']}}"
+    )
+    const session = await openTestConfiguration(directory)
+    try {
+      expect(session.config.projects[0].compilerAliases).toMatchObject({
+        version: 1,
+        entries: [
+          {
+            find: '@subject',
+            replacement: path.join(await realpath(directory), 'subject.mjs'),
+          },
+        ],
+      })
+      expect(session.watchInputs).toContain(await realpath(helper))
+      expect(session.compilerTransformNames).toEqual([])
+    } finally {
+      await session.dispose()
+    }
+    expect(
+      (await loadTestConfig(directory)).projects[0].compilerAliases?.entries
+    ).toHaveLength(1)
+    expect(() =>
+      parseTestConfig({
+        projects: [
+          {
+            name: 'spoof',
+            compilerAliases: { version: 1, entries: [], inputs: [] },
+          },
+        ],
+      })
+    ).toThrow('projects[0].compilerAliases')
+  }, 30000)
+
   it('retains configuration services until the owning session closes', async () => {
     const file = path.join(directory, 'next.test.config.mjs')
     await writeFile(
@@ -1067,13 +1495,19 @@ describe('Next-owned test discovery and configuration', () => {
   })
 
   it('rejects coverage combinations before loading configuration', async () => {
-    for (const options of [{ watch: true }, { list: true }]) {
+    for (const [options, message] of [
+      [
+        { watch: true },
+        'Watch coverage requires explicit standard coverage options',
+      ],
+      [{ list: true }, '--coverage cannot be combined with --list'],
+    ] as const) {
       await expect(
         nextTestRunner(path.join(directory, 'missing'), {
           ...options,
           coverage: true,
         })
-      ).rejects.toThrow('--coverage requires a one-shot')
+      ).rejects.toThrow(message)
     }
     await expect(
       nextTestRunner(path.join(directory, 'missing'), {
@@ -1225,14 +1659,21 @@ describe('Next-owned test discovery and configuration', () => {
     expect(inventory.features.browserComponents).toMatchObject({
       supported: true,
       mode: 'development',
+      modes: ['development', 'production'],
       browser: 'chromium',
     })
     expect(inventory.features.coverage).toMatchObject({
       supported: true,
       mode: 'development',
       environment: 'node',
-      execution: 'opt-in one-shot',
-      reports: ['json', 'text'],
+      execution:
+        'opt-in one-shot; explicit standard flags also support development watch',
+      profiles: [
+        'development Node',
+        'production Node',
+        'development Chromium client',
+      ],
+      reports: ['json', 'text', 'lcov'],
     })
     expect(inventory.features.coverage.metric).toContain(
       'non-whitespace mapped generated spans'
@@ -1477,6 +1918,22 @@ describe('Next test orchestration', () => {
     })
     const session = {
       compile,
+      compileCoverageSource: jest.fn(),
+      compileRuntimeWithNativeTsConfigInputs: jest.fn(async () => {
+        throw new Error(
+          'Private native compilation is not supplied by this mock'
+        )
+      }),
+      compileCoverageSourceWithNativeTsConfigInputs: jest.fn(async () => {
+        throw new Error(
+          'Private native compilation is not supplied by this mock'
+        )
+      }),
+      prepareNativeTsConfigInputs: jest.fn(async () => {
+        throw new Error(
+          'Private native compilation is not supplied by this mock'
+        )
+      }),
       dispose,
       shutdownCompilation,
       compileCohort: jest.fn(),
@@ -1584,6 +2041,22 @@ describe('Next test orchestration', () => {
     )
     createSession.mockResolvedValue({
       compile,
+      compileCoverageSource: jest.fn(),
+      compileRuntimeWithNativeTsConfigInputs: jest.fn(async () => {
+        throw new Error(
+          'Private native compilation is not supplied by this mock'
+        )
+      }),
+      compileCoverageSourceWithNativeTsConfigInputs: jest.fn(async () => {
+        throw new Error(
+          'Private native compilation is not supplied by this mock'
+        )
+      }),
+      prepareNativeTsConfigInputs: jest.fn(async () => {
+        throw new Error(
+          'Private native compilation is not supplied by this mock'
+        )
+      }),
       compileCohort,
       dispose,
       shutdownCompilation,
@@ -1648,6 +2121,22 @@ describe('Next test orchestration', () => {
     const order: string[] = []
     createSession.mockResolvedValue({
       compile,
+      compileCoverageSource: jest.fn(),
+      compileRuntimeWithNativeTsConfigInputs: jest.fn(async () => {
+        throw new Error(
+          'Private native compilation is not supplied by this mock'
+        )
+      }),
+      compileCoverageSourceWithNativeTsConfigInputs: jest.fn(async () => {
+        throw new Error(
+          'Private native compilation is not supplied by this mock'
+        )
+      }),
+      prepareNativeTsConfigInputs: jest.fn(async () => {
+        throw new Error(
+          'Private native compilation is not supplied by this mock'
+        )
+      }),
       compileCohort: jest.fn(async () => cohort),
       dispose,
       shutdownCompilation,
@@ -2239,7 +2728,7 @@ describe('Next test orchestration', () => {
       expect(first).toMatchObject({
         operation: 'metadata',
         directories: {
-          outputDirectories: [path.join(directory, 'first-output', 'dev')],
+          outputDirectories: [path.join(directory, 'first-output')],
         },
       })
       await writeFile(
@@ -2251,9 +2740,7 @@ describe('Next test orchestration', () => {
       expect(second).toMatchObject({
         operation: 'metadata',
         directories: {
-          outputDirectories: [
-            path.join(directory, 'changed-second-output', 'dev'),
-          ],
+          outputDirectories: [path.join(directory, 'changed-second-output')],
         },
       })
     } finally {
@@ -2725,6 +3212,81 @@ describe('Next test orchestration', () => {
     }
     compile.mockResolvedValue(artifact)
   }
+
+  it.each(['browser-client', 'production-node'])(
+    'coverage profile admission reaches the real compiler boundary for %s',
+    async (kind) => {
+      useCoverageProject()
+      if (kind === 'browser-client')
+        project.profile = {
+          ...project.profile,
+          environment: 'browser',
+          browserClient: true,
+        }
+      else {
+        project.profile = { ...project.profile, mode: 'production' }
+        ;(process.env as any).NODE_ENV = 'production'
+      }
+      project.entries[0].profile = project.profile
+      compile.mockRejectedValue(new Error('controlled compiler boundary'))
+      const events: ResultEvent[] = []
+      try {
+        const result = await runTests('/application', [project], {
+          signal: new AbortController().signal,
+          write: () => {},
+          coverage: true,
+          onEvent: (event) => events.push(event),
+        })
+        expect(result.status).toBe('failed')
+        expect(compile).toHaveBeenCalledWith(
+          project.entries[0],
+          expect.objectContaining({
+            coverage: {
+              version: 1,
+              kind: kind === 'browser-client' ? 'browser-v8' : 'node-line',
+            },
+          })
+        )
+        expect(executeFile).not.toHaveBeenCalled()
+      } finally {
+        for (const event of events)
+          if (event.type === 'attachment')
+            await rm(path.dirname(event.attachment.path), {
+              recursive: true,
+              force: true,
+            })
+      }
+    }
+  )
+
+  it.each(['browser-driver', 'rsc', 'node-route', 'production-client'])(
+    'coverage profile admission rejects unqualified %s before compilation',
+    async (kind) => {
+      useCoverageProject()
+      if (kind === 'browser-driver')
+        project.profile = { ...project.profile, environment: 'browser' }
+      if (kind === 'rsc')
+        project.profile = { ...project.profile, environment: 'rsc' }
+      if (kind === 'node-route')
+        project.profile = { ...project.profile, route: '/unqualified' }
+      if (kind === 'production-client')
+        project.profile = {
+          ...project.profile,
+          environment: 'browser',
+          browserClient: true,
+          mode: 'production',
+        }
+      project.entries[0].profile = project.profile
+      await expect(
+        runTests('/application', [project], {
+          signal: new AbortController().signal,
+          write: () => {},
+          coverage: true,
+        })
+      ).rejects.toThrow('route-less Node or development Browser Mode client')
+      expect(compile).not.toHaveBeenCalled()
+    }
+  )
 
   it('awaits coverage remapping before artifact disposal and reports before run-end', async () => {
     useCoverageProject()
@@ -3867,13 +4429,16 @@ describe('interactive watch keyboard ownership', () => {
       { operation: 'run' }
     >
     const requests: RunRequest[] = []
+    const statuses: string[] = []
     let statusReady: (() => void) | undefined
     const write = (text: string) => {
       if (
         text.includes('Waiting for file changes') ||
         text.includes('Watching for file changes')
-      )
+      ) {
+        statuses.push(text)
         statusReady?.()
+      }
     }
     const nextStatus = (count = 1) =>
       new Promise<void>((resolve) => {
@@ -3899,8 +4464,15 @@ describe('interactive watch keyboard ownership', () => {
           throw new Error('Unexpected planner request in watch control')
         requests.push(request)
         const failed = requests.length === 1
+        const envelope = {
+          version: 1 as const,
+          runId: `mock-${requests.length}`,
+          timestamp: Date.now(),
+        }
+        runOptions.onEvent?.({ ...envelope, type: 'run-start' })
         for (const project of request.projects) {
           for (const entry of project.entries) {
+            runOptions.onEvent?.({ ...envelope, type: 'file-start', entry })
             runOptions.onEvent?.({
               version: 1,
               timestamp: Date.now(),
@@ -3929,6 +4501,12 @@ describe('interactive watch keyboard ownership', () => {
           skipped: 0,
           cancelled: 0,
         }
+        runOptions.onEvent?.({
+          ...envelope,
+          type: 'run-end',
+          status: failed ? 'failed' : 'passed',
+          durationMs: 1,
+        })
         return {
           operation: 'run',
           result: {
@@ -4007,8 +4585,10 @@ describe('interactive watch keyboard ownership', () => {
         requests.filter((request) => request.updateSnapshots)
       ).toHaveLength(1)
       expect(requests.at(-1)!.updateSnapshots).toBe(false)
+      expect(statuses.at(-1)).toMatch(/PASS/)
       input.emit('data', Buffer.from('q'))
-      expect(await runningWatch).toEqual({ status: 'passed' })
+      // Pinned Vitest keeps the failed exit history after a repaired PASS run.
+      expect(await runningWatch).toEqual({ status: 'failed' })
       expect(close).toHaveBeenCalledTimes(1)
       expect(input.isRaw).toBe(false)
     } finally {
@@ -4106,6 +4686,7 @@ describe('Node watch machine generations', () => {
   let directory: string
   let controller: AbortController
   let watching: ReturnType<typeof watchTests> | undefined
+  let compilationFailure = false
   let runNumber: number
   let hold: (() => Promise<void>) | undefined
   const requests: Extract<
@@ -4114,11 +4695,12 @@ describe('Node watch machine generations', () => {
   >[] = []
 
   beforeEach(async () => {
-    directory = await mkdtemp(
-      path.join(os.tmpdir(), 'next-testing-watch-machine-')
+    directory = await realpath(
+      await mkdtemp(path.join(os.tmpdir(), 'next-testing-watch-machine-'))
     )
     controller = new AbortController()
     watching = undefined
+    compilationFailure = false
     runNumber = 0
     hold = undefined
     requests.length = 0
@@ -4153,6 +4735,41 @@ describe('Node watch machine generations', () => {
           timestamp: Date.now(),
         }
         const selected = request.projects.flatMap((project) => project.entries)
+        // This mock is the parent process result owner; the producer/sidecar
+        // controls independently verify actual loader observations and leases.
+        const runtimeGraphs = new Map<
+          string,
+          {
+            version: 1
+            configFile: string | null
+            inputs: { file: string; sha256: string }[]
+            imports: []
+          }
+        >()
+        for (const selected of request.runtimeConfigurationPlan?.requests ??
+          []) {
+          const configFile = selected.authorization.configFile
+          const inputs = configFile
+            ? [
+                {
+                  file: configFile,
+                  sha256: createHash('sha256')
+                    .update(await readFile(configFile))
+                    .digest('hex'),
+                },
+              ]
+            : []
+          runtimeGraphs.set(selected.profile.id, {
+            version: 1,
+            configFile,
+            inputs,
+            imports: [],
+          })
+          await options.onRuntimeConfigurationInputs?.(
+            inputs.map((input) => input.file)
+          )
+        }
+
         const counts = {
           passed: selected.length,
           failed: 0,
@@ -4160,8 +4777,61 @@ describe('Node watch machine generations', () => {
           cancelled: 0,
         }
         options.onEvent?.({ ...envelope, type: 'run-start' })
+        if (compilationFailure && request.standardCoverageOptions) {
+          for (const entry of selected) {
+            options.onEvent?.({
+              ...envelope,
+              type: 'diagnostic',
+              entryId: entry.id,
+              diagnostic: {
+                phase: 'compilation',
+                severity: 'error',
+                message: 'original compiler syntax failure',
+              },
+            })
+            options.onEvent?.({ ...envelope, type: 'file-start', entry })
+            options.onEvent?.({
+              ...envelope,
+              type: 'file-end',
+              entryId: entry.id,
+              status: 'failed',
+              durationMs: 1,
+            })
+          }
+          options.onEvent?.({
+            ...envelope,
+            type: 'run-end',
+            status: 'failed',
+            durationMs: 1,
+          })
+          return {
+            operation: 'run',
+            standardCoverageUnavailable: true,
+            result: {
+              runId: envelope.runId,
+              status: 'failed',
+              files: { ...counts, passed: 0, failed: selected.length },
+              cases: { passed: 0, failed: 0, skipped: 0, cancelled: 0 },
+              attempts: { passed: 0, failed: 0, skipped: 0, cancelled: 0 },
+              errors: selected.length,
+              warnings: 0,
+              attachments: 0,
+              unsafeCleanup: false,
+            },
+          }
+        }
+
+        const revisionFor = (id: string) =>
+          request.runtimeConfigurationPlan?.requests
+            .flatMap((request) => request.entries)
+            .find((entry) => entry.id === id)?.revision ?? `revision-${current}`
         for (const entry of selected) {
-          options.onEvent?.({ ...envelope, type: 'file-start', entry })
+          options.onEvent?.({
+            ...envelope,
+            type: 'file-start',
+            entry,
+            revision: revisionFor(entry.id),
+          })
           options.onEvent?.({
             ...envelope,
             type: 'case-end',
@@ -4189,6 +4859,31 @@ describe('Node watch machine generations', () => {
         })
         await hold?.()
         options.signal.throwIfAborted()
+        const standardCoverage = request.standardCoverageOptions
+          ? await Promise.all(
+              selected.map(async (entry) => {
+                const { createUncoveredJavaScript } = await import(
+                  'next/dist/experimental/testing/coverage/istanbul'
+                )
+                const file = path.join(directory, 'subject.mjs'),
+                  source = await readFile(file, 'utf8')
+                return {
+                  version: 1 as const,
+                  entryId: entry.id,
+                  revision: revisionFor(entry.id),
+                  complete: true,
+                  errors: [],
+                  files: [
+                    {
+                      file,
+                      sha256: createHash('sha256').update(source).digest('hex'),
+                      data: await createUncoveredJavaScript(file, source),
+                    },
+                  ],
+                }
+              })
+            )
+          : undefined
         return {
           operation: 'run',
           result: {
@@ -4201,6 +4896,40 @@ describe('Node watch machine generations', () => {
             warnings: 0,
             attachments: 0,
             unsafeCleanup: false,
+            ...(standardCoverage
+              ? {
+                  standardCoverage,
+                  runtimeConfigurationPlan: request.runtimeConfigurationPlan,
+                  runtimeConfigurationReceipts:
+                    request.runtimeConfigurationPlan!.requests.flatMap(
+                      (selected) =>
+                        selected.entries.map((entry) => ({
+                          version: 1 as const,
+                          kind: 'next-runtime-config-modules' as const,
+                          authority: {
+                            version: 1 as const,
+                            projectDir:
+                              request.runtimeConfigurationPlan!.projectDir,
+                            inputs: request.runtimeConfigurationPlan!.inputs,
+                            configuration:
+                              request.runtimeConfigurationPlan!.configuration,
+                            profile: selected.profile,
+                            authorization: selected.authorization,
+                            entry,
+                          },
+                          compiler: {
+                            entryId: entry.id,
+                            revision: entry.revision,
+                            rootDir: path.join(
+                              directory,
+                              'artifact-' + entry.revision
+                            ),
+                          },
+                          graph: runtimeGraphs.get(selected.profile.id)!,
+                        }))
+                    ),
+                }
+              : {}),
           },
         }
       })
@@ -4240,6 +4969,436 @@ describe('Node watch machine generations', () => {
       10
     )
   }
+
+  it('expands coverage only for an observed active config reload, preserving a partial addition first', async () => {
+    const configFile = path.join(directory, 'next.config.mjs')
+    await writeFile(configFile, 'export default {}\n')
+    await writeFile(
+      path.join(directory, 'subject.mjs'),
+      'export function choose() {return 1}\n'
+    )
+    await writeFile(
+      path.join(directory, 'unimported.mjs'),
+      'export function untouched() {return 2}\n'
+    )
+    watching = watchTests(directory, {
+      signal: controller.signal,
+      write: jest.fn(),
+      resultReporters: ['json'],
+      outputFile: 'result.json',
+      standardCoverageOptions: {
+        reporter: ['json'],
+        include: ['subject.mjs', 'unimported.mjs'],
+        exclude: [],
+        reportsDirectory: 'coverage',
+        reportOnFailure: false,
+        thresholds: {},
+      },
+    })
+    await expectGeneration('watch-1')
+    const outputs = jest.mocked(watchTestFiles).mock.calls[0][0]
+    await writeFile(path.join(directory, 'second.spec.ts'), '')
+    outputs.onChange({
+      changed: [path.join(directory, 'second.spec.ts')],
+      removed: [],
+    })
+    await expectGeneration('watch-2')
+    expect(
+      requests[1].projects.flatMap((project) =>
+        project.entries.map((entry) => path.basename(entry.file))
+      )
+    ).toEqual(['second.spec.ts'])
+    expect(requests[1].includeUnimportedCoverage).toBe(false)
+    await writeFile(
+      path.join(directory, 'ordinary-helper.mjs'),
+      'export const marker = 2'
+    )
+    outputs.onChange({
+      changed: [path.join(directory, 'ordinary-helper.mjs')],
+      removed: [],
+    })
+    await expectGeneration('watch-3')
+    expect(requests[2].includeUnimportedCoverage).toBe(false)
+    await writeFile(
+      configFile,
+      'export default {}\n// explicit active config reload\n'
+    )
+    outputs.onChange({ changed: [configFile], removed: [] })
+    await expectGeneration('watch-4')
+    expect(requests[3].includeUnimportedCoverage).toBe(true)
+    expect(
+      requests[3].projects.flatMap((project) => project.entries)
+    ).toHaveLength(2)
+    const coverage = JSON.parse(
+      await readFile(
+        path.join(directory, 'coverage/coverage-final.json'),
+        'utf8'
+      )
+    )
+    expect(Object.keys(coverage).map((file) => path.basename(file))).toEqual([
+      'subject.mjs',
+      'unimported.mjs',
+    ])
+  })
+  it.each([undefined, true, false])(
+    'publishes parent-owned watch coverage with cleanOnRerun=%s',
+    async (cleanOnRerun) => {
+      await writeFile(
+        path.join(directory, 'subject.mjs'),
+        'export function choose() { return 1 }\n'
+      )
+      await writeFile(
+        path.join(directory, 'unimported.mjs'),
+        'export function untouched() { return 2 }\n'
+      )
+      const config = {
+        reporter: ['json'] as const,
+        include: ['*.mjs'],
+        exclude: [],
+        reportsDirectory: 'coverage',
+        reportOnFailure: false,
+        thresholds: {},
+        cleanOnRerun,
+      }
+      watching = watchTests(directory, {
+        signal: controller.signal,
+        write: jest.fn(),
+        resultReporters: ['json'],
+        outputFile: 'result.json',
+        standardCoverageOptions: { ...config, reporter: ['json'] },
+      })
+      await expectGeneration('watch-1')
+      const readCoverage = async () =>
+        Object.keys(
+          JSON.parse(
+            await readFile(
+              path.join(directory, 'coverage/coverage-final.json'),
+              'utf8'
+            )
+          )
+        ).map((file) => path.basename(file))
+      expect(await readCoverage()).toEqual(['subject.mjs', 'unimported.mjs'])
+      expect(requests[0]).toMatchObject({
+        coverage: true,
+        watchCoverage: true,
+        standardCoverageOptions: { cleanOnRerun },
+      })
+      const outputs = jest.mocked(watchTestFiles).mock.calls[0][0]
+      expect(outputs.outputDirectories).toContain(
+        path.join(directory, 'coverage')
+      )
+      expect(outputs.artifactDirectories).toContainEqual({
+        parentDirectory: directory,
+        basenamePrefixes: [
+          '.next-test-coverage-',
+          '.next-test-coverage-backup-',
+        ],
+      })
+      await writeFile(path.join(directory, 'second.spec.ts'), '')
+      outputs.onChange({
+        changed: [path.join(directory, 'second.spec.ts')],
+        removed: [],
+      })
+      await expectGeneration('watch-2')
+      expect(
+        requests[1].projects.flatMap((project) =>
+          project.entries.map((entry) => path.basename(entry.file))
+        )
+      ).toEqual(['second.spec.ts'])
+      expect(await readCoverage()).toEqual(
+        cleanOnRerun === false
+          ? ['subject.mjs', 'unimported.mjs']
+          : ['subject.mjs']
+      )
+    }
+  )
+
+  it.each(['cancelled', 'compilation-failed'])(
+    'includes untouched sources in the first published coverage after an initial %s generation',
+    async (initial) => {
+      await writeFile(
+        path.join(directory, 'subject.mjs'),
+        'export const value = 1\n'
+      )
+      await writeFile(
+        path.join(directory, 'unimported.mjs'),
+        'export const untouched = 2\n'
+      )
+      let began!: () => void
+      const started = new Promise<void>((resolve) => {
+        began = resolve
+      })
+      let release!: () => void
+      const cleanup = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      if (initial === 'cancelled')
+        hold = async () => {
+          began()
+          await cleanup
+        }
+      else compilationFailure = true
+      watching = watchTests(directory, {
+        signal: controller.signal,
+        write: jest.fn(),
+        resultReporters: ['json'],
+        outputFile: 'result.json',
+        standardCoverageOptions: {
+          reporter: ['json'],
+          include: ['*.mjs'],
+          exclude: [],
+          reportsDirectory: 'coverage',
+          reportOnFailure: true,
+          thresholds: {},
+        },
+      })
+      if (initial === 'cancelled') await started
+      else await expectGeneration('watch-1')
+      invalidate()
+      hold = undefined
+      compilationFailure = false
+      release()
+      await expectGeneration('watch-2')
+      expect(
+        Object.keys(
+          JSON.parse(
+            await readFile(
+              path.join(directory, 'coverage/coverage-final.json'),
+              'utf8'
+            )
+          )
+        ).map((file) => path.basename(file))
+      ).toEqual(['subject.mjs', 'unimported.mjs'])
+      expect(
+        (await report()).next.events.every(
+          (event: ResultEvent) => event.runId === 'watch-2'
+        )
+      ).toBe(true)
+    }
+  )
+
+  it('includes untouched sources for an explicit keyboard rerun after an automatic partial rerun', async () => {
+    const { PassThrough } = require('stream') as typeof import('stream')
+    const input = new PassThrough() as unknown as NodeJS.ReadStream
+    Object.assign(input, { isTTY: true, isRaw: false, setRawMode: jest.fn() })
+    const output = {
+      isTTY: true,
+      write: jest.fn(),
+    } as unknown as NodeJS.WriteStream
+    const previousCI = process.env.CI,
+      previousTerm = process.env.TERM
+    delete process.env.CI
+    delete process.env.TERM
+    try {
+      await writeFile(
+        path.join(directory, 'subject.mjs'),
+        'export const value = 1\n'
+      )
+      await writeFile(
+        path.join(directory, 'unimported.mjs'),
+        'export const untouched = 2\n'
+      )
+      const write = jest.fn()
+      watching = watchTests(directory, {
+        signal: controller.signal,
+        input,
+        output,
+        write,
+        resultReporters: ['json'],
+        outputFile: 'result.json',
+        standardCoverageOptions: {
+          reporter: ['json'],
+          include: ['*.mjs'],
+          exclude: [],
+          reportsDirectory: 'coverage',
+          reportOnFailure: false,
+          thresholds: {},
+        },
+      })
+      const readCoverage = async () =>
+        Object.keys(
+          JSON.parse(
+            await readFile(
+              path.join(directory, 'coverage/coverage-final.json'),
+              'utf8'
+            )
+          )
+        ).map((file) => path.basename(file))
+      await expectGeneration('watch-1')
+      expect(await readCoverage()).toEqual(['subject.mjs', 'unimported.mjs'])
+      await writeFile(path.join(directory, 'second.spec.ts'), '')
+      jest.mocked(watchTestFiles).mock.calls[0][0].onChange({
+        changed: [path.join(directory, 'second.spec.ts')],
+        removed: [],
+      })
+      await expectGeneration('watch-2')
+      expect(await readCoverage()).toEqual(['subject.mjs'])
+      await retry(
+        async () =>
+          expect(
+            write.mock.calls
+              .flat()
+              .filter((value) =>
+                String(value).includes('Waiting for file changes...')
+              )
+          ).toHaveLength(2),
+        5000,
+        10
+      )
+      input.emit('data', 'r')
+      await expectGeneration('watch-3')
+      expect(await readCoverage()).toEqual(['subject.mjs', 'unimported.mjs'])
+      input.emit('end')
+      expect(await watching).toEqual({ status: 'passed' })
+    } finally {
+      if (previousCI === undefined) delete process.env.CI
+      else process.env.CI = previousCI
+      if (previousTerm === undefined) delete process.env.TERM
+      else process.env.TERM = previousTerm
+    }
+  })
+
+  it.each(['initial', 'rerun', 'empty'])(
+    'seals %s threshold failure before JSON, human status and normal quit',
+    async (stage) => {
+      const { PassThrough } = require('stream') as typeof import('stream')
+      const input = new PassThrough() as unknown as NodeJS.ReadStream
+      Object.assign(input, { isTTY: true, isRaw: false, setRawMode: jest.fn() })
+      const output = {
+        isTTY: true,
+        write: jest.fn(),
+      } as unknown as NodeJS.WriteStream
+      const previousCI = process.env.CI,
+        previousTerm = process.env.TERM
+      delete process.env.CI
+      delete process.env.TERM
+      const write = jest.fn()
+      try {
+        await writeFile(
+          path.join(directory, 'subject.mjs'),
+          stage === 'rerun'
+            ? 'export const value = 1\n'
+            : 'export function choose() {return 1}\n'
+        )
+        if (stage === 'empty') {
+          await rm(path.join(directory, 'first.spec.ts'))
+          await writeFile(
+            path.join(directory, 'next.test.config.json'),
+            JSON.stringify({
+              projects: [{ name: 'node', passWithNoTests: true }],
+            })
+          )
+        }
+        watching = watchTests(directory, {
+          signal: controller.signal,
+          input,
+          output,
+          write,
+          resultReporters: ['json', 'default'],
+          outputFile: 'result.json',
+          standardCoverageOptions: {
+            reporter: ['json'],
+            include: ['subject.mjs'],
+            exclude: [],
+            reportsDirectory: 'coverage',
+            reportOnFailure: false,
+            thresholds: { functions: 100 },
+          },
+        })
+        if (stage === 'empty')
+          await retry(
+            async () => expect((await report()).numTotalTestSuites).toBe(0),
+            5000,
+            10
+          )
+        else await expectGeneration('watch-1')
+        if (stage === 'rerun') {
+          expect((await report()).success).toBe(true)
+          await writeFile(
+            path.join(directory, 'subject.mjs'),
+            'export function choose() {return 1}\n'
+          )
+          invalidate()
+          await expectGeneration('watch-2')
+        }
+        const result = await report()
+        expect(result.success).toBe(false)
+        expect(
+          result.next.events
+            .filter((event: ResultEvent) => event.type === 'run-end')
+            .map(
+              (event: ResultEvent) => event.type === 'run-end' && event.status
+            )
+        ).toEqual(['failed'])
+        expect(
+          result.next.events
+            .filter((event: ResultEvent) => event.type === 'diagnostic')
+            .map(
+              (event: ResultEvent) =>
+                event.type === 'diagnostic' && event.diagnostic.message
+            )
+        ).toContain(
+          'Coverage for functions (0%) does not meet global threshold (100%).'
+        )
+        await retry(
+          async () =>
+            expect(write.mock.calls.flat().join('')).toContain(
+              'Tests failed. Watching for file changes...'
+            ),
+          5000,
+          10
+        )
+        input.emit('end')
+        expect(await watching).toEqual({ status: 'failed' })
+      } finally {
+        if (previousCI === undefined) delete process.env.CI
+        else process.env.CI = previousCI
+        if (previousTerm === undefined) delete process.env.TERM
+        else process.env.TERM = previousTerm
+      }
+    }
+  )
+
+  it('keeps the previous complete report on a parent-qualified compilation failure and recovers', async () => {
+    await writeFile(
+      path.join(directory, 'subject.mjs'),
+      'export function choose() {return 1}\n'
+    )
+    watching = watchTests(directory, {
+      signal: controller.signal,
+      write: jest.fn(),
+      resultReporters: ['json'],
+      outputFile: 'result.json',
+      standardCoverageOptions: {
+        reporter: ['json'],
+        include: ['subject.mjs'],
+        exclude: [],
+        reportsDirectory: 'coverage',
+        reportOnFailure: true,
+        thresholds: {},
+        cleanOnRerun: false,
+      },
+    })
+    await expectGeneration('watch-1')
+    const previous = await readFile(
+      path.join(directory, 'coverage/coverage-final.json'),
+      'utf8'
+    )
+    compilationFailure = true
+    invalidate()
+    await expectGeneration('watch-2')
+    expect((await report()).success).toBe(false)
+    expect(
+      await readFile(
+        path.join(directory, 'coverage/coverage-final.json'),
+        'utf8'
+      )
+    ).toBe(previous)
+    compilationFailure = false
+    invalidate()
+    await expectGeneration('watch-3')
+    expect((await report()).success).toBe(true)
+  })
 
   it('replaces each cleaned generation and reloads configuration controls without mixing run identities', async () => {
     start()
@@ -5214,5 +6373,180 @@ describe('owned read-only editor discovery API', () => {
     await expect(
       openTestDiscoveryApi('/selected', [entry, entry], 0)
     ).rejects.toThrow('unique')
+  })
+})
+
+it.each([
+  ['failed-summary-after-abort', true, false, 'failed', 'cancellation'],
+  ['cancelled-summary-after-abort', true, false, 'cancelled', 'cancellation'],
+  ['uncancelled-missing-coverage', false, false, 'failed', 'coverage-error'],
+  ['aborted-unsafe-cleanup', true, true, 'failed', 'cleanup-error'],
+] as const)(
+  'preserves coordinator coverage cancellation and recovery boundary: %s',
+  async (scenario, abort, unsafeCleanup, status, expected) => {
+    const child = spawn(
+      process.execPath,
+      [
+        path.join(__dirname, 'coordinator-coverage-cancellation.cjs'),
+        require.resolve('next/dist/experimental/testing/watch-process'),
+        JSON.stringify({ scenario, abort, unsafeCleanup, status, expected }),
+      ],
+      {
+        env: { ...process.env, NODE_ENV: 'development' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 15000,
+      }
+    )
+    let stdout = ''
+    let stderr = ''
+    child.stdout.setEncoding('utf8').on('data', (text) => {
+      stdout += text
+    })
+    child.stderr.setEncoding('utf8').on('data', (text) => {
+      stderr += text
+    })
+    const [code] = await once(child, 'close')
+    expect({ code, stderr }).toEqual({ code: 0, stderr: '' })
+    expect(JSON.parse(stdout)).toEqual({
+      scenario,
+      expected,
+      originalReasonPreserved: expected === 'cancellation',
+      rawError: {
+        name: expected === 'cancellation' ? 'SupersededTestRun' : 'Error',
+        message:
+          expected === 'cancellation'
+            ? 'Test run superseded by a change.'
+            : expected === 'coverage-error'
+              ? 'Standard coverage omitted an expected test entry.'
+              : 'Standard coverage generation cleanup failed.',
+      },
+      completionWaitedForClose: true,
+      noCoveragePublished: true,
+      streamsClosed: true,
+    })
+  }
+)
+
+describe('Browser env configuration forwarding', () => {
+  it('inherits string env values for Browser clients and rejects unimplemented inputs', () => {
+    const config = normalizeTestConfig({
+      test: {
+        browser: { enabled: true },
+        env: { ROOT: 'root', OVERRIDE: 'root' },
+        projects: [
+          {
+            name: 'browser-env',
+            env: { OVERRIDE: 'project', CHILD: 'child' },
+            unstubEnvs: true,
+          },
+        ],
+      },
+    })
+    expect(config.projects[0].env).toEqual({
+      ROOT: 'root',
+      OVERRIDE: 'project',
+      CHILD: 'child',
+    })
+    expect(config.projects[0].unstubEnvs).toBe(true)
+    expect(() =>
+      normalizeTestConfig({
+        test: { browser: { enabled: true }, env: { BAD: 1 } },
+      })
+    ).toThrow('env.BAD must be a string')
+    expect(() =>
+      parseTestConfig({ projects: [{ name: 'node', env: { KEY: 'value' } }] })
+    ).toThrow('env currently requires a development Browser client project')
+  })
+
+  it('forwards exact env and reset settings to ordinary and watch-broker file execution', async () => {
+    const config = normalizeTestConfig({
+      test: {
+        browser: { enabled: true },
+        env: { NEXT_ENV_FORWARD: 'value' },
+        unstubEnvs: true,
+      },
+    }).projects[0]
+    const project: DiscoveredTestProject = {
+      ...config,
+      entries: [
+        {
+          id: 'env-entry',
+          file: '/application/env.case.mjs',
+          profile: config.profile,
+        },
+      ],
+    }
+    const artifact: any = {
+      version: 2,
+      kind: 'browser',
+      entryId: 'env-entry',
+      profile: config.profile,
+      revision: 'env-revision',
+      diagnostics: [],
+      client: { sourceFile: project.entries[0].file },
+    }
+    const session = {
+      compile: jest.fn(async () => artifact),
+      dispose: jest.fn(async () => {}),
+      shutdownCompilation: jest.fn(async () => {}),
+    }
+    const calls: ExecuteTestOptions[] = []
+    const executor = async (input: any, options: ExecuteTestOptions) => {
+      calls.push(options)
+      options.onEvent({
+        version: 1,
+        runId: options.runId,
+        timestamp: Date.now(),
+        type: 'file-start',
+        entry: options.entry,
+        revision: input.revision,
+      })
+      const result = {
+        entryId: input.entryId,
+        status: 'passed' as const,
+        durationMs: 0,
+      }
+      options.onEvent({
+        version: 1,
+        runId: options.runId,
+        timestamp: Date.now(),
+        type: 'file-end',
+        ...result,
+      })
+      return result
+    }
+    const compiler = jest.mocked(createTestCompilerSession),
+      executeMock = jest.mocked(execute)
+    const previousCompiler = compiler.getMockImplementation(),
+      previousExecute = executeMock.getMockImplementation()
+    const capability = jest.mocked(capabilities.requireTestCapability),
+      previousCapability = capability.getMockImplementation()
+    const previousNodeEnv = process.env.NODE_ENV
+    try {
+      ;(process.env as any).NODE_ENV = 'development'
+      capability.mockImplementation(() => {})
+      compiler.mockResolvedValue(session as any)
+      executeMock.mockImplementation(executor)
+      for (const broker of [false, true]) {
+        const summary = await runTests('/application', [project], {
+          signal: new AbortController().signal,
+          write: () => {},
+          ...(broker ? { execute: executor } : {}),
+        })
+        expect(summary.status).toBe('passed')
+      }
+      expect(calls).toHaveLength(2)
+      for (const actual of calls) {
+        expect(actual.env).toBe(project.env)
+        expect(actual.unstubEnvs).toBe(true)
+      }
+      expect(session.dispose).toHaveBeenCalledTimes(2)
+    } finally {
+      compiler.mockImplementation(previousCompiler!)
+      executeMock.mockImplementation(previousExecute!)
+      capability.mockImplementation(previousCapability!)
+      if (previousNodeEnv === undefined) delete (process.env as any).NODE_ENV
+      else (process.env as any).NODE_ENV = previousNodeEnv
+    }
   })
 })

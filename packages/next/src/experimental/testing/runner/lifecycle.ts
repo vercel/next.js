@@ -1,13 +1,20 @@
-import { invokeTestCallback } from './invocation-platform'
+import {
+  getPublicTestContext,
+  invokeTestCallback,
+  settleSuiteHookResult,
+} from './invocation-platform'
+import { registerTaskArtifactRecorder } from './artifacts'
 import {
   createTaskTree,
   serializeTaskError,
   type Test,
   type Suite,
+  type Task,
   type TaskMeta,
   type TestAnnotation,
   type TestAttachment,
   type TestArtifactLocation,
+  type TestArtifact,
 } from './tasks'
 import {
   prepareAnnotationAttachment,
@@ -126,6 +133,8 @@ export interface RunnerSuiteResult {
   mode: 'run' | 'skip' | 'todo'
   status: 'passed' | 'failed' | 'skipped' | 'cancelled'
   durationMs: number
+  /** This suite failed setup before entering any descendant. */
+  blockedDescendants?: boolean
   errors: RunnerFailure[]
 }
 
@@ -147,10 +156,20 @@ export interface RunnerOptions {
   projectDir?: string
   attachmentsDir?: string
   getAnnotationLocation?(error: Error): TestArtifactLocation | undefined
+  getArtifactLocation?(error: Error): TestArtifactLocation | undefined
   onAnnotation?(
     context: AttemptContext,
     annotation: TestAnnotation
   ): void | Promise<void>
+  onArtifact?(
+    context: AttemptContext,
+    artifact: TestArtifact
+  ): void | Promise<void>
+  onBrowserArtifact?(
+    task: Task,
+    artifact: TestArtifact,
+    context?: AttemptContext
+  ): Promise<TestArtifact>
   runId: string
   signal: AbortSignal
   testTimeout?: number
@@ -342,6 +361,28 @@ export async function runCollected(
   const hookTimeout = options.hookTimeout ?? 10000
   const testTimeout = options.testTimeout ?? 5000
   const { tasks } = createTaskTree(root, { ...options, testTimeout })
+  let artifactFileOpen = true
+  const isArtifactFileOpen = () => artifactFileOpen
+  const artifactRecorders = new Map<Task, () => void>()
+  if (options.onBrowserArtifact)
+    for (const task of tasks.values()) {
+      if (task.type !== 'suite') continue
+      const transport = (artifact: TestArtifact) =>
+        options.onBrowserArtifact!(task, artifact)
+      artifactRecorders.set(
+        task,
+        registerTaskArtifactRecorder(task, {
+          getLocation:
+            options.getArtifactLocation ?? options.getAnnotationLocation,
+          projectDir: options.projectDir ?? '',
+          isOpen: isArtifactFileOpen,
+          transport,
+          record: async (artifact) => {
+            await transport(artifact)
+          },
+        })
+      )
+    }
   // A timed-out promise can still be running. Do not run another case in its realm.
   let poisoned = false
   let hadDeadline = false
@@ -638,7 +679,7 @@ export async function runCollected(
       }
       return origin
     }
-    const publicContext: TestContext & {
+    const rawPublicContext: TestContext & {
       onCleanup: AttemptContext['onCleanup']
     } = {
       inject: ((key: string) =>
@@ -668,6 +709,7 @@ export async function runCollected(
         ownedContext().onTestFailed(handler, timeout),
       onCleanup: (cleanup) => ownedContext().onCleanup(cleanup),
     }
+    const publicContext = getPublicTestContext(rawPublicContext)
     Object.defineProperty(publicContext, 'expect', { enumerable: false })
     const taskStarted = frameworkDateNow()
     if (collectionBlocked) publicTask.result = { state: 'skip' }
@@ -685,7 +727,7 @@ export async function runCollected(
           : (retryOptions?.count ?? 0)
       const attempts = mode === 'run' && !focusFailure ? retries + 1 : 1
       for (let retry = 0; retry < attempts; retry++) {
-        const start = Date.now()
+        const start = frameworkDateNow()
         const attemptErrorsStart = publicTask.result?.errors?.length ?? 0
         const errors = [...inheritedErrors]
         if (focusFailure) errors.push(focusFailure)
@@ -959,6 +1001,22 @@ export async function runCollected(
           onTestFailed: (handler, timeout) =>
             registerListener(failed, handler, timeout),
         }
+        artifactRecorders.get(publicTask)?.()
+        artifactRecorders.set(
+          publicTask,
+          registerTaskArtifactRecorder(publicTask, {
+            getLocation:
+              options.getArtifactLocation ?? options.getAnnotationLocation,
+            projectDir: options.projectDir ?? '',
+            attachmentsDir: options.attachmentsDir,
+            isOpen: isArtifactFileOpen,
+            record: (artifact) => options.onArtifact?.(context, artifact),
+            transport: options.onBrowserArtifact
+              ? (artifact) =>
+                  options.onBrowserArtifact!(publicTask, artifact, context)
+              : undefined,
+          })
+        )
         currentContext = context
         lastAttemptId = context.id
         Object.defineProperty(publicTask, 'context', {
@@ -1311,7 +1369,7 @@ export async function runCollected(
         } finally {
           asyncScope.close()
         }
-        caseResult.durationMs = Date.now() - start
+        caseResult.durationMs = frameworkDateNow() - start
         const expectedFailureUnexpectedlyPassed =
           mode === 'run' &&
           test.options.fails === true &&
@@ -1461,7 +1519,7 @@ export async function runCollected(
     inheritedMode: 'run' | 'skip' | 'todo' = 'run',
     collectionBlocked = false
   ) {
-    const start = Date.now()
+    const start = frameworkDateNow()
     const mode =
       inheritedMode !== 'run'
         ? inheritedMode
@@ -1481,14 +1539,12 @@ export async function runCollected(
       if (!collectionBlocked) result.errors.push(focusFailure)
     }
     const blockChildren = collectionBlocked || focusFailure !== undefined
-    if (blockChildren) {
-      const markSkipped = (suite: TestSuite) => {
-        for (const child of suite.children)
-          if (child.type === 'suite') markSkipped(child)
-          else selected.set(child, 'skip')
-      }
-      markSkipped(node)
+    const markSkipped = (suite: TestSuite) => {
+      for (const child of suite.children)
+        if (child.type === 'suite') markSkipped(child)
+        else selected.set(child, 'skip')
     }
+    if (blockChildren) markSkipped(node)
     if (
       mode === 'run' &&
       !poisoned &&
@@ -1556,15 +1612,23 @@ export async function runCollected(
       name: 'beforeAll' | 'afterAll'
     ) => {
       if (hook.fixtures === undefined)
-        return Reflect.apply(hook.fn, undefined, [context, publicSuite])
+        return settleSuiteHookResult(
+          Reflect.apply(hook.fn, undefined, [context, publicSuite]),
+          name === 'beforeAll'
+        )
       const definitions = resolveFixtureDefinitions(hook.fixtures, node)
       const fixtures = fixtureFile.attempt(definitions, {}, name)
       const wrapper = (values: Record<string, unknown>) =>
         Reflect.apply(hook.fn, undefined, [values, publicSuite])
       configureFixtureCallback(wrapper, hook.fn, 0)
-      return fixtures.invoke(wrapper)
+      return settleSuiteHookResult(
+        fixtures.invoke(wrapper),
+        name === 'beforeAll'
+      )
     }
+    let blockedDescendants = false
     const runSuiteInner = async () => {
+      const setupErrorsStart = errors.length
       const beforeAllSequence = hookSequence()
       if (
         enter &&
@@ -1617,23 +1681,31 @@ export async function runCollected(
           if (errors.length) break
         }
       }
-      if (errors.length) cleanups.length = 0
+      // A failed suite setup belongs to the suite. Its descendants have not
+      // executed, so retain the suite errors and report those tasks as skipped.
+      result.errors.push(...errors.slice(setupErrorsStart))
+      blockedDescendants = errors.length > setupErrorsStart
+      const skipChildren = blockChildren || errors.length > 0
+      if (errors.length) {
+        cleanups.length = 0
+        markSkipped(node)
+      }
       try {
         const runChild = (child: TestSuite | TestCase) =>
           child.type === 'suite'
             ? runSuite(
                 child,
                 ancestors,
-                blockChildren ? [] : errors,
-                blockChildren ? 'skip' : mode,
-                blockChildren
+                skipChildren ? [] : errors,
+                skipChildren ? 'skip' : mode,
+                skipChildren
               )
             : limitCase(() =>
                 runCase(
                   child,
                   ancestors,
-                  blockChildren ? [] : errors,
-                  blockChildren
+                  skipChildren ? [] : errors,
+                  skipChildren
                 )
               )
         // The pinned runner partitions adjacent children by their concurrent
@@ -1796,15 +1868,12 @@ export async function runCollected(
       result.errors.push(...errors.slice(before))
     }
     if (!suiteRan) {
-      const markSkipped = (suite: TestSuite) => {
-        for (const child of suite.children)
-          if (child.type === 'suite') markSkipped(child)
-          else selected.set(child, 'skip')
-      }
+      blockedDescendants = aroundFailures.length > 0
       markSkipped(node)
       for (const child of node.children)
-        if (child.type === 'suite') await runSuite(child, ancestors, [], 'skip')
-        else await runCase(child, ancestors, [])
+        if (child.type === 'suite')
+          await runSuite(child, ancestors, [], 'skip', true)
+        else await runCase(child, ancestors, [], true)
     }
     const finalCases = getFinalCaseResults(
       result.cases.filter(
@@ -1834,15 +1903,18 @@ export async function runCollected(
         .filter((parent) => parent !== root && parent !== node)
         .map(({ id, name }) => ({ id, name })),
       mode,
-      status: failed
-        ? 'failed'
-        : cancelled
-          ? 'cancelled'
-          : !runnable(node) &&
-              !(node === root && options.passWithNoTests && !hasTests(node))
-            ? 'skipped'
-            : 'passed',
-      durationMs: Date.now() - start,
+      status: collectionBlocked
+        ? 'skipped'
+        : failed
+          ? 'failed'
+          : cancelled
+            ? 'cancelled'
+            : !runnable(node) &&
+                !(node === root && options.passWithNoTests && !hasTests(node))
+              ? 'skipped'
+              : 'passed',
+      durationMs: frameworkDateNow() - start,
+      blockedDescendants,
       errors,
     }
     if (publicSuite.result) {
@@ -1867,21 +1939,26 @@ export async function runCollected(
     await runSuite(root, [], [])
   } finally {
     try {
-      // Promise.all preserves first-rejection phase transitions. Remaining owned
-      // hook work must still settle before fixtures and publication are released.
-      while (pendingHooks.size) await Promise.allSettled([...pendingHooks])
-      await fixtureScope.run(() => clean(fixtureFile.cleanups, result.errors))
-    } finally {
-      fixtureScope.close()
-      if (!workerFixtures) {
-        try {
-          await worker.dispose()
-        } catch (error) {
-          result.errors.push({ phase: 'cleanup', error })
-        } finally {
-          workerScope!.close()
+      try {
+        // Promise.all preserves first-rejection phase transitions. Remaining owned
+        // hook work must still settle before fixtures and publication are released.
+        while (pendingHooks.size) await Promise.allSettled([...pendingHooks])
+        await fixtureScope.run(() => clean(fixtureFile.cleanups, result.errors))
+      } finally {
+        fixtureScope.close()
+        if (!workerFixtures) {
+          try {
+            await worker.dispose()
+          } catch (error) {
+            result.errors.push({ phase: 'cleanup', error })
+          } finally {
+            workerScope!.close()
+          }
         }
       }
+    } finally {
+      artifactFileOpen = false
+      for (const release of artifactRecorders.values()) release()
     }
   }
   result.interrupted = hadDeadline || poisoned || options.signal.aborted

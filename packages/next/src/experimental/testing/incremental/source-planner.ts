@@ -47,6 +47,9 @@ export async function planSourceSelection(
         )
         // Configuration initialization errors are real failures, never widened.
         session = await createTestCompilerSession(projectDir, project.profile, {
+          ...(project.compilerAliases
+            ? { compilerAliases: project.compilerAliases }
+            : {}),
           allocateArtifact,
         })
         if (session.configurationFile) roots.add(session.configurationFile)

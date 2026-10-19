@@ -1,6 +1,255 @@
 import * as chai from '../chai';
 export { chai };
 
+type TickMode = "nextAsync" | "manual" | "interval";
+type VoidVarArgsFunc = (...args: unknown[]) => void;
+type NextTick = (callback: VoidVarArgsFunc, ...args: unknown[]) => void;
+type SetImmediate = (callback: VoidVarArgsFunc, ...args: unknown[]) => NodeImmediate;
+type SetTimeout = (callback: VoidVarArgsFunc, delay?: number, ...args: unknown[]) => TimerId;
+type ClearTimeout = (id?: TimerId) => void;
+type SetInterval = (callback: VoidVarArgsFunc, delay?: number, ...args: unknown[]) => TimerId;
+type ClearInterval = (id?: TimerId) => void;
+type QueueMicrotask = (callback: VoidVarArgsFunc) => void;
+type TimeRemaining = () => number;
+type IdleDeadline = {
+    didTimeout: boolean;
+    timeRemaining: TimeRemaining;
+};
+type RequestIdleCallbackCallback = (deadline: IdleDeadline) => any;
+type RequestIdleCallback = (callback: RequestIdleCallbackCallback, options?: {
+    timeout?: number;
+}) => number;
+type AnimationFrameCallback = (timestamp: number) => any;
+type RequestAnimationFrame = (callback: AnimationFrameCallback) => TimerId;
+type CancelAnimationFrame = (id: TimerId) => void;
+type CancelIdleCallback = (id: TimerId) => void;
+type ClearImmediate = (id: NodeImmediate) => void;
+type CountTimers = () => number;
+type RunMicrotasks = () => void;
+type TemporalDuration = {
+    years: number;
+    months: number;
+    weeks: number;
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    milliseconds: number;
+    microseconds: number;
+    nanoseconds: number;
+    total: (options: {
+        unit: string;
+        relativeTo?: unknown;
+    }) => number;
+};
+type TemporalTimelike = {
+    epochMilliseconds: number;
+};
+type Tick = (tickValue: number | string | TemporalDuration) => number;
+type TickAsync = (tickValue: number | string | TemporalDuration) => Promise<number>;
+type Next = () => number;
+type NextAsync = () => Promise<number>;
+type RunAll = () => number;
+type RunToFrame = () => number;
+type RunAllAsync = () => Promise<number>;
+type RunToLast = () => number;
+type RunToLastAsync = () => Promise<number>;
+type Reset = () => void;
+type SetSystemTime = (now?: number | Date | TemporalTimelike) => void;
+type Jump = (tickValue: number | string | TemporalDuration) => number;
+type Uninstall = () => void;
+type SetTickMode = (tickModeConfig: SetTickModeConfig) => void;
+type Hrtime = (prev?: Array<number>) => Array<number>;
+type WithGlobal = (_global: object) => FakeTimers;
+type FakeMethod = "setTimeout" | "clearTimeout" | "setImmediate" | "clearImmediate" | "setInterval" | "clearInterval" | "Date" | "nextTick" | "hrtime" | "requestAnimationFrame" | "cancelAnimationFrame" | "requestIdleCallback" | "cancelIdleCallback" | "performance" | "queueMicrotask" | "Intl" | "Temporal";
+type TimerId = number | NodeImmediate | Timer;
+type GlobalObject = Record<string, any> & {
+    setTimeout?: SetTimeout;
+    clearTimeout?: ClearTimeout;
+    setInterval?: SetInterval;
+    clearInterval?: ClearInterval;
+    setImmediate?: SetImmediate;
+    clearImmediate?: ClearImmediate;
+    queueMicrotask?: QueueMicrotask;
+    requestAnimationFrame?: RequestAnimationFrame;
+    cancelAnimationFrame?: CancelAnimationFrame;
+    requestIdleCallback?: RequestIdleCallback;
+    cancelIdleCallback?: CancelIdleCallback;
+    process?: any;
+    performance?: any;
+    Performance?: any;
+    Intl?: any;
+    Temporal?: any;
+    Promise?: typeof Promise;
+    Date: typeof Date & {
+        isFake?: boolean;
+        toSource?: () => string;
+        clock?: any;
+    };
+};
+type TimerHeap = {
+    timers: Timer[];
+    peek: () => Timer | undefined;
+    push: (timer: Timer) => void;
+    pop: () => Timer | undefined;
+    remove: (timer: Timer) => void;
+};
+type ClockTickMode = {
+    mode: TickMode;
+    counter: number;
+    delta?: number;
+};
+type SetTickModeConfig = {
+    mode: TickMode;
+    delta?: number;
+};
+type IntlWithClock = Record<string, any> & {
+    clock: Clock;
+};
+type PerformanceLike = Record<string, any> & {
+    now: () => number;
+};
+type Timers = {
+    setTimeout: SetTimeout;
+    clearTimeout: ClearTimeout;
+    setInterval: SetInterval;
+    clearInterval: ClearInterval;
+    Date: typeof Date;
+    Intl?: typeof Intl;
+    Temporal?: any;
+    setImmediate?: SetImmediate;
+    clearImmediate?: ClearImmediate;
+    hrtime?: Hrtime;
+    nextTick?: NextTick;
+    performance?: PerformanceLike;
+    requestAnimationFrame?: RequestAnimationFrame;
+    queueMicrotask?: QueueMicrotask;
+    cancelAnimationFrame?: CancelAnimationFrame;
+    requestIdleCallback?: RequestIdleCallback;
+    cancelIdleCallback?: CancelIdleCallback;
+};
+type TimerInitialProps = {
+    func: VoidVarArgsFunc;
+    args?: unknown[];
+    type?: 'Timeout' | 'Interval' | 'Immediate' | 'AnimationFrame' | 'IdleCallback';
+    delay?: number;
+    callAt?: number;
+    createdAt?: number;
+    immediate?: boolean;
+    id?: number;
+    error?: Error;
+    interval?: number;
+    animation?: boolean;
+    requestIdleCallback?: boolean;
+    order?: number;
+    heapIndex?: number;
+};
+type CreateClockCallback = (start?: number | Date | TemporalTimelike, loopLimit?: number) => Clock;
+type InstallCallback = (config?: Config$2) => Clock;
+type FakeTimers = {
+    timers: Timers;
+    createClock: CreateClockCallback;
+    install: InstallCallback;
+    withGlobal: WithGlobal;
+};
+type Clock = {
+    now: number;
+    Date: typeof Date & {
+        clock?: Clock;
+        isFake?: boolean;
+        toSource?: () => string;
+    };
+    loopLimit: number;
+    requestIdleCallback: RequestIdleCallback;
+    cancelIdleCallback: CancelIdleCallback;
+    setTimeout: SetTimeout;
+    clearTimeout: ClearTimeout;
+    nextTick: NextTick;
+    queueMicrotask: QueueMicrotask;
+    setInterval: SetInterval;
+    clearInterval: ClearInterval;
+    setImmediate: SetImmediate;
+    clearImmediate: ClearImmediate;
+    countTimers: CountTimers;
+    requestAnimationFrame: RequestAnimationFrame;
+    cancelAnimationFrame: CancelAnimationFrame;
+    runMicrotasks: RunMicrotasks;
+    tick: Tick;
+    tickAsync: TickAsync;
+    next: Next;
+    nextAsync: NextAsync;
+    runAll: RunAll;
+    runToFrame: RunToFrame;
+    runAllAsync: RunAllAsync;
+    runToLast: RunToLast;
+    runToLastAsync: RunToLastAsync;
+    reset: Reset;
+    setSystemTime: SetSystemTime;
+    jump: Jump;
+    performance: any;
+    hrtime: Hrtime;
+    uninstall: Uninstall;
+    methods: string[];
+    shouldClearNativeTimers?: boolean;
+    timersModuleMethods: {
+        methodName: string;
+        original: unknown;
+    }[] | undefined;
+    timersPromisesModuleMethods: {
+        methodName: string;
+        original: unknown;
+    }[] | undefined;
+    abortListenerMap: Map<VoidVarArgsFunc, AbortSignal>;
+    setTickMode: SetTickMode;
+    timers?: Map<number, Timer>;
+    timerHeap?: TimerHeap;
+    duringTick?: boolean;
+    isNearInfiniteLimit: boolean;
+    attachedInterval?: TimerId;
+    tickMode?: ClockTickMode;
+    jobs?: Timer[];
+    Intl?: IntlWithClock;
+    Temporal?: any;
+};
+type Config$2 = {
+    now?: number | Date | TemporalTimelike;
+    toFake?: FakeMethod[];
+    toNotFake?: FakeMethod[];
+    loopLimit?: number;
+    shouldAdvanceTime?: boolean;
+    advanceTimeDelta?: number;
+    shouldClearNativeTimers?: boolean;
+    ignoreMissingTimers?: boolean;
+    target?: GlobalObject;
+};
+type Timer = TimerInitialProps;
+type NodeImmediateHasRef = () => boolean;
+type NodeImmediateRef = () => NodeImmediate;
+type NodeImmediateUnref = () => NodeImmediate;
+type NodeImmediate = {
+    hasRef: NodeImmediateHasRef;
+    ref: NodeImmediateRef;
+    unref: NodeImmediateUnref;
+};
+
+type FakeTimerMethod = FakeMethod | 'Temporal'
+interface FakeTimerConfig extends Omit<Config$2, 'toFake'> {
+  toFake?: FakeTimerMethod[]
+  toNotFake?: FakeTimerMethod[]
+  shouldClearNativeTimers?: boolean
+  ignoreMissingTimers?: boolean
+}
+interface TimerClock extends Clock {
+  setTickMode(mode: {
+    mode: 'manual' | 'nextAsync' | 'interval'
+    delta?: number
+  }): void
+}
+interface TimerContext extends Omit<FakeTimers, 'install' | 'timers'> {
+  timers: Record<string, unknown>
+  install(config?: FakeTimerConfig): TimerClock
+}
+
 /* oxlint-disable typescript/ban-ts-comment */
 
 interface Disposable {
@@ -568,7 +817,7 @@ declare namespace StandardSchemaV1 {
 * This source code is licensed under the MIT license found in the
 * LICENSE file in the root directory of this source tree.
 */
-interface Colors {
+interface Colors$1 {
 	comment: {
 		close: string;
 		open: string;
@@ -590,14 +839,14 @@ interface Colors {
 		open: string;
 	};
 }
-type Indent = (arg0: string) => string;
-type Refs = Array<unknown>;
-type Print = (arg0: unknown) => string;
+type Indent$1 = (arg0: string) => string;
+type Refs$1 = Array<unknown>;
+type Print$1 = (arg0: unknown) => string;
 /**
 * compare function used when sorting object keys, `null` can be used to skip over sorting.
 */
-type CompareKeys = ((a: string, b: string) => number) | null | undefined;
-interface PrettyFormatOptions {
+type CompareKeys$1 = ((a: string, b: string) => number) | null | undefined;
+interface PrettyFormatOptions$1 {
 	/**
 	* Call `toJSON` on objects before formatting them.
 	* Ignored after the formatter has already called `toJSON` once for a value.
@@ -672,12 +921,12 @@ interface PrettyFormatOptions {
 	/**
 	* Compare function used when sorting object keys. Set to `null` to disable sorting.
 	*/
-	compareKeys?: CompareKeys;
+	compareKeys?: CompareKeys$1;
 	/**
 	* Plugins used to serialize application-specific data types.
 	* @default []
 	*/
-	plugins?: Plugins;
+	plugins?: Plugins$1;
 	/**
 	* Whitespace inserted after commas between items or entries.
 	*
@@ -723,18 +972,18 @@ interface PrettyFormatOptions {
 	*/
 	quoteKeys?: boolean;
 }
-type OptionsReceived = PrettyFormatOptions;
-interface Config {
+type OptionsReceived$1 = PrettyFormatOptions$1;
+interface Config$1 {
 	callToJSON: boolean;
-	compareKeys: CompareKeys;
-	colors: Colors;
+	compareKeys: CompareKeys$1;
+	colors: Colors$1;
 	escapeRegex: boolean;
 	escapeString: boolean;
 	indent: string;
 	maxDepth: number;
 	maxWidth: number;
 	min: boolean;
-	plugins: Plugins;
+	plugins: Plugins$1;
 	printBasicPrototype: boolean;
 	printFunctionName: boolean;
 	printShadowRoot: boolean;
@@ -744,23 +993,23 @@ interface Config {
 	quoteKeys: boolean;
 	maxOutputLength: number;
 }
-type Printer = (val: unknown, config: Config, indentation: string, depth: number, refs: Refs, hasCalledToJSON?: boolean) => string;
-type Test = (arg0: any) => boolean;
-interface NewPlugin {
-	serialize: (val: any, config: Config, indentation: string, depth: number, refs: Refs, printer: Printer) => string;
-	test: Test;
+type Printer$1 = (val: unknown, config: Config$1, indentation: string, depth: number, refs: Refs$1, hasCalledToJSON?: boolean) => string;
+type Test$1 = (arg0: any) => boolean;
+interface NewPlugin$1 {
+	serialize: (val: any, config: Config$1, indentation: string, depth: number, refs: Refs$1, printer: Printer$1) => string;
+	test: Test$1;
 }
-interface PluginOptions {
+interface PluginOptions$1 {
 	edgeSpacing: string;
 	min: boolean;
 	spacing: string;
 }
-interface OldPlugin {
-	print: (val: unknown, print: Print, indent: Indent, options: PluginOptions, colors: Colors) => string;
-	test: Test;
+interface OldPlugin$1 {
+	print: (val: unknown, print: Print$1, indent: Indent$1, options: PluginOptions$1, colors: Colors$1) => string;
+	test: Test$1;
 }
-type Plugin = NewPlugin | OldPlugin;
-type Plugins = Array<Plugin>;
+type Plugin$1 = NewPlugin$1 | OldPlugin$1;
+type Plugins$1 = Array<Plugin$1>;
 
 /**
 * Copyright (c) Meta Platforms, Inc. and affiliates.
@@ -790,7 +1039,7 @@ interface DiffOptions {
 	patchColor?: DiffOptionsColor;
 	printBasicPrototype?: boolean;
 	maxDepth?: number;
-	compareKeys?: CompareKeys;
+	compareKeys?: CompareKeys$1;
 	truncateThreshold?: number;
 	truncateAnnotation?: string;
 	truncateAnnotationColor?: DiffOptionsColor;
@@ -819,7 +1068,7 @@ interface Memorize {
 declare function diff(a: any, b: any, options?: DiffOptions, memorize?: Memorize): string | undefined;
 declare function printDiffOrStringify(received: unknown, expected: unknown, options?: DiffOptions, memory?: StringifiedMemory): string | undefined;
 
-interface StringifyOptions extends PrettyFormatOptions {
+interface StringifyOptions extends PrettyFormatOptions$1 {
 	maxLength?: number;
 	filterNode?: string | ((node: any) => boolean);
 }
@@ -1950,7 +2199,7 @@ interface SnapshotStateOptions {
 	updateSnapshot: SnapshotUpdateState;
 	snapshotEnvironment: SnapshotEnvironment;
 	expand?: boolean;
-	snapshotFormat?: OptionsReceived;
+	snapshotFormat?: OptionsReceived$1;
 	resolveSnapshotPath?: (path: string, extension: string, context?: any) => string;
 }
 interface SnapshotMatchOptions {
@@ -2049,8 +2298,8 @@ declare function stripSnapshotIndentation(inlineSnapshot: string): string;
 * LICENSE file in the root directory of this source tree.
 */
 
-declare function addSerializer(plugin: Plugin): void;
-declare function getSerializers(): Plugins;
+declare function addSerializer(plugin: Plugin$1): void;
+declare function getSerializers(): Plugins$1;
 
 /**
  * Negates a boolean type.
@@ -3883,5 +4132,1322 @@ type _ExpectTypeOf = {
  */
 declare const expectTypeOf: _ExpectTypeOf;
 
-export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, customMatchers, equals, expectTypeOf, fnNameFor, format, generateToBeMessage, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, hasAsymmetric, hasProperty, inspect, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, mockObject, pluralize, recordAsyncExpect, setState, sparseArrayEquality, index_d as spies, stripSnapshotIndentation, subsetEquality, typeEquality, wrapAssertion };
-export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectTypeOf, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, MaybeMockedDeep, Mock, MockInstance, PromisifyAssertion, RawMatcherFn, SnapshotResult, SnapshotStateOptions, SyncExpectationResult, TestError, Tester, TesterContext };
+// Type definitions for aria-query 5.0
+// Project: https://github.com/A11yance/aria-query#readme
+// Definitions by: Sebastian Silbermann <https://github.com/eps1lon>
+// Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
+// TypeScript Version: 3.0
+
+
+
+type ARIAWidgetRole =
+    | 'button'
+    | 'checkbox'
+    | 'gridcell'
+    | 'link'
+    | 'menuitem'
+    | 'menuitemcheckbox'
+    | 'menuitemradio'
+    | 'option'
+    | 'progressbar'
+    | 'radio'
+    | 'scrollbar'
+    | 'searchbox'
+    | 'slider'
+    | 'spinbutton'
+    | 'switch'
+    | 'tab'
+    | 'tabpanel'
+    | 'textbox'
+    | 'treeitem';
+
+type ARIACompositeWidgetRole =
+    | 'combobox'
+    | 'grid'
+    | 'listbox'
+    | 'menu'
+    | 'menubar'
+    | 'radiogroup'
+    | 'tablist'
+    | 'tree'
+    | 'treegrid';
+
+type ARIADocumentStructureRole =
+    | 'application'
+    | 'article'
+    | 'blockquote'
+    | 'caption'
+    | 'cell'
+    | 'columnheader'
+    | 'definition'
+    | 'deletion'
+    | 'directory'
+    | 'document'
+    | 'emphasis'
+    | 'feed'
+    | 'figure'
+    | 'generic'
+    | 'group'
+    | 'heading'
+    | 'img'
+    | 'insertion'
+    | 'list'
+    | 'listitem'
+    | 'math'
+    | 'meter'
+    | 'none'
+    | 'note'
+    | 'paragraph'
+    | 'presentation'
+    | 'row'
+    | 'rowgroup'
+    | 'rowheader'
+    | 'separator'
+    | 'strong'
+    | 'subscript'
+    | 'superscript'
+    | 'table'
+    | 'term'
+    | 'time'
+    | 'toolbar'
+    | 'tooltip';
+
+type ARIALandmarkRole =
+    | 'banner'
+    | 'complementary'
+    | 'contentinfo'
+    | 'form'
+    | 'main'
+    | 'navigation'
+    | 'region'
+    | 'search';
+
+type ARIALiveRegionRole = 'alert' | 'log' | 'marquee' | 'status' | 'timer';
+
+type ARIAWindowRole = 'alertdialog' | 'dialog';
+
+type ARIAUncategorizedRole = 'code';
+
+type ARIARole =
+    | ARIAWidgetRole
+    | ARIACompositeWidgetRole
+    | ARIADocumentStructureRole
+    | ARIALandmarkRole
+    | ARIALiveRegionRole
+    | ARIAWindowRole
+    | ARIAUncategorizedRole;
+
+type MatcherFunction = (
+  content: string,
+  element: Element | null,
+) => boolean
+type Matcher = MatcherFunction | RegExp | number | string
+
+// Get autocomplete for ARIARole union types, while still supporting another string
+// Ref: https://github.com/microsoft/TypeScript/issues/29729#issuecomment-567871939
+type ByRoleMatcher = ARIARole | (string & {})
+
+type NormalizerFn = (text: string) => string
+
+interface MatcherOptions {
+  exact?: boolean
+  /** Use normalizer with getDefaultNormalizer instead */
+  trim?: boolean
+  /** Use normalizer with getDefaultNormalizer instead */
+  collapseWhitespace?: boolean
+  normalizer?: NormalizerFn
+  /** suppress suggestions for a specific query */
+  suggest?: boolean
+}
+
+interface waitForOptions {
+  container?: HTMLElement
+  timeout?: number
+  interval?: number
+  onTimeout?: (error: Error) => Error
+  mutationObserverOptions?: MutationObserverInit
+}
+
+interface SelectorMatcherOptions extends MatcherOptions {
+  selector?: string
+  ignore?: boolean | string
+}
+
+type QueryByBoundAttribute<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: MatcherOptions,
+) => T | null
+
+type AllByBoundAttribute<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: MatcherOptions,
+) => T[]
+
+type FindAllByBoundAttribute<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: MatcherOptions,
+  waitForElementOptions?: waitForOptions,
+) => Promise<T[]>
+
+type GetByBoundAttribute<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: MatcherOptions,
+) => T
+
+type FindByBoundAttribute<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: MatcherOptions,
+  waitForElementOptions?: waitForOptions,
+) => Promise<T>
+
+type QueryByText<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: SelectorMatcherOptions,
+) => T | null
+
+type AllByText<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: SelectorMatcherOptions,
+) => T[]
+
+type FindAllByText<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: SelectorMatcherOptions,
+  waitForElementOptions?: waitForOptions,
+) => Promise<T[]>
+
+type GetByText<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: SelectorMatcherOptions,
+) => T
+
+type FindByText<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  id: Matcher,
+  options?: SelectorMatcherOptions,
+  waitForElementOptions?: waitForOptions,
+) => Promise<T>
+
+interface ByRoleOptions {
+  /** suppress suggestions for a specific query */
+  suggest?: boolean
+  /**
+   * If true includes elements in the query set that are usually excluded from
+   * the accessibility tree. `role="none"` or `role="presentation"` are included
+   * in either case.
+   */
+  hidden?: boolean
+  /**
+   * If true only includes elements in the query set that are marked as
+   * selected in the accessibility tree, i.e., `aria-selected="true"`
+   */
+  selected?: boolean
+  /**
+   * If true only includes elements in the query set that are marked as
+   * busy in the accessibility tree, i.e., `aria-busy="true"`
+   */
+  busy?: boolean
+  /**
+   * If true only includes elements in the query set that are marked as
+   * checked in the accessibility tree, i.e., `aria-checked="true"`
+   */
+  checked?: boolean
+  /**
+   * If true only includes elements in the query set that are marked as
+   * pressed in the accessibility tree, i.e., `aria-pressed="true"`
+   */
+  pressed?: boolean
+  /**
+   * Filters elements by their `aria-current` state. `true` and `false` match `aria-current="true"` and `aria-current="false"` (as well as a missing `aria-current` attribute) respectively.
+   */
+  current?: boolean | string
+  /**
+   * If true only includes elements in the query set that are marked as
+   * expanded in the accessibility tree, i.e., `aria-expanded="true"`
+   */
+  expanded?: boolean
+  /**
+   * Includes elements with the `"heading"` role matching the indicated level,
+   * either by the semantic HTML heading elements `<h1>-<h6>` or matching
+   * the `aria-level` attribute.
+   */
+  level?: number
+  value?: {
+    now?: number
+    min?: number
+    max?: number
+    text?: Matcher
+  }
+  /**
+   * Includes every role used in the `role` attribute
+   * For example *ByRole('progressbar', {queryFallbacks: true})` will find <div role="meter progressbar">`.
+   */
+  queryFallbacks?: boolean
+  /**
+   * Only considers elements with the specified accessible name.
+   */
+  name?:
+    | RegExp
+    | string
+    | ((accessibleName: string, element: Element) => boolean)
+  /**
+   * Only considers elements with the specified accessible description.
+   */
+  description?:
+    | RegExp
+    | string
+    | ((accessibleDescription: string, element: Element) => boolean)
+}
+
+type AllByRole<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  role: ByRoleMatcher,
+  options?: ByRoleOptions,
+) => T[]
+
+type GetByRole<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  role: ByRoleMatcher,
+  options?: ByRoleOptions,
+) => T
+
+type QueryByRole<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  role: ByRoleMatcher,
+  options?: ByRoleOptions,
+) => T | null
+
+type FindByRole<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  role: ByRoleMatcher,
+  options?: ByRoleOptions,
+  waitForElementOptions?: waitForOptions,
+) => Promise<T>
+
+type FindAllByRole<T extends HTMLElement = HTMLElement> = (
+  container: HTMLElement,
+  role: ByRoleMatcher,
+  options?: ByRoleOptions,
+  waitForElementOptions?: waitForOptions,
+) => Promise<T[]>
+
+declare function getByLabelText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<GetByText<T>>
+): ReturnType<GetByText<T>>
+declare function getAllByLabelText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByText<T>>
+): ReturnType<AllByText<T>>
+declare function queryByLabelText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<QueryByText<T>>
+): ReturnType<QueryByText<T>>
+declare function queryAllByLabelText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByText<T>>
+): ReturnType<AllByText<T>>
+declare function findByLabelText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindByText<T>>
+): ReturnType<FindByText<T>>
+declare function findAllByLabelText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindAllByText<T>>
+): ReturnType<FindAllByText<T>>
+declare function getByPlaceholderText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<GetByBoundAttribute<T>>
+): ReturnType<GetByBoundAttribute<T>>
+declare function getAllByPlaceholderText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function queryByPlaceholderText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<QueryByBoundAttribute<T>>
+): ReturnType<QueryByBoundAttribute<T>>
+declare function queryAllByPlaceholderText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function findByPlaceholderText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindByBoundAttribute<T>>
+): ReturnType<FindByBoundAttribute<T>>
+declare function findAllByPlaceholderText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindAllByBoundAttribute<T>>
+): ReturnType<FindAllByBoundAttribute<T>>
+declare function getByText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<GetByText<T>>
+): ReturnType<GetByText<T>>
+declare function getAllByText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByText<T>>
+): ReturnType<AllByText<T>>
+declare function queryByText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<QueryByText<T>>
+): ReturnType<QueryByText<T>>
+declare function queryAllByText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByText<T>>
+): ReturnType<AllByText<T>>
+declare function findByText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindByText<T>>
+): ReturnType<FindByText<T>>
+declare function findAllByText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindAllByText<T>>
+): ReturnType<FindAllByText<T>>
+declare function getByAltText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<GetByBoundAttribute<T>>
+): ReturnType<GetByBoundAttribute<T>>
+declare function getAllByAltText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function queryByAltText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<QueryByBoundAttribute<T>>
+): ReturnType<QueryByBoundAttribute<T>>
+declare function queryAllByAltText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function findByAltText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindByBoundAttribute<T>>
+): ReturnType<FindByBoundAttribute<T>>
+declare function findAllByAltText<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindAllByBoundAttribute<T>>
+): ReturnType<FindAllByBoundAttribute<T>>
+declare function getByTitle<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<GetByBoundAttribute<T>>
+): ReturnType<GetByBoundAttribute<T>>
+declare function getAllByTitle<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function queryByTitle<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<QueryByBoundAttribute<T>>
+): ReturnType<QueryByBoundAttribute<T>>
+declare function queryAllByTitle<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function findByTitle<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindByBoundAttribute<T>>
+): ReturnType<FindByBoundAttribute<T>>
+declare function findAllByTitle<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindAllByBoundAttribute<T>>
+): ReturnType<FindAllByBoundAttribute<T>>
+declare function getByDisplayValue<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<GetByBoundAttribute<T>>
+): ReturnType<GetByBoundAttribute<T>>
+declare function getAllByDisplayValue<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function queryByDisplayValue<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<QueryByBoundAttribute<T>>
+): ReturnType<QueryByBoundAttribute<T>>
+declare function queryAllByDisplayValue<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function findByDisplayValue<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindByBoundAttribute<T>>
+): ReturnType<FindByBoundAttribute<T>>
+declare function findAllByDisplayValue<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindAllByBoundAttribute<T>>
+): ReturnType<FindAllByBoundAttribute<T>>
+declare function getByRole<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<GetByRole<T>>
+): ReturnType<GetByRole<T>>
+declare function getAllByRole<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByRole<T>>
+): ReturnType<AllByRole<T>>
+declare function queryByRole<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<QueryByRole<T>>
+): ReturnType<QueryByRole<T>>
+declare function queryAllByRole<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByRole<T>>
+): ReturnType<AllByRole<T>>
+declare function findByRole<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindByRole<T>>
+): ReturnType<FindByRole<T>>
+declare function findAllByRole<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindAllByRole<T>>
+): ReturnType<FindAllByRole<T>>
+declare function getByTestId<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<GetByBoundAttribute<T>>
+): ReturnType<GetByBoundAttribute<T>>
+declare function getAllByTestId<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function queryByTestId<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<QueryByBoundAttribute<T>>
+): ReturnType<QueryByBoundAttribute<T>>
+declare function queryAllByTestId<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<AllByBoundAttribute<T>>
+): ReturnType<AllByBoundAttribute<T>>
+declare function findByTestId<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindByBoundAttribute<T>>
+): ReturnType<FindByBoundAttribute<T>>
+declare function findAllByTestId<T extends HTMLElement = HTMLElement>(
+  ...args: Parameters<FindAllByBoundAttribute<T>>
+): ReturnType<FindAllByBoundAttribute<T>>
+
+type queries_AllByBoundAttribute<T extends HTMLElement = HTMLElement> = AllByBoundAttribute<T>;
+type queries_AllByRole<T extends HTMLElement = HTMLElement> = AllByRole<T>;
+type queries_AllByText<T extends HTMLElement = HTMLElement> = AllByText<T>;
+type queries_ByRoleOptions = ByRoleOptions;
+type queries_FindAllByBoundAttribute<T extends HTMLElement = HTMLElement> = FindAllByBoundAttribute<T>;
+type queries_FindAllByRole<T extends HTMLElement = HTMLElement> = FindAllByRole<T>;
+type queries_FindAllByText<T extends HTMLElement = HTMLElement> = FindAllByText<T>;
+type queries_FindByBoundAttribute<T extends HTMLElement = HTMLElement> = FindByBoundAttribute<T>;
+type queries_FindByRole<T extends HTMLElement = HTMLElement> = FindByRole<T>;
+type queries_FindByText<T extends HTMLElement = HTMLElement> = FindByText<T>;
+type queries_GetByBoundAttribute<T extends HTMLElement = HTMLElement> = GetByBoundAttribute<T>;
+type queries_GetByRole<T extends HTMLElement = HTMLElement> = GetByRole<T>;
+type queries_GetByText<T extends HTMLElement = HTMLElement> = GetByText<T>;
+type queries_QueryByBoundAttribute<T extends HTMLElement = HTMLElement> = QueryByBoundAttribute<T>;
+type queries_QueryByRole<T extends HTMLElement = HTMLElement> = QueryByRole<T>;
+type queries_QueryByText<T extends HTMLElement = HTMLElement> = QueryByText<T>;
+declare const queries_findAllByAltText: typeof findAllByAltText;
+declare const queries_findAllByDisplayValue: typeof findAllByDisplayValue;
+declare const queries_findAllByLabelText: typeof findAllByLabelText;
+declare const queries_findAllByPlaceholderText: typeof findAllByPlaceholderText;
+declare const queries_findAllByRole: typeof findAllByRole;
+declare const queries_findAllByTestId: typeof findAllByTestId;
+declare const queries_findAllByText: typeof findAllByText;
+declare const queries_findAllByTitle: typeof findAllByTitle;
+declare const queries_findByAltText: typeof findByAltText;
+declare const queries_findByDisplayValue: typeof findByDisplayValue;
+declare const queries_findByLabelText: typeof findByLabelText;
+declare const queries_findByPlaceholderText: typeof findByPlaceholderText;
+declare const queries_findByRole: typeof findByRole;
+declare const queries_findByTestId: typeof findByTestId;
+declare const queries_findByText: typeof findByText;
+declare const queries_findByTitle: typeof findByTitle;
+declare const queries_getAllByAltText: typeof getAllByAltText;
+declare const queries_getAllByDisplayValue: typeof getAllByDisplayValue;
+declare const queries_getAllByLabelText: typeof getAllByLabelText;
+declare const queries_getAllByPlaceholderText: typeof getAllByPlaceholderText;
+declare const queries_getAllByRole: typeof getAllByRole;
+declare const queries_getAllByTestId: typeof getAllByTestId;
+declare const queries_getAllByText: typeof getAllByText;
+declare const queries_getAllByTitle: typeof getAllByTitle;
+declare const queries_getByAltText: typeof getByAltText;
+declare const queries_getByDisplayValue: typeof getByDisplayValue;
+declare const queries_getByLabelText: typeof getByLabelText;
+declare const queries_getByPlaceholderText: typeof getByPlaceholderText;
+declare const queries_getByRole: typeof getByRole;
+declare const queries_getByTestId: typeof getByTestId;
+declare const queries_getByText: typeof getByText;
+declare const queries_getByTitle: typeof getByTitle;
+declare const queries_queryAllByAltText: typeof queryAllByAltText;
+declare const queries_queryAllByDisplayValue: typeof queryAllByDisplayValue;
+declare const queries_queryAllByLabelText: typeof queryAllByLabelText;
+declare const queries_queryAllByPlaceholderText: typeof queryAllByPlaceholderText;
+declare const queries_queryAllByRole: typeof queryAllByRole;
+declare const queries_queryAllByTestId: typeof queryAllByTestId;
+declare const queries_queryAllByText: typeof queryAllByText;
+declare const queries_queryAllByTitle: typeof queryAllByTitle;
+declare const queries_queryByAltText: typeof queryByAltText;
+declare const queries_queryByDisplayValue: typeof queryByDisplayValue;
+declare const queries_queryByLabelText: typeof queryByLabelText;
+declare const queries_queryByPlaceholderText: typeof queryByPlaceholderText;
+declare const queries_queryByRole: typeof queryByRole;
+declare const queries_queryByTestId: typeof queryByTestId;
+declare const queries_queryByText: typeof queryByText;
+declare const queries_queryByTitle: typeof queryByTitle;
+declare namespace queries {
+  export { queries_findAllByAltText as findAllByAltText, queries_findAllByDisplayValue as findAllByDisplayValue, queries_findAllByLabelText as findAllByLabelText, queries_findAllByPlaceholderText as findAllByPlaceholderText, queries_findAllByRole as findAllByRole, queries_findAllByTestId as findAllByTestId, queries_findAllByText as findAllByText, queries_findAllByTitle as findAllByTitle, queries_findByAltText as findByAltText, queries_findByDisplayValue as findByDisplayValue, queries_findByLabelText as findByLabelText, queries_findByPlaceholderText as findByPlaceholderText, queries_findByRole as findByRole, queries_findByTestId as findByTestId, queries_findByText as findByText, queries_findByTitle as findByTitle, queries_getAllByAltText as getAllByAltText, queries_getAllByDisplayValue as getAllByDisplayValue, queries_getAllByLabelText as getAllByLabelText, queries_getAllByPlaceholderText as getAllByPlaceholderText, queries_getAllByRole as getAllByRole, queries_getAllByTestId as getAllByTestId, queries_getAllByText as getAllByText, queries_getAllByTitle as getAllByTitle, queries_getByAltText as getByAltText, queries_getByDisplayValue as getByDisplayValue, queries_getByLabelText as getByLabelText, queries_getByPlaceholderText as getByPlaceholderText, queries_getByRole as getByRole, queries_getByTestId as getByTestId, queries_getByText as getByText, queries_getByTitle as getByTitle, queries_queryAllByAltText as queryAllByAltText, queries_queryAllByDisplayValue as queryAllByDisplayValue, queries_queryAllByLabelText as queryAllByLabelText, queries_queryAllByPlaceholderText as queryAllByPlaceholderText, queries_queryAllByRole as queryAllByRole, queries_queryAllByTestId as queryAllByTestId, queries_queryAllByText as queryAllByText, queries_queryAllByTitle as queryAllByTitle, queries_queryByAltText as queryByAltText, queries_queryByDisplayValue as queryByDisplayValue, queries_queryByLabelText as queryByLabelText, queries_queryByPlaceholderText as queryByPlaceholderText, queries_queryByRole as queryByRole, queries_queryByTestId as queryByTestId, queries_queryByText as queryByText, queries_queryByTitle as queryByTitle };
+  export type { queries_AllByBoundAttribute as AllByBoundAttribute, queries_AllByRole as AllByRole, queries_AllByText as AllByText, queries_ByRoleOptions as ByRoleOptions, queries_FindAllByBoundAttribute as FindAllByBoundAttribute, queries_FindAllByRole as FindAllByRole, queries_FindAllByText as FindAllByText, queries_FindByBoundAttribute as FindByBoundAttribute, queries_FindByRole as FindByRole, queries_FindByText as FindByText, queries_GetByBoundAttribute as GetByBoundAttribute, queries_GetByRole as GetByRole, queries_GetByText as GetByText, queries_QueryByBoundAttribute as QueryByBoundAttribute, queries_QueryByRole as QueryByRole, queries_QueryByText as QueryByText };
+}
+
+/**
+ * Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+declare type Colors = {
+    comment: {
+        close: string;
+        open: string;
+    };
+    content: {
+        close: string;
+        open: string;
+    };
+    prop: {
+        close: string;
+        open: string;
+    };
+    tag: {
+        close: string;
+        open: string;
+    };
+    value: {
+        close: string;
+        open: string;
+    };
+};
+declare type Indent = (arg0: string) => string;
+declare type Refs = Array<unknown>;
+declare type Print = (arg0: unknown) => string;
+declare type ThemeReceived = {
+    comment?: string;
+    content?: string;
+    prop?: string;
+    tag?: string;
+    value?: string;
+};
+declare type CompareKeys = ((a: string, b: string) => number) | undefined;
+interface PrettyFormatOptions {
+    callToJSON?: boolean;
+    compareKeys?: CompareKeys;
+    escapeRegex?: boolean;
+    escapeString?: boolean;
+    highlight?: boolean;
+    indent?: number;
+    maxDepth?: number;
+    min?: boolean;
+    plugins?: Plugins;
+    printBasicPrototype?: boolean;
+    printFunctionName?: boolean;
+    theme?: ThemeReceived;
+}
+declare type OptionsReceived = PrettyFormatOptions;
+declare type Config = {
+    callToJSON: boolean;
+    compareKeys: CompareKeys;
+    colors: Colors;
+    escapeRegex: boolean;
+    escapeString: boolean;
+    indent: string;
+    maxDepth: number;
+    min: boolean;
+    plugins: Plugins;
+    printBasicPrototype: boolean;
+    printFunctionName: boolean;
+    spacingInner: string;
+    spacingOuter: string;
+};
+declare type Printer = (val: unknown, config: Config, indentation: string, depth: number, refs: Refs, hasCalledToJSON?: boolean) => string;
+declare type Test = (arg0: any) => boolean;
+declare type NewPlugin = {
+    serialize: (val: any, config: Config, indentation: string, depth: number, refs: Refs, printer: Printer) => string;
+    test: Test;
+};
+declare type PluginOptions = {
+    edgeSpacing: string;
+    min: boolean;
+    spacing: string;
+};
+declare type OldPlugin = {
+    print: (val: unknown, print: Print, indent: Indent, options: PluginOptions, colors: Colors) => string;
+    test: Test;
+};
+declare type Plugin = NewPlugin | OldPlugin;
+declare type Plugins = Array<Plugin>;
+
+interface PrettyDOMOptions extends OptionsReceived {
+  /**
+   * Given a `Node` return `false` if you wish to ignore that node in the output.
+   * By default, ignores `<style />`, `<script />` and comment nodes.
+   */
+  filterNode?: (node: Node) => boolean
+}
+
+declare function prettyDOM(
+  dom?: Element | HTMLDocument,
+  maxLength?: number,
+  options?: PrettyDOMOptions,
+): string | false
+
+declare namespace matchers {
+  interface TestingLibraryMatchers<E, R> {
+    /**
+     * @deprecated
+     * since v1.9.0
+     * @description
+     * Assert whether a value is a DOM element, or not. Contrary to what its name implies, this matcher only checks
+     * that you passed to it a valid DOM element.
+     *
+     * It does not have a clear definition of what "the DOM" is. Therefore, it does not check whether that element
+     * is contained anywhere.
+     * @see
+     * [testing-library/jest-dom#toBeInTheDom](https://github.com/testing-library/jest-dom#toBeInTheDom)
+     */
+    toBeInTheDOM(container?: HTMLElement | SVGElement): R
+    /**
+     * @description
+     * Assert whether an element is present in the document or not.
+     * @example
+     * <svg data-testid="svg-element"></svg>
+     *
+     * expect(queryByTestId('svg-element')).toBeInTheDocument()
+     * expect(queryByTestId('does-not-exist')).not.toBeInTheDocument()
+     * @see
+     * [testing-library/jest-dom#tobeinthedocument](https://github.com/testing-library/jest-dom#tobeinthedocument)
+     */
+    toBeInTheDocument(): R
+    /**
+     * @description
+     * This allows you to check if an element is currently visible to the user.
+     *
+     * An element is visible if **all** the following conditions are met:
+     * * it does not have its css property display set to none
+     * * it does not have its css property visibility set to either hidden or collapse
+     * * it does not have its css property opacity set to 0
+     * * its parent element is also visible (and so on up to the top of the DOM tree)
+     * * it does not have the hidden attribute
+     * * if `<details />` it has the open attribute
+     * @example
+     * <div
+     *   data-testid="zero-opacity"
+     *   style="opacity: 0"
+     * >
+     *   Zero Opacity
+     * </div>
+     *
+     * <div data-testid="visible">Visible Example</div>
+     *
+     * expect(getByTestId('zero-opacity')).not.toBeVisible()
+     * expect(getByTestId('visible')).toBeVisible()
+     * @see
+     * [testing-library/jest-dom#tobevisible](https://github.com/testing-library/jest-dom#tobevisible)
+     */
+    toBeVisible(): R
+    /**
+     * @deprecated
+     * since v5.9.0
+     * @description
+     * Assert whether an element has content or not.
+     * @example
+     * <span data-testid="not-empty">
+     *   <span data-testid="empty"></span>
+     * </span>
+     *
+     * expect(getByTestId('empty')).toBeEmpty()
+     * expect(getByTestId('not-empty')).not.toBeEmpty()
+     * @see
+     * [testing-library/jest-dom#tobeempty](https://github.com/testing-library/jest-dom#tobeempty)
+     */
+    toBeEmpty(): R
+    /**
+     * @description
+     * Assert whether an element has content or not.
+     * @example
+     * <span data-testid="not-empty">
+     *   <span data-testid="empty"></span>
+     * </span>
+     *
+     * expect(getByTestId('empty')).toBeEmptyDOMElement()
+     * expect(getByTestId('not-empty')).not.toBeEmptyDOMElement()
+     * @see
+     * [testing-library/jest-dom#tobeemptydomelement](https://github.com/testing-library/jest-dom#tobeemptydomelement)
+     */
+    toBeEmptyDOMElement(): R
+    /**
+     * @description
+     * Allows you to check whether an element is disabled from the user's perspective.
+     *
+     * Matches if the element is a form control and the `disabled` attribute is specified on this element or the
+     * element is a descendant of a form element with a `disabled` attribute.
+     * @example
+     * <button
+     *   data-testid="button"
+     *   type="submit"
+     *   disabled
+     * >
+     *   submit
+     * </button>
+     *
+     * expect(getByTestId('button')).toBeDisabled()
+     * @see
+     * [testing-library/jest-dom#tobedisabled](https://github.com/testing-library/jest-dom#tobedisabled)
+     */
+    toBeDisabled(): R
+    /**
+     * @description
+     * Allows you to check whether an element is not disabled from the user's perspective.
+     *
+     * Works like `not.toBeDisabled()`.
+     *
+     * Use this matcher to avoid double negation in your tests.
+     * @example
+     * <button
+     *   data-testid="button"
+     *   type="submit"
+     * >
+     *   submit
+     * </button>
+     *
+     * expect(getByTestId('button')).toBeEnabled()
+     * @see
+     * [testing-library/jest-dom#tobeenabled](https://github.com/testing-library/jest-dom#tobeenabled)
+     */
+    toBeEnabled(): R
+    /**
+     * @description
+     * Check if a form element, or the entire `form`, is currently invalid.
+     *
+     * An `input`, `select`, `textarea`, or `form` element is invalid if it has an `aria-invalid` attribute with no
+     * value or a value of "true", or if the result of `checkValidity()` is false.
+     * @example
+     * <input data-testid="no-aria-invalid" />
+     *
+     * <form data-testid="invalid-form">
+     *   <input required />
+     * </form>
+     *
+     * expect(getByTestId('no-aria-invalid')).not.toBeInvalid()
+     * expect(getByTestId('invalid-form')).toBeInvalid()
+     * @see
+     * [testing-library/jest-dom#tobeinvalid](https://github.com/testing-library/jest-dom#tobeinvalid)
+     */
+    toBeInvalid(): R
+    /**
+     * @description
+     * This allows you to check if a form element is currently required.
+     *
+     * An element is required if it is having a `required` or `aria-required="true"` attribute.
+     * @example
+     * <input data-testid="required-input" required />
+     * <div
+     *   data-testid="supported-role"
+     *   role="tree"
+     *   required />
+     *
+     * expect(getByTestId('required-input')).toBeRequired()
+     * expect(getByTestId('supported-role')).not.toBeRequired()
+     * @see
+     * [testing-library/jest-dom#toberequired](https://github.com/testing-library/jest-dom#toberequired)
+     */
+    toBeRequired(): R
+    /**
+     * @description
+     * Allows you to check if a form element is currently required.
+     *
+     * An `input`, `select`, `textarea`, or `form` element is invalid if it has an `aria-invalid` attribute with no
+     * value or a value of "false", or if the result of `checkValidity()` is true.
+     * @example
+     * <input data-testid="aria-invalid" aria-invalid />
+     *
+     * <form data-testid="valid-form">
+     *   <input />
+     * </form>
+     *
+     * expect(getByTestId('no-aria-invalid')).not.toBeValid()
+     * expect(getByTestId('invalid-form')).toBeInvalid()
+     * @see
+     * [testing-library/jest-dom#tobevalid](https://github.com/testing-library/jest-dom#tobevalid)
+     */
+    toBeValid(): R
+    /**
+     * @description
+     * Allows you to assert whether an element contains another element as a descendant or not.
+     * @example
+     * <span data-testid="ancestor">
+     *   <span data-testid="descendant"></span>
+     * </span>
+     *
+     * const ancestor = getByTestId('ancestor')
+     * const descendant = getByTestId('descendant')
+     * const nonExistantElement = getByTestId('does-not-exist')
+     * expect(ancestor).toContainElement(descendant)
+     * expect(descendant).not.toContainElement(ancestor)
+     * expect(ancestor).not.toContainElement(nonExistantElement)
+     * @see
+     * [testing-library/jest-dom#tocontainelement](https://github.com/testing-library/jest-dom#tocontainelement)
+     */
+    toContainElement(element: HTMLElement | SVGElement | null): R
+    /**
+     * @description
+     * Assert whether a string representing a HTML element is contained in another element.
+     * @example
+     * <span data-testid="parent"><span data-testid="child"></span></span>
+     *
+     * expect(getByTestId('parent')).toContainHTML('<span data-testid="child"></span>')
+     * @see
+     * [testing-library/jest-dom#tocontainhtml](https://github.com/testing-library/jest-dom#tocontainhtml)
+     */
+    toContainHTML(htmlText: string): R
+    /**
+     * @description
+     * Allows you to check if a given element has an attribute or not.
+     *
+     * You can also optionally check that the attribute has a specific expected value or partial match using
+     * [expect.stringContaining](https://jestjs.io/docs/en/expect.html#expectnotstringcontainingstring) or
+     * [expect.stringMatching](https://jestjs.io/docs/en/expect.html#expectstringmatchingstring-regexp).
+     * @example
+     * <button
+     *   data-testid="ok-button"
+     *   type="submit"
+     *   disabled
+     * >
+     *   ok
+     * </button>
+     *
+     * expect(button).toHaveAttribute('disabled')
+     * expect(button).toHaveAttribute('type', 'submit')
+     * expect(button).not.toHaveAttribute('type', 'button')
+     * @see
+     * [testing-library/jest-dom#tohaveattribute](https://github.com/testing-library/jest-dom#tohaveattribute)
+     */
+    toHaveAttribute(attr: string, value?: unknown): R
+    /**
+     * @description
+     * Check whether the given element has certain classes within its `class` attribute.
+     *
+     * You must provide at least one class, unless you are asserting that an element does not have any classes.
+     * @example
+     * <button
+     *   data-testid="delete-button"
+     *   class="btn xs btn-danger"
+     * >
+     *   delete item
+     * </button>
+     *
+     * <div data-testid="no-classes">no classes</div>
+     *
+     * const deleteButton = getByTestId('delete-button')
+     * const noClasses = getByTestId('no-classes')
+     * expect(deleteButton).toHaveClass('btn')
+     * expect(deleteButton).toHaveClass('btn-danger xs')
+     * expect(deleteButton).toHaveClass('btn xs btn-danger', {exact: true})
+     * expect(deleteButton).not.toHaveClass('btn xs btn-danger', {exact: true})
+     * expect(noClasses).not.toHaveClass()
+     * @see
+     * [testing-library/jest-dom#tohaveclass](https://github.com/testing-library/jest-dom#tohaveclass)
+     */
+    toHaveClass(...classNames: string[]): R
+    toHaveClass(classNames: string, options?: {exact: boolean}): R
+    /**
+     * @description
+     * This allows you to check whether the given form element has the specified displayed value (the one the
+     * end user will see). It accepts <input>, <select> and <textarea> elements with the exception of <input type="checkbox">
+     * and <input type="radio">, which can be meaningfully matched only using toBeChecked or toHaveFormValues.
+     * @example
+     * <label for="input-example">First name</label>
+     * <input type="text" id="input-example" value="Luca" />
+     *
+     * <label for="textarea-example">Description</label>
+     * <textarea id="textarea-example">An example description here.</textarea>
+     *
+     * <label for="single-select-example">Fruit</label>
+     * <select id="single-select-example">
+     *   <option value="">Select a fruit...</option>
+     *   <option value="banana">Banana</option>
+     *   <option value="ananas">Ananas</option>
+     *   <option value="avocado">Avocado</option>
+     * </select>
+     *
+     * <label for="mutiple-select-example">Fruits</label>
+     * <select id="multiple-select-example" multiple>
+     *   <option value="">Select a fruit...</option>
+     *   <option value="banana" selected>Banana</option>
+     *   <option value="ananas">Ananas</option>
+     *   <option value="avocado" selected>Avocado</option>
+     * </select>
+     *
+     * const input = screen.getByLabelText('First name')
+     * const textarea = screen.getByLabelText('Description')
+     * const selectSingle = screen.getByLabelText('Fruit')
+     * const selectMultiple = screen.getByLabelText('Fruits')
+     *
+     * expect(input).toHaveDisplayValue('Luca')
+     * expect(textarea).toHaveDisplayValue('An example description here.')
+     * expect(selectSingle).toHaveDisplayValue('Select a fruit...')
+     * expect(selectMultiple).toHaveDisplayValue(['Banana', 'Avocado'])
+     *
+     * @see
+     * [testing-library/jest-dom#tohavedisplayvalue](https://github.com/testing-library/jest-dom#tohavedisplayvalue)
+     */
+    toHaveDisplayValue(value: string | RegExp | Array<string | RegExp>): R
+    /**
+     * @description
+     * Assert whether an element has focus or not.
+     * @example
+     * <div>
+     *   <input type="text" data-testid="element-to-focus" />
+     * </div>
+     *
+     * const input = getByTestId('element-to-focus')
+     * input.focus()
+     * expect(input).toHaveFocus()
+     * input.blur()
+     * expect(input).not.toHaveFocus()
+     * @see
+     * [testing-library/jest-dom#tohavefocus](https://github.com/testing-library/jest-dom#tohavefocus)
+     */
+    toHaveFocus(): R
+    /**
+     * @description
+     * Check if a form or fieldset contains form controls for each given name, and having the specified value.
+     *
+     * Can only be invoked on a form or fieldset element.
+     * @example
+     * <form data-testid="login-form">
+     *   <input type="text" name="username" value="jane.doe" />
+     *   <input type="password" name="password" value="123" />
+     *   <input type="checkbox" name="rememberMe" checked />
+     *   <button type="submit">Sign in</button>
+     * </form>
+     *
+     * expect(getByTestId('login-form')).toHaveFormValues({
+     *   username: 'jane.doe',
+     *   rememberMe: true,
+     * })
+     * @see
+     * [testing-library/jest-dom#tohaveformvalues](https://github.com/testing-library/jest-dom#tohaveformvalues)
+     */
+    toHaveFormValues(expectedValues: Record<string, unknown>): R
+    /**
+     * @description
+     * Check if an element has specific css properties with specific values applied.
+     *
+     * Only matches if the element has *all* the expected properties applied, not just some of them.
+     * @example
+     * <button
+     *   data-test-id="submit-button"
+     *   style="background-color: green; display: none"
+     * >
+     *   submit
+     * </button>
+     *
+     * const button = getByTestId('submit-button')
+     * expect(button).toHaveStyle('background-color: green')
+     * expect(button).toHaveStyle({
+     *   'background-color': 'green',
+     *   display: 'none'
+     * })
+     * @see
+     * [testing-library/jest-dom#tohavestyle](https://github.com/testing-library/jest-dom#tohavestyle)
+     */
+    toHaveStyle(css: string | Record<string, unknown>): R
+    /**
+     * @description
+     * Check whether the given element has a text content or not.
+     *
+     * When a string argument is passed through, it will perform a partial case-sensitive match to the element
+     * content.
+     *
+     * To perform a case-insensitive match, you can use a RegExp with the `/i` modifier.
+     *
+     * If you want to match the whole content, you can use a RegExp to do it.
+     * @example
+     * <span data-testid="text-content">Text Content</span>
+     *
+     * const element = getByTestId('text-content')
+     * expect(element).toHaveTextContent('Content')
+     * // to match the whole content
+     * expect(element).toHaveTextContent(/^Text Content$/)
+     * // to use case-insentive match
+     * expect(element).toHaveTextContent(/content$/i)
+     * expect(element).not.toHaveTextContent('content')
+     * @see
+     * [testing-library/jest-dom#tohavetextcontent](https://github.com/testing-library/jest-dom#tohavetextcontent)
+     */
+    toHaveTextContent(
+      text: string | RegExp,
+      options?: {normalizeWhitespace: boolean},
+    ): R
+    /**
+     * @description
+     * Check whether the given form element has the specified value.
+     *
+     * Accepts `<input>`, `<select>`, and `<textarea>` elements with the exception of `<input type="checkbox">` and
+     * `<input type="radiobox">`, which can be matched only using
+     * [toBeChecked](https://github.com/testing-library/jest-dom#tobechecked) or
+     * [toHaveFormValues](https://github.com/testing-library/jest-dom#tohaveformvalues).
+     * @example
+     * <input
+     *   type="number"
+     *   value="5"
+     *   data-testid="input-number" />
+     *
+     * const numberInput = getByTestId('input-number')
+     * expect(numberInput).toHaveValue(5)
+     * @see
+     * [testing-library/jest-dom#tohavevalue](https://github.com/testing-library/jest-dom#tohavevalue)
+     */
+    toHaveValue(value?: string | string[] | number | null): R
+    /**
+     * @description
+     * Assert whether the given element is checked.
+     *
+     * It accepts an `input` of type `checkbox` or `radio` and elements with a `role` of `radio` with a valid
+     * `aria-checked` attribute of "true" or "false".
+     * @example
+     * <input
+     *   type="checkbox"
+     *   checked
+     *   data-testid="input-checkbox" />
+     * <input
+     *   type="radio"
+     *   value="foo"
+     *   data-testid="input-radio" />
+     *
+     * const inputCheckbox = getByTestId('input-checkbox')
+     * const inputRadio = getByTestId('input-radio')
+     * expect(inputCheckbox).toBeChecked()
+     * expect(inputRadio).not.toBeChecked()
+     * @see
+     * [testing-library/jest-dom#tobechecked](https://github.com/testing-library/jest-dom#tobechecked)
+     */
+    toBeChecked(): R
+    /**
+     * @deprecated
+     * since v5.14.1
+     * @description
+     * Check the accessible description for an element.
+     * This allows you to check whether the given element has a description or not.
+     *
+     * An element gets its description via the
+     * [`aria-describedby` attribute](https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/ARIA_Techniques/Using_the_aria-describedby_attribute).
+     * Set this to the `id` of one or more other elements. These elements may be nested
+     * inside, be outside, or a sibling of the passed in element.
+     *
+     * Whitespace is normalized. Using multiple ids will
+     * [join the referenced elements’ text content separated by a space](https://www.w3.org/TR/accname-1.1/#mapping_additional_nd_description).
+     *
+     * When a `string` argument is passed through, it will perform a whole
+     * case-sensitive match to the description text.
+     *
+     * To perform a case-insensitive match, you can use a `RegExp` with the `/i`
+     * modifier.
+     *
+     * To perform a partial match, you can pass a `RegExp` or use
+     * `expect.stringContaining("partial string")`.
+     *
+     * @example
+     * <button aria-label="Close" aria-describedby="description-close">
+     *   X
+     * </button>
+     * <div id="description-close">
+     *   Closing will discard any changes
+     * </div>
+     *
+     * <button>Delete</button>
+     *
+     * const closeButton = getByRole('button', {name: 'Close'})
+     *
+     * expect(closeButton).toHaveDescription('Closing will discard any changes')
+     * expect(closeButton).toHaveDescription(/will discard/) // to partially match
+     * expect(closeButton).toHaveDescription(expect.stringContaining('will discard')) // to partially match
+     * expect(closeButton).toHaveDescription(/^closing/i) // to use case-insensitive match
+     * expect(closeButton).not.toHaveDescription('Other description')
+     *
+     * const deleteButton = getByRole('button', {name: 'Delete'})
+     * expect(deleteButton).not.toHaveDescription()
+     * expect(deleteButton).toHaveDescription('') // Missing or empty description always becomes a blank string
+     * @see
+     * [testing-library/jest-dom#tohavedescription](https://github.com/testing-library/jest-dom#tohavedescription)
+     */
+    toHaveDescription(text?: string | RegExp | E): R
+    /**
+     * @description
+     * This allows to assert that an element has the expected [accessible description](https://w3c.github.io/accname/).
+     *
+     * You can pass the exact string of the expected accessible description, or you can make a
+     * partial match passing a regular expression, or by using either
+     * [expect.stringContaining](https://jestjs.io/docs/en/expect.html#expectnotstringcontainingstring)
+     * or [expect.stringMatching](https://jestjs.io/docs/en/expect.html#expectstringmatchingstring-regexp).
+     * @example
+     * <a data-testid="link" href="/" aria-label="Home page" title="A link to start over">Start</a>
+     * <a data-testid="extra-link" href="/about" aria-label="About page">About</a>
+     * <img src="avatar.jpg" data-testid="avatar" alt="User profile pic" />
+     * <img src="logo.jpg" data-testid="logo" alt="Company logo" aria-describedby="t1" />
+     * <span id="t1" role="presentation">The logo of Our Company</span>
+     *
+     * expect(getByTestId('link')).toHaveAccessibleDescription()
+     * expect(getByTestId('link')).toHaveAccessibleDescription('A link to start over')
+     * expect(getByTestId('link')).not.toHaveAccessibleDescription('Home page')
+     * expect(getByTestId('extra-link')).not.toHaveAccessibleDescription()
+     * expect(getByTestId('avatar')).not.toHaveAccessibleDescription()
+     * expect(getByTestId('logo')).not.toHaveAccessibleDescription('Company logo')
+     * expect(getByTestId('logo')).toHaveAccessibleDescription('The logo of Our Company')
+     * @see
+     * [testing-library/jest-dom#tohaveaccessibledescription](https://github.com/testing-library/jest-dom#tohaveaccessibledescription)
+     */
+    toHaveAccessibleDescription(text?: string | RegExp | E): R
+
+    /**
+     * @description
+     * This allows you to assert that an element has the expected
+     * [accessible error message](https://w3c.github.io/aria/#aria-errormessage).
+     *
+     * You can pass the exact string of the expected accessible error message.
+     * Alternatively, you can perform a partial match by passing a regular expression
+     * or by using either
+     * [expect.stringContaining](https://jestjs.io/docs/en/expect.html#expectnotstringcontainingstring)
+     * or [expect.stringMatching](https://jestjs.io/docs/en/expect.html#expectstringmatchingstring-regexp).
+     *
+     * @example
+     * <input aria-label="Has Error" aria-invalid="true" aria-errormessage="error-message" />
+     * <div id="error-message" role="alert">This field is invalid</div>
+     *
+     * <input aria-label="No Error Attributes" />
+     * <input aria-label="Not Invalid" aria-invalid="false" aria-errormessage="error-message" />
+     *
+     * // Inputs with Valid Error Messages
+     * expect(getByRole('textbox', {name: 'Has Error'})).toHaveAccessibleErrorMessage()
+     * expect(getByRole('textbox', {name: 'Has Error'})).toHaveAccessibleErrorMessage('This field is invalid')
+     * expect(getByRole('textbox', {name: 'Has Error'})).toHaveAccessibleErrorMessage(/invalid/i)
+     * expect(
+     *   getByRole('textbox', {name: 'Has Error'}),
+     * ).not.toHaveAccessibleErrorMessage('This field is absolutely correct!')
+     *
+     * // Inputs without Valid Error Messages
+     * expect(
+     *   getByRole('textbox', {name: 'No Error Attributes'}),
+     * ).not.toHaveAccessibleErrorMessage()
+     *
+     * expect(
+     *   getByRole('textbox', {name: 'Not Invalid'}),
+     * ).not.toHaveAccessibleErrorMessage()
+     *
+     * @see
+     * [testing-library/jest-dom#tohaveaccessibleerrormessage](https://github.com/testing-library/jest-dom#tohaveaccessibleerrormessage)
+     */
+    toHaveAccessibleErrorMessage(text?: string | RegExp | E): R
+
+    /**
+     * @description
+     * This allows to assert that an element has the expected [accessible name](https://w3c.github.io/accname/).
+     * It is useful, for instance, to assert that form elements and buttons are properly labelled.
+     *
+     * You can pass the exact string of the expected accessible name, or you can make a
+     * partial match passing a regular expression, or by using either
+     * [expect.stringContaining](https://jestjs.io/docs/en/expect.html#expectnotstringcontainingstring)
+     * or [expect.stringMatching](https://jestjs.io/docs/en/expect.html#expectstringmatchingstring-regexp).
+     * @example
+     * <img data-testid="img-alt" src="" alt="Test alt" />
+     * <img data-testid="img-empty-alt" src="" alt="" />
+     * <svg data-testid="svg-title"><title>Test title</title></svg>
+     * <button data-testid="button-img-alt"><img src="" alt="Test" /></button>
+     * <p><img data-testid="img-paragraph" src="" alt="" /> Test content</p>
+     * <button data-testid="svg-button"><svg><title>Test</title></svg></p>
+     * <div><svg data-testid="svg-without-title"></svg></div>
+     * <input data-testid="input-title" title="test" />
+     *
+     * expect(getByTestId('img-alt')).toHaveAccessibleName('Test alt')
+     * expect(getByTestId('img-empty-alt')).not.toHaveAccessibleName()
+     * expect(getByTestId('svg-title')).toHaveAccessibleName('Test title')
+     * expect(getByTestId('button-img-alt')).toHaveAccessibleName()
+     * expect(getByTestId('img-paragraph')).not.toHaveAccessibleName()
+     * expect(getByTestId('svg-button')).toHaveAccessibleName()
+     * expect(getByTestId('svg-without-title')).not.toHaveAccessibleName()
+     * expect(getByTestId('input-title')).toHaveAccessibleName()
+     * @see
+     * [testing-library/jest-dom#tohaveaccessiblename](https://github.com/testing-library/jest-dom#tohaveaccessiblename)
+     */
+    toHaveAccessibleName(text?: string | RegExp | E): R
+    /**
+     * @description
+     * This allows you to check whether the given element is partially checked.
+     * It accepts an input of type checkbox and elements with a role of checkbox
+     * with a aria-checked="mixed", or input of type checkbox with indeterminate
+     * set to true
+     *
+     * @example
+     * <input type="checkbox" aria-checked="mixed" data-testid="aria-checkbox-mixed" />
+     * <input type="checkbox" checked data-testid="input-checkbox-checked" />
+     * <input type="checkbox" data-testid="input-checkbox-unchecked" />
+     * <div role="checkbox" aria-checked="true" data-testid="aria-checkbox-checked" />
+     * <div
+     *   role="checkbox"
+     *   aria-checked="false"
+     *   data-testid="aria-checkbox-unchecked"
+     * />
+     * <input type="checkbox" data-testid="input-checkbox-indeterminate" />
+     *
+     * const ariaCheckboxMixed = getByTestId('aria-checkbox-mixed')
+     * const inputCheckboxChecked = getByTestId('input-checkbox-checked')
+     * const inputCheckboxUnchecked = getByTestId('input-checkbox-unchecked')
+     * const ariaCheckboxChecked = getByTestId('aria-checkbox-checked')
+     * const ariaCheckboxUnchecked = getByTestId('aria-checkbox-unchecked')
+     * const inputCheckboxIndeterminate = getByTestId('input-checkbox-indeterminate')
+     *
+     * expect(ariaCheckboxMixed).toBePartiallyChecked()
+     * expect(inputCheckboxChecked).not.toBePartiallyChecked()
+     * expect(inputCheckboxUnchecked).not.toBePartiallyChecked()
+     * expect(ariaCheckboxChecked).not.toBePartiallyChecked()
+     * expect(ariaCheckboxUnchecked).not.toBePartiallyChecked()
+     *
+     * inputCheckboxIndeterminate.indeterminate = true
+     * expect(inputCheckboxIndeterminate).toBePartiallyChecked()
+     * @see
+     * [testing-library/jest-dom#tobepartiallychecked](https://github.com/testing-library/jest-dom#tobepartiallychecked)
+     */
+    toBePartiallyChecked(): R
+    /**
+     * @deprecated
+     * since v5.17.0
+     *
+     * @description
+     * Check whether the given element has an [ARIA error message](https://www.w3.org/TR/wai-aria/#aria-errormessage) or not.
+     *
+     * Use the `aria-errormessage` attribute to reference another element that contains
+     * custom error message text. Multiple ids is **NOT** allowed. Authors MUST use
+     * `aria-invalid` in conjunction with `aria-errormessage`. Learn more from the
+     * [`aria-errormessage` spec](https://www.w3.org/TR/wai-aria/#aria-errormessage).
+     *
+     * Whitespace is normalized.
+     *
+     * When a `string` argument is passed through, it will perform a whole
+     * case-sensitive match to the error message text.
+     *
+     * To perform a case-insensitive match, you can use a `RegExp` with the `/i`
+     * modifier.
+     *
+     * To perform a partial match, you can pass a `RegExp` or use
+     * expect.stringContaining("partial string")`.
+     *
+     * @example
+     * <label for="startTime"> Please enter a start time for the meeting: </label>
+     * <input id="startTime" type="text" aria-errormessage="msgID" aria-invalid="true" value="11:30 PM" />
+     * <span id="msgID" aria-live="assertive" style="visibility:visible">
+     *   Invalid time: the time must be between 9:00 AM and 5:00 PM"
+     * </span>
+     *
+     *
+     * const timeInput = getByLabel('startTime')
+     *
+     * expect(timeInput).toHaveErrorMessage(
+     *   'Invalid time: the time must be between 9:00 AM and 5:00 PM',
+     * )
+     * expect(timeInput).toHaveErrorMessage(/invalid time/i) // to partially match
+     * expect(timeInput).toHaveErrorMessage(expect.stringContaining('Invalid time')) // to partially match
+     * expect(timeInput).not.toHaveErrorMessage('Pikachu!')
+     * @see
+     * [testing-library/jest-dom#tohaveerrormessage](https://github.com/testing-library/jest-dom#tohaveerrormessage)
+     */
+    toHaveErrorMessage(text?: string | RegExp | E): R
+  }
+}
+
+// Needs to extend Record<string, any> to be accepted by expect.extend()
+// as it requires a string index signature.
+declare const matchers: matchers.TestingLibraryMatchers<any, void> &
+  Record<string, any>
+
+declare namespace matchers$1 {
+  export {
+    matchers as default,
+  };
+}
+
+/** Private lookup for assertions created by the genuine pinned primitives. */
+declare function getChaiAssertionIdentity(
+  value: unknown
+): object | undefined
+
+/** Private pure upstream helper factories; these do not register origins. */
+declare function createChaiAssertInterface(
+  assertion: typeof chai.Assertion,
+  flag: typeof chai.util.flag
+): typeof chai.assert
+declare function createChaiShouldInterface(
+  assertion: typeof chai.Assertion
+): typeof chai.should
+
+
+declare function createTimerContext(
+  global: typeof globalThis
+): TimerContext
+
+export { ASYMMETRIC_MATCHERS_OBJECT, Any, Anything, ArrayContaining, AsymmetricMatcher, ChaiStyleAssertions, GLOBAL_EXPECT, JEST_MATCHERS_OBJECT, JestAsymmetricMatchers, JestChaiExpect, JestExtend, MATCHERS_OBJECT, ObjectContaining, SchemaMatching, SnapshotClient, StringContaining, StringMatching, addCustomEqualityTesters, addSerializer, arrayBufferEquality, createAssertionMessage, createChaiAssertInterface, createChaiShouldInterface, createTimerContext, customMatchers, matchers$1 as domMatchers, equals, expectTypeOf, fnNameFor, format, generateToBeMessage, getChaiAssertionIdentity, getCustomEqualityTesters, getObjectKeys, getObjectSubset, getSerializers, getState, hasAsymmetric, hasProperty, inspect, isA, isAsymmetric, isError, isImmutableUnorderedKeyed, isImmutableUnorderedSet, isStandardSchema, iterableEquality, mockObject, pluralize, prettyDOM, queries, recordAsyncExpect, setState, sparseArrayEquality, index_d as spies, stringify, stripSnapshotIndentation, subsetEquality, typeEquality, wrapAssertion };
+export type { Assertion, AsymmetricMatcherInterface, AsymmetricMatchersContaining, AsyncExpectationResult, ChaiMockAssertion, ChaiPlugin, DeeplyAllowMatchers, DiffOptions, ExpectStatic, ExpectTypeOf, ExpectationResult, JestAssertion, MatcherHintOptions, MatcherState, Matchers, MatchersObject, MaybeMockedDeep, Mock, MockContext, Disposable as MockDisposable, MockInstance, MockResult, MockResultIncomplete, MockResultReturn, MockResultThrow, MockSettledResult, MockSettledResultFulfilled, MockSettledResultIncomplete, MockSettledResultRejected, Mocked, MockedClass, MockedFunction, MockedObject, PromisifyAssertion, RawMatcherFn, SnapshotResult, SnapshotStateOptions, SyncExpectationResult, TestError, Tester, TesterContext };

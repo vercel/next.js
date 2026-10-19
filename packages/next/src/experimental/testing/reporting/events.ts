@@ -1,4 +1,4 @@
-import type { TaskMeta, TestAnnotation } from '../runner/tasks'
+import type { TaskMeta, TestAnnotation, TestArtifact } from '../runner/tasks'
 import type { TestEntry } from '../contracts'
 import type { SnapshotUpdateMode } from '../assertions/snapshots'
 
@@ -123,6 +123,10 @@ type EventPayload =
     >)
   | ({ type: 'case-end' } & CaseResult)
   | ({ type: 'test-annotation'; annotation: TestAnnotation } & ResultScope & {
+        caseId: string
+        attempt: AttemptIdentity
+      })
+  | ({ type: 'test-artifact'; artifact: TestArtifact } & ResultScope & {
         caseId: string
         attempt: AttemptIdentity
       })

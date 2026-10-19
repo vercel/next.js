@@ -3118,3 +3118,431 @@ describe('pinned foreign final-task blob import', () => {
     })
   })
 })
+
+describe('helper diagnostic presentation', () => {
+  afterEach(() => setBundlerFindSourceMapImplementation(() => undefined))
+
+  it('trims through the last mapped helper marker and preserves raw error stacks', () => {
+    setBundlerFindSourceMapImplementation((file) =>
+      file.startsWith('file:///define-helper/')
+        ? {
+            version: 3,
+            file,
+            sources: ['file:///project/helper.test.ts'],
+            sourcesContent: ['callHelper()\n'],
+            names: [],
+            mappings: 'AAAA',
+          }
+        : undefined
+    )
+    const error = new Error('helper failure')
+    error.stack = [
+      'Error: helper failure',
+      '    at assertion (/define-helper/assertion.js:1:1)',
+      '    at __VITEST_HELPER__ (/define-helper/inner.js:1:1)',
+      '    at nested (/define-helper/nested.js:1:1)',
+      '    at Object.__VITEST_HELPER__ (/define-helper/outer.js:1:1)',
+      '    at authoredCaller (/define-helper/caller.js:1:1)',
+    ].join('\n')
+    const raw = error.stack
+    const diagnostic = serializeSourceMappedDiagnostic(
+      new AggregateError([error], 'soft failure', { cause: error }),
+      { phase: 'runtime' }
+    )
+    for (const child of [diagnostic.errors![0], diagnostic.cause!]) {
+      expect(child.stack).toBe(raw)
+      expect(child.frames).toHaveLength(1)
+      expect(child.frames![0]).toMatchObject({
+        file: 'file:///project/helper.test.ts',
+        line: 1,
+        column: 1,
+        methodName: 'authoredCaller',
+        original: true,
+      })
+      expect(child.frames![0].codeFrame).toContain('callHelper()')
+      expect(formatDiagnostic(child)).not.toContain('__VITEST_HELPER__')
+    }
+    expect(error.stack).toBe(raw)
+    const machine = createMachineReporter({
+      projectDir: '/project',
+      reporters: ['json'],
+    })
+    const emit = (event: object) =>
+      machine.onEvent({ ...envelope, ...event } as ResultEvent)
+    try {
+      emit({ type: 'run-start' })
+      emit({ type: 'file-start', entry })
+      emit({ type: 'case-end', ...result(0, 'failed'), errors: [diagnostic] })
+      emit({
+        type: 'file-end',
+        entryId: entry.id,
+        status: 'failed',
+        durationMs: 1,
+      })
+      emit({ type: 'run-end', status: 'failed', durationMs: 1 })
+      expect(
+        machine.getJson().testResults[0].assertionResults[0].failureMessages
+      ).toEqual([raw])
+    } finally {
+      machine.dispose()
+    }
+  })
+
+  it('retains ordinary mapped frames when no helper marker occurs', () => {
+    const error = new Error('ordinary failure')
+    error.stack =
+      'Error: ordinary failure\n    at authoredCaller (/project/plain.test.ts:9:3)'
+    const raw = error.stack
+    const diagnostic = serializeSourceMappedDiagnostic(error, {
+      phase: 'runtime',
+    })
+    expect(diagnostic.stack).toBe(raw)
+    expect(diagnostic.frames).toHaveLength(1)
+    expect(diagnostic.frames![0]).toMatchObject({
+      file: '/project/plain.test.ts',
+      line: 9,
+      column: 3,
+      methodName: 'authoredCaller',
+    })
+    expect(error.stack).toBe(raw)
+  })
+})
+
+it('retains late structured artifacts through JSON, blob merge and completion views', async () => {
+  const {
+    createCustomReporterModules,
+  } = require('next/dist/experimental/testing/reporting/custom-reporter-tasks')
+  const root = await mkdtemp(join(tmpdir(), 'next-artifact-reports-'))
+  const input = join(root, 'blobs')
+  await mkdir(input)
+  const completed = result(0, 'passed')
+  const first = {
+    type: 'custom:schema',
+    location: { file: entry.file, line: 4, column: 2 },
+    data: { valid: true },
+    attachments: [
+      { body: '', path: '/retained/source.txt', bodyEncoding: 'base64' },
+      { body: 'AP9B', bodyEncoding: 'base64' },
+    ],
+  }
+  const second = { type: 'custom:late', value: 7 }
+  const events: ResultEvent[] = [
+    { ...envelope, type: 'run-start' },
+    { ...envelope, type: 'file-start', entry },
+    {
+      ...envelope,
+      type: 'case-start',
+      entryId: entry.id,
+      caseId: completed.caseId,
+      attempt: completed.attempt,
+      name: completed.name,
+    },
+    {
+      ...envelope,
+      type: 'test-artifact',
+      entryId: entry.id,
+      caseId: completed.caseId,
+      attempt: completed.attempt,
+      artifact: first as any,
+    },
+    { ...envelope, type: 'case-end', ...completed },
+    {
+      ...envelope,
+      type: 'test-artifact',
+      entryId: entry.id,
+      caseId: completed.caseId,
+      attempt: completed.attempt,
+      artifact: second as any,
+    },
+    {
+      ...envelope,
+      type: 'file-end',
+      entryId: entry.id,
+      status: 'passed',
+      durationMs: 1,
+    },
+    { ...envelope, type: 'run-end', status: 'passed', durationMs: 1 },
+  ]
+  const collector = createTestReporter({ write() {}, projectDir: '/project' })
+  try {
+    for (const event of events) collector.onEvent(event)
+    const module = createCustomReporterModules('/project', {
+      ...collector.getResults(),
+      events,
+      status: 'passed',
+    })[0]
+    const test = [...module.children.allTests()][0]
+    expect(test.artifacts()).toEqual([first, second])
+    expect(test.artifacts()).not.toBe(test.artifacts())
+    const blob = {
+      version: 1,
+      kind: 'next-test-results',
+      referenceVersion: '5.0.4',
+      projectDir: '/project',
+      events,
+    }
+    const shard = join(input, 'shard.json'),
+      outputFile = join(root, 'merged.json')
+    await writeFile(shard, JSON.stringify(blob))
+    await expect(
+      mergeResultReports(input, {
+        projectDir: root,
+        reporters: ['json'],
+        outputFile,
+      })
+    ).resolves.toBe('passed')
+    const merged = JSON.parse(await readFile(outputFile, 'utf8'))
+    expect(
+      merged.next.events
+        .filter((event: any) => event.type === 'test-artifact')
+        .map((event: any) => event.artifact)
+    ).toEqual([first, second])
+    expect(merged.testResults[0].assertionResults[0]).not.toHaveProperty(
+      'artifacts'
+    )
+    const previous = await readFile(outputFile)
+    for (const invalid of [
+      { artifact: { type: 'custom:bad', attachments: [{}] } },
+      { attempt: { id: 'not-started', retry: 0, repeat: 0 } },
+    ]) {
+      const copied = structuredClone(blob)
+      Object.assign(copied.events[3], invalid)
+      await writeFile(shard, JSON.stringify(copied))
+      await expect(
+        mergeResultReports(input, {
+          projectDir: root,
+          reporters: ['json'],
+          outputFile,
+        })
+      ).rejects.toThrow()
+      expect(await readFile(outputFile)).toEqual(previous)
+    }
+  } finally {
+    collector.dispose()
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+it('maps artifact ordinary and optional call forms to their genuine positions without changing computed calls', async () => {
+  const {
+    mapArtifactCallLocation,
+  } = require('next/dist/experimental/testing/reporting/artifact-location')
+  const source = await readFile(
+    join(__dirname, 'fixtures/artifact-callsites.mjs.txt'),
+    'utf8'
+  )
+  const expected = JSON.parse(
+    await readFile(
+      join(__dirname, 'fixtures/artifact-callsites-pristine.json'),
+      'utf8'
+    )
+  )
+  for (const content of [source, source.replace(/\n/g, '\r\n')]) {
+    const lines = content.split(/\r?\n/)
+    const actual = expected.map((row: any) => ({
+      type: row.type,
+      location: mapArtifactCallLocation(content, 'calls.test.mjs', {
+        file: 'calls.test.mjs',
+        line: row.location.line,
+        column:
+          row.type === 'probe:optional'
+            ? lines[row.location.line - 1].indexOf('?.') + 1
+            : lines[row.location.line - 1].lastIndexOf('(') + 1,
+      }),
+    }))
+    expect(actual).toEqual(expected)
+    const optional = expected.find((row: any) => row.type === 'probe:optional')
+    expect(
+      mapArtifactCallLocation(content, 'calls.test.mjs', optional.location)
+    ).toEqual(optional.location)
+  }
+  const lines = source.split('\n')
+  const prefix = "  const emoji = '😀'; "
+  lines[6] = prefix + lines[6]
+  const line = lines[6]
+  expect(
+    mapArtifactCallLocation(lines.join('\n'), 'calls.test.mjs', {
+      file: 'calls.test.mjs',
+      line: 7,
+      column: line.lastIndexOf('(') + 1,
+    })
+  ).toEqual({
+    file: 'calls.test.mjs',
+    line: 7,
+    column: expected[0].location.column + prefix.length,
+  })
+  const fallback = { file: 'unknown.ts', line: 1, column: 8 }
+  expect(
+    mapArtifactCallLocation('not valid JavaScript', fallback.file, fallback)
+  ).toBe(fallback)
+  expect(
+    mapArtifactCallLocation('const value = 1', fallback.file, fallback)
+  ).toBe(fallback)
+  expect(
+    mapArtifactCallLocation(source, 'calls.test.mjs', {
+      ...fallback,
+      line: 900,
+    })
+  ).toEqual({ ...fallback, line: 900 })
+})
+
+it('normalizes only artifact locations from retained source while leaving annotation and raw stacks unchanged', () => {
+  const {
+    mapTestArtifactLocation,
+  } = require('next/dist/experimental/testing/reporting/artifact-location')
+  const {
+    mapTestAnnotationLocation,
+  } = require('next/dist/experimental/testing/reporting/source-mapped-diagnostics')
+  const source = 'const pending = record(task, {})\n'
+  let content: string | undefined = source
+  setBundlerFindSourceMapImplementation((file) =>
+    file === 'file:///chunks/artifact-call.js'
+      ? {
+          version: 3,
+          file,
+          sources: ['file:///immutable/helper.test.mjs'],
+          ...(content === undefined ? {} : { sourcesContent: [content] }),
+          names: [],
+          // Generated1:0 -> original1:22 (zero-based), the call parenthesis.
+          mappings: 'AAAsB',
+        }
+      : undefined
+  )
+  const error = new Error('STACK_TRACE')
+  error.stack = 'Error: STACK_TRACE\n    at call (/chunks/artifact-call.js:1:1)'
+  const raw = error.stack
+  const original = { file: '/immutable/helper.test.mjs', line: 1, column: 23 }
+  try {
+    expect(mapTestArtifactLocation(error, original.file)).toEqual({
+      ...original,
+      column: 17,
+    })
+    expect(mapTestAnnotationLocation(error, original.file)).toEqual(original)
+    expect(error.stack).toBe(raw)
+    content = undefined
+    expect(mapTestArtifactLocation(error, original.file)).toEqual(original)
+    content = 'not valid JavaScript'
+    expect(mapTestArtifactLocation(error, original.file)).toEqual(original)
+    expect(
+      mapTestArtifactLocation(error, '/different.test.mjs')
+    ).toBeUndefined()
+    expect(error.stack).toBe(raw)
+  } finally {
+    setBundlerFindSourceMapImplementation(() => undefined)
+  }
+})
+
+it('maps Browser artifact callees with the standalone parser and preserves Node syntax support', async () => {
+  const {
+    getClientArtifactLocation,
+  } = require('next/dist/experimental/testing/client/artifact-location')
+  const {
+    mapArtifactCallLocation,
+  } = require('next/dist/experimental/testing/reporting/artifact-location')
+  const source = await readFile(
+    join(__dirname, 'fixtures/artifact-callsites.mjs.txt'),
+    'utf8'
+  )
+  const expected = JSON.parse(
+    await readFile(
+      join(__dirname, 'fixtures/artifact-callsites-pristine.json'),
+      'utf8'
+    )
+  )
+  const error = new Error('original raw stack')
+  const rawStack =
+    'Error: original raw stack\n    at http://localhost/selected.js:1:1'
+  error.stack = rawStack
+  for (const content of [source, source.replace(/\n/g, '\r\n')]) {
+    const lines = content.split(/\r?\n/)
+    const actual = expected.map((row: any) => {
+      const mapped = {
+        file: 'calls.test.mjs',
+        line: row.location.line,
+        column:
+          row.type === 'probe:optional'
+            ? lines[row.location.line - 1].indexOf('?.') + 1
+            : lines[row.location.line - 1].lastIndexOf('(') + 1,
+      }
+      return {
+        type: row.type,
+        location: getClientArtifactLocation(error, {
+          mapLocation: () => mapped,
+          getSourceContent: () => content,
+        }),
+      }
+    })
+    expect(actual).toEqual(expected)
+  }
+  const typed = 'const input: unknown = recordArtifact(task, {})'
+  const mapped = {
+    file: 'calls.test.ts',
+    line: 1,
+    column: typed.indexOf('(') + 1,
+  }
+  expect(
+    getClientArtifactLocation(error, {
+      mapLocation: () => mapped,
+      getSourceContent: () => typed,
+    })
+  ).toEqual(mapped)
+  expect(mapArtifactCallLocation(typed, mapped.file, mapped)).toEqual({
+    ...mapped,
+    column: typed.indexOf('recordArtifact') + 1,
+  })
+  const jsx = 'const element = <div />; recordArtifact(task, {})'
+  const jsxMapped = {
+    file: 'calls.test.jsx',
+    line: 1,
+    column: jsx.indexOf('(') + 1,
+  }
+  expect(
+    getClientArtifactLocation(error, {
+      mapLocation: () => jsxMapped,
+      getSourceContent: () => jsx,
+    })
+  ).toEqual(jsxMapped)
+  expect(mapArtifactCallLocation(jsx, jsxMapped.file, jsxMapped)).toEqual({
+    ...jsxMapped,
+    column: jsx.indexOf('recordArtifact') + 1,
+  })
+  for (const content of [
+    'recordArtifact?.(task, {})',
+    'api?.recordArtifact(task, {})',
+  ]) {
+    const original = {
+      file: 'calls.test.mjs',
+      line: 1,
+      column: content.indexOf('recordArtifact') + 3,
+    }
+    expect(mapArtifactCallLocation(content, original.file, original)).toEqual(
+      original
+    )
+    expect(
+      getClientArtifactLocation(error, {
+        mapLocation: () => original,
+        getSourceContent: () => content,
+      })
+    ).toEqual(original)
+  }
+  const nested = 'api?.method(recordArtifact(task, {}))'
+  const nestedMapped = {
+    file: 'calls.test.mjs',
+    line: 1,
+    column: nested.lastIndexOf('(') + 1,
+  }
+  const nestedExpected = {
+    ...nestedMapped,
+    column: nested.indexOf('recordArtifact') + 1,
+  }
+  expect(
+    mapArtifactCallLocation(nested, nestedMapped.file, nestedMapped)
+  ).toEqual(nestedExpected)
+  expect(
+    getClientArtifactLocation(error, {
+      mapLocation: () => nestedMapped,
+      getSourceContent: () => nested,
+    })
+  ).toEqual(nestedExpected)
+  expect(error.stack).toBe(rawStack)
+})

@@ -1,0 +1,83 @@
+import { afterAll, expect, test, vi } from 'vitest'
+import { helperEnv } from './env-helper.mjs'
+
+const existing = 'NEXT_ENV_RECON_EXISTING'
+const deleted = 'NEXT_ENV_RECON_DELETED'
+const missing = 'NEXT_ENV_RECON_MISSING'
+function read(name) {
+  const env = import.meta.env
+  return { own: Object.hasOwn(env, name), type: typeof env[name], value: env[name] }
+}
+function selected() {
+  return Object.fromEntries([existing, deleted, missing, 'DEV', 'PROD', 'SSR'].map((name) => [name, read(name)]))
+}
+const initial = selected()
+function record(id, data) {
+  console.log('BROWSER_ENV_STUBS_RAW ' + JSON.stringify({ id, ...data }))
+}
+
+afterAll(() => {
+  const beforeRestore = selected()
+  const fluent = vi.unstubAllEnvs() === vi
+  record('file-cleanup', { beforeRestore, fluent, restored: selected() })
+})
+
+test('string stubs delete missing values and restore the first original value', () => {
+  const env = import.meta.env
+  const before = selected()
+  const fluent = vi.stubEnv(existing, 'first') === vi
+  vi.stubEnv(existing, 'second')
+  vi.stubEnv(missing, 'new-value')
+  vi.stubEnv(deleted, undefined)
+  const changed = selected()
+  const crossModule = { sameEnv: helperEnv() === env, value: helperEnv()[existing] }
+  vi.stubEnv(missing, undefined)
+  const removed = read(missing)
+  const restoreFluent = vi.unstubAllEnvs() === vi
+  const restored = selected()
+  record('strings', { before, fluent, changed, crossModule, removed, restoreFluent, restored })
+  expect(changed[existing].value).toBe('second')
+  expect(changed[missing].value).toBe('new-value')
+  expect(changed[deleted].own).toBe(false)
+  expect(removed.own).toBe(false)
+  expect(restored).toEqual(before)
+})
+
+test('DEV PROD and SSR stubs retain their genuine boolean conversion behavior', () => {
+  const before = selected()
+  const observations = []
+  for (const name of ['DEV', 'PROD', 'SSR']) {
+    const fluent = vi.stubEnv(name, true) === vi
+    const enabled = read(name)
+    vi.stubEnv(name, false)
+    const disabled = read(name)
+    vi.stubEnv(name, undefined)
+    const removed = read(name)
+    observations.push({ name, fluent, enabled, disabled, removed })
+    expect(enabled.own).toBe(true)
+    expect(disabled.own).toBe(true)
+    expect(removed.own).toBe(false)
+  }
+  vi.unstubAllEnvs()
+  const restored = selected()
+  record('boolean-specials', { before, observations, restored })
+  expect(restored).toEqual(before)
+})
+
+test('A leaves env stubs for the configured next-attempt reset', () => {
+  const before = selected()
+  vi.stubEnv(existing, 'from-A')
+  vi.stubEnv(missing, 'pending-A')
+  vi.stubEnv('DEV', false)
+  const changed = selected()
+  record('attempt-A', { before, changed })
+  expect(changed[existing].value).toBe('from-A')
+  expect(changed[missing].value).toBe('pending-A')
+})
+
+test('B sees project unstubEnvs restore originals before the body', () => {
+  const before = selected()
+  expect(before).toEqual(initial)
+  const fluent = vi.stubEnv(existing, 'from-B') === vi
+  record('attempt-B', { before, fluent, changed: selected() })
+})

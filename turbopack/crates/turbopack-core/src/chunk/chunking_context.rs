@@ -333,6 +333,11 @@ pub trait ChunkingContext {
     fn name(self: Vc<Self>) -> Vc<RcStr>;
     #[turbo_tasks::function]
     fn source_map_source_type(self: Vc<Self>) -> Vc<SourceMapSourceType>;
+    /// Private isolated Node test coverage only; ordinary application contexts stay off.
+    #[turbo_tasks::function]
+    fn native_test_import_coverage_roles(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
     /// The root path of the project
     #[turbo_tasks::function]
     fn root_path(self: Vc<Self>) -> Vc<FileSystemPath>;

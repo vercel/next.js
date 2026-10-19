@@ -152,7 +152,9 @@ export async function discoverTests(
                     ? { executionEnvironment: selected.executionEnvironment }
                     : {}),
                   ...(sourceFiles.has(file) ||
-                  usesInSourceTestMarker(source.toString('utf8'), file)
+                  usesInSourceTestMarker(source.toString('utf8'), file, {
+                    deferSyntaxError: true,
+                  })
                     ? {
                         inSource: true as const,
                         inSourceHash:

@@ -3,6 +3,7 @@ import {
   assertNativeMockCoverageBytes,
 } from './mock-sources'
 import { Session } from 'inspector'
+import { verifySourceCoverageArtifact } from './source-profile'
 import { realpath } from 'fs/promises'
 import { isAbsolute, resolve } from 'path'
 import { fileURLToPath } from 'url'
@@ -19,16 +20,21 @@ export async function startCoverage(artifact: CoverageArtifact): Promise<{
   stop(): Promise<CoverageCapture>
   dispose(): Promise<void>
 }> {
+  if (artifact.coverage?.sourceAnalysis)
+    throw new Error(
+      'Compile-only coverage sources cannot enter runtime capture'
+    )
   if (
     artifact.profile.environment !== 'node' ||
-    artifact.profile.mode !== 'development' ||
     artifact.profile.route ||
     artifact.coverage?.version !== 1
   ) {
-    throw new Error(
-      'Line coverage requires a development Node coverage artifact'
-    )
+    throw new Error('Line coverage requires a Node coverage artifact')
   }
+  if (artifact.profile.mode === 'production')
+    await verifySourceCoverageArtifact(artifact)
+  else if (artifact.coverage.sourcePreservation)
+    throw new Error('Unrequested production source coverage provenance.')
   assertMockCoverageArtifact(artifact)
   const native = artifact.moduleMocking?.coverage?.nativeMetadata
   if (native)
@@ -136,6 +142,8 @@ export async function startCoverage(artifact: CoverageArtifact): Promise<{
         }
         if (!seen.has(artifact.entryPath))
           throw new Error('Coverage capture did not observe the emitted entry')
+        if (artifact.profile.mode === 'production')
+          await verifySourceCoverageArtifact(artifact)
         return { version: 1, scripts }
       } finally {
         await dispose()

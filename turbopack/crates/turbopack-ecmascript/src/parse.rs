@@ -199,6 +199,15 @@ pub fn generate_js_source_map<'a>(
     let fast_path_single_original_source_map =
         original_source_maps.len() == 1 && original_source_maps_complete;
 
+    // PLACEHOLDER is outside authorable source positions. Native operations use
+    // it to end a preceding comment/user mapping at their actual emitted start.
+    let unmapped = mappings
+        .iter()
+        .filter_map(|(position, generated)| {
+            (files_map.map_raw_pos(*position) == BytePos::PLACEHOLDER).then_some(*generated)
+        })
+        .collect::<Vec<_>>();
+
     let mut new_mappings = build_source_map(
         files_map,
         &mappings,
@@ -215,7 +224,7 @@ pub fn generate_js_source_map<'a>(
         },
     );
 
-    if original_source_maps.is_empty() {
+    let map = if original_source_maps.is_empty() {
         // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
         // need to adjust mappings
         add_default_ignore_list(&mut new_mappings);
@@ -237,7 +246,13 @@ pub fn generate_js_source_map<'a>(
         add_default_ignore_list(&mut map);
 
         StructuredSourceMap::from_swc_map(map)
-    }
+    }?;
+    map.with_unmapped_segments(
+        &unmapped
+            .into_iter()
+            .map(|position| (position.line, position.col))
+            .collect::<Vec<_>>(),
+    )
 }
 
 /// A config to generate a source map which includes the source content of every
@@ -283,6 +298,27 @@ pub async fn parse(
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
+    Ok(parse_with_module_grammar(
+        *source,
+        ty,
+        *transforms,
+        node_env,
+        loose_errors,
+        inline_helpers,
+        false,
+    ))
+}
+
+#[turbo_tasks::function]
+pub async fn parse_with_module_grammar(
+    source: ResolvedVc<Box<dyn Source>>,
+    ty: EcmascriptModuleAssetType,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
+    loose_errors: bool,
+    inline_helpers: bool,
+    parse_as_module: bool,
+) -> Result<Vc<ParseResult>> {
     let span = tracing::info_span!(
         "parse ecmascript",
         name = display(source.ident().to_string().await?),
@@ -296,6 +332,7 @@ pub async fn parse(
         node_env,
         loose_errors,
         inline_helpers,
+        parse_as_module,
     )
     .instrument(span)
     .await
@@ -313,6 +350,7 @@ async fn parse_internal(
     node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
+    parse_as_module: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
     let source_ident = source.ident().await?;
@@ -358,6 +396,7 @@ async fn parse_internal(
                     node_env.clone(),
                     loose_errors,
                     inline_helpers,
+                    parse_as_module,
                 )
                 .await
                 {
@@ -376,6 +415,17 @@ async fn parse_internal(
     })
 }
 
+fn parse_program(
+    parser: &mut Parser<Lexer<'_>>,
+    parse_as_module: bool,
+) -> Result<Program, swc_core::ecma::parser::error::Error> {
+    if parse_as_module {
+        parser.parse_module().map(Program::Module)
+    } else {
+        parser.parse_program()
+    }
+}
+
 async fn parse_file_content(
     program_source: Rope,
     fs_path: &FileSystemPath,
@@ -388,6 +438,7 @@ async fn parse_file_content(
     node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
+    parse_as_module: bool,
 ) -> Result<Vc<ParseResult>> {
     let string = match BytesStr::from_utf8(program_source.clone().into_bytes()) {
         Ok(s) => s,
@@ -484,7 +535,7 @@ async fn parse_file_content(
 
                 let mut parser = Parser::new_from(lexer);
                 let span = tracing::trace_span!("swc_parse").entered();
-                let program_result = parser.parse_program();
+                let program_result = parse_program(&mut parser, parse_as_module);
                 drop(span);
 
                 let mut has_errors = vec![];
@@ -767,6 +818,17 @@ pub async fn parse_from_rope(
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     node_env: RcStr,
 ) -> Result<Vc<ParseResult>> {
+    parse_from_rope_with_module_grammar(rope, source, ty, transforms, node_env, false).await
+}
+
+pub async fn parse_from_rope_with_module_grammar(
+    rope: Rope,
+    source: ResolvedVc<Box<dyn Source>>,
+    ty: EcmascriptModuleAssetType,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
+    parse_as_module: bool,
+) -> Result<Vc<ParseResult>> {
     let ident_vc = source.ident();
     let ident_ref = ident_vc.await?;
     let ident = &*ident_vc.to_string().await?;
@@ -785,6 +847,7 @@ pub async fn parse_from_rope(
         node_env,
         false,
         false,
+        parse_as_module,
     )
     .await
 }
@@ -869,5 +932,280 @@ mod tests {
         // `declare namespace Foo {}` should also be collected
         let ids = parse_and_collect("declare namespace Foo {}");
         assert_eq!(ids, vec!["Foo"]);
+    }
+}
+
+#[cfg(test)]
+mod unmapped_native_tests {
+    use std::sync::Arc;
+
+    use swc_core::{
+        base::SwcComments,
+        common::{
+            BytePos, FileName, GLOBALS, Globals, LineCol, SourceMap,
+            source_map::DefaultSourceMapGenConfig,
+        },
+        ecma::{
+            ast::{Module, ModuleDecl, ModuleItem, Stmt},
+            codegen::{Emitter, text_writer::JsWriter},
+            parser::{Parser, StringInput, Syntax},
+        },
+        quote,
+    };
+
+    use crate::runtime_functions::TURBOPACK_ESM;
+
+    fn insert_unmapped_segments(
+        map: swc_sourcemap::SourceMap,
+        positions: &[LineCol],
+    ) -> swc_sourcemap::SourceMap {
+        let map = super::StructuredSourceMap::from_swc_map(map)
+            .unwrap()
+            .with_unmapped_segments(
+                &positions
+                    .iter()
+                    .map(|position| (position.line, position.col))
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap();
+        swc_sourcemap::SourceMap::from_slice(&map.to_rope().to_bytes()).unwrap()
+    }
+
+    const SOURCE: &str = "/* first real comment */\n/* second real comment */\nexport function \
+                          authored() { return actualFactory(); }\n";
+
+    fn position(text: &str, needle: &str) -> (u32, u32) {
+        let prefix = &text[..text.find(needle).expect("emitted fragment")];
+        let line = prefix.bytes().filter(|byte| *byte == b'\n').count() as u32;
+        let column = prefix.rsplit('\n').next().unwrap().encode_utf16().count() as u32;
+        (line, column)
+    }
+
+    fn emit(
+        source_map: Arc<SourceMap>,
+        module: &Module,
+        comments: &SwcComments,
+        minify: bool,
+    ) -> (String, swc_sourcemap::SourceMap) {
+        let comments = SwcComments {
+            leading: Arc::new((*comments.leading).clone()),
+            trailing: Arc::new((*comments.trailing).clone()),
+        };
+        let mut output = Vec::new();
+        let mut mappings = Vec::new();
+        {
+            let mut emitter = Emitter {
+                cfg: swc_core::ecma::codegen::Config::default().with_minify(minify),
+                cm: source_map.clone(),
+                comments: Some(&comments),
+                wr: JsWriter::new(source_map.clone(), "\n", &mut output, Some(&mut mappings)),
+            };
+            emitter.emit_module(module).expect("emit module");
+        }
+        let unmapped = mappings
+            .iter()
+            .filter_map(|(position, generated)| {
+                (*position == BytePos::PLACEHOLDER).then_some(*generated)
+            })
+            .collect::<Vec<LineCol>>();
+        let map = source_map.build_source_map(&mappings, None, DefaultSourceMapGenConfig);
+        (
+            String::from_utf8(output).unwrap(),
+            insert_unmapped_segments(map, &unmapped),
+        )
+    }
+
+    fn assert_boundaries(output: &str, map: &swc_sourcemap::SourceMap) {
+        assert!(
+            output.find("/* second real comment */").unwrap()
+                < output.find("__turbopack_context__.s").unwrap()
+        );
+        let (line, column) = position(output, "__turbopack_context__.s");
+        let token = map.lookup_token(line, column).expect("native boundary");
+        assert_eq!((token.get_dst_line(), token.get_dst_col()), (line, column));
+        assert!(
+            !token.has_source(),
+            "registration inherited a real comment mapping"
+        );
+
+        let (line, column) = position(output, "/* second real comment */");
+        assert!(map.lookup_token(line, column).unwrap().has_source());
+        let (line, column) = position(output, "actualFactory");
+        let token = map.lookup_token(line, column).expect("real factory call");
+        assert!(token.has_source());
+        assert_eq!(token.get_src_line(), 2);
+        assert_eq!(
+            token.get_src_col(),
+            SOURCE
+                .lines()
+                .nth(2)
+                .unwrap()
+                .find("actualFactory")
+                .unwrap() as u32
+        );
+    }
+
+    #[test]
+    fn native_registration_is_unmapped_after_real_comments() {
+        GLOBALS.set(&Globals::new(), || {
+            let source_map: Arc<SourceMap> = Default::default();
+            let source = source_map.new_source_file(FileName::Custom("authored.js".into()).into(), SOURCE);
+            let comments = SwcComments::default();
+            let mut parser = Parser::new(Syntax::Es(Default::default()), StringInput::from(&*source), Some(&comments));
+            let mut module = parser.parse_module().expect("valid module");
+            // Match native ESM lowering: the original export wrapper is gone,
+            // while its function and real leading comments retain their spans.
+            module.body = module.body.into_iter().map(|item| match item {
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => ModuleItem::Stmt(Stmt::Decl(export.decl)),
+                item => item,
+            }).collect();
+            module.body.insert(0, ModuleItem::Stmt(quote!("$register([]);" as Stmt, register: Expr = TURBOPACK_ESM.unmapped_expr())));
+            for minify in [false, true] {
+                let (output, map) = emit(source_map.clone(), &module, &comments, minify);
+                assert_boundaries(&output, &map);
+
+                let mut upstream = swc_sourcemap::SourceMapBuilder::new(None);
+                let id = upstream.add_source("original.js".into());
+                upstream.set_source_contents(id, Some(SOURCE.into()));
+                for (line, source) in SOURCE.lines().enumerate() {
+                    for column in 0..=source.encode_utf16().count() {
+                        upstream.add_raw(line as u32, column as u32, line as u32, column as u32, Some(id), None, false);
+                    }
+                }
+                let mut bytes = Vec::new();
+                upstream.into_sourcemap().to_writer(&mut bytes).unwrap();
+                let mut upstream = swc_sourcemap::lazy::decode(&bytes).unwrap().into_source_map().unwrap();
+                let mut adjustment = swc_sourcemap::SourceMapBuilder::new(None);
+                for token in map.tokens().filter(|token| token.has_source()) { adjustment.add_token(&token, true); }
+                upstream.adjust_mappings(adjustment.into_sourcemap());
+                let composed = swc_sourcemap::SourceMap::from_slice(&serde_json::to_vec(&upstream.into_raw_sourcemap()).unwrap()).unwrap();
+                let (native_line, native_column) = position(&output, "__turbopack_context__.s");
+                let composed = insert_unmapped_segments(composed, &[LineCol { line: native_line, col: native_column }]);
+                assert_boundaries(&output, &composed);
+                let (line, column) = position(&output, "actualFactory");
+                assert_eq!(composed.lookup_token(line, column).unwrap().get_source().unwrap(), "original.js");
+            }
+        });
+    }
+
+    #[test]
+    fn native_unmapped_boundary_survives_subsequent_minification() {
+        GLOBALS.set(&Globals::new(), || {
+            let source_map: Arc<SourceMap> = Default::default();
+            let source = source_map.new_source_file(FileName::Custom("authored.js".into()).into(), SOURCE);
+            let comments = SwcComments::default();
+            let mut parser = Parser::new(Syntax::Es(Default::default()), StringInput::from(&*source), Some(&comments));
+            let mut module = parser.parse_module().expect("valid module");
+            // Match native ESM lowering: the original export wrapper is gone,
+            // while its function and real leading comments retain their spans.
+            module.body = module.body.into_iter().map(|item| match item {
+                ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => ModuleItem::Stmt(Stmt::Decl(export.decl)),
+                item => item,
+            }).collect();
+            module.body.insert(0, ModuleItem::Stmt(quote!("$register([]);" as Stmt, register: Expr = TURBOPACK_ESM.unmapped_expr())));
+            let (intermediate, mut original_map) = emit(source_map, &module, &comments, false);
+            let minify_map: Arc<SourceMap> = Default::default();
+            let source = minify_map.new_source_file(FileName::Custom("intermediate.js".into()).into(), intermediate);
+            let comments = SwcComments::default();
+            let mut parser = Parser::new(Syntax::Es(Default::default()), StringInput::from(&*source), Some(&comments));
+            let module = parser.parse_module().expect("emitted module");
+            let (output, adjustment) = emit(minify_map, &module, &comments, true);
+            original_map.adjust_mappings(&adjustment);
+            assert_boundaries(&output, &original_map);
+        });
+    }
+
+    #[test]
+    fn duplicate_unmapped_boundaries_replace_the_zero_position_once() {
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+        let id = builder.add_source("authored.js".into());
+        builder.set_source_contents(id, Some("value".into()));
+        let name = builder.add_name("value".into());
+        builder.add_to_ignore_list(id);
+        builder.add_raw(0, 0, 0, 0, Some(id), Some(name), false);
+        builder.add_raw(0, 2, 0, 2, Some(id), Some(name), false);
+        let map = insert_unmapped_segments(
+            builder.into_sourcemap(),
+            &[LineCol { line: 0, col: 0 }, LineCol { line: 0, col: 0 }],
+        );
+        let tokens = map.tokens().collect::<Vec<_>>();
+        assert_eq!(tokens.len(), 2);
+        assert!(!tokens[0].has_source());
+        assert_eq!(tokens[1].get_source().unwrap(), "authored.js");
+        assert_eq!(tokens[1].get_name().unwrap(), "value");
+        assert_eq!(map.get_source_contents(0).unwrap(), "value");
+        assert_eq!(map.ignore_list().copied().collect::<Vec<_>>(), vec![0]);
+    }
+}
+
+#[cfg(test)]
+mod browser_module_parse_tests {
+    use swc_core::{
+        common::{FileName, GLOBALS, Mark, SourceMap, sync::Lrc},
+        ecma::{
+            ast::{Decl, Expr, ModuleItem, Program, Stmt},
+            parser::{Parser, StringInput, Syntax, lexer::Lexer},
+            transforms::base::resolver,
+            visit::VisitMutWith,
+        },
+    };
+
+    fn parse(source: &str, as_module: bool) -> (Option<Program>, bool) {
+        let cm: Lrc<SourceMap> = Default::default();
+        let source = cm.new_source_file(FileName::Anon.into(), source.to_owned());
+        let lexer = Lexer::new(
+            Syntax::Es(Default::default()),
+            Default::default(),
+            StringInput::from(&*source),
+            None,
+        );
+        let mut parser = Parser::new_from(lexer);
+        let program = super::parse_program(&mut parser, as_module);
+        let valid = program.is_ok() && parser.take_errors().is_empty();
+        (program.ok(), valid)
+    }
+
+    #[test]
+    fn no_import_esm_keeps_strict_block_bindings_before_creator_instrumentation() {
+        GLOBALS.set(&Default::default(), || {
+            let (program, valid) = parse(
+                "{ function block() {} block(); } typeof block; test('global', () => {});",
+                true,
+            );
+            assert!(valid);
+            let mut program = program.expect("valid source");
+            program.visit_mut_with(&mut resolver(Mark::new(), Mark::new(), false));
+            let Program::Module(module) = program else {
+                panic!("resolved ESM was parsed as a script");
+            };
+            let ModuleItem::Stmt(Stmt::Block(block)) = &module.body[0] else {
+                panic!("original block missing");
+            };
+            let Stmt::Decl(Decl::Fn(function)) = &block.stmts[0] else {
+                panic!("original function missing");
+            };
+            let ModuleItem::Stmt(Stmt::Expr(expression)) = &module.body[1] else {
+                panic!("original outer reference missing");
+            };
+            let Expr::Unary(expression) = &*expression.expr else {
+                panic!("original typeof missing");
+            };
+            let Expr::Ident(outer) = &*expression.arg else {
+                panic!("original outer identifier missing");
+            };
+            assert_eq!(function.ident.sym, outer.sym);
+            assert_ne!(function.ident.ctxt, outer.ctxt);
+        });
+    }
+
+    #[test]
+    fn resolved_esm_enforces_strict_grammar_without_changing_script_mode() {
+        GLOBALS.set(&Default::default(), || {
+            let source = "with (scope) {}";
+            let (script, valid) = parse(source, false);
+            assert!(valid);
+            assert!(matches!(script, Some(Program::Script(_))));
+            assert!(!parse(source, true).1);
+        });
     }
 }

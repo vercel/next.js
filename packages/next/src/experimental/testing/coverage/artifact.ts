@@ -38,6 +38,8 @@ export async function buildCoverageMetadata(options: {
   /** Native [project] filesystem root, which can contain the application. */
   sourceRootDir: string
   entryFile: string
+  /** Compile-only source analysis includes its exact selected entry. */
+  includeEntrySource?: boolean
   setupFiles: readonly string[]
   syntheticSources?: MockCoverageSources
 }): Promise<CoverageArtifactMetadata> {
@@ -56,7 +58,10 @@ export async function buildCoverageMetadata(options: {
   const sourceRoot = await realpath(options.sourceRootDir)
   const excluded = new Set(
     await Promise.all(
-      [options.entryFile, ...options.setupFiles].map((file) => realpath(file))
+      [
+        ...(options.includeEntrySource ? [] : [options.entryFile]),
+        ...options.setupFiles,
+      ].map((file) => realpath(file))
     )
   )
   const sources: CoverageArtifactMetadata['sources'] = Object.create(null)

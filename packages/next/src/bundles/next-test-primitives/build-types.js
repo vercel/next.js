@@ -119,6 +119,8 @@ async function build() {
     for (const file of [
       'LICENSE',
       'LICENSE.md',
+      'LICENSE.txt',
+      'LICENSE-MIT.txt',
       'LICENCE',
       'license',
       'license.md',
@@ -149,6 +151,10 @@ async function build() {
   )
   await collect('expect-type', __filename)
   await collect('@vitest/utils', __filename)
+  await collect('@testing-library/dom', __filename)
+  await collect('@testing-library/jest-dom', __filename)
+  await collect('@sinonjs/fake-timers', __filename)
+  await collect('@types/sinonjs__fake-timers', __filename)
   await writeFile(
     join(output, 'browser/LICENSE'),
     [...licenses]

@@ -43,3 +43,52 @@ it('owns and cancels waitUntil after repeated falsy callbacks', async () => {
   }
   await rejected
 })
+
+it('matches genuine unreachable errors, counts, lifetime and public never types', async () => {
+  const { stdout } = await promisify(execFile)(process.execPath, [
+    '--test-reporter=tap',
+    '--import',
+    require.resolve('tsx'),
+    join(__dirname, 'unreachable-integration.ts'),
+  ]).catch((error) => {
+    throw new Error([error.message, error.stdout, error.stderr].join('\n'))
+  })
+  expect(stdout).toContain('# tests 4')
+  expect(stdout).toContain('# pass 4')
+  expect(stdout).toContain('# fail 0')
+}, 30000)
+
+it.each(['browser', 'node'])(
+  'preserves %s assertion Promise payloads and present protocol guards',
+  async (mode) => {
+    const { mkdtemp, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const directory = await mkdtemp(
+      join(tmpdir(), `next-assertion-then-${mode}-`)
+    )
+    const output = join(directory, 'observations.json')
+    try {
+      const { stdout, stderr } = await promisify(execFile)(process.execPath, [
+        join(__dirname, 'assertion-then-integration.cjs'),
+        process.cwd(),
+        mode,
+        '-',
+        output,
+      ]).catch(async (error) => {
+        const observations = await readFile(output, 'utf8').catch(() => '')
+        throw new Error(
+          [error.message, error.stdout, error.stderr, observations].join('\n')
+        )
+      })
+      expect(stderr).toBe('')
+      const observations = JSON.parse(await readFile(output, 'utf8'))
+      console.log(JSON.stringify({ assertionProtocol: observations, stdout }))
+      expect(observations.failure).toBeUndefined()
+      expect(observations.mode).toBe(mode)
+      expect(observations.rows.length).toBeGreaterThan(0)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  },
+  30000
+)
