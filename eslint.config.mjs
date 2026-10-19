@@ -471,6 +471,23 @@ export default defineConfig([
     },
   },
   {
+    files: ['packages/next/src/server/app-render/app-render.tsx'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/request-meta'],
+              allowTypeImports: true,
+              message: 'Pass request metadata through explicit render inputs.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['examples/**/*'],
     linterOptions: {
       reportUnusedDisableDirectives: 'off',

@@ -54,6 +54,7 @@ import { getServerActionRequestMetadata } from '../../server/lib/server-action-r
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
@@ -315,7 +316,8 @@ export function createAppPageEntrypoint({
      */
     const isPrefetchRSCRequest =
       getRequestMeta(req, 'isPrefetchRSCRequest') ??
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1' // exclude runtime prefetches, which use '2'
+      // Runtime prefetches use the other values, so they're excluded.
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === NEXT_ROUTER_PREFETCH_STATIC
 
     // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 
@@ -477,7 +479,8 @@ export function createAppPageEntrypoint({
       typeof req.headers.cookie === 'string' &&
       req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
       (!isRSCRequestHeader(req.headers[RSC_HEADER]) ||
-        req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1')
+        req.headers[NEXT_ROUTER_PREFETCH_HEADER] ===
+          NEXT_ROUTER_PREFETCH_STATIC)
 
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
@@ -910,6 +913,8 @@ export function createAppPageEntrypoint({
           },
           dev,
           fallbackRouteParams,
+          stagedFallbackParams:
+            getRequestMeta(req, 'stagedFallbackParams') ?? null,
           renderOpts: {
             App: () => null,
             Document: () => null,

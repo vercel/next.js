@@ -28,6 +28,7 @@ import type { ParsedRequestHeaders } from './parse-request-headers'
 import type { ServerActionRequestMetadata } from '../../lib/server-action-request-meta'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
@@ -84,6 +85,7 @@ export type RouteMatch = {
 export type DevRenderContext = {
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly hmrRefreshHash: string | undefined
+  readonly initialHmrVersion: string | undefined
 }
 
 export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
@@ -94,6 +96,9 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
   fallbackRouteParams: OpaqueFallbackRouteParams | null
+  // Defer access to these params while retaining their concrete request values.
+  // A resumed render prefers the mask recorded in its postponed state.
+  stagedFallbackParams: OpaqueFallbackRouteParams | null
   renderOpts: RenderOpts
   dev: DevRenderContext | undefined
   parsedRequestHeaders: ParsedRequestHeaders
@@ -152,7 +157,7 @@ export class AppPageRouteModule extends RouteModule<
 
       // Mark the request as a router prefetch request.
       req.headers[RSC_HEADER] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = NEXT_ROUTER_PREFETCH_STATIC
       req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
 
       addRequestMeta(req, 'isRSCRequest', true)
@@ -197,7 +202,8 @@ export class AppPageRouteModule extends RouteModule<
       context.sharedContext,
       context.routeMatch,
       context.parsedRequestHeaders,
-      context.serverActionRequestMetadata
+      context.serverActionRequestMetadata,
+      context.stagedFallbackParams
     )
   }
 
@@ -218,7 +224,8 @@ export class AppPageRouteModule extends RouteModule<
       context.sharedContext,
       context.routeMatch,
       context.parsedRequestHeaders,
-      context.serverActionRequestMetadata
+      context.serverActionRequestMetadata,
+      context.stagedFallbackParams
     )
   }
 
