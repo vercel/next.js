@@ -1,5 +1,16 @@
 import type { default as Router } from '../router'
 
+function queryValuesEqual(
+  a: string | string[] | undefined,
+  b: string | string[] | undefined
+): boolean {
+  if (a === b) return true
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((v, i) => v === b[i])
+  }
+  return false
+}
+
 export function compareRouterStates(a: Router['state'], b: Router['state']) {
   const stateKeys = Object.keys(a)
   if (stateKeys.length !== Object.keys(b).length) return false
@@ -15,7 +26,7 @@ export function compareRouterStates(a: Router['state'], b: Router['state']) {
         const queryKey = queryKeys[j]
         if (
           !b.query.hasOwnProperty(queryKey) ||
-          a.query[queryKey] !== b.query[queryKey]
+          !queryValuesEqual(a.query[queryKey], b.query[queryKey])
         ) {
           return false
         }
