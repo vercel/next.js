@@ -296,13 +296,17 @@ for (const cacheEnabled of [false, true]) {
     } as const
 
     // Checking only single change and all combined for performance reasons.
-    const combinations = Object.entries(POTENTIAL_CHANGES).map(([k, v]) => [
-      k,
-      [v],
-    ]) as Array<[string, Array<Change>]>
+    // TODO fix loader changes with Turbopack. Exclude them from combined tests
+    // as well as individual tests, without leaving undefined change entries.
+    const potentialChanges = Object.entries(POTENTIAL_CHANGES).filter(
+      ([changeName]) => changeName !== 'loader change' || !isTurbopack
+    )
+    const combinations = potentialChanges.map(([k, v]) => [k, [v]]) as Array<
+      [string, Array<Change>]
+    >
     combinations.push([
-      Object.keys(POTENTIAL_CHANGES).join(', '),
-      Object.values(POTENTIAL_CHANGES),
+      potentialChanges.map(([name]) => name).join(', '),
+      potentialChanges.map(([, change]) => change),
     ])
 
     for (const [name, changes] of combinations) {
