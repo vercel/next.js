@@ -818,27 +818,47 @@ function loadChunkAsync(chunkData) {
     }
     let entry = chunkCache.get(chunkPath);
     if (entry === undefined) {
-        try {
-            // resolve to an absolute path to simplify `require` handling
-            const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-            // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
-            // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
-            const chunkModules = require(resolved);
-            installCompressedModuleFactories(chunkModules, 0);
-            entry = loadedChunk;
-        } catch (cause) {
-            const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`;
-            const error = new Error(errorMessage, {
-                cause
+        const sourceModuleId = this.m.id;
+        const ensureChunk = globalThis.__turbopack_ensure_chunk__;
+        if (ensureChunk === undefined) {
+            entry = requireChunk(chunkPath, sourceModuleId);
+        } else {
+            // The chunk may have to be compiled on demand before it can be required.
+            // Cache the combined promise right away so that every caller (including
+            // concurrent ones) gets the same promise for this chunk.
+            const ensured = Promise.resolve().then(()=>ensureChunk(chunkPath)).then(()=>requireChunk(chunkPath, sourceModuleId), (error)=>{
+                // Don't cache a failure to compile the chunk, so that the next
+                // load retries it.
+                if (chunkCache.get(chunkPath) === ensured) {
+                    chunkCache.delete(chunkPath);
+                }
+                throw error;
             });
-            error.name = 'ChunkLoadError';
-            // Cache the failure promise, future requests will also get this same rejection
-            entry = Promise.reject(error);
+            entry = ensured;
         }
         chunkCache.set(chunkPath, entry);
     }
     // TODO: Return an instrumented Promise that React can use instead of relying on referential equality.
     return entry;
+}
+function requireChunk(chunkPath, sourceModuleId) {
+    try {
+        // resolve to an absolute path to simplify `require` handling
+        const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
+        // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+        // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
+        const chunkModules = require(resolved);
+        installCompressedModuleFactories(chunkModules, 0);
+        return loadedChunk;
+    } catch (cause) {
+        const errorMessage = `Failed to load chunk ${chunkPath} from module ${sourceModuleId}`;
+        const error = new Error(errorMessage, {
+            cause
+        });
+        error.name = 'ChunkLoadError';
+        // Cache the failure promise, future requests will also get this same rejection
+        return Promise.reject(error);
+    }
 }
 contextPrototype.l = loadChunkAsync;
 function loadChunkAsyncByUrl(chunkUrl) {
@@ -1580,20 +1600,6 @@ nodeDevContextPrototype.q = exportUrl;
 nodeDevContextPrototype.c = moduleCache;
 nodeDevContextPrototype.R = resolvePathFromModule;
 nodeDevContextPrototype.C = clearChunkCache;
-if (globalThis.__turbopack_ensure_chunk__ !== undefined) {
-    const chunksBeingEnsured = new Map();
-    function loadChunkAsyncOnDemand(chunkData) {
-        const chunkPath = typeof chunkData === 'string' ? chunkData : chunkData.path;
-        const ensureChunk = globalThis.__turbopack_ensure_chunk__;
-        if (ensureChunk === undefined || chunkCache.has(chunkPath)) {
-            return loadChunkAsync.call(this, chunkData);
-        }
-        const ensured = chunksBeingEnsured.get(chunkPath) ?? Promise.resolve().then(()=>ensureChunk(chunkPath)).finally(()=>chunksBeingEnsured.delete(chunkPath));
-        chunksBeingEnsured.set(chunkPath, ensured);
-        return ensured.then(()=>loadChunkAsync.call(this, chunkData));
-    }
-    nodeDevContextPrototype.l = loadChunkAsyncOnDemand;
-}
 markDevModulesLoaded = true;
 function interceptDevModuleExecution(_module) {
     // There are no react refresh hooks server side so this is a no-op
