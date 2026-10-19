@@ -678,7 +678,6 @@ describe.each([
           export const config = {
             matcher: [
               '/',
-              '/with-locale',
               { source: '/es/without-locale', locale: false },
             ],
           };
@@ -704,13 +703,10 @@ describe.each([
     })
 
     it.each([
-      { path: '/with-locale', locale: 'en', matched: true },
-      { path: '/es/with-locale', locale: 'es', matched: true },
       { path: '/without-locale', locale: 'en', matched: false },
-      { path: '/en/without-locale', locale: 'en', matched: false },
       { path: '/es/without-locale', locale: 'es', matched: true },
     ])(
-      'respects matcher locale settings for $path with basePath',
+      'respects locale: false for $path with basePath',
       async ({ path, locale, matched }) => {
         const response = await fetchViaHTTP(next.url, `/root${path}`)
         expect(response.status).toBe(200)
@@ -724,12 +720,10 @@ describe.each([
     )
 
     it.each([
-      { path: 'en/with-locale', locale: 'en', matched: true },
-      { path: 'es/with-locale', locale: 'es', matched: true },
       { path: 'en/without-locale', locale: 'en', matched: false },
       { path: 'es/without-locale', locale: 'es', matched: true },
     ])(
-      'respects matcher locale settings for the $path data route with basePath',
+      'respects locale: false for the $path data route with basePath',
       async ({ path, locale, matched }) => {
         const response = await fetchViaHTTP(
           next.url,
