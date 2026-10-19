@@ -29,6 +29,41 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { parseReqUrl } from '../lib/url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 
+/**
+ * Compiled matchers for rewrite sources. The rewrites come from the routes
+ * manifest, which is loaded once and reused for every request, so they're
+ * compiled once instead of on every request. Keyed by the rewrite object so a
+ * manifest that's loaded fresh (e.g. in development) just misses the cache.
+ */
+const rewriteMatchers = new WeakMap<
+  DeepReadonly<Rewrite>,
+  Map<string, ReturnType<typeof getPathMatch>>
+>()
+
+function getRewriteMatcher(
+  rewrite: DeepReadonly<Rewrite>,
+  trailingSlash: boolean | undefined,
+  caseSensitive: boolean
+) {
+  let matchers = rewriteMatchers.get(rewrite)
+  if (matchers === undefined) {
+    matchers = new Map()
+    rewriteMatchers.set(rewrite, matchers)
+  }
+
+  const key = `${trailingSlash ? 1 : 0}${caseSensitive ? 1 : 0}`
+  let matcher = matchers.get(key)
+  if (matcher === undefined) {
+    matcher = getPathMatch(rewrite.source + (trailingSlash ? '(/)?' : ''), {
+      removeUnnamedParams: true,
+      strict: true,
+      sensitive: caseSensitive,
+    })
+    matchers.set(key, matcher)
+  }
+  return matcher
+}
+
 function filterInternalQuery(
   query: Record<string, undefined | string | string[]>,
   paramKeys: string[]
@@ -268,14 +303,7 @@ export function getServerUtils({
     }
 
     const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
-      const matcher = getPathMatch(
-        rewrite.source + (trailingSlash ? '(/)?' : ''),
-        {
-          removeUnnamedParams: true,
-          strict: true,
-          sensitive: !!caseSensitive,
-        }
-      )
+      const matcher = getRewriteMatcher(rewrite, trailingSlash, !!caseSensitive)
 
       if (!rewrittenParsedUrl.pathname) return false
 
