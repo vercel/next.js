@@ -183,6 +183,7 @@ fn components<T: Compactable>(compactables: &[T], shard_bits: ShardBits) -> Vec<
 fn intermediate_candidate<T: Compactable>(
     compactables: &[T],
     above: Vec<usize>,
+    may_become_bottom: bool,
     config: &CompactConfig,
 ) -> Candidate {
     let priority = above.len() as f32 / config.max_files_above_bottom.max(1) as f32;
@@ -213,7 +214,9 @@ fn intermediate_candidate<T: Compactable>(
         priority,
         job: MergeJob {
             members: above,
-            bottom: false,
+            // Merging all files of a shard without a bottom run rewrites as much as a bottom merge,
+            // so make the result its bottom run.
+            bottom: may_become_bottom && first == 0,
         },
     }
 }
@@ -296,7 +299,12 @@ fn plan_family<T: Compactable>(
                 && (amplification > 2.0 * limit || above.len() > 2 * config.max_files_above_bottom);
             bottom_candidates.push((candidate, bottom_bytes + above_bytes, above, overdue));
         } else if above.len() > config.max_files_above_bottom.max(1) {
-            intermediate_candidates.push(intermediate_candidate(compactables, above, config));
+            intermediate_candidates.push(intermediate_candidate(
+                compactables,
+                above,
+                bottom.is_empty(),
+                config,
+            ));
         }
     }
 
@@ -319,8 +327,14 @@ fn plan_family<T: Compactable>(
             result.push(candidate);
         } else if above.len() > config.max_files_above_bottom.max(1) {
             // The quota is reached, but an intermediate merge of the same shard is cheap and
-            // still bounds the number of files a lookup consults.
-            intermediate_candidates.push(intermediate_candidate(compactables, above, config));
+            // still bounds the number of files a lookup consults. It must not become a bottom
+            // merge, which the quota was meant to defer.
+            intermediate_candidates.push(intermediate_candidate(
+                compactables,
+                above,
+                false,
+                config,
+            ));
         }
     }
     intermediate_candidates.sort_by(|a, b| b.priority.total_cmp(&a.priority));
@@ -625,6 +639,24 @@ mod tests {
             file(3, 2, 10, false, true),
         ];
         assert_eq!(plan(&files, 2, &test_config()), vec![(vec![0, 2, 3], true)]);
+    }
+
+    #[test]
+    fn test_merging_all_files_of_a_shard_without_bottom_run_makes_a_bottom_run() {
+        // Too few bytes for a bottom merge, but too many files: the intermediate merge takes all of
+        // them, so it writes the shard's bottom run.
+        let files = (0..5)
+            .map(|_| file(0, 0, 10, false, true))
+            .collect::<Vec<_>>();
+        let config = CompactConfig {
+            min_bottom_merge_bytes: 1000,
+            ..test_config()
+        };
+        assert_eq!(plan(&files, 0, &config), vec![(vec![0, 1, 2, 3, 4], true)]);
+        // With a bottom run, it stays an intermediate merge.
+        let mut files = vec![file(0, 0, 10, true, false)];
+        files.extend((0..5).map(|_| file(0, 0, 10, false, true)));
+        assert_eq!(plan(&files, 0, &config), vec![(vec![1, 2, 3, 4, 5], false)]);
     }
 
     #[test]

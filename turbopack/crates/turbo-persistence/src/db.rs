@@ -2642,8 +2642,13 @@ fn rebuild_shard_index<const FAMILIES: usize>(
 /// The number of key hash shards of each family (see [`crate::shard`]). It starts at
 /// `FamilyConfig::initial_shard_bits`, is recorded in every meta file, and follows the size of the
 /// bottom runs, which is about the size of the live data after compaction (see
-/// [`ShardBits::maybe_reshard`]). Before the first bottom merge, it follows the size of all files,
-/// so that the first bottom merges already split at a fitting shard count.
+/// [`ShardBits::maybe_reshard`]).
+///
+/// Before the first bottom merge, it follows the size of all files, but only grows. The first
+/// bottom merges rewrite the whole family, and shrinking would combine the files of multiple shards
+/// into one large job instead of several small ones that run in parallel. Once the shards have
+/// bottom runs, shrinking is free: the disjoint bottom runs of the former shards together are the
+/// bottom run of the combined shard.
 fn shard_bits<const FAMILIES: usize>(
     config: &DbConfig<FAMILIES>,
     meta_files_by_family: &[Vec<MetaFile>; FAMILIES],
@@ -2673,11 +2678,11 @@ fn shard_bits<const FAMILIES: usize>(
         }
         // Before the first bottom merge there is no bottom run, so use the size of all files. They
         // are only the first commits, so they hold little garbage.
-        let estimated_bytes = if covered_shards.is_empty() {
-            all_bytes
-        } else {
-            bottom_bytes.saturating_mul(u64::from(current.count())) / covered_shards.len() as u64
-        };
+        if covered_shards.is_empty() {
+            return current.maybe_grow(all_bytes, config.target_shard_size);
+        }
+        let estimated_bytes =
+            bottom_bytes.saturating_mul(u64::from(current.count())) / covered_shards.len() as u64;
         current.maybe_reshard(estimated_bytes, config.target_shard_size)
     })
 }
