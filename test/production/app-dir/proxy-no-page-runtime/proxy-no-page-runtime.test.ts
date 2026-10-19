@@ -1,10 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
-import fs from 'fs'
-import path from 'path'
+import type { NextAdapter } from 'next'
 
-// A proxy that only imports `next/server` must not pull in the app-page runtime
-// or React. Both are expensive to load on a cold start and were previously
-// reachable through `connection()` -> `dynamic-rendering`.
+type Outputs = Parameters<NextAdapter['onBuildComplete']>[0]['outputs']
+
+const isPageRuntime = (file: string) =>
+  /app-page.*\.runtime\.prod\.js$/.test(file)
+
+// A proxy that only imports `next/server` must not pull in the app-page runtime.
+// It's expensive to load on a cold start and was previously reachable through
+// `connection()` -> `dynamic-rendering`, which imported React.
 describe('proxy-no-page-runtime', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -16,19 +20,27 @@ describe('proxy-no-page-runtime', () => {
     expect(res.headers.get('x-from-proxy')).toBe('1')
   })
 
-  it('should not trace the app-page runtime or React into the proxy', async () => {
-    const nft = JSON.parse(
-      await fs.promises.readFile(
-        path.join(next.testDir, '.next/server/middleware.js.nft.json'),
-        'utf8'
-      )
+  it('should not include the app-page runtime in the proxy output', async () => {
+    const { outputs }: { outputs: Outputs } = await next.readJSON(
+      'build-complete.json'
     )
-    const files: string[] = nft.files
-    expect(files.filter((file) => /app-page.*\.runtime\./.test(file))).toEqual(
-      []
-    )
-    expect(files.filter((file) => /node_modules\/react\//.test(file))).toEqual(
-      []
-    )
+
+    // The app-page runtime as the page outputs trace it. If it is renamed or
+    // stops being traced, this fails instead of the check below passing.
+    const pageRuntimeFiles = [
+      ...new Set(
+        outputs.appPages.flatMap((output) =>
+          Object.keys(output.assets).filter(isPageRuntime)
+        )
+      ),
+    ]
+    expect(pageRuntimeFiles).not.toEqual([])
+
+    expect(outputs.middleware).toBeDefined()
+    const proxyFiles = Object.keys(outputs.middleware!.assets)
+    expect(proxyFiles).not.toEqual([])
+    expect(
+      proxyFiles.filter((file) => pageRuntimeFiles.includes(file))
+    ).toEqual([])
   })
 })
