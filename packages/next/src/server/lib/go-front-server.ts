@@ -6,8 +6,9 @@ import { startServer, type StartServerOptions } from './start-server'
 import { formatHostname } from './format-hostname'
 import { logStartInfo } from './app-info-log'
 import * as Log from '../../build/output/log'
+import { INTERNAL_HEADERS } from './server-ipc/utils'
 
-/** Launch the application-specific public listener; Node only serves its fallback. */
+/** Launch the shipped frontend; it owns application workers and Node remains private. */
 export async function startGoFrontServer(options: StartServerOptions) {
   const config = options.preloadedConfig!.config
   const serverDir = join(options.dir, config.distDir, 'server')
@@ -22,19 +23,25 @@ export async function startGoFrontServer(options: StartServerOptions) {
         ? '386'
         : process.arch
   if (
-    descriptor.version !== 1 ||
+    descriptor.version !== 2 ||
     descriptor.goos !== goos ||
     descriptor.goarch !== goarch ||
-    typeof descriptor.executable !== 'string'
+    typeof descriptor.frontend !== 'string' ||
+    !Array.isArray(descriptor.workers) ||
+    !['linux', 'darwin'].includes(goos)
   ) {
     throw new Error(
       'Invalid Go server output or incompatible OS/architecture; rebuild on this host'
     )
   }
-  const executable = join(serverDir, descriptor.executable)
+  const executable = join(serverDir, descriptor.frontend)
   const localPath = relative(serverDir, executable)
   if (localPath.startsWith('..') || isAbsolute(localPath))
     throw new Error('Go server executable is outside the server output')
+  const executableStat = await fs.lstat(executable)
+  if (!executableStat.isFile() || !(executableStat.mode & 0o111)) {
+    throw new Error('Go frontend must be a regular executable file')
+  }
   const token = randomBytes(32).toString('hex')
   const frontend: NonNullable<StartServerOptions['goFrontend']> = {
     token,
@@ -53,11 +60,20 @@ export async function startGoFrontServer(options: StartServerOptions) {
     windowsHide: true,
     env: {
       ...process.env,
-      __NEXT_GO_TOKEN: token,
-      __NEXT_GO_LISTEN: `${options.hostname ? formatHostname(options.hostname) : ''}:${options.port}`,
       __NEXT_GO_UPSTREAM: `http://127.0.0.1:${backend.port}`,
     },
   })
+  const launch =
+    JSON.stringify({
+      manifest: join(serverDir, 'go-server.json'),
+      listen: `${options.hostname ? formatHostname(options.hostname) : ''}:${options.port}`,
+      nodePort: backend.port,
+      token,
+      internalHeaders: INTERNAL_HEADERS,
+      trustedProxies: (process.env.NEXT_GO_TRUSTED_PROXIES || '')
+        .split(',')
+        .filter(Boolean),
+    }) + '\n'
   let closing = false
   const exited = new Promise<void>((resolve) =>
     child.once('close', () => resolve())
@@ -78,18 +94,21 @@ export async function startGoFrontServer(options: StartServerOptions) {
   })
   try {
     const publicPort = await new Promise<number>((resolve, reject) => {
+      let settled = false
       const marker = Buffer.from(`\x1eNEXT_GO_READY:${token}:`)
       let pending = Buffer.alloc(0)
       const timeout = setTimeout(
         () =>
           finish(
-            new Error('Go frontend did not become ready within 10 seconds')
+            new Error('Go frontend did not become ready within 20 seconds')
           ),
-        10_000
+        20_000
       )
       const onExit = () =>
         finish(new Error('Go frontend exited before readiness'))
       const finish = (error?: Error, port?: number) => {
+        if (settled) return
+        settled = true
         clearTimeout(timeout)
         child.off('error', finish)
         child.off('exit', onExit)
@@ -102,6 +121,9 @@ export async function startGoFrontServer(options: StartServerOptions) {
       }
       child.once('error', finish)
       child.once('exit', onExit)
+      // Keep an error listener after readiness too: a failed child may close its
+      // control pipe before Node observes exit, emitting EPIPE asynchronously.
+      child.stdin!.on('error', finish)
       child.stdout!.on('data', (chunk: Buffer) => {
         pending = Buffer.concat([pending, chunk])
         const index = pending.indexOf(marker)
@@ -127,6 +149,7 @@ export async function startGoFrontServer(options: StartServerOptions) {
         process.stdout.write(pending.subarray(end + 1))
         finish(undefined, port)
       })
+      child.stdin!.write(launch)
     })
     const origin = `http://${formatHostname(options.hostname || 'localhost')}:${publicPort}`
     process.env.PORT = String(publicPort)

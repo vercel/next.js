@@ -10,6 +10,8 @@ on:
       - '.cargo/**'
       - 'turbopack/crates/turbopack-go/**'
       - 'turbopack/crates/turbopack-cli/**'
+      - 'packages/next/src/server/go/**'
+      - 'crates/next-api/src/go_front*'
       - 'turbopack/crates/turbo-tasks-fs/**'
   workflow_dispatch:
 
@@ -40,3 +42,10 @@ jobs:
           cache: false
       - name: Test native Go bundles and CLI
         run: cargo test -p turbopack-go -p turbopack-cli
+      - name: Verify frontend HTTP and worker contract
+        if: ${{ runner.os != 'Windows' }}
+        working-directory: packages/next/src/server/go
+        run: |
+          go test -race -count=1 ./...
+          go test -run='^$' -fuzz=FuzzRequestFraming -fuzztime=15s -parallel=4
+          go test -run='^$' -fuzz=FuzzResponseFraming -fuzztime=15s -parallel=4

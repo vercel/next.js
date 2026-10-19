@@ -1,4 +1,4 @@
-//! Application-specific Go ingress. Native handlers are linked; other endpoints stay on Node.
+//! Compile application workers; routing is data consumed by the shipped frontend.
 use std::{collections::BTreeMap, io::Read};
 
 use anyhow::{Context, Result, bail, ensure};
@@ -143,6 +143,13 @@ async fn public_assets(directory: FileSystemPath) -> Result<Vec<String>> {
 
 #[turbo_tasks::function]
 pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> {
+    ensure!(
+        cfg!(all(
+            any(target_os = "linux", target_os = "macos"),
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        )),
+        "experimental.goServer supports Linux and macOS on x64 and arm64 only"
+    );
     let session = context(*project).to_resolved().await?;
     let config = project.next_config();
     let root = project.project_path().owned().await?;
@@ -151,9 +158,10 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
     let mut overlays = BTreeMap::new();
     let mut imports = String::new();
     let mut registrations = String::new();
+    let mut routes = vec![];
     let mut native = vec![];
     for (pathname, route) in &inventory.routes {
-        let mut serve = "nil".to_owned();
+        let mut handler = String::new();
         if let Route::AppRoute {
             original_name,
             endpoint,
@@ -205,46 +213,23 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
                     "{package} {}\n",
                     serde_json::to_string(&format!("{module}/{target}"))?
                 ));
-                serve = format!("{package}.NextGoServe");
+                registrations.push_str(&format!(
+                    "{}: {package}.NextGoServe,\n",
+                    serde_json::to_string(&package)?
+                ));
+                handler = package;
                 native.push((original_name.clone(), endpoint.path.clone()));
             }
         }
-        registrations.push_str(&format!(
-            "{{path:{},serve:{serve}}},\n",
-            serde_json::to_string(pathname.as_str())?
-        ));
+        routes.push(serde_json::json!({"path":pathname,"worker":if handler.is_empty(){""}else{"go"},"handler":handler}));
     }
     ensure!(
         !native.is_empty(),
         "experimental.goServer requires at least one route.go handler"
     );
-    let assets = public_assets(root.join("public")?)
-        .await?
-        .iter()
-        .map(|path| Ok(format!("{}:true,", serde_json::to_string(path)?)))
-        .collect::<Result<Vec<_>>>()?
-        .join("\n");
-    // Substitute the template in one pass; route and config strings are opaque data.
-    let arguments = BTreeMap::from([
-        ("/*IMPORTS*/", imports),
-        ("/*ROUTES*/", registrations),
-        (
-            "GO_BASE_PATH",
-            serde_json::to_string(config.base_path().await?.as_deref().unwrap_or(""))?,
-        ),
-        (
-            "GO_TRAILING_SLASH",
-            config.trailing_slash().await?.to_string(),
-        ),
-        (
-            "GO_SKIP_TRAILING_SLASH",
-            config.skip_trailing_slash_redirect().await?.to_string(),
-        ),
-        ("/*ASSETS*/", assets),
-    ]);
-    let substitutions = regex::Regex::new(
-        r"/\*(?:IMPORTS|ROUTES|ASSETS)\*/|GO_BASE_PATH|GO_TRAILING_SLASH|GO_SKIP_TRAILING_SLASH",
-    )?;
+    let public_assets = public_assets(root.join("public")?).await?;
+    let arguments = BTreeMap::from([("/*IMPORTS*/", imports), ("/*ROUTES*/", registrations)]);
+    let substitutions = regex::Regex::new(r"/\*(?:IMPORTS|ROUTES)\*/")?;
     let main = substitutions
         .replace_all(
             include_str!("go_front_main.go"),
@@ -274,18 +259,26 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
         }
         _ => bail!("Go server compilation interrupted; retry the build"),
     };
-    let context = session.await?;
+    let build_context = session.await?;
+    ensure!(
+        matches!(build_context.context.goos.as_str(), "linux" | "darwin"),
+        "experimental.goServer supports Linux and macOS only"
+    );
     let hash = AssetContent::file(*content)
         .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
         .await?;
-    let executable = format!("go-server-{hash}{}", context.context.exe_suffix);
+    let executable = format!("go-worker-{hash}{}", build_context.context.exe_suffix);
     let descriptor = serde_json::to_string(
-        &serde_json::json!({"version":1,"executable":executable,"goos":context.context.goos,"goarch":context.context.goarch}),
+        &serde_json::json!({"version":2,"frontend":"go-front","executable":executable,"goos":build_context.context.goos,"goarch":build_context.context.goarch,"workers":[{"id":"go","executable":executable,"protocol":"next-worker-http/1"}],"routes":routes,"basePath":config.base_path().await?.as_deref().unwrap_or(""),"trailingSlash":*config.trailing_slash().await?,"skipTrailingSlash":*config.skip_trailing_slash_redirect().await?,"publicAssets":public_assets}),
     )?;
     let output_root = project.node_root().owned().await?;
     let disk = to_sys_path(output_root.clone())
         .await?
         .context("Go output requires disk filesystem")?;
+    ensure!(
+        !build.is_input(&disk.join("server/go-front"))?,
+        "Go frontend output would overwrite input"
+    );
     let mut assets = vec![];
     for (path, content) in [
         (format!("server/{executable}"), AssetContent::file(*content)),
@@ -297,7 +290,7 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
             "server/go-server.json.nft.json".into(),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string(
-                    &serde_json::json!({"version":1,"files":[executable]}),
+                    &serde_json::json!({"version":1,"files":[executable,"go-front"]}),
                 )?))
                 .cell(),
             ),

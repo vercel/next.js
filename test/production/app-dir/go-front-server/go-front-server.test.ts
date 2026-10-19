@@ -4,7 +4,7 @@ import { request } from 'http'
 import { promises as fs } from 'fs'
 import { join } from 'path'
 
-// @force-gate turbopack
+// @force-gate turbopack && (linux || macos)
 describe('Go public frontend', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -23,7 +23,7 @@ describe('Go public frontend', () => {
     pids.add(data.pid)
     return data
   }
-  it('links independent native packages into one public Go process', async () => {
+  it('serves independent native packages from one application worker', async () => {
     const data = await native('/native/a%20b?key=one&key=two')
     expect(data).toMatchObject({
       id: 'a b',
@@ -170,7 +170,9 @@ describe('Go public frontend', () => {
     const trace = JSON.parse(
       await next.readFile('.next/server/go-server.json.nft.json')
     )
-    expect(trace.files).toEqual([descriptor.executable])
+    expect(trace.files).toEqual([descriptor.executable, descriptor.frontend])
+    expect(descriptor.version).toBe(2)
+    expect(descriptor.workers[0].protocol).toBe('next-worker-http/1')
     const stat = await fs.stat(
       join(next.testDir, '.next/server', descriptor.executable)
     )
@@ -191,7 +193,7 @@ describe('Go public frontend', () => {
   })
 })
 
-// @force-gate turbopack
+// @force-gate turbopack && (linux || macos)
 describe('Go frontend URL configuration', () => {
   const { next } = nextTestSetup({
     files: __dirname,

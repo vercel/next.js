@@ -183,6 +183,12 @@ jobs:
           node scripts/set-preview-version.js "${{ github.sha }}"
           pnpm install --no-frozen-lockfile
 
+      - name: Build precompiled Go frontends
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.x'
+          cache: false
+
       - run: pnpm run build
 
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5

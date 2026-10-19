@@ -39,8 +39,10 @@ export const filterReqHeaders = (
 
 // These are headers that are only used internally and should
 // not be honored from the external request
-const INTERNAL_HEADERS = [
+export const INTERNAL_HEADERS = [
   'x-next-go-upstream-token',
+  'x-next-go-metadata',
+  'x-next-go-remote',
   'x-middleware-rewrite',
   'x-middleware-redirect',
   'x-middleware-set-cookie',
