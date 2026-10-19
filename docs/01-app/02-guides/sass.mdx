@@ -93,7 +93,9 @@ module.exports = nextConfig
 
 ### Sass Variables
 
-Next.js supports Sass variables exported from CSS Module files.
+Next.js supports Sass variables exported from CSS Module files. However, this feature **only works with Webpack** and is not supported by Turbopack (the default bundler in Next.js 15+).
+
+If you need to use Sass variables exported from CSS Modules, you'll need to configure your project to use Webpack instead of Turbopack. See the [Turbopack documentation](/docs/app/api-reference/turbopack) for details on how to switch to Webpack.
 
 For example, using the exported `primaryColor` Sass variable:
 
