@@ -135,7 +135,7 @@ async function printInfo() {
     )
   }
 
-  const cpuCores = os.cpus().length
+  const cpuCores = os.availableParallelism()
   let relevantPackages = `  next: ${installedRelease}${stalenessWithTitle}
   eslint-config-next: ${getPackageVersion('eslint-config-next')}
   react: ${getPackageVersion('react')}
