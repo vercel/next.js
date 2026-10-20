@@ -112,8 +112,10 @@ Then reference it in the `caches` section of your pipeline's `step`:
 
 Using Heroku's [custom cache](https://devcenter.heroku.com/articles/nodejs-support#custom-caching), add a `cacheDirectories` array in your top-level package.json:
 
-```json
-"cacheDirectories": [".next/cache"]
+```json filename="package.json"
+{
+  "cacheDirectories": [".next/cache"]
+}
 ```
 
 ## Azure Pipelines
