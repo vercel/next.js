@@ -133,11 +133,9 @@ pub struct DraftModeOptions {
     pub preview_mode_signing_key: RcStr,
 }
 
-/// A cell holding [`DraftModeOptions`]. Kept separate from [`Project`] because these are
-/// regenerated on every dev server start: inlining them would change the [`Project`] cell and
-/// invalidate all of its readers on every restart.
+/// A cell holding [`DraftModeOptions`], some of these change in every session.
 #[turbo_tasks::value(transparent)]
-struct DraftModeOptionsCell(DraftModeOptions);
+struct DraftModeOptionsValue(DraftModeOptions);
 
 #[turbo_tasks::task_input]
 #[derive(
@@ -1069,8 +1067,7 @@ pub struct Project {
 
     encryption_key: RcStr,
 
-    /// Stored in a separate cell, see [`DraftModeOptionsCell`].
-    preview_props: ResolvedVc<DraftModeOptionsCell>,
+    preview_props: ResolvedVc<DraftModeOptionsValue>,
 
     /// When the code is minified, this opts out of the default mangling of
     /// local names for variables, functions etc., which can be useful for

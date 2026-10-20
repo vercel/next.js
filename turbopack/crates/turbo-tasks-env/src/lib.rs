@@ -31,9 +31,6 @@ impl TransientEnvMap {
 }
 
 /// A map of environment variables.
-///
-/// Uses keyed cells, so that a reader of a single variable (see [`ProcessEnv::read`]) is only
-/// invalidated when that variable changes, not when any other variable in the map changes.
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct EnvMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
 
