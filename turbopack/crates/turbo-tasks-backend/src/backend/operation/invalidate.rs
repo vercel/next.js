@@ -16,16 +16,18 @@ use crate::{
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
 
+/// Invalidates `task_ids`. Callers must not pass duplicate ids (the bulk task access expects
+/// unique ids, and deduplicating here would cost every invalidation).
 pub fn invalidate(
-    mut task_ids: SmallVec<[TaskId; 4]>,
+    task_ids: SmallVec<[TaskId; 4]>,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     mut ctx: ExecuteContext<'_>,
 ) {
-    // The bulk task access below expects no duplicates.
-    if task_ids.len() > 1 {
-        task_ids.sort_unstable();
-        task_ids.dedup();
-    }
+    debug_assert!(
+        task_ids.len() <= 1
+            || task_ids.iter().collect::<rustc_hash::FxHashSet<_>>().len() == task_ids.len(),
+        "invalidate() must not be called with duplicate task ids: {task_ids:?}"
+    );
     let mut queue = AggregationUpdateQueue::new();
     // The tasks to schedule are collected and handed to the scheduler as one batch, which takes
     // the scheduler's queue lock once instead of once per task.

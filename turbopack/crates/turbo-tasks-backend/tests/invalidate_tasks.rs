@@ -20,8 +20,8 @@ fn leaf(index: u32) -> Vc<u32> {
     Vc::cell(executions)
 }
 
-/// `Backend::invalidate_tasks` with a batch containing duplicate ids and ids of tasks that don't
-/// exist (persistent and transient) invalidates the existing tasks once each and skips the rest.
+/// `Backend::invalidate_tasks` with a batch containing ids of tasks that don't exist (persistent
+/// and transient) invalidates the existing tasks once each and skips the rest.
 ///
 /// Restoring non-resident tasks in a batch is covered by the `try_tasks_*` unit tests in
 /// `backend/operation/mod.rs`; eviction here is best-effort, as tasks held by this session may
@@ -47,7 +47,7 @@ async fn invalidate_tasks_mixed_batch() {
         let missing_persistent = TaskId::new(0x00ff_ffff).unwrap();
         let missing_transient = TaskId::new(TRANSIENT_TASK_BIT | 0x00ff_ffff).unwrap();
         tt2.backend()
-            .invalidate_tasks(&[missing_persistent, a, b, b, missing_transient, a], &tt2);
+            .invalidate_tasks(&[missing_persistent, a, b, missing_transient], &tt2);
 
         for leaf in leaves {
             assert_eq!(
