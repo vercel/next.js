@@ -5,7 +5,7 @@
 use anyhow::Result;
 use serde_json::json;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{OperationVc, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, rope::Rope,
 };
@@ -96,27 +96,8 @@ async fn split_chunk() {
             }]
         );
 
-        #[turbo_tasks::function(operation, root)]
-        async fn compressed_size_operation(
-            parts: OperationVc<ChunkParts>,
-            index: usize,
-        ) -> Result<Vc<u32>> {
-            Ok(Vc::cell(
-                parts.connect().await?[index]
-                    .get_compressed_size()
-                    .await?
-                    .unwrap(),
-            ))
-        }
-
-        let compressed_size_0 = compressed_size_operation(parts_op, 0)
-            .read_strongly_consistent()
-            .await?;
-        let compressed_size_1 = compressed_size_operation(parts_op, 1)
-            .read_strongly_consistent()
-            .await?;
-        assert_eq!(*compressed_size_0, 43);
-        assert_eq!(*compressed_size_1, 28);
+        let compressed_sizes = parts_op.connect().compressed_sizes().await?;
+        assert_eq!(&**compressed_sizes, &[Some(43), Some(28)]);
 
         anyhow::Ok(())
     })
