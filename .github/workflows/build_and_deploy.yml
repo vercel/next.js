@@ -130,74 +130,10 @@ jobs:
           echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
           echo "Release environment is '${{ steps.deploy-target.outputs.release_environment }}'"
 
-  build-go-frontends:
-    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
-    needs: [deploy-target]
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-22.04
-            goos: linux
-            goarch: amd64
-          - runner: ubuntu-22.04-arm
-            goos: linux
-            goarch: arm64
-          - runner: macos-15-intel
-            goos: darwin
-            goarch: amd64
-          - runner: macos-15
-            goos: darwin
-            goarch: arm64
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version: '1.27.2'
-          cache: false
-      - name: Build and verify native Go plugin frontend
-        working-directory: packages/next/src/server/go
-        env:
-          EXPECTED_GOOS: ${{ matrix.goos }}
-          EXPECTED_GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: '1'
-          GOENV: 'off'
-          GOTOOLCHAIN: local
-          GOWORK: 'off'
-          GOFLAGS: ''
-          GOEXPERIMENT: ''
-          GOAMD64: v1
-          GOARM64: v8.0
-          CGO_CFLAGS: ''
-          CGO_CPPFLAGS: ''
-          CGO_CXXFLAGS: ''
-          CGO_LDFLAGS: ''
-        run: |
-          set -euo pipefail
-          test "$(go env GOHOSTOS)" = "$EXPECTED_GOOS"
-          test "$(go env GOHOSTARCH)" = "$EXPECTED_GOARCH"
-          go test -race -count=1 ./...
-          mkdir -p "$RUNNER_TEMP/go-frontends"
-          export NEXT_GO_FRONTEND_OUTPUT="$RUNNER_TEMP/go-frontends/next-server-$EXPECTED_GOOS-$EXPECTED_GOARCH"
-          go build -trimpath -buildvcs=false '-ldflags=-s -w' -o "$NEXT_GO_FRONTEND_OUTPUT" .
-          "$NEXT_GO_FRONTEND_OUTPUT" --build-info > "$NEXT_GO_FRONTEND_OUTPUT.build.json"
-          node -e 'const fs=require("fs");const crypto=require("crypto");const p=process.env.NEXT_GO_FRONTEND_OUTPUT;const info=JSON.parse(fs.readFileSync(p+".build.json"));info.sha256=crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");fs.writeFileSync(p+".build.json",JSON.stringify(info)+"\n")'
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: next-go-frontend-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: ${{ runner.temp }}/go-frontends/*
-          if-no-files-found: error
-
   build:
     if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
     needs:
       - deploy-target
-      - build-go-frontends
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -247,16 +183,13 @@ jobs:
           node scripts/set-preview-version.js "${{ github.sha }}"
           pnpm install --no-frozen-lockfile
 
-      - name: Collect native Go plugin frontends
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - name: Build precompiled Go frontends
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          pattern: next-go-frontend-*
-          merge-multiple: true
-          path: ${{ runner.temp }}/go-frontends
+          go-version: '1.27.2'
+          cache: false
 
       - run: pnpm run build
-        env:
-          NEXT_GO_FRONTEND_PREBUILT: ${{ runner.temp }}/go-frontends
 
       - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         timeout-minutes: 5

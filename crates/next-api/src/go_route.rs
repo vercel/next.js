@@ -18,7 +18,7 @@ use turbopack_core::{
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_go::{
-    GoBuildContext, GoBuildMode, GoBuildOutcome, GoBuildSession, filesystem, go_bundle_with_session,
+    GoBuildContext, GoBuildOutcome, GoBuildSession, filesystem, go_bundle_with_session,
 };
 
 use crate::{
@@ -65,31 +65,7 @@ pub(crate) async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSe
         return Ok(GoBuildSession::new(context.clone()));
     }
     let go = std::env::var("TURBOPACK_GO").unwrap_or_else(|_| "go".into());
-    let mut context = GoBuildContext::host(Path::new(&go), None, "").await?;
-    if *project.next_config().go_server().await? {
-        context.build_mode = GoBuildMode::Plugin;
-        let frontend: serde_json::Value = serde_json::from_str(
-            &std::env::var("__NEXT_GO_FRONTEND_BUILD_INFO")
-                .context("missing precompiled Go frontend build configuration")?,
-        )?;
-        ensure!(
-            frontend["protocol"] == "next-go-plugin/1"
-                && frontend["goVersion"].as_str() == Some(context.version.as_str())
-                && frontend["goos"].as_str() == Some(context.goos.as_str())
-                && frontend["goarch"].as_str() == Some(context.goarch.as_str()),
-            "Go plugins require the precompiled frontend's exact toolchain and platform (expected \
-             {}, found {}); select the matching Go executable with TURBOPACK_GO",
-            frontend["goVersion"],
-            context.version
-        );
-        ensure!(
-            frontend["settings"]["CGO_ENABLED"] == "1"
-                && frontend["settings"]["-trimpath"] == "true"
-                && frontend["settings"]["-tags"].as_str() == Some(context.tags.as_str())
-                && frontend["settings"]["-race"] == "",
-            "unsupported precompiled Go frontend build configuration"
-        );
-    }
+    let context = GoBuildContext::host(Path::new(&go), None, "").await?;
     if *project.is_watch_enabled().await? {
         filesystem(context.module_cache.clone())
             .connect()

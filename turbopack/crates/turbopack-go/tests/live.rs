@@ -14,7 +14,7 @@ use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath};
 use turbopack_go::{
-    GoBuildContext, GoBuildMode, GoBuildOutcome, GoBuildSession, GoOverlayFile, filesystem,
+    GoBuildContext, GoBuildOutcome, GoBuildSession, GoOverlayFile, filesystem,
     go_bundle_with_generated_files, go_bundle_with_overlay,
 };
 
@@ -1023,83 +1023,6 @@ async fn composed_packages_preserve_source_and_binary_embed_inputs() -> Result<(
     ensure!(session.run_bytes(bytes).await? == "[1 2 3]");
     ensure!(std::fs::read(session.project.join("source/route.go"))? == original);
     ensure!(!session.project.join("virtual").exists());
-    session.stop().await;
-    Ok(())
-}
-
-#[cfg(any(target_os = "linux", target_os = "macos"))]
-#[tokio::test]
-async fn plugin_builds_load_into_matching_host_and_invalidate() -> Result<()> {
-    let mut session = Session::new().await?;
-    session.go_context.build_mode = GoBuildMode::Plugin;
-    session
-        .write(
-            "pluginvalue/value.go",
-            "package pluginvalue\nvar Value = \"plugin-v1\"\n",
-        )
-        .await?;
-    let module = session.temp.path().join("application.so");
-    let generated = BTreeMap::from([(
-        rcstr!("pluginentry/main.go"),
-        rcstr!(
-            "package main\nimport \"example.com/native-fixture/pluginvalue\"\nvar Value = \
-             pluginvalue.Value\n"
-        ),
-    )]);
-    std::fs::write(
-        &module,
-        session.fetch_generated(&[], generated.clone()).await?,
-    )?;
-    assert!(!session.project.join("pluginentry").exists());
-    let host_source = session.temp.path().join("host.go");
-    std::fs::write(
-        &host_source,
-        "package main\nimport(\"fmt\";\"os\";\"plugin\")\nfunc \
-         main(){p,e:=plugin.Open(os.Args[1]);if e!=nil{panic(e)};s,e:=p.Lookup(\"Value\");if \
-         e!=nil{panic(e)};fmt.Print(*s.(*string))}\n",
-    )?;
-    let host = session.temp.path().join("host");
-    let result = tokio::process::Command::new(session.go_context.go.as_str())
-        .args(["build", "-trimpath", "-buildvcs=false", "-o"])
-        .arg(&host)
-        .arg(&host_source)
-        .env("CGO_ENABLED", "1")
-        .env("GOENV", "off")
-        .env("GOFLAGS", "")
-        .env("GOTOOLCHAIN", "local")
-        .env("GOWORK", "off")
-        .output()
-        .await?;
-    ensure!(
-        result.status.success(),
-        "{}",
-        String::from_utf8_lossy(&result.stderr)
-    );
-    for expected in ["plugin-v1", "plugin-v2"] {
-        if expected == "plugin-v2" {
-            session
-                .write(
-                    "pluginvalue/value.go",
-                    "package pluginvalue\nvar Value = \"plugin-v2\"\n",
-                )
-                .await?;
-            session.invalidate().await?;
-            std::fs::write(
-                &module,
-                session.fetch_generated(&[], generated.clone()).await?,
-            )?;
-        }
-        let result = tokio::process::Command::new(&host)
-            .arg(&module)
-            .output()
-            .await?;
-        ensure!(
-            result.status.success(),
-            "{}",
-            String::from_utf8_lossy(&result.stderr)
-        );
-        ensure!(String::from_utf8(result.stdout)? == expected);
-    }
     session.stop().await;
     Ok(())
 }

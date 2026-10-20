@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -352,8 +351,7 @@ func (f *frontend) forward(w http.ResponseWriter, r *http.Request, c *streamConn
 	// Bind downstream delivery to this exchange as well as upstream activity.
 	// A trickling reader must not keep an already-buffered response alive forever.
 	http.NewResponseController(w).SetWriteDeadline(time.Now().Add(exchangeTimeout))
-	selected, e := f.resolveRoute(r.RequestURI)
-	backend, redirect := selected.backend, selected.redirect
+	backend, params, redirect, e := f.selectRoute(r.RequestURI)
 	if e != nil {
 		http.Error(w, "Invalid URL", 400)
 		return
@@ -369,15 +367,7 @@ func (f *frontend) forward(w http.ResponseWriter, r *http.Request, c *streamConn
 		return
 	}
 	upgrade := r.Header.Get("Upgrade")
-	handlers := f.plugins[backend]
-	var out *http.Request
-	if handlers != nil {
-		out = r.WithContext(ctx)
-	} else {
-		// The proxy rewrites URL/headers. Native handlers own their incoming
-		// request and need no deep copy before header policy is applied.
-		out = r.Clone(ctx)
-	}
+	out := r.Clone(ctx)
 	out.Trailer = r.Trailer
 	requestConnection := []byte(strings.Join(r.Header.Values("Connection"), ","))
 	f.cleanTrailer(out.Trailer, requestConnection)
@@ -396,24 +386,6 @@ func (f *frontend) forward(w http.ResponseWriter, r *http.Request, c *streamConn
 	if upgrade != "" {
 		out.Header.Set("Connection", "Upgrade")
 		out.Header.Set("Upgrade", upgrade)
-	}
-	if handlers != nil {
-		handler := handlers[selected.handler]
-		if handler == nil {
-			http.Error(w, "Unknown native handler", 500)
-			return
-		}
-		native := &pluginWriter{ResponseWriter: w, frontend: f, conn: c, upgrade: upgrade != ""}
-		handler(native, out, selected.params)
-		native.finish()
-		return
-	}
-	var params []byte
-	if backend != 0 {
-		params, _ = json.Marshal(struct {
-			Handler string              `json:"handler"`
-			Params  map[string][]string `json:"params"`
-		}{selected.handler, selected.params})
 	}
 	out.Header.Set("X-Next-Go-Upstream-Token", f.backends[backend].Token)
 	if backend != 0 {

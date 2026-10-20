@@ -44,14 +44,6 @@ pub struct Cancellation {
 // Session cancellation and counters contain no task values or references.
 unsafe impl NonLocalValue for Cancellation {}
 
-/// The artifact to produce. Plugin linking enables the native C toolchain.
-#[turbo_tasks::task_input]
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Encode, Decode)]
-pub enum GoBuildMode {
-    Executable,
-    Plugin,
-}
-
 /// Resolved host toolchain and build options. Changing the installed toolchain requires a new
 /// session. Versioned modules use the normal Go module cache, with downloads disabled during
 /// builds.
@@ -69,7 +61,6 @@ pub struct GoBuildContext {
     pub gopath: RcStr,
     pub path: RcStr,
     pub tags: RcStr,
-    pub build_mode: GoBuildMode,
     pub cancellation: TransientInstance<Cancellation>,
 }
 
@@ -183,7 +174,6 @@ impl GoBuildContext {
                 .context("non-UTF8 PATH")?
                 .into(),
             tags: tags.into(),
-            build_mode: GoBuildMode::Executable,
             cancellation: TransientInstance::new(Cancellation {
                 token,
                 lists: AtomicUsize::new(0),
@@ -212,14 +202,7 @@ impl GoBuildContext {
             .env("GOROOT", self.goroot.as_str())
             .env("GOOS", self.goos.as_str())
             .env("GOARCH", self.goarch.as_str())
-            .env(
-                "CGO_ENABLED",
-                if self.build_mode == GoBuildMode::Plugin {
-                    "1"
-                } else {
-                    "0"
-                },
-            )
+            .env("CGO_ENABLED", "0")
             .env("GOENV", "off")
             .env("GOTOOLCHAIN", "local")
             .env("GOWORK", "off")
@@ -465,23 +448,6 @@ fn arguments(files: &[RcStr]) -> Vec<String> {
         .collect()
 }
 
-// Go's unnamed plugin package hash reads named files with os.ReadFile, bypassing
-// -overlay. Build plugins as module packages instead, including virtual entries.
-fn command_inputs(
-    project: &Path,
-    files: &[RcStr],
-    mode: GoBuildMode,
-) -> Result<(PathBuf, Vec<String>)> {
-    let directory = entry_directory(project, files)?;
-    if mode == GoBuildMode::Plugin {
-        let relative = directory.strip_prefix(project)?;
-        let package = format!("./{}", relative.to_string_lossy().replace('\\', "/"));
-        Ok((project.to_owned(), vec![package]))
-    } else {
-        Ok((directory, arguments(files)))
-    }
-}
-
 fn entry_directory(project: &Path, files: &[RcStr]) -> Result<PathBuf> {
     ensure!(!files.is_empty(), "supply at least one .go input file");
     let directory = Path::new(files[0].as_str())
@@ -546,8 +512,7 @@ async fn list(
         .lists
         .fetch_add(1, Ordering::Relaxed);
     let overlay = overlay(project, generated)?;
-    let (working_directory, arguments) = command_inputs(project, files, go_context.build_mode)?;
-    let mut command = go_context.command(&working_directory);
+    let mut command = go_context.command(directory);
     command
         .arg("list")
         .arg(format!(
@@ -564,11 +529,8 @@ async fn list(
             "-buildvcs=false",
             "-trimpath",
         ])
-        .arg(format!("-tags={}", go_context.tags));
-    if go_context.build_mode == GoBuildMode::Plugin {
-        command.arg("-buildmode=plugin");
-    }
-    command.args(arguments);
+        .arg(format!("-tags={}", go_context.tags))
+        .args(arguments(files));
     let report = process::output(command, &go_context.cancellation.token).await?;
     ensure!(
         report.status.success(),
@@ -791,10 +753,6 @@ async fn discover(
                 .await?;
         }
         let module = config.module.as_ref().map_or("", |m| m.path.as_str());
-        ensure!(
-            go_context.build_mode != GoBuildMode::Plugin || !module.is_empty(),
-            "Go plugin builds require a go.mod module"
-        );
         let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
         let packages = list(&directory, &files, &go_context, &project, &generated).await?;
         observe_packages(&mut tracker, &packages, &project, module, &directories).await?;
@@ -889,11 +847,7 @@ async fn compile(
         permit = GO_ACTIONS.acquire() => permit?,
         _ = go_context.cancellation.token.cancelled() => return Ok(Compilation::Cancelled.cell()),
     };
-    let (directory, arguments) = command_inputs(
-        Path::new(project.as_str()),
-        &plan.files,
-        go_context.build_mode,
-    )?;
+    let directory = entry_directory(Path::new(project.as_str()), &plan.files)?;
     if !plan.inputs.is_current()? {
         return Ok(Compilation::Retry(get_invalidator()).cell());
     }
@@ -915,11 +869,8 @@ async fn compile(
         .fetch_add(1, Ordering::Relaxed);
     let overlay = overlay(Path::new(project.as_str()), &plan.generated)?;
     let mut command = go_context.command(&directory);
-    command.arg("build");
-    if go_context.build_mode == GoBuildMode::Plugin {
-        command.arg("-buildmode=plugin");
-    }
     command
+        .arg("build")
         .arg(format!(
             "-overlay={}",
             overlay.path().join("overlay.json").display()
@@ -928,7 +879,7 @@ async fn compile(
         .arg(format!("-tags={}", go_context.tags))
         .arg("-o")
         .arg(&executable)
-        .args(arguments);
+        .args(arguments(&plan.files));
     let report = match process::output(command, &go_context.cancellation.token).await {
         Err(_) if go_context.is_cancelled() => return Ok(Compilation::Cancelled.cell()),
         Err(error) => return Ok(Compilation::Failed(format!("{error:#}").into()).cell()),
@@ -944,13 +895,14 @@ async fn compile(
         return Ok(Compilation::Retry(get_invalidator()).cell());
     }
     let outcome = if report.status.success() {
-        let file = File::from(std::fs::read(&executable)?);
-        let file = if go_context.build_mode == GoBuildMode::Executable {
-            file.with_permissions(Permissions::Executable)
-        } else {
-            file
-        };
-        Compilation::Success(FileContent::Content(file).cell().to_resolved().await?)
+        Compilation::Success(
+            FileContent::Content(
+                File::from(std::fs::read(&executable)?).with_permissions(Permissions::Executable),
+            )
+            .cell()
+            .to_resolved()
+            .await?,
+        )
     } else {
         Compilation::Failed(diagnostic(&report.stderr, &directory).into())
     };

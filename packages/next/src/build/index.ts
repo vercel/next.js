@@ -1886,12 +1886,6 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
-          if (config.experimental.goServer) {
-            const { readGoFrontendBuildInfo } =
-              require('../server/lib/go-front-build') as typeof import('../server/lib/go-front-build')
-            process.env.__NEXT_GO_FRONTEND_BUILD_INFO =
-              await readGoFrontendBuildInfo()
-          }
           const {
             duration: compilerDuration,
             shutdownPromise: p,

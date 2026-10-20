@@ -1,4 +1,4 @@
-//! Compile application plugins; routing is data consumed by the shipped frontend.
+//! Compile application workers; routing is data consumed by the shipped frontend.
 use std::{collections::BTreeMap, io::Read};
 
 use anyhow::{Context, Result, bail, ensure};
@@ -176,7 +176,6 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
     let mut registrations = String::new();
     let mut routes = vec![];
     let mut native = vec![];
-    let mut entry = None;
     for (pathname, route) in &inventory.routes {
         let mut handler = String::new();
         if let Route::AppRoute {
@@ -205,15 +204,6 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
                 let target = format!("{prefix}/nextgenerated/{package}")
                     .trim_start_matches('/')
                     .to_owned();
-                // Keep generated entry/package inventories beneath an existing
-                // source prefix rather than observing the entire project root.
-                entry.get_or_insert_with(|| {
-                    RcStr::from(
-                        format!("{prefix}/nextgenerated/application/main.go")
-                            .trim_start_matches('/')
-                            .to_owned(),
-                    )
-                });
                 overlay_package(
                     &root,
                     endpoint.path.parent(),
@@ -247,7 +237,7 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
                 native.push((original_name.clone(), endpoint.path.clone()));
             }
         }
-        routes.push(serde_json::json!({"path":pathname,"plugin":if handler.is_empty(){""}else{"go"},"handler":handler}));
+        routes.push(serde_json::json!({"path":pathname,"worker":if handler.is_empty(){""}else{"go"},"handler":handler}));
     }
     ensure!(
         !native.is_empty(),
@@ -262,9 +252,10 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
             |capture: &regex::Captures<'_>| arguments[&capture[0]].clone(),
         )
         .into_owned();
-    // A module package gives plugins a stable import identity. Do not put this
-    // main beside route.go, whose original package must remain untouched.
-    let entry = entry.context("missing Go plugin entry")?;
+    let entry: RcStr = root
+        .get_path_to(&native[0].1.parent().join("zz_next_go_front_main.go")?)
+        .context("main input outside Go module")?
+        .into();
     overlays.insert(entry.clone(), GoOverlayFile::generated(main.into_bytes()));
     let build = go_bundle_with_overlay(compiler_root, vec![entry], *session, overlays).await?;
     ensure!(
@@ -292,9 +283,9 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
     let hash = AssetContent::file(*content)
         .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
         .await?;
-    let executable = format!("go-plugin-{hash}.so");
+    let executable = format!("go-worker-{hash}{}", build_context.context.exe_suffix);
     let descriptor = serde_json::to_string(
-        &serde_json::json!({"version":3,"frontend":"go-front","goos":build_context.context.goos,"goarch":build_context.context.goarch,"goVersion":build_context.context.version,"plugins":[{"id":"go","file":executable,"protocol":"next-go-plugin/1"}],"routes":routes,"basePath":config.base_path().await?.as_deref().unwrap_or(""),"trailingSlash":*config.trailing_slash().await?,"skipTrailingSlash":*config.skip_trailing_slash_redirect().await?,"publicAssets":public_assets}),
+        &serde_json::json!({"version":2,"frontend":"go-front","executable":executable,"goos":build_context.context.goos,"goarch":build_context.context.goarch,"workers":[{"id":"go","executable":executable,"protocol":"next-worker-http/1"}],"routes":routes,"basePath":config.base_path().await?.as_deref().unwrap_or(""),"trailingSlash":*config.trailing_slash().await?,"skipTrailingSlash":*config.skip_trailing_slash_redirect().await?,"publicAssets":public_assets}),
     )?;
     let output_root = project.node_root().owned().await?;
     let disk = to_sys_path(output_root.clone())
@@ -303,10 +294,6 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
     ensure!(
         !build.is_input(&disk.join("server/go-front"))?,
         "Go frontend output would overwrite input"
-    );
-    ensure!(
-        !build.is_input(&disk.join("server/go-front.build.json"))?,
-        "Go frontend build configuration would overwrite input"
     );
     let mut assets = vec![];
     for (path, content) in [
@@ -319,7 +306,7 @@ pub async fn output(project: ResolvedVc<Project>) -> Result<Vc<EndpointOutput>> 
             "server/go-server.json.nft.json".into(),
             AssetContent::file(
                 FileContent::Content(File::from(serde_json::to_string(
-                    &serde_json::json!({"version":1,"files":[executable,"go-front","go-front.build.json"]}),
+                    &serde_json::json!({"version":1,"files":[executable,"go-front"]}),
                 )?))
                 .cell(),
             ),

@@ -44,5 +44,5 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	body, _ := io.ReadAll(r.Body)
 	w.Header().Add("Set-Cookie", "one=1")
 	w.Header().Add("Set-Cookie", "two=2")
-	json.NewEncoder(w).Encode(map[string]any{"pid": os.Getpid(), "parentPid": os.Getppid(), "id": r.PathValue("id"), "remote": r.RemoteAddr, "body": string(body), "trailers": r.Trailer, "headers": r.Header})
+	json.NewEncoder(w).Encode(map[string]any{"pid": os.Getpid(), "frontendPid": os.Getppid(), "id": r.PathValue("id"), "remote": r.RemoteAddr, "body": string(body), "trailers": r.Trailer, "headers": r.Header})
 }

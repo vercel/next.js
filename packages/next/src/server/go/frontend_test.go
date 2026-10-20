@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"debug/buildinfo"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -221,14 +222,14 @@ func FuzzStrictStreamFraming(f *testing.F) {
 	})
 }
 
-func TestPluginStartupValidation(t *testing.T) {
+func TestStartupFailureCleanup(t *testing.T) {
 	dir := t.TempDir()
-	for _, tc := range []struct{ executable, protocol string }{{"missing.so", protocol}, {"bad.so", protocol}, {"bad.so", "incompatible"}} {
+	for _, tc := range []struct{ executable, protocol string }{{"missing", protocol}, {"bad", protocol}, {"bad", "incompatible"}} {
 		t.Run(tc.executable+tc.protocol, func(t *testing.T) {
-			if e := os.WriteFile(filepath.Join(dir, "bad.so"), []byte("#!/bin/sh\nexit 1\n"), 0700); e != nil {
+			if e := os.WriteFile(filepath.Join(dir, "bad"), []byte("#!/bin/sh\nexit 1\n"), 0700); e != nil {
 				t.Fatal(e)
 			}
-			spec := manifest{Version: 3, Goos: runtime.GOOS, Goarch: runtime.GOARCH, Plugins: []pluginSpec{{ID: "go", File: tc.executable, Protocol: tc.protocol}}}
+			spec := manifest{Version: 2, Workers: []workerSpec{{ID: "go", Executable: tc.executable, Protocol: tc.protocol}}}
 			raw, _ := json.Marshal(spec)
 			file := filepath.Join(dir, "manifest.json")
 			if e := os.WriteFile(file, raw, 0600); e != nil {
@@ -236,7 +237,7 @@ func TestPluginStartupValidation(t *testing.T) {
 			}
 			f, e := startFrontend(launchConfig{Manifest: file, NodePort: 1, Token: "private"})
 			if e == nil || f != nil {
-				t.Fatal("accepted invalid plugin startup")
+				t.Fatal("accepted failed worker startup")
 			}
 		})
 	}
@@ -350,7 +351,7 @@ func testFrontend(t *testing.T, handlers ...http.Handler) (string, *frontend) {
 	workerServer := &http.Server{Handler: handler}
 	go workerServer.Serve(worker)
 	f := &frontend{internal: map[string]bool{"x-middleware-rewrite": true}, backends: []backendInfo{{Port: port, Token: "private"}, {Unix: socket, Token: "private"}}}
-	f.router, e = newRouter(manifest{Routes: []route{{Path: "/native/[id]", Plugin: "go", Handler: "route0"}, {Path: "/native/static"}, {Path: "/catch/[...slug]", Plugin: "go", Handler: "route0"}, {Path: "/optional/[[...parts]]", Plugin: "go", Handler: "route0"}}}, map[string]int{"go": 1})
+	f.router, e = newRouter(manifest{Routes: []route{{Path: "/native/[id]", Worker: "go", Handler: "route0"}, {Path: "/native/static"}, {Path: "/catch/[...slug]", Worker: "go", Handler: "route0"}, {Path: "/optional/[[...parts]]", Worker: "go", Handler: "route0"}}}, map[string]int{"go": 1})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -639,21 +640,6 @@ func TestTrailerMetadataFiltering(t *testing.T) {
 	if len(h) != 1 || h.Get("X-Valid") != "yes" {
 		t.Fatal(h)
 	}
-	recorder := httptest.NewRecorder()
-	w := &pluginWriter{ResponseWriter: recorder, frontend: f}
-	w.Header().Set("Connection", "X-Nominated")
-	w.Header().Set("Trailer", "X-Valid, X-Nominated, X-Next-Go-Metadata")
-	w.Header().Set("X-Nominated", "hidden")
-	w.Header().Set("X-Matched-Path", "hidden")
-	w.Write([]byte("body"))
-	w.Header().Set("X-Valid", "yes")
-	w.Header().Set("X-Nominated", "hidden-trailer")
-	w.Header().Set(http.TrailerPrefix+"X-Next-Go-Metadata", "hidden-trailer")
-	w.finish()
-	result := recorder.Result()
-	if result.Header.Get("X-Nominated") != "" || result.Header.Get("X-Matched-Path") != "" || result.Trailer.Get("X-Nominated") != "" || result.Trailer.Get("X-Next-Go-Metadata") != "" || result.Trailer.Get("X-Valid") != "yes" {
-		t.Fatalf("plugin response header/trailer policy: %v %v", result.Header, result.Trailer)
-	}
 }
 
 func TestHeadAfterBodyAndFresh(t *testing.T) {
@@ -674,7 +660,7 @@ func TestHeadAfterBodyAndFresh(t *testing.T) {
 	}
 }
 
-func TestCompiledPluginContract(t *testing.T) {
+func TestCompiledWorkerContract(t *testing.T) {
 	dir, e := os.MkdirTemp("/tmp", "next-sdk-test-")
 	if e != nil {
 		t.Fatal(e)
@@ -684,16 +670,42 @@ func TestCompiledPluginContract(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	source := strings.ReplaceAll(string(template), "/*IMPORTS*/", "\"encoding/json\"\n\"io\"\n\"os\"\n")
-	source = strings.ReplaceAll(source, "/*ROUTES*/", `"route0":func(w http.ResponseWriter,r *http.Request,_ map[string][]string){io.ReadAll(r.Body);w.Header().Set("Content-Type","application/json");w.Header().Add("Set-Cookie","first=1");w.Header().Add("Set-Cookie","second=2");w.WriteHeader(201);json.NewEncoder(w).Encode(map[string]any{"hello":"plugin","pid":os.Getpid()})},`)
-	buildTestPlugin(t, dir, source)
+	source := strings.ReplaceAll(string(template), "/*IMPORTS*/", "")
+	source = strings.ReplaceAll(source, "/*ROUTES*/", `"route0":func(w http.ResponseWriter,r *http.Request,_ map[string][]string){io.ReadAll(r.Body);w.Header().Set("Content-Type","application/json");w.Header().Add("Set-Cookie","first=1");w.Header().Add("Set-Cookie","second=2");w.WriteHeader(201);json.NewEncoder(w).Encode(map[string]any{"hello":"worker","pid":os.Getpid()})},`)
+	file := filepath.Join(dir, "worker.go")
+	os.WriteFile(file, []byte(source), 0600)
+	workerGo := os.Getenv("NEXT_GO_TEST_WORKER_COMPILER")
+	if workerGo == "" {
+		workerGo = "go"
+	}
+	environment := append(os.Environ(), "CGO_ENABLED=0", "GOWORK=off", "GOENV=off", "GOTOOLCHAIN=local", "GOROOT=", "GOFLAGS=")
+	versionCommand := exec.Command(workerGo, "env", "GOVERSION")
+	versionCommand.Env = environment
+	version, err := versionCommand.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	workerVersion := strings.TrimSpace(string(version))
+	if os.Getenv("NEXT_GO_TEST_WORKER_COMPILER") != "" && workerVersion == runtime.Version() {
+		t.Fatal("mixed-toolchain gate requires different frontend and worker Go versions")
+	}
+	command := exec.Command(workerGo, "build", "-o", filepath.Join(dir, "worker"), file)
+	command.Env = environment
+	if out, e := command.CombinedOutput(); e != nil {
+		t.Fatalf("build SDK: %s %v", out, e)
+	}
+	info, err := buildinfo.ReadFile(filepath.Join(dir, "worker"))
+	if err != nil || info.GoVersion != workerVersion {
+		t.Fatalf("worker toolchain mismatch: %v %v", info, err)
+	}
+	t.Logf("frontend runtime %s; worker runtime %s", runtime.Version(), info.GoVersion)
 
 	node := httptest.NewServer(backendHandler("node"))
 	defer node.Close()
 	port, _ := strconv.Atoi(strings.TrimPrefix(node.URL, "http://127.0.0.1:"))
-	spec := manifest{Version: 3, Goos: runtime.GOOS, Goarch: runtime.GOARCH, Plugins: []pluginSpec{{ID: "go", File: "application.so", Protocol: protocol}}, Routes: []route{{Path: "/native/[id]", Plugin: "go", Handler: "route0"}}}
+	spec := manifest{Version: 2, Workers: []workerSpec{{ID: "go", Executable: "worker", Protocol: protocol}}, Routes: []route{{Path: "/native/[id]", Worker: "go", Handler: "route0"}}}
 	raw, _ := json.Marshal(spec)
-	file := filepath.Join(dir, "manifest.json")
+	file = filepath.Join(dir, "manifest.json")
 	os.WriteFile(file, raw, 0600)
 	f, e := startFrontend(launchConfig{Manifest: file, NodePort: port, Token: "private"})
 	if e != nil {
@@ -728,15 +740,12 @@ func TestCompiledPluginContract(t *testing.T) {
 		br := bufio.NewReader(c)
 		fmt.Fprintf(c, "POST /native/body HTTP/1.1\r\nHost: localhost\r\nConnection: %s\r\nContent-Length: 1\r\n\r\nx", connection)
 		post, body := response(t, br, "POST")
-		var result struct {
-			Hello string `json:"hello"`
-			PID   int    `json:"pid"`
+		var data struct {
+			Hello string
+			PID   int
 		}
-		if json.Unmarshal([]byte(body), &result) != nil || result.Hello != "plugin" || result.PID != os.Getpid() || len(post.Header.Values("Set-Cookie")) != 2 {
-			t.Fatalf("handler did not run in the frontend process: %s", body)
-		}
-		if f.upstreams.Load() != 0 {
-			t.Fatal("native plugin opened an upstream socket")
+		if json.Unmarshal([]byte(body), &data) != nil || data.Hello != "worker" || data.PID != f.children[0].Process.Pid || data.PID == os.Getpid() || len(post.Header.Values("Set-Cookie")) != 2 {
+			t.Fatalf("handler did not run in the separate worker process: %s", body)
 		}
 		if connection == "close" {
 			c.Close()
@@ -758,55 +767,5 @@ func TestTrustedChainDropsSpoofedPrefix(t *testing.T) {
 	chain, _, _, e := f.identity("127.0.0.1", "real", http.Header{"X-Forwarded-For": []string{"8.8.8.8, 192.0.2.5, 127.0.0.2"}})
 	if e != nil || chain != "192.0.2.5, 127.0.0.2, 127.0.0.1" {
 		t.Fatal(chain, e)
-	}
-}
-
-func buildTestPlugin(t *testing.T, dir, source string, extra ...string) string {
-	t.Helper()
-	file := filepath.Join(dir, "application.go")
-	if err := os.WriteFile(file, []byte(source), 0600); err != nil {
-		t.Fatal(err)
-	}
-	output := filepath.Join(dir, "application.so")
-	args := []string{"build", "-buildmode=plugin", "-buildvcs=false", "-o", output}
-	host, err := frontendBuildInfo()
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, flag := range []string{"-race", "-trimpath", "-msan", "-asan"} {
-		if host.Settings[flag] == "true" {
-			args = append(args, flag)
-		}
-	}
-	for _, flag := range []string{"-tags", "-gcflags", "-asmflags"} {
-		if host.Settings[flag] != "" {
-			args = append(args, flag+"="+host.Settings[flag])
-		}
-	}
-	args = append(args, extra...)
-	args = append(args, file)
-	command := exec.Command("go", args...)
-	command.Env = append(os.Environ(), "CGO_ENABLED=1", "GOWORK=off")
-	if out, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("build plugin: %s %v", out, err)
-	}
-	return output
-}
-
-func TestPluginMismatchDoesNotRunInit(t *testing.T) {
-	dir := t.TempDir()
-	marker := filepath.Join(dir, "initialized")
-	source := fmt.Sprintf(`package main
-import "os"
-func init(){os.WriteFile(%q, []byte("ran"),0600)}
-var NextGoPluginVersion = "next-go-plugin/1"
-func main(){}
-`, marker)
-	plugin := buildTestPlugin(t, dir, source, "-tags=next_plugin_incompatible")
-	if _, err := loadPlugin(plugin); err == nil || !strings.Contains(err.Error(), "build setting -tags") {
-		t.Fatalf("expected an early build compatibility error, got %v", err)
-	}
-	if _, err := os.Stat(marker); !os.IsNotExist(err) {
-		t.Fatal("mismatched plugin initialization executed")
 	}
 }

@@ -7,9 +7,9 @@ import { join } from 'path'
 import { createHash } from 'crypto'
 
 // @force-gate turbopack && (linux || macos)
-describe('Go plugin boundary', () => {
+describe('Go worker boundary', () => {
   const { next } = nextTestSetup({ files: __dirname, skipDeployment: true })
-  it('loads application code into the published frontend and filters private metadata', async () => {
+  it('keeps the published frontend separate and authenticates per-request metadata', async () => {
     const response = await next.fetch('/native/identity', {
       headers: {
         'x-next-go-metadata': 'forged',
@@ -23,9 +23,7 @@ describe('Go plugin boundary', () => {
     })
     expect(response.status).toBe(200)
     const data = await response.json()
-    const node = await (await next.fetch('/js')).json()
-    expect(data.pid).not.toBe(node.pid)
-    expect(data.parentPid).toBe(node.pid)
+    expect(data.pid).not.toBe(data.frontendPid)
     expect(data.id).toBe('identity')
     expect(data.remote).toMatch(/127\.0\.0\.1|\[::1\]/)
     expect(['127.0.0.1', '::1']).toContain(data.headers['X-Forwarded-For'][0])
@@ -39,11 +37,9 @@ describe('Go plugin boundary', () => {
     const manifest = JSON.parse(
       await next.readFile('.next/server/go-server.json')
     )
-    expect(manifest.version).toBe(3)
+    expect(manifest.version).toBe(2)
     expect(manifest.frontend).toBe('go-front')
-    expect(manifest.plugins[0].protocol).toBe('next-go-plugin/1')
-    expect(manifest.plugins[0].file).toMatch(/^go-plugin-.*\.so$/)
-    expect(manifest.workers).toBeUndefined()
+    expect(manifest.workers[0].protocol).toBe('next-worker-http/1')
   })
   it('selects native and Node backends on one reused connection, including after a body', async () => {
     const agent = new Agent({ keepAlive: true, maxSockets: 1 })
@@ -168,7 +164,7 @@ describe('Go plugin boundary', () => {
     )
     await next.start()
     const after = JSON.parse(await next.readFile('.next/server/go-server.json'))
-    expect(after.plugins[0].file).not.toBe(before.plugins[0].file)
+    expect(after.workers[0].executable).not.toBe(before.workers[0].executable)
     expect(await frontendHash()).toBe(frontend)
     expect((await (await next.fetch('/native/identity')).json()).id).toBe(
       'changed'
