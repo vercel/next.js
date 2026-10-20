@@ -64,6 +64,21 @@ impl ChunkPart {
 #[derive(Debug)]
 pub struct ChunkParts(Vec<ChunkPart>);
 
+#[turbo_tasks::value(transparent)]
+pub struct ChunkPartCompressedSizes(Vec<Option<u32>>);
+
+#[turbo_tasks::value_impl]
+impl ChunkParts {
+    #[turbo_tasks::function]
+    pub async fn compressed_sizes(&self) -> Result<Vc<ChunkPartCompressedSizes>> {
+        let mut sizes = Vec::with_capacity(self.0.len());
+        for part in &self.0 {
+            sizes.push(part.get_compressed_size().await?);
+        }
+        Ok(Vc::cell(sizes))
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn split_traced_file_into_parts(path: FileSystemPath) -> Result<Vc<ChunkParts>> {
     let source = FileSource::new(path.clone());

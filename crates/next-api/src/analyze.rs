@@ -750,10 +750,12 @@ pub async fn analyze_output_assets(
             file.module_coverage = coverage;
         }
         let chunk_parts = match asset {
-            Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
-            Either::Right(path) => split_traced_file_into_parts(path).await?,
+            Either::Left(asset) => split_output_asset_into_parts(*asset),
+            Either::Right(path) => split_traced_file_into_parts(path),
         };
-        for chunk_part in &chunk_parts {
+        let compressed_sizes = chunk_parts.compressed_sizes().await?;
+        for (chunk_part, compressed_size) in chunk_parts.await?.iter().zip(compressed_sizes.iter())
+        {
             let decoded_source = urlencoding::decode(&chunk_part.source)?;
             let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
                 Cow::Borrowed(stripped)
@@ -767,7 +769,7 @@ pub async fn analyze_output_assets(
             };
             let source_index = builder.ensure_source(&source).1;
             let size = chunk_part.real_size + chunk_part.unaccounted_size;
-            let compressed_size = chunk_part.get_compressed_size().await?.unwrap_or(size);
+            let compressed_size = compressed_size.unwrap_or(size);
             summary.size += u64::from(size);
             summary.compressed_size += u64::from(compressed_size);
             if is_client {
