@@ -380,13 +380,15 @@ export async function POST(request) {
 
 ## Handling files
 
-Store uploaded files in a storage service rather than on the server's file system. In serverless and multi-instance deployments each instance has its own temporary file system, and in production `next start` only serves the files that were in `public` when it started, see [Deployment environment](#deployment-environment).
+Next.js doesn't store uploaded files for you. On serverless and multi-instance hosts each instance has its own temporary file system, see [Deployment environment](#deployment-environment), and `next start` only serves files that were in `public` when it started.
 
-The examples in this section assume an `auth()` helper that returns the current session, see [Security](#security).
+To handle file uploads and serve dynamically generated files, use a dedicated storage service.
+
+Uploading and serving files usually requires checking that the user is allowed to access the resource, see [Authentication](/docs/app/guides/authentication) and [Access to protected resources](#access-to-protected-resources). The examples below use an `auth()` helper that returns the current session.
 
 ### Upload directly to storage
 
-Uploading from the browser straight to your storage provider is the default approach, since the file never passes through Next.js:
+Uploading from the browser straight to your storage provider is the recommended approach, since the file never passes through Next.js:
 
 1. The client asks your app for an upload URL, for example through a Server Action.
 2. On the server, verify the user and create a short-lived, pre-authorized upload URL with your storage provider's SDK. Many object storage services call this a presigned or signed URL.
@@ -475,16 +477,25 @@ export async function POST(request) {
 }
 ```
 
-This example writes to an existing `uploads` directory on the local file system, so it needs the Node.js runtime and a persistent disk. To keep files in a storage service, pipe the stream to its upload API instead. If [Proxy](#proxy) runs for this route, exclude the route from Proxy, since Proxy buffers request bodies and cuts off large ones.
+This example writes to an existing `uploads` directory on the local file system, so it needs the Node.js runtime and a persistent disk. To keep files in a storage service, pipe the stream to its upload API instead. It also doesn't cap the upload size: reject requests above your limit, for example by counting the bytes as they arrive, so a client can't fill your disk.
+
+[Proxy](#proxy) buffers request bodies so that both Proxy and the route can read them, and cuts off bodies above its limit. If Proxy runs for this route, you might want to exclude the route from its `matcher`, keeping in mind that any checks Proxy performs, such as authentication, then need to happen in the Route Handler.
 
 ### Server Actions for small files
 
-A Server Action passed to `<form action={uploadAvatar}>` can read a file from an `<input type="file" name="avatar">` through the form's [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData). Parsing `FormData` holds the whole file in memory, and the request body is limited to 1MB by default, which you can raise with [`serverActions.bodySizeLimit`](/docs/app/api-reference/config/next-config-js/serverActions#bodysizelimit). For larger files, upload directly to storage or use a Route Handler.
+When a Server Action is used as a form `action`, it receives the form's [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData), and a file input appears in it as a [`File`](https://developer.mozilla.org/docs/Web/API/File). See [Forms](/docs/app/guides/forms) for how Server Actions handle forms. Parsing `FormData` holds the whole file in memory, and the request body is limited to 1MB by default, see [`serverActions.bodySizeLimit`](/docs/app/api-reference/config/next-config-js/serverActions#bodysizelimit) for how to raise and estimate it. For larger files, upload directly to storage or use a Route Handler.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
 
+import { auth } from '@/lib/auth'
+
 export async function uploadAvatar(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const file = formData.get('avatar')
   if (!(file instanceof File)) return
   // Save `file` with your storage provider's SDK
@@ -494,7 +505,14 @@ export async function uploadAvatar(formData: FormData) {
 ```js filename="app/actions.js" switcher
 'use server'
 
+import { auth } from '@/lib/auth'
+
 export async function uploadAvatar(formData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const file = formData.get('avatar')
   if (!(file instanceof File)) return
   // Save `file` with your storage provider's SDK
@@ -503,7 +521,7 @@ export async function uploadAvatar(formData) {
 
 ### Serve files
 
-To serve a stored file, stream it instead of reading it into memory with `fs.readFile()`. Look the file up by the ID your app recorded and check that the current user may access it, rather than reading a path from the URL, so a guessed name doesn't expose someone else's file:
+Files in the `public` folder are served for you. Use a Route Handler for files that need an access check or are created after the build, such as user uploads. Verify that the user is allowed to access the file before sending it: the ownership check is what protects the file, not a hard-to-guess name. In this example, `getUpload` reads the record your app stored when the file was uploaded, including its owner, and the file is streamed instead of read into memory with `fs.readFile()`:
 
 ```ts filename="app/api/files/[id]/route.ts" switcher
 import { createReadStream } from 'node:fs'
@@ -578,10 +596,7 @@ export async function GET(request, { params }) {
 }
 ```
 
-> **Good to know**:
->
-> - Building the file path from the stored ID, never from the request, prevents path traversal.
-> - `Content-Disposition: attachment` makes the browser download the file. To display a file such as an image instead, set `Content-Type` to its actual type and omit `Content-Disposition`.
+The [`Content-Disposition`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Disposition) header set to `attachment` tells the browser to download the file. To display a file such as an image in the browser instead, set `Content-Type` to the file's actual type and omit `Content-Disposition`.
 
 ## Manipulating data
 
@@ -974,7 +989,7 @@ export function proxy(request) {
 }
 ```
 
-> **Good to know**: When Proxy runs for a request, Next.js buffers the request body in memory so that both Proxy and the route can read it. Bodies larger than [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize) (10MB by default) are cut off without an error, so exclude routes that receive uploads with a [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher).
+> **Good to know**: When Proxy runs for a request, Next.js buffers the request body in memory so that both Proxy and the route can read it. Bodies larger than [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize) (10MB by default) are cut off without an error, so exclude routes that receive uploads with a [`matcher`](/docs/app/api-reference/file-conventions/proxy#matcher), and perform any checks Proxy does for them, such as authentication, in the route itself.
 
 ## Security
 
