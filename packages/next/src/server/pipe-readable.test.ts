@@ -193,6 +193,168 @@ describe.each([
   })
 })
 
+it('cancels the producer and releases listeners when a response write fails', async () => {
+  const failure = new Error('write failed')
+  const cancel = jest.fn()
+  const readable = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('first'))
+    },
+    cancel,
+  })
+  const response = Object.assign(new EventEmitter(), {
+    write() {
+      throw failure
+    },
+    destroy: jest.fn(),
+  }) as unknown as http.ServerResponse
+
+  await expect(streamToNodeResponse(readable, response)).rejects.toThrow(
+    'failed to pipe response'
+  )
+  expect(response.destroy).toHaveBeenCalledWith(failure)
+  expect(cancel).toHaveBeenCalledWith(failure)
+  expect(readable.locked).toBe(false)
+  expect(response.listenerCount('drain')).toBe(0)
+  expect(response.listenerCount('close')).toBe(0)
+})
+
+describe('streamToNodeResponse lifecycle', () => {
+  let server: http.Server
+
+  function serve(readable: ReadableStream<Uint8Array>) {
+    return new Promise<unknown>((resolve) => {
+      server = http.createServer((_req, res) => {
+        void streamToNodeResponse(readable, res).then(
+          () => resolve(undefined),
+          resolve
+        )
+      })
+    })
+  }
+
+  afterEach(async () => {
+    if (server) {
+      server.closeAllConnections()
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+  })
+
+  it('ends empty responses and releases the reader', async () => {
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.close()
+      },
+    })
+    const completed = serve(readable)
+    const response = await fetch(await listen(server))
+
+    expect(await response.text()).toBe('')
+    expect(await completed).toBeUndefined()
+    expect(readable.locked).toBe(false)
+  })
+
+  it('delivers chunks before the producer finishes', async () => {
+    let controller: ReadableStreamDefaultController<Uint8Array>
+    const readable = new ReadableStream<Uint8Array>({
+      start(value) {
+        controller = value
+        controller.enqueue(new TextEncoder().encode('first'))
+      },
+    })
+    const completed = serve(readable)
+    const url = await listen(server)
+    const body = await new Promise<string>((resolve, reject) => {
+      http
+        .get(url, (res) => {
+          let text = ''
+          res.on('data', (chunk) => {
+            text += chunk.toString()
+            if (text === 'first') {
+              controller.enqueue(new TextEncoder().encode('second'))
+              controller.close()
+            }
+          })
+          res.on('end', () => resolve(text))
+          res.on('error', reject)
+        })
+        .on('error', reject)
+    })
+
+    expect(body).toBe('firstsecond')
+    expect(await completed).toBeUndefined()
+    expect(readable.locked).toBe(false)
+  })
+
+  it('cancels the producer when the client disconnects', async () => {
+    let onCancel: () => void
+    const cancelled = new Promise<void>((resolve) => {
+      onCancel = resolve
+    })
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('first'))
+      },
+      cancel() {
+        onCancel()
+      },
+    })
+    const completed = serve(readable)
+    const url = await listen(server)
+    await new Promise<void>((resolve, reject) => {
+      http
+        .get(url, (res) => {
+          res.once('data', () => {
+            res.destroy()
+            resolve()
+          })
+          res.on('error', () => {})
+        })
+        .on('error', reject)
+    })
+
+    await cancelled
+    expect(await completed).toBeUndefined()
+    expect(readable.locked).toBe(false)
+  })
+
+  it('delivers buffered bytes before terminating an errored response', async () => {
+    const failure = new Error('producer failed')
+    let sent = false
+    const readable = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (sent) {
+          controller.error(failure)
+        } else {
+          sent = true
+          controller.enqueue(new TextEncoder().encode('first'))
+        }
+      },
+    })
+    const completed = serve(readable)
+    const url = await listen(server)
+    const body = await new Promise<string>((resolve, reject) => {
+      http
+        .get(url, (res) => {
+          let text = ''
+          res.on('data', (chunk) => {
+            text += chunk.toString()
+          })
+          res.on('aborted', () => resolve(text))
+          res.on('error', () => {})
+        })
+        .on('error', reject)
+    })
+
+    expect(body).toBe('first')
+    expect(await completed).toMatchObject({
+      message: 'failed to pipe response',
+      cause: failure,
+    })
+    expect(readable.locked).toBe(false)
+  })
+})
+
 describe('client component loading measurement at first write', () => {
   let server: http.Server | undefined
   let measure: jest.SpyInstance
