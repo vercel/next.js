@@ -9,9 +9,8 @@ import { isPlainObject } from './is-plain-object'
  * @see https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze
  * @param obj The object to freeze.
  */
-export function deepFreeze<T extends object>(obj: T): DeepReadonly<T>
-export function deepFreeze(obj: object): object {
-  return freezeRecursively(obj, freezeAnyObject)
+export function deepFreeze<T extends object>(obj: T): DeepReadonly<T> {
+  return freezeRecursively(obj, freezeAnyObject) as DeepReadonly<T>
 }
 
 /**
@@ -27,9 +26,11 @@ export function deepFreeze(obj: object): object {
  */
 export function deepFreezePlainValues<T extends object>(
   obj: T
-): DeepReadonlyPlainValues<T>
-export function deepFreezePlainValues(obj: object): object {
-  return freezeRecursively(obj, isPlainObjectOrArray)
+): DeepReadonlyPlainValues<T> {
+  return freezeRecursively(
+    obj,
+    isPlainObjectOrArray
+  ) as DeepReadonlyPlainValues<T>
 }
 
 function freezeAnyObject(): boolean {
