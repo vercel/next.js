@@ -49,3 +49,4 @@ jobs:
           go test -race -count=1 ./...
           go test -run='^$' -fuzz=FuzzRequestFraming -fuzztime=15s -parallel=4
           go test -run='^$' -fuzz=FuzzResponseFraming -fuzztime=15s -parallel=4
+          go test -run='^$' -fuzz=FuzzStrictStreamFraming -fuzztime=15s -parallel=4
