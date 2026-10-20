@@ -39,12 +39,26 @@ import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
-import { handleAction } from '../../app-render/action-handler'
+import {
+  handleAction,
+  type AppPageActionHandler,
+} from '../../app-render/action-handler'
 import { createDevResponseLifecycle } from '../../app-render/dev-response-lifecycle'
 import {
   applyAppPageRscRequestMetaFromHeaders,
   normalizeAppPageRequestUrl,
 } from './normalize-request-url'
+
+// Keep action transport in its own closure scope so ordinary renders' status,
+// header, and cookie callbacks cannot retain the request through a shared scope.
+function bindActionHandler(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  serverActionRequestMetadata: ServerActionRequestMetadata
+): AppPageActionHandler {
+  return (input) =>
+    handleAction({ ...input, req, res, serverActionRequestMetadata })
+}
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -192,13 +206,9 @@ export class AppPageRouteModule extends RouteModule<
     context: AppPageRouteHandlerContext
   ): Promise<RenderResult> {
     return renderToHTMLOrFlight(
-      (input) =>
-        handleAction({
-          ...input,
-          req,
-          res,
-          serverActionRequestMetadata: context.serverActionRequestMetadata,
-        }),
+      context.serverActionRequestMetadata.isPossibleServerAction
+        ? bindActionHandler(req, res, context.serverActionRequestMetadata)
+        : null,
       {
         get statusCode() {
           return res.statusCode
