@@ -72,7 +72,7 @@ pub fn make_task_dirty_internal(
 ///
 /// Requires the guard to be allocated with [TaskDataCategory::All]
 #[must_use]
-fn make_task_dirty_without_scheduling(
+pub(super) fn make_task_dirty_without_scheduling(
     task: &mut TaskGuard<'_>,
     make_stale: bool,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,

@@ -14,7 +14,8 @@ use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            AggregationUpdateQueue, ExecuteContext, TaskGuard, invalidate::make_task_dirty_internal,
+            AggregationUpdateQueue, ExecuteContext, TaskGuard,
+            invalidate::make_task_dirty_without_scheduling,
         },
         storage_schema::TaskStorageAccessors,
     },
@@ -238,6 +239,9 @@ fn invalidate_cell_dependents(
     ctx: &mut ExecuteContext<'_>,
 ) {
     let mut queue = AggregationUpdateQueue::new();
+    // The dependents to schedule are collected and handed to the scheduler as one batch, which
+    // takes the scheduler's queue lock once instead of once per dependent.
+    let mut to_schedule = Vec::with_capacity(dependent_tasks.len());
     while let Some((dependent_task_id, keys)) = dependent_tasks.pop() {
         let mut make_stale = false;
         let mut dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
@@ -269,7 +273,7 @@ fn invalidate_cell_dependents(
                 make_stale = true;
             }
         }
-        make_task_dirty_internal(
+        if let Some(parent_priority) = make_task_dirty_without_scheduling(
             &mut dependent,
             make_stale,
             #[cfg(feature = "task_dirty_cause")]
@@ -283,8 +287,14 @@ fn invalidate_cell_dependents(
             },
             &mut queue,
             ctx,
-        );
+        ) {
+            to_schedule.push((
+                dependent_task_id,
+                ctx.schedule_task_priority(&dependent, parent_priority),
+            ));
+        }
     }
+    ctx.schedule_tasks(&to_schedule);
     let mut task = ctx.task(cell_ref.task, TaskDataCategory::Data);
 
     if let Some(content) = content {
