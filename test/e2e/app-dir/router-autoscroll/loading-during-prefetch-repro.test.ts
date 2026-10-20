@@ -22,16 +22,15 @@ import { nextTestSetup } from 'e2e-utils'
 const ITERATIONS = 10
 const PREFETCH_DELAY_MS = 500
 
+// There's no prefetching in dev, and Cache Components uses per-segment
+// prefetches instead of the loading-boundary prefetch, so the race only exists
+// in production without Cache Components.
+// @force-gate !dev
+// @force-gate !cacheComponents
 describe('router autoscroll - loading.js during in-flight prefetch', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (isNextDev) {
-    // There's no prefetching in dev, so the race can't happen.
-    it('is skipped in dev', () => {})
-    return
-  }
 
   for (let i = 0; i < ITERATIONS; i++) {
     it(`shows loading.js when the prefetch lands after the navigation response (#${i})`, async () => {
