@@ -46,6 +46,7 @@ import type { ZodError } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
+import { cloneObject } from './lib/clone-object'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
@@ -1498,7 +1499,7 @@ function assignDefaultsAndValidate(
     // default profile, and multiple next() instances in the same process must
     // not observe each other's config through the shared objects.
     const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> = {
-      ...structuredClone(defaultConfig.cacheLife),
+      ...cloneObject(defaultConfig.cacheLife),
       ...userCacheLifeProfiles,
     }
     result.cacheLife = cacheLifeProfiles
@@ -2622,55 +2623,6 @@ function setExperimentalFeatureForDebugPrerender<
       )
     }
   }
-}
-
-function cloneObject(obj: any): any {
-  // Primitives & null
-  if (obj === null || typeof obj !== 'object') {
-    return obj
-  }
-
-  // RegExp → clone via constructor
-  if (obj instanceof RegExp) {
-    return new RegExp(obj.source, obj.flags)
-  }
-
-  // Function → just reuse the function reference
-  if (typeof obj === 'function') {
-    return obj
-  }
-
-  // Arrays → map each element
-  if (Array.isArray(obj)) {
-    return obj.map(cloneObject)
-  }
-
-  // Detect non‑plain objects (class instances)
-  const proto = Object.getPrototypeOf(obj)
-  const isPlainObject = proto === Object.prototype || proto === null
-
-  // If it's not a plain object, just return the original
-  if (!isPlainObject) {
-    return obj
-  }
-
-  // Plain object → create a new object with the same prototype
-  // and copy all properties, cloning data properties and keeping
-  // accessor properties (getters/setters) as‑is.
-  const result = Object.create(proto)
-  for (const key of Reflect.ownKeys(obj)) {
-    const descriptor = Object.getOwnPropertyDescriptor(obj, key)
-
-    if (descriptor && (descriptor.get || descriptor.set)) {
-      // Accessor property → copy descriptor as‑is (get/set functions)
-      Object.defineProperty(result, key, descriptor)
-    } else {
-      // Data property → clone the value
-      result[key] = cloneObject(obj[key])
-    }
-  }
-
-  return result
 }
 
 async function validateConfigSchema(

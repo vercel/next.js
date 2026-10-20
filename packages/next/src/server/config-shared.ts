@@ -12,6 +12,7 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
+import { cloneObject } from './lib/clone-object'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -2501,7 +2502,7 @@ export async function normalizeConfig(phase: string, config: any) {
     // Pass a copy so a config function that writes into the nested defaults
     // (e.g. `defaultConfig.images`) cannot change them for later loads.
     config = config(phase, {
-      defaultConfig: Object.freeze(structuredClone(defaultConfig)),
+      defaultConfig: Object.freeze(cloneObject(defaultConfig)),
     })
   }
   // Support `new Promise` and `async () =>` as return values of the config export
