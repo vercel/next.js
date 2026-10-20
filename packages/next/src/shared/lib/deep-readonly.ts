@@ -12,15 +12,15 @@ export type DeepReadonly<T> = T extends (infer R)[]
     : T
 
 /**
- * The type returned by `deepFreezePlainValues`. Like `DeepReadonly`, but
- * functions keep their own types so they stay callable.
- *
- * Class instances cannot be told apart from plain objects at the type level,
- * so their properties are typed as readonly even though they are not frozen
- * (their methods stay callable). That is stricter than their runtime behavior,
- * never looser.
+ * The type returned by `deepFreezePlainValues`. Functions and classes used as
+ * values keep their own types; everything else is deeply readonly. Class
+ * instances are typed readonly too even though they are not frozen, because
+ * they cannot be told apart from plain objects at the type level; that is
+ * stricter than their runtime behavior, never looser.
  */
-export type DeepReadonlyPlainValues<T> = T extends (...args: any[]) => any
+export type DeepReadonlyPlainValues<T> = T extends
+  | ((...args: any[]) => any) // functions
+  | (abstract new (...args: any[]) => any) // classes used as values, including abstract ones
   ? T
   : T extends object
     ? { readonly [K in keyof T]: DeepReadonlyPlainValues<T[K]> }
