@@ -60,7 +60,7 @@ pub use self::{
 };
 use crate::{
     backend::{
-        activity::{ActivityMonitor, BackendActivity, IdleArming},
+        activity::{ActivityMonitor, BackendActivity, IdleDeadlineStrategy},
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, LeafDistanceUpdateQueue,
             OutdatedEdge, TaskGuard, TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges,
@@ -1658,9 +1658,8 @@ impl TurboTasksBackend {
                         return;
                     }
                 }
-                if !backend.activity.current().is_idle() {
-                    return;
-                }
+                // If both branches were ready, the walk itself stops once it sees we're no
+                // longer idle.
                 backend.verify_aggregation_graph(&turbo_tasks, true);
             });
         }
@@ -3013,11 +3012,10 @@ impl TurboTasksBackend {
 
                     let mut last_snapshot = self.start_time;
                     let mut activity = self.activity.subscribe();
-                    // Which idle periods arm the idle timer in the next cycle. `None` arms it for
-                    // any idle period, but not before a full timeout from the cycle start.
-                    // `Some(cutoff)` arms it only for an idle period that began after `cutoff`:
-                    // set when a cycle persisted nothing, so we don't snapshot the same idle
-                    // period again.
+                    // Which idle periods get an idle deadline in the next cycle. `None`: any idle
+                    // period, but not before a full timeout from the cycle start. `Some(cutoff)`:
+                    // only an idle period that began after `cutoff`; set when a cycle persisted
+                    // nothing, so we don't snapshot the same idle period again.
                     let mut next_idle_cutoff: Option<Instant> = None;
                     let mut is_first = true;
                     // Owns the eviction policy (mode + threshold state); decides each
@@ -3032,25 +3030,25 @@ impl TurboTasksBackend {
                             (SNAPSHOT_INTERVAL, SnapshotReason::RegularSnapshotInterval)
                         };
 
-                        if *activity.borrow() == BackendActivity::Stopping {
+                        if activity.status() == BackendActivity::Stopping {
                             return;
                         }
-                        let arming = match next_idle_cutoff {
-                            None => IdleArming::Fresh {
+                        let strategy = match next_idle_cutoff {
+                            None => IdleDeadlineStrategy::Fresh {
                                 not_before: Instant::now(),
                             },
-                            Some(cutoff) => IdleArming::After { cutoff },
+                            Some(cutoff) => IdleDeadlineStrategy::After { cutoff },
                         };
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
                             loop {
-                                let current = *activity.borrow_and_update();
+                                let current = activity.status();
                                 if current == BackendActivity::Stopping {
                                     return;
                                 }
                                 let idle_deadline = current
-                                    .idle_deadline(arming, *IDLE_TIMEOUT)
+                                    .idle_deadline(strategy, *IDLE_TIMEOUT)
                                     .unwrap_or_else(far_future);
                                 tokio::select! {
                                     changed = activity.changed() => {
@@ -3067,11 +3065,10 @@ impl TurboTasksBackend {
                                         // Decide on the latest value: the idle period may have
                                         // changed since the deadline was computed. Otherwise, the
                                         // next iteration recomputes the deadline.
-                                        if activity.borrow_and_update().should_snapshot(
-                                            arming,
-                                            *IDLE_TIMEOUT,
-                                            Instant::now(),
-                                        ) {
+                                        if activity
+                                            .status()
+                                            .should_snapshot(strategy, *IDLE_TIMEOUT)
+                                        {
                                             reason = SnapshotReason::IdleTimeout;
                                             break;
                                         }
@@ -3090,8 +3087,8 @@ impl TurboTasksBackend {
                             // Not enough compilation time accumulated — skip the (potentially
                             // expensive) snapshot. Advance scheduling state as if we had run,
                             // but keep the active time so it carries toward the next cycle.
-                            // Only an idle period that begins after this decision re-arms the
-                            // idle timer (as after a no-data snapshot), so we don't re-arm the
+                            // Only an idle period that begins after this decision gets an idle
+                            // deadline (as after a no-data snapshot), so we don't restart the
                             // short idle timeout every cycle and spin while idle.
                             next_idle_cutoff = Some(Instant::now());
                             is_first = false;
@@ -3105,7 +3102,7 @@ impl TurboTasksBackend {
                         let background_span =
                             tracing::info_span!(parent: None, "background snapshot");
                         // Taken before the attempt: an idle period that begins while it runs
-                        // still re-arms the idle timer after a no-data snapshot. (The time
+                        // still gets an idle deadline after a no-data snapshot. (The time
                         // `snapshot_and_persist` returns is usually taken later, after GC.)
                         let attempt_start = Instant::now();
                         match self.snapshot_and_persist(background_span.id(), reason, turbo_tasks) {
@@ -3119,7 +3116,7 @@ impl TurboTasksBackend {
                             Ok(None) => {
                                 // An idle snapshot found operations in flight. Nothing was
                                 // persisted, so keep the accumulated active time and scheduling
-                                // state. Arm the idle timer afresh, so we retry after a full
+                                // state. Use a fresh idle deadline, so we retry after a full
                                 // timeout if we are still idle; otherwise the next idle period
                                 // or interval picks it up.
                                 next_idle_cutoff = None;
@@ -3127,8 +3124,8 @@ impl TurboTasksBackend {
                             }
                             Ok(Some((snapshot_start, new_data, _gc_outcome))) => {
                                 // With new data, the next idle period is 'fresh'. Without, only
-                                // an idle period that began after this attempt started re-arms
-                                // the idle timer (including one from during the attempt).
+                                // an idle period that began after this attempt started gets an
+                                // idle deadline (including one from during the attempt).
                                 next_idle_cutoff = (!new_data).then_some(attempt_start);
                                 is_first = false;
                                 last_snapshot = snapshot_start;
@@ -3145,7 +3142,7 @@ impl TurboTasksBackend {
                                 // stopping), from the latest published activity. Doesn't
                                 // block, and busy periods that already ended don't count.
                                 macro_rules! check_idle_ended {
-                                    () => {{ !self.activity.current().is_idle() }};
+                                    () => {{ !self.activity.status().is_idle() }};
                                 }
                                 // Evict persisted tasks from memory to reclaim space.
                                 // Like compaction, this runs after snapshot_and_persist
@@ -3513,7 +3510,7 @@ impl TurboTasksBackend {
                     );
                 }
                 let task = ctx.task(task_id, TaskDataCategory::All);
-                if idle && !self.activity.current().is_idle() {
+                if idle && !self.activity.status().is_idle() {
                     return;
                 }
 
