@@ -288,7 +288,7 @@ async fn build_manifest(
             let ids = client_reference_ids(
                 *client_reference_module,
                 **client_chunking_context,
-                ssr_chunking_context.map(|context| *context),
+                ssr_chunking_context.map(|chunking_context| *chunking_context),
             )
             .await?;
             let server_path = &ids.server_path;
