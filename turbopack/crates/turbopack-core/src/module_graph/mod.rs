@@ -22,6 +22,7 @@ use turbo_tasks::{
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
+    keyed::KeyedAccess,
 };
 use turbo_tasks_fs::FileSystemPath;
 
@@ -31,7 +32,7 @@ use crate::{
     module::Module,
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
-        binding_usage_info::BindingUsageInfo,
+        binding_usage_info::{BindingUsageInfo, UnusedReferenceEdges},
         chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
         collect::{CollectedModules, collect_graph},
         merged_modules::{MergedModuleInfo, compute_merged_modules},
@@ -550,7 +551,7 @@ impl SingleModuleGraph {
         edge_filter: impl Fn(&'l RefData) -> bool,
         mut visit_cycle: impl FnMut(&[&'l ResolvedVc<Box<dyn Module>>]) -> Result<()>,
         graph_idx: u32,
-        binding_usage: &'l Option<ReadRef<BindingUsageInfo>>,
+        unused_references_edges: &'l Option<ReadRef<UnusedReferenceEdges>>,
     ) -> Result<()> {
         // See https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm, but
         // implemented iteratively instead of recursively.
@@ -595,9 +596,8 @@ impl SingleModuleGraph {
                         visit_stack.push(VisitStep::AfterVisit(node));
                         let mut neighbors = self.graph.neighbors(node).detach();
                         while let Some((edge, succ)) = neighbors.next(&self.graph) {
-                            if binding_usage.as_ref().is_some_and(|binding_usage| {
-                                binding_usage
-                                    .is_reference_unused_edge(&GraphEdgeIndex::new(graph_idx, edge))
+                            if unused_references_edges.as_ref().is_some_and(|edges| {
+                                edges.contains_key(&GraphEdgeIndex::new(graph_idx, edge))
                             }) {
                                 continue;
                             }
@@ -836,8 +836,8 @@ impl ModuleGraph {
                 graphs: graphs.iter().map(|g| g.connect()).try_join().await?,
                 skip_visited_module_children: false,
                 graph_idx_override: None,
-                binding_usage: if let Some(binding_usage) = binding_usage {
-                    Some(binding_usage.connect().await?)
+                unused_references_edges: if let Some(binding_usage) = binding_usage {
+                    Some(binding_usage.connect().unused_references_edges().await?)
                 } else {
                     None
                 },
@@ -976,8 +976,8 @@ impl ModuleGraphLayer {
                 graphs: vec![graph.connect().await?],
                 skip_visited_module_children: true,
                 graph_idx_override: Some(graph_idx),
-                binding_usage: if let Some(binding_usage) = binding_usage {
-                    Some(binding_usage.connect().await?)
+                unused_references_edges: if let Some(binding_usage) = binding_usage {
+                    Some(binding_usage.connect().unused_references_edges().await?)
                 } else {
                     None
                 },
@@ -1000,9 +1000,9 @@ pub struct ModuleGraphLayers(Vec<OperationVc<ModuleGraphLayer>>);
 
 /// This struct provides traversal functionality for the module graph.
 ///
-/// Some edges might be ignored during traversal: unused references listed in binding_usage and
-/// references with ChunkingType::Traced are skipped by default (can be overridden in some functions
-/// via the include_unused and include_traced parameters).
+/// Some edges might be ignored during traversal: unused references listed in
+/// unused_references_edges and references with ChunkingType::Traced are skipped by default (can be
+/// overridden in some functions via the include_unused and include_traced parameters).
 ///
 /// The API across the functions is pretty consistent, apart from:
 /// - traverse_edges_fixed_point_with_priority additionally provides the GraphEdgeIndex
@@ -1018,7 +1018,9 @@ pub struct ModuleGraphSnapshot {
 
     graph_idx_override: Option<u32>,
 
-    binding_usage: Option<ReadRef<BindingUsageInfo>>,
+    /// The edges of unused references (from [`BindingUsageInfo::unused_references_edges`]), which
+    /// are skipped during traversals.
+    unused_references_edges: Option<ReadRef<UnusedReferenceEdges>>,
 }
 
 impl ModuleGraphSnapshot {
@@ -1132,9 +1134,10 @@ impl ModuleGraphSnapshot {
             while let Some((edge_idx, succ_idx)) = walker.next(graph) {
                 let edge_idx = GraphEdgeIndex::new(node.graph_idx, edge_idx);
                 if !include_unused
-                    && self.binding_usage.as_ref().is_some_and(|binding_usage| {
-                        binding_usage.is_reference_unused_edge(&edge_idx)
-                    })
+                    && self
+                        .unused_references_edges
+                        .as_ref()
+                        .is_some_and(|edges| edges.contains_key(&edge_idx))
                 {
                     // Don't just return None here, that would end the iterator
                     continue;
@@ -1495,7 +1498,7 @@ impl ModuleGraphSnapshot {
                 &edge_filter,
                 &mut visit_cycle,
                 graph_idx as u32,
-                &self.binding_usage,
+                &self.unused_references_edges,
             )?;
         }
         Ok(())

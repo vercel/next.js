@@ -35,11 +35,16 @@ pub struct ExportCircuitBreakers(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct PartialNamespaceModules(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
+/// The module graph edges of references that are unused and should be skipped during traversals.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+#[derive(Debug)]
+pub struct UnusedReferenceEdges(FxHashSet<GraphEdgeIndex>);
+
 #[turbo_tasks::value]
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
     unused_references: ResolvedVc<UnusedReferences>,
-    unused_references_edges: FxHashSet<GraphEdgeIndex>,
+    unused_references_edges: ResolvedVc<UnusedReferenceEdges>,
 
     used_exports: ResolvedVc<UsedExportsMap>,
     export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
@@ -73,10 +78,6 @@ impl ModuleExportUsage {
 }
 
 impl BindingUsageInfo {
-    pub fn is_reference_unused_edge(&self, edge: &GraphEdgeIndex) -> bool {
-        self.unused_references_edges.contains(edge)
-    }
-
     pub async fn used_exports(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
@@ -104,6 +105,11 @@ impl BindingUsageInfo {
     #[turbo_tasks::function]
     pub fn unused_references(&self) -> Vc<UnusedReferences> {
         *self.unused_references
+    }
+
+    #[turbo_tasks::function]
+    pub fn unused_references_edges(&self) -> Vc<UnusedReferenceEdges> {
+        *self.unused_references_edges
     }
 }
 
@@ -134,9 +140,9 @@ pub async fn compute_binding_usage_info(
 
         let graph = graph.connect();
         let graph_ref = graph.await?;
-        if graph_ref.binding_usage.is_some() {
-            // If the graph already has binding usage info, return it directly. This is
-            // unfortunately easy to do with
+        if graph_ref.unused_references_edges.is_some() {
+            // Reject graphs that already have binding usage info. Recomputing it on such a graph
+            // is unfortunately easy to do with
             // ```
             // fn get_module_graph(){
             //   let graph = ....;
@@ -379,7 +385,7 @@ pub async fn compute_binding_usage_info(
 
         Ok(BindingUsageInfo {
             unused_references: ResolvedVc::cell(unused_references),
-            unused_references_edges,
+            unused_references_edges: ResolvedVc::cell(unused_references_edges),
             used_exports: ResolvedVc::cell(used_exports),
             export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
             partial_namespace_modules: ResolvedVc::cell(partial_namespace_modules),
