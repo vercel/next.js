@@ -70,6 +70,7 @@ export interface ImageOptimizerTransformLogger {
 export interface ImageOptimizerTransformOptions {
   previousOutput?: {
     buffer: Buffer
+    contentType?: string
     maxAge?: number
     etag: string
     upstreamEtag: string
@@ -273,7 +274,7 @@ export async function imageOptimizerTransform(
   if (opts.previousOutput) {
     return {
       buffer: opts.previousOutput.buffer,
-      contentType,
+      contentType: opts.previousOutput.contentType ?? contentType,
       maxAge: opts.previousOutput.maxAge || maxAge,
       etag: opts.previousOutput.etag,
       upstreamEtag: opts.previousOutput.upstreamEtag,

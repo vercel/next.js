@@ -618,7 +618,18 @@ describe('Image Optimizer', () => {
           opts
         )
         expect(res.status).toBe(200)
+        expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
+        const body = await res.clone().text()
         await expectWidth(res, 320)
+
+        // Revalidation must preserve the cached SVG's content type and bytes.
+        const repeatedRes = await next.fetch(
+          `/_next/image?${toQueryString(query)}`,
+          opts
+        )
+        expect(repeatedRes.status).toBe(200)
+        expect(repeatedRes.headers.get('Content-Type')).toBe('image/svg+xml')
+        expect(await repeatedRes.text()).toBe(body)
       })
     }
   )

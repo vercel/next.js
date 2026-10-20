@@ -1087,6 +1087,8 @@ export async function imageOptimizer(
     previousOutput: previouslyCachedImage
       ? {
           buffer: previouslyCachedImage.buffer,
+          contentType:
+            getContentType(previouslyCachedImage.extension) || undefined,
           maxAge:
             opts.previousCacheEntry?.cacheControl?.revalidate || undefined,
           etag: previouslyCachedImage.etag,
