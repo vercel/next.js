@@ -27,6 +27,11 @@ on:
         default: false
         type: boolean
 
+      dryRun:
+        description: pass --dry-run to start-release.js (no tag, no release)
+        default: false
+        type: boolean
+
 name: Trigger Release
 
 env:
@@ -36,8 +41,11 @@ env:
 
 jobs:
   start:
-    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    # Prerelease channels (and the scheduled nightly, where inputs are empty)
+    # run autonomously; only stable requires approval before the tag exists.
+    # Prerelease publishes are still gated by their release-* environments.
+    environment: ${{ (github.event_name == 'schedule' || inputs.releaseType != 'stable') && 'bot-autonomous' || 'bot-approved' }}
     env:
       NEXT_TELEMETRY_DISABLED: 1
       # we build a dev binary for use in CI so skip downloading
@@ -122,7 +130,8 @@ jobs:
 
       - run: pnpm install
 
-      - run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"
+      # This branch has no new-commits gate; keep the step unconditional.
+      - run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"${{ inputs.dryRun && ' --dry-run' || '' }}
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
