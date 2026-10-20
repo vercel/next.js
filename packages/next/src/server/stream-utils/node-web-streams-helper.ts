@@ -14,6 +14,7 @@ import {
   removeFromUint8Array,
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
+import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -22,7 +23,6 @@ import {
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 import type { AnyStream } from '../app-render/stream-ops'
-import { InvariantError } from '../../shared/lib/invariant-error'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -34,6 +34,11 @@ function voidCatch() {
 // Notably we cannot do the same for TextDecoder because it is stateful
 // when handling streaming data
 const encoder = new TextEncoder()
+
+/** Encode only when a consumer requires bytes; retain binary views as-is. */
+export function encodeTextChunk(chunk: string | Uint8Array): Uint8Array {
+  return typeof chunk === 'string' ? encoder.encode(chunk) : chunk
+}
 
 /** Adapt a Node stream to the byte contract used by Web response consumers. */
 export function nodeToWebByteStream(
@@ -48,12 +53,33 @@ export function nodeToWebByteStream(
     if (process.env.TURBOPACK) {
       Readable = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       Readable = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
     }
-    return Readable.toWeb(stream) as ReadableStream<Uint8Array>
+
+    const webStream = Readable.toWeb(stream) as ReadableStream<
+      string | Uint8Array
+    >
+    // Readable.toWeb preserves object-mode strings; it does not encode them.
+    // Already-byte streams need no additional transform.
+    if (!stream.readableObjectMode && stream.readableEncoding === null) {
+      return webStream as ReadableStream<Uint8Array>
+    }
+    return webStream.pipeThrough(
+      new TransformStream<string | Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          controller.enqueue(encodeTextChunk(chunk))
+        },
+      })
+    )
   }
 }
 

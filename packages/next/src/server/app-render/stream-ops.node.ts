@@ -27,6 +27,7 @@ import {
   createDocumentClosingStream as webCreateDocumentClosingStream,
   createRuntimePrefetchTransformStream,
   CLOSE_TAG,
+  nodeToWebByteStream,
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
@@ -112,9 +113,7 @@ function nodeReadableToWebReadableStream(
   if (stream instanceof ReadableStream) {
     return stream
   }
-  // Readable.toWeb returns stream/web ReadableStream which is structurally
-  // identical to the global ReadableStream<Uint8Array>.
-  return Readable.toWeb(stream) as unknown as ReadableStream<Uint8Array>
+  return nodeToWebByteStream(stream)
 }
 
 function webToReadable(
@@ -557,7 +556,15 @@ export function renderToNodeFlightStream(
   // the request signal, which can outlive it.
   const { signal, ...renderOptions } = opts ?? {}
 
-  const pt = new PassThrough()
+  // React writes long rows as strings and its Node reader parses them as
+  // written. A byte-mode stream would encode them, so this one is object mode.
+  const pt = new Transform({
+    objectMode: true,
+    transform(chunk: string | Uint8Array, _encoding, callback) {
+      // TODO: We can remove this if React starts escaping lone surrogates.
+      callback(null, typeof chunk === 'string' ? chunk.toWellFormed() : chunk)
+    },
+  })
   const pipeable = ComponentMod.renderToPipeableStream!(
     payload,
     clientModules,
@@ -977,6 +984,25 @@ const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
+// Reads every chunk currently buffered so one script covers all of them.
+// Object-mode streams carry React's string writes; the inline data is bytes.
+function readInlineFlightBytes(stream: Readable): Buffer | null {
+  const first: string | Uint8Array | null = stream.read()
+  if (first === null || !stream.readableObjectMode) {
+    return first as Buffer | null
+  }
+
+  const chunks = [first]
+  while (stream.readableLength > 0) {
+    chunks.push(stream.read())
+  }
+  return Buffer.concat(
+    chunks.map((chunk) =>
+      typeof chunk === 'string' ? Buffer.from(chunk) : chunk
+    )
+  )
+}
+
 async function pullFlightData(
   dataStream: Readable,
   output: PassThrough,
@@ -1008,7 +1034,7 @@ async function pullFlightData(
 
   try {
     while (true) {
-      const chunk: Buffer | null = dataStream.read()
+      const chunk = readInlineFlightBytes(dataStream)
       if (chunk !== null) {
         let htmlInlinedData: string
         if (isUtf8(chunk)) {
