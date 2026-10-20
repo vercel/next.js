@@ -1,4 +1,4 @@
-use std::collections::hash_map::Entry;
+use std::{cmp::Reverse, collections::hash_map::Entry};
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
@@ -165,10 +165,25 @@ pub async fn compute_binding_usage_info(
             None
         };
 
-        let entries = graph_ref.all_chunk_group_entry_modules();
+        let entries = graph_ref
+            .all_chunk_group_entry_modules()
+            .collect::<Vec<_>>();
+        // Visit modules in reverse postorder. In an acyclic graph, this processes each module only
+        // after all modules importing it, i.e. once, with its final usage. Cycles still rely on the
+        // fixed point and may revisit modules in or after them. This avoids order-dependent
+        // revisits in DAG-shaped graphs, at the cost of an additional traversal to compute ranks.
+        let module_rank = graph_ref.reverse_postorder_ranks(entries.iter().copied())?;
 
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
-            entries.map(|m| (m, 0)),
+            entries
+                .iter()
+                .map(|m| {
+                    Ok((
+                        *m,
+                        Reverse(*module_rank.get(m).context("Module rank not found")?),
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?,
             &mut (),
             |parent, target, _, _| {
                 // Entries are always used
@@ -313,7 +328,13 @@ pub async fn compute_binding_usage_info(
                     Ok(GraphTraversalAction::Skip)
                 }
             },
-            |_, _| Ok(0),
+            |successor, _| {
+                Ok(Reverse(
+                    *module_rank
+                        .get(&successor)
+                        .context("Module rank not found")?,
+                ))
+            },
         )?;
 
         // Compute cycles and select modules to be 'circuit breakers'
