@@ -254,11 +254,12 @@ struct ModulesDataHeader {
     pub traced_module_dependencies: EdgesDataReference,
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, NonLocalValue, Encode, Decode, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum AnalyzeOutputFileCoverage {
     Exact,
     Unsupported,
+    #[default]
     NotAChunk,
 }
 
@@ -687,7 +688,8 @@ pub async fn analyze_output_assets(
         },
     };
     let route_entries = route_entries.await?.iter().cloned().collect();
-    let module_index = analyze_module_index(module_graph).await?;
+    let module_index_vc = analyze_module_index(module_graph);
+    let module_index = module_index_vc.await?;
 
     let mut builder =
         AnalyzeDataBuilder::new(route_entries, module_index.module_index_hash.clone());
@@ -737,17 +739,27 @@ pub async fn analyze_output_assets(
             if ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(*asset).is_some() {
                 browser_chunks.insert(output_file_index);
             }
-            let (indices, coverage, loads, async_loaders) =
-                output_chunk_modules(*asset, &filename, &module_index, output_file_index).await?;
-            candidates.extend(loads);
+            let membership =
+                output_chunk_modules(**asset, filename.clone(), module_index_vc).await?;
+            candidates.extend(
+                membership
+                    .load_targets
+                    .iter()
+                    .map(|load| ChunkLoadCandidate {
+                        source: output_file_index,
+                        target: load.target,
+                        trigger_module_index: load.trigger_module_index,
+                    }),
+            );
             let file = &mut builder.output_files[output_file_index as usize];
-            file.module_indices.extend(indices);
+            file.module_indices.extend(&membership.module_indices);
             file.module_indices.sort_unstable();
             file.module_indices.dedup();
-            file.async_loader_indices.extend(async_loaders);
+            file.async_loader_indices
+                .extend(&membership.async_loader_indices);
             file.async_loader_indices.sort_unstable();
             file.async_loader_indices.dedup();
-            file.module_coverage = coverage;
+            file.module_coverage = membership.coverage;
         }
         let chunk_parts = match asset {
             Either::Left(asset) => split_output_asset_into_parts(*asset),
