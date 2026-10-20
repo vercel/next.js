@@ -49,7 +49,7 @@ pub struct GoRouteEndpoint {
 
 // Lazily resolve a session toolchain. Go-free projects never execute a Go command.
 #[turbo_tasks::function]
-async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
+pub(crate) async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
     ensure!(
         !*project.is_persistent_caching_enabled().await?,
         "route.go does not support Turbopack persistent caching; disable \
@@ -78,9 +78,15 @@ async fn context(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
 }
 
 #[turbo_tasks::value]
-struct GoRouteIssue {
-    path: FileSystemPath,
-    message: RcStr,
+pub(crate) struct GoRouteIssue {
+    pub(crate) path: FileSystemPath,
+    pub(crate) message: RcStr,
+}
+
+impl GoRouteIssue {
+    pub(crate) fn new(path: FileSystemPath, message: RcStr) -> ResolvedVc<Self> {
+        Self { path, message }.resolved_cell()
+    }
 }
 
 #[async_trait]
@@ -108,6 +114,9 @@ impl Endpoint for GoRouteEndpoint {
     #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;
+        if *this.project.next_config().go_server().await? {
+            return Ok(crate::go_front::output(*this.project));
+        }
         ensure!(
             *this.project.next_config().go_routes().await?,
             "route.go requires experimental.goRoutes: true"

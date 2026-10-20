@@ -10,10 +10,13 @@ use std::{
 
 use anyhow::{Result, ensure};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TurboTasks};
+use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath};
-use turbopack_go::{GoBuildContext, GoBuildOutcome, filesystem, go_bundle_with_generated_files};
+use turbopack_go::{
+    GoBuildContext, GoBuildOutcome, GoBuildSession, GoOverlayFile, filesystem,
+    go_bundle_with_generated_files, go_bundle_with_overlay,
+};
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
     std::fs::create_dir_all(target)?;
@@ -107,6 +110,36 @@ impl Session {
                     anyhow::bail!("missing executable")
                 };
                 let mut bytes = Vec::new();
+                file.read().read_to_end(&mut bytes)?;
+                Ok(bytes)
+            })
+            .await
+    }
+    async fn fetch_overlay(&self, generated: BTreeMap<RcStr, GoOverlayFile>) -> Result<Vec<u8>> {
+        let fs = self.fs;
+        let context = self.go_context.clone();
+        self.tt
+            .run_once(async move {
+                let result = overlay_operation(
+                    FileSystemPath {
+                        fs: ResolvedVc::upcast(fs),
+                        path: rcstr!(""),
+                    },
+                    context,
+                    generated,
+                )
+                .read_strongly_consistent()
+                .await?;
+                ensure!(result.is_current()?, "stale overlay result");
+                let file = match &result.outcome {
+                    GoBuildOutcome::Success(file) => *file,
+                    other => anyhow::bail!("overlay build failed: {other:?}"),
+                }
+                .await?;
+                let FileContent::Content(file) = &*file else {
+                    anyhow::bail!("missing executable")
+                };
+                let mut bytes = vec![];
                 file.read().read_to_end(&mut bytes)?;
                 Ok(bytes)
             })
@@ -949,4 +982,61 @@ async fn generated_entry_reuses_original_inputs_and_compiler_cache() -> Result<(
     );
     assert_eq!(session.counts().1, counts.1 + 1);
     Ok(())
+}
+
+#[tokio::test]
+async fn composed_packages_preserve_source_and_binary_embed_inputs() -> Result<()> {
+    let session = Session::new().await?;
+    session
+        .write(
+            "source/route.go",
+            "package main\nimport _ \"embed\"\n//go:embed assets/data.bin\nvar Data []byte\n",
+        )
+        .await?;
+    let asset = session.project.join("source/assets/data.bin");
+    std::fs::create_dir_all(asset.parent().unwrap())?;
+    std::fs::write(&asset, [0, 128, 255])?;
+    session.invalidate().await?;
+    let original = std::fs::read(session.project.join("source/route.go"))?;
+    let source = String::from_utf8(original.clone())?
+        .replace("package main", "package route")
+        .into_bytes();
+    let overlay = |asset_bytes: Vec<u8>| {
+        BTreeMap::from([
+  (rcstr!("zz_overlay_main.go"),GoOverlayFile::generated(b"package main\nimport(\"fmt\";r \"example.com/native-fixture/virtual/route\")\nfunc main(){fmt.Printf(\"%v\",r.Data)}\n".to_vec())),
+  (rcstr!("virtual/route/route.go"),GoOverlayFile::from_source(rcstr!("source/route.go"),&original,source.clone())),
+  (rcstr!("virtual/route/assets/data.bin"),GoOverlayFile::from_source(rcstr!("source/assets/data.bin"),&asset_bytes,asset_bytes.clone())),
+ ])
+    };
+    let bytes = session.fetch_overlay(overlay(vec![0, 128, 255])).await?;
+    ensure!(session.run_bytes(bytes).await? == "[0 128 255]");
+    std::fs::write(&asset, [1, 2, 3])?;
+    session.invalidate().await?;
+    ensure!(
+        session
+            .fetch_overlay(overlay(vec![0, 128, 255]))
+            .await
+            .is_err(),
+        "stale source snapshots must not compile"
+    );
+    let bytes = session.fetch_overlay(overlay(vec![1, 2, 3])).await?;
+    ensure!(session.run_bytes(bytes).await? == "[1 2 3]");
+    ensure!(std::fs::read(session.project.join("source/route.go"))? == original);
+    ensure!(!session.project.join("virtual").exists());
+    session.stop().await;
+    Ok(())
+}
+
+#[turbo_tasks::function(operation, root)]
+fn overlay_operation(
+    root: FileSystemPath,
+    context: GoBuildContext,
+    generated: BTreeMap<RcStr, GoOverlayFile>,
+) -> Vc<turbopack_go::GoBundleResult> {
+    go_bundle_with_overlay(
+        root,
+        vec![rcstr!("zz_overlay_main.go")],
+        GoBuildSession::new(context),
+        generated,
+    )
 }

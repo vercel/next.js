@@ -23,6 +23,11 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import * as Log from '../build/output/log'
+import loadConfig, {
+  type ConfiguredExperimentalFeature,
+} from '../server/config'
+import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
+import { startGoFrontServer } from '../server/lib/go-front-server'
 
 export type NextStartOptions = {
   port: number
@@ -83,7 +88,15 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     process.on('SIGINT', () => saveCpuProfile())
   }
 
-  await startServer({
+  let experimentalFeatures: ConfiguredExperimentalFeature[] = []
+  const config = await loadConfig(PHASE_PRODUCTION_SERVER, dir, {
+    reportExperimentalFeatures(features) {
+      experimentalFeatures = features
+    },
+  })
+  const start = config.experimental.goServer ? startGoFrontServer : startServer
+  await start({
+    preloadedConfig: { config, experimentalFeatures },
     dir,
     isDev: false,
     hostname,

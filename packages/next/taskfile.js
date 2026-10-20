@@ -3,6 +3,7 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
+const process = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -2264,9 +2265,53 @@ export async function ncc_safe_stable_stringify(task, opts) {
     .target('src/compiled/safe-stable-stringify')
 }
 
+// Build the application-independent frontend when publishing Next.js, never at next build/start.
+export async function go_frontend(task, opts) {
+  const output = join(__dirname, 'dist/server/go')
+  await fs.mkdir(output, { recursive: true })
+  const targets = opts.dev
+    ? [[process.platform, process.arch === 'x64' ? 'amd64' : process.arch]]
+    : [
+        ['linux', 'amd64'],
+        ['linux', 'arm64'],
+        ['darwin', 'amd64'],
+        ['darwin', 'arm64'],
+      ]
+  for (const [goos, goarch] of targets) {
+    if (!['linux', 'darwin'].includes(goos)) continue
+    await execa(
+      process.env.TURBOPACK_GO || 'go',
+      [
+        'build',
+        '-trimpath',
+        '-ldflags=-s -w',
+        '-o',
+        join(output, `next-server-${goos}-${goarch}`),
+        '.',
+      ],
+      {
+        cwd: join(__dirname, 'src/server/go'),
+        env: {
+          ...process.env,
+          CGO_ENABLED: '0',
+          GOOS: goos,
+          GOARCH: goarch,
+          GOWORK: 'off',
+        },
+      }
+    )
+  }
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets', 'copy_docs'],
+    [
+      'browser_polyfills',
+      'copy_ncced',
+      'copy_styled_jsx_assets',
+      'copy_docs',
+      'go_frontend',
+    ],
     opts
   )
 }
@@ -2789,6 +2834,7 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  await task.watch('src/server/go', 'go_frontend', opts)
   await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',

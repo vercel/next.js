@@ -10,6 +10,8 @@ on:
       - '.cargo/**'
       - 'turbopack/crates/turbopack-go/**'
       - 'turbopack/crates/turbopack-cli/**'
+      - 'packages/next/src/server/go/**'
+      - 'crates/next-api/src/go_front*'
       - 'turbopack/crates/turbo-tasks-fs/**'
   workflow_dispatch:
 
@@ -40,3 +42,51 @@ jobs:
           cache: false
       - name: Test native Go bundles and CLI
         run: cargo test -p turbopack-go -p turbopack-cli
+      - name: Verify frontend HTTP and worker contract
+        if: ${{ runner.os != 'Windows' }}
+        working-directory: packages/next/src/server/go
+        run: |
+          set -euo pipefail
+          go test -race -count=1 ./...
+          go test -run='^$' -fuzz=FuzzRequestFraming -fuzztime=15s -parallel=4
+          go test -run='^$' -fuzz=FuzzResponseFraming -fuzztime=15s -parallel=4
+          go test -run='^$' -fuzz=FuzzStrictStreamFraming -fuzztime=15s -parallel=4
+
+  mixed-go-toolchains:
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        toolchains:
+          - host: '1.27.2'
+            worker: '1.24.13'
+          - host: '1.24.13'
+            worker: '1.27.2'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.toolchains.worker }}
+          cache: false
+      - name: Record worker compiler
+        id: worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "compiler=$(go env GOROOT)/bin/go" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.toolchains.host }}
+          cache: false
+      - name: Verify independent frontend and worker toolchains
+        working-directory: packages/next/src/server/go
+        env:
+          NEXT_GO_TEST_WORKER_COMPILER: ${{ steps.worker.outputs.compiler }}
+        run: |
+          set -euo pipefail
+          go test -race -v -run='^TestCompiledWorkerContract$' -count=1 -timeout=180s ./...

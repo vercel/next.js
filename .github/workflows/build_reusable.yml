@@ -314,11 +314,11 @@ jobs:
       - name: Wait for Rust toolchain
         wait: install-rust
 
-      - name: Install Go for native bundle tests
-        if: ${{ inputs.needsNextest == 'yes' }}
+      - name: Install Go for the frontend and native bundle tests
+        if: ${{ inputs.needsNextest == 'yes' || inputs.skipInstallBuild != 'yes' }}
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.24.x'
+          go-version: '1.27.2'
           cache: false
 
       - name: Install nextest

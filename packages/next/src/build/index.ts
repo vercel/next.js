@@ -1893,6 +1893,11 @@ export default async function build(
             ...rest
           } = await turbopackBuild(telemetry)
           shutdownPromise = p
+          if (config.experimental.goServer) {
+            const { copyGoFrontend } =
+              require('../server/lib/go-front-build') as typeof import('../server/lib/go-front-build')
+            await copyGoFrontend(distDir)
+          }
           deferredTurbopackWarnings = warnings
           traceMemoryUsage('Finished build', nextBuildSpan)
 

@@ -115,7 +115,12 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
   const sharedTurboOptions = {
     turbopackMemoryEviction: config.experimental.turbopackMemoryEvictionMode,
     gc: config.experimental.turbopackGcOptions,
-    dependencyTracking: persistentCaching || hasDeferredEntries,
+    // Native compilation validates live inputs and can invalidate a discovery
+    // read even in a one-shot build. This is separate from persistent caching.
+    dependencyTracking:
+      persistentCaching ||
+      hasDeferredEntries ||
+      Boolean(config.experimental.goRoutes || config.experimental.goServer),
     isCi: isCI,
     isShortSession: true,
     skipCompaction: process.env.NEXT_USE_POST_BUILD === '1',

@@ -19,6 +19,7 @@ use std::{
 use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use tokio::{process::Command, sync::Semaphore};
 use tokio_util::sync::CancellationToken;
 use turbo_rcstr::{RcStr, rcstr};
@@ -358,12 +359,34 @@ fn module_escape(value: &str) -> String {
     escaped
 }
 
+/// Virtual source or asset, optionally derived from a tracked project input.
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
+pub struct GoOverlayFile {
+    pub content: Vec<u8>,
+    original: Option<(RcStr, Vec<u8>)>,
+}
+impl GoOverlayFile {
+    pub fn generated(content: Vec<u8>) -> Self {
+        Self {
+            content,
+            original: None,
+        }
+    }
+    pub fn from_source(path: RcStr, original: &[u8], content: Vec<u8>) -> Self {
+        Self {
+            content,
+            original: Some((path, Sha256::digest(original).to_vec())),
+        }
+    }
+}
+
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 struct BuildPlan {
     files: Vec<RcStr>,
     inputs: Inputs,
-    generated: BTreeMap<RcStr, RcStr>,
+    generated: BTreeMap<RcStr, GoOverlayFile>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -450,20 +473,24 @@ fn entry_directory(project: &Path, files: &[RcStr]) -> Result<PathBuf> {
 
 /// Materialize generated source bytes outside the project. The virtual paths remain in the
 /// original package directory; neither source files nor module metadata are modified.
-fn overlay(project: &Path, generated: &BTreeMap<RcStr, RcStr>) -> Result<tempfile::TempDir> {
+fn overlay(
+    project: &Path,
+    generated: &BTreeMap<RcStr, GoOverlayFile>,
+) -> Result<tempfile::TempDir> {
     let temp = tempfile::Builder::new()
         .prefix("turbopack-go-overlay-")
         .tempdir()?;
     let mut replacements = BTreeMap::new();
     for (index, (path, content)) in generated.iter().enumerate() {
         let virtual_path = project.join(path.as_str());
+        validate_source_path(project, &virtual_path)?;
         ensure!(
             !virtual_path.exists(),
             "generated Go input already exists: {}",
             virtual_path.display()
         );
         let source = temp.path().join(format!("{index}.go"));
-        std::fs::write(&source, content.as_str())?;
+        std::fs::write(&source, &content.content)?;
         replacements.insert(virtual_path, source);
     }
     std::fs::write(
@@ -478,7 +505,7 @@ async fn list(
     files: &[RcStr],
     go_context: &GoBuildContext,
     project: &Path,
-    generated: &BTreeMap<RcStr, RcStr>,
+    generated: &BTreeMap<RcStr, GoOverlayFile>,
 ) -> Result<Vec<Package>> {
     go_context
         .cancellation
@@ -536,6 +563,7 @@ async fn observe_packages(
     packages: &[Package],
     project: &Path,
     module: &str,
+    directories: &BTreeMap<PathBuf, PathBuf>,
 ) -> Result<()> {
     for pkg in packages {
         if pkg.standard {
@@ -549,13 +577,16 @@ async fn observe_packages(
                 .and_then(|p| p.strip_prefix('/'))
                 .filter(|_| !module.is_empty())
             {
-                tracker.parents(&project.join(relative)).await?;
+                tracker
+                    .parents(&source_path(&project.join(relative), directories))
+                    .await?;
             }
         }
         if pkg.dir.is_empty() {
             continue;
         }
-        let dir = Path::new(&pkg.dir);
+        let source_dir = source_path(Path::new(&pkg.dir), directories);
+        let dir = source_dir.as_path();
         tracker.dir(dir).await?;
         if let Some(module) = &pkg.module {
             ensure!(
@@ -580,7 +611,7 @@ async fn observe_packages(
         tracker
             .inputs
             .embed_patterns
-            .entry(pkg.dir.as_str().into())
+            .entry(dir.to_str().context("non-UTF8 package directory")?.into())
             .or_default()
             .extend(
                 pkg.embed_patterns
@@ -616,7 +647,7 @@ async fn discover(
     root: FileSystemPath,
     files: Vec<RcStr>,
     go_session: ResolvedVc<GoBuildSession>,
-    generated: BTreeMap<RcStr, RcStr>,
+    generated: BTreeMap<RcStr, GoOverlayFile>,
 ) -> Result<Vc<Discovery>> {
     let go_context = go_session.await?.context.clone();
     let _permit = tokio::select! {
@@ -639,6 +670,38 @@ async fn discover(
              --go-cache path"
         );
         std::fs::create_dir_all(build_cache)?;
+        let mut directories = BTreeMap::new();
+        for (virtual_path, file) in &generated {
+            let relative = Path::new(virtual_path.as_str());
+            ensure!(
+                !relative.is_absolute()
+                    && relative
+                        .components()
+                        .all(|part| matches!(part, std::path::Component::Normal(_))),
+                "overlay paths must be project relative"
+            );
+            let virtual_path = project.join(relative);
+            ensure!(
+                virtual_path.starts_with(&project),
+                "overlay outside project"
+            );
+            if let Some((original, digest)) = &file.original {
+                let original = project.join(original.as_str());
+                tracker.file(&original).await?;
+                ensure!(
+                    tracker.inputs.files[original.to_str().unwrap()].matches_digest(digest),
+                    "overlay source snapshot changed: {}",
+                    original.display()
+                );
+                // Preserve the source directory's membership and embed inventory for virtual
+                // packages.
+                directories.insert(
+                    virtual_path.parent().unwrap().to_owned(),
+                    original.parent().unwrap().to_owned(),
+                );
+                tracker.dir(original.parent().unwrap()).await?;
+            }
+        }
         let directory = entry_directory(&project, &files)?;
         tracker.parents(&directory).await?;
         for file in &files {
@@ -692,7 +755,7 @@ async fn discover(
         let module = config.module.as_ref().map_or("", |m| m.path.as_str());
         let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
         let packages = list(&directory, &files, &go_context, &project, &generated).await?;
-        observe_packages(&mut tracker, &packages, &project, module).await?;
+        observe_packages(&mut tracker, &packages, &project, module, &directories).await?;
         // Newly discovered files/directories were not guarded during the first command.
         // Only that registration window needs a second Go scan. For named files importing
         // only standard packages, all mutable inputs were already registered above.
@@ -881,10 +944,13 @@ async fn bundle(
     root: FileSystemPath,
     mut files: Vec<RcStr>,
     go_session: ResolvedVc<GoBuildSession>,
-    generated: BTreeMap<RcStr, RcStr>,
+    generated: BTreeMap<RcStr, GoOverlayFile>,
 ) -> Result<Vc<GoBundleResult>> {
+    ensure!(
+        turbo_tasks().is_tracking_dependencies(),
+        "Go compilation requires Turbo Tasks dependency tracking"
+    );
     let go_context = go_session.await?.context.clone();
-    files.extend(generated.keys().cloned());
     files.sort();
     files.dedup();
     let discovery = discover(root.clone(), files, *go_session, generated).await?;
@@ -943,10 +1009,15 @@ pub fn go_bundle(
 #[turbo_tasks::function(operation, root)]
 pub fn go_bundle_with_generated_files(
     root: FileSystemPath,
-    files: Vec<RcStr>,
+    mut files: Vec<RcStr>,
     go_context: GoBuildContext,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
+    files.extend(generated.keys().cloned());
+    let generated = generated
+        .into_iter()
+        .map(|(path, content)| (path, GoOverlayFile::generated(content.as_bytes().to_vec())))
+        .collect();
     bundle(root, files, shared_session(go_context), generated)
 }
 
@@ -955,9 +1026,67 @@ pub fn go_bundle_with_generated_files(
 #[turbo_tasks::function]
 pub fn go_bundle_with_session(
     root: FileSystemPath,
-    files: Vec<RcStr>,
+    mut files: Vec<RcStr>,
     session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
+    files.extend(generated.keys().cloned());
+    let generated = generated
+        .into_iter()
+        .map(|(path, content)| (path, GoOverlayFile::generated(content.as_bytes().to_vec())))
+        .collect();
     bundle(root, files, *session, generated)
+}
+
+/// Compile one explicit main package importing virtual packages and assets. Overlay provenance
+/// participates in live input validation; generated packages are not additional main inputs.
+#[turbo_tasks::function]
+pub fn go_bundle_with_overlay(
+    root: FileSystemPath,
+    files: Vec<RcStr>,
+    session: ResolvedVc<GoBuildSession>,
+    generated: BTreeMap<RcStr, GoOverlayFile>,
+) -> Vc<GoBundleResult> {
+    bundle(root, files, *session, generated)
+}
+
+fn source_path(path: &Path, directories: &BTreeMap<PathBuf, PathBuf>) -> PathBuf {
+    directories
+        .iter()
+        .filter_map(|(virtual_dir, original)| {
+            path.strip_prefix(virtual_dir)
+                .ok()
+                .map(|suffix| (virtual_dir.components().count(), original.join(suffix)))
+        })
+        .max_by_key(|(length, _)| *length)
+        .map_or_else(|| path.to_owned(), |(_, path)| path)
+}
+
+/// Resolve the module identity with the same toolchain used for compilation.
+#[turbo_tasks::function]
+pub async fn go_module_path(
+    root: FileSystemPath,
+    session: ResolvedVc<GoBuildSession>,
+) -> Result<Vc<RcStr>> {
+    let project = to_sys_path(root.clone())
+        .await?
+        .context("module requires a disk filesystem")?;
+    let context = session.await?.context.clone();
+    let mut tracker = Tracker::new(&root, &project, &context);
+    let path = project.join("go.mod");
+    tracker.file(&path).await?;
+    let json = module_configuration(
+        project.to_str().context("non-UTF8 project")?.into(),
+        tracker.inputs.files[path.to_str().unwrap()].clone(),
+        *session,
+    )
+    .await?;
+    let config: ModuleConfig = serde_json::from_str(&json)?;
+    Ok(Vc::cell(
+        config
+            .module
+            .context("a go.mod module is required for package composition")?
+            .path
+            .into(),
+    ))
 }
