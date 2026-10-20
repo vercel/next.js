@@ -15,7 +15,7 @@ import (
 
 type route struct {
 	Path     string `json:"path"`
-	Worker   string `json:"worker"`
+	Plugin   string `json:"plugin"`
 	Handler  string `json:"handler"`
 	segments []string
 	backend  int
@@ -54,11 +54,11 @@ func newRouter(m manifest, backends map[string]int) (*router, error) {
 		if v.Path != "/" {
 			v.segments = strings.Split(strings.Trim(v.Path, "/"), "/")
 		}
-		if v.Worker != "" {
+		if v.Plugin != "" {
 			var ok bool
-			v.backend, ok = backends[v.Worker]
+			v.backend, ok = backends[v.Plugin]
 			if !ok {
-				return nil, errors.New("unknown route worker")
+				return nil, errors.New("unknown route plugin")
 			}
 		}
 		r.routes = append(r.routes, v)
@@ -215,23 +215,31 @@ func validTarget(target string) (*url.URL, error) {
 	}
 	return u, nil
 }
-func (f *frontend) selectRoute(target string) (int, []byte, string, error) {
+
+type routeSelection struct {
+	backend  int
+	handler  string
+	params   map[string][]string
+	redirect string
+}
+
+func (f *frontend) resolveRoute(target string) (routeSelection, error) {
 	u, e := validTarget(target)
 	if e != nil {
-		return 0, nil, "", e
+		return routeSelection{}, e
 	}
 	r := f.router
 	escaped, path := u.EscapedPath(), u.Path
 	if r.basePath != "" {
 		base := (&url.URL{Path: r.basePath}).EscapedPath()
 		if escaped != base && !strings.HasPrefix(escaped, base+"/") {
-			return 0, nil, "", nil
+			return routeSelection{}, nil
 		}
 		escaped = strings.TrimPrefix(escaped, base)
 		path = strings.TrimPrefix(path, r.basePath)
 	}
 	if strings.HasPrefix(escaped, "/_next/") || r.assets[path] {
-		return 0, nil, "", nil
+		return routeSelection{}, nil
 	}
 	var parts []string
 	if escaped != "" && escaped != "/" {
@@ -243,18 +251,18 @@ func (f *frontend) selectRoute(target string) (int, []byte, string, error) {
 	budget := 4096
 	selected := r.root.lookup(parts, 0, &budget)
 	if budget <= 0 {
-		return 0, nil, "", errors.New("route lookup budget")
+		return routeSelection{}, errors.New("route lookup budget")
 	}
 	if selected == nil {
-		return 0, nil, "", nil
+		return routeSelection{}, nil
 	}
 	v := *selected
 	params, ok := match(v.segments, parts)
 	if !ok {
-		return 0, nil, "", errors.New("route inventory mismatch")
+		return routeSelection{}, errors.New("route inventory mismatch")
 	}
 	if v.backend == 0 {
-		return 0, nil, "", nil
+		return routeSelection{}, nil
 	}
 	if !r.skipSlash && escaped != "" && escaped != "/" && r.trailing != strings.HasSuffix(escaped, "/") {
 		target := strings.TrimSuffix(u.EscapedPath(), "/")
@@ -264,14 +272,27 @@ func (f *frontend) selectRoute(target string) (int, []byte, string, error) {
 		if u.RawQuery != "" {
 			target += "?" + u.RawQuery
 		}
-		return 0, nil, target, nil
+		return routeSelection{redirect: target}, nil
 	}
-	b, _ := json.Marshal(struct {
-		Handler string              `json:"handler"`
-		Params  map[string][]string `json:"params"`
-	}{v.Handler, params})
-	return v.backend, b, "", nil
+	return routeSelection{backend: v.backend, handler: v.Handler, params: params}, nil
 }
+func (f *frontend) selectRoute(target string) (int, []byte, string, error) {
+	selected, err := f.resolveRoute(target)
+	if err != nil {
+		return 0, nil, "", err
+	}
+	var metadata []byte
+	// The private HTTP backend adapter is retained for fallback protocol tests;
+	// native plugins pass the already-decoded parameters directly.
+	if selected.backend != 0 && f.plugins[selected.backend] == nil {
+		metadata, _ = json.Marshal(struct {
+			Handler string              `json:"handler"`
+			Params  map[string][]string `json:"params"`
+		}{selected.handler, selected.params})
+	}
+	return selected.backend, metadata, selected.redirect, nil
+}
+
 func sockaddrIP(a syscall.Sockaddr) string {
 	switch a := a.(type) {
 	case *syscall.SockaddrInet4:

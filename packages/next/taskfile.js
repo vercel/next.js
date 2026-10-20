@@ -2265,42 +2265,79 @@ export async function ncc_safe_stable_stringify(task, opts) {
     .target('src/compiled/safe-stable-stringify')
 }
 
-// Build the application-independent frontend when publishing Next.js, never at next build/start.
+// Build only the native host: Go plugins require a working target C toolchain.
+// Release jobs provide all supported native artifacts through this directory.
 export async function go_frontend(task, opts) {
+  const { createHash } = require('crypto')
   const output = join(__dirname, 'dist/server/go')
   await fs.mkdir(output, { recursive: true })
-  const targets = opts.dev
-    ? [[process.platform, process.arch === 'x64' ? 'amd64' : process.arch]]
-    : [
-        ['linux', 'amd64'],
-        ['linux', 'arm64'],
-        ['darwin', 'amd64'],
-        ['darwin', 'arm64'],
-      ]
-  for (const [goos, goarch] of targets) {
-    if (!['linux', 'darwin'].includes(goos)) continue
-    await execa(
-      process.env.TURBOPACK_GO || 'go',
-      [
-        'build',
-        '-trimpath',
-        '-ldflags=-s -w',
-        '-o',
-        join(output, `next-server-${goos}-${goarch}`),
-        '.',
-      ],
-      {
-        cwd: join(__dirname, 'src/server/go'),
-        env: {
-          ...process.env,
-          CGO_ENABLED: '0',
-          GOOS: goos,
-          GOARCH: goarch,
-          GOWORK: 'off',
-        },
+  const supplied = process.env.NEXT_GO_FRONTEND_PREBUILT
+  if (supplied && !opts.dev) {
+    for (const goos of ['linux', 'darwin']) {
+      for (const goarch of ['amd64', 'arm64']) {
+        const name = `next-server-${goos}-${goarch}`
+        const source = join(supplied, name)
+        const metadata = await fs.readFile(`${source}.build.json`, 'utf8')
+        const info = JSON.parse(metadata)
+        const bytes = await fs.readFile(source)
+        if (
+          info.protocol !== 'next-go-plugin/1' ||
+          info.goos !== goos ||
+          info.goarch !== goarch ||
+          info.sha256 !== createHash('sha256').update(bytes).digest('hex')
+        ) {
+          throw new Error(`Invalid prebuilt Go frontend ${name}`)
+        }
+        await fs.writeFile(join(output, name), bytes, { mode: 0o755 })
+        await fs.chmod(join(output, name), 0o755)
+        await fs.writeFile(join(output, `${name}.build.json`), metadata)
       }
-    )
+    }
+    return
   }
+  if (!['linux', 'darwin'].includes(process.platform)) return
+  const goos = process.platform
+  const goarch = process.arch === 'x64' ? 'amd64' : process.arch
+  if (!['amd64', 'arm64'].includes(goarch)) return
+  const executable = join(output, `next-server-${goos}-${goarch}`)
+  await execa(
+    process.env.TURBOPACK_GO || 'go',
+    [
+      'build',
+      '-trimpath',
+      '-buildvcs=false',
+      '-ldflags=-s -w',
+      '-o',
+      executable,
+      '.',
+    ],
+    {
+      cwd: join(__dirname, 'src/server/go'),
+      env: {
+        ...process.env,
+        CGO_ENABLED: '1',
+        GOOS: goos,
+        GOARCH: goarch,
+        GOENV: 'off',
+        GOTOOLCHAIN: 'local',
+        GOWORK: 'off',
+        GOFLAGS: '',
+        GOEXPERIMENT: '',
+        GOAMD64: 'v1',
+        GOARM64: 'v8.0',
+        CGO_CFLAGS: '',
+        CGO_CPPFLAGS: '',
+        CGO_CXXFLAGS: '',
+        CGO_LDFLAGS: '',
+      },
+    }
+  )
+  const { stdout } = await execa(executable, ['--build-info'])
+  const info = JSON.parse(stdout)
+  info.sha256 = createHash('sha256')
+    .update(await fs.readFile(executable))
+    .digest('hex')
+  await fs.writeFile(`${executable}.build.json`, JSON.stringify(info) + '\n')
 }
 
 export async function precompile(task, opts) {

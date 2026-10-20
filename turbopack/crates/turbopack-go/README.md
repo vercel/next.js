@@ -1,6 +1,7 @@
 # Native Go file compilation
 
-`turbopack-go` compiles explicit `.go` input files into one native host executable.
+`turbopack-go` compiles explicit `.go` input files into one native host executable
+or Go plugin.
 Go owns dependency resolution, package compilation and linking through `go list`
 and `go build`. Turbopack tracks the inputs Go reports and validates them around
 compiler execution.
@@ -16,11 +17,21 @@ publication and shutdown.
 
 1. Create a `GoBuildContext` with `GoBuildContext::host`, supplying the Go executable,
    optional build-cache path and build tags. Reuse that context throughout the session.
+   Its default `build_mode` is `GoBuildMode::Executable`, with CGO disabled.
+   Set `GoBuildMode::Plugin` before creating the session to enable CGO and compile
+   with `-buildmode=plugin`. Plugin linking requires a native C compiler and a
+   supported Go plugin target. Application dependencies remain pure Go. The
+   consumer must match its plugin host's exact toolchain and common-package build
+   configuration; this API does not provide a stable cross-version binary ABI.
 2. Use `filesystem` to create a disk filesystem rooted at a canonical project path:
    the module directory, or the source directory for standalone inputs. Pass its
    root `FileSystemPath` to `go_bundle` together with project-relative `.go` filenames.
-   Inputs must share one directory and form a single executable `package main`.
-3. Read `go_bundle` strongly consistently within Turbo Tasks. Inspect the
+   Inputs must share one directory and form a single `package main`. Executable
+   mode compiles those named files. Plugin mode requires a `go.mod` module and
+   builds the entire entry directory as a package, using Go's normal file and tag
+   selection. This also supports wholly virtual entry directories through overlays.
+3. Read `go_bundle` strongly consistently within Turbo Tasks with dependency
+   tracking enabled, including in one-shot builds. Inspect the
    `GoBundleResult` outcome and call `is_current()` before consuming it. If live inputs
    have changed, invalidate the source and module-cache filesystems and read again.
 4. Before writing output, check `is_input(output_path)` to protect tracked files and
@@ -72,8 +83,9 @@ it does not parse Go imports or implement a Go package graph.
   Discovery validates newly registered inputs before handing its plan to compilation.
 - **Compilation:** `go build` writes to a temporary directory. Input stamps and
   directory membership are checked before and after the command. Changed inputs
-  trigger invalidation and retry; successful builds return executable bytes and
-  permission metadata.
+  trigger invalidation and retry; successful builds return artifact bytes and
+  permission metadata. Executable builds have executable permissions; plugins
+  retain ordinary file permissions.
 
 Discovery and compilation are memoized tasks. Go's build cache owns incremental
 package compilation. Filesystem validation is best effort against concurrent
@@ -117,7 +129,8 @@ Its byte-valued `GoOverlayFile` map also supports binary embedded assets. Use
 the original filename and content fingerprint are tracked and validated, along
 with package directories and embed inventories. A stale source snapshot is
 rejected. Pure generated files use `GoOverlayFile::generated`. Only the explicit
-main filenames are command arguments; imported packages use Go's normal file
-selection rules. Virtual paths must be project relative and must not overwrite
+main filenames identify the entry directory; executable mode passes those files
+as arguments, while plugin mode builds the directory as a module package. Imported
+packages use Go's normal file selection rules. Virtual paths must be project relative and must not overwrite
 existing files. `go_module_path` resolves the module identity using the session's
 Go toolchain. Neither API writes application source or module metadata.

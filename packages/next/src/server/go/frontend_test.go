@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -93,14 +94,141 @@ func FuzzResponseFraming(f *testing.F) {
 	})
 }
 
-func TestStartupFailureCleanup(t *testing.T) {
+type deadlineBuffer struct{ io.Reader }
+
+func (deadlineBuffer) Write(p []byte) (int, error)      { return len(p), nil }
+func (deadlineBuffer) Close() error                     { return nil }
+func (deadlineBuffer) LocalAddr() net.Addr              { return &net.TCPAddr{} }
+func (deadlineBuffer) RemoteAddr() net.Addr             { return &net.TCPAddr{} }
+func (deadlineBuffer) SetDeadline(time.Time) error      { return nil }
+func (deadlineBuffer) SetReadDeadline(time.Time) error  { return nil }
+func (deadlineBuffer) SetWriteDeadline(time.Time) error { return nil }
+
+type recordingDeadlineConn struct {
+	net.Conn
+	deadlines chan time.Time
+}
+
+func (c recordingDeadlineConn) SetReadDeadline(deadline time.Time) error {
+	select {
+	case c.deadlines <- deadline:
+	default:
+	}
+	return c.Conn.SetReadDeadline(deadline)
+}
+
+func TestHeaderDeadlineSurvivesBackgroundReadAbort(t *testing.T) {
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+	deadlines := make(chan time.Time, 32)
+	c := &streamConn{Conn: recordingDeadlineConn{server, deadlines}}
+	s := &strictRequests{conn: c, reader: bufio.NewReaderSize(publicReader{c}, requestLimit+4096)}
+	result := make(chan error, 1)
+	go func() { var b [1024]byte; _, err := s.Read(b[:]); result <- err }()
+	if _, err := io.WriteString(client, "GET / HTTP/1.1\r\nHost:"); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		select {
+		case deadline := <-deadlines:
+			if deadline.After(time.Now()) && deadline.Before(time.Now().Add(6*time.Second)) {
+				goto headerStarted
+			}
+		case <-time.After(time.Second):
+			t.Fatal("header read did not start")
+		}
+	}
+headerStarted:
+	c.SetReadDeadline(time.Unix(1, 0)) // net/http abortPendingRead behavior.
+	if err := <-result; err == nil {
+		t.Fatal("background read was not interrupted")
+	}
+	first := s.headerLimit
+	c.SetReadDeadline(time.Time{})
+	for len(deadlines) != 0 {
+		<-deadlines
+	}
+	go func() { var b [1024]byte; _, err := s.Read(b[:]); result <- err }()
+	select {
+	case next := <-deadlines:
+		if !next.Equal(first) {
+			t.Fatalf("header deadline extended after read interruption: %v -> %v", first, next)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("header read did not resume")
+	}
+	io.WriteString(client, "example.test\r\n\r\n")
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func FuzzStrictStreamFraming(f *testing.F) {
+	for _, wire := range []string{
+		"GET /native/a HTTP/1.1\r\nHost:x\r\n\r\nGET /native/b HTTP/1.1\r\nHost:x\r\n\r\n",
+		"POST /native/a HTTP/1.1\r\nHost:x\r\nContent-Length: 3\r\n\r\nabcGET /native/b HTTP/1.1\r\nHost:x\r\n\r\n",
+		"POST /native/a HTTP/1.1\r\nHost:x\r\nTransfer-Encoding: chunked\r\nTrailer: X-End\r\n\r\n3;name=value\r\nabc\r\n0\r\nX-End: yes\r\n\r\nGET /native/b HTTP/1.1\r\nHost:x\r\n\r\n",
+		"POST /native/a HTTP/1.1\r\nHost:x\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n",
+		"GET /native/a HTTP/1.1\r\nHost:x\r\nConnection: Upgrade\r\nUpgrade: echo\r\n\r\nGET /native/b HTTP/1.1\r\nHost:x\r\n\r\n",
+	} {
+		f.Add([]byte(wire))
+	}
+	f.Fuzz(func(t *testing.T, wire []byte) {
+		if len(wire) > 2*requestLimit {
+			return
+		}
+		c := &streamConn{Conn: deadlineBuffer{bytes.NewReader(wire)}}
+		s := &strictRequests{conn: c, reader: bufio.NewReaderSize(c.Conn, requestLimit+4096)}
+		var output bytes.Buffer
+		var readErr error
+		for {
+			// Model an ordinary HTTP handler declining any upgrade. Actual
+			// accepted/hijacked byte forwarding is covered by socket tests.
+			c.upgrade.CompareAndSwap(0, 2)
+			var b [37]byte
+			n, err := s.Read(b[:])
+			output.Write(b[:n])
+			if err != nil {
+				readErr = err
+				break
+			}
+		}
+		if !bytes.HasPrefix(wire, output.Bytes()) {
+			t.Fatalf("rewrote or replayed wire bytes: %q -> %q", wire, output.Bytes())
+		}
+		if readErr != io.EOF {
+			return
+		}
+		if !bytes.Equal(wire, output.Bytes()) {
+			t.Fatalf("silently truncated wire bytes: %q -> %q", wire, output.Bytes())
+		}
+		br := bufio.NewReader(bytes.NewReader(output.Bytes()))
+		for br.Buffered() > 0 || func() bool { _, err := br.Peek(1); return err == nil }() {
+			r, err := http.ReadRequest(br)
+			if err != nil {
+				t.Fatalf("accepted request rejected by net/http: %q: %v", wire, err)
+			}
+			_, err = io.Copy(io.Discard, r.Body)
+			r.Body.Close()
+			if err != nil {
+				t.Fatalf("accepted body rejected by net/http: %q: %v", wire, err)
+			}
+			if r.Close {
+				break
+			}
+		}
+	})
+}
+
+func TestPluginStartupValidation(t *testing.T) {
 	dir := t.TempDir()
-	for _, tc := range []struct{ executable, protocol string }{{"missing", protocol}, {"bad", protocol}, {"bad", "incompatible"}} {
+	for _, tc := range []struct{ executable, protocol string }{{"missing.so", protocol}, {"bad.so", protocol}, {"bad.so", "incompatible"}} {
 		t.Run(tc.executable+tc.protocol, func(t *testing.T) {
-			if e := os.WriteFile(filepath.Join(dir, "bad"), []byte("#!/bin/sh\nexit 1\n"), 0700); e != nil {
+			if e := os.WriteFile(filepath.Join(dir, "bad.so"), []byte("#!/bin/sh\nexit 1\n"), 0700); e != nil {
 				t.Fatal(e)
 			}
-			spec := manifest{Version: 2, Workers: []workerSpec{{ID: "go", Executable: tc.executable, Protocol: tc.protocol}}}
+			spec := manifest{Version: 3, Goos: runtime.GOOS, Goarch: runtime.GOARCH, Plugins: []pluginSpec{{ID: "go", File: tc.executable, Protocol: tc.protocol}}}
 			raw, _ := json.Marshal(spec)
 			file := filepath.Join(dir, "manifest.json")
 			if e := os.WriteFile(file, raw, 0600); e != nil {
@@ -108,7 +236,7 @@ func TestStartupFailureCleanup(t *testing.T) {
 			}
 			f, e := startFrontend(launchConfig{Manifest: file, NodePort: 1, Token: "private"})
 			if e == nil || f != nil {
-				t.Fatal("accepted failed worker startup")
+				t.Fatal("accepted invalid plugin startup")
 			}
 		})
 	}
@@ -222,7 +350,7 @@ func testFrontend(t *testing.T, handlers ...http.Handler) (string, *frontend) {
 	workerServer := &http.Server{Handler: handler}
 	go workerServer.Serve(worker)
 	f := &frontend{internal: map[string]bool{"x-middleware-rewrite": true}, backends: []backendInfo{{Port: port, Token: "private"}, {Unix: socket, Token: "private"}}}
-	f.router, e = newRouter(manifest{Routes: []route{{Path: "/native/[id]", Worker: "go", Handler: "route0"}, {Path: "/native/static"}, {Path: "/catch/[...slug]", Worker: "go", Handler: "route0"}, {Path: "/optional/[[...parts]]", Worker: "go", Handler: "route0"}}}, map[string]int{"go": 1})
+	f.router, e = newRouter(manifest{Routes: []route{{Path: "/native/[id]", Plugin: "go", Handler: "route0"}, {Path: "/native/static"}, {Path: "/catch/[...slug]", Plugin: "go", Handler: "route0"}, {Path: "/optional/[[...parts]]", Plugin: "go", Handler: "route0"}}}, map[string]int{"go": 1})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -348,13 +476,12 @@ func TestStrictRejectionAfterStreamingHandoff(t *testing.T) {
 func TestUpgradeAndCancellation(t *testing.T) {
 	addr, f := testFrontend(t)
 	c := rawConn(t, addr)
-	fmt.Fprint(c, "GET /native/upgrade HTTP/1.1\r\nHost:x\r\nConnection: Upgrade\r\nUpgrade: echo\r\n\r\n")
+	fmt.Fprint(c, "GET /native/upgrade HTTP/1.1\r\nHost:x\r\nConnection: Upgrade\r\nUpgrade: echo\r\n\r\necho")
 	br := bufio.NewReader(c)
 	r, e := http.ReadResponse(br, &http.Request{Method: "GET"})
 	if e != nil || r.StatusCode != 101 {
 		t.Fatalf("upgrade: %v %v", r, e)
 	}
-	fmt.Fprint(c, "echo")
 	b := make([]byte, 4)
 	if _, e = io.ReadFull(br, b); e != nil || string(b) != "echo" {
 		t.Fatalf("upgrade payload %q %v", b, e)
@@ -378,6 +505,29 @@ func TestUpgradeAndCancellation(t *testing.T) {
 	if f.slowCount.Load() != 0 {
 		t.Fatal("disconnect did not cancel upstream")
 	}
+}
+
+func TestDeclinedUpgradePreservesPipelinedValidation(t *testing.T) {
+	addr, _ := testFrontend(t)
+	c := rawConn(t, addr)
+	br := bufio.NewReader(c)
+	fmt.Fprint(c, "GET /native/a HTTP/1.1\r\nHost:x\r\nConnection: Upgrade\r\nUpgrade: echo\r\n\r\nGET /native/b HTTP/1.1\r\nHost:x\r\n\r\n")
+	for _, path := range []string{"a", "b"} {
+		r, body := response(t, br, "GET")
+		if r.StatusCode != 200 || body != "go:/native/"+path+":" {
+			t.Fatalf("declined upgrade lost request bytes: %d %q", r.StatusCode, body)
+		}
+	}
+	c.Close()
+	c = rawConn(t, addr)
+	br = bufio.NewReader(c)
+	fmt.Fprint(c, "GET /native/a HTTP/1.1\r\nHost:x\r\nConnection: Upgrade\r\nUpgrade: echo\r\n\r\nPOST /native/b HTTP/1.1\r\nHost:x\r\nContent-Length: 0\r\nContent-Length: 0\r\n\r\n")
+	response(t, br, "GET")
+	c.SetReadDeadline(time.Now().Add(time.Second))
+	if r, err := http.ReadResponse(br, nil); err == nil && r.StatusCode < 400 {
+		t.Fatal("ambiguous request dispatched after declined upgrade")
+	}
+	c.Close()
 }
 func TestSocketBudget(t *testing.T) {
 	f := &frontend{}
@@ -489,6 +639,21 @@ func TestTrailerMetadataFiltering(t *testing.T) {
 	if len(h) != 1 || h.Get("X-Valid") != "yes" {
 		t.Fatal(h)
 	}
+	recorder := httptest.NewRecorder()
+	w := &pluginWriter{ResponseWriter: recorder, frontend: f}
+	w.Header().Set("Connection", "X-Nominated")
+	w.Header().Set("Trailer", "X-Valid, X-Nominated, X-Next-Go-Metadata")
+	w.Header().Set("X-Nominated", "hidden")
+	w.Header().Set("X-Matched-Path", "hidden")
+	w.Write([]byte("body"))
+	w.Header().Set("X-Valid", "yes")
+	w.Header().Set("X-Nominated", "hidden-trailer")
+	w.Header().Set(http.TrailerPrefix+"X-Next-Go-Metadata", "hidden-trailer")
+	w.finish()
+	result := recorder.Result()
+	if result.Header.Get("X-Nominated") != "" || result.Header.Get("X-Matched-Path") != "" || result.Trailer.Get("X-Nominated") != "" || result.Trailer.Get("X-Next-Go-Metadata") != "" || result.Trailer.Get("X-Valid") != "yes" {
+		t.Fatalf("plugin response header/trailer policy: %v %v", result.Header, result.Trailer)
+	}
 }
 
 func TestHeadAfterBodyAndFresh(t *testing.T) {
@@ -509,7 +674,7 @@ func TestHeadAfterBodyAndFresh(t *testing.T) {
 	}
 }
 
-func TestCompiledWorkerContract(t *testing.T) {
+func TestCompiledPluginContract(t *testing.T) {
 	dir, e := os.MkdirTemp("/tmp", "next-sdk-test-")
 	if e != nil {
 		t.Fatal(e)
@@ -519,21 +684,16 @@ func TestCompiledWorkerContract(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	source := strings.ReplaceAll(string(template), "/*IMPORTS*/", "")
-	source = strings.ReplaceAll(source, "/*ROUTES*/", `"route0":func(w http.ResponseWriter,r *http.Request,_ map[string][]string){io.ReadAll(r.Body);w.Header().Set("Content-Type","application/json");w.Header().Add("Set-Cookie","first=1");w.Header().Add("Set-Cookie","second=2");w.WriteHeader(201);json.NewEncoder(w).Encode(map[string]string{"hello":"worker"})},`)
-	file := filepath.Join(dir, "worker.go")
-	os.WriteFile(file, []byte(source), 0600)
-	command := exec.Command("go", "build", "-o", filepath.Join(dir, "worker"), file)
-	command.Env = append(os.Environ(), "CGO_ENABLED=0", "GOWORK=off")
-	if out, e := command.CombinedOutput(); e != nil {
-		t.Fatalf("build SDK: %s %v", out, e)
-	}
+	source := strings.ReplaceAll(string(template), "/*IMPORTS*/", "\"encoding/json\"\n\"io\"\n\"os\"\n")
+	source = strings.ReplaceAll(source, "/*ROUTES*/", `"route0":func(w http.ResponseWriter,r *http.Request,_ map[string][]string){io.ReadAll(r.Body);w.Header().Set("Content-Type","application/json");w.Header().Add("Set-Cookie","first=1");w.Header().Add("Set-Cookie","second=2");w.WriteHeader(201);json.NewEncoder(w).Encode(map[string]any{"hello":"plugin","pid":os.Getpid()})},`)
+	buildTestPlugin(t, dir, source)
+
 	node := httptest.NewServer(backendHandler("node"))
 	defer node.Close()
 	port, _ := strconv.Atoi(strings.TrimPrefix(node.URL, "http://127.0.0.1:"))
-	spec := manifest{Version: 2, Workers: []workerSpec{{ID: "go", Executable: "worker", Protocol: protocol}}, Routes: []route{{Path: "/native/[id]", Worker: "go", Handler: "route0"}}}
+	spec := manifest{Version: 3, Goos: runtime.GOOS, Goarch: runtime.GOARCH, Plugins: []pluginSpec{{ID: "go", File: "application.so", Protocol: protocol}}, Routes: []route{{Path: "/native/[id]", Plugin: "go", Handler: "route0"}}}
 	raw, _ := json.Marshal(spec)
-	file = filepath.Join(dir, "manifest.json")
+	file := filepath.Join(dir, "manifest.json")
 	os.WriteFile(file, raw, 0600)
 	f, e := startFrontend(launchConfig{Manifest: file, NodePort: port, Token: "private"})
 	if e != nil {
@@ -567,7 +727,17 @@ func TestCompiledWorkerContract(t *testing.T) {
 		c := rawConn(t, addr)
 		br := bufio.NewReader(c)
 		fmt.Fprintf(c, "POST /native/body HTTP/1.1\r\nHost: localhost\r\nConnection: %s\r\nContent-Length: 1\r\n\r\nx", connection)
-		response(t, br, "POST")
+		post, body := response(t, br, "POST")
+		var result struct {
+			Hello string `json:"hello"`
+			PID   int    `json:"pid"`
+		}
+		if json.Unmarshal([]byte(body), &result) != nil || result.Hello != "plugin" || result.PID != os.Getpid() || len(post.Header.Values("Set-Cookie")) != 2 {
+			t.Fatalf("handler did not run in the frontend process: %s", body)
+		}
+		if f.upstreams.Load() != 0 {
+			t.Fatal("native plugin opened an upstream socket")
+		}
 		if connection == "close" {
 			c.Close()
 			c = rawConn(t, addr)
@@ -588,5 +758,55 @@ func TestTrustedChainDropsSpoofedPrefix(t *testing.T) {
 	chain, _, _, e := f.identity("127.0.0.1", "real", http.Header{"X-Forwarded-For": []string{"8.8.8.8, 192.0.2.5, 127.0.0.2"}})
 	if e != nil || chain != "192.0.2.5, 127.0.0.2, 127.0.0.1" {
 		t.Fatal(chain, e)
+	}
+}
+
+func buildTestPlugin(t *testing.T, dir, source string, extra ...string) string {
+	t.Helper()
+	file := filepath.Join(dir, "application.go")
+	if err := os.WriteFile(file, []byte(source), 0600); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(dir, "application.so")
+	args := []string{"build", "-buildmode=plugin", "-buildvcs=false", "-o", output}
+	host, err := frontendBuildInfo()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, flag := range []string{"-race", "-trimpath", "-msan", "-asan"} {
+		if host.Settings[flag] == "true" {
+			args = append(args, flag)
+		}
+	}
+	for _, flag := range []string{"-tags", "-gcflags", "-asmflags"} {
+		if host.Settings[flag] != "" {
+			args = append(args, flag+"="+host.Settings[flag])
+		}
+	}
+	args = append(args, extra...)
+	args = append(args, file)
+	command := exec.Command("go", args...)
+	command.Env = append(os.Environ(), "CGO_ENABLED=1", "GOWORK=off")
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("build plugin: %s %v", out, err)
+	}
+	return output
+}
+
+func TestPluginMismatchDoesNotRunInit(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "initialized")
+	source := fmt.Sprintf(`package main
+import "os"
+func init(){os.WriteFile(%q, []byte("ran"),0600)}
+var NextGoPluginVersion = "next-go-plugin/1"
+func main(){}
+`, marker)
+	plugin := buildTestPlugin(t, dir, source, "-tags=next_plugin_incompatible")
+	if _, err := loadPlugin(plugin); err == nil || !strings.Contains(err.Error(), "build setting -tags") {
+		t.Fatalf("expected an early build compatibility error, got %v", err)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatal("mismatched plugin initialization executed")
 	}
 }

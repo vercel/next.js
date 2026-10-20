@@ -42,7 +42,7 @@ jobs:
           cache: false
       - name: Test native Go bundles and CLI
         run: cargo test -p turbopack-go -p turbopack-cli
-      - name: Verify frontend HTTP and worker contract
+      - name: Verify frontend HTTP and Go plugin contract
         if: ${{ runner.os != 'Windows' }}
         working-directory: packages/next/src/server/go
         run: |

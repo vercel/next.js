@@ -84,7 +84,7 @@ A compiled executable runs as a supervised process with pooled private loopback 
 ## Go public server (production)
 
 Set `experimental.goServer: true` to use the precompiled Go public frontend and
-an independently compiled application worker. This also enables `goRoutes`.
+an independently compiled application Go plugin. This also enables `goRoutes`.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -97,9 +97,10 @@ export default config
 ```
 
 Run `next build` with Turbopack, then `next start`. The shipped frontend owns the
-public port and routes native requests directly to a long-lived application worker
-over authenticated private Unix sockets. Node is not in the native request path.
-The frontend executable contains no application imports; routing and worker
+public port and calls native handlers in a separately compiled Go plugin loaded
+once at startup. Handlers run in the frontend process without a worker transport.
+Node is not in the native request path.
+The frontend executable contains no application imports; routing and plugin
 registration are loaded from a build manifest. Requests for other routes,
 public assets and Next.js internals are forwarded to a private Node listener.
 JavaScript handlers, React rendering and Pages Router routes still run in Node.
@@ -121,36 +122,52 @@ remain `package main`; generated package overlays preserve local imports,
 normal filename and build-tag selection to these imported handler packages.
 `zz_next_route_params.go` and `nextgenerated/` are reserved for generated inputs.
 
-Native handlers share one application-worker process and heap, separate from the
-frontend. A handler panic aborts that request's HTTP connection. Exiting a worker
-drains and terminates the frontend, and Node shuts down as well. Requests are not
+Native handlers share the frontend process, runtime and heap. Plugins are trusted
+application code with the frontend's privileges; they provide no process isolation.
+A handler panic aborts its HTTP connection. Exiting the process or a fatal runtime
+error terminates the frontend, and Node shuts down as well. Requests are not
 automatically replayed. Deployment replacement starts a new generation and drains
 the previous generation; live development replacement is not enabled. On normal shutdown, the public listener stops accepting requests,
 drains in-flight work for up to 20 seconds, then closes the Node fallback.
 
-Linux and macOS on x64/arm64 are supported. Windows and other platforms are not
+Linux with glibc and macOS on x64/arm64 are supported. Linux/musl is unsupported. Windows and other platforms are not
 supported by `goServer`. Public transport is HTTP/1.1; terminate TLS in front of the
 server. Request bodies, streamed responses, trailers and HTTP/1.1 upgrades use a
-bounded streaming path. Bodyless requests with fixed-length responses use the
-readiness loop. HTTP/1.0, direct TLS/HTTP/2 and ambiguous framing are rejected.
+bounded streaming path. Native requests use the strict framing/streaming path with direct in-process
+handler calls. Eligible fixed-length Node responses use the readiness loop. HTTP/1.0, direct TLS/HTTP/2 and ambiguous framing are rejected.
 Dot segments, backslashes, control characters and internal empty path segments
 are rejected; encoded slashes remain inside one route parameter.
 
 Forwarded identity is rebuilt from the socket peer by default. Set
 `NEXT_GO_TRUSTED_PROXIES` to comma-separated trusted proxy CIDRs to accept validated
 forwarded identity. The trusted adjacent proxy must overwrite client-supplied
-forwarded host and protocol. Untrusted clients cannot choose a worker or upstream.
+forwarded host and protocol. Untrusted clients cannot choose a plugin, handler symbol or upstream.
 
 The runtime enforces global socket/buffer/pool budgets, absolute five-second header
 and five-minute exchange deadlines, and fifteen-second write inactivity deadlines.
 This experimental implementation has focused race, fuzz and differential tests;
 these are not a completed HTTP security audit.
 
-The frontend and content-addressed worker are listed in `.next/server/go-server.json` and
+The frontend, build configuration and content-addressed plugin are listed in `.next/server/go-server.json` and
 `.next/server/go-server.json.nft.json`. Copy the complete build output, preserving
 executable permissions, to relocate it to a host with the same OS and architecture.
-Production startup reads these descriptors once and does not invoke Go or inspect
+Production startup checks library build compatibility and reads these descriptors once and does not invoke Go or inspect
 application source files on each request.
+
+### Go plugin build compatibility
+
+The application compiler must match the precompiled frontend's **exact Go version**,
+including its patch release. Official frontend artifacts use Go 1.27.2. Set
+`TURBOPACK_GO` to the matching compiler if necessary. The frontend's build metadata
+is checked before application compilation; relevant library build settings and
+common-package compatibility are checked again before loading. Plugin linking uses
+CGO and requires a native C compiler, even though application dependencies remain
+pure Go. Builds use matching trimpath settings and controlled compiler flags.
+
+A plugin is loaded once and cannot be unloaded. Handler changes require a new
+frontend process; deployment replacement drains the old generation. Dynamic plugin
+race-detector coverage is limited. The default Node-based `goRoutes` mode retains
+its Go 1.24+ and CGO-disabled compiler contract.
 
 ## Good to know
 
@@ -158,7 +175,7 @@ application source files on each request.
 - Copy the complete `.next` output for relocation on the same OS and architecture. Keep executable permissions on native files under `.next/server/app`. Each native descriptor has a `.native.json.nft.json` trace listing its executable. Static export, standalone output and deployment adapters are unsupported.
 - In the default Node-based `goRoutes` mode, WebSocket upgrades and HTTP trailers are not supported initially. The production `goServer` mode supports HTTP/1.1 upgrades and trailers through its streaming path. Native handlers always execute dynamically. JS route segment config, ISR, Server Actions and React execution do not apply to Go handlers.
 - Runtime file reads are not traced. Use `go:embed` for assets shipped with native handlers. Native handlers read the process environment; `next.config` environment inlining does not apply.
-- Builds use the host platform with CGO disabled. Pure-Go dependencies must already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.mod` / `go.sum`.
+- Builds use the host platform. The default Node-based mode disables CGO; the public frontend compiles Go plugins with CGO enabled. Pure-Go dependencies must already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.mod` / `go.sum`.
 - Go workspaces, module replacements, vendoring, source symlinks and cross-compilation inherit the compiler experiment's unsupported status.
 - `experimental.goRoutes` disables Turbopack's persistent task cache for this process. Go's build cache still persists, and unchanged compiler results are memoized during the session.
 - The initial convention does not add `proxy.go`, Go Pages API routes, `page.go`, or `layout.go`. Applications without native handlers do not require a Go installation.

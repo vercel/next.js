@@ -8,7 +8,7 @@ import { logStartInfo } from './app-info-log'
 import * as Log from '../../build/output/log'
 import { INTERNAL_HEADERS } from './server-ipc/utils'
 
-/** Launch the shipped frontend; it owns application workers and Node remains private. */
+/** Launch the shipped frontend; it loads application plugins and Node remains private. */
 export async function startGoFrontServer(options: StartServerOptions) {
   const config = options.preloadedConfig!.config
   const serverDir = join(options.dir, config.distDir, 'server')
@@ -23,11 +23,11 @@ export async function startGoFrontServer(options: StartServerOptions) {
         ? '386'
         : process.arch
   if (
-    descriptor.version !== 2 ||
+    descriptor.version !== 3 ||
     descriptor.goos !== goos ||
     descriptor.goarch !== goarch ||
     typeof descriptor.frontend !== 'string' ||
-    !Array.isArray(descriptor.workers) ||
+    !Array.isArray(descriptor.plugins) ||
     !['linux', 'darwin'].includes(goos)
   ) {
     throw new Error(

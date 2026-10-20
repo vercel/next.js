@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -112,25 +114,26 @@ func (l *eventLoop) slow(c *eventClient, u *eventUpstream) {
 	}()
 }
 
-// A streaming connection is fed only complete, strictly validated HTTP headers.
-// Go's parser owns body framing; Request.Write canonicalizes the request before
-// the HTTP server sees it. The pipe supplies backpressure without a request queue.
+// The reader validates raw request boundaries without rewriting bytes. net/http
+// owns HTTP handling directly on the public socket, including body backpressure.
 type streamConn struct {
 	net.Conn
-	reader                    net.Conn
-	writer                    net.Conn
-	upgrade                   chan bool
-	once                      sync.Once
-	onClose                   func()
-	deadlineMu                sync.Mutex
-	protocolLimit, writeLimit time.Time
+	reader                               io.Reader
+	readMu                               sync.Mutex
+	upgrade                              atomic.Int32 // 0 pending, 1 hijacked, 2 declined
+	once                                 sync.Once
+	onClose                              func()
+	deadlineMu                           sync.Mutex
+	protocolLimit, readLimit, writeLimit time.Time
 }
 
-func (c *streamConn) Read(p []byte) (int, error) { return c.reader.Read(p) }
+func (c *streamConn) Read(p []byte) (int, error) {
+	c.readMu.Lock()
+	defer c.readMu.Unlock()
+	return c.reader.Read(p)
+}
 func (c *streamConn) Close() error {
 	c.once.Do(func() {
-		c.reader.Close()
-		c.writer.Close()
 		c.Conn.Close()
 		if c.onClose != nil {
 			c.onClose()
@@ -148,12 +151,18 @@ func earlier(a, b time.Time) time.Time {
 	return b
 }
 
-// Server abortPendingRead deadlines apply to the internal pipe only. Propagating
-// them to the public socket would abort the feeder between keep-alive requests.
-func (c *streamConn) SetReadDeadline(t time.Time) error { return c.reader.SetReadDeadline(t) }
+// Preserve net/http's abortPendingRead deadline as well as the protocol bound.
+// A background read interrupted for Hijack must not reset that deadline itself.
+func (c *streamConn) SetReadDeadline(t time.Time) error {
+	c.deadlineMu.Lock()
+	defer c.deadlineMu.Unlock()
+	c.readLimit = t
+	return c.Conn.SetReadDeadline(earlier(t, earlier(c.protocolLimit, time.Now().Add(15*time.Second))))
+}
 func (c *streamConn) protocolDeadline(t time.Time) {
 	c.deadlineMu.Lock()
 	c.protocolLimit = t
+	c.Conn.SetReadDeadline(earlier(c.readLimit, earlier(t, time.Now().Add(15*time.Second))))
 	c.deadlineMu.Unlock()
 }
 
@@ -161,9 +170,9 @@ type publicReader struct{ c *streamConn }
 
 func (r publicReader) Read(p []byte) (int, error) {
 	r.c.deadlineMu.Lock()
-	deadline := earlier(r.c.protocolLimit, time.Now().Add(15*time.Second))
-	r.c.deadlineMu.Unlock()
+	deadline := earlier(r.c.readLimit, earlier(r.c.protocolLimit, time.Now().Add(15*time.Second)))
 	r.c.Conn.SetReadDeadline(deadline)
+	r.c.deadlineMu.Unlock()
 	return r.c.Conn.Read(p)
 }
 func (c *streamConn) SetWriteDeadline(t time.Time) error {
@@ -221,89 +230,47 @@ func peekHeader(r *bufio.Reader) ([]byte, error) {
 	}
 }
 func checkedRequest(raw []byte) error {
+	_, err := checkedRequestHeader(raw)
+	return err
+}
+func checkedRequestHeader(raw []byte) (messageHeader, error) {
+	var h messageHeader
 	if len(raw) > requestLimit || !bytes.HasSuffix(raw, []byte("\r\n\r\n")) || bytes.Index(raw, []byte("\r\n\r\n")) != len(raw)-4 {
-		return errors.New("incomplete header")
+		return h, errors.New("incomplete header")
 	}
 	h, e := parseHeader(raw)
 	if e != nil {
-		return e
+		return h, e
 	}
 	parts := bytes.Split(h.line, []byte(" "))
-	if len(parts) != 3 || len(parts[0]) == 0 || string(parts[2]) != "HTTP/1.1" {
-		return errors.New("HTTP/1.1 origin form required")
+	if len(parts) != 3 || len(parts[0]) == 0 || string(parts[0]) == "CONNECT" || string(parts[2]) != "HTTP/1.1" {
+		return h, errors.New("HTTP/1.1 origin form required")
 	}
 	for _, c := range parts[0] {
 		if !token(c) {
-			return errors.New("invalid method")
+			return h, errors.New("invalid method")
 		}
 	}
 	if _, e = validTarget(string(parts[1])); e != nil {
-		return e
+		return h, e
 	}
 	hosts := 0
 	for _, v := range h.fields[:h.n] {
 		if eq(v.name, "Host") {
 			hosts++
 			if !validHost(string(v.value)) {
-				return errors.New("invalid Host")
+				return h, errors.New("invalid Host")
 			}
 		}
 	}
 	if hosts != 1 {
-		return errors.New("one Host required")
+		return h, errors.New("one Host required")
 	}
-	return nil
-}
-func feedRequests(c *streamConn, prefix []byte) {
-	defer c.writer.Close()
-	br := bufio.NewReaderSize(io.MultiReader(bytes.NewReader(prefix), publicReader{c}), requestLimit+4096)
-	for {
-		c.protocolDeadline(time.Now().Add(exchangeTimeout))
-		if _, e := br.Peek(1); e != nil {
-			return
-		}
-		c.protocolDeadline(time.Now().Add(5 * time.Second))
-		raw, e := peekHeader(br)
-		if e != nil || checkedRequest(raw) != nil {
-			c.writer.Close()
-			return
-		}
-		r, e := http.ReadRequest(br)
-		if e != nil {
-			c.writer.Close()
-			return
-		}
-		c.protocolDeadline(time.Now().Add(exchangeTimeout))
-		upgrade := r.Header.Get("Upgrade") != ""
-		e = r.Write(c.writer)
-		r.Body.Close()
-		if e != nil {
-			c.writer.Close()
-			return
-		}
-		if upgrade {
-			select {
-			case accepted := <-c.upgrade:
-				if accepted {
-					io.Copy(c.writer, br)
-					return
-				}
-			case <-time.After(30 * time.Second):
-				return
-			}
-		}
-		if r.Close {
-			// Connection: close still promises this response. Keep the pipe alive
-			// until a real disconnect or the server closes after delivering it.
-			// Additional pipelined bytes after close are never dispatched.
-			br.ReadByte()
-			return
-		}
-	}
+	return h, nil
 }
 func (f *frontend) serveStream(conn net.Conn, prefix []byte, upstream net.Conn, initial []byte) {
-	pr, pw := net.Pipe()
-	c := &streamConn{Conn: conn, reader: pr, writer: pw, upgrade: make(chan bool, 1)}
+	c := &streamConn{Conn: conn}
+	c.reader = &strictRequests{conn: c, reader: bufio.NewReaderSize(io.MultiReader(bytes.NewReader(prefix), publicReader{c}), requestLimit+4096)}
 	f.activeMu.Lock()
 	if f.active == nil {
 		f.active = map[*streamConn]bool{}
@@ -315,7 +282,6 @@ func (f *frontend) serveStream(conn net.Conn, prefix []byte, upstream net.Conn, 
 	c.onClose = func() { listener.Close() }
 	defer listener.Close()
 	defer c.Close()
-	go feedRequests(c, prefix)
 	var first *bufio.Reader
 	if upstream != nil {
 		first = bufio.NewReaderSize(io.MultiReader(bytes.NewReader(initial), upstream), requestLimit+4096)
@@ -378,12 +344,16 @@ func (f flushWriter) Write(p []byte) (int, error) {
 	return n, e
 }
 func (f *frontend) forward(w http.ResponseWriter, r *http.Request, c *streamConn, first **bufio.Reader, upstream net.Conn) {
+	if r.Header.Get("Upgrade") != "" {
+		defer c.upgrade.CompareAndSwap(0, 2)
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), exchangeTimeout)
 	defer cancel()
 	// Bind downstream delivery to this exchange as well as upstream activity.
 	// A trickling reader must not keep an already-buffered response alive forever.
 	http.NewResponseController(w).SetWriteDeadline(time.Now().Add(exchangeTimeout))
-	backend, params, redirect, e := f.selectRoute(r.RequestURI)
+	selected, e := f.resolveRoute(r.RequestURI)
+	backend, redirect := selected.backend, selected.redirect
 	if e != nil {
 		http.Error(w, "Invalid URL", 400)
 		return
@@ -399,14 +369,21 @@ func (f *frontend) forward(w http.ResponseWriter, r *http.Request, c *streamConn
 		return
 	}
 	upgrade := r.Header.Get("Upgrade")
-	out := r.Clone(ctx)
+	handlers := f.plugins[backend]
+	var out *http.Request
+	if handlers != nil {
+		out = r.WithContext(ctx)
+	} else {
+		// The proxy rewrites URL/headers. Native handlers own their incoming
+		// request and need no deep copy before header policy is applied.
+		out = r.Clone(ctx)
+	}
 	out.Trailer = r.Trailer
 	requestConnection := []byte(strings.Join(r.Header.Values("Connection"), ","))
 	f.cleanTrailer(out.Trailer, requestConnection)
 	if out.Body != nil {
 		out.Body = filteredBody{out.Body, out.Trailer, func(h http.Header) { f.cleanTrailer(h, requestConnection) }}
 	}
-	out.Header = r.Header.Clone()
 	cleanHeader(out.Header, f.internalHeader)
 	for name := range out.Header {
 		if strings.EqualFold(name, "Forwarded") || strings.HasPrefix(strings.ToLower(name), "x-forwarded-") {
@@ -416,14 +393,32 @@ func (f *frontend) forward(w http.ResponseWriter, r *http.Request, c *streamConn
 	out.Header.Set("X-Forwarded-For", chain)
 	out.Header.Set("X-Forwarded-Host", host)
 	out.Header.Set("X-Forwarded-Proto", proto)
+	if upgrade != "" {
+		out.Header.Set("Connection", "Upgrade")
+		out.Header.Set("Upgrade", upgrade)
+	}
+	if handlers != nil {
+		handler := handlers[selected.handler]
+		if handler == nil {
+			http.Error(w, "Unknown native handler", 500)
+			return
+		}
+		native := &pluginWriter{ResponseWriter: w, frontend: f, conn: c, upgrade: upgrade != ""}
+		handler(native, out, selected.params)
+		native.finish()
+		return
+	}
+	var params []byte
+	if backend != 0 {
+		params, _ = json.Marshal(struct {
+			Handler string              `json:"handler"`
+			Params  map[string][]string `json:"params"`
+		}{selected.handler, selected.params})
+	}
 	out.Header.Set("X-Next-Go-Upstream-Token", f.backends[backend].Token)
 	if backend != 0 {
 		out.Header.Set("X-Next-Go-Metadata", base64.RawURLEncoding.EncodeToString(params))
 		out.Header.Set("X-Next-Go-Remote", remote)
-	}
-	if upgrade != "" {
-		out.Header.Set("Connection", "Upgrade")
-		out.Header.Set("Upgrade", upgrade)
 	}
 	out.URL.Scheme = "http"
 	out.URL.Host = fmt.Sprintf("backend%d:80", backend)
@@ -520,7 +515,7 @@ func (f *frontend) forward(w http.ResponseWriter, r *http.Request, c *streamConn
 		if buffer.Flush() != nil {
 			return
 		}
-		c.upgrade <- true
+		c.upgrade.Store(1)
 		done := make(chan struct{}, 1)
 		go func() { io.Copy(rw, buffer); rw.Close(); done <- struct{}{} }()
 		io.Copy(client, rw)
@@ -528,9 +523,6 @@ func (f *frontend) forward(w http.ResponseWriter, r *http.Request, c *streamConn
 		rw.Close()
 		<-done
 		return
-	}
-	if upgrade != "" {
-		c.upgrade <- false
 	}
 	responseConnection := []byte(strings.Join(response.Header.Values("Connection"), ","))
 	cleanHeader(response.Header, f.internalHeader)

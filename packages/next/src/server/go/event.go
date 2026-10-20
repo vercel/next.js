@@ -500,7 +500,7 @@ func (l *eventLoop) beginRequest(c *eventClient) {
 		l.fail(c, 400)
 		return
 	}
-	if h.unsupported || h.length > 0 {
+	if h.unsupported || h.length > 0 || l.server.plugins[target] != nil {
 		l.slow(c, nil)
 		return
 	}

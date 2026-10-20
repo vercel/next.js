@@ -23,7 +23,7 @@ describe('Go public frontend', () => {
     pids.add(data.pid)
     return data
   }
-  it('serves independent native packages from one application worker', async () => {
+  it('serves independent native packages from one application plugin', async () => {
     const data = await native('/native/a%20b?key=one&key=two')
     expect(data).toMatchObject({
       id: 'a b',
@@ -32,6 +32,7 @@ describe('Go public frontend', () => {
       dependency: 'transitive-v1',
       embedded: 'embedded-v1',
       appInternal: 'app-internal-v1',
+      moduleRoot: 'module-root-v1',
       proxy: '',
     })
     expect((await (await next.fetch('/another')).json()).pid).toBe(data.pid)
@@ -170,13 +171,17 @@ describe('Go public frontend', () => {
     const trace = JSON.parse(
       await next.readFile('.next/server/go-server.json.nft.json')
     )
-    expect(trace.files).toEqual([descriptor.executable, descriptor.frontend])
-    expect(descriptor.version).toBe(2)
-    expect(descriptor.workers[0].protocol).toBe('next-worker-http/1')
+    expect(trace.files).toEqual([
+      descriptor.plugins[0].file,
+      descriptor.frontend,
+      'go-front.build.json',
+    ])
+    expect(descriptor.version).toBe(3)
+    expect(descriptor.plugins[0].protocol).toBe('next-go-plugin/1')
     const stat = await fs.stat(
-      join(next.testDir, '.next/server', descriptor.executable)
+      join(next.testDir, '.next/server', descriptor.plugins[0].file)
     )
-    if (process.platform !== 'win32') expect(stat.mode & 0o111).not.toBe(0)
+    expect(stat.isFile()).toBe(true)
     const old = (await native()).pid
     await next.stop()
     await retry(async () => expect(() => process.kill(old, 0)).toThrow())

@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	application "example.com/native-route"
 	"example.com/native-route/app/internal/scope"
 	"example.com/native-route/internal/message"
 	"io"
@@ -37,7 +38,8 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 		"id": r.PathValue("id"), "method": r.Method, "query": r.URL.RawQuery,
 		"body": string(body), "sibling": sibling(), "dependency": message.Text(),
 		"embedded": strings.TrimSpace(string(asset)), "assetCount": len(entries), "appInternal": scope.Text,
-		"proxy": r.Header.Get("X-Proxy-Count"), "backend": os.Getenv("__NEXT_GO_UPSTREAM"),
+		"moduleRoot": application.Text,
+		"proxy":      r.Header.Get("X-Proxy-Count"), "backend": os.Getenv("__NEXT_GO_UPSTREAM"),
 		"pid":      os.Getpid(),
 		"repeated": r.Header.Values("X-Repeated"),
 	})

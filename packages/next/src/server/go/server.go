@@ -18,9 +18,9 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-const protocol = "next-worker-http/1"
+const protocol = "next-go-plugin/1"
 const maxSockets = 1024 // Data sockets: at most 512 downstream and 512 upstream across both loops.
 const maxSlow = 128
 const exchangeTimeout = 300 * time.Second
@@ -40,17 +40,17 @@ const streamReservation = 2 << 20
 var socketCount atomic.Int64
 var bufferBytes atomic.Int64
 
-type workerSpec struct {
-	ID         string `json:"id"`
-	Executable string `json:"executable"`
-	Protocol   string `json:"protocol"`
+type pluginSpec struct {
+	ID       string `json:"id"`
+	File     string `json:"file"`
+	Protocol string `json:"protocol"`
 }
 type manifest struct {
 	Version           int          `json:"version"`
 	Frontend          string       `json:"frontend"`
 	Goos              string       `json:"goos"`
 	Goarch            string       `json:"goarch"`
-	Workers           []workerSpec `json:"workers"`
+	Plugins           []pluginSpec `json:"plugins"`
 	Routes            []route      `json:"routes"`
 	BasePath          string       `json:"basePath"`
 	TrailingSlash     bool         `json:"trailingSlash"`
@@ -71,26 +71,22 @@ type backendInfo struct {
 	Token string
 }
 type frontend struct {
-	router       *router
-	backends     []backendInfo
-	internal     map[string]bool
-	trusted      []*net.IPNet
-	draining     atomic.Bool
-	force        atomic.Bool
-	drainOnce    sync.Once
-	activeMu     sync.Mutex
-	active       map[*streamConn]bool
-	slowCount    atomic.Int64
-	clients      atomic.Int64
-	upstreams    atomic.Int64
-	idleCount    atomic.Int64
-	wg           sync.WaitGroup
-	transport    *http.Transport
-	children     []*exec.Cmd
-	exits        []chan struct{}
-	workerFailed chan struct{}
-	controls     []io.WriteCloser
-	privateDir   string
+	router    *router
+	backends  []backendInfo
+	internal  map[string]bool
+	trusted   []*net.IPNet
+	draining  atomic.Bool
+	force     atomic.Bool
+	drainOnce sync.Once
+	activeMu  sync.Mutex
+	active    map[*streamConn]bool
+	slowCount atomic.Int64
+	clients   atomic.Int64
+	upstreams atomic.Int64
+	idleCount atomic.Int64
+	wg        sync.WaitGroup
+	transport *http.Transport
+	plugins   map[int]map[string]routeHandler
 }
 
 func (f *frontend) reserve() bool {
@@ -142,15 +138,15 @@ func secret() string {
 }
 func confined(root, name string) (string, error) {
 	if name == "" || filepath.Base(name) != name || name == "." || name == ".." {
-		return "", errors.New("invalid executable name")
+		return "", errors.New("invalid plugin name")
 	}
 	p := filepath.Join(root, name)
 	s, e := os.Lstat(p)
 	if e != nil {
 		return "", e
 	}
-	if !s.Mode().IsRegular() || s.Mode().Perm()&0111 == 0 {
-		return "", errors.New("executable must be a regular executable file")
+	if !s.Mode().IsRegular() || !strings.HasSuffix(name, ".so") {
+		return "", errors.New("plugin must be a regular .so file")
 	}
 	return p, nil
 }
@@ -176,19 +172,10 @@ func startFrontend(c launchConfig) (f *frontend, err error) {
 	if err = json.Unmarshal(raw, &m); err != nil {
 		return nil, err
 	}
-	if m.Version != 2 || len(m.Workers) > 64 || len(m.Routes) > 100000 {
+	if m.Version != 3 || len(m.Plugins) == 0 || len(m.Plugins) > 64 || len(m.Routes) > 100000 || m.Goos != runtime.GOOS || m.Goarch != runtime.GOARCH {
 		return nil, errors.New("incompatible manifest")
 	}
-	f = &frontend{workerFailed: make(chan struct{}, 64), internal: map[string]bool{}, backends: []backendInfo{{Port: c.NodePort, Token: c.Token}}}
-	owned := f // Named return values may be nil on a startup failure.
-	defer func() {
-		if err != nil {
-			for _, cmd := range owned.children {
-				cmd.Process.Kill()
-			}
-			owned.stop()
-		}
-	}()
+	f = &frontend{internal: map[string]bool{}, backends: []backendInfo{{Port: c.NodePort, Token: c.Token}}, plugins: map[int]map[string]routeHandler{}}
 	for _, h := range c.InternalHeaders {
 		f.internal[strings.ToLower(h)] = true
 	}
@@ -199,75 +186,46 @@ func startFrontend(c launchConfig) (f *frontend, err error) {
 		}
 		f.trusted = append(f.trusted, network)
 	}
-	f.privateDir, err = os.MkdirTemp("/tmp", "next-workers-")
-	if err != nil {
-		return nil, err
-	}
-	if err = os.Chmod(f.privateDir, 0700); err != nil {
-		return nil, err
-	}
+	ids := map[string]int{}
 	startup, cancelStartup := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelStartup()
-	ids := map[string]int{}
-	for i, w := range m.Workers {
-		if w.ID == "" || ids[w.ID] != 0 || w.Protocol != protocol {
-			return nil, errors.New("invalid worker registration")
+	for _, spec := range m.Plugins {
+		if spec.ID == "" || ids[spec.ID] != 0 || spec.Protocol != protocol {
+			return nil, errors.New("invalid plugin registration")
 		}
-		exe, e := confined(filepath.Dir(c.Manifest), w.Executable)
+		file, e := confined(filepath.Dir(c.Manifest), spec.File)
 		if e != nil {
 			return nil, e
 		}
-		socket := filepath.Join(f.privateDir, fmt.Sprintf("w%d", i))
-		token := secret()
-		cmd := exec.Command(exe)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		input, e := cmd.StdinPipe()
-		if e != nil {
-			return nil, e
+		type loaded struct {
+			handlers map[string]routeHandler
+			err      error
 		}
-		readyRead, readyWrite, e := os.Pipe()
-		if e != nil {
-			return nil, e
-		}
-		cmd.ExtraFiles = []*os.File{readyWrite}
-		if e = cmd.Start(); e != nil {
-			readyRead.Close()
-			readyWrite.Close()
-			input.Close()
-			return nil, e
-		}
-		readyWrite.Close()
-		f.children = append(f.children, cmd)
-		exited := make(chan struct{})
-		f.exits = append(f.exits, exited)
-		go func() { cmd.Wait(); close(exited); owned.workerFailed <- struct{}{} }()
-		f.controls = append(f.controls, input)
-		config := map[string]any{"version": 1, "socket": socket, "token": token}
-		if e = json.NewEncoder(input).Encode(config); e != nil {
-			readyRead.Close()
-			return nil, e
-		}
-		ready := make(chan error, 1)
-		go func() {
-			defer readyRead.Close()
-			line, e := bufio.NewReader(io.LimitReader(readyRead, 128)).ReadString('\n')
-			if e == nil && line != protocol+"\n" {
-				e = errors.New("incompatible worker readiness")
-			}
-			ready <- e
-		}()
+		ready := make(chan loaded, 1)
+		go func() { handlers, err := loadPlugin(file); ready <- loaded{handlers, err} }()
+		var handlers map[string]routeHandler
 		select {
-		case e = <-ready:
-			if e != nil {
-				return nil, e
+		case result := <-ready:
+			if result.err != nil {
+				return nil, result.err
 			}
+			handlers = result.handlers
 		case <-startup.Done():
-			readyRead.Close()
-			return nil, errors.New("worker startup timeout")
+			return nil, errors.New("Go plugin initialization timeout; application startup must complete within ten seconds")
 		}
-		ids[w.ID] = len(f.backends)
-		f.backends = append(f.backends, backendInfo{Unix: socket, Token: token})
+		id := len(f.backends)
+		ids[spec.ID] = id
+		f.backends = append(f.backends, backendInfo{})
+		f.plugins[id] = handlers
+	}
+	for _, route := range m.Routes {
+		id := ids[route.Plugin]
+		if route.Plugin != "" && (id == 0 || f.plugins[id][route.Handler] == nil) {
+			return nil, errors.New("unregistered plugin handler")
+		}
+		if route.Plugin == "" && route.Handler != "" {
+			return nil, errors.New("handler without plugin")
+		}
 	}
 	f.router, err = newRouter(m, ids)
 	if err != nil {
@@ -329,9 +287,6 @@ func (f *frontend) beginDrain() {
 		}
 		time.AfterFunc(20*time.Second, func() {
 			f.force.Store(true)
-			for _, cmd := range f.children {
-				cmd.Process.Kill()
-			}
 			f.activeMu.Lock()
 			for c := range f.active {
 				c.Close()
@@ -345,31 +300,21 @@ func (f *frontend) stop() {
 	if f.transport != nil {
 		f.transport.CloseIdleConnections()
 	}
-	for _, c := range f.controls {
-		c.Close()
-	}
-	deadline := time.NewTimer(20 * time.Second)
-	defer deadline.Stop()
-	for _, done := range f.exits {
-		select {
-		case <-done:
-		case <-deadline.C:
-			for _, cmd := range f.children {
-				cmd.Process.Kill()
-			}
-			for _, exit := range f.exits {
-				<-exit
-			}
-			os.RemoveAll(f.privateDir)
-			return
-		}
-	}
-	if f.privateDir != "" {
-		os.RemoveAll(f.privateDir)
-	}
 }
+
 func main() { os.Exit(run()) }
 func run() int {
+	if len(os.Args) == 2 && os.Args[1] == "--build-info" {
+		info, e := frontendBuildInfo()
+		if e != nil {
+			fmt.Fprintln(os.Stderr, e)
+			return 1
+		}
+		if e = json.NewEncoder(os.Stdout).Encode(info); e != nil {
+			return 1
+		}
+		return 0
+	}
 	var c launchConfig
 	input := bufio.NewReaderSize(os.Stdin, 65536)
 	line, e := input.ReadSlice('\n')
@@ -399,8 +344,6 @@ func run() int {
 		select {
 		case <-done:
 		case <-signals:
-		case <-f.workerFailed:
-			failed.Store(true)
 		}
 		f.beginDrain()
 	}()
