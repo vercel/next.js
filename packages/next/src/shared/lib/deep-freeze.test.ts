@@ -69,11 +69,12 @@ describe('deepFreezePlainValues', () => {
     expect(pattern.test('a')).toBe(true)
   })
 
-  it('should type plain values as readonly and keep class instance types', () => {
+  it('should type plain values as readonly and keep functions callable', () => {
     const frozen = deepFreezePlainValues({
       nested: { value: 1 },
       list: [1],
       pattern: /a/g,
+      run: () => 1,
     })
 
     expect(() => {
@@ -85,8 +86,13 @@ describe('deepFreezePlainValues', () => {
       frozen.list.push(2)
     }).toThrow(TypeError)
 
-    // The RegExp is not frozen, so its type stays writable.
-    frozen.pattern.lastIndex = 0
+    // Functions and methods stay callable.
+    expect(frozen.run()).toBe(1)
     expect(frozen.pattern.test('a')).toBe(true)
+
+    // The RegExp is not frozen, but its properties are still typed as
+    // readonly, which is stricter than its runtime behavior.
+    // @ts-expect-error -- typed readonly even though the RegExp is not frozen
+    frozen.pattern.lastIndex = 0
   })
 })
