@@ -1,33 +1,34 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// Repro for the canary flake in
-// router-autoscroll.test.ts › "Should apply scroll when loading.js is used".
+// Regression test for navigating while the target's loading-boundary prefetch
+// is still in flight (the cause of intermittent failures in
+// router-autoscroll.test.ts › "Should apply scroll when loading.js is used").
 //
 // Clicking the off-screen link scrolls it into view, which starts the link's
-// loading-boundary prefetch together with the navigation. That prefetch marks
-// `__PAGE__` (below `loading-scroll/loading.tsx`) as Pending, and the
-// navigation uses `waitForSegmentCacheEntry(...).then(e => e ? e.rsc : null)`
-// as its prefetch data. The prefetch response fulfills `loading-scroll` and
-// rejects `__PAGE__` in the same pass, so `__PAGE__` resolves to `null` and
-// renders as an empty segment instead of suspending into `loading.js`. The
-// page stays blank until the dynamic response finishes (~5s).
+// loading-boundary prefetch together with the navigation, and the navigation
+// reads the prefetch's Pending segment entries. The prefetch used to spawn a
+// Pending entry for `__PAGE__` too, even though it's below
+// `loading-scroll/loading.tsx` and the server never renders it in that
+// response. The response then rejected it, the navigation's prefetch data for
+// `__PAGE__` resolved to `null`, and the page rendered as an empty segment
+// instead of suspending into `loading.js`. It stayed blank until the dynamic
+// response finished (~5s). The scheduler now only spawns entries for segments
+// at or above a loading boundary (#99706).
 //
-// This test forces the ordering that fails: the navigation request is held
-// until the loading-boundary prefetch has been issued (so the entries are
+// This test forces the ordering that exposed it: the navigation request is
+// held until the loading-boundary prefetch has been issued (so its entries are
 // Pending), then the navigation's own response arrives first and the prefetch
 // lands later. Even with that ordering the outcome depends on React
 // scheduling, so it's repeated.
-//
-// See https://github.com/vercel/next.js/pull/99829 for the fix.
 const ITERATIONS = 10
 const PREFETCH_DELAY_MS = 500
 
 // There's no prefetching in dev, and Cache Components uses per-segment
-// prefetches instead of the loading-boundary prefetch, so the race only exists
-// in production without Cache Components.
+// prefetches instead of the loading-boundary prefetch, so this ordering only
+// exists in production without Cache Components.
 // @force-gate !dev
 // @force-gate !cacheComponents
-describe('router autoscroll - loading.js during in-flight prefetch', () => {
+describe('router autoscroll - loading.js during an in-flight prefetch', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
