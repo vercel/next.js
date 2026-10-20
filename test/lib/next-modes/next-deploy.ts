@@ -44,22 +44,23 @@ function hasAllBuildLogMarkers(output: string): boolean {
 const VERCEL_CLI_OWN_LINE =
   /^(?:Vercel CLI \d|Fetching deployment |status\s|>\s|Error:|WARN!|Warning:)/
 
+function stripAnsi(output: string): string {
+  // eslint-disable-next-line no-control-regex -- strip ANSI escape codes
+  return output.replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+}
+
 /**
  * Whether `vercel inspect --logs` output contains any build-log lines, rather
  * than only the CLI's own header and status lines (which it prints even when
  * the log query returns nothing).
  */
 function hasBuildLogLines(output: string): boolean {
-  return (
-    output
-      // eslint-disable-next-line no-control-regex -- strip ANSI escape codes
-      .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
-      .split('\n')
-      .some((line) => {
-        const trimmed = line.trim()
-        return trimmed !== '' && !VERCEL_CLI_OWN_LINE.test(trimmed)
-      })
-  )
+  return stripAnsi(output)
+    .split('\n')
+    .some((line) => {
+      const trimmed = line.trim()
+      return trimmed !== '' && !VERCEL_CLI_OWN_LINE.test(trimmed)
+    })
 }
 
 /**
@@ -71,6 +72,38 @@ function getSetupHookTimeoutMs(): number {
   const parsed = Number.parseInt(process.env.NEXT_E2E_TEST_TIMEOUT ?? '', 10)
   if (!Number.isNaN(parsed)) return parsed
   return (process.platform === 'win32' ? 240 : 120) * 1000
+}
+
+// `vercel deploy` retries for network errors that happen before the CLI
+// reports a deployment, e.g. `Error: fetch failed` while uploading.
+const DEPLOY_RETRY_DELAYS_MS = [5_000, 10_000]
+const DEPLOY_RETRY_MIN_REMAINING_MS = 60_000
+// An `Error:` line the CLI prints for a failed request.
+const TRANSIENT_NETWORK_ERROR_LINE =
+  /^Error: .*(?:fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ECONNREFUSED|UND_ERR_SOCKET|UND_ERR_CONNECT_TIMEOUT|socket hang up)/m
+// Diagnostics that mean a retry can't help, even next to a network error.
+const NON_RETRYABLE_DEPLOY_ERROR =
+  /\b(?:Unauthorized|Forbidden|Not authorized|invalid token|Build failed)\b|Command ".*" exited/i
+// The `Inspect`/`Preview`/`Production` lines the CLI prints once a deployment
+// exists.
+const DEPLOYMENT_URL_LINE = /^\s*(?:Inspect|Preview|Production)\s+https?:\/\//m
+
+function isTransientPreUrlDeployFailure(result: {
+  exitCode: number
+  stdout: string
+  stderr: string
+}): boolean {
+  if (result.exitCode === 0) return false
+  try {
+    new URL(result.stdout.trim())
+    return false
+  } catch {}
+  const output = stripAnsi(`${result.stdout}\n${result.stderr}`)
+  return (
+    !DEPLOYMENT_URL_LINE.test(output) &&
+    !NON_RETRYABLE_DEPLOY_ERROR.test(output) &&
+    TRANSIENT_NETWORK_ERROR_LINE.test(output)
+  )
 }
 
 export class NextDeployInstance extends NextInstance {
@@ -641,41 +674,53 @@ export class NextDeployInstance extends NextInstance {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
     }
 
-    const deployment = execa(
-      'vercel',
-      [
-        'deploy',
-        '--build-env',
-        'NEXT_PRIVATE_TEST_MODE=e2e',
-        '--build-env',
-        'NEXT_TELEMETRY_DISABLED=1',
-        '--build-env',
-        'VERCEL_NEXT_BUNDLED_SERVER=1',
-        // See: https://pnpm.io/npmrc#environment-variables-in-auth-settings
-        ...(this._npmrcAuthFile
-          ? [
-              '--build-env',
-              `PNPM_CONFIG_NPMRC_AUTH_FILE=${this._npmrcAuthFile}`,
-            ]
-          : []),
-        ...additionalEnv.flatMap((pair) => [
-          '--env',
-          pair,
-          '--build-env',
-          pair,
-        ]),
-        '--force',
-        ...vercelFlags,
-      ],
-      {
+    const deployArgs = [
+      'deploy',
+      '--build-env',
+      'NEXT_PRIVATE_TEST_MODE=e2e',
+      '--build-env',
+      'NEXT_TELEMETRY_DISABLED=1',
+      '--build-env',
+      'VERCEL_NEXT_BUNDLED_SERVER=1',
+      // See: https://pnpm.io/npmrc#environment-variables-in-auth-settings
+      ...(this._npmrcAuthFile
+        ? ['--build-env', `PNPM_CONFIG_NPMRC_AUTH_FILE=${this._npmrcAuthFile}`]
+        : []),
+      ...additionalEnv.flatMap((pair) => ['--env', pair, '--build-env', pair]),
+      '--force',
+      ...vercelFlags,
+    ]
+    const deployDeadline =
+      deployStartedAt + getSetupHookTimeoutMs() - SETUP_HOOK_MARGIN_MS
+    let deployRes: execa.ExecaReturnValue
+    for (let attempt = 1; ; attempt++) {
+      const deployment = execa('vercel', deployArgs, {
         cwd: this.testDir,
         env: vercelEnv,
         reject: false,
+      })
+      // Keep showing deployment progress while also retaining failure output.
+      deployment.stderr?.pipe(process.stderr)
+      deployRes = await deployment
+
+      // Retry only network errors from before the CLI reported a deployment,
+      // and only while enough of the setup budget remains to build it.
+      const retryDelayMs = DEPLOY_RETRY_DELAYS_MS[attempt - 1]
+      if (
+        retryDelayMs === undefined ||
+        !isTransientPreUrlDeployFailure(deployRes) ||
+        deployDeadline - Date.now() - retryDelayMs <
+          DEPLOY_RETRY_MIN_REMAINING_MS
+      ) {
+        break
       }
-    )
-    // Keep showing deployment progress while also retaining failure output.
-    deployment.stderr?.pipe(process.stderr)
-    const deployRes = await deployment
+      // The request may have reached Vercel before the connection dropped, so
+      // a retry can leave an orphaned preview deployment behind.
+      require('console').log(
+        `vercel deploy failed with a transient network error before reporting a deployment (attempt ${attempt}/${DEPLOY_RETRY_DELAYS_MS.length + 1}); retrying in ${retryDelayMs}ms. A deployment may have been created anyway.\n${deployRes.stdout}${deployRes.stderr}`
+      )
+      await setTimeout(retryDelayMs)
+    }
 
     if (deployRes.exitCode !== 0) {
       await this.throwDeploymentError(
