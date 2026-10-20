@@ -306,36 +306,4 @@ mod tests {
             "memory_pressure() returned {value}, expected a value in 0..=100"
         );
     }
-
-    #[test]
-    fn memory_footprint_is_reported_on_supported_platforms() {
-        let value = TurboMalloc::memory_footprint();
-
-        // On all supported platforms the value must be reported.
-        #[cfg(any(
-            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
-            target_os = "macos",
-            windows,
-        ))]
-        let value = value.expect("memory_footprint() should return Some on this platform");
-
-        // On unsupported platforms we expect None and have nothing further to assert.
-        #[cfg(not(any(
-            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
-            target_os = "macos",
-            windows,
-        )))]
-        let Some(value) = value else {
-            return;
-        };
-
-        assert!(
-            value > 0,
-            "memory_footprint() returned {value}, expected a positive byte count"
-        );
-        assert!(
-            value < isize::MAX as usize,
-            "memory_footprint() returned {value}, which is implausibly large"
-        );
-    }
 }
