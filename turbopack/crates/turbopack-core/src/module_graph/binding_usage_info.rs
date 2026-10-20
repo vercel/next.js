@@ -294,14 +294,19 @@ pub async fn compute_binding_usage_info(
                         } else {
                             false
                         };
-                        let passthrough_usage = used_exports
-                            .get(&parent)
-                            .context("parent module must have usage info")?
-                            .clone();
-                        let usage_changed = used_exports
-                            .entry(target)
-                            .or_default()
-                            .add_usage_info(&passthrough_usage);
+                        let usage_changed = if parent == target {
+                            // Merging the usage of a module into itself never changes it (and
+                            // `get_disjoint_mut` would panic on the duplicate key).
+                            false
+                        } else {
+                            used_exports.entry(target).or_default();
+                            let [Some(parent_usage), Some(target_usage)] =
+                                used_exports.get_disjoint_mut([&parent, &target])
+                            else {
+                                bail!("parent module must have usage info");
+                            };
+                            target_usage.add_usage_info(parent_usage)
+                        };
                         namespace_changed || usage_changed
                     }
                     export_usage => {
