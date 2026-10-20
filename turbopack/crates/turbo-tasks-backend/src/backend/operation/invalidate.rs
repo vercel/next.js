@@ -25,7 +25,7 @@ pub fn invalidate(
     let mut queue = AggregationUpdateQueue::new();
     // The tasks to schedule are collected and handed to the scheduler as one batch, which takes
     // the scheduler's queue lock once instead of once per task.
-    let mut to_schedule = Vec::with_capacity(task_ids.len());
+    let mut to_schedule: SmallVec<[_; 4]> = SmallVec::with_capacity(task_ids.len());
     for task_id in task_ids {
         let Some(mut task) = ctx.try_task(task_id, TaskDataCategory::All) else {
             // The task no longer exists, nothing to invalidate.

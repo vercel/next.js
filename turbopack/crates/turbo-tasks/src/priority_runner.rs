@@ -173,9 +173,11 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
     /// Queues all `items`, like calling [`Queue::push`] for each of them, but takes the heap mutex
     /// at most once for the whole batch and grows the heap with a single `reserve`. Each
     /// still-queued item that one of the pushes replaced is passed to `on_replaced`.
+    ///
+    /// `items` must report its exact length, which is used to size the heap allocation.
     fn push_many(
         &self,
-        items: impl IntoIterator<Item = (P, T)>,
+        items: impl IntoIterator<Item = (P, T), IntoIter: ExactSizeIterator>,
         mut on_replaced: impl FnMut(P, T),
     ) {
         let mut items = items.into_iter();
@@ -195,7 +197,8 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
                 let _ = self.lowest.push(key);
             } else {
                 if heap_items.is_empty() {
-                    heap_items.reserve(items.size_hint().0 + 1);
+                    // This item plus at most all remaining ones go to the heap.
+                    heap_items.reserve(items.len() + 1);
                 }
                 heap_items.push(HeapItem { priority, key });
             }
@@ -362,11 +365,12 @@ impl<
     ///
     /// Items are handed directly to new workers while there is free worker capacity. All remaining
     /// items are queued in one batch, which takes the heap mutex at most once and grows the heap
-    /// with a single allocation, instead of once per item.
+    /// with a single allocation, instead of once per item. `items` must report its exact length,
+    /// which is used to size that allocation.
     pub fn schedule_many(
         self: &Arc<Self>,
         execute_context: &Arc<C>,
-        items: impl IntoIterator<Item = (T, P)>,
+        items: impl IntoIterator<Item = (T, P), IntoIter: ExactSizeIterator>,
     ) {
         let mut items = items.into_iter().peekable();
         // Spawn workers directly while there is capacity, with the same slot reservation as
@@ -409,7 +413,7 @@ impl<
 
     /// Queues all `items` in one batch and hands the queued tasks they replaced to
     /// [`Executor::discard`].
-    fn queue_many(&self, execute_context: &Arc<C>, items: impl Iterator<Item = (T, P)>) {
+    fn queue_many(&self, execute_context: &Arc<C>, items: impl ExactSizeIterator<Item = (T, P)>) {
         self.queue.push_many(
             items.map(|(task, priority)| (priority, task)),
             |priority, task| self.executor.discard(execute_context, task, priority),
