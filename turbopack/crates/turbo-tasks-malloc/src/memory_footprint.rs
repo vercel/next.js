@@ -9,7 +9,7 @@ pub fn memory_footprint() -> Option<usize> {
     platform::memory_footprint()
 }
 
-#[cfg(all(target_os = "linux", not(target_family = "wasm")))]
+#[cfg(all(target_os = "linux", not(target_family = "wasm"), not(miri)))]
 mod platform {
     use std::sync::LazyLock;
 
@@ -121,7 +121,7 @@ mod platform {
 }
 
 #[cfg(not(any(
-    all(target_os = "linux", not(target_family = "wasm")),
+    all(target_os = "linux", not(target_family = "wasm"), not(miri)),
     target_os = "macos",
     windows,
 )))]

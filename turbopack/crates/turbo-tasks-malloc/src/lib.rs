@@ -313,7 +313,7 @@ mod tests {
 
         // On all supported platforms the value must be reported.
         #[cfg(any(
-            all(target_os = "linux", not(target_family = "wasm")),
+            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
             target_os = "macos",
             windows,
         ))]
@@ -321,7 +321,7 @@ mod tests {
 
         // On unsupported platforms we expect None and have nothing further to assert.
         #[cfg(not(any(
-            all(target_os = "linux", not(target_family = "wasm")),
+            all(target_os = "linux", not(target_family = "wasm"), not(miri)),
             target_os = "macos",
             windows,
         )))]
