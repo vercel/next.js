@@ -66,6 +66,17 @@ export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
 export type { DomainLocale, NextConfig } from './config-shared'
 
+// In tests, deeply freeze the shared defaults (this also covers
+// `imageConfigDefault`, which `defaultConfig.images` points to). A write to
+// them would leak into every later `loadConfig` in the process, so make it
+// throw instead. `defaultConfig` itself is already shallowly frozen, which
+// makes `deepFreeze` stop at the top level, so freeze what it contains.
+if (process.env.__NEXT_TEST_MODE) {
+  for (const value of Object.values(defaultConfig)) {
+    if (value && typeof value === 'object') deepFreeze(value)
+  }
+}
+
 const REACT_18_DEPRECATION_WARNING =
   'React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version'
 

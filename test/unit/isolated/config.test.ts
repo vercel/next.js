@@ -114,6 +114,15 @@ describe('config', () => {
       ;(config.images as any).path = '/changed'
     }).toThrow(TypeError)
 
+    // The shared defaults are frozen too.
+    const { defaultConfig } = await import('next/dist/server/config-shared')
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+    expect(Object.isFrozen(defaultConfig.experimental)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault.deviceSizes)).toBe(true)
+
     // Class instances are left alone, so a global RegExp keeps working.
     const [loadedIgnore] = (config.logging as any).incomingRequests.ignore
     expect(Object.isFrozen(loadedIgnore)).toBe(false)
