@@ -230,7 +230,7 @@ export async function adapter(
     // leverage the shared instance if not we need
     // to create a fresh cache instance each time
     !(globalThis as any).__incrementalCacheShared &&
-    (params as any).IncrementalCache
+    params.IncrementalCache
   ) {
     ;(globalThis as any).__incrementalCache = new (
       params as {

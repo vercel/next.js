@@ -1036,7 +1036,7 @@ export function createAppPageEntrypoint({
               cachedNavigations:
                 nextConfig.experimental.cachedNavigations ?? false,
               clientTraceMetadata:
-                nextConfig.experimental.clientTraceMetadata || ([] as any),
+                nextConfig.experimental.clientTraceMetadata || [],
               clientParamParsingOrigins:
                 nextConfig.experimental.clientParamParsingOrigins,
               maxPostponedStateSizeBytes: parseMaxPostponedStateSize(

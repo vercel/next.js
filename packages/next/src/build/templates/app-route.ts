@@ -298,7 +298,7 @@ export async function handler(
           ? await routeModule.handle(nextReq, context)
           : await routeModule.prerender(nextReq, context)
 
-      ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
+      ;(req as any).fetchMetrics = context.renderOpts.fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
 
       // Attempt using provided waitUntil if available

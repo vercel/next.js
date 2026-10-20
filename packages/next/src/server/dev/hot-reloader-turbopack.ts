@@ -1411,7 +1411,7 @@ export async function createHotReloaderTurbopack(
                       page: name,
                       bundlePath: `app${name}`,
                       filename: '',
-                    } as any,
+                    },
                   }
                   break
                 }

@@ -777,7 +777,7 @@ export async function initialize(opts: {
 
           // normalize non-allowed status codes
           if (!validErrorStatus) {
-            ;(err as any).statusCode = 400
+            err.statusCode = 400
           }
 
           if (typeof err.statusCode === 'number') {
