@@ -78,10 +78,7 @@ import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
 import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
 import { stripInternalQueries } from '../internal-utils'
 import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
-import {
-  NEXT_ROUTER_STALE_TIME_HEADER,
-  NEXT_URL,
-} from '../../client/components/app-router-headers'
+import { NEXT_ROUTER_STALE_TIME_HEADER } from '../../client/components/app-router-headers'
 import { AppStage } from '../../client/components/segment-cache/types'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import {
@@ -416,6 +413,7 @@ export type AppRenderContext = {
   query: NextParsedUrlQuery
   isPrefetch: boolean
   isPossibleServerAction: boolean
+  couldBeIntercepted: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
   flightRouterState?: FlightRouterState
@@ -699,14 +697,6 @@ async function generateDynamicRSCPayload(
     }
   }
 
-  // In dev, the Vary header may not reliably reflect whether a route can
-  // be intercepted, because interception routes are compiled on demand.
-  // Default to true so the client doesn't cache a stale Fallback entry.
-  const varyHeader = ctx.res.getHeader('vary')
-  const couldBeIntercepted =
-    !!process.env.__NEXT_DEV_SERVER ||
-    (typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL))
-
   // If we have an action result, then this is a server action response.
   // We can rely on this because `ActionResult` will always be a promise, even if
   // the result is falsey.
@@ -714,7 +704,7 @@ async function generateDynamicRSCPayload(
     const actionResponse: ActionFlightResponse = {
       a: options.actionResult,
       q: getRenderedSearch(query),
-      i: !!couldBeIntercepted,
+      i: ctx.couldBeIntercepted,
     }
     if (transportData !== undefined) {
       actionResponse.t = transportData
@@ -726,7 +716,7 @@ async function generateDynamicRSCPayload(
   const baseResponse: DynamicNavigationFlightResponse =
     maybeAppendBuildIdToRSCPayload(ctx, {
       q: getRenderedSearch(query),
-      i: !!couldBeIntercepted,
+      i: ctx.couldBeIntercepted,
       // Tells the client whether this route supports per-segment prefetching.
       // With Cache Components, all routes support it. Without it, only fully
       // static pages do, because their per-segment prefetch responses are
@@ -2133,17 +2123,6 @@ async function getRSCPayload(
     hintTree: hints,
   })
 
-  // When the `vary` response header is present with `Next-URL`, that means there's a chance
-  // it could respond differently if there's an interception route. We provide this information
-  // to `AppRouter` so that it can properly seed the prefetch cache with a prefix, if needed.
-  // In dev, the Vary header may not reliably reflect whether a route can
-  // be intercepted, because interception routes are compiled on demand.
-  // Default to true so the client doesn't cache a stale Fallback entry.
-  const varyHeader = ctx.res.getHeader('vary')
-  const couldBeIntercepted =
-    !!process.env.__NEXT_DEV_SERVER ||
-    (typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL))
-
   const initialHead = createElement(
     Fragment,
     {
@@ -2185,7 +2164,9 @@ async function getRSCPayload(
     }),
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
-    i: !!couldBeIntercepted,
+    // Tell AppRouter whether the response can differ for an interception route,
+    // so it can seed the prefetch cache with a prefix if needed.
+    i: ctx.couldBeIntercepted,
     t: {
       t: initialTree,
       h: {
@@ -2757,6 +2738,11 @@ async function prepareAppPageRender(
     query,
     isPrefetch: isPrefetchRequest,
     isPossibleServerAction: serverActionRequestMetadata.isPossibleServerAction,
+    // In dev, interception routes are compiled on demand, so route matching may
+    // not reliably reflect whether a route can be intercepted yet.
+    // Default to true so the client doesn't cache a stale Fallback entry.
+    couldBeIntercepted:
+      !!process.env.__NEXT_DEV_SERVER || routeMatch.couldBeIntercepted,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
@@ -8673,6 +8659,7 @@ async function validateInstantConfigInBuildWithSample(
       query: sampleQuery,
       isPrefetch: false,
       isPossibleServerAction: false,
+      couldBeIntercepted: outerCtx.couldBeIntercepted,
       requestTimestamp: outerCtx.requestTimestamp,
       appUsingSizeAdjustment: outerCtx.appUsingSizeAdjustment,
       flightRouterState: undefined,
