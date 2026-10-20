@@ -985,8 +985,9 @@ const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
 // Reads every chunk currently buffered so one script covers all of them.
-// Object-mode streams carry React's string writes; the inline data is bytes.
-function readInlineFlightBytes(stream: Readable): Buffer | null {
+// Returns escaped JSON fragments for a batch of text, the raw bytes when any
+// byte run is not valid UTF-8, or null when nothing is buffered.
+function readInlineFlightData(stream: Readable): string[] | Buffer | null {
   const first: string | Uint8Array | null = stream.read()
   if (first === null || !stream.readableObjectMode) {
     return first as Buffer | null
@@ -996,11 +997,38 @@ function readInlineFlightBytes(stream: Readable): Buffer | null {
   while (stream.readableLength > 0) {
     chunks.push(stream.read())
   }
-  return Buffer.concat(
-    chunks.map((chunk) =>
-      typeof chunk === 'string' ? Buffer.from(chunk) : chunk
-    )
-  )
+
+  // JSON and HTML escaping act per code unit, so escaping each well-formed
+  // fragment on its own equals escaping their concatenation.
+  const fragments: string[] = []
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i]
+    let text: string
+    if (typeof chunk === 'string') {
+      text = chunk
+    } else {
+      const start = i
+      while (i + 1 < chunks.length && typeof chunks[i + 1] !== 'string') {
+        i++
+      }
+      const bytes =
+        start === i
+          ? Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+          : Buffer.concat(chunks.slice(start, i + 1) as Uint8Array[])
+      // A multibyte character may span adjacent byte chunks, so validate the
+      // run as a whole.
+      if (!isUtf8(bytes)) {
+        return Buffer.concat(
+          chunks.map((part) =>
+            typeof part === 'string' ? Buffer.from(part) : part
+          )
+        )
+      }
+      text = bytes.toString('utf8')
+    }
+    fragments.push(htmlEscapeJsonString(JSON.stringify(text).slice(1, -1)))
+  }
+  return fragments
 }
 
 async function pullFlightData(
@@ -1034,10 +1062,12 @@ async function pullFlightData(
 
   try {
     while (true) {
-      const chunk = readInlineFlightBytes(dataStream)
+      const chunk = readInlineFlightData(dataStream)
       if (chunk !== null) {
         let htmlInlinedData: string
-        if (isUtf8(chunk)) {
+        if (Array.isArray(chunk)) {
+          htmlInlinedData = `[${INLINE_FLIGHT_PAYLOAD_DATA},"${chunk.join('')}"]`
+        } else if (isUtf8(chunk)) {
           const decodedString = chunk.toString('utf-8')
           htmlInlinedData = htmlEscapeJsonString(
             JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, decodedString])
