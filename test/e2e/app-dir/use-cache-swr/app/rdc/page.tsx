@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { getCachedValue, waitForForegroundCacheFill } from './data'
+import { LinkAccordion } from '../../components/link-accordion'
 
 export const prefetch = 'partial'
 
@@ -13,5 +14,12 @@ export default async function Page() {
   // releases it. The final runtime prerender reuses the completed entry from
   // the RDC.
   await waitForForegroundCacheFill(foregroundCacheKey)
-  return <p id="rdc-value">{value}</p>
+  return (
+    <>
+      <p id="rdc-value">{value}</p>
+      <LinkAccordion href="/rdc/return" prefetch={false}>
+        Leave cached page
+      </LinkAccordion>
+    </>
+  )
 }
