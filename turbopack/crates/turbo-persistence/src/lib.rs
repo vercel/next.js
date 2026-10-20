@@ -1,9 +1,9 @@
 #![cfg_attr(target_os = "wasi", feature(wasi_ext))]
 #![feature(core_io_borrowed_buf)]
 #![feature(once_cell_try)]
-// The positional `BorrowedCursor` reads `pread_buf` uses: unix and Windows gate them behind these
-// features, WASI behind `wasi_ext`.
-#![cfg_attr(any(unix, windows), feature(read_buf_at))]
+// The positional `BorrowedCursor` reads `pread_buf` uses: unix gates them behind `read_buf_at`,
+// Windows behind `seek_read_exact_seek_write_all`, WASI behind `wasi_ext`.
+#![cfg_attr(unix, feature(read_buf_at))]
 #![cfg_attr(windows, feature(seek_read_exact_seek_write_all))]
 #![feature(sync_unsafe_cell)]
 // Miri compiles a reduced test subset, leaving helpers from disabled tests intentionally unused.
