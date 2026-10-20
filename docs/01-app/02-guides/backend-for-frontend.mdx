@@ -183,74 +183,87 @@ Sanitize any input used to generate markup.
 
 When serving user-uploaded or private files (such as PDFs, images, or media) from a Route Handler, avoid buffering the entire file into memory using `fs.readFile()` or `Buffer`. Instead, stream the file using [`Readable.toWeb()`](https://nodejs.org/api/stream.html#streamreadabletowebstreamreadable-options) to convert a Node.js read stream into a Web [`ReadableStream`](https://developer.mozilla.org/docs/Web/API/ReadableStream).
 
-Streaming sends the file to the client in chunks as it is read from disk, keeping server memory usage low regardless of file size:
+Streaming sends the file to the client in chunks as it is read from disk, keeping server memory usage low regardless of file size.
 
-```ts filename="app/api/files/[filename]/route.ts" switcher
+Before streaming a file, check that the current user is allowed to access it. Look the file up by an ID your app generated, such as the one recorded when the file was [uploaded](#file-uploads), rather than reading a path from the URL. Otherwise, anyone who guesses a file name can download it:
+
+```ts filename="app/api/files/[id]/route.ts" switcher
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
+import { auth } from '@/lib/auth'
+import { getUpload } from '@/lib/uploads'
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ filename: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { filename } = await params
-
-  // Sanitize the filename to prevent directory traversal
-  const safeFilename = path.basename(filename)
-  const filePath = path.join(process.cwd(), 'uploads', safeFilename)
-
-  try {
-    const stats = await stat(filePath)
-    const data = Readable.toWeb(createReadStream(filePath)) as ReadableStream
-
-    return new Response(data, {
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': stats.size.toString(),
-        'Content-Disposition': `attachment; filename="${safeFilename}"`,
-      },
-    })
-  } catch {
-    return new Response('File not found', { status: 404 })
+  const session = await auth()
+  if (!session?.user) {
+    return new Response('Unauthorized', { status: 401 })
   }
+
+  const { id } = await params
+  const upload = await getUpload(id)
+  // Respond with 404 for files the user can't access, so their existence isn't revealed
+  if (!upload || upload.ownerId !== session.user.id) {
+    return new Response('Not found', { status: 404 })
+  }
+
+  const filePath = path.join(process.cwd(), 'uploads', upload.id)
+  const stats = await stat(filePath)
+  const data = Readable.toWeb(createReadStream(filePath)) as ReadableStream
+
+  return new Response(data, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': stats.size.toString(),
+      'Content-Disposition': 'attachment',
+    },
+  })
 }
 ```
 
-```js filename="app/api/files/[filename]/route.js" switcher
+```js filename="app/api/files/[id]/route.js" switcher
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
+import { auth } from '@/lib/auth'
+import { getUpload } from '@/lib/uploads'
 
 export async function GET(request, { params }) {
-  const { filename } = await params
-
-  // Sanitize the filename to prevent directory traversal
-  const safeFilename = path.basename(filename)
-  const filePath = path.join(process.cwd(), 'uploads', safeFilename)
-
-  try {
-    const stats = await stat(filePath)
-    const data = Readable.toWeb(createReadStream(filePath))
-
-    return new Response(data, {
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': stats.size.toString(),
-        'Content-Disposition': `attachment; filename="${safeFilename}"`,
-      },
-    })
-  } catch {
-    return new Response('File not found', { status: 404 })
+  const session = await auth()
+  if (!session?.user) {
+    return new Response('Unauthorized', { status: 401 })
   }
+
+  const { id } = await params
+  const upload = await getUpload(id)
+  // Respond with 404 for files the user can't access, so their existence isn't revealed
+  if (!upload || upload.ownerId !== session.user.id) {
+    return new Response('Not found', { status: 404 })
+  }
+
+  const filePath = path.join(process.cwd(), 'uploads', upload.id)
+  const stats = await stat(filePath)
+  const data = Readable.toWeb(createReadStream(filePath))
+
+  return new Response(data, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': stats.size.toString(),
+      'Content-Disposition': 'attachment',
+    },
+  })
 }
 ```
 
 > **Good to know**:
 >
-> - Always validate or sanitize dynamic route parameters using `path.basename` to avoid directory traversal vulnerabilities.
+> - `auth` and `getUpload` stand in for your authentication library and your database. Adapt the ownership check to your own access rules, such as shared or team files.
+> - Building the file path from the stored ID, never from the request, also prevents directory traversal.
 > - Setting the `Content-Length` header allows clients to track download progress.
 > - This example sets `Content-Disposition: attachment`, so the browser downloads the file. To display a file such as an image in the browser instead, set `Content-Type` to the file's actual type and omit `Content-Disposition`.
 > - For files kept in object storage, pass the storage provider's readable stream directly to `new Response(stream)`, or redirect to a short-lived signed download URL.
@@ -502,8 +515,15 @@ A Server Action used as a form `action` receives the form's [`FormData`](https:/
 
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { auth } from '@/lib/auth'
+import { createUpload } from '@/lib/uploads'
 
 export async function uploadAvatar(formData: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const file = formData.get('avatar')
   if (!(file instanceof File) || file.size === 0) {
     throw new Error('No file selected')
@@ -513,11 +533,11 @@ export async function uploadAvatar(formData: FormData) {
   await mkdir(dir, { recursive: true })
 
   // Generate the name on the server instead of trusting `file.name`
-  const filename = crypto.randomUUID()
-  await writeFile(
-    path.join(dir, filename),
-    Buffer.from(await file.arrayBuffer())
-  )
+  const id = crypto.randomUUID()
+  await writeFile(path.join(dir, id), Buffer.from(await file.arrayBuffer()))
+
+  // Record who owns the file, so it can be checked before serving it
+  await createUpload({ id, ownerId: session.user.id })
 }
 ```
 
@@ -526,8 +546,15 @@ export async function uploadAvatar(formData: FormData) {
 
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { auth } from '@/lib/auth'
+import { createUpload } from '@/lib/uploads'
 
 export async function uploadAvatar(formData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
   const file = formData.get('avatar')
   if (!(file instanceof File) || file.size === 0) {
     throw new Error('No file selected')
@@ -537,11 +564,11 @@ export async function uploadAvatar(formData) {
   await mkdir(dir, { recursive: true })
 
   // Generate the name on the server instead of trusting `file.name`
-  const filename = crypto.randomUUID()
-  await writeFile(
-    path.join(dir, filename),
-    Buffer.from(await file.arrayBuffer())
-  )
+  const id = crypto.randomUUID()
+  await writeFile(path.join(dir, id), Buffer.from(await file.arrayBuffer()))
+
+  // Record who owns the file, so it can be checked before serving it
+  await createUpload({ id, ownerId: session.user.id })
 }
 ```
 
@@ -587,8 +614,15 @@ import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream } from 'node:stream/web'
+import { auth } from '@/lib/auth'
+import { createUpload } from '@/lib/uploads'
 
 export async function POST(request: Request) {
+  const session = await auth()
+  if (!session?.user) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   if (!request.body) {
     return Response.json({ error: 'Missing file' }, { status: 400 })
   }
@@ -596,8 +630,8 @@ export async function POST(request: Request) {
   const dir = path.join(process.cwd(), 'uploads')
   await mkdir(dir, { recursive: true })
 
-  const filename = crypto.randomUUID()
-  const filePath = path.join(dir, filename)
+  const id = crypto.randomUUID()
+  const filePath = path.join(dir, id)
   try {
     await pipeline(
       Readable.fromWeb(request.body as ReadableStream),
@@ -609,7 +643,10 @@ export async function POST(request: Request) {
     throw error
   }
 
-  return Response.json({ filename })
+  // Record who owns the file, so it can be checked before serving it
+  await createUpload({ id, ownerId: session.user.id })
+
+  return Response.json({ id })
 }
 ```
 
@@ -619,8 +656,15 @@ import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { auth } from '@/lib/auth'
+import { createUpload } from '@/lib/uploads'
 
 export async function POST(request) {
+  const session = await auth()
+  if (!session?.user) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   if (!request.body) {
     return Response.json({ error: 'Missing file' }, { status: 400 })
   }
@@ -628,8 +672,8 @@ export async function POST(request) {
   const dir = path.join(process.cwd(), 'uploads')
   await mkdir(dir, { recursive: true })
 
-  const filename = crypto.randomUUID()
-  const filePath = path.join(dir, filename)
+  const id = crypto.randomUUID()
+  const filePath = path.join(dir, id)
   try {
     await pipeline(Readable.fromWeb(request.body), createWriteStream(filePath))
   } catch (error) {
@@ -638,7 +682,10 @@ export async function POST(request) {
     throw error
   }
 
-  return Response.json({ filename })
+  // Record who owns the file, so it can be checked before serving it
+  await createUpload({ id, ownerId: session.user.id })
+
+  return Response.json({ id })
 }
 ```
 
@@ -659,8 +706,8 @@ export function UploadButton() {
       console.error('Upload failed with status', response.status)
       return
     }
-    const { filename } = await response.json()
-    console.log('Uploaded as', filename)
+    const { id } = await response.json()
+    console.log('Uploaded with id', id)
   }
 
   return <input type="file" onChange={handleChange} />
@@ -684,8 +731,8 @@ export function UploadButton() {
       console.error('Upload failed with status', response.status)
       return
     }
-    const { filename } = await response.json()
-    console.log('Uploaded as', filename)
+    const { id } = await response.json()
+    console.log('Uploaded with id', id)
   }
 
   return <input type="file" onChange={handleChange} />
