@@ -16,6 +16,63 @@ import {
   mergeSettingsIntoYaml,
 } from '../pnpm-security-settings'
 
+// Build-log polling bounds. See `fetchBuildLogsUntilComplete`.
+const BUILD_LOGS_INITIAL_RETRY_DELAY_MS = 2_000
+const BUILD_LOGS_MAX_RETRY_DELAY_MS = 10_000
+const BUILD_LOGS_INSPECT_TIMEOUT_MS = 30_000
+const BUILD_LOGS_MAX_POLL_MS = 180_000
+// Headroom left before the setup hook's jest timeout so the harness can fail
+// with its own diagnostic instead of an opaque hook timeout.
+const SETUP_HOOK_MARGIN_MS = 20_000
+
+const BUILD_LOG_MARKERS = [
+  'BUILD_ID',
+  'DEPLOYMENT_ID',
+  'NEXT_SUPPORTS_IMMUTABLE_ASSETS',
+] as const
+
+function hasBuildLogMarker(output: string, marker: string): boolean {
+  // Match `parseIdsFromCliOutput`, which rejects a blank value.
+  return !!output.match(new RegExp(`${marker}: (.+)`))?.[1]?.trim()
+}
+
+function hasAllBuildLogMarkers(output: string): boolean {
+  return BUILD_LOG_MARKERS.every((marker) => hasBuildLogMarker(output, marker))
+}
+
+// Lines `vercel inspect --logs` prints itself, as opposed to build-log lines.
+const VERCEL_CLI_OWN_LINE =
+  /^(?:Vercel CLI \d|Fetching deployment |status\s|>\s|Error:|WARN!|Warning:)/
+
+/**
+ * Whether `vercel inspect --logs` output contains any build-log lines, rather
+ * than only the CLI's own header and status lines (which it prints even when
+ * the log query returns nothing).
+ */
+function hasBuildLogLines(output: string): boolean {
+  return (
+    output
+      // eslint-disable-next-line no-control-regex -- strip ANSI escape codes
+      .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+      .split('\n')
+      .some((line) => {
+        const trimmed = line.trim()
+        return trimmed !== '' && !VERCEL_CLI_OWN_LINE.test(trimmed)
+      })
+  )
+}
+
+/**
+ * The jest timeout of the setup hook that runs `createNext`/`start()`, mirroring
+ * `setupTimeout` in `test/lib/e2e-utils/index.ts` (which imports this module,
+ * so it can't be imported from there).
+ */
+function getSetupHookTimeoutMs(): number {
+  const parsed = Number.parseInt(process.env.NEXT_E2E_TEST_TIMEOUT ?? '', 10)
+  if (!Number.isNaN(parsed)) return parsed
+  return (process.platform === 'win32' ? 240 : 120) * 1000
+}
+
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
   private _buildId: string
@@ -244,49 +301,82 @@ export class NextDeployInstance extends NextInstance {
   private async fetchBuildLogsUntilComplete(
     url: string,
     vercelEnv: NodeJS.ProcessEnv,
-    vercelFlags: string[]
+    vercelFlags: string[],
+    deployStartedAt: number
   ): Promise<string> {
     // The fixture's `post-build` script prints the BUILD_ID, DEPLOYMENT_ID and
-    // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers (in that order) as the final lines
-    // of the build (see `base.ts`). A deployment can report `Ready` before that
-    // tail has propagated to the log query API, so `vercel inspect --logs` can
-    // return a truncated prefix that stops before the markers. Gate on the
-    // last-printed marker so a partial read can't slip into the parser, and
-    // re-query until it appears.
-    const maxAttempts = 20
-    const retryDelayMs = 3000
-    let output = ''
+    // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers as the final lines of the build
+    // (see `base.ts`). A deployment can report `Ready` before those lines are
+    // available to `vercel inspect --logs`, which then returns a truncated
+    // transcript, or only its own header and status lines, and a single call
+    // can hang. Re-query with backoff and a per-call timeout until all markers
+    // appear, within a deadline that leaves headroom before the setup hook's
+    // jest timeout. The first attempt always runs.
+    const pollStartedAt = Date.now()
+    const deadline = Math.min(
+      deployStartedAt + getSetupHookTimeoutMs() - SETUP_HOOK_MARGIN_MS,
+      pollStartedAt + BUILD_LOGS_MAX_POLL_MS
+    )
+    let retryDelayMs = BUILD_LOGS_INITIAL_RETRY_DELAY_MS
+    // The most recent transcript that contained build-log lines. A later
+    // attempt that times out or comes back empty must not discard it.
+    let transcript = ''
+    let lastOutput = ''
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const buildLogs = await execa(
-        'vercel',
-        ['inspect', '--logs', url, ...vercelFlags],
-        {
-          env: vercelEnv,
-          reject: false,
-        }
-      )
-      if (buildLogs.exitCode !== 0) {
-        throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
-      }
-      // Build logs are piped to stderr, so combine both streams.
-      output = buildLogs.stdout + buildLogs.stderr
+    for (let attempt = 1; ; attempt++) {
+      const remainingMs = deadline - Date.now()
+      const timeout =
+        remainingMs > 0
+          ? Math.min(BUILD_LOGS_INSPECT_TIMEOUT_MS, remainingMs)
+          : BUILD_LOGS_INSPECT_TIMEOUT_MS
 
-      if (/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/.test(output)) {
-        return output
-      }
-
-      if (attempt < maxAttempts) {
-        require('console').log(
-          `Build log markers not yet propagated for ${url} (attempt ${attempt}/${maxAttempts}); the build log tail likely hasn't propagated yet. Retrying in ${retryDelayMs}ms...`
+      let failure: string | undefined
+      try {
+        const buildLogs = await execa(
+          'vercel',
+          ['inspect', '--logs', url, ...vercelFlags],
+          { env: vercelEnv, reject: false, timeout }
         )
-        await setTimeout(retryDelayMs)
+        // Build logs are piped to stderr, so combine both streams.
+        lastOutput = buildLogs.stdout + buildLogs.stderr
+        if (buildLogs.timedOut) {
+          failure = `timed out after ${timeout}ms`
+        } else if (buildLogs.exitCode !== 0) {
+          failure = `exited with ${buildLogs.exitCode}: ${buildLogs.stderr}`
+        }
+      } catch (error) {
+        lastOutput = ''
+        failure = `failed: ${error}`
+      }
+
+      if (failure === undefined && hasAllBuildLogMarkers(lastOutput)) {
+        require('console').log(
+          `Found build log markers for ${url} on attempt ${attempt} after ${Date.now() - pollStartedAt}ms`
+        )
+        return lastOutput
+      }
+      if (hasBuildLogLines(lastOutput)) {
+        transcript = lastOutput
+      }
+
+      // Only start another attempt if it can begin before the deadline.
+      if (Date.now() + retryDelayMs >= deadline) {
+        break
+      }
+      require('console').log(
+        `Build log markers not yet available for ${url} (attempt ${attempt}${failure ? `, vercel inspect ${failure}` : ''}). Retrying in ${retryDelayMs}ms...`
+      )
+      await setTimeout(retryDelayMs)
+      retryDelayMs = Math.min(retryDelayMs * 2, BUILD_LOGS_MAX_RETRY_DELAY_MS)
+      // The wait can overshoot; never start a retry after the deadline.
+      if (Date.now() >= deadline) {
+        break
       }
     }
 
-    // The markers never appeared within the retry window; return the last
-    // output so `parseIdsFromCliOutput` throws a descriptive error including it.
-    return output
+    // The markers never appeared within the deadline; return the best
+    // transcript so `parseIdsFromCliOutput` throws a descriptive error with it.
+    return transcript || lastOutput
   }
 
   public async setup(parentSpan: Span) {
@@ -328,6 +418,7 @@ export class NextDeployInstance extends NextInstance {
   }
 
   private async deploy() {
+    const deployStartedAt = Date.now()
     const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
     const customDeployScriptPath =
       process.env.NEXT_TEST_DEPLOY_SCRIPT_PATH?.trim()
@@ -602,14 +693,14 @@ export class NextDeployInstance extends NextInstance {
 
     // Fetch the build logs to extract the build/deployment id markers that the
     // fixture's `post-build` script prints. The deployment can report `Ready`
-    // (and `vercel deploy` can return) before its full build-log tail has
-    // propagated to the log query API, so re-query until the markers appear
-    // rather than failing on the first incomplete read. TODO: Combine with
-    // runtime logs (via `vercel logs`)
+    // (and `vercel deploy` can return) before its build logs are available, so
+    // re-query until the markers appear rather than failing on the first
+    // incomplete read. TODO: Combine with runtime logs (via `vercel logs`)
     this._cliOutput = await this.fetchBuildLogsUntilComplete(
       this._url,
       vercelEnv,
-      vercelFlags
+      vercelFlags,
+      deployStartedAt
     )
 
     this.parseIdsFromCliOutput()

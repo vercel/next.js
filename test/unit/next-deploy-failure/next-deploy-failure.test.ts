@@ -3,6 +3,21 @@ import { trace } from 'next/dist/trace'
 
 jest.mock('execa', () => jest.fn())
 
+// A fake clock for the deploy harness's polling: when installed, `Date.now()`
+// reads it and every `setTimeout` from `timers/promises` advances it instead
+// of waiting.
+let mockClock: { now: number; waits: number[]; oversleepMs?: number } | null =
+  null
+jest.mock('timers/promises', () => ({
+  ...jest.requireActual('timers/promises'),
+  setTimeout: jest.fn(async (ms: number) => {
+    if (mockClock) {
+      mockClock.waits.push(ms)
+      mockClock.now += ms + (mockClock.oversleepMs ?? 0)
+    }
+  }),
+}))
+
 // Initialize the real harness in deploy mode, without running a deployment.
 const originalMode = process.env.NEXT_TEST_MODE
 process.env.NEXT_TEST_MODE = 'deploy'
@@ -21,14 +36,29 @@ const diagnostic =
   'Invalid revalidate value "1" on "/", must be a non-negative number or false'
 const ids =
   'BUILD_ID: build-id\nDEPLOYMENT_ID: deployment-id\nNEXT_SUPPORTS_IMMUTABLE_ASSETS: 1'
-type Result = { exitCode: number; stdout: string; stderr: string }
+const cliHeader = `Vercel CLI 63.1.2 (Node.js 20.9.0)\nFetching deployment "fixture.vercel.app" in team\nstatus\t● Ready\n`
+type Result = {
+  exitCode: number | undefined
+  stdout: string
+  stderr: string
+  timedOut?: boolean
+}
+type InspectCall = { at: number | undefined; timeout: number | undefined }
 
 describe('deployment lifecycle', () => {
   let deployResult: Result
   let logs: Result
   let customLogs: Result
+  // Results for successive `vercel inspect` calls; `logs` once exhausted.
+  let inspectResults: Array<Result | Error | ((call: InspectCall) => Result)>
+  let inspectCalls: InspectCall[]
+  let deployDurationMs: number
 
   beforeEach(() => {
+    mockClock = null
+    deployDurationMs = 0
+    inspectResults = []
+    inspectCalls = []
     jest.replaceProperty(process, 'env', {
       ...process.env,
       NEXT_TEST_MODE: 'deploy',
@@ -85,11 +115,31 @@ describe('deployment lifecycle', () => {
               result = { exitCode: 0, stdout: '', stderr: '' }
               break
             case 'deploy':
+              if (mockClock) mockClock.now += deployDurationMs
               result = deployResult
               break
-            case 'inspect':
-              result = logs
+            case 'inspect': {
+              const [, , options] = jest
+                .mocked(execa)
+                .mock.calls.at(-1) as unknown as [
+                string,
+                string[],
+                execa.Options | undefined,
+              ]
+              const call: InspectCall = {
+                at: mockClock?.now,
+                timeout: options?.timeout,
+              }
+              inspectCalls.push(call)
+              const next = inspectResults.shift() ?? logs
+              if (next instanceof Error) {
+                return Promise.reject(next) as unknown as ReturnType<
+                  typeof execa
+                >
+              }
+              result = typeof next === 'function' ? next(call) : next
               break
+            }
             default:
               throw new Error('Unexpected Vercel command')
           }
@@ -102,7 +152,28 @@ describe('deployment lifecycle', () => {
 
   afterEach(() => {
     jest.restoreAllMocks()
+    mockClock = null
   })
+
+  // Starts the fake clock. `vercel deploy` takes `deployMs` on it.
+  function installClock(deployMs = 0) {
+    const clock: NonNullable<typeof mockClock> = {
+      now: 1_000_000,
+      waits: [],
+    }
+    mockClock = clock
+    deployDurationMs = deployMs
+    jest.spyOn(Date, 'now').mockImplementation(() => clock.now)
+    return clock
+  }
+
+  // A `vercel inspect` call that hangs until its execa timeout kills it.
+  function hungInspect(clock: { now: number }) {
+    return (call: InspectCall): Result => {
+      clock.now += call.timeout ?? 0
+      return { exitCode: undefined, stdout: '', stderr: '', timedOut: true }
+    }
+  }
 
   async function instance() {
     const next = new NextDeployInstance({ files: __dirname })
@@ -328,5 +399,155 @@ describe('deployment lifecycle', () => {
     await expect(next.start()).rejects.toThrow('Failed to deploy project')
     await next.destroy()
     expect(execa).toHaveBeenCalledWith('mock-cleanup', [], expect.anything())
+  })
+
+  describe('polling build logs for the ID markers', () => {
+    const ok = (stderr: string): Result => ({ exitCode: 0, stdout: '', stderr })
+    const buildOutput = 'Running "pnpm build"\nCompiled successfully\n'
+
+    beforeEach(() => {
+      // Pin the setup budget, whose default depends on the platform.
+      process.env.NEXT_E2E_TEST_TIMEOUT = '120000'
+      successfulDeployment()
+    })
+
+    it('fetches the logs once when the markers are already there', async () => {
+      installClock()
+      const next = await instance()
+      await next.start()
+      expect(inspectCalls).toHaveLength(1)
+      expect(require('console').log).toHaveBeenCalledWith(
+        `Found build log markers for ${deploymentUrl} on attempt 1 after 0ms`
+      )
+    })
+
+    it('keeps polling with backoff until every marker is present', async () => {
+      const clock = installClock()
+      inspectResults = [
+        ok(cliHeader),
+        // Only a prefix of the markers has arrived.
+        ok(`${cliHeader}BUILD_ID: build-id\nDEPLOYMENT_ID: deployment-id\n`),
+      ]
+      const next = await instance()
+      await next.start()
+      expect(next.buildId).toBe('build-id')
+      expect(inspectCalls).toHaveLength(3)
+      expect(clock.waits).toEqual([2_000, 4_000])
+      expect(require('console').log).toHaveBeenCalledWith(
+        `Found build log markers for ${deploymentUrl} on attempt 3 after 6000ms`
+      )
+    })
+
+    it('retries an inspect call that hangs or fails', async () => {
+      const clock = installClock()
+      inspectResults = [
+        hungInspect(clock),
+        { exitCode: 1, stdout: '', stderr: 'Error: Internal server error' },
+      ]
+      const next = await instance()
+      await next.start()
+      expect(next.buildId).toBe('build-id')
+      expect(inspectCalls).toHaveLength(3)
+      for (const call of inspectCalls) {
+        expect(call.timeout).toBeGreaterThan(0)
+        expect(call.timeout).toBeLessThanOrEqual(30_000)
+      }
+    })
+
+    it('stops at a deadline that leaves headroom before the setup hook timeout', async () => {
+      process.env.NEXT_E2E_TEST_TIMEOUT = '60000'
+      const clock = installClock(10_000)
+      const deployStartedAt = clock.now
+      // The deadline is 60s - 20s of headroom after the deploy started.
+      const deadline = deployStartedAt + 40_000
+      logs = ok(cliHeader)
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow(
+        'Failed to get buildId from logs'
+      )
+      expect(clock.waits).toEqual([2_000, 4_000, 8_000, 10_000])
+      expect(inspectCalls.map((call) => call.at! - deployStartedAt)).toEqual([
+        10_000, 12_000, 16_000, 24_000, 34_000,
+      ])
+      for (const call of inspectCalls) {
+        expect(call.at! + call.timeout!).toBeLessThanOrEqual(deadline)
+      }
+      expect(clock.now).toBeLessThanOrEqual(deadline)
+    })
+
+    it('does not start a retry after the deadline when a wait overshoots', async () => {
+      process.env.NEXT_E2E_TEST_TIMEOUT = '60000'
+      const clock = installClock()
+      const deadline = clock.now + 40_000
+      clock.oversleepMs = 30_000
+      logs = ok(cliHeader)
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow(
+        'Failed to get buildId from logs'
+      )
+      expect(inspectCalls).toHaveLength(2)
+      for (const call of inspectCalls) {
+        expect(call.at!).toBeLessThan(deadline)
+      }
+    })
+
+    it('retries a rejected inspect call without losing earlier logs', async () => {
+      process.env.NEXT_E2E_TEST_TIMEOUT = '60000'
+      installClock()
+      inspectResults = [
+        ok(`${cliHeader}${buildOutput}`),
+        ...Array.from({ length: 10 }, () => new Error('spawn vercel EAGAIN')),
+      ]
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow('Compiled successfully')
+      expect(inspectCalls.length).toBeGreaterThan(2)
+    })
+
+    it('recovers from a rejected inspect call', async () => {
+      installClock()
+      inspectResults = [new Error('spawn vercel EAGAIN')]
+      const next = await instance()
+      await next.start()
+      expect(next.buildId).toBe('build-id')
+      expect(inspectCalls).toHaveLength(2)
+    })
+
+    it('keeps polling while a marker has a blank value', async () => {
+      installClock()
+      inspectResults = [
+        ok(
+          `${cliHeader}BUILD_ID:  \nDEPLOYMENT_ID: deployment-id\nNEXT_SUPPORTS_IMMUTABLE_ASSETS: 1\n`
+        ),
+      ]
+      const next = await instance()
+      await next.start()
+      expect(next.buildId).toBe('build-id')
+      expect(inspectCalls).toHaveLength(2)
+    })
+
+    it('makes one attempt when the deadline passed during the deploy', async () => {
+      installClock(200_000)
+      logs = ok(cliHeader)
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow(
+        'Failed to get buildId from logs'
+      )
+      expect(inspectCalls).toEqual([
+        expect.objectContaining({ timeout: 30_000 }),
+      ])
+    })
+
+    it('keeps an earlier transcript when a later attempt times out', async () => {
+      process.env.NEXT_E2E_TEST_TIMEOUT = '60000'
+      const clock = installClock()
+      inspectResults = [
+        ok(`${cliHeader}${buildOutput}`),
+        ...Array.from({ length: 10 }, () => hungInspect(clock)),
+      ]
+      const next = await instance()
+      await expect(next.start()).rejects.toThrow('Compiled successfully')
+      expect(inspectCalls.length).toBeGreaterThan(1)
+      expect(next.cliOutput).toContain('Compiled successfully')
+    })
   })
 })
