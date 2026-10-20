@@ -1499,7 +1499,7 @@ function assignDefaultsAndValidate(
     // default profile, and multiple next() instances in the same process must
     // not observe each other's config through the shared objects.
     const cacheLifeProfiles: NonNullable<NextConfig['cacheLife']> = {
-      ...cloneObject(defaultConfig.cacheLife),
+      ...structuredClone(defaultConfig.cacheLife),
       ...userCacheLifeProfiles,
     }
     result.cacheLife = cacheLifeProfiles
