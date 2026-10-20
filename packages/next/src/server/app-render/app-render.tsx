@@ -39,7 +39,7 @@ import type {
   DevRenderContext,
   RouteMatch,
 } from '../route-modules/app-page/module'
-import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { BaseNextResponse } from '../base-http'
 import * as ReactClient from 'react'
 
 import RenderResult, {
@@ -133,7 +133,7 @@ import {
   getMissingPrefetchHintPolicy,
   type MissingPrefetchHintPolicy,
 } from './create-transport-tree-from-loader-tree'
-import { handleAction } from './action-handler'
+import type { AppPageActionHandler } from './action-handler'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { getReactBrowserBailoutReason } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
 import { warn, error } from '../../build/output/log'
@@ -2840,15 +2840,11 @@ async function prerenderAppPage({
 }
 
 async function renderAppPage(
-  req: BaseNextRequest,
+  handleAction: AppPageActionHandler | null,
+  isFetchAction: boolean,
   requestHeaders: IncomingHttpHeaders,
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  {
-    ctx,
-    metadata,
-    loaderTree,
-    serverActionRequestMetadata,
-  }: PreparedAppPageRender,
+  { ctx, metadata, loaderTree }: PreparedAppPageRender,
   postponedState: PostponedState | null,
   dev: DevRenderContext | undefined,
   stagedFallbackParams: OpaqueFallbackRouteParams | null
@@ -2890,7 +2886,7 @@ async function renderAppPage(
 
   // MPA form submissions need a complete document with the submitted form
   // state. Their new render can still reuse the extracted RDC.
-  if (isPossibleActionRequest && !serverActionRequestMetadata.isFetchAction) {
+  if (isPossibleActionRequest && !isFetchAction) {
     postponedState = null
   }
 
@@ -2986,12 +2982,9 @@ async function renderAppPage(
 
   let didExecuteServerAction = false
   let formState: null | any = null
-  if (isPossibleActionRequest) {
+  if (handleAction !== null) {
     // For action requests, we handle them differently with a special render result.
     const actionRequestResult = await handleAction({
-      req,
-      serverActionRequestMetadata,
-      res,
       ComponentMod,
       generateFlight: generateDynamicFlightRenderResult,
       workStore,
@@ -3140,7 +3133,7 @@ async function renderAppPage(
 }
 
 async function renderToHTMLOrFlightImpl(
-  req: BaseNextRequest,
+  handleAction: AppPageActionHandler | null,
   res: BaseNextResponse,
   requestUrl: string,
   requestHeaders: IncomingHttpHeaders,
@@ -3194,7 +3187,8 @@ async function renderToHTMLOrFlightImpl(
     devResponseLifecycle
   )
   return renderAppPage(
-    req,
+    handleAction,
+    serverActionRequestMetadata.isFetchAction,
     requestHeaders,
     onUpdateCookies,
     prepared,
@@ -3256,7 +3250,7 @@ async function prerenderToHTMLOrFlightImpl(
 }
 
 export type AppPageRender = (
-  req: BaseNextRequest,
+  handleAction: AppPageActionHandler | null,
   res: BaseNextResponse,
   requestUrl: string,
   requestHeaders: IncomingHttpHeaders,
@@ -3361,7 +3355,7 @@ function prepareAppPage(
 }
 
 export const renderToHTMLOrFlight: AppPageRender = (
-  req,
+  handleAction,
   res,
   requestUrl,
   requestHeaders,
@@ -3401,7 +3395,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   return workAsyncStorage.run(
     workStore,
     renderToHTMLOrFlightImpl,
-    req,
+    handleAction,
     res,
     requestUrl,
     requestHeaders,
