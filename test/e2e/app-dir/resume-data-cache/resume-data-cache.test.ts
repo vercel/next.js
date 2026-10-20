@@ -364,7 +364,7 @@ function getUniqueRegexMatches(text: string, pattern: RegExp) {
   for (const match of text.matchAll(
     new RegExp(pattern.source, pattern.flags + 'g')
   )) {
-    // `matchAll` returns a match array for each occurence.
+    // `matchAll` returns a match array for each occurrence.
     // We don't care about groups, so just take the whole match.
     uniqueMatches.add(match[0])
   }
