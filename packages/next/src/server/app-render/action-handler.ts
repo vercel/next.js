@@ -613,6 +613,14 @@ function getRevalidationWaitUntil(
   return revalidatesPromise === false ? undefined : revalidatesPromise
 }
 
+/** Action execution bound to its HTTP transport by the route adapter. */
+export type AppPageActionHandler = (
+  input: Omit<
+    Parameters<typeof handleAction>[0],
+    'req' | 'res' | 'serverActionRequestMetadata'
+  >
+) => ReturnType<typeof handleAction>
+
 export async function handleAction({
   req,
   serverActionRequestMetadata,
