@@ -1,4 +1,6 @@
 import '../../server/web/globals'
+import * as React from 'react'
+import { registerClientReact } from '../../server/runtime-reacts.external'
 import {
   adapter,
   type EdgeHandler,
@@ -48,6 +50,8 @@ declare const incrementalCacheHandler: any
 // INJECT_RAW:cacheHandlerImports
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
+
+registerClientReact(React)
 
 const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
 const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)

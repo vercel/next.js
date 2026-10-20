@@ -86,6 +86,7 @@ import {
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 import { createUnrenderedSegmentError } from '../../shared/lib/instant-messages'
 import { getReactBrowserBailoutReason } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
+import { getClientReact, getServerReact } from '../runtime-reacts.external'
 
 export type DynamicAccess = {
   /**
@@ -1249,11 +1250,10 @@ function addErrorContext(
 ) {
   let ownerStack: string | null = null
   if (process.env.NODE_ENV !== 'production') {
-    // Required lazily so production builds don't include React. This module
-    // is reachable from proxy.ts via `connection()` in `next/server`, and
-    // importing React there pulls in the whole app-page runtime.
-    const React = require('react') as typeof import('react')
-    ownerStack = React.captureOwnerStack ? React.captureOwnerStack() : null
+    ownerStack =
+      getClientReact()?.captureOwnerStack?.() ??
+      getServerReact()?.captureOwnerStack?.() ??
+      null
   }
 
   if (createInstantStack !== null) {

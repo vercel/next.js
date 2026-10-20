@@ -53,7 +53,7 @@ import {
   type AppIsrManifestMessage,
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
-import { NEXT_PATCH_SYMBOL } from './patch-fetch'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch-symbol'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'

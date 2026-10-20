@@ -84,6 +84,12 @@ import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
+import * as React from 'react'
+import { registerServerReact } from '../runtime-reacts.external'
+
+if (process.env.NEXT_RUNTIME === 'edge') {
+  registerServerReact(React)
+}
 
 let SegmentViewNode: typeof import('../../next-devtools/userspace/app/segment-explorer-node').SegmentViewNode =
   () => null
