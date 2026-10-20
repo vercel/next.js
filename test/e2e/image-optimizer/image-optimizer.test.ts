@@ -1,4 +1,5 @@
 import { join } from 'path'
+import { rename, writeFile } from 'fs/promises'
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { cleanImagesDir, expectWidth, fsToJson } from './util'
@@ -280,6 +281,103 @@ describe('Image Optimizer', () => {
       const res = await next.fetch(`/_next/image/?${toQueryString(query)}`)
       expect(res.status).toBe(200)
     })
+  })
+  describe('local image source updates', () => {
+    const { next } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      nextConfig: {
+        images: { localPatterns: [{ pathname: '/**' }] },
+      },
+    })
+
+    it.each([
+      { filename: 'test.png', search: '', restart: false },
+      { filename: 'äöüščří.png', search: '?v=1', restart: false },
+      { filename: 'test.png', search: '?restart=true', restart: true },
+    ])(
+      'should refresh $filename$search only in dev (restart: $restart)',
+      async ({ filename, search, restart }) => {
+        const imagePath = join(next.testDir, 'public', filename)
+        const original = await next.readFileBuffer(`public/${filename}`)
+        const replacement = await next.readFileBuffer('public/test.jpg')
+        const url = `/_next/image?${toQueryString({
+          url: `/${encodeURIComponent(filename)}${search}`,
+          w: 64,
+          q: 75,
+        })}`
+        const opts = { headers: { accept: 'image/webp' } }
+        const first = await next.fetch(url, opts)
+        if (first.status !== 200) {
+          throw new Error(`Image request failed: ${await first.text()}`)
+        }
+        const originalEtag = first.headers.get('etag')
+        expect(originalEtag).toBeTruthy()
+        const originalOutput = Buffer.from(await first.arrayBuffer())
+        // Replace the inode instead of modifying potentially hard-linked files.
+        const replaceImage = async (contents: Buffer) => {
+          const temporaryPath = `${imagePath}.tmp`
+          await writeFile(temporaryPath, contents)
+          await rename(temporaryPath, imagePath)
+        }
+        let stopped = false
+
+        try {
+          if (restart) {
+            await next.stop()
+            stopped = true
+          }
+          await replaceImage(replacement)
+          if (restart) {
+            await next.start()
+            stopped = false
+          }
+
+          // Explicit cache mode prevents undici from adding no-cache to the
+          // conditional request, which would mask an incorrect cached 304.
+          const updated = await next.fetch(url, {
+            headers: {
+              ...opts.headers,
+              'if-none-match': originalEtag,
+            },
+            cache: 'force-cache',
+          })
+          let currentOutput = originalOutput
+          if (isNextDev) {
+            expect(updated.status).toBe(200)
+            expect(updated.headers.get('etag')).not.toBe(originalEtag)
+            currentOutput = Buffer.from(await updated.arrayBuffer())
+            expect(currentOutput).not.toEqual(originalOutput)
+            expect(updated.headers.get('cache-control')).toBe(
+              'public, max-age=0, must-revalidate'
+            )
+          } else {
+            // Production keeps the fresh optimized entry until its TTL expires.
+            expect(updated.status).toBe(304)
+            expect(updated.headers.get('etag')).toBe(originalEtag)
+          }
+
+          const unchanged = await next.fetch(url, opts)
+          expect(unchanged.status).toBe(200)
+          expect(unchanged.headers.get('etag')).toBe(
+            updated.headers.get('etag')
+          )
+          expect(Buffer.from(await unchanged.arrayBuffer())).toEqual(
+            currentOutput
+          )
+          const conditional = await next.fetch(url, {
+            headers: {
+              ...opts.headers,
+              'if-none-match': unchanged.headers.get('etag'),
+            },
+            cache: 'force-cache',
+          })
+          expect(conditional.status).toBe(304)
+        } finally {
+          await replaceImage(original)
+          if (stopped) await next.start()
+        }
+      }
+    )
   })
   ;(isNextStart ? describe : describe.skip)(
     'Server support for headers in next.config.js',

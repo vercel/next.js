@@ -802,6 +802,8 @@ If you need to change the caching behavior per image, you can configure [`header
 
 There is no mechanism to invalidate the cache at this time, so its best to keep `minimumCacheTTL` low. Otherwise you may need to manually change the [`src`](#src) prop or delete the cached file `<distDir>/cache/images`.
 
+In development, local image sources are checked on each request, so replacing a local image does not require changing its `src` or deleting the cache.
+
 #### `disableStaticImages`
 
 `disableStaticImages` allows you to disable static image imports.

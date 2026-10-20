@@ -980,6 +980,10 @@ export default class NextNodeServer extends BaseServer<
             routeKind: RouteKind.IMAGE,
             incrementalCache: imageOptimizerCache,
             isFallback: false,
+            // Local image sources can change without their URL changing in dev.
+            // Revalidate before responding, while still reusing optimized output
+            // when the upstream ETag matches the previous cache entry.
+            isOnDemandRevalidate: !!this.dev && !paramsResult.isAbsolute,
           }
         )
 
