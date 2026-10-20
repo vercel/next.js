@@ -23,7 +23,7 @@ import { deobfuscateText } from '../../shared/lib/magic-identifier'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
 import { proxyRequest } from './router-utils/proxy-request'
-import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
+import { isAbortError, streamToNodeResponse } from '../pipe-readable'
 import { getResolveRoutes } from './router-utils/resolve-routes'
 import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
@@ -671,7 +671,7 @@ export async function initialize(opts: {
       // handle middleware body response
       if (bodyStream) {
         res.statusCode = statusCode || 200
-        return await pipeToNodeResponse(bodyStream, res)
+        return await streamToNodeResponse(bodyStream, res)
       }
 
       if (finished && parsedUrl.protocol) {

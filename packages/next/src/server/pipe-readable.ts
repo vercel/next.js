@@ -122,6 +122,97 @@ function createWriterFromResponse(
   })
 }
 
+export async function streamToNodeResponse(
+  readable: ReadableStream<Uint8Array>,
+  res: ServerResponse
+): Promise<void> {
+  if (res.errored || res.destroyed) return
+
+  const reader = readable.getReader()
+  let resolveDrain: (() => void) | null = null
+  let closed = false
+  const waitForDrain = () =>
+    new Promise<void>((resolve) => {
+      resolveDrain = resolve
+    })
+
+  const onDrain = () => {
+    if (resolveDrain) {
+      const resolve = resolveDrain
+      resolveDrain = null
+      resolve()
+    }
+  }
+  res.on('drain', onDrain)
+  res.once('close', () => {
+    closed = true
+    res.off('drain', onDrain)
+    onDrain()
+    if (!res.writableFinished) {
+      reader.cancel().catch(() => {})
+    }
+  })
+
+  // Corking the response can send the chunked terminator before the last chunk.
+  const socket = res.socket
+  let corked = false
+  const uncork = () => {
+    if (!corked) return
+    corked = false
+    socket?.uncork()
+  }
+
+  let started = false
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (closed) return
+
+      if (!started) {
+        started = true
+        getTracer().trace(
+          NextNodeServerSpan.startResponse,
+          { spanName: 'start response' },
+          () => undefined
+        )
+      }
+
+      if (!corked && socket) {
+        corked = true
+        socket.cork()
+        process.nextTick(uncork)
+      }
+
+      const ok = res.write(value)
+      // Flush partial compressed output.
+      if ('flush' in res && typeof res.flush === 'function') {
+        res.flush()
+      }
+      if (!ok && !closed) {
+        await waitForDrain()
+      }
+    }
+  } catch (err) {
+    // Let bytes that were already produced reach the client first.
+    uncork()
+    if (res.writableFinished) return
+    res.destroy(err as Error)
+    if (isAbortError(err)) return
+    throw new Error('failed to pipe response', { cause: err })
+  }
+
+  if (closed || res.writableFinished) return
+
+  // `compression` wraps `res.end(chunk, encoding)`, so don't pass a callback.
+  const finished = new Promise<void>((resolve) => {
+    res.once('finish', resolve)
+    res.once('close', resolve)
+  })
+  res.end()
+  await finished
+}
+
 export async function pipeToNodeResponse(
   readable: ReadableStream<Uint8Array>,
   res: ServerResponse,

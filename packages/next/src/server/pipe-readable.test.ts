@@ -11,7 +11,10 @@ import { PassThrough, Readable } from 'node:stream'
 import { promisify } from 'node:util'
 import setupCompression from 'next/dist/compiled/compression'
 
-import { pipeNodeReadableToNodeResponse } from './pipe-readable'
+import {
+  pipeNodeReadableToNodeResponse,
+  streamToNodeResponse,
+} from './pipe-readable'
 import { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 const gunzip = promisify(zlib.gunzip)
@@ -68,7 +71,9 @@ function trackGzipDrainRegistrations(): {
   return state
 }
 
-function createServer() {
+function createServer(
+  pipe: (readable: Readable, res: http.ServerResponse) => Promise<void>
+) {
   const compress = setupCompression()
 
   return http.createServer((req, res) => {
@@ -85,7 +90,7 @@ function createServer() {
       })()
     )
 
-    void pipeNodeReadableToNodeResponse(readable, res)
+    void pipe(readable, res)
   })
 }
 
@@ -124,7 +129,20 @@ async function readSlowly(url: string) {
   })
 }
 
-describe('pipeNodeReadableToNodeResponse', () => {
+describe.each([
+  {
+    name: 'pipeNodeReadableToNodeResponse',
+    pipe: pipeNodeReadableToNodeResponse,
+  },
+  {
+    name: 'streamToNodeResponse',
+    pipe: (readable: Readable, res: http.ServerResponse) =>
+      streamToNodeResponse(
+        Readable.toWeb(readable) as ReadableStream<Uint8Array>,
+        res
+      ),
+  },
+])('$name', ({ pipe }) => {
   let tracker: ReturnType<typeof trackGzipDrainRegistrations>
   let server: http.Server | undefined
   let warnings: string[]
@@ -151,7 +169,7 @@ describe('pipeNodeReadableToNodeResponse', () => {
   })
 
   it('reuses one gzip drain listener across many backpressured writes', async () => {
-    server = createServer()
+    server = createServer(pipe)
     const url = await listen(server)
 
     const { encoding, body } = await readSlowly(url)
