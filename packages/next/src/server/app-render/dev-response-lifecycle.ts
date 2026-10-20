@@ -1,7 +1,7 @@
-import type { BaseNextResponse } from '../../base-http'
-import { isNodeNextResponse } from '../../base-http/helpers'
-import { waitForResponseToFinish } from '../../app-render/wait-for-response'
-import { signalFromNodeResponse } from '../../web/spec-extension/adapters/next-request'
+import type { BaseNextResponse } from '../base-http'
+import { isNodeNextResponse } from '../base-http/helpers'
+import { waitForResponseToFinish } from './wait-for-response'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 
 /** Live response observations used only by development rendering. */
 export type DevResponseLifecycle = {

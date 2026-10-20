@@ -206,7 +206,7 @@ import {
   ClientComponentLoadTracker,
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
-import type { DevResponseLifecycle } from '../route-modules/app-page/dev-response-lifecycle'
+import type { DevResponseLifecycle } from './dev-response-lifecycle'
 import {
   beginDevValidation,
   type DevValidationGeneration,

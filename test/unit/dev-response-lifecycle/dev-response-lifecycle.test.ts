@@ -3,7 +3,7 @@ import { NodeNextResponse } from 'next/dist/server/base-http/node'
 import { WebNextResponse } from 'next/dist/server/base-http/web'
 import { SYMBOL_CLEARED_COOKIES } from 'next/dist/server/api-utils'
 import { MockedResponse } from 'next/dist/server/lib/mock-request'
-import { createDevResponseLifecycle } from 'next/dist/server/route-modules/app-page/dev-response-lifecycle'
+import { createDevResponseLifecycle } from 'next/dist/server/app-render/dev-response-lifecycle'
 
 describe('development response lifecycle', () => {
   it('does not observe the response or install listeners when constructed', () => {
