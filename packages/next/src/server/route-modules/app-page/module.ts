@@ -38,7 +38,7 @@ import { isInterceptionRouteAppPath } from '../../../shared/lib/router/utils/int
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
-import type { IncomingMessage } from 'http'
+import type { IncomingHttpHeaders, IncomingMessage } from 'http'
 import {
   applyAppPageRscRequestMetaFromHeaders,
   normalizeAppPageRequestUrl,
@@ -93,6 +93,8 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   // Exact path-relative URL (pathname plus search) after route preparation,
   // preserving its encoded bytes for rendering and prerender request IDs.
   requestUrl: string
+  // Shared headers after request preparation; retain their live identity.
+  requestHeaders: IncomingHttpHeaders
   page: string
   routeMatch: RouteMatch
   query: NextParsedUrlQuery
@@ -191,6 +193,7 @@ export class AppPageRouteModule extends RouteModule<
       req,
       res,
       context.requestUrl,
+      context.requestHeaders,
       context.page,
       context.query,
       context.fallbackRouteParams,
