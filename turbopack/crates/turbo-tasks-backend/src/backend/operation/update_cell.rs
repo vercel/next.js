@@ -239,6 +239,9 @@ fn invalidate_cell_dependents(
 ) {
     let mut queue = AggregationUpdateQueue::new();
     while let Some((dependent_task_id, keys)) = dependent_tasks.pop() {
+        // Each key is a separate dependency; they are only grouped per task to reduce task
+        // locking. The task is made dirty if any key is still a (current or outdated) dependency.
+        let mut make_dirty = false;
         let mut make_stale = false;
         let mut dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
         for key in keys.iter().copied() {
@@ -260,14 +263,17 @@ fn invalidate_cell_dependents(
                 // But importantly we still need to make the task dirty as it should
                 // no longer be considered as
                 // "recomputation".
-            } else if !in_current {
-                // cell dependency has been removed, so the task doesn't depend on
-                // the cell anymore and doesn't need
-                // to be invalidated
-                continue;
-            } else {
+                make_dirty = true;
+            } else if in_current {
+                // cell dependency has been read, so the task needs to be made stale
+                // (which implies dirty).
                 make_stale = true;
             }
+            // Otherwise the cell dependency has been removed, so the task doesn't depend
+            // on this key anymore and it doesn't contribute to the invalidation.
+        }
+        if !make_dirty && !make_stale {
+            continue;
         }
         make_task_dirty_internal(
             &mut dependent,
@@ -304,4 +310,159 @@ fn invalidate_cell_dependents(
     }
 
     queue.execute(ctx);
+}
+
+#[cfg(test)]
+mod invalidate_cell_dependents_tests {
+    //! `invalidate_cell_dependents` must only dirty a dependent when at least one of its
+    //! dependency keys is still current or outdated. Dependencies that were removed between
+    //! reading `cell_dependents` and locking the dependent must not dirty it.
+    use std::sync::Arc;
+
+    use smallvec::{SmallVec, smallvec};
+    use turbo_tasks::{CellId, FxIndexMap, TaskId, TurboTasks, ValueTypeId, event::Event};
+
+    use super::invalidate_cell_dependents;
+    use crate::{
+        TurboTasksBackend,
+        backend::{
+            BackendOptions, StorageMode, TaskDataCategory, operation::ExecuteContext,
+            storage_schema::TaskStorageAccessors,
+        },
+        data::{CellRef, InProgressState, InProgressStateInner},
+        noop_backing_storage,
+    };
+
+    const CELL_TASK: u32 = 1;
+    const DEPENDENT: u32 = 2;
+
+    fn task(id: u32) -> TaskId {
+        TaskId::new(id).unwrap()
+    }
+
+    fn cell_ref() -> CellRef {
+        CellRef {
+            task: task(CELL_TASK),
+            // SAFETY: the id is only used as an opaque key; the registry is never consulted
+            // because no new content is written.
+            cell: CellId::new(unsafe { ValueTypeId::new_unchecked(1) }, 0),
+        }
+    }
+
+    fn backend() -> Arc<TurboTasks<TurboTasksBackend>> {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(StorageMode::ReadOnly),
+                num_workers: Some(1),
+                small_preallocation: true,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ));
+        for id in [CELL_TASK, DEPENDENT] {
+            tt.backend()
+                .storage
+                .access_mut(task(id))
+                .flags
+                .set_restored(TaskDataCategory::All);
+        }
+        tt
+    }
+
+    /// Dependency state of the dependent task before the invalidation.
+    #[derive(Default)]
+    struct Setup {
+        current_keys: Vec<u64>,
+        outdated_keys: Vec<u64>,
+        current_unkeyed: bool,
+    }
+
+    /// Marks the dependent as in progress (so it is never scheduled for real), applies `setup`,
+    /// invalidates the cell for `keys` and returns `(dirty, stale)` of the dependent.
+    fn run(setup: Setup, keys: SmallVec<[Option<u64>; 2]>) -> (bool, bool) {
+        let tt = backend();
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        {
+            let mut dependent = ctx.task(task(DEPENDENT), TaskDataCategory::All);
+            dependent.set_in_progress(InProgressState::InProgress(Box::new(
+                InProgressStateInner {
+                    stale: false,
+                    once_task: false,
+                    done_event: Event::new(|| || "test done_event".to_string()),
+                    marked_as_completed: false,
+                    new_children: Default::default(),
+                },
+            )));
+            for k in setup.current_keys {
+                let _ = dependent.add_cell_dependencies_hashed((cell_ref(), k));
+            }
+            for k in setup.outdated_keys {
+                let _ = dependent.add_outdated_cell_dependencies_hashed((cell_ref(), k));
+            }
+            if setup.current_unkeyed {
+                let _ = dependent.add_cell_dependencies(cell_ref());
+            }
+        }
+
+        let mut dependent_tasks = FxIndexMap::default();
+        dependent_tasks.insert(task(DEPENDENT), keys);
+        invalidate_cell_dependents(
+            cell_ref(),
+            dependent_tasks,
+            #[cfg(feature = "task_dirty_cause")]
+            true,
+            None,
+            &mut ctx,
+        );
+
+        let dependent = ctx.task(task(DEPENDENT), TaskDataCategory::All);
+        let dirty = dependent.get_dirty().is_some();
+        let stale = matches!(
+            dependent.get_in_progress(),
+            Some(InProgressState::InProgress(inner)) if inner.stale
+        );
+        (dirty, stale)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn all_dependencies_removed_does_not_dirty() {
+        // The dependent still tracks a different key, but none of the invalidated ones.
+        let setup = Setup {
+            current_keys: vec![99],
+            ..Default::default()
+        };
+        assert_eq!(run(setup, smallvec![Some(1), Some(2)]), (false, false));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn unkeyed_dependency_removed_does_not_dirty() {
+        assert_eq!(run(Setup::default(), smallvec![None]), (false, false));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn removed_and_current_dependencies_dirty_and_stale() {
+        let setup = Setup {
+            current_keys: vec![2],
+            ..Default::default()
+        };
+        assert_eq!(run(setup, smallvec![Some(1), Some(2)]), (true, true));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn current_unkeyed_dependency_dirty_and_stale() {
+        let setup = Setup {
+            current_unkeyed: true,
+            ..Default::default()
+        };
+        assert_eq!(run(setup, smallvec![None]), (true, true));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn outdated_dependency_dirty_not_stale() {
+        let setup = Setup {
+            outdated_keys: vec![1],
+            ..Default::default()
+        };
+        assert_eq!(run(setup, smallvec![Some(1), Some(2)]), (true, false));
+    }
 }
