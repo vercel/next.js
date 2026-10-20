@@ -180,8 +180,8 @@ impl TurboMalloc {
     /// signal or a query for it failed.
     ///
     /// - On Linux this is the resident set size from `/proc/self/statm`.
-    /// - On macOS this is `task_vm_info_data_t::phys_footprint` (what Apple calls "memory
-    ///   footprint" / Activity Monitor's "Memory" column).
+    /// - On macOS this is `rusage_info_v0::ri_phys_footprint` from `proc_pid_rusage` (what Apple
+    ///   calls "memory footprint" / Activity Monitor's "Memory" column).
     /// - On Windows this is `PROCESS_MEMORY_COUNTERS::WorkingSetSize`.
     /// - On other platforms this returns `None`.
     pub fn memory_footprint() -> Option<usize> {
