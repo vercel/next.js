@@ -1501,7 +1501,7 @@ impl ModuleGraphSnapshot {
         Ok(())
     }
 
-    /// Computes a priority for [`ModuleGraph::traverse_edges_fixed_point_with_priority`] that
+    /// Computes a priority for [`Self::traverse_edges_fixed_point_with_priority`] that
     /// minimizes the number of retraversals, as the *reverse postorder* of a depth-first search
     /// from `entries`.
     ///
