@@ -608,11 +608,19 @@ export function UploadButton() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
-      body: file,
-    })
+    let response: Response
+    try {
+      response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      })
+    } catch (error) {
+      // The request can fail without a response, for example when the server
+      // rejects the upload and closes the connection before the body is sent
+      console.error('Upload failed', error)
+      return
+    }
     if (!response.ok) {
       console.error('Upload failed with status', response.status)
       return
@@ -633,11 +641,19 @@ export function UploadButton() {
     const file = event.target.files?.[0]
     if (!file) return
 
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
-      body: file,
-    })
+    let response
+    try {
+      response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file,
+      })
+    } catch (error) {
+      // The request can fail without a response, for example when the server
+      // rejects the upload and closes the connection before the body is sent
+      console.error('Upload failed', error)
+      return
+    }
     if (!response.ok) {
       console.error('Upload failed with status', response.status)
       return
