@@ -5,12 +5,14 @@
 use anyhow::Result;
 use serde_json::json;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, rope::Rope,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
-use turbopack_analyze::split_chunk::{ChunkPartRange, ChunkParts, split_output_asset_into_parts};
+use turbopack_analyze::split_chunk::{
+    ChunkPartCompressedSizes, ChunkPartRange, ChunkParts, split_output_asset_into_parts,
+};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
@@ -96,7 +98,16 @@ async fn split_chunk() {
             }]
         );
 
-        let compressed_sizes = parts_op.connect().compressed_sizes().await?;
+        #[turbo_tasks::function(operation, root)]
+        fn compressed_sizes_operation(
+            parts: OperationVc<ChunkParts>,
+        ) -> Vc<ChunkPartCompressedSizes> {
+            parts.connect().compressed_sizes()
+        }
+
+        let compressed_sizes = compressed_sizes_operation(parts_op)
+            .read_strongly_consistent()
+            .await?;
         assert_eq!(&**compressed_sizes, &[Some(43), Some(28)]);
 
         anyhow::Ok(())
