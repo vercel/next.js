@@ -2971,19 +2971,21 @@ impl AggregationUpdateQueue {
             if !diffs.is_empty() {
                 let upper_ids = get_uppers(&upper);
                 drop(upper);
-                // Outside of the lock: merge the diffs into a single update for the uppers of
-                // the upper, instead of enqueuing one job per diff.
-                let needs_optimize = diffs.len() > 1;
-                let mut iter = diffs.into_iter();
-                let mut update = iter.next().unwrap();
-                for diff in iter {
-                    update.merge(diff);
-                }
-                if needs_optimize {
-                    update = update.optimize();
-                }
-                if !update.is_empty() && !upper_ids.is_empty() {
-                    self.push(AggregatedDataUpdateJob { upper_ids, update }.into());
+                if !upper_ids.is_empty() {
+                    // Outside of the lock: merge the diffs into a single update for the uppers
+                    // of the upper, instead of enqueuing one job per diff.
+                    let needs_optimize = diffs.len() > 1;
+                    let mut iter = diffs.into_iter();
+                    let mut update = iter.next().unwrap();
+                    for diff in iter {
+                        update.merge(diff);
+                    }
+                    if needs_optimize {
+                        update = update.optimize();
+                    }
+                    if !update.is_empty() {
+                        self.push(AggregatedDataUpdateJob { upper_ids, update }.into());
+                    }
                 }
             }
         }
