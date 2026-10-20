@@ -85,12 +85,12 @@ export interface NextInstanceOpts {
    * read waits for a fresh query and appends newly indexed application logs.
    * Vercel indexing can still lag behind the response: use retry() for positive
    * assertions. An empty query does not prove that no message was logged.
-   * Messages append in arrival order, not guaranteed execution order. String
-   * offsets do not isolate requests, and remote severity only approximates the
-   * original stdout/stderr stream. Reads query the original request window to
-   * recover late messages and make up to three attempts with backoff. Persistent
-   * failures, truncation, and reaching the 1,000-request limit fail the test
-   * instead of silently leaving cliOutput incomplete. No background polling.
+   * Messages append in arrival order, not guaranteed execution order, and
+   * string offsets do not isolate requests. Reads query the original window
+   * with Vercel CLI 64 or later to recover late messages, and make up to three
+   * attempts with backoff. Persistent failures, truncation, gaps in the window,
+   * and reaching the 1,000-entry limit fail the test instead of silently
+   * leaving cliOutput incomplete. No background polling.
    * Has no effect with custom deployment/log scripts, where it logs a warning,
    * or in dev or start mode.
    */

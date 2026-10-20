@@ -46,6 +46,24 @@ type Result = {
 }
 type InspectCall = { at: number | undefined; timeout: number | undefined }
 
+// `vercel logs --json` output for one request: entries newest first, then a
+// summary. Messages are given oldest first.
+function runtimeOutput(...logs: { message: string; level?: string }[]) {
+  return [
+    ...[...logs].reverse().map((data) => ({
+      type: 'log',
+      data: { requestId: 'request-1', ...data },
+    })),
+    {
+      type: 'summary',
+      pagination: { hasMore: false, next: null },
+      excludedIntervals: [],
+    },
+  ]
+    .map((line) => JSON.stringify(line))
+    .join('\n')
+}
+
 describe('deployment lifecycle', () => {
   let deployResult: Result
   let logs: Result
@@ -102,7 +120,7 @@ describe('deployment lifecycle', () => {
     deployResult = { exitCode: 1, stdout: deploymentUrl, stderr: '' }
     logs = { exitCode: 1, stdout: '', stderr: diagnostic }
     customLogs = { ...logs, exitCode: 0 }
-    runtimeLogs = { exitCode: 0, stdout: '', stderr: '' }
+    runtimeLogs = { exitCode: 0, stdout: runtimeOutput(), stderr: '' }
     stopRuntimeLogs = jest.spyOn(DeployRuntimeLogs.prototype, 'stop')
 
     jest
@@ -226,18 +244,15 @@ describe('deployment lifecycle', () => {
     const next = await instance(true)
     await next.start()
     expect(execa.sync).not.toHaveBeenCalled()
-    runtimeLogs.stdout = JSON.stringify({
-      id: 'request-1',
-      logs: [{ message: 'register-log', level: 'info' }],
+    runtimeLogs.stdout = runtimeOutput({
+      message: 'register-log',
+      level: 'info',
     })
     expect(next.cliOutput).toBe(ids + '\nregister-log\n')
-    runtimeLogs.stdout = JSON.stringify({
-      id: 'request-1',
-      logs: [
-        { message: 'register-log', level: 'info' },
-        { message: 'late-log' },
-      ],
-    })
+    runtimeLogs.stdout = runtimeOutput(
+      { message: 'register-log', level: 'info' },
+      { message: 'late-log' }
+    )
     expect(next.cliOutput).toBe(ids + '\nregister-log\nlate-log\n')
     expect(execa.sync).toHaveBeenCalledTimes(2)
     await next.destroy()
@@ -261,10 +276,7 @@ describe('deployment lifecycle', () => {
     await next.start()
     const listener = jest.fn(() => next.cliOutput)
     next.on('stdout', listener)
-    runtimeLogs.stdout = JSON.stringify({
-      id: 'request-1',
-      logs: [{ message: 'message' }],
-    })
+    runtimeLogs.stdout = runtimeOutput({ message: 'message' })
     expect(next.cliOutput).toBe(ids + '\nmessage\n')
     expect(listener.mock.results[0].value).toBe(ids + '\nmessage\n')
     expect(execa.sync).toHaveBeenCalledTimes(1)
@@ -275,10 +287,7 @@ describe('deployment lifecycle', () => {
     successfulDeployment()
     process.env.NEXT_TEST_DEPLOY_URL = deploymentUrl
     const next = await instance(true)
-    runtimeLogs.stdout = JSON.stringify({
-      id: 'request-1',
-      logs: [{ message: 'existing deployment' }],
-    })
+    runtimeLogs.stdout = runtimeOutput({ message: 'existing deployment' })
     await next.start()
     expect(next.cliOutput).toContain('existing deployment')
     await next.destroy()
@@ -287,10 +296,7 @@ describe('deployment lifecycle', () => {
   it('stops the collector even if deployment cleanup fails', async () => {
     successfulDeployment()
     const next = await instance(true)
-    runtimeLogs.stdout = JSON.stringify({
-      id: 'request-1',
-      logs: [{ message: 'ready' }],
-    })
+    runtimeLogs.stdout = runtimeOutput({ message: 'ready' })
     await next.start()
     jest
       .spyOn(NextInstance.prototype, 'destroy')

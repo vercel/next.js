@@ -7,12 +7,46 @@ function queryResult(stdout = '') {
   return { stdout } as unknown as ReturnType<typeof execa.sync>
 }
 
+type Log = {
+  message?: string
+  level?: string
+  stream?: string
+  truncated?: boolean
+  isSystemLog?: boolean
+}
+
 function request(id: string, ...messages: string[]) {
   return {
     id,
-    message: 'HTTP request summary',
-    logs: messages.map((message) => ({ message, level: 'info' })),
+    logs: messages.map((message): Log => ({ message, level: 'info' })),
   }
+}
+
+const summary = {
+  type: 'summary',
+  recordsReturned: 0,
+  pagination: { hasMore: false, next: null },
+  excludedIntervals: [],
+}
+
+// `vercel logs --json` lists entries newest first, then a summary. Requests
+// are given newest first, and each request's logs oldest first.
+function cliOutput(...requests: ReturnType<typeof request>[]) {
+  return [
+    ...requests.flatMap(({ id, logs }) =>
+      [...logs].reverse().map((data) => ({
+        type: 'log',
+        data: { requestId: id, ...data },
+      }))
+    ),
+    summary,
+  ]
+    .map((line) => JSON.stringify(line))
+    .join('\n')
+}
+
+function lines(...records: unknown[]) {
+  return records.map((record) => JSON.stringify(record)).join('\n')
 }
 
 describe('deploy runtime logs', () => {
@@ -30,18 +64,16 @@ describe('deploy runtime logs', () => {
     return collector
   }
 
-  function nextQuery(...records: unknown[]) {
+  function nextQuery(...requests: ReturnType<typeof request>[]) {
     jest
       .mocked(execa.sync)
-      .mockReturnValueOnce(
-        queryResult(records.map((record) => JSON.stringify(record)).join('\n'))
-      )
+      .mockReturnValueOnce(queryResult(cliOutput(...requests)))
     collector.refresh()
   }
 
   beforeEach(() => {
     jest.useFakeTimers()
-    jest.mocked(execa.sync).mockReturnValue(queryResult())
+    jest.mocked(execa.sync).mockReturnValue(queryResult(cliOutput()))
     append = jest.fn()
     warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     wait = jest.spyOn(Atomics, 'wait').mockReturnValue('timed-out')
@@ -65,6 +97,7 @@ describe('deploy runtime logs', () => {
       'vercel',
       [
         'logs',
+        '--deployment',
         'https://fixture.vercel.app',
         '--json',
         '--since',
@@ -83,15 +116,17 @@ describe('deploy runtime logs', () => {
     expect(append).not.toHaveBeenCalled()
   })
 
-  it('collects every application log instead of the request summary', () => {
+  it('collects every application log entry and skips system logs', () => {
     start()
     nextQuery({
       ...request('request-1'),
       logs: [
-        { message: 'Error: route failed', level: 'error' },
+        { message: 'Error: route failed', level: 'error', stream: 'stderr' },
+        { message: 'Function invoked', level: 'info', isSystemLog: true },
         {
           message: '<request-error>hook output</request-error>',
           level: 'info',
+          stream: 'stdout',
         },
       ],
     })
@@ -101,10 +136,51 @@ describe('deploy runtime logs', () => {
     ])
   })
 
-  it('ignores request summaries with no application messages', () => {
+  it('appends nothing for a window without application messages', () => {
     start()
     nextQuery(request('static-asset'))
     expect(append).not.toHaveBeenCalled()
+  })
+
+  it('appends interleaved requests in chronological order', () => {
+    start()
+    jest
+      .mocked(execa.sync)
+      .mockReturnValueOnce(
+        queryResult(
+          lines(
+            { type: 'log', data: { requestId: 'b', message: 'b second' } },
+            { type: 'log', data: { requestId: 'a', message: 'a second' } },
+            { type: 'log', data: { requestId: 'b', message: 'b first' } },
+            { type: 'log', data: { requestId: 'a', message: 'a first' } },
+            summary
+          )
+        )
+      )
+    collector.refresh()
+    expect(append.mock.calls.map(([message]) => message)).toEqual([
+      'a first\n',
+      'b first\n',
+      'a second\n',
+      'b second\n',
+    ])
+  })
+
+  it('deduplicates entries outside a request as one group', () => {
+    start()
+    const output = lines(
+      { type: 'log', data: { requestId: null, message: 'register' } },
+      { type: 'log', data: { message: 'register' } },
+      summary
+    )
+    jest.mocked(execa.sync).mockReturnValueOnce(queryResult(output))
+    collector.refresh()
+    jest.mocked(execa.sync).mockReturnValueOnce(queryResult(output))
+    collector.refresh()
+    expect(append.mock.calls).toEqual([
+      ['register\n', 'stdout'],
+      ['register\n', 'stdout'],
+    ])
   })
 
   it('collects late messages and preserves repeated text within and across requests', () => {
@@ -144,7 +220,7 @@ describe('deploy runtime logs', () => {
   })
 
   it.each(['warning', 'warn', 'error', 'fatal'])(
-    'maps %s severity to stderr',
+    'maps %s severity to stderr when the stream is unknown',
     (level) => {
       start()
       nextQuery({
@@ -155,41 +231,89 @@ describe('deploy runtime logs', () => {
     }
   )
 
-  it.each([
-    'not json',
-    'null',
-    JSON.stringify({ logs: [] }),
-    JSON.stringify({ id: 'request-1', message: 'summary' }),
-    JSON.stringify({ id: 'request-1', logs: [null] }),
-    JSON.stringify({ id: 'request-1', logs: [{ level: 'info' }] }),
-    JSON.stringify({
-      ...request('request-1', 'partial'),
-      messageTruncated: true,
-    }),
-    JSON.stringify({
-      id: 'request-1',
-      logs: [{ message: 'partial', messageTruncated: true }],
-    }),
-  ])('rejects malformed or incomplete query output: %s', (output) => {
-    jest.mocked(execa.sync).mockReturnValueOnce(queryResult(output))
+  it('prefers the reported stream over severity', () => {
     start()
-    expect(() => collector.refresh()).toThrow('complete Vercel runtime logs')
-    expect(append).not.toHaveBeenCalled()
-    expect(() => collector.stop()).toThrow('complete Vercel runtime logs')
+    nextQuery({
+      id: 'request-1',
+      logs: [
+        { message: 'console.error', level: 'info', stream: 'stderr' },
+        { message: 'structured error', level: 'error', stream: 'stdout' },
+      ],
+    })
+    expect(append.mock.calls).toEqual([
+      ['console.error\n', 'stderr'],
+      ['structured error\n', 'stdout'],
+    ])
   })
 
-  it('fails instead of losing requests when the query limit is reached', () => {
+  it.each([
+    ['not json', 'invalid JSON line'],
+    ['null', 'unexpected record type'],
+    [lines({ type: 'request', data: {} }, summary), 'unexpected record type'],
+    [lines({ type: 'log' }, summary), 'invalid log entry'],
+    [
+      lines({ type: 'log', data: { level: 'info' } }, summary),
+      'invalid log entry',
+    ],
+    [
+      lines(
+        { type: 'log', data: { message: 'partial', truncated: true } },
+        summary
+      ),
+      'truncated log entry',
+    ],
+    [
+      lines(
+        { type: 'warning', reason: 'stream_gap', message: 'Results omit …' },
+        summary
+      ),
+      'CLI warning: stream_gap',
+    ],
+    [
+      lines({ ...summary, pagination: { hasMore: true, next: 'cursor' } }),
+      'more than 1000 entries',
+    ],
+    [
+      lines({
+        ...summary,
+        excludedIntervals: [{ start: '2026-10-20T00:00:00Z', end: 'now' }],
+      }),
+      'incomplete time range',
+    ],
+    [
+      lines({ type: 'log', data: { message: 'no summary' } }),
+      'missing summary',
+    ],
+    [
+      lines(summary, { type: 'log', data: { message: 'late' } }),
+      'output after the summary',
+    ],
+  ])('rejects malformed or incomplete query output: %s', (output, reason) => {
+    jest.mocked(execa.sync).mockReturnValueOnce(queryResult(output))
+    start()
+    const failure = `Failed to read complete Vercel runtime logs (${reason})`
+    expect(() => collector.refresh()).toThrow(new Error(failure))
+    expect(append).not.toHaveBeenCalled()
+    expect(() => collector.stop()).toThrow(failure)
+  })
+
+  it('never includes log contents in a failure reason', () => {
     jest
       .mocked(execa.sync)
       .mockReturnValueOnce(
         queryResult(
-          Array.from({ length: 1000 }, (_, i) =>
-            JSON.stringify(request(`${i}`))
-          ).join('\n')
+          lines(
+            { type: 'warning', reason: 'private application data' },
+            summary
+          )
         )
       )
     start()
-    expect(() => collector.refresh()).toThrow('complete Vercel runtime logs')
+    expect(() => collector.refresh()).toThrow(
+      new Error(
+        'Failed to read complete Vercel runtime logs (CLI warning: unknown)'
+      )
+    )
   })
 
   it('reports a throwing consumer without including its private details', () => {
@@ -225,11 +349,11 @@ describe('deploy runtime logs', () => {
       .mockImplementationOnce(() => {
         throw Object.assign(new Error('private CLI details'), {
           exitCode: 1,
-          stdout: JSON.stringify(request('partial', 'must not append')),
+          stdout: cliOutput(request('partial', 'must not append')),
         })
       })
       .mockReturnValueOnce(
-        queryResult(JSON.stringify(request('request-1', 'first', 'late')))
+        queryResult(cliOutput(request('request-1', 'first', 'late')))
       )
     collector.refresh()
     expect(() => collector.assertHealthy()).not.toThrow()
@@ -330,7 +454,7 @@ it('waits for a real one-shot subprocess before returning its messages', () => {
   jest.mocked(execa.sync).mockImplementationOnce(() => {
     return realExeca.sync(process.execPath, [
       '-e',
-      `console.log(${JSON.stringify(JSON.stringify(request('request-1', 'ready')))});
+      `console.log(${JSON.stringify(cliOutput(request('request-1', 'ready')))});
        console.error('CLI diagnostic');`,
     ]) as unknown as ReturnType<typeof execa.sync>
   })
