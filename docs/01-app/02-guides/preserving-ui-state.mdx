@@ -388,7 +388,7 @@ await page.getByLabel('Email').fill('test@example.com')
 await page.locator('.product-card').first().click()
 ```
 
-`getByRole` is robust to Activity, tabbed navigation, accordions, and any other pattern that keeps hidden content in the DOM. It queries the accessibility tree, which excludes hidden elements. Which locators match hidden elements varies between testing tools and their versions, so check your tool's documentation for its locators and test helpers to confirm. For example, Cypress uses `.should('be.visible')` or `{ visible: true }` options.
+`getByRole` is robust to Activity, tabbed navigation, accordions, and any other pattern that keeps hidden content in the DOM. It queries the accessibility tree, which excludes hidden elements. Which locators match hidden elements varies between testing tools and their versions, so check your tool's documentation for its locators and test helpers to confirm.
 
 ## Using Activity in your components
 
