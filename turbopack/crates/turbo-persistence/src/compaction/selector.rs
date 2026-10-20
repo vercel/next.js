@@ -180,10 +180,13 @@ fn components<T: Compactable>(compactables: &[T], shard_bits: ShardBits) -> Vec<
 /// `size_ratio_percent` larger than the files taken so far, but at least the two newest. It always
 /// takes the newest files, so its output can be placed after all files, and the older files it
 /// leaves out stay older than it.
+///
+/// `above_is_all_shard_files` is true when the shard has no bottom run, so `above` holds all of its
+/// files. A merge that takes all of them then writes the shard's bottom run.
 fn intermediate_candidate<T: Compactable>(
     compactables: &[T],
     above: Vec<usize>,
-    may_become_bottom: bool,
+    above_is_all_shard_files: bool,
     config: &CompactConfig,
 ) -> Candidate {
     let priority = above.len() as f32 / config.max_files_above_bottom.max(1) as f32;
@@ -216,7 +219,7 @@ fn intermediate_candidate<T: Compactable>(
             members: above,
             // Merging all files of a shard without a bottom run rewrites as much as a bottom merge,
             // so make the result its bottom run.
-            bottom: may_become_bottom && first == 0,
+            bottom: above_is_all_shard_files && first == 0,
         },
     }
 }
@@ -297,12 +300,18 @@ fn plan_family<T: Compactable>(
             // merges every shard anyway, and then only the quota limits the rewrites.
             let overdue = limit > 0.0
                 && (amplification > 2.0 * limit || above.len() > 2 * config.max_files_above_bottom);
-            bottom_candidates.push((candidate, bottom_bytes + above_bytes, above, overdue));
+            bottom_candidates.push((
+                candidate,
+                bottom_bytes + above_bytes,
+                above,
+                overdue,
+                bottom.is_empty(),
+            ));
         } else if above.len() > config.max_files_above_bottom.max(1) {
             intermediate_candidates.push(intermediate_candidate(
                 compactables,
                 above,
-                bottom.is_empty(),
+                /* above_is_all_shard_files= */ bottom.is_empty(),
                 config,
             ));
         }
@@ -319,7 +328,7 @@ fn plan_family<T: Compactable>(
         u64::MAX
     };
     let mut result = Vec::new();
-    for (candidate, cost, above, overdue) in bottom_candidates {
+    for (candidate, cost, above, overdue, above_is_all_shard_files) in bottom_candidates {
         // The first job always runs, even when the quota is 0, and we keep scheduling jobs while
         // the quota isn't reached, so that we don't pathologically rewrite too little.
         if result.is_empty() || rewrite_target > 0 || overdue {
@@ -327,12 +336,11 @@ fn plan_family<T: Compactable>(
             result.push(candidate);
         } else if above.len() > config.max_files_above_bottom.max(1) {
             // The quota is reached, but an intermediate merge of the same shard is cheap and
-            // still bounds the number of files a lookup consults. It must not become a bottom
-            // merge, which the quota was meant to defer.
+            // still bounds the number of files a lookup consults.
             intermediate_candidates.push(intermediate_candidate(
                 compactables,
                 above,
-                false,
+                above_is_all_shard_files,
                 config,
             ));
         }
