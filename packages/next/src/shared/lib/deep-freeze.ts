@@ -29,39 +29,30 @@ export function deepFreezePlainValues<T extends object>(
   obj: T
 ): DeepReadonlyPlainValues<T>
 export function deepFreezePlainValues(obj: object): object {
-  return freezeRecursively(obj, isPlainObject)
+  return freezeRecursively(obj, isPlainObjectOrArray)
 }
 
 function freezeAnyObject(): boolean {
   return true
 }
 
+function isPlainObjectOrArray(obj: object): boolean {
+  return Array.isArray(obj) || isPlainObject(obj)
+}
+
 /**
- * Freezes `obj` and everything it references. Arrays are always frozen; other
- * objects are frozen only when `shouldFreeze` returns true, otherwise they and
- * everything they reference are left as they are.
+ * Freezes `obj` and everything it references, skipping any object for which
+ * `shouldFreeze` returns false, together with everything it references.
  */
 function freezeRecursively(
   obj: object,
   shouldFreeze: (obj: object) => boolean
 ): object {
   // If the object is already frozen, there's no need to freeze it again.
-  if (Object.isFrozen(obj)) return obj
+  if (Object.isFrozen(obj) || !shouldFreeze(obj)) return obj
 
-  // An array is an object, but we also want to freeze each element in the array
-  // as well.
-  if (Array.isArray(obj)) {
-    for (const item of obj) {
-      if (!item || typeof item !== 'object') continue
-      freezeRecursively(item, shouldFreeze)
-    }
-
-    return Object.freeze(obj)
-  }
-
-  if (!shouldFreeze(obj)) return obj
-
-  for (const value of Object.values(obj)) {
+  // For arrays, freeze each element; for other objects, each property value.
+  for (const value of Array.isArray(obj) ? obj : Object.values(obj)) {
     if (!value || typeof value !== 'object') continue
     freezeRecursively(value, shouldFreeze)
   }
