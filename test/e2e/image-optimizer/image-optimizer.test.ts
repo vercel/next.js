@@ -356,6 +356,10 @@ describe('Image Optimizer', () => {
             expect(updated.headers.get('etag')).toBe(originalEtag)
           }
 
+          const imagesDir = join(next.testDir, next.distDir, 'cache', 'images')
+          const cachedFiles = await fsToJson(imagesDir)
+          expect(Object.keys(cachedFiles).length).toBeGreaterThan(0)
+
           const unchanged = await next.fetch(url, opts)
           expect(unchanged.status).toBe(200)
           expect(unchanged.headers.get('etag')).toBe(
@@ -364,6 +368,7 @@ describe('Image Optimizer', () => {
           expect(Buffer.from(await unchanged.arrayBuffer())).toEqual(
             currentOutput
           )
+          expect(await fsToJson(imagesDir)).toEqual(cachedFiles)
           const conditional = await next.fetch(url, {
             headers: {
               ...opts.headers,
@@ -372,6 +377,7 @@ describe('Image Optimizer', () => {
             cache: 'force-cache',
           })
           expect(conditional.status).toBe(304)
+          expect(await fsToJson(imagesDir)).toEqual(cachedFiles)
         } finally {
           await replaceImage(original)
           if (stopped) await next.start()

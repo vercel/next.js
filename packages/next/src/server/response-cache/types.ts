@@ -178,6 +178,8 @@ export type ResponseCacheValue =
 
 export type ResponseCacheEntry = {
   cacheControl?: CacheControl
+  /** Skip persisting this result without changing its response cache control. */
+  skipCacheWrite?: boolean
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
