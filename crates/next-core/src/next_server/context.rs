@@ -1034,7 +1034,7 @@ pub struct ServerChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
     pub per_page_module_graph: Vc<bool>,
-    pub lazy_dynamic_imports: Vc<bool>,
+    pub lazy_dynamic_imports: bool,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1115,7 +1115,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
-    .manifest_chunks(*lazy_dynamic_imports.await?);
+    .manifest_chunks(lazy_dynamic_imports);
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1230,7 +1230,7 @@ pub async fn get_server_chunking_context(
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
-    .manifest_chunks(*lazy_dynamic_imports.await?);
+    .manifest_chunks(lazy_dynamic_imports);
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
