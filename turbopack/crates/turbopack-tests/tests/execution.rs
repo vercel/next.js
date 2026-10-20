@@ -58,7 +58,7 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_ecmascript::{chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
     child_process_backend,
@@ -312,6 +312,38 @@ struct TestOptions {
     /// such requests would, which makes them unresolvable.
     #[serde(default = "default_true")]
     server_relative_root: bool,
+    /// How `new URL(..., import.meta.url)` calls are rewritten.
+    #[serde(default)]
+    url_rewrite_behavior: TestUrlRewriteBehavior,
+}
+
+#[derive(
+    Copy,
+    Clone,
+    Default,
+    PartialEq,
+    Eq,
+    Debug,
+    Deserialize,
+    ValueDebugFormat,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+enum TestUrlRewriteBehavior {
+    #[default]
+    Relative,
+    Full,
+}
+
+impl From<TestUrlRewriteBehavior> for UrlRewriteBehavior {
+    fn from(value: TestUrlRewriteBehavior) -> Self {
+        match value {
+            TestUrlRewriteBehavior::Relative => UrlRewriteBehavior::Relative,
+            TestUrlRewriteBehavior::Full => UrlRewriteBehavior::Full,
+        }
+    }
 }
 
 fn default_true() -> bool {
@@ -338,6 +370,7 @@ impl Default for TestOptions {
             numeric_module_ids: false,
             side_effect_free_packages: Vec::new(),
             server_relative_root: default_true(),
+            url_rewrite_behavior: TestUrlRewriteBehavior::default(),
         }
     }
 }
@@ -514,6 +547,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
                 infer_module_side_effects: options.infer_module_side_effects,
+                esm_url_rewrite_behavior: Some(options.url_rewrite_behavior.into()),
                 ..Default::default()
             },
             environment: Some(env),

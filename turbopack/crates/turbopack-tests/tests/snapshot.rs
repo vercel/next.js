@@ -57,6 +57,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
     chunk::EcmascriptChunkType,
+    references::esm::UrlRewriteBehavior,
     transform::{ReactCompilerCompilationMode, ReactCompilerTransformOptions},
 };
 use turbopack_ecmascript_plugins::transform::{
@@ -118,6 +119,26 @@ struct SnapshotOptions {
     chunk_loading_global: String,
     #[serde(default)]
     enable_rust_react_compiler: bool,
+    /// How `new URL(..., import.meta.url)` calls are rewritten.
+    #[serde(default)]
+    url_rewrite_behavior: SnapshotUrlRewriteBehavior,
+}
+
+#[derive(Debug, Deserialize, Default, Clone, Copy)]
+#[serde(rename_all = "camelCase")]
+enum SnapshotUrlRewriteBehavior {
+    #[default]
+    Relative,
+    Full,
+}
+
+impl From<SnapshotUrlRewriteBehavior> for UrlRewriteBehavior {
+    fn from(value: SnapshotUrlRewriteBehavior) -> Self {
+        match value {
+            SnapshotUrlRewriteBehavior::Relative => UrlRewriteBehavior::Relative,
+            SnapshotUrlRewriteBehavior::Full => UrlRewriteBehavior::Full,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -159,6 +180,7 @@ impl Default for SnapshotOptions {
             source_map_source_type: SourceMapSourceType::default(),
             chunk_loading_global: default_chunk_loading_global(),
             enable_rust_react_compiler: false,
+            url_rewrite_behavior: SnapshotUrlRewriteBehavior::default(),
         }
     }
 }
@@ -424,6 +446,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     ..Default::default()
                 })),
                 ignore_dynamic_requests: true,
+                esm_url_rewrite_behavior: Some(options.url_rewrite_behavior.into()),
                 infer_module_side_effects: true,
                 cjs_tree_shaking: options.cjs_tree_shaking,
                 mangle_export_names: options.mangle_export_names,
