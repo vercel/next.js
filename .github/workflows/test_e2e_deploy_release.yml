@@ -43,6 +43,18 @@ on:
         description: Custom cleanup script path (NEXT_TEST_CLEANUP_SCRIPT_PATH)
         default: ''
         type: string
+      deployTarget:
+        description: >-
+          Platform the webpack and Turbopack deploy tests run against
+          (NEXT_TEST_DEPLOY_TARGET_VERCEL). `auto` means Vercel unless
+          deployScriptPath is set. Use `vercel` when a custom deploy script
+          deploys to Vercel, so Vercel-specific tests still run.
+        type: choice
+        options:
+          - auto
+          - vercel
+          - other
+        default: auto
 
 env:
   DD_ENV: 'ci'
@@ -190,7 +202,7 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_WEBPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=0 \
-        NEXT_TEST_DEPLOY_TARGET_VERCEL="${{ github.event.inputs.deployScriptPath == '' && '1' || '' }}" \
+        NEXT_TEST_DEPLOY_TARGET_VERCEL="${{ (github.event.inputs.deployTarget == 'vercel' || (github.event.inputs.deployTarget != 'other' && github.event.inputs.deployScriptPath == '')) && '1' || '' }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \
         VERCEL_CLI_VERSION="${{ github.event.inputs.vercelCliVersion || 'vercel@latest' }}" \
@@ -241,7 +253,7 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_TURBOPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=0 \
-        NEXT_TEST_DEPLOY_TARGET_VERCEL="${{ github.event.inputs.deployScriptPath == '' && '1' || '' }}" \
+        NEXT_TEST_DEPLOY_TARGET_VERCEL="${{ (github.event.inputs.deployTarget == 'vercel' || (github.event.inputs.deployTarget != 'other' && github.event.inputs.deployScriptPath == '')) && '1' || '' }}" \
         NEXT_TEST_CONTINUE_ON_ERROR="${{ github.event.inputs.continueOnError || false }}" \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \

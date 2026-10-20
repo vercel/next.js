@@ -195,6 +195,8 @@ Suites gated on the `vercel` condition (`// @force-gate vercel`, see [`test/lib/
 NEXT_TEST_DEPLOY_TARGET_VERCEL=1 pnpm test-deploy-turbo test/e2e/app-dir/actions/
 ```
 
+When dispatching the deploy test workflow with a custom deploy script, the `deployTarget` input declares the platform: `auto` treats a custom script as another platform, and `vercel` keeps Vercel-specific suites running for a script that deploys to Vercel.
+
 ## Integration testing outside the repository with local builds
 
 You can locally generate builds for each package in this repository with:
