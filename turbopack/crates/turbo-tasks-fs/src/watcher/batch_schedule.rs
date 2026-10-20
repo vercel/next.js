@@ -128,7 +128,7 @@ impl PendingBatch {
             turbo_tasks.send_compilation_event(Arc::new(FilesystemSettlingEvent {
                 elapsed_secs: (now - self.started).as_secs_f64(),
                 last_modified_path: batch
-                    .last_updated_path()
+                    .last_invalidated_path()
                     .map(|path| RcStr::from(format!("{path:?}"))),
             }));
         }
