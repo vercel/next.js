@@ -1,13 +1,9 @@
-import type { OutgoingHttpHeaders } from 'node:http'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteCacheMetadata, RouteMetadata } from './types'
 
-import type {
-  MockedRequest,
-  MockedResponse,
-} from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
@@ -23,7 +19,6 @@ import {
   type ParsedRequestHeaders,
 } from '../../server/route-modules/app-page/parse-request-headers'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import { NodeNextRequest } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
@@ -47,8 +42,7 @@ import {
  * Renders & exports a page associated with the /app directory
  */
 export async function exportAppPage(
-  req: MockedRequest,
-  res: MockedResponse,
+  initialStatusCode: number,
   requestUrl: string,
   page: string,
   path: string,
@@ -87,17 +81,17 @@ export async function exportAppPage(
   }
 
   try {
-    const nextReq = new NodeNextRequest(req)
+    const requestHeaders: IncomingHttpHeaders = {}
     const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
-      nextReq.headers,
+      requestHeaders,
       {
         isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
         previewModeId: renderOpts.previewProps?.previewModeId,
       }
     )
     const result = await lazyPrerenderAppPage(
-      res.statusCode,
-      res.getHeaders(),
+      initialStatusCode,
+      {},
       requestUrl,
       pathname,
       query,
@@ -106,7 +100,7 @@ export async function exportAppPage(
       sharedContext,
       routeMatch,
       parsedRequestHeaders,
-      getServerActionRequestMetadata(nextReq)
+      getServerActionRequestMetadata({ headers: requestHeaders, method: 'GET' })
     )
 
     if ('error' in result) {
@@ -221,7 +215,7 @@ export async function exportAppPage(
     fileWriter.append(htmlFilepath, html)
 
     const isParallelRoute = /\/@\w+/.test(page)
-    const statusCode = metadata.statusCode ?? res.statusCode
+    const statusCode = metadata.statusCode ?? initialStatusCode
     const isNonSuccessfulStatusCode = statusCode > 300
 
     // When PPR is enabled, we don't always send 200 for routes that have been
