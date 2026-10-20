@@ -142,6 +142,17 @@ describe.each(
     await expectAppRouteTrace('/api/app/param/data')
   })
 
+  it('ignores spans from before the reset that are exported late', async () => {
+    const currentSpan = { name: 'current span', timestamp: Date.now() * 1000 }
+    const response = await fetch(`http://localhost:${COLLECTOR_PORT}`, {
+      method: 'POST',
+      body: JSON.stringify([{ name: 'late span', timestamp: 0 }, currentSpan]),
+    })
+
+    expect(response.status).toBe(202)
+    expect(getCollector().getSpans()).toEqual([currentSpan])
+  })
+
   it('closes collector connections after each export', async () => {
     const response = await fetch(`http://localhost:${COLLECTOR_PORT}`, {
       method: 'POST',
@@ -503,7 +514,7 @@ describe.each(
       name: 'root context',
       fetchInit: undefined,
       span: {
-        traceId: '[trace-id]',
+        traceId: expect.any(String),
         rootParentId: undefined,
       },
     },
@@ -791,7 +802,7 @@ describe.each(
                   ],
                 },
               ],
-              true
+              { edgeOnly: true }
             )
           })
 
@@ -1184,7 +1195,7 @@ describe.each(
                     status: { code: 0 },
                   },
                 ],
-                true
+                { edgeOnly: true }
               )
             }
           )
@@ -1210,7 +1221,7 @@ describe.each(
                   status: { code: 2 },
                 },
               ],
-              true
+              { edgeOnly: true }
             )
           })
 
@@ -1649,7 +1660,7 @@ describe.each(
                   ],
                 },
               ],
-              true
+              { edgeOnly: true }
             )
           })
 
@@ -1933,7 +1944,7 @@ describe.each(
                   status: { code: 0 },
                 },
               ],
-              true
+              { edgeOnly: true }
             )
           })
 
@@ -2021,7 +2032,7 @@ describe.each(
                     status: { code: 2 },
                   },
                 ],
-                true
+                { edgeOnly: true }
               )
             }
           )
@@ -2261,7 +2272,7 @@ describe.each(
         name: 'root context',
         fetchInit: undefined,
         span: {
-          traceId: '[trace-id]',
+          traceId: expect.any(String),
           rootParentId: undefined,
         },
       },
@@ -2318,7 +2329,12 @@ describe.each(
               // TODO unclear why this is reversed for Node.js runtime
               expected.reverse()
             }
-            await expectTrace(getCollector(), expected)
+            await expectTrace(getCollector(), expected, {
+              // TODO: Fix the mismatched traceId on 'resolve page components' for
+              // default edge/nodejs middleware and 'resolve segment modules' for
+              // direct-entrypoint nodejs middleware.
+              skipTraceIdCheck: env.name === 'root context',
+            })
           })
         }
       )
@@ -2522,7 +2538,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
           await expectTrace(getCollector(), [
             {
               name: 'GET /app/[param]/rsc-fetch',
-              traceId: '[trace-id]',
+              traceId: expect.any(String),
               parentId: undefined,
               spans: [
                 {
@@ -2595,7 +2611,7 @@ describe('opentelemetry with custom server', () => {
     await expectTrace(getCollector(), [
       {
         name: 'custom-server-request',
-        traceId: '[trace-id]',
+        traceId: expect.any(String),
         parentId: undefined,
         spans: [
           {
@@ -2824,19 +2840,28 @@ if (isNextStart) {
           })
           expect(response.status).toBe(200)
 
-          await expectTrace(getCollector(), [
-            {
-              name: `GET ${route}`,
-              traceId: EXTERNAL.traceId,
-              parentId: EXTERNAL.spanId,
-              attributes: {
-                'http.target': pathname,
-                'next.span_type': 'BaseServer.handleRequest',
-                'http.route': route,
-                'next.route': route,
+          await expectTrace(
+            getCollector(),
+            [
+              {
+                name: `GET ${route}`,
+                traceId: EXTERNAL.traceId,
+                parentId: EXTERNAL.spanId,
+                attributes: {
+                  'http.target': pathname,
+                  'next.span_type': 'BaseServer.handleRequest',
+                  'http.route': route,
+                  'next.route': route,
+                },
               },
-            },
-          ])
+            ],
+            {
+              // TODO: Fix the mismatched traceIds on 'GET /app/[param]/rsc-fetch',
+              // 'GET /api/app/[param]/data', 'GET /pages/[param]/getServerSideProps',
+              // and 'GET /api/pages/[param]/basic'.
+              skipTraceIdCheck: true,
+            }
+          )
         })
       }
     )
@@ -2849,7 +2874,10 @@ type SpanMatch = Omit<Partial<HierSavedSpan>, 'spans'> & { spans?: SpanMatch[] }
 async function expectTrace(
   collector: Collector,
   match: SpanMatch[],
-  edgeOnly?: boolean
+  {
+    edgeOnly = false,
+    skipTraceIdCheck = false,
+  }: { edgeOnly?: boolean; skipTraceIdCheck?: boolean } = {}
 ) {
   // Extract expected http.target values from the match to filter out extra spans
   // that may be generated in production mode (e.g., RSC prefetch requests)
@@ -2873,6 +2901,7 @@ async function expectTrace(
           ].includes(span.attributes?.['next.span_type'] as string)
       )
 
+    let traceId = undefined
     const tree: HierSavedSpan[] = []
     const spansForTree: HierSavedSpan[] = traces.map((span) => ({
       ...span,
@@ -2887,6 +2916,18 @@ async function expectTrace(
         continue
       }
 
+      if (!skipTraceIdCheck) {
+        if (!traceId) {
+          traceId = span.traceId
+        } else {
+          if (span.traceId !== traceId) {
+            throw new Error(
+              `Mismatched traceId on span '${span.name}': expected ${traceId}, got ${span.traceId}`
+            )
+          }
+        }
+      }
+
       const parent =
         !span.parentId || span.parentId === EXTERNAL.spanId
           ? null
@@ -2897,12 +2938,11 @@ async function expectTrace(
         tree.push(span)
       }
     }
+
     for (const span of spansForTree) {
       delete span.duration
       delete span.timestamp
 
-      span.traceId =
-        span.traceId === EXTERNAL.traceId ? span.traceId : '[trace-id]'
       span.parentId = span.parentId || undefined
 
       span.spans.sort((a, b) => {
