@@ -209,9 +209,7 @@ export class AppPageRouteModule extends RouteModule<
       context.parsedRequestHeaders,
       context.serverActionRequestMetadata,
       context.stagedFallbackParams,
-      process.env.__NEXT_DEV_SERVER
-        ? createDevResponseLifecycle(res)
-        : undefined
+      process.env.__NEXT_DEV_SERVER ? createDevResponseLifecycle(res) : null
     )
   }
 

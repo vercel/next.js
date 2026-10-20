@@ -13,9 +13,9 @@ export type DevResponseLifecycle = {
 /** Bind capabilities without observing the response or registering listeners yet. */
 export function createDevResponseLifecycle(
   res: BaseNextResponse
-): DevResponseLifecycle | undefined {
+): DevResponseLifecycle | null {
   if (!isNodeNextResponse(res)) {
-    return undefined
+    return null
   }
 
   return {

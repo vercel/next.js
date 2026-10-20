@@ -423,7 +423,7 @@ export type AppRenderContext = {
   isNotFoundPath: boolean
   nonce: string | undefined
   res: BaseNextResponse
-  devResponseLifecycle: DevResponseLifecycle | undefined
+  devResponseLifecycle: DevResponseLifecycle | null
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
    * rendering/revalidating segments independently, they need to move to the
@@ -2614,7 +2614,7 @@ async function prepareAppPageRender(
   generateRequestId: GenerateRequestId,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
   renderCapabilities: AppRenderCapabilities,
-  devResponseLifecycle: DevResponseLifecycle | undefined
+  devResponseLifecycle: DevResponseLifecycle | null
 ): Promise<PreparedAppPageRender> {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -3220,7 +3220,7 @@ async function renderToHTMLOrFlightImpl(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch,
   stagedFallbackParams: OpaqueFallbackRouteParams | null,
-  devResponseLifecycle: DevResponseLifecycle | undefined
+  devResponseLifecycle: DevResponseLifecycle | null
 ) {
   if (renderOpts.ComponentMod.__next_app__) {
     installGlobalModuleLoadingHandlers(
@@ -3310,7 +3310,7 @@ async function prerenderToHTMLOrFlightImpl(
       isPossiblyPartialResponse: isRoutePPREnabled,
       supportsPerSegmentPrefetching: true,
     },
-    undefined
+    null
   )
   return prerenderAppPage(prepared)
 }
@@ -3330,7 +3330,7 @@ export type AppPageRender = (
   parsedRequestHeaders: ParsedRequestHeaders,
   serverActionRequestMetadata: ServerActionRequestMetadata,
   stagedFallbackParams: OpaqueFallbackRouteParams | null,
-  devResponseLifecycle: DevResponseLifecycle | undefined
+  devResponseLifecycle: DevResponseLifecycle | null
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (

@@ -109,7 +109,7 @@ describe('development response lifecycle', () => {
     const previousRuntime = process.env.NEXT_RUNTIME
     process.env.NEXT_RUNTIME = 'edge'
     try {
-      expect(createDevResponseLifecycle(new WebNextResponse())).toBeUndefined()
+      expect(createDevResponseLifecycle(new WebNextResponse())).toBeNull()
     } finally {
       if (previousRuntime === undefined) delete process.env.NEXT_RUNTIME
       else process.env.NEXT_RUNTIME = previousRuntime
