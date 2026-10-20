@@ -383,7 +383,7 @@ function assignDefaultsAndValidate(
 
   // Normalization below writes into nested objects such as `images`. Merge from
   // a copy so those writes never reach the shared module-level defaults.
-  const defaults = cloneObject(defaultConfig) as typeof defaultConfig
+  const defaults = cloneObject(defaultConfig)
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
@@ -2224,7 +2224,7 @@ async function loadConfigImpl(
     }
 
     // Clone a new userConfig each time to avoid mutating the original
-    const userConfig = cloneObject(loadedConfig) as NextConfig
+    const userConfig = cloneObject(loadedConfig)
 
     // Check deprecation warnings on the actual user config before merging with defaults
     checkDeprecations(userConfig, configFileName, silent, dir)
@@ -2393,7 +2393,7 @@ async function loadConfigImpl(
     }
   }
 
-  const clonedDefaultConfig = cloneObject(defaultConfig) as NextConfig
+  const clonedDefaultConfig = cloneObject(defaultConfig)
 
   enforceExperimentalFeatures(clonedDefaultConfig, {
     isDefaultConfig: true,

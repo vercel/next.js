@@ -5,7 +5,12 @@
  * Unlike `structuredClone`, it does not throw on functions or class instances,
  * which config values can contain.
  */
-export function cloneObject(obj: any): any {
+export function cloneObject<T>(obj: T): T {
+  // The copy has the same shape as `obj`, which TypeScript cannot verify.
+  return cloneValue(obj) as T
+}
+
+function cloneValue(obj: any): any {
   // Primitives & null
   if (obj === null || typeof obj !== 'object') {
     return obj
@@ -23,7 +28,7 @@ export function cloneObject(obj: any): any {
 
   // Arrays → map each element
   if (Array.isArray(obj)) {
-    return obj.map(cloneObject)
+    return obj.map(cloneValue)
   }
 
   // Detect non‑plain objects (class instances)
@@ -47,7 +52,7 @@ export function cloneObject(obj: any): any {
       Object.defineProperty(result, key, descriptor)
     } else {
       // Data property → clone the value
-      result[key] = cloneObject(obj[key])
+      result[key] = cloneValue(obj[key])
     }
   }
 
