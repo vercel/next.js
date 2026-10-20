@@ -721,11 +721,10 @@ export function proxy(request) {
 }
 ```
 
-You can also proxy requests using `proxy`:
+You can also proxy requests using `proxy`. The `request` argument is a [`NextRequest`](#nextrequest-and-nextresponse), which extends the Web `Request` API with helpers such as `nextUrl`:
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/proxy-this-path') {
@@ -749,8 +748,7 @@ export function proxy(request) {
 Another type of response `proxy` can produce are redirects:
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/v1/docs') {
