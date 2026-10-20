@@ -404,7 +404,7 @@ Let the browser upload the file straight to your storage provider:
 3. The client sends the file directly to that URL with `fetch`.
 4. Optionally, the client tells your app the upload finished, so you can record it.
 
-The file never passes through Next.js, so the request body limits and memory use described below don't apply. Check your storage provider's documentation for how to create upload URLs.
+The file never passes through Next.js, so the request body limits and memory use described below don't apply. Because the browser sends the file to a different origin, the storage service must allow the request with [CORS](https://developer.mozilla.org/docs/Web/HTTP/CORS): configure it to accept uploads from your app's origin, or the browser blocks them. Check your storage provider's documentation for how to create upload URLs and configure CORS.
 
 #### Receiving uploads in Next.js
 
