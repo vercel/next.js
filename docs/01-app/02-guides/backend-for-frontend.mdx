@@ -179,95 +179,6 @@ export async function GET(request) {
 
 Sanitize any input used to generate markup.
 
-### Serving files
-
-When serving user-uploaded or private files (such as PDFs, images, or media) from a Route Handler, avoid buffering the entire file into memory using `fs.readFile()` or `Buffer`. Instead, stream the file using [`Readable.toWeb()`](https://nodejs.org/api/stream.html#streamreadabletowebstreamreadable-options) to convert a Node.js read stream into a Web [`ReadableStream`](https://developer.mozilla.org/docs/Web/API/ReadableStream).
-
-Streaming sends the file to the client in chunks as it is read from disk, keeping server memory usage low regardless of file size.
-
-Before streaming a file, check that the current user is allowed to access it. Look the file up by an ID your app generated, such as the one recorded when the file was [uploaded](#file-uploads), rather than reading a path from the URL. Otherwise, anyone who guesses a file name can download it:
-
-```ts filename="app/api/files/[id]/route.ts" switcher
-import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
-import path from 'node:path'
-import { Readable } from 'node:stream'
-import { auth } from '@/lib/auth'
-import { getUpload } from '@/lib/uploads'
-
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await auth()
-  if (!session?.user) {
-    return new Response('Unauthorized', { status: 401 })
-  }
-
-  const { id } = await params
-  const upload = await getUpload(id)
-  // Respond with 404 for files the user can't access, so their existence isn't revealed
-  if (!upload || upload.ownerId !== session.user.id) {
-    return new Response('Not found', { status: 404 })
-  }
-
-  const filePath = path.join(process.cwd(), 'uploads', upload.id)
-  const stats = await stat(filePath)
-  const data = Readable.toWeb(createReadStream(filePath)) as ReadableStream
-
-  return new Response(data, {
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': stats.size.toString(),
-      'Content-Disposition': 'attachment',
-    },
-  })
-}
-```
-
-```js filename="app/api/files/[id]/route.js" switcher
-import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
-import path from 'node:path'
-import { Readable } from 'node:stream'
-import { auth } from '@/lib/auth'
-import { getUpload } from '@/lib/uploads'
-
-export async function GET(request, { params }) {
-  const session = await auth()
-  if (!session?.user) {
-    return new Response('Unauthorized', { status: 401 })
-  }
-
-  const { id } = await params
-  const upload = await getUpload(id)
-  // Respond with 404 for files the user can't access, so their existence isn't revealed
-  if (!upload || upload.ownerId !== session.user.id) {
-    return new Response('Not found', { status: 404 })
-  }
-
-  const filePath = path.join(process.cwd(), 'uploads', upload.id)
-  const stats = await stat(filePath)
-  const data = Readable.toWeb(createReadStream(filePath))
-
-  return new Response(data, {
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': stats.size.toString(),
-      'Content-Disposition': 'attachment',
-    },
-  })
-}
-```
-
-> **Good to know**:
->
-> - `auth` and `getUpload` stand in for your authentication library and your database. Adapt the ownership check to your own access rules, such as shared or team files.
-> - Building the file path from the stored ID, never from the request, also prevents directory traversal.
-> - Setting the `Content-Length` header allows clients to track download progress.
-> - This example sets `Content-Disposition: attachment`, so the browser downloads the file. To display a file such as an image in the browser instead, set `Content-Type` to the file's actual type and omit `Content-Disposition`.
-> - For files kept in object storage, pass the storage provider's readable stream directly to `new Response(stream)`, or redirect to a short-lived signed download URL.
-
 ### Content negotiation
 
 You can use [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) with header matching to serve different content types from the same URL based on the request's `Accept` header. This is known as [content negotiation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation).
@@ -478,9 +389,9 @@ Before choosing how to receive a file, decide where it will be stored.
 
 Next.js doesn't store uploaded files for you, and where you keep them depends on how your app is deployed:
 
-- **The local file system is not shared or persistent everywhere.** In serverless and multi-instance deployments, each instance has its own temporary file system, so a file saved while handling one request may not exist when another instance handles the next one. Saving to disk only works on a long-running server with a persistent disk.
+- **The local file system is not shared or persistent everywhere.** In serverless and multi-instance deployments, each instance has its own temporary file system, so a file saved while handling one request may not exist when another instance handles the next one. Saving to disk only works on a long-running server with a persistent disk. See [Deployment environment](#deployment-environment).
 - **Don't save uploads to the `public` folder.** In production, `next start` serves only the files that are in `public` when the server starts, so files added afterwards return a 404 until the server restarts.
-- **Hosting limits apply to every upload, not only large ones.** Many hosting providers limit the request body size and bandwidth of functions, and frequent small uploads can reach those limits too. Many providers also offer a dedicated storage or upload service for this.
+- **Hosting limits apply to every upload, not only large ones.** Many hosting providers limit the request body size, duration, and bandwidth of functions. Large uploads can time out before they finish, and frequent small uploads can reach the bandwidth limits too. Many providers also offer a dedicated storage or upload service for this.
 
 For most applications, store uploads in a storage service and upload files to it directly from the browser.
 
@@ -778,6 +689,95 @@ export const config = {
 ```
 
 Since the Proxy no longer runs for that route, make sure the Route Handler performs any checks, such as authentication, that the Proxy did. Alternatively, raise the limit with the experimental [`proxyClientMaxBodySize`](/docs/app/api-reference/config/next-config-js/proxyClientMaxBodySize) option, set under `experimental` in your `next.config` file, keeping in mind that the whole body is then held in memory for each request.
+
+### Serving files
+
+When serving user-uploaded or private files (such as PDFs, images, or media) from a Route Handler, avoid buffering the entire file into memory using `fs.readFile()` or `Buffer`. Instead, stream the file using [`Readable.toWeb()`](https://nodejs.org/api/stream.html#streamreadabletowebstreamreadable-options) to convert a Node.js read stream into a Web [`ReadableStream`](https://developer.mozilla.org/docs/Web/API/ReadableStream).
+
+Streaming sends the file to the client in chunks as it is read from disk, keeping server memory usage low regardless of file size.
+
+Before streaming a file, check that the current user is allowed to access it. Look the file up by an ID your app generated, such as the `id` recorded by the [upload examples](#receiving-uploads-in-nextjs) above, rather than reading a path from the URL. Otherwise, anyone who guesses a file name can download it:
+
+```ts filename="app/api/files/[id]/route.ts" switcher
+import { createReadStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import path from 'node:path'
+import { Readable } from 'node:stream'
+import { auth } from '@/lib/auth'
+import { getUpload } from '@/lib/uploads'
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth()
+  if (!session?.user) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  const { id } = await params
+  const upload = await getUpload(id)
+  // A 404 doesn't reveal whether a file the user can't access exists
+  if (!upload || upload.ownerId !== session.user.id) {
+    return new Response('Not found', { status: 404 })
+  }
+
+  const filePath = path.join(process.cwd(), 'uploads', upload.id)
+  const stats = await stat(filePath)
+  const data = Readable.toWeb(createReadStream(filePath)) as ReadableStream
+
+  return new Response(data, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': stats.size.toString(),
+      'Content-Disposition': 'attachment',
+    },
+  })
+}
+```
+
+```js filename="app/api/files/[id]/route.js" switcher
+import { createReadStream } from 'node:fs'
+import { stat } from 'node:fs/promises'
+import path from 'node:path'
+import { Readable } from 'node:stream'
+import { auth } from '@/lib/auth'
+import { getUpload } from '@/lib/uploads'
+
+export async function GET(request, { params }) {
+  const session = await auth()
+  if (!session?.user) {
+    return new Response('Unauthorized', { status: 401 })
+  }
+
+  const { id } = await params
+  const upload = await getUpload(id)
+  // A 404 doesn't reveal whether a file the user can't access exists
+  if (!upload || upload.ownerId !== session.user.id) {
+    return new Response('Not found', { status: 404 })
+  }
+
+  const filePath = path.join(process.cwd(), 'uploads', upload.id)
+  const stats = await stat(filePath)
+  const data = Readable.toWeb(createReadStream(filePath))
+
+  return new Response(data, {
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      'Content-Length': stats.size.toString(),
+      'Content-Disposition': 'attachment',
+    },
+  })
+}
+```
+
+> **Good to know**:
+>
+> - `auth` and `getUpload` stand in for your authentication library and your database. Adapt the ownership check to your own access rules, such as shared or team files.
+> - Building the file path from the stored ID, never from the request, also prevents directory traversal.
+> - Setting the `Content-Length` header allows clients to track download progress.
+> - This example sets `Content-Disposition: attachment`, so the browser downloads the file. To display a file such as an image in the browser instead, set `Content-Type` to the file's actual type and omit `Content-Disposition`.
+> - For files kept in object storage, pass the storage provider's readable stream directly to `new Response(stream)`, or redirect to a short-lived signed download URL.
 
 ## Manipulating data
 
@@ -1221,7 +1221,7 @@ Never trust incoming request data. Validate content type and size, and sanitize 
 
 Use timeouts to prevent abuse and protect server resources.
 
-Store user-generated static assets in dedicated services. When possible, upload them from the browser and store the returned URI in your database to reduce request size.
+Store user-generated static assets in dedicated services. When possible, upload them from the browser and store the returned URI in your database to reduce request size. See [File uploads](#file-uploads).
 
 ### Access to protected resources
 
