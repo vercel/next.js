@@ -4,10 +4,6 @@ import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// This test is skipped when deployed because the local tarball appears corrupted
-// It also doesn't seem particularly useful to test when deployed
-// @force-gate !deploy
 describe('self-importing-package', () => {
   const overrideFiles: Record<string, FileRef> = {}
   let archiveDir: string
