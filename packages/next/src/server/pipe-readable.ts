@@ -2,6 +2,7 @@ import type { ServerResponse } from 'node:http'
 import type { Readable } from 'node:stream'
 
 import {
+  ResponseAborted,
   ResponseAbortedName,
   createAbortController,
 } from './web/spec-extension/adapters/next-request'
@@ -144,7 +145,7 @@ export async function streamToNodeResponse(
     closed = true
     onDrain()
     if (!res.writableFinished) {
-      reader.cancel().catch(() => {})
+      reader.cancel(new ResponseAborted()).catch(() => {})
     }
   }
   res.on('drain', onDrain)

@@ -287,16 +287,16 @@ describe('streamToNodeResponse lifecycle', () => {
   })
 
   it('cancels the producer when the client disconnects', async () => {
-    let onCancel: () => void
-    const cancelled = new Promise<void>((resolve) => {
+    let onCancel: (reason: unknown) => void
+    const cancelled = new Promise<unknown>((resolve) => {
       onCancel = resolve
     })
     const readable = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(new TextEncoder().encode('first'))
       },
-      cancel() {
-        onCancel()
+      cancel(reason) {
+        onCancel(reason)
       },
     })
     const completed = serve(readable)
@@ -313,7 +313,7 @@ describe('streamToNodeResponse lifecycle', () => {
         .on('error', reject)
     })
 
-    await cancelled
+    expect(await cancelled).toMatchObject({ name: 'ResponseAborted' })
     expect(await completed).toBeUndefined()
     expect(readable.locked).toBe(false)
   })
