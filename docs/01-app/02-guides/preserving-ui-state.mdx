@@ -360,7 +360,7 @@ Hidden Activity content has `display: none` but remains in the document. This ap
 
 ### Use visibility-aware selectors
 
-In Playwright, `getByRole` queries exclude hidden elements by default:
+Prefer locators that query the accessibility tree, which leaves out hidden elements, or filter matches by visibility before acting on them. In Playwright, `getByRole` queries exclude hidden elements by default:
 
 ```ts
 // Good - getByRole excludes hidden elements by default
