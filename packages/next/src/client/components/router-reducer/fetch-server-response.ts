@@ -557,7 +557,7 @@ function decodeNavigationResponse<T>(
   return createFromNextReadableStream<T>(stream, headers, {
     // Only a stream that closes on abort may end before the response does.
     allowPartialStream: signal !== undefined,
-    debugChannelReady,
+    ...(process.env.__NEXT_DEV_SERVER ? { debugChannelReady } : undefined),
   }) as Promise<T> & { _debugInfo?: Array<any> }
 }
 
@@ -784,7 +784,11 @@ export function createFromNextReadableStream<T>(
   }
 ): Promise<T> {
   let debugChannel = createDebugChannel && createDebugChannel(requestHeaders)
-  if (debugChannel?.readable && options?.debugChannelReady) {
+  if (
+    process.env.__NEXT_DEV_SERVER &&
+    debugChannel?.readable &&
+    options?.debugChannelReady
+  ) {
     debugChannel = {
       ...debugChannel,
       readable: delayReadableStream(
