@@ -1,4 +1,4 @@
-use std::{collections::hash_map::Entry, hash::Hash};
+use std::{cmp::Reverse, collections::hash_map::Entry, hash::Hash};
 
 use anyhow::{Context, Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -116,25 +116,11 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .all_chunk_group_entry_modules()
             .collect::<Vec<_>>();
 
-        // First, compute the depth for each module in the graph
-        let module_depth = {
-            let _inner_span = tracing::info_span!("compute depth").entered();
-
-            let mut module_depth =
-                FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-            module_graph.traverse_edges_bfs(entries.iter().copied(), |parent, node| {
-                if let Some((parent, _)) = parent {
-                    let parent_depth = *module_depth
-                        .get(&parent)
-                        .context("Module depth not found")?;
-                    module_depth.entry(node).or_insert(parent_depth + 1);
-                } else {
-                    module_depth.insert(node, 0);
-                };
-
-                Ok(GraphTraversalAction::Continue)
-            })?;
-            module_depth
+        // First, rank every module in reverse postorder, so that a module is visited after the
+        // modules importing it.
+        let module_rank = {
+            let _inner_span = tracing::info_span!("compute reverse postorder").entered();
+            module_graph.reverse_postorder_ranks(entries.iter().copied())?
         };
 
         // For each module, the indices in the bitmap store which merge group entry modules
@@ -182,7 +168,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let visit_count = module_graph.traverse_edges_fixed_point_with_priority(
             entries
                 .iter()
-                .map(|e| Ok((*e, -*module_depth.get(e).context("Module depth not found")?)))
+                .map(|e| {
+                    Ok((
+                        *e,
+                        Reverse(*module_rank.get(e).context("Module rank not found")?),
+                    ))
+                })
                 .collect::<Result<Vec<_>>>()?,
             &mut (),
             |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
@@ -261,11 +252,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 })
             },
             |successor, _| {
-                // Invert the ordering here. High priority values get visited first, and we want to
-                // visit the low-depth nodes first, as we are propagating bitmaps downwards.
-                Ok(-*module_depth
-                    .get(&successor)
-                    .context("Module depth not found")?)
+                // Visit modules in reverse postorder (lowest rank first, the traversal visits the
+                // highest priority first), as we are propagating bitmaps downwards.
+                Ok(Reverse(
+                    *module_rank
+                        .get(&successor)
+                        .context("Module rank not found")?,
+                ))
             },
         )?;
 
