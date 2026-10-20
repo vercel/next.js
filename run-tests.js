@@ -247,70 +247,78 @@ async function retryKVOperation(operation, operationName, maxRetries = 3) {
 // The same test file can take seconds in one CI variant and minutes in
 // another (e.g. dev vs. turbopack production), so timings are recorded per
 // variant. Each variant is its own Redis hash (`test-timings-v2:<variant>`,
-// field = test file, value = seconds), so parallel shards update individual
-// fields atomically instead of overwriting each other's read-modify-write.
+// field = test file, value = `<seconds>@<last write, epoch ms>`), so
+// parallel shards update individual fields atomically instead of overwriting
+// each other's read-modify-write. Values without an `@<epoch ms>` suffix
+// (plain seconds) are still read; they just have no last-write time yet.
 // `test-timings-v2:variants` lists the variants that have been recorded.
 //
 // Entries are kept for TIMINGS_TTL_SECONDS after their last write, because
 // branches whose checkout differs from the writer's (older or newer) may
 // still rely on them:
-// - `test-timings-v2-updated:<variant>` records, per test file, when its
-//   timing was last written (epoch ms). A file missing from the writer's
-//   checkout is only deleted once that is longer ago than the TTL.
-// - Both per-variant keys get the TTL as a Redis expiry, refreshed on every
+// - A file missing from the writer's checkout is only deleted once its last
+//   write is longer ago than the TTL.
+// - Each variant hash gets the TTL as a Redis expiry, refreshed on every
 //   write, so a variant no CI job writes any more expires on its own; the
 //   fetch prunes it from the index afterwards.
 const KV_TIMINGS_V2_PREFIX = 'test-timings-v2:'
 const KV_TIMINGS_V2_VARIANTS_KEY = `${KV_TIMINGS_V2_PREFIX}variants`
-const KV_TIMINGS_V2_UPDATED_PREFIX = 'test-timings-v2-updated:'
 const TIMINGS_TTL_SECONDS = 30 * 24 * 60 * 60
 
 // Atomically handles stale-timing candidates (files missing from the
-// writer's checkout), re-reading each on the server so that an entry
+// writer's checkout), re-reading each value on the server so that an entry
 // refreshed by a concurrent writer is never deleted:
-// - timing gone in the meantime: nothing to do
-// - no (valid) last-write timestamp: start the TTL clock now
-// - last written before the cutoff: delete timing and timestamp
-// KEYS: timings hash, last-write hash. ARGV: now (ms), cutoff (ms), TTL (s),
-// files... Returns the deleted files.
+// - field gone in the meantime: nothing to do
+// - no (valid) last-write time: append `@now` to start the TTL clock
+// - last written before the cutoff: delete the field
+// Also gives the hash the TTL if it has none yet.
+// KEYS: timings hash. ARGV: now (ms), cutoff (ms), TTL (s), files...
+// Returns the deleted files.
 const CLEANUP_STALE_TIMINGS_SCRIPT = `
 local deleted = {}
 local cutoff = tonumber(ARGV[2])
 for i = 4, #ARGV do
   local file = ARGV[i]
-  if redis.call('HEXISTS', KEYS[1], file) == 1 then
-    local updated = tonumber(redis.call('HGET', KEYS[2], file) or '')
+  local value = redis.call('HGET', KEYS[1], file)
+  if value then
+    local seconds, updated = string.match(value, '^([^@]*)@(.*)$')
+    updated = tonumber(updated)
     if not updated then
-      redis.call('HSET', KEYS[2], file, ARGV[1])
+      redis.call('HSET', KEYS[1], file, (seconds or value) .. '@' .. ARGV[1])
     elseif updated < cutoff then
       redis.call('HDEL', KEYS[1], file)
-      redis.call('HDEL', KEYS[2], file)
       deleted[#deleted + 1] = file
     end
   end
 end
-if redis.call('TTL', KEYS[2]) == -1 then
-  redis.call('EXPIRE', KEYS[2], ARGV[3])
+if redis.call('TTL', KEYS[1]) == -1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[3])
 end
 return deleted
 `
 
-// Atomically removes a variant from the index if its timings hash no longer
-// exists (expired), checked at removal time so a variant created
-// concurrently stays indexed. Otherwise gives both per-variant keys the TTL
-// if they have none yet (keys written before TTLs existed) without extending
-// an existing one, so reading never keeps a variant alive.
-// KEYS: index set, timings hash, last-write hash. ARGV: variant, TTL (s).
-const MAINTAIN_VARIANT_SCRIPT = `
-if redis.call('EXISTS', KEYS[2]) == 0 then
-  return redis.call('SREM', KEYS[1], ARGV[1])
-end
-for i = 2, 3 do
-  if redis.call('TTL', KEYS[i]) == -1 then
-    redis.call('EXPIRE', KEYS[i], ARGV[2])
+// Maintains the whole variant index in one round trip. For each indexed
+// variant, atomically: if its timings hash no longer exists (expired), the
+// variant is removed from the index (a variant created concurrently can't be
+// removed, since the writer's MULTI and this script are each atomic);
+// otherwise the hash gets the TTL if it has none yet (keys written before
+// TTLs existed), without extending an existing one, so reading never keeps a
+// variant alive. The per-variant keys are derived from ARGV[1] at runtime,
+// because the variant list is read inside the script; this requires a KV
+// scripting backend that permits those derived-key accesses.
+// KEYS: index set. ARGV: timings key prefix, TTL (s).
+// Returns the number of variants removed.
+const MAINTAIN_VARIANTS_SCRIPT = `
+local removed = 0
+for _, variant in ipairs(redis.call('SMEMBERS', KEYS[1])) do
+  local key = ARGV[1] .. variant
+  if redis.call('EXISTS', key) == 0 then
+    removed = removed + redis.call('SREM', KEYS[1], variant)
+  elseif redis.call('TTL', key) == -1 then
+    redis.call('EXPIRE', key, ARGV[2])
   end
 end
-return 0
+return removed
 `
 
 /**
@@ -326,7 +334,7 @@ return 0
 function getTimingsVariant(env) {
   const mode = env.NEXT_TEST_MODE || 'none'
   const bundler =
-    env.NEXT_TEST_USE_RSPACK === '1' || env.NEXT_RSPACK
+    env.NEXT_TEST_USE_RSPACK === '1' || env.NEXT_RSPACK === '1'
       ? 'rspack'
       : env.IS_TURBOPACK_TEST
         ? 'turbopack'
@@ -441,8 +449,10 @@ function toTimingsMap(hash) {
   /** @type {Record<string, number>} */
   const result = {}
   for (const [file, value] of Object.entries(hash || {})) {
-    // Redis returns hash values as numbers or numeric strings.
-    const seconds = typeof value === 'string' ? Number(value) : value
+    // Redis returns hash values as numbers or strings; strings may carry an
+    // `@<epoch ms>` last-write suffix, which is not part of the timing.
+    const seconds =
+      typeof value === 'string' ? Number(value.split('@')[0]) : value
     if (isValidTiming(seconds)) result[file] = /** @type {number} */ (seconds)
   }
   return result
@@ -452,7 +462,7 @@ function toTimingsMap(hash) {
  * Fetches the timings of every variant, plus the legacy shared map as a
  * fallback, in the versioned format consumed by `normalizeTimings`.
  * Returns `null` when no timings are available at all. Also prunes expired
- * variants from the index (see MAINTAIN_VARIANT_SCRIPT).
+ * variants from the index (see MAINTAIN_VARIANTS_SCRIPT).
  *
  * @param {any} client KV client
  * @param {typeof retryKVOperation} retry
@@ -478,27 +488,24 @@ async function fetchTestTimings(client, retry) {
         if (Object.keys(variantTimings).length > 0) {
           result[name] = variantTimings
         }
-        try {
-          await client.eval(
-            MAINTAIN_VARIANT_SCRIPT,
-            [
-              KV_TIMINGS_V2_VARIANTS_KEY,
-              `${KV_TIMINGS_V2_PREFIX}${name}`,
-              `${KV_TIMINGS_V2_UPDATED_PREFIX}${name}`,
-            ],
-            [name, String(TIMINGS_TTL_SECONDS)]
-          )
-        } catch (err) {
-          console.log(
-            `Failed to maintain timings of variant ${name}:`,
-            err.message
-          )
-        }
       }
       return result
     }, 'fetch variant timings')
   } catch (err) {
     console.log('Failed to fetch variant timings:', err.message)
+  }
+
+  try {
+    const removed = await client.eval(
+      MAINTAIN_VARIANTS_SCRIPT,
+      [KV_TIMINGS_V2_VARIANTS_KEY],
+      [KV_TIMINGS_V2_PREFIX, String(TIMINGS_TTL_SECONDS)]
+    )
+    if (removed > 0) {
+      console.log(`Removed ${removed} expired variant(s) from the index`)
+    }
+  } catch (err) {
+    console.log('Failed to maintain variant timings:', err.message)
   }
 
   /** @type {Record<string, number>} */
@@ -539,19 +546,18 @@ async function writeTestTimings(
   now = Date.now()
 ) {
   const key = `${KV_TIMINGS_V2_PREFIX}${variant}`
-  const updatedKey = `${KV_TIMINGS_V2_UPDATED_PREFIX}${variant}`
   const files = Object.keys(curTimings)
   if (files.length > 0) {
-    const updated = Object.fromEntries(files.map((file) => [file, now]))
+    const values = Object.fromEntries(
+      files.map((file) => [file, `${curTimings[file]}@${now}`])
+    )
     await retry(
       () =>
         client
           .multi()
-          .hset(key, curTimings)
-          .hset(updatedKey, updated)
+          .hset(key, values)
           .sadd(KV_TIMINGS_V2_VARIANTS_KEY, variant)
           .expire(key, TIMINGS_TTL_SECONDS)
-          .expire(updatedKey, TIMINGS_TTL_SECONDS)
           .exec(),
       'update timings'
     )
@@ -569,7 +575,7 @@ async function writeTestTimings(
       () =>
         client.eval(
           CLEANUP_STALE_TIMINGS_SCRIPT,
-          [key, updatedKey],
+          [key],
           [
             String(now),
             String(now - TIMINGS_TTL_SECONDS * 1000),
@@ -651,7 +657,7 @@ async function maybeLogSummary() {
         testPath: test,
         mode: process.env.NEXT_TEST_MODE,
         isTurbopack: !!process.env.IS_TURBOPACK_TEST,
-        isRspack: !!process.env.NEXT_RSPACK,
+        isRspack: process.env.NEXT_RSPACK === '1',
         isExperimental: process.env.__NEXT_CACHE_COMPONENTS === 'true',
         isPPR: process.env.__NEXT_EXPERIMENTAL_PPR === 'true',
         failedCases,
