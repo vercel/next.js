@@ -18,6 +18,14 @@ import eslintignore from './.config/eslintignore.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const appRenderRestrictedImports = [
+  {
+    group: ['**/server-action-request-meta'],
+    allowTypeImports: true,
+    message: 'Pass action classification through explicit render inputs.',
+  },
+]
+
 const compat = new FlatCompat({
   baseDirectory: __dirname,
   recommendedConfig: js.configs.recommended,
@@ -460,6 +468,10 @@ export default defineConfig([
   {
     files: ['packages/next/src/server/app-render/**/*.{ts,tsx}'],
     rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        { patterns: appRenderRestrictedImports },
+      ],
       'no-restricted-properties': [
         'error',
         {
@@ -497,6 +509,7 @@ export default defineConfig([
             },
           ],
           patterns: [
+            ...appRenderRestrictedImports,
             {
               group: ['**/request-meta'],
               allowTypeImports: true,
