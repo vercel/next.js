@@ -405,6 +405,9 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
+      if (!closeController.isClosed) {
+        closeController.dispatchClose()
+      }
       const silenceLog = false
       await pageRouteModule.onRequestError(
         baseReq,

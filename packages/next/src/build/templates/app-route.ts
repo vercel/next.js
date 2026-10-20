@@ -258,8 +258,12 @@ export async function handler(
       cacheLifeProfiles: nextConfig.cacheLife,
       staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       waitUntil: ctx.waitUntil,
-      onClose: (cb) => {
-        res.on('close', cb)
+      onClose: (callback) => {
+        if (res.closed) {
+          callback()
+        } else {
+          res.once('close', callback)
+        }
       },
       onAfterTaskError: undefined,
     },
