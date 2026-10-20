@@ -226,6 +226,11 @@ export function createAppPageEntrypoint({
       setRequestMeta(req, ctx.requestMeta)
     }
 
+    // Dev passes the selected shell's staged params from base-server. Each
+    // render selects its own map without changing this adapter input.
+    const incomingStagedFallbackParams =
+      getRequestMeta(req, 'stagedFallbackParams') ?? null
+
     if (routeModule.isDev) {
       addRequestMeta(
         req,
@@ -903,6 +908,7 @@ export function createAppPageEntrypoint({
         span,
         postponed,
         fallbackRouteParams,
+        stagedFallbackParams,
         renderOperation,
         allowEmptyStaticShell,
       }: {
@@ -919,6 +925,11 @@ export function createAppPageEntrypoint({
          * The unknown route params for this render.
          */
         fallbackRouteParams: OpaqueFallbackRouteParams | null
+
+        /**
+         * Defer access to these params while retaining their request values.
+         */
+        stagedFallbackParams: OpaqueFallbackRouteParams | null
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
@@ -955,8 +966,7 @@ export function createAppPageEntrypoint({
           },
           dev,
           fallbackRouteParams,
-          stagedFallbackParams:
-            getRequestMeta(req, 'stagedFallbackParams') ?? null,
+          stagedFallbackParams,
           renderOpts: {
             App: () => null,
             Document: () => null,
@@ -1362,11 +1372,6 @@ export function createAppPageEntrypoint({
                 }
               }
 
-              // Debug rendering stages the params of the selected source shell.
-              if (isDebugStaticShell) {
-                addRequestMeta(req, 'stagedFallbackParams', fallbackRouteParams)
-              }
-
               // We use the response cache here to handle the revalidation and
               // management of the fallback shell.
               const fallbackResponse = await routeModule.handleResponse({
@@ -1389,6 +1394,10 @@ export function createAppPageEntrypoint({
                     // the background path below will complete the shell into a
                     // more specific cache entry for later requests.
                     fallbackRouteParams,
+                    // Debug rendering stages the selected source shell.
+                    stagedFallbackParams: isDebugStaticShell
+                      ? fallbackRouteParams
+                      : incomingStagedFallbackParams,
                     renderOperation: 'prerender',
                     allowEmptyStaticShell: isInstantNavigationTest || undefined,
                   }),
@@ -1448,6 +1457,7 @@ export function createAppPageEntrypoint({
                                     remainingFallbackRouteParams
                                   )
                                 : null,
+                            stagedFallbackParams: incomingStagedFallbackParams,
                             renderOperation: 'prerender',
                           })
                         },
@@ -1690,11 +1700,11 @@ export function createAppPageEntrypoint({
           // Staging defers params without replacing their values with opaque
           // placeholders. A resumed render reads the selected artifact's mask
           // from its postponed state.
+          let stagedFallbackParams = incomingStagedFallbackParams
           if (
             (isProduction || isDebugStaticShell) &&
             nextConfig.cacheComponents
           ) {
-            let stagedFallbackParams: OpaqueFallbackRouteParams | null
             if (hasPlaceholderFallbackRouteParams) {
               stagedFallbackParams = createOpaqueFallbackRouteParams(
                 placeholderFallbackRouteParams
@@ -1714,8 +1724,6 @@ export function createAppPageEntrypoint({
             } else {
               stagedFallbackParams = null
             }
-
-            addRequestMeta(req, 'stagedFallbackParams', stagedFallbackParams)
           }
 
           // Forced static and debug renders are prerenders even when the
@@ -1730,6 +1738,7 @@ export function createAppPageEntrypoint({
             span,
             postponed,
             fallbackRouteParams,
+            stagedFallbackParams,
             renderOperation: isRequestSpecificRender ? 'render' : 'prerender',
             allowEmptyStaticShell: isInstantNavigationTest || undefined,
           })
@@ -1779,15 +1788,12 @@ export function createAppPageEntrypoint({
         const transformer = new TransformStream<Uint8Array, Uint8Array>()
         body.push(transformer.readable)
 
-        // This metadata supplies fallback params when the saved state does not
-        // record them. App-render uses the saved state's own set when present.
-        if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
-          addRequestMeta(
-            req,
-            'stagedFallbackParams',
-            createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
-          )
-        }
+        // Supply fallback params when the saved state does not record them.
+        // App-render uses the saved state's own set when present.
+        const stagedFallbackParams =
+          nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams
+            ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
+            : incomingStagedFallbackParams
 
         // Start the resume without awaiting it. The response consumes the
         // continuation stream attached above.
@@ -1797,6 +1803,7 @@ export function createAppPageEntrypoint({
           // The resume retains concrete param values; staging only defers
           // access.
           fallbackRouteParams: null,
+          stagedFallbackParams,
           renderOperation: 'render',
         })
           .then(async (result) => {
