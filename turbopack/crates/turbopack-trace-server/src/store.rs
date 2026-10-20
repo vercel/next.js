@@ -395,10 +395,15 @@ impl Store {
     /// Like `memory_samples_for_range` but keeps the timestamps, the
     /// memory-pressure byte, the memory footprint and the active worker count.
     /// Timestamps are absolute store timestamps (same reference frame as span
-    /// start/end). When the raw slice exceeds `MAX_MEMORY_SAMPLES`, each
-    /// merged group is represented by the sample whose memory value was the
-    /// group's max (its timestamp, pressure byte, footprint and worker count
-    /// are kept alongside it).
+    /// start/end).
+    ///
+    /// When the raw slice exceeds `MAX_MEMORY_SAMPLES`, each merged group
+    /// takes the timestamp, memory value and worker count of its max-memory
+    /// sample, while pressure and footprint are the max over the whole group
+    /// (each column is maxed independently). Per group the peak of each signal
+    /// is what matters, and this keeps the values identical to those returned
+    /// by [`Self::memory_pressure_samples_for_range`] and
+    /// [`Self::memory_footprint_samples_for_range`].
     pub fn memory_samples_for_range_with_ts(
         &self,
         start: Timestamp,
@@ -414,12 +419,18 @@ impl Store {
             return slice.to_vec();
         }
 
-        // Merge groups of N samples, taking the max memory in each group and
-        // keeping the timestamp, pressure and footprint of that max sample.
+        // Merge groups of N samples: timestamp and memory come from the
+        // max-memory sample, pressure and footprint are column maxes.
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, ..)| *mem).unwrap())
+            .map(|chunk| {
+                let (ts, mem, _, _, workers) =
+                    *chunk.iter().max_by_key(|(_, mem, ..)| *mem).unwrap();
+                let pressure = chunk.iter().map(|(_, _, p, ..)| *p).max().unwrap();
+                let footprint = chunk.iter().map(|(_, _, _, f, _)| *f).max().unwrap();
+                (ts, mem, pressure, footprint, workers)
+            })
             .collect()
     }
 
@@ -440,7 +451,8 @@ impl Store {
     /// `[start, end]`. The returned slice has the same length and group
     /// boundaries as [`Self::memory_samples_for_range`] so that the two
     /// results can be rendered in parallel. Each group is downsampled by
-    /// taking the maximum pressure value.
+    /// taking the maximum pressure value, independently of which sample had
+    /// the max memory (matching [`Self::memory_samples_for_range_with_ts`]).
     pub fn memory_pressure_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u8> {
         let slice = self.memory_samples_slice(start, end);
         let count = slice.len();
@@ -463,7 +475,10 @@ impl Store {
     /// range `[start, end]`. The returned slice has the same length and
     /// group boundaries as [`Self::memory_samples_for_range`] so that the
     /// two results can be rendered in parallel. Each group is downsampled
-    /// by taking the maximum footprint value.
+    /// by taking the maximum footprint value (peak RSS of the group),
+    /// independently of which sample had the max TurboMalloc memory, the same
+    /// way [`Self::memory_pressure_samples_for_range`] handles pressure and
+    /// matching [`Self::memory_samples_for_range_with_ts`].
     pub fn memory_footprint_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
         let slice = self.memory_samples_slice(start, end);
         let count = slice.len();
@@ -844,5 +859,65 @@ mod tests {
                 assert_eq!(handle.join().unwrap(), serial);
             }
         });
+    }
+
+    #[test]
+    fn memory_samples_are_returned_unchanged_when_not_downsampled() {
+        let mut store = Store::new();
+        for i in 0..10u64 {
+            store.add_memory_sample(Timestamp::from_micros(i), i * 10, i as u8, i * 100, i);
+        }
+        let samples = store.memory_samples_for_range_with_ts(Timestamp::ZERO, Timestamp::MAX);
+        assert_eq!(samples.len(), 10);
+        for (i, (ts, mem, pressure, footprint, workers)) in samples.into_iter().enumerate() {
+            let i = i as u64;
+            assert_eq!(ts, Timestamp::from_micros(i));
+            assert_eq!(mem, i * 10);
+            assert_eq!(pressure, i as u8);
+            assert_eq!(footprint, i * 100);
+            assert_eq!(workers, i);
+        }
+    }
+
+    #[test]
+    fn downsampled_memory_samples_use_column_max_for_pressure_and_footprint() {
+        let mut store = Store::new();
+        // Two samples per group: the first has the higher TurboMalloc memory,
+        // the second has the higher pressure and footprint.
+        for group in 0..MAX_MEMORY_SAMPLES as u64 {
+            store.add_memory_sample(Timestamp::from_micros(group * 2), 1000 + group, 1, 10, 1);
+            store.add_memory_sample(
+                Timestamp::from_micros(group * 2 + 1),
+                1,
+                50,
+                5000 + group,
+                1,
+            );
+        }
+
+        let (start, end) = (Timestamp::ZERO, Timestamp::MAX);
+        let with_ts = store.memory_samples_for_range_with_ts(start, end);
+        let memory = store.memory_samples_for_range(start, end);
+        let pressure = store.memory_pressure_samples_for_range(start, end);
+        let footprint = store.memory_footprint_samples_for_range(start, end);
+
+        assert_eq!(with_ts.len(), MAX_MEMORY_SAMPLES);
+        assert_eq!(memory.len(), MAX_MEMORY_SAMPLES);
+        assert_eq!(pressure.len(), MAX_MEMORY_SAMPLES);
+        assert_eq!(footprint.len(), MAX_MEMORY_SAMPLES);
+
+        for (i, (ts, mem, p, f, _)) in with_ts.into_iter().enumerate() {
+            let group = i as u64;
+            // Timestamp and memory come from the group's max-memory sample.
+            assert_eq!(ts, Timestamp::from_micros(group * 2));
+            assert_eq!(mem, 1000 + group);
+            // Pressure and footprint are the max over the group.
+            assert_eq!(p, 50);
+            assert_eq!(f, 5000 + group);
+            // All query paths agree.
+            assert_eq!(mem, memory[i]);
+            assert_eq!(p, pressure[i]);
+            assert_eq!(f, footprint[i]);
+        }
     }
 }
