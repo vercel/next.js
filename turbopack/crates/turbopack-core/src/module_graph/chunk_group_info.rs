@@ -465,30 +465,6 @@ impl Deref for ChunkGroupId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TraversalPriority {
-    pub depth: usize,
-    pub chunk_group_len: u64,
-}
-impl PartialOrd for TraversalPriority {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-// TODO automatically derive this using Reverse<_>
-impl Ord for TraversalPriority {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // BinaryHeap prioritizes high values
-
-        // Smaller depth has higher priority
-        let depth_order = self.depth.cmp(&other.depth).reverse();
-        // Smaller group length has higher priority
-        let chunk_group_len_order = self.chunk_group_len.cmp(&other.chunk_group_len).reverse();
-
-        depth_order.then(chunk_group_len_order)
-    }
-}
-
 pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGroupInfo>> {
     let span_outer = tracing::info_span!(
         "compute chunk group info",
