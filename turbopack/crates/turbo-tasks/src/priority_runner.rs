@@ -170,6 +170,47 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
         replaced
     }
 
+    /// Queues all `items`, like calling [`Queue::push`] for each of them, but takes the heap mutex
+    /// at most once for the whole batch and grows the heap with a single `reserve`. Each
+    /// still-queued item that one of the pushes replaced is passed to `on_replaced`.
+    fn push_many(
+        &self,
+        items: impl IntoIterator<Item = (P, T)>,
+        mut on_replaced: impl FnMut(P, T),
+    ) {
+        let mut items = items.into_iter();
+        // The heap keys are collected first, so the heap mutex is only held for the heap pushes
+        // themselves, not for the `claimable` inserts (which also keeps the lock ordering, see
+        // [`Queue`]). Only allocated once the first heap item shows up, as batches of only
+        // lowest priority items don't need it.
+        let mut heap_items = Vec::new();
+        while let Some((priority, task)) = items.next() {
+            #[cfg(feature = "inline_execution_stats")]
+            self.pushes.fetch_add(1, Ordering::Relaxed);
+            let key = task.claim_key();
+            // Stored before the key is queued, so a pop can't find the key before the item.
+            let replaced = self.claimable.insert(key, (priority.clone(), task));
+            if priority == self.lowest_priority {
+                // unbounded queue: push only fails if closed, which never happens here
+                let _ = self.lowest.push(key);
+            } else {
+                if heap_items.is_empty() {
+                    heap_items.reserve(items.size_hint().0 + 1);
+                }
+                heap_items.push(HeapItem { priority, key });
+            }
+            if let Some((priority, task)) = replaced {
+                on_replaced(priority, task);
+            }
+        }
+        if !heap_items.is_empty() {
+            let mut heap = self.heap.lock();
+            heap.reserve(heap_items.len());
+            heap.extend(heap_items);
+            self.heap_non_empty.store(true, Ordering::Release);
+        }
+    }
+
     /// Pops the highest priority item, skipping tombstones. The heap mutex is only taken when the
     /// heap is non-empty.
     fn pop(&self) -> Option<(P, T)> {
@@ -315,6 +356,64 @@ impl<
             }
             self.discard_replaced(execute_context, replaced);
         }
+    }
+
+    /// Schedules all `items`, like calling [`PriorityRunner::schedule`] for each of them.
+    ///
+    /// Items are handed directly to new workers while there is free worker capacity. All remaining
+    /// items are queued in one batch, which takes the heap mutex at most once and grows the heap
+    /// with a single allocation, instead of once per item.
+    pub fn schedule_many(
+        self: &Arc<Self>,
+        execute_context: &Arc<C>,
+        items: impl IntoIterator<Item = (T, P)>,
+    ) {
+        let mut items = items.into_iter().peekable();
+        // Spawn workers directly while there is capacity, with the same slot reservation as
+        // `schedule`.
+        loop {
+            if items.peek().is_none() {
+                return;
+            }
+            let active_workers = self.active_workers.load(Ordering::Acquire);
+            if active_workers >= self.target_workers {
+                break;
+            }
+            let prev = self.active_workers.fetch_add(1, Ordering::AcqRel);
+            if prev < self.target_workers {
+                let (task, priority) = items.next().unwrap();
+                let future = self.executor.execute(execute_context, task, priority);
+                WorkerFuture::spawn(future, execute_context.clone(), self.clone());
+            } else {
+                // Lost the race, the pool filled up between the load and the RMW. Enqueue the
+                // remaining tasks and give the slot back like a retiring worker would (see
+                // `schedule`).
+                self.queue_many(execute_context, items);
+                self.decrease_active_workers(execute_context);
+                return;
+            }
+        }
+        // Saturated. Push the remaining tasks as one batch, then re-read `active_workers` behind a
+        // `SeqCst` fence (see `schedule`).
+        self.queue_many(execute_context, items);
+        fence(Ordering::SeqCst);
+        // Capacity may have opened up since our `load` (workers retired concurrently). A retiring
+        // worker may have already popped an empty queue, so spawn workers for the just-pushed
+        // tasks as long as there is capacity, as scheduling them one by one would have done.
+        while self.active_workers.load(Ordering::Relaxed) < self.target_workers {
+            if !self.spawn_worker_if_work_available(execute_context, false) {
+                break;
+            }
+        }
+    }
+
+    /// Queues all `items` in one batch and hands the queued tasks they replaced to
+    /// [`Executor::discard`].
+    fn queue_many(&self, execute_context: &Arc<C>, items: impl Iterator<Item = (T, P)>) {
+        self.queue.push_many(
+            items.map(|(task, priority)| (priority, task)),
+            |priority, task| self.executor.discard(execute_context, task, priority),
+        );
     }
 
     /// Hands a queued task that a push replaced to [`Executor::discard`].
@@ -748,6 +847,138 @@ mod tests {
         assert!(runner.claim(&executed, &1).is_some());
         runner.schedule(&executed, (1, false), 3);
         assert!(take_discarded(&runner).is_empty());
+    }
+
+    #[test]
+    fn test_schedule_many_respects_priority_order() {
+        let (runner, executed) = queueing_runner::<u32>();
+        // Mixes both bands: odd items go to the heap, even ones to the lowest band.
+        runner.schedule_many(
+            &executed,
+            (0..8).map(|task| (task, if task % 2 == 0 { 0 } else { task })),
+        );
+        // Heap items highest priority first, then the lowest band in FIFO order.
+        assert_eq!(drain(&runner, &executed), vec![7, 5, 3, 1, 0, 2, 4, 6]);
+        assert!(runner.queue.is_empty());
+        assert!(runner.queue.claimable.is_empty());
+    }
+
+    #[test]
+    fn test_schedule_many_interleaves_with_schedule() {
+        let (runner, executed) = queueing_runner::<u32>();
+        runner.schedule(&executed, 4, 4);
+        runner.schedule_many(&executed, [(1, 1), (6, 6), (3, 3)]);
+        runner.schedule(&executed, 5, 5);
+        assert_eq!(drain(&runner, &executed), vec![6, 5, 4, 3, 1]);
+    }
+
+    #[test]
+    fn test_schedule_many_empty() {
+        let (runner, executed) = queueing_runner::<u32>();
+        runner.schedule_many(&executed, std::iter::empty());
+        assert!(runner.queue.is_empty());
+        assert!(!runner.queue.heap_non_empty.load(Ordering::Relaxed));
+        assert!(drain(&runner, &executed).is_empty());
+        assert!(take_discarded(&runner).is_empty());
+    }
+
+    #[test]
+    fn test_schedule_many_items_are_claimable() {
+        let (runner, executed) = queueing_runner::<u32>();
+        // Items 0 and 1 go to the lowest band, the others to the heap.
+        runner.schedule_many(
+            &executed,
+            (0..6).map(|task| (task, if task < 2 { 0 } else { task })),
+        );
+        assert!(runner.claim(&executed, &4).is_some());
+        assert!(runner.claim(&executed, &1).is_some());
+        assert_eq!(*executed.lock(), vec![4, 1]);
+        executed.lock().clear();
+        assert_eq!(drain(&runner, &executed), vec![5, 3, 2, 0]);
+    }
+
+    /// Same claim key semantics as `schedule`: the latest item wins, the replaced ones are
+    /// discarded, both within a batch and against items queued before.
+    #[test]
+    fn test_schedule_many_same_key_discards() {
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        runner.schedule(&executed, (1, false), 5);
+        runner.schedule_many(
+            &executed,
+            [
+                // Replaces the item queued before.
+                ((1, true), 5),
+                // Replaced within the batch, in both bands.
+                ((2, false), 0),
+                ((2, true), 0),
+                ((3, false), 3),
+                ((3, true), 3),
+                // Replaces with another priority.
+                ((1, false), 7),
+            ],
+        );
+        assert_eq!(
+            take_discarded(&runner),
+            vec![(1, false), (2, false), (3, false), (1, true)]
+        );
+        assert_eq!(
+            drain(&runner, &executed),
+            vec![(1, false), (3, true), (2, true)]
+        );
+        assert!(runner.queue.is_empty());
+        assert!(runner.queue.claimable.is_empty());
+    }
+
+    #[cfg(not(miri))]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_schedule_many_with_workers() {
+        use std::sync::atomic::AtomicU32;
+
+        struct CountingExecutor;
+        impl Executor<Vec<AtomicU32>, u32, u32> for CountingExecutor {
+            const LOWEST_PRIORITY: u32 = 0;
+            type Future = std::future::Ready<()>;
+
+            fn execute(
+                &self,
+                counts: &Arc<Vec<AtomicU32>>,
+                task: u32,
+                _priority: u32,
+            ) -> Self::Future {
+                counts[task as usize].fetch_add(1, Ordering::Relaxed);
+                std::future::ready(())
+            }
+        }
+
+        let counts: Arc<Vec<AtomicU32>> = Arc::new((0..2000).map(|_| AtomicU32::new(0)).collect());
+        // Fewer workers than items, so part of each batch is spawned directly and the rest is
+        // queued.
+        let runner: Arc<PriorityRunner<Vec<AtomicU32>, u32, u32, CountingExecutor>> =
+            Arc::new(PriorityRunner::with_target_workers(CountingExecutor, 3));
+        for batch in 0..20u32 {
+            runner.schedule_many(
+                &counts,
+                (batch * 100..(batch + 1) * 100).map(|task| (task, task % 4)),
+            );
+        }
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while counts.iter().any(|c| c.load(Ordering::Acquire) == 0) {
+            assert!(
+                Instant::now() < deadline,
+                "not all scheduled tasks executed"
+            );
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+        assert!(counts.iter().all(|c| c.load(Ordering::Acquire) == 1));
+    }
+
+    /// Every item of a batch counts as a push.
+    #[cfg(feature = "inline_execution_stats")]
+    #[test]
+    fn test_total_queued_counts_batch_pushes() {
+        let (runner, executed) = queueing_runner::<u32>();
+        runner.schedule_many(&executed, (0..5).map(|task| (task, task % 2)));
+        assert_eq!(runner.total_queued(), 5);
     }
 
     #[test]

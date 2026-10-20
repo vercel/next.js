@@ -1181,6 +1181,32 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.priority_runner.schedule(&self.pin(), task, priority);
     }
 
+    /// Schedules all `tasks`, like calling [`TurboTasks::schedule`] for each of them, but hands
+    /// them to the scheduler as one batch, so its queue is locked once instead of once per task.
+    #[track_caller]
+    pub fn schedule_many(&self, tasks: &[(TaskId, TaskPriority)]) {
+        if tasks.is_empty() {
+            return;
+        }
+        self.begin_foreground_jobs(tasks.len());
+        self.scheduled_tasks
+            .fetch_add(tasks.len(), Ordering::AcqRel);
+
+        let span = Span::current();
+        self.priority_runner.schedule_many(
+            &self.pin(),
+            tasks.iter().map(|&(task_id, priority)| {
+                (
+                    ScheduledTask::Task {
+                        task_id,
+                        span: span.clone(),
+                    },
+                    priority,
+                )
+            }),
+        );
+    }
+
     fn schedule_local_task(
         &self,
         ty: LocalTaskSpec,
@@ -1238,9 +1264,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     fn begin_foreground_job(&self) {
+        self.begin_foreground_jobs(1);
+    }
+
+    /// Begins `count` foreground jobs at once. `count` must not be zero.
+    fn begin_foreground_jobs(&self, count: usize) {
+        debug_assert!(count > 0);
         if self
             .currently_scheduled_foreground_jobs
-            .fetch_add(1, Ordering::AcqRel)
+            .fetch_add(count, Ordering::AcqRel)
             == 0
         {
             *self.start.lock().unwrap() = Some(Instant::now());
