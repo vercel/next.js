@@ -721,7 +721,7 @@ export function proxy(request) {
 }
 ```
 
-You can also proxy requests using `proxy`. The `request` argument is a [`NextRequest`](#nextrequest-and-nextresponse), which extends the Web `Request` API with helpers such as `nextUrl`:
+You can also proxy requests using `proxy`. This example reads `request.nextUrl`, so `request` is typed as [`NextRequest`](#nextrequest-and-nextresponse):
 
 ```ts filename="proxy.ts" switcher
 import { type NextRequest, NextResponse } from 'next/server'
