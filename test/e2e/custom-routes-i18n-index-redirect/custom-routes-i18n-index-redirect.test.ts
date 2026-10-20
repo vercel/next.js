@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+// Deploy mode exclusion: Vercel serves this i18n index redirect from its routing layer
+// with a "Redirecting..." body instead of the destination path.
 // @force-gate !deploy
 describe('Custom routes i18n with index redirect', () => {
   const { next } = nextTestSetup({

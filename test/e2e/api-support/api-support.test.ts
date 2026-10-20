@@ -596,8 +596,8 @@ describe('API routes', () => {
   }
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// Deploy mode exclusion: This suite patches next.config.js and runs a local
+// `next build` to assert the `output: 'export'` build error.
 // @force-gate !deploy
 describe('API routes output export error', () => {
   const { next } = nextTestSetup({

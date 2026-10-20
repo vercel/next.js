@@ -1,8 +1,8 @@
 import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// Deploy mode exclusion: This suite patches a source file and runs a local
+// `next build` to assert the build error.
 // @force-gate !deploy
 describe('Build Error Tests', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
@@ -41,8 +41,8 @@ describe('Build Error Tests', () => {
   })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// Deploy mode exclusion: Vercel serves static images with its own
+// `public,max-age=31536000,immutable` Cache-Control instead of Next.js's value.
 // @force-gate !deploy
 describe('Static Image Component Tests for basePath', () => {
   const { next, isTurbopack } = nextTestSetup({

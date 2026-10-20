@@ -2,8 +2,9 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import cheerio from 'cheerio'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// Deploy mode exclusion: Vercel CLI doesn't upload `.env.local` or
+// `.env.*.local` files, so the `*.local` values this suite asserts are
+// undefined when deployed.
 // @force-gate !deploy
 describe('env-config', () => {
   const { next } = nextTestSetup({

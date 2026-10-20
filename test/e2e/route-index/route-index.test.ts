@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// Pages-router `/index` route resolution differs in Vercel's deploy
-// infrastructure; these assertions are local-only.
+// Deploy mode exclusion: Vercel's filesystem routing serves prerendered
+// `index.html` outputs at their literal `/index` paths, so these return 200
+// instead of 404.
 // @force-gate !deploy
 describe('Route index handling', () => {
   const { next } = nextTestSetup({
