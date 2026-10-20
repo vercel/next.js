@@ -24,20 +24,27 @@ describe.each(['0', '1'])(
         .split('\n')
         .filter((line) => line.includes('FETCH_METRICS '))
         .map((line) => JSON.parse(line.split('FETCH_METRICS ')[1]))
-      const record = records.find((entry) => entry.id === id)
+        .filter((entry) => entry.id === id)
+      // Cache Components can replay the component after the response closes,
+      // when tracking is already disabled. The records can arrive in either order.
+      const record = records.find(
+        (entry) => entry.trackingDuringRender === trackingDuringRender
+      )
       expect(record).toBeDefined()
       expect(record.trackingDuringRender).toBe(trackingDuringRender)
-      expect(record.trackingAfterClose).toBe(trackingAfterClose)
 
       if (trackingDuringRender) {
         expect(record.urlsBefore).toContain(`data:text/plain,render-${id}`)
       } else {
         expect(record.urlsBefore).toEqual([])
       }
-      if (trackingAfterClose) {
-        expect(record.urlsAfter).toContain(`data:text/plain,after-${id}`)
-      } else {
-        expect(record.urlsAfter).toEqual(record.urlsBefore)
+      for (const entry of records) {
+        expect(entry.trackingAfterClose).toBe(trackingAfterClose)
+        if (trackingAfterClose) {
+          expect(entry.urlsAfter).toContain(`data:text/plain,after-${id}`)
+        } else {
+          expect(entry.urlsAfter).toEqual(entry.urlsBefore)
+        }
       }
     }
 
