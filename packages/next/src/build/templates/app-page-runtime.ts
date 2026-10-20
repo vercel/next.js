@@ -50,10 +50,11 @@ import { setManifestsSingleton } from '../../server/app-render/manifests-singlet
 import { shouldServeStreamingMetadata } from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app' with { 'turbopack-transition': 'next-server-utility' }
-import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
@@ -101,6 +102,8 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
+import { createTurbopackBootstrapScriptStreamForPage } from '../../server/app-render/turbopack-bootstrap-script' with { 'turbopack-transition': 'next-server-utility' }
+import { getScriptNonceFromHeaders } from '../../server/app-render/get-script-nonce-from-header' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
 
@@ -313,7 +316,8 @@ export function createAppPageEntrypoint({
      */
     const isPrefetchRSCRequest =
       getRequestMeta(req, 'isPrefetchRSCRequest') ??
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1' // exclude runtime prefetches, which use '2'
+      // Runtime prefetches use the other values, so they're excluded.
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === NEXT_ROUTER_PREFETCH_STATIC
 
     // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 
@@ -321,7 +325,8 @@ export function createAppPageEntrypoint({
       getRequestMeta(req, 'isRSCRequest') ??
       isRSCRequestHeader(req.headers[RSC_HEADER])
 
-    const isPossibleServerAction = getIsPossibleServerAction(req)
+    const serverActionRequestMetadata = getServerActionRequestMetadata(req)
+    const { isPossibleServerAction } = serverActionRequestMetadata
 
     // For subresource requests (e.g. images or fonts), return plain text 404
     // instead of rendering the not-found route.
@@ -474,7 +479,8 @@ export function createAppPageEntrypoint({
       typeof req.headers.cookie === 'string' &&
       req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
       (!isRSCRequestHeader(req.headers[RSC_HEADER]) ||
-        req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1')
+        req.headers[NEXT_ROUTER_PREFETCH_HEADER] ===
+          NEXT_ROUTER_PREFETCH_STATIC)
 
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
@@ -890,14 +896,22 @@ export function createAppPageEntrypoint({
             previewModeId: previewProps?.previewModeId,
           }
         )
-        const routeMatch: RouteMatch = { resolvedPathname }
+        const routeMatch: RouteMatch = {
+          resolvedPathname,
+          couldBeIntercepted: routeModule.pathCouldBeIntercepted(
+            resolvedPathname,
+            interceptionRoutePatterns
+          ),
+        }
         const dev: DevRenderContext | undefined = createDevRenderContext(req)
         const context: AppPageRouteHandlerContext = {
+          requestUrl: req.url!,
           query,
           params,
           page: normalizedSrcPage,
           routeMatch,
           parsedRequestHeaders,
+          serverActionRequestMetadata,
           sharedContext: {
             buildId,
             deploymentId,
@@ -905,6 +919,8 @@ export function createAppPageEntrypoint({
           },
           dev,
           fallbackRouteParams,
+          stagedFallbackParams:
+            getRequestMeta(req, 'stagedFallbackParams') ?? null,
           renderOpts: {
             App: () => null,
             Document: () => null,
@@ -941,7 +957,6 @@ export function createAppPageEntrypoint({
             isDraftMode,
             botType,
             isOnDemandRevalidate,
-            isPossibleServerAction,
             assetPrefix: routeModule.getAssetPrefixForRender(
               routerServerContext,
               nextConfig.assetPrefix
@@ -1970,6 +1985,19 @@ export function createAppPageEntrypoint({
 
         const didPostpone = typeof cacheEntry.value.postponed === 'string'
 
+        // A static shell with postponed parts doesn't include the Turbopack
+        // bootstrap: the resume emits it with the request's CSP nonce. When
+        // such a shell is served without a resume, it has to be added.
+        const pushTurbopackBootstrapScript = (result: RenderResult) => {
+          if (!didPostpone) return
+          const bootstrapScript = createTurbopackBootstrapScriptStreamForPage(
+            buildManifest,
+            srcPage,
+            getScriptNonceFromHeaders(req.headers)
+          )
+          if (bootstrapScript) result.push(bootstrapScript)
+        }
+
         // Set the build ID header for RSC navigation requests when deploymentId is configured. This
         // corresponds with maybeAppendBuildIdToRSCPayload in app-render.tsx which omits the build ID
         // from the RSC payload when deploymentId is set (relying on this header instead). Server
@@ -2292,8 +2320,11 @@ export function createAppPageEntrypoint({
           // Non-empty shell: the cookie-guarded bootstrap that sets
           // self.__next_instant_test is embedded in the prerendered shell via
           // `bootstrapScriptContent`, so it is already present (in the served
-          // shell for a fresh render, or in the cached prelude on deploy). Append
-          // the closing tags so the browser can parse a complete document.
+          // shell for a fresh render, or in the cached prelude on deploy). The
+          // Turbopack bootstrap is left out of the shell for the resume to
+          // emit, so add it here. Append the closing tags so the browser can
+          // parse a complete document.
+          pushTurbopackBootstrapScript(body)
           body.push(
             new ReadableStream({
               start(controller) {
@@ -2346,8 +2377,11 @@ export function createAppPageEntrypoint({
         // HTML will be the static shell so all the Dynamic API's will be used
         // during static generation.
         if (isDebugStaticShell || isDebugDynamicAccesses) {
-          // Since we're not resuming the render, we need to at least add the
-          // closing body and html tags to create valid HTML.
+          // The Turbopack bootstrap is left out of the shell for the resume to
+          // emit, so add it here. Since we're not resuming the render, we need
+          // to at least add the closing body and html tags to create valid
+          // HTML.
+          pushTurbopackBootstrapScript(body)
           body.push(
             new ReadableStream({
               start(controller) {

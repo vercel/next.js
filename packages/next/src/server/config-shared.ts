@@ -2411,8 +2411,7 @@ export const defaultConfig = Object.freeze({
     manualClientBasePath: false,
     cpus: Math.max(
       1,
-      (Number(process.env.CIRCLE_NODE_TOTAL) ||
-        (os.cpus() || { length: 1 }).length) - 1
+      (Number(process.env.CIRCLE_NODE_TOTAL) || os.availableParallelism()) - 1
     ),
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,

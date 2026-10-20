@@ -8,7 +8,7 @@ import escapeStringRegexp from 'escape-string-regexp'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // FIXME: Fails to deploy
-// @force-gate !deploy || !adapter || !turbopack
+// @force-gate !deploy || !adapter
 describe('Middleware Rewrite', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: {

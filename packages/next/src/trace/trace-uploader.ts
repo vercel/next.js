@@ -215,7 +215,7 @@ interface TraceMetadata {
       arch: os.arch(),
       branch,
       commit,
-      cpus: os.cpus().length,
+      cpus: os.availableParallelism(),
       isVercelEnvironment,
       isTurboSession,
       mode,

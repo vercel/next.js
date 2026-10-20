@@ -1,11 +1,7 @@
 import type { RootRouteTree } from './segment-cache/cache'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
-import {
-  FetchStrategy,
-  type PrefetchTaskFetchStrategy,
-  PrefetchPriority,
-} from './segment-cache/types'
+import { AppStage, PrefetchPriority } from './segment-cache/types'
 import { createCacheKey } from './segment-cache/cache-key'
 import {
   type PrefetchTask,
@@ -24,7 +20,7 @@ type Element = LinkElement | HTMLFormElement
 // shape for both to prevent a polymorphic de-opt in the VM.
 type LinkOrFormInstanceShared = {
   router: AppRouterInstance
-  fetchStrategy: PrefetchTaskFetchStrategy
+  prefetchStage: AppStage
 
   isVisible: boolean
 
@@ -172,7 +168,7 @@ export function mountLinkInstance(
   element: LinkElement,
   href: string,
   router: AppRouterInstance,
-  fetchStrategy: PrefetchTaskFetchStrategy,
+  prefetchStage: AppStage,
   prefetchEnabled: boolean,
   setOptimisticLinkStatus: (status: { pending: boolean }) => void,
   ownerStack: string | null | undefined
@@ -182,7 +178,7 @@ export function mountLinkInstance(
     if (prefetchURL !== null) {
       const instance: PrefetchableLinkInstance = {
         router,
-        fetchStrategy,
+        prefetchStage,
         isVisible: false,
         prefetchTask: null,
         prefetchHref: prefetchURL.href,
@@ -199,7 +195,7 @@ export function mountLinkInstance(
   // track its optimistic state (i.e. useLinkStatus).
   const instance: NonPrefetchableLinkInstance = {
     router,
-    fetchStrategy,
+    prefetchStage,
     isVisible: false,
     prefetchTask: null,
     prefetchHref: null,
@@ -213,7 +209,7 @@ export function mountFormInstance(
   element: HTMLFormElement,
   href: string,
   router: AppRouterInstance,
-  fetchStrategy: PrefetchTaskFetchStrategy
+  prefetchStage: AppStage
 ): void {
   const prefetchURL = coercePrefetchableUrl(href)
   if (prefetchURL === null) {
@@ -225,7 +221,7 @@ export function mountFormInstance(
   }
   const instance: FormInstance = {
     router,
-    fetchStrategy,
+    prefetchStage,
     isVisible: false,
     prefetchTask: null,
     prefetchHref: prefetchURL.href,
@@ -305,7 +301,7 @@ export function onNavigationIntent(
       unstable_upgradeToDynamicPrefetch
     ) {
       // Switch to a full prefetch
-      instance.fetchStrategy = FetchStrategy.Full
+      instance.prefetchStage = AppStage.Navigation
     }
     rescheduleLinkPrefetch(instance, PrefetchPriority.Intent)
   }
@@ -346,7 +342,7 @@ function rescheduleLinkPrefetch(
         instance.prefetchTask = scheduleSegmentPrefetchTask(
           cacheKey,
           appRouterState.root,
-          instance.fetchStrategy,
+          instance.prefetchStage,
           priority,
           null,
           null // navigationLockPrefetch
@@ -357,7 +353,7 @@ function rescheduleLinkPrefetch(
         reschedulePrefetchTask(
           existingPrefetchTask,
           appRouterState.root,
-          instance.fetchStrategy,
+          instance.prefetchStage,
           priority
         )
       }
@@ -392,7 +388,7 @@ export function pingVisibleLinks(
     instance.prefetchTask = scheduleSegmentPrefetchTask(
       cacheKey,
       root,
-      instance.fetchStrategy,
+      instance.prefetchStage,
       PrefetchPriority.Default,
       null,
       null // navigationLockPrefetch
