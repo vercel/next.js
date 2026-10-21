@@ -1,0 +1,13 @@
+error - [process module] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/dynamic-unrelated/input/index.js:2:9  Unknown module type
+       1 | function requireSub(s) {
+         +          v-------------------v
+       2 +   return require(`./sub/${s}`)
+         +          ^-------------------^
+       3 | }
+       4 | 
+       5 | it('should ignore unrelated files for dynamic requests', () => {
+       6 |   expect(requireSub('index').default).toBe('sub')
+  
+  turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/dynamic-unrelated/input/sub/README.md doesn't have an associated module type. Use a known file extension, or register a loader for it.
+  
+  Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders

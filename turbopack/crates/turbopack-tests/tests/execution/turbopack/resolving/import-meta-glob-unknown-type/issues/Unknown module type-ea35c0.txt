@@ -1,4 +1,4 @@
-error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-unknown-type/input/index.js:5:14  import.meta.glob() matched a file that has no module type
+error - [process module] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-unknown-type/input/index.js:5:14  Unknown module type
        1 | // A glob that matches a file without a module type must report an error that
        2 | // says which glob pulled the file in. The value of this test is the `issues/`
        3 | // snapshot.
@@ -11,4 +11,6 @@ error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/r
        8 |   expect(Object.keys(texts)).toEqual(['./content/gamma.txt'])
        9 | })
   
-  import.meta.glob("./content/*.txt") matched ./content/gamma.txt, which doesn't have an associated module type. Narrow the pattern, exclude the file with a negative pattern ("!..."), or register a loader or module type for its file extension.
+  turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-unknown-type/input/content/gamma.txt doesn't have an associated module type. Use a known file extension, or register a loader for it.
+  
+  Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders

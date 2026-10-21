@@ -1,0 +1,14 @@
+error - [process module] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/unknown-module-type/input/index.js:5:15  Unknown module type
+       1 | // Importing a file without a module type must report an error at the import.
+       2 | // The value of this test is the `issues/` snapshot.
+       3 | 
+       4 | it('should throw when the file is required', () => {
+         +                v----------------------------v
+       5 +   expect(() => require('./content/gamma.txt')).toThrow()
+         +                ^----------------------------^
+       6 | })
+       7 | 
+  
+  turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/unknown-module-type/input/content/gamma.txt doesn't have an associated module type. Use a known file extension, or register a loader for it.
+  
+  Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders
