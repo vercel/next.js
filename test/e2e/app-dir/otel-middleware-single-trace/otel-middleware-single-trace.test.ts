@@ -60,7 +60,9 @@ const renderMode = !process.env.__NEXT_CACHE_COMPONENTS
 // route handler reports. Spans started in another process (e.g. next-server's
 // spans for Edge middleware, or the platform's when deployed) show up as
 // `[remote]` parents. Deployed apps have their own snapshots: the platform
-// invokes the middleware and the render separately.
+// invokes the middleware and the render separately, and the render's request
+// span is named after its entrypoint (e.g. `GET /page/page`). With Cache
+// Components, deployed pages are rendered in a `POST` resume request.
 describe.each([
   // `proxy.ts` always runs in the Node.js runtime.
   { name: 'proxy (nodejs runtime)', file: 'proxy.ts', exportName: 'proxy' },
@@ -131,7 +133,29 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'html')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET /page (Next.request)
+         ├─ middleware GET (Middleware.execute)
+         └─ POST /page/page (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            └─ render route (app) /page (AppRender.getBodyResult)
+               └─ build component tree (NextNodeServer.createComponentTree)
+                  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)"
+        `)
+      } else {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET /page (Next.request)
+         ├─ GET /page/page (BaseServer.handleRequest)
+         │  ├─ prepare route module (RouteModule.prepare)
+         │  └─ render route (app) /page (AppRender.getBodyResult)
+         │     └─ build component tree (NextNodeServer.createComponentTree)
+         │        ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         │        └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         └─ middleware GET (Middleware.execute)"
+        `)
+      }
     } else if (renderMode === 'cache components, dev') {
       expect(tree).toMatchInlineSnapshot(`
        "[trace A] GET (BaseServer.handleRequest)
@@ -182,7 +206,13 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'json')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET /route-handler (Next.request)
+       ├─ GET /route-handler/route (BaseServer.handleRequest)
+       │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler)
+       │  └─ prepare route module (RouteModule.prepare)
+       └─ middleware GET (Middleware.execute)"
+      `)
     } else {
       expect(tree).toMatchInlineSnapshot(`
        "[trace A] GET (BaseServer.handleRequest)
@@ -202,7 +232,29 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'html')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET /rewrite (Next.request)
+         ├─ middleware GET (Middleware.execute)
+         └─ POST /page/page (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            └─ render route (app) /page (AppRender.getBodyResult)
+               └─ build component tree (NextNodeServer.createComponentTree)
+                  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)"
+        `)
+      } else {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET /rewrite (Next.request)
+         ├─ GET /page/page (BaseServer.handleRequest)
+         │  ├─ prepare route module (RouteModule.prepare)
+         │  └─ render route (app) /page (AppRender.getBodyResult)
+         │     └─ build component tree (NextNodeServer.createComponentTree)
+         │        ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         │        └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         └─ middleware GET (Middleware.execute)"
+        `)
+      }
     } else if (renderMode === 'cache components, dev') {
       expect(tree).toMatchInlineSnapshot(`
        "[trace A] GET (BaseServer.handleRequest)
@@ -253,7 +305,10 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'none')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET /redirect (Next.request)
+       └─ middleware GET (Middleware.execute)"
+      `)
     } else if (isNodeMiddleware) {
       expect(tree).toMatchInlineSnapshot(`
        "[trace A] GET (BaseServer.handleRequest)
@@ -274,7 +329,10 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'none')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET /direct (Next.request)
+       └─ middleware GET (Middleware.execute)"
+      `)
     } else if (isNodeMiddleware) {
       expect(tree).toMatchInlineSnapshot(`
        "[trace A] GET (BaseServer.handleRequest)
@@ -295,7 +353,25 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'html')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] POST /unmatched/page (BaseServer.handleRequest)
+         ├─ prepare route module (RouteModule.prepare)
+         └─ render route (app) /unmatched (AppRender.getBodyResult)
+            └─ build component tree (NextNodeServer.createComponentTree)
+               ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+               └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)"
+        `)
+      } else {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET /unmatched/page (BaseServer.handleRequest)
+         ├─ prepare route module (RouteModule.prepare)
+         └─ render route (app) /unmatched (AppRender.getBodyResult)
+            └─ build component tree (NextNodeServer.createComponentTree)
+               ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+               └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)"
+        `)
+      }
     } else if (renderMode === 'cache components, dev') {
       expect(tree).toMatchInlineSnapshot(`
        "[trace A] GET (BaseServer.handleRequest)
@@ -342,7 +418,29 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'html')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace incoming] [incoming traceparent]
+         ├─ middleware GET (Middleware.execute)
+         └─ POST /page/page (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            └─ render route (app) /page (AppRender.getBodyResult)
+               └─ build component tree (NextNodeServer.createComponentTree)
+                  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)"
+        `)
+      } else {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace incoming] [incoming traceparent]
+         ├─ GET /page/page (BaseServer.handleRequest)
+         │  ├─ prepare route module (RouteModule.prepare)
+         │  └─ render route (app) /page (AppRender.getBodyResult)
+         │     └─ build component tree (NextNodeServer.createComponentTree)
+         │        ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         │        └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         └─ middleware GET (Middleware.execute)"
+        `)
+      }
     } else if (renderMode === 'cache components, dev') {
       expect(tree).toMatchInlineSnapshot(`
        "[trace incoming] [incoming traceparent]
@@ -398,7 +496,13 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'json')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace incoming] [incoming traceparent]
+       ├─ GET /route-handler/route (BaseServer.handleRequest)
+       │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler)
+       │  └─ prepare route module (RouteModule.prepare)
+       └─ middleware GET (Middleware.execute)"
+      `)
     } else {
       expect(tree).toMatchInlineSnapshot(`
        "[trace incoming] [incoming traceparent]
@@ -421,7 +525,29 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'html')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace incoming] [incoming traceparent]
+         ├─ middleware GET (Middleware.execute)
+         └─ POST /page/page (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            └─ render route (app) /page (AppRender.getBodyResult)
+               └─ build component tree (NextNodeServer.createComponentTree)
+                  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)"
+        `)
+      } else {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace incoming] [incoming traceparent]
+         ├─ GET /page/page (BaseServer.handleRequest)
+         │  ├─ prepare route module (RouteModule.prepare)
+         │  └─ render route (app) /page (AppRender.getBodyResult)
+         │     └─ build component tree (NextNodeServer.createComponentTree)
+         │        ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         │        └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         └─ middleware GET (Middleware.execute)"
+        `)
+      }
     } else if (renderMode === 'cache components, dev') {
       expect(tree).toMatchInlineSnapshot(`
        "[trace incoming] [incoming traceparent]
@@ -482,7 +608,29 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'html')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET /user-overrides (Next.request)
+         ├─ middleware GET (Middleware.execute)
+         └─ POST /headers-echo/page (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            └─ render route (app) /headers-echo (AppRender.getBodyResult)
+               └─ build component tree (NextNodeServer.createComponentTree)
+                  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)"
+        `)
+      } else {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET /user-overrides (Next.request)
+         ├─ GET /headers-echo/page (BaseServer.handleRequest)
+         │  ├─ prepare route module (RouteModule.prepare)
+         │  └─ render route (app) /headers-echo (AppRender.getBodyResult)
+         │     └─ build component tree (NextNodeServer.createComponentTree)
+         │        ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         │        └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         └─ middleware GET (Middleware.execute)"
+        `)
+      }
     } else if (renderMode === 'cache components, dev') {
       expect(tree).toMatchInlineSnapshot(`
        "[trace A] GET (BaseServer.handleRequest)
@@ -535,7 +683,31 @@ describe.each([
     expectNoInternalHeaders(res)
     const tree = await getSpanTree(res, 'html')
     if (isNextDeploy) {
-      expect(tree).toMatchInlineSnapshot()
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET /user-traceparent (Next.request)
+         └─ middleware GET (Middleware.execute)
+         [trace set by middleware] [set by middleware traceparent]
+         └─ POST /headers-echo/page (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            └─ render route (app) /headers-echo (AppRender.getBodyResult)
+               └─ build component tree (NextNodeServer.createComponentTree)
+                  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)"
+        `)
+      } else {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET /user-traceparent (Next.request)
+         └─ middleware GET (Middleware.execute)
+         [trace set by middleware] [set by middleware traceparent]
+         └─ GET /headers-echo/page (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            └─ render route (app) /headers-echo (AppRender.getBodyResult)
+               └─ build component tree (NextNodeServer.createComponentTree)
+                  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)"
+        `)
+      }
     } else if (isNodeMiddleware) {
       if (renderMode === 'cache components, dev') {
         expect(tree).toMatchInlineSnapshot(`
