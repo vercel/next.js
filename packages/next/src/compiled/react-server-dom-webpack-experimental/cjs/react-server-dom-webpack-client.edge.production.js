@@ -2603,7 +2603,7 @@ function getAsyncIterableReplay(result, iterable, getAsyncIterator) {
   iterator.next().then(progress, error);
   return replay;
 }
-function createReplayReadableStream(replay, read) {
+function createReplayReadableStream(replay, read, readReason) {
   function pull(controller) {
     return new Promise(function (resolve) {
       waitForReplay(replay, index, function () {
@@ -2635,7 +2635,7 @@ function createReplayReadableStream(replay, read) {
           }
         } else
           2 === replay.status
-            ? controller.error(replay.error)
+            ? controller.error(readReason(replay.error))
             : controller.close();
         resolve();
       });
@@ -2656,9 +2656,9 @@ function isThenable$1(value) {
     "function" === typeof value.then
   );
 }
-function createReplayAsyncIterable(replay, read) {
+function createReplayAsyncIterable(replay, read, readReason) {
   var asIterable =
-      2 < arguments.length && void 0 !== arguments[2] ? arguments[2] : !1,
+      3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : !1,
     iterable = {};
   iterable[Symbol.asyncIterator] = function () {
     var index = 0,
@@ -2693,7 +2693,7 @@ function createReplayAsyncIterable(replay, read) {
                     resolve({ done: entry.done, value: value });
                   } else
                     2 === replay.status
-                      ? reject(replay.error)
+                      ? reject(readReason(replay.error))
                       : resolve({ done: !0, value: void 0 });
                 });
           });
@@ -2868,20 +2868,34 @@ function copyOf(response, container, createCopy) {
   void 0 === copy && ((copy = createCopy()), response.set(container, copy));
   return copy;
 }
+function abandonContainer(response, container) {
+  response._visiting.pop();
+  if (response._models.has(container)) {
+    var incomplete = response._incomplete;
+    null === incomplete
+      ? (response._incomplete = new Set([container]))
+      : incomplete.add(container);
+  }
+}
+function isIncomplete(response, container) {
+  response = response._incomplete;
+  return null !== response && response.has(container);
+}
 function exitContainer(response, container, visitsBefore, read, pure) {
   response._visiting.pop();
-  if (read === container) {
-    if (
-      32 <= response._visits - visitsBefore &&
-      (response._models.set(container, container), pure)
-    ) {
-      visitsBefore = response._result;
-      var pureData = visitsBefore.pureData;
-      null === pureData && (visitsBefore.pureData = pureData = new WeakSet());
-      pureData.add(container);
-    }
-    response._childPure = pure;
-  } else response._childPure = !1;
+  var incomplete = response._incomplete;
+  null !== incomplete && incomplete.delete(container);
+  read === container
+    ? (32 <= response._visits - visitsBefore &&
+        (response._models.set(container, container),
+        pure &&
+          ((visitsBefore = response._result),
+          (incomplete = visitsBefore.pureData),
+          null === incomplete &&
+            (visitsBefore.pureData = incomplete = new WeakSet()),
+          incomplete.add(container))),
+      (response._childPure = pure))
+    : (response._childPure = !1);
   return read;
 }
 function isPureLeaf(response, child, read) {
@@ -2935,7 +2949,7 @@ function readNode(
     reusable = null === context.keyPath && !context.implicitSlot;
   if (reusable) {
     var existing = models.get(value);
-    if (void 0 !== existing) return existing;
+    if (void 0 !== existing && !isIncomplete(response, value)) return existing;
   }
   switch (value.$$typeof) {
     case REACT_ELEMENT_TYPE:
@@ -2961,11 +2975,12 @@ function readNode(
       : readAsyncFragment(response, value, context, descendContext);
 }
 function readAsyncFragment(response, iterable, context, descendContext) {
+  var itemContext = null !== context.keyPath ? descendContext : context;
   iterable = readAsyncIterable(
     response,
     iterable,
     function (value) {
-      return readStreamedNode(response, value, descendContext);
+      return readStreamedNode(response, value, itemContext);
     },
     !1
   );
@@ -2999,17 +3014,22 @@ function readStreamedNode(response, value, context) {
   });
 }
 function readAsyncIterable(response, iterable, read, asIterable) {
-  var models = response._models,
-    existing = models.get(iterable);
-  if (void 0 !== existing) return existing;
-  response = getAsyncIterableReplay(
+  iterable = getAsyncIterableReplay(
     response._result,
     iterable,
     iterable[ASYNC_ITERATOR]
   );
-  read = createReplayAsyncIterable(response, read, asIterable);
-  models.set(iterable, read);
-  return read;
+  return createReplayAsyncIterable(
+    iterable,
+    read,
+    function (reason) {
+      return errorWithDigest(
+        createConsumerError(),
+        logConsumerError(response, reason)
+      );
+    },
+    asIterable
+  );
 }
 function readFragment(response, children, context, descendContext) {
   return null !== context.keyPath
@@ -3024,7 +3044,7 @@ function createArrayCopy() {
 }
 function readArray(response, array, context) {
   var existing = response._models.get(array);
-  if (void 0 !== existing)
+  if (void 0 !== existing && !isIncomplete(response, array))
     return (
       (response._childPure =
         existing === array && isPureData(response._result, array)),
@@ -3056,7 +3076,7 @@ function readArray(response, array, context) {
       cycle[i] = read;
     }
   } catch (thrown$74) {
-    throw (response._visiting.pop(), thrown$74);
+    throw (abandonContainer(response, array), thrown$74);
   }
   return exitContainer(
     response,
@@ -3158,29 +3178,37 @@ function readElementImpl(response, element, context, descendContext) {
       "children"
     );
   else {
-    if (
+    for (
+      ;
       null !== type &&
       "object" === typeof type &&
-      !expansion.isClientReference(type)
-    )
+      !expansion.isClientReference(type);
+
+    ) {
       switch (type.$$typeof) {
+        case REACT_LAZY_TYPE:
+          var init = type._init;
+          type = init(type._payload);
+          continue;
         case REACT_MEMO_TYPE:
           type = type.type;
-          break;
+          continue;
         case REACT_FORWARD_REF_TYPE:
           type = type.render;
+          continue;
       }
-    var JSCompiler_inline_result = element.key;
+      break;
+    }
+    init = element.key;
     var keyPath = context.keyPath;
-    JSCompiler_inline_result =
-      null === JSCompiler_inline_result
+    init =
+      null === init
         ? keyPath
         : null === keyPath
-          ? JSCompiler_inline_result
-          : keyPath === REACT_OPTIMISTIC_KEY ||
-              JSCompiler_inline_result === REACT_OPTIMISTIC_KEY
+          ? init
+          : keyPath === REACT_OPTIMISTIC_KEY || init === REACT_OPTIMISTIC_KEY
             ? REACT_OPTIMISTIC_KEY
-            : keyPath + "," + JSCompiler_inline_result;
+            : keyPath + "," + init;
     if (void 0 !== element.props.ref && null !== element.props.ref)
       throw Error(
         "Refs cannot be used in Server Components, nor passed to Client Components."
@@ -3198,26 +3226,18 @@ function readElementImpl(response, element, context, descendContext) {
     expansion.isClientReference(type)
       ? ((response = createElement(
           readClientReference(response, type),
-          JSCompiler_inline_result,
+          init,
           descendContext
         )),
         (context =
-          context.implicitSlot && null !== JSCompiler_inline_result
-            ? [response]
-            : response))
-      : (JSCompiler_inline_result === element.key &&
+          context.implicitSlot && null !== init ? [response] : response))
+      : (init === element.key &&
         descendContext === element.props &&
         type === element.type
           ? ((response._childPure = !1), (response = element))
-          : (response = createElement(
-              type,
-              JSCompiler_inline_result,
-              descendContext
-            )),
+          : (response = createElement(type, init, descendContext)),
         (context =
-          context.implicitSlot && null !== JSCompiler_inline_result
-            ? [response]
-            : response));
+          context.implicitSlot && null !== init ? [response] : response));
   }
   return context;
 }
@@ -3301,8 +3321,9 @@ function readServerComponentOutput(response, output, context, descendContext) {
     return createLazyChunkWrapper(chunk);
   }
   var iteratorFn = getIteratorFn(output);
-  return iteratorFn && !isArrayImpl(output)
-    ? ((iteratorFn = iteratorFn.call(output)),
+  if (iteratorFn && !isArrayImpl(output))
+    return (
+      (iteratorFn = iteratorFn.call(output)),
       readFragment(
         response,
         iteratorFn === output
@@ -3310,25 +3331,29 @@ function readServerComponentOutput(response, output, context, descendContext) {
           : Array.from(iteratorFn),
         context,
         descendContext
-      ))
-    : "function" !== typeof output[ASYNC_ITERATOR] ||
-        ("function" === typeof ReadableStream &&
-          output instanceof ReadableStream)
-      ? readNode(response, output, context, descendContext, {}, "")
-      : ((output = readAsyncIterable(
-          response,
-          output,
-          function (value) {
-            return readStreamedNode(response, value, descendContext);
-          },
-          !0
-        )),
-        null !== context.keyPath
-          ? ((output = createElement(REACT_FRAGMENT_TYPE, context.keyPath, {
-              children: output
-            })),
-            context.implicitSlot ? [output] : output)
-          : output);
+      )
+    );
+  if (
+    "function" === typeof output[ASYNC_ITERATOR] &&
+    !("function" === typeof ReadableStream && output instanceof ReadableStream)
+  ) {
+    var itemContext = null !== context.keyPath ? descendContext : context;
+    output = readAsyncIterable(
+      response,
+      output,
+      function (value) {
+        return readStreamedNode(response, value, itemContext);
+      },
+      !0
+    );
+    return null !== context.keyPath
+      ? ((output = createElement(REACT_FRAGMENT_TYPE, context.keyPath, {
+          children: output
+        })),
+        context.implicitSlot ? [output] : output)
+      : output;
+  }
+  return readNode(response, output, context, descendContext, {}, "");
 }
 function readServerReference(response, reference, context) {
   var serverReferences = response._serverReferences,
@@ -3406,7 +3431,7 @@ function readData(response, value, context, parent, parentPropertyName) {
     response._childPure = !1;
     var models = response._models,
       existing = models.get(value);
-    if (void 0 !== existing)
+    if (void 0 !== existing && !isIncomplete(response, value))
       return (
         (response._childPure =
           existing === value && isPureData(response._result, value)),
@@ -3466,6 +3491,12 @@ function readData(response, value, context, parent, parentPropertyName) {
             return readStreamedValue(response, chunk, function () {
               return readData(response, chunk, context, {}, "");
             });
+          },
+          function (reason) {
+            return errorWithDigest(
+              createConsumerError(),
+              logConsumerError(response, reason)
+            );
           }
         )),
         models.set(value, parent),
@@ -3578,7 +3609,7 @@ function readObject(response, object, context) {
       void 0 !== read && (cycle[key] = read);
     }
   } catch (thrown) {
-    throw (response._visiting.pop(), thrown);
+    throw (abandonContainer(response, object), thrown);
   }
   return exitContainer(
     response,
@@ -3609,7 +3640,7 @@ function readMap(response, map, context) {
       cycle.set(key, value);
     }
   } catch (thrown) {
-    throw (response._visiting.pop(), thrown);
+    throw (abandonContainer(response, map), thrown);
   }
   return exitContainer(
     response,
@@ -3639,7 +3670,7 @@ function readSet(response, set, context) {
       cycle.add(read);
     }
   } catch (thrown) {
-    throw (response._visiting.pop(), thrown);
+    throw (abandonContainer(response, set), thrown);
   }
   return exitContainer(
     response,
@@ -3722,6 +3753,7 @@ function createResponse(
     _bindToConsumer: bindToConsumer,
     _models: new Map(),
     _visiting: [],
+    _incomplete: null,
     _visits: 0,
     _childPure: !1,
     _modules: new Map(),

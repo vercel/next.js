@@ -732,6 +732,8 @@ function subscribeToHints(context, listener) {
     -1 !== index && listeners.splice(index, 1);
   };
 }
+var isArrayImpl = Array.isArray,
+  getPrototypeOf = Object.getPrototypeOf;
 function expansionThen(resolve, reject) {
   switch (this.status) {
     case 1:
@@ -783,6 +785,53 @@ function getIteratorEntries(result, iterator) {
   void 0 === result &&
     ((result = Array.from(iterator)), entries.set(iterator, result));
   return result;
+}
+var ObjectPrototype$2 = Object.prototype;
+function countPureContainers(container, depth) {
+  if (64 <= depth) return -1;
+  var visits = 1;
+  if (isArrayImpl(container)) {
+    for (var i = 0; i < container.length; i++) {
+      if (!(i in container)) return -1;
+      var inner = countPureValue(container[i], depth);
+      if (-1 === inner) return -1;
+      visits += inner;
+    }
+    return visits;
+  }
+  if (
+    getPrototypeOf(container) !== ObjectPrototype$2 ||
+    getIteratorFn(container) ||
+    "function" === typeof container[ASYNC_ITERATOR] ||
+    "function" === typeof container.then
+  )
+    return -1;
+  i = Object.keys(container);
+  for (inner = 0; inner < i.length; inner++) {
+    var key = i[inner];
+    if ("__proto__" === key) return -1;
+    key = container[key];
+    if (void 0 !== key) {
+      key = countPureValue(key, depth);
+      if (-1 === key) return -1;
+      visits += key;
+    }
+  }
+  return visits;
+}
+function countPureValue(value, depth) {
+  switch (typeof value) {
+    case "string":
+      return 36 !== value.charCodeAt(0) ? 0 : -1;
+    case "number":
+      return isFinite(value) && (0 !== value || 0 < 1 / value) ? 0 : -1;
+    case "boolean":
+      return 0;
+    case "object":
+      return null === value ? 0 : countPureContainers(value, depth + 1);
+    default:
+      return -1;
+  }
 }
 function subscribeToAbort(result, listener) {
   if (result.aborted) return listener(result.abortReason), function () {};
@@ -898,7 +947,7 @@ function getAsyncIterableReplay(result, iterable, getAsyncIterator) {
   iterator.next().then(progress, error);
   return replay;
 }
-function createReplayReadableStream(replay, read) {
+function createReplayReadableStream(replay, read, readReason) {
   function pull(controller) {
     return new Promise(function (resolve) {
       waitForReplay(replay, index, function () {
@@ -930,7 +979,7 @@ function createReplayReadableStream(replay, read) {
           }
         } else
           2 === replay.status
-            ? controller.error(replay.error)
+            ? controller.error(readReason(replay.error))
             : controller.close();
         resolve();
       });
@@ -951,9 +1000,9 @@ function isThenable(value) {
     "function" === typeof value.then
   );
 }
-function createReplayAsyncIterable(replay, read) {
+function createReplayAsyncIterable(replay, read, readReason) {
   var asIterable =
-      2 < arguments.length && void 0 !== arguments[2] ? arguments[2] : !1,
+      3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : !1,
     iterable = {};
   iterable[Symbol.asyncIterator] = function () {
     var index = 0,
@@ -985,7 +1034,7 @@ function createReplayAsyncIterable(replay, read) {
                     resolve({ done: entry.done, value: value });
                   } else
                     2 === replay.status
-                      ? reject(replay.error)
+                      ? reject(readReason(replay.error))
                       : resolve({ done: !0, value: void 0 });
                 });
           });
@@ -1001,8 +1050,6 @@ function createReplayAsyncIterable(replay, read) {
 var ReactSharedInternalsServer =
   React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 if (!ReactSharedInternalsServer) throw Error(formatProdErrorMessage(492));
-var isArrayImpl = Array.isArray,
-  getPrototypeOf = Object.getPrototypeOf;
 function objectName(object) {
   object = Object.prototype.toString.call(object);
   return object.slice(8, object.length - 1);
@@ -1162,6 +1209,7 @@ function RequestInstance(
   this.writtenClientReferences = new Map();
   this.writtenServerReferences = new Map();
   this.writtenObjects = new WeakMap();
+  this.pureDataRows = null;
   this.writtenImportStrings = new Map();
   this.writtenImportStringsSize = 0;
   this.temporaryReferences = temporaryReferences;
@@ -1276,7 +1324,7 @@ function serializeThenable(request, task, thenable) {
         task.id
       );
     default:
-      var newTask$12 = createTask(
+      var newTask$14 = createTask(
         request,
         thenable,
         task.keyPath,
@@ -1286,13 +1334,13 @@ function serializeThenable(request, task, thenable) {
       );
       if (12 === request.status)
         return (
-          request.abortableTasks.delete(newTask$12),
+          request.abortableTasks.delete(newTask$14),
           21 === request.type
-            ? (haltTask(newTask$12), finishHaltedTask(newTask$12, request))
+            ? (haltTask(newTask$14), finishHaltedTask(newTask$14, request))
             : ((task = request.fatalError),
-              abortTask(newTask$12),
-              finishAbortedTask(newTask$12, request, task)),
-          newTask$12.id
+              abortTask(newTask$14),
+              finishAbortedTask(newTask$14, request, task)),
+          newTask$14.id
         );
       "string" !== typeof thenable.status &&
         ((thenable.status = "pending"),
@@ -1309,15 +1357,15 @@ function serializeThenable(request, task, thenable) {
         ));
       thenable.then(
         function (value) {
-          newTask$12.model = value;
-          pingTask(request, newTask$12);
+          newTask$14.model = value;
+          pingTask(request, newTask$14);
         },
         function (reason) {
-          0 === newTask$12.status &&
-            (erroredTask(request, newTask$12, reason), enqueueFlush(request));
+          0 === newTask$14.status &&
+            (erroredTask(request, newTask$14, reason), enqueueFlush(request));
         }
       );
-      return newTask$12.id;
+      return newTask$14.id;
   }
 }
 function serializeReadableStream(request, task, stream) {
@@ -1349,8 +1397,8 @@ function serializeReadableStream(request, task, stream) {
               : tryStreamTask(request, streamTask),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$13) {
-          error(x$13);
+        } catch (x$15) {
+          error(x$15);
         }
   }
   function error(reason) {
@@ -1438,8 +1486,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             tryStreamTask(request, streamTask),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$14) {
-          error(x$14);
+        } catch (x$16) {
+          error(x$16);
         }
   }
   function error(reason) {
@@ -1702,19 +1750,14 @@ function logResultError(result, error) {
     result.errorDigests.set(error, errorDigest);
   return errorDigest;
 }
-function recordPureData(writtenObjects, container, reference, record) {
+function recordPureData(writtenObjects, container, marker, record) {
   if (isArrayImpl(container)) {
     for (var i = 0; i < container.length; i++) {
       var child = container[i];
       if (
         "object" === typeof child &&
         null !== child &&
-        !recordPureDataChild(
-          writtenObjects,
-          child,
-          null === reference ? null : reference + ":" + i,
-          record
-        )
+        !recordPureDataChild(writtenObjects, child, marker, record)
       )
         return !1;
     }
@@ -1722,30 +1765,48 @@ function recordPureData(writtenObjects, container, reference, record) {
   }
   i = Object.keys(container);
   for (child = 0; child < i.length; child++) {
-    var key = i[child],
-      child$17 = container[key];
+    var child$19 = container[i[child]];
     if (
-      "object" === typeof child$17 &&
-      null !== child$17 &&
-      ((key =
-        null === reference || -1 !== key.indexOf(":")
-          ? null
-          : reference + ":" + key),
-      !recordPureDataChild(writtenObjects, child$17, key, record))
+      "object" === typeof child$19 &&
+      null !== child$19 &&
+      !recordPureDataChild(writtenObjects, child$19, marker, record)
     )
       return !1;
   }
   return !0;
 }
-function recordPureDataChild(writtenObjects, child, reference, record) {
+function recordPureDataChild(writtenObjects, child, marker, record) {
   if (record) {
     if (writtenObjects.has(child)) return !1;
-    null !== reference && writtenObjects.set(child, reference);
-  } else
-    null !== reference &&
-      writtenObjects.get(child) === reference &&
-      writtenObjects.delete(child);
-  return recordPureData(writtenObjects, child, reference, record);
+    writtenObjects.set(child, marker);
+  } else writtenObjects.get(child) === marker && writtenObjects.delete(child);
+  return recordPureData(writtenObjects, child, marker, record);
+}
+function findPureDataPath(container, target, path) {
+  if (isArrayImpl(container)) {
+    for (var i = 0; i < container.length; i++) {
+      var child = container[i];
+      if ("object" === typeof child && null !== child) {
+        if (child === target) return path + i;
+        child = findPureDataPath(child, target, path + i + ":");
+        if (null !== child) return child;
+      }
+    }
+    return null;
+  }
+  i = Object.keys(container);
+  for (child = 0; child < i.length; child++) {
+    var key = i[child];
+    if (-1 === key.indexOf(":")) {
+      var child$21 = container[key];
+      if ("object" === typeof child$21 && null !== child$21) {
+        if (child$21 === target) return path + key;
+        key = findPureDataPath(child$21, target, path + key + ":");
+        if (null !== key) return key;
+      }
+    }
+  }
+  return null;
 }
 function renderFragment(request, task, children) {
   return null !== task.keyPath
@@ -1972,39 +2033,39 @@ function resolveModel(request, task, parent, parentPropertyName, value) {
   value = JSCompiler_inline_result;
   if (null === value || "object" !== typeof value) return value;
   if (isArrayImpl(value)) {
-    var resolved$19 = [];
+    var resolved$23 = [];
     for (
       prevImplicitSlot = 0;
       prevImplicitSlot < value.length;
       prevImplicitSlot++
     )
-      resolved$19[prevImplicitSlot] = resolveModel(
+      resolved$23[prevImplicitSlot] = resolveModel(
         request,
         task,
         value,
         "" + prevImplicitSlot,
         value[prevImplicitSlot]
       );
-    return resolved$19;
+    return resolved$23;
   }
   prevImplicitSlot = {};
-  for (resolved$19 in value)
-    hasOwnProperty.call(value, resolved$19) &&
+  for (resolved$23 in value)
+    hasOwnProperty.call(value, resolved$23) &&
       ((parent = resolveModel(
         request,
         task,
         value,
-        resolved$19,
-        value[resolved$19]
+        resolved$23,
+        value[resolved$23]
       )),
-      "__proto__" === resolved$19
-        ? Object.defineProperty(prevImplicitSlot, resolved$19, {
+      "__proto__" === resolved$23
+        ? Object.defineProperty(prevImplicitSlot, resolved$23, {
             value: parent,
             enumerable: !0,
             writable: !0,
             configurable: !0
           })
-        : (prevImplicitSlot[resolved$19] = parent));
+        : (prevImplicitSlot[resolved$23] = parent));
   return prevImplicitSlot;
 }
 function serializeByValueID(id) {
@@ -2250,31 +2311,65 @@ function renderModelDestructive(
     )
       return "$T" + elementReference;
     elementReference = request.writtenObjects;
-    writtenObjects = elementReference.get(value);
     existingReference = request.result;
-    var JSCompiler_temp;
+    if (null === existingReference)
+      writtenObjects = elementReference.get(value);
+    else {
+      writtenObjects = request.writtenObjects;
+      var reference = writtenObjects.get(value);
+      if (
+        void 0 === reference ||
+        58 !== reference.charCodeAt(reference.length - 1)
+      )
+        writtenObjects = reference;
+      else {
+        var pureDataRows = request.pureDataRows;
+        pureDataRows =
+          null === pureDataRows ? void 0 : pureDataRows.get(reference);
+        pureDataRows =
+          void 0 === pureDataRows
+            ? null
+            : findPureDataPath(pureDataRows, value, "");
+        null === pureDataRows
+          ? (writtenObjects.delete(value), (writtenObjects = void 0))
+          : ((reference += pureDataRows),
+            writtenObjects.set(value, reference),
+            (writtenObjects = reference));
+      }
+    }
     if (
-      (JSCompiler_temp =
+      (reference =
         void 0 === writtenObjects &&
         null !== existingReference &&
         (null === task.keyPath || !isArrayImpl(value)))
     )
-      (existingReference = existingReference.pureData),
-        (JSCompiler_temp =
-          null !== existingReference && existingReference.has(value));
-    if (JSCompiler_temp) {
-      JSCompiler_temp = request.writtenObjects;
+      (reference = existingReference.pureData),
+        (reference = null !== reference && reference.has(value)) ||
+          (32 > countPureContainers(value, 0)
+            ? (reference = !1)
+            : ((reference = existingReference.pureData),
+              null === reference &&
+                (existingReference.pureData = reference = new WeakSet()),
+              reference.add(value),
+              (reference = !0)));
+    if (reference) {
+      reference = request.writtenObjects;
       existingReference = request.nextChunkId;
-      var reference = serializeByValueID(existingReference);
-      recordPureData(JSCompiler_temp, value, reference, !0)
-        ? (request.nextChunkId++,
-          request.pendingChunks++,
-          JSCompiler_temp.set(value, reference),
-          (JSCompiler_temp = stringify(value)),
-          (serializedSize += JSCompiler_temp.length),
-          emitModelChunk(request, existingReference, JSCompiler_temp))
-        : (recordPureData(JSCompiler_temp, value, reference, !1),
-          (existingReference = -1));
+      pureDataRows = serializeByValueID(existingReference);
+      var marker = pureDataRows + ":";
+      if (recordPureData(reference, value, marker, !0)) {
+        var pureDataRows$jscomp$0 = request.pureDataRows;
+        null === pureDataRows$jscomp$0 &&
+          (pureDataRows$jscomp$0 = request.pureDataRows = new Map());
+        pureDataRows$jscomp$0.set(marker, value);
+        request.nextChunkId++;
+        request.pendingChunks++;
+        reference.set(value, pureDataRows);
+        reference = stringify(value);
+        serializedSize += reference.length;
+        emitModelChunk(request, existingReference, reference);
+      } else
+        recordPureData(reference, value, marker, !1), (existingReference = -1);
       if (-1 !== existingReference)
         return serializeByValueID(existingReference);
     }
@@ -2403,6 +2498,7 @@ function renderModelDestructive(
             task,
             createReplayReadableStream(
               getStreamReplay(request.result, value),
+              identity,
               identity
             )
           )
@@ -2426,6 +2522,7 @@ function renderModelDestructive(
               )),
               (value = createReplayAsyncIterable(
                 parentPropertyName,
+                identity,
                 identity,
                 parentPropertyName.isIterator &&
                   elementReference !== value[ASYNC_ITERATOR]
@@ -2669,14 +2766,14 @@ function transformImportMetadata(request, value, depth) {
       for (i = 0; i < length.length; i++) {
         element = length[i];
         if (element in ObjectPrototype$1) return NOT_PLAIN_IMPORT_METADATA;
-        var element$28 = value[element];
-        if ("string" === typeof element$28)
-          copy[element] = serializeImportString(request, element$28);
+        var element$32 = value[element];
+        if ("string" === typeof element$32)
+          copy[element] = serializeImportString(request, element$32);
         else {
-          element$28 = transformImportMetadata(request, element$28, depth + 1);
-          if (element$28 === NOT_PLAIN_IMPORT_METADATA)
+          element$32 = transformImportMetadata(request, element$32, depth + 1);
+          if (element$32 === NOT_PLAIN_IMPORT_METADATA)
             return NOT_PLAIN_IMPORT_METADATA;
-          copy[element] = element$28;
+          copy[element] = element$32;
         }
       }
       return copy;
@@ -3061,9 +3158,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$35) {
-      logRecoverableError(request, error$35, null),
-        fatalError(request, error$35);
+    } catch (error$39) {
+      logRecoverableError(request, error$39, null),
+        fatalError(request, error$39);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -3898,12 +3995,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$38 = new ReactPromise("pending", null, null);
-          chunk$38.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$38;
+          var chunk$42 = new ReactPromise("pending", null, null);
+          chunk$42.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$42;
           chunk.then(function () {
-            previousBlockedChunk === chunk$38 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$38, json, -1);
+            previousBlockedChunk === chunk$42 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$42, json, -1);
           });
         }
       },
