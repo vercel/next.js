@@ -9,7 +9,10 @@ type EvaluationModule = {
 // asynchronous exports. A pool restart replaces the worker and its module/runtime caches together.
 const modules = new Map<string, Promise<EvaluationModule['default']>>()
 
-export function loadEvaluation(entry: string) {
+/** Resolves to the entry's callable default export after its optional async initialization. */
+export function loadEvaluation(
+  entry: string
+): Promise<EvaluationModule['default']> {
   let module = modules.get(entry)
   if (!module) {
     module = (async () => {

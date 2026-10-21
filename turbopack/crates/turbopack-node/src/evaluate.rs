@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
+use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
@@ -43,6 +44,7 @@ use turbopack_core::{
     source::Source,
     virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::hmr::EcmascriptHmrChunkContent;
 
 use crate::{
     AssetsForSourceMapping,
@@ -86,6 +88,90 @@ enum EvalJavaScriptIncomingMessage {
 pub struct EvaluatePool {
     id: u64,
     pool: Box<dyn EvaluateOperation>,
+    code: Mutex<PoolCodeVersions>,
+}
+
+/// Plain worker-visible versions, shared across entries but not across runtime namespaces.
+#[derive(Default)]
+struct PoolCodeVersions {
+    generation: u64,
+    files: FxHashMap<PathBuf, ObservedCode<Option<RcStr>>>,
+    modules: FxHashMap<PathBuf, FxHashMap<RcStr, ObservedCode<u128>>>,
+}
+
+struct ObservedCode<T> {
+    value: T,
+    revision: u64,
+    generation: u64,
+}
+
+impl<T: PartialEq> ObservedCode<T> {
+    fn check(&self, value: &T, revision: u64, generation: u64) -> Result<bool> {
+        if self.value == *value {
+            return Ok(false);
+        }
+        if revision <= self.revision {
+            return Err(ObsoleteEvaluation.into());
+        }
+        Ok(self.generation == generation)
+    }
+
+    fn record(&mut self, value: T, revision: u64, generation: u64) {
+        self.value = value;
+        self.revision = self.revision.max(revision);
+        self.generation = generation;
+    }
+}
+
+struct EvaluationCodeVersion {
+    root: PathBuf,
+    version: CodeVersion,
+    revision: u64,
+}
+
+impl PoolCodeVersions {
+    fn conflicts(&self, code: &EvaluationCodeVersion) -> Result<bool> {
+        let mut restart = false;
+        // Check every overlap before publishing anything, including after finding a reason to
+        // restart. An obsolete dependency must not partially update history or retire workers.
+        for (path, hash) in &code.version.files {
+            if let Some(old) = self.files.get(&code.root.join(path.as_str())) {
+                restart |= old.check(hash, code.revision, self.generation)?;
+            }
+        }
+        if let Some(modules) = self.modules.get(&code.root) {
+            for (id, hash) in &code.version.modules {
+                if let Some(old) = modules.get(id) {
+                    restart |= old.check(hash, code.revision, self.generation)?;
+                }
+            }
+        }
+        Ok(restart)
+    }
+
+    fn extend(&mut self, code: &EvaluationCodeVersion) {
+        for (path, hash) in &code.version.files {
+            self.files
+                .entry(code.root.join(path.as_str()))
+                .and_modify(|old| old.record(hash.clone(), code.revision, self.generation))
+                .or_insert_with(|| ObservedCode {
+                    value: hash.clone(),
+                    revision: code.revision,
+                    generation: self.generation,
+                });
+        }
+        let modules = self.modules.entry(code.root.clone()).or_default();
+        for (id, hash) in &code.version.modules {
+            modules
+                .entry(id.clone())
+                .and_modify(|old| old.record(*hash, code.revision, self.generation))
+                .or_insert_with(|| ObservedCode {
+                    value: *hash,
+                    revision: code.revision,
+                    generation: self.generation,
+                });
+        }
+    }
 }
 
 /// Source attribution belongs to an evaluation, not to a worker or its pool.
@@ -102,6 +188,7 @@ impl EvaluatePool {
         Self {
             id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             pool,
+            code: Mutex::default(),
         }
     }
 
@@ -111,10 +198,75 @@ impl EvaluatePool {
         &self,
         restart_pool: bool,
     ) -> impl Future<Output = Result<Box<dyn Operation>>> + Send + '_ {
-        if restart_pool {
-            self.pool.restart();
+        self.operation_with_code(restart_pool, None, None)
+    }
+
+    fn prepare_operation(
+        &self,
+        restart_pool: bool,
+        version: Option<&EvaluationCodeVersion>,
+        invalidations: Option<&EvaluationInvalidations>,
+    ) -> Result<u64> {
+        // Always take State locks before the shared history lock, including on acquisition recheck.
+        let mut states = invalidations.map(|v| {
+            (
+                v.code.versions.get_untracked(),
+                v.additional.versions.get_untracked(),
+            )
+        });
+        let mut code = self.code.lock();
+        let mut restart = restart_pool;
+        if let Some(version) = version {
+            restart |= code.conflicts(version)?;
         }
-        self.pool.operation()
+        if let (Some(invalidations), Some((entry, extra))) = (invalidations, states.as_ref()) {
+            restart |= invalidations.code_version.check(entry.get(&self.id))?;
+            restart |= invalidations
+                .additional_version
+                .check(extra.get(&self.id))?;
+        }
+        if restart {
+            self.pool.restart();
+            // Cache residency resets, but version high-water marks must survive. Otherwise an
+            // old request could reintroduce stale code omitted from the retiring request's graph.
+            code.generation += 1;
+        }
+        if let Some(version) = version {
+            code.extend(version);
+        }
+        if let (Some(invalidations), Some((entry, extra))) = (invalidations, states.as_mut()) {
+            invalidations.code_version.record(entry, self.id);
+            invalidations.additional_version.record(extra, self.id);
+        }
+        Ok(code.generation)
+    }
+
+    fn operation_with_code(
+        &self,
+        restart_pool: bool,
+        version: Option<Arc<EvaluationCodeVersion>>,
+        invalidations: Option<Arc<EvaluationInvalidations>>,
+    ) -> impl Future<Output = Result<Box<dyn Operation>>> + Send + '_ {
+        let generation =
+            self.prepare_operation(restart_pool, version.as_deref(), invalidations.as_deref());
+        async move {
+            let mut generation = generation?;
+            loop {
+                let mut operation = self.pool.operation().await?;
+                if self.code.lock().generation == generation {
+                    return Ok(operation);
+                }
+                // Acquisition can wait for bootup/concurrency or not even have been polled when
+                // another entry retires the generation. Never populate the new workers with code
+                // whose freshness was checked only against the old generation.
+                operation.disallow_reuse();
+                drop(operation);
+                // Conflicting versions only advance. If a newer completion won while we waited,
+                // bail instead of restarting its generation with our obsolete snapshot.
+                generation =
+                    self.prepare_operation(false, version.as_deref(), invalidations.as_deref())?;
+            }
+        }
     }
 
     pub fn stats(&self) -> PoolStatsSnapshot {
@@ -317,11 +469,12 @@ pub struct PreparedEvaluation {
     assets: EvaluationAssets,
     entry: PathBuf,
     code_state: ReadRef<EvaluationInvalidationState>,
-    code_version: InvalidationVersion,
+    code_version: Arc<EvaluationCodeVersion>,
 }
 
 // Completion contains no task handles. Retain the ReadRef rather than only its address to avoid
 // treating a newly allocated completion at a reused address as the previously observed version.
+#[derive(Clone)]
 enum InvalidationVersion {
     Completion(ReadRef<Completion>),
     Code(Vec<(RcStr, Option<RcStr>)>),
@@ -338,11 +491,49 @@ impl InvalidationVersion {
     }
 }
 
+#[derive(Clone)]
+struct ObservedInvalidation {
+    value: InvalidationVersion,
+    revision: u64,
+}
+unsafe impl turbo_tasks::OperationValue for ObservedInvalidation {}
+
+impl ObservedInvalidation {
+    fn check(&self, old: Option<&Self>) -> Result<bool> {
+        let Some(old) = old else { return Ok(false) };
+        if self.value.matches(&old.value) {
+            return Ok(false);
+        }
+        if self.revision <= old.revision {
+            return Err(ObsoleteEvaluation.into());
+        }
+        Ok(true)
+    }
+
+    fn record(&self, versions: &mut FxHashMap<u64, Self>, pool: u64) {
+        versions
+            .entry(pool)
+            .and_modify(|old| {
+                old.value = self.value.clone();
+                old.revision = old.revision.max(self.revision);
+            })
+            .or_insert_with(|| self.clone());
+    }
+}
+
+// Only per-evaluation acquisition futures retain these task values, never the global pool.
+struct EvaluationInvalidations {
+    code: ReadRef<EvaluationInvalidationState>,
+    additional: ReadRef<EvaluationInvalidationState>,
+    code_version: ObservedInvalidation,
+    additional_version: ObservedInvalidation,
+}
+
 #[turbo_tasks::value(serialization = "skip", eq = "manual")]
 #[derive(PartialEq)]
 struct EvaluationInvalidationState {
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
-    versions: State<FxHashMap<u64, InvalidationVersion>>,
+    versions: State<FxHashMap<u64, ObservedInvalidation>>,
 }
 
 #[turbo_tasks::task_input]
@@ -362,17 +553,76 @@ fn evaluation_invalidation_state(key: InvalidationKey) -> Vc<EvaluationInvalidat
     .cell()
 }
 
-#[turbo_tasks::value(transparent)]
-struct CodeVersion(Vec<(RcStr, Option<RcStr>)>);
+// Equality deliberately preserves the same State cell when its producing task reruns.
+#[turbo_tasks::value(serialization = "skip", eq = "manual")]
+#[derive(Default)]
+struct CompletionRevisionState {
+    n: State<u64>,
+}
+
+impl PartialEq for CompletionRevisionState {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+#[turbo_tasks::value(serialization = "skip", eq = "manual")]
+#[derive(Clone)]
+struct CompletionRevision {
+    n: u64,
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
+    completion: ReadRef<Completion>,
+}
+
+impl PartialEq for CompletionRevision {
+    fn eq(&self, other: &Self) -> bool {
+        self.n == other.n
+    }
+}
+
+#[turbo_tasks::function(session_dependent)]
+async fn completion_revision(completion: ResolvedVc<Completion>) -> Result<Vc<CompletionRevision>> {
+    let completion = completion.await?;
+    let state = CompletionRevisionState::default().resolved_cell();
+    let state = state.await?;
+    let mut n = state.n.get_untracked();
+    // Assign ordinals only when a Completion observation advances, not on each evaluation or
+    // acquisition. A shared sequence makes distinct completion lineages comparable as well.
+    // These revisions are session-local, like the pools that compare them.
+    static NEXT_REVISION: AtomicU64 = AtomicU64::new(1);
+    *n = NEXT_REVISION
+        .try_update(Ordering::Relaxed, Ordering::Relaxed, |n| n.checked_add(1))
+        .expect("completion revision overflow");
+    // Return a numeric snapshot, not the mutable State: waiting/retrying work must keep its old
+    // revision even after this task observes a newer completion.
+    Ok(CompletionRevision { n: *n, completion }.cell())
+}
+
+#[turbo_tasks::function]
+async fn evaluation_code_completion(
+    entry: ResolvedVc<CodeVersion>,
+    bootstrap: ResolvedVc<CodeVersion>,
+) -> Result<Vc<Completion>> {
+    entry.await?;
+    bootstrap.await?;
+    Ok(Completion::new())
+}
+
+#[turbo_tasks::value]
+#[derive(Clone, Debug)]
+struct CodeVersion {
+    files: Vec<(RcStr, Option<RcStr>)>,
+    modules: Vec<(RcStr, u128)>,
+}
 
 #[turbo_tasks::function]
 async fn evaluation_code_version(
     entry: Vc<Box<dyn OutputAsset>>,
     root: FileSystemPath,
 ) -> Result<Vc<CodeVersion>> {
-    // Entry files can remain byte-identical while referenced chunks change. Compare the complete
-    // emitted graph by relative path and content, not task identity or the absolute output path.
-    let mut version = internal_assets(entry, root.clone())
+    // Files cover Node's require cache. Per-module hashes also cover the Turbopack runtime cache:
+    // a shared module may have changed even when chunk regrouping gave it a different file path.
+    let versions = internal_assets(entry, root.clone())
         .await?
         .iter()
         .map(async |asset| {
@@ -385,12 +635,36 @@ async fn evaluation_code_version(
                 .content_hash(Vc::cell(RcStr::default()), HashAlgorithm::Xxh3Hash128Hex)
                 .owned()
                 .await?;
-            Ok((RcStr::from(relative), hash))
+            let mut modules = Vec::new();
+            if let Some(content) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptHmrChunkContent>>(
+                asset.versioned_content().to_resolved().await?,
+            ) {
+                modules.extend(
+                    content
+                        .ecmascript_chunk_version()
+                        .await?
+                        .entries_hashes
+                        .iter()
+                        // Both string and numeric IDs are object keys in the runtime cache.
+                        .map(|(id, hash)| (RcStr::from(id.to_string()), *hash)),
+                );
+            }
+            Ok(((RcStr::from(relative), hash), modules))
         })
         .try_join()
         .await?;
-    version.sort_unstable();
-    Ok(Vc::cell(version))
+    let mut version = CodeVersion {
+        files: Vec::new(),
+        modules: Vec::new(),
+    };
+    for (file, modules) in versions {
+        version.files.push(file);
+        version.modules.extend(modules);
+    }
+    version.files.sort_unstable();
+    version.modules.sort_unstable();
+    version.modules.dedup();
+    Ok(version.cell())
 }
 
 /// Retrieve a compatible runtime pool. Neither emitted code nor its invalidation dependencies
@@ -409,25 +683,41 @@ pub async fn get_evaluate_pool(
     // Effects are applied by the producing operation. Keep emission strongly consistent before
     // asking a worker to load the evaluation entry.
     let emitted = assets_op.read_strongly_consistent().await?;
-    let (Some(cwd), Some(entrypoint), Some(entry)) = (
+    let (Some(cwd), Some(entrypoint), Some(entry), Some(root)) = (
         to_sys_path(cwd).await?,
         to_sys_path(emitted.entrypoint.clone()).await?,
         to_sys_path(emitted.evaluation_entrypoint.clone()).await?,
+        to_sys_path(emitted.output_root.clone()).await?,
     ) else {
         panic!("can only evaluate from a disk filesystem");
     };
-    let mut code_version =
+    let entry_version =
         evaluation_code_version(*emitted.evaluation_entry, emitted.output_root.clone())
-            .owned()
+            .to_resolved()
             .await?;
-    code_version.extend(
+    let bootstrap_version =
         evaluation_code_version(*emitted.bootstrap, emitted.output_root.clone())
-            .owned()
-            .await?,
-    );
-    code_version.sort_unstable();
-    code_version.dedup();
-    let code_version = InvalidationVersion::Code(code_version);
+            .to_resolved()
+            .await?;
+    let revision = completion_revision(evaluation_code_completion(
+        *entry_version,
+        *bootstrap_version,
+    ))
+    .await?
+    .n;
+    let mut code_version = entry_version.owned().await?;
+    let bootstrap_version = bootstrap_version.owned().await?;
+    code_version.files.extend(bootstrap_version.files);
+    code_version.files.sort_unstable();
+    code_version.files.dedup();
+    code_version.modules.extend(bootstrap_version.modules);
+    code_version.modules.sort_unstable();
+    code_version.modules.dedup();
+    let code_version = Arc::new(EvaluationCodeVersion {
+        root,
+        version: code_version,
+        revision,
+    });
     let code_state =
         evaluation_invalidation_state(InvalidationKey::Code(entries.await?.main_entry_ident))
             .await?;
@@ -534,6 +824,19 @@ impl NodeJsConnectError {
     }
 }
 
+/// This evaluation lost to a newer conflicting Completion observation. Retrying the same snapshot
+/// would roll shared caches back; dependency invalidation will reevaluate the task instead.
+#[derive(Debug)]
+struct ObsoleteEvaluation;
+
+impl std::fmt::Display for ObsoleteEvaluation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Node.js evaluation superseded by a newer dependency version")
+    }
+}
+
+impl std::error::Error for ObsoleteEvaluation {}
+
 struct PoolErrorHandler;
 
 /// Number of attempts before we start slowing down the retry.
@@ -546,7 +849,10 @@ impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
 
     fn handle(&mut self, attempt: usize, err: anyhow::Error) -> RetryPolicy<Self::OutError> {
         // A process that cannot connect to us will not be able to on a retry either.
-        if attempt >= MAX_ATTEMPTS || NodeJsConnectError::find(&err).is_some() {
+        if attempt >= MAX_ATTEMPTS
+            || NodeJsConnectError::find(&err).is_some()
+            || err.is::<ObsoleteEvaluation>()
+        {
             RetryPolicy::ForwardError(err)
         } else if attempt >= MAX_FAST_ATTEMPTS {
             RetryPolicy::WaitRetry(Duration::from_secs(1))
@@ -604,26 +910,21 @@ pub trait EvaluateContext {
     }
 }
 
-fn evaluation_operation<'a>(
-    pool: &'a EvaluatePool,
-    code_state: &EvaluationInvalidationState,
-    code_version: InvalidationVersion,
-    additional_state: &EvaluationInvalidationState,
-    additional_version: InvalidationVersion,
-) -> impl Future<Output = Result<Box<dyn Operation>>> + Send + 'a {
-    // Keep comparison and synchronous retirement atomic for callers sharing these States. A
-    // second caller must not observe the new version and acquire an old idle worker in between.
-    let mut code = code_state.versions.get_untracked();
-    let mut extra = additional_state.versions.get_untracked();
-    let restart_pool = code
-        .get(&pool.id)
-        .is_some_and(|v| !v.matches(&code_version))
-        || extra
-            .get(&pool.id)
-            .is_some_and(|v| !v.matches(&additional_version));
-    code.insert(pool.id, code_version);
-    extra.insert(pool.id, additional_version);
-    pool.operation(restart_pool)
+fn evaluation_invalidations(
+    code_state: ReadRef<EvaluationInvalidationState>,
+    code_version: &EvaluationCodeVersion,
+    additional_state: ReadRef<EvaluationInvalidationState>,
+    additional_version: ObservedInvalidation,
+) -> Arc<EvaluationInvalidations> {
+    Arc::new(EvaluationInvalidations {
+        code: code_state,
+        additional: additional_state,
+        code_version: ObservedInvalidation {
+            value: InvalidationVersion::Code(code_version.version.files.clone()),
+            revision: code_version.revision,
+        },
+        additional_version,
+    })
 }
 
 pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<Vc<Option<RcStr>>> {
@@ -635,16 +936,24 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
         code_version,
     } = evaluate_context.pool().await?;
     let additional = evaluate_context.additional_invalidation();
-    let additional_version = InvalidationVersion::Completion(additional.await?);
+    let additional_observation = completion_revision(*additional).await?;
+    let additional_version = ObservedInvalidation {
+        revision: additional_observation.n,
+        value: InvalidationVersion::Completion(additional_observation.completion.clone()),
+    };
     let additional_state =
         evaluation_invalidation_state(InvalidationKey::Additional(additional)).await?;
     let mut state = Default::default();
-    let mut acquire = Some(evaluation_operation(
-        &pool,
-        &code_state,
-        code_version,
-        &additional_state,
+    let invalidations = evaluation_invalidations(
+        code_state,
+        &code_version,
+        additional_state,
         additional_version,
+    );
+    let mut acquire = Some(pool.operation_with_code(
+        false,
+        Some(code_version.clone()),
+        Some(invalidations.clone()),
     ));
 
     let args = evaluate_context.args().iter().try_join().await?;
@@ -664,10 +973,15 @@ pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<V
             let assets = &assets;
             let args = &args;
             let entry = &entry;
+            let code_version = code_version.clone();
+            let invalidations = invalidations.clone();
             async move {
                 let mut operation = match acquire {
                     Some(acquire) => acquire.await?,
-                    None => pool.operation(false).await?,
+                    None => {
+                        pool.operation_with_code(false, Some(code_version), Some(invalidations))
+                            .await?
+                    }
                 };
                 operation.set_assets(assets.clone());
                 operation

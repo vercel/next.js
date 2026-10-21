@@ -637,10 +637,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
         chunk_root_path.clone(),
-        chunk_root_path_in_root_path_offset,
+        chunk_root_path_in_root_path_offset.clone(),
         static_root_path.clone(),
-        chunk_root_path,
-        static_root_path,
+        chunk_root_path.clone(),
+        static_root_path.clone(),
         env,
         RuntimeType::Development,
     )
@@ -743,6 +743,107 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             } else {
                 pid = Some(value["pid"].clone());
             }
+        }
+
+        // Separate graphs can put the same module in different chunks. In particular, a new
+        // entry has no per-entry invalidation history, but must not inherit an older dependency
+        // cached by another entry. Virtual sources let us emit both versions without mutating
+        // the task's filesystem inputs midway through execution.
+        // The main context's export-usage tables belong to its graph. Use an independent runtime
+        // without those tables or module merging, so the shared module is cached independently.
+        let versioned_root = chunk_root_path.join("versioned")?;
+        let versioned_context = NodeJsChunkingContext::builder(
+            project_root.clone(),
+            versioned_root.clone(),
+            chunk_root_path_in_root_path_offset,
+            static_root_path.clone(),
+            versioned_root,
+            static_root_path,
+            env,
+            RuntimeType::Development,
+        )
+        .shared_runtime_chunk(true)
+        .build();
+        let mut previous = None;
+        for (call, (name, version)) in [("a", 1), ("unchanged", 1), ("b", 2), ("b", 2), ("new", 2)]
+            .into_iter()
+            .enumerate()
+        {
+            let shared = asset_context
+                .process(
+                    Vc::upcast(VirtualSource::new(
+                        project_path.join("input/versioned-shared.js")?,
+                        AssetContent::file(
+                            FileContent::Content(format!("export const value = {version};").into())
+                                .cell(),
+                        ),
+                    )),
+                    ReferenceType::Internal(InnerAssets::empty().to_resolved().await?),
+                )
+                .module()
+                .to_resolved()
+                .await?;
+            let module = asset_context
+                .process(
+                    Vc::upcast(VirtualSource::new(
+                        project_path.join(&format!("input/versioned-{name}.js"))?,
+                        AssetContent::file(
+                            FileContent::Content(
+                                "import { value } from 'SHARED';\nexport default function () { \
+                                 return { value, pid: process.pid }; }"
+                                    .into(),
+                            )
+                            .cell(),
+                        ),
+                    )),
+                    ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+                        rcstr!("SHARED") => shared,
+                    })),
+                )
+                .module();
+            let entries = get_evaluate_entries(module, asset_context, node_backend, None);
+            let graph = ModuleGraph::from_graphs(
+                vec![SingleModuleGraph::new_with_entries(
+                    entries.graph_entries().to_resolved().await?,
+                    false,
+                    true,
+                )],
+                None,
+            )
+            .connect();
+            let value = evaluate(
+                entries,
+                path.clone(),
+                Vc::upcast(CommandLineProcessEnv::new()),
+                node_backend,
+                Vc::upcast(test_source),
+                Vc::upcast(versioned_context),
+                graph,
+                vec![Vc::cell(serde_json::json!(call))],
+                Completion::immutable(),
+                false,
+            )
+            .await?;
+            let value: serde_json::Value =
+                serde_json::from_str(value.as_ref().context("no versioned evaluation result")?)?;
+            assert_eq!(
+                value["value"], version,
+                "new entries must see fresh shared code"
+            );
+            if let Some((previous_version, pid)) = &previous {
+                if *previous_version == version {
+                    assert_eq!(
+                        value["pid"], *pid,
+                        "unchanged shared code must preserve reuse"
+                    );
+                } else {
+                    assert_ne!(
+                        value["pid"], *pid,
+                        "changed shared code must retire workers"
+                    );
+                }
+            }
+            previous = Some((version, value["pid"].clone()));
         }
     }
 
