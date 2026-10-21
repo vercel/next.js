@@ -99,11 +99,13 @@ fn reads_active_workers_and_exposes_them_in_span_queries() {
                 if limit == 0 {
                     assert!(series.memory_samples.is_empty());
                     assert!(series.memory_pressure_samples.is_empty());
+                    assert!(series.memory_footprint_samples.is_empty());
                     assert!(series.active_worker_threads_samples.is_empty());
                     assert!(series.concurrency_samples.is_empty());
                 } else {
                     assert_eq!(series.memory_samples, vec![1234]);
                     assert_eq!(series.memory_pressure_samples, vec![7]);
+                    assert_eq!(series.memory_footprint_samples, vec![5555]);
                     assert_eq!(series.active_worker_threads_samples, vec![2]);
                     assert_eq!(series.concurrency_samples, vec![1.0]);
                 }

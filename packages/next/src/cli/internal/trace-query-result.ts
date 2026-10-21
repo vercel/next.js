@@ -24,10 +24,16 @@ export function renderMemorySummary(
   if (!summary) return null
   const delta = summary.end - summary.start
   const deltaSign = delta >= 0 ? '+' : '-'
+  // Zero means the platform did not report RSS.
+  const footprint =
+    summary.maxFootprint > 0
+      ? `, maxFootprint=${formatBytes(summary.maxFootprint)}`
+      : ''
   return (
     `samples=${summary.count}, peak=${formatBytes(summary.peak)}, min=${formatBytes(summary.min)}, ` +
     `start=${formatBytes(summary.start)}, end=${formatBytes(summary.end)}, ` +
-    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}`
+    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}` +
+    footprint
   )
 }
 
@@ -43,6 +49,7 @@ export function renderSampleSeriesMarkdown(
   const metrics: [string, number[], (value: number) => string][] = [
     ['Memory (TurboMalloc live bytes)', series.memorySamples, formatBytes],
     ['Memory pressure', series.memoryPressureSamples, (value) => `${value}%`],
+    ['Memory footprint (RSS)', series.memoryFootprintSamples, formatBytes],
     ['Active Tokio workers', series.activeWorkerThreadsSamples, String],
     ['Concurrency', series.concurrencySamples, (value) => value.toFixed(2)],
   ]

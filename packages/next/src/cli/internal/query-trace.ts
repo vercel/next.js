@@ -2,7 +2,7 @@
  * CLI client for querying a running turbopack trace server via its MCP endpoint.
  * Sends a JSON-RPC `tools/call` request and prints the response to stdout.
  * Use --json for machine-readable JSON output (default: markdown).
- * Use --samples=N to opt into memory, pressure, worker and concurrency values;
+ * Use --samples=N to opt into memory, pressure, RSS footprint, worker and concurrency values;
  * otherwise only the existing summaries are reported.
  *
  * Usage: next internal query-trace [options]

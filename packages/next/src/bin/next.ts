@@ -856,7 +856,7 @@ internal
   .addOption(
     new Option(
       '--samples <N>',
-      'Include up to N memory, pressure, active Tokio worker, and concurrency values per span. Omit for summaries only; 0 returns empty arrays.'
+      'Include up to N memory, pressure, RSS footprint, active Tokio worker, and concurrency values per span. Omit for summaries only; 0 returns empty arrays.'
     ).argParser((value: string) => {
       const count = Number(value)
       if (!/^\d+$/.test(value) || !Number.isSafeInteger(count) || count < 0) {

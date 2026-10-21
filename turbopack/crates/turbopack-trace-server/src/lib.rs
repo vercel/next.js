@@ -129,10 +129,12 @@ pub struct QueryOptions {
 /// Requested value series for a span's elapsed range. Captured samples and
 /// equal-duration concurrency segments do not share a timestamp grid.
 /// Memory is TurboMalloc live bytes, pressure is the recorded pressure byte,
-/// and workers are non-parked Tokio scheduler workers (not the blocking pool).
+/// Footprint is process RSS bytes (0 = not reported); workers are non-parked
+/// Tokio scheduler workers (not the blocking pool).
 pub struct SpanSampleSeries {
     pub memory_samples: Vec<u64>,
     pub memory_pressure_samples: Vec<u8>,
+    pub memory_footprint_samples: Vec<u64>,
     pub active_worker_threads_samples: Vec<u64>,
     pub concurrency_samples: Vec<f64>,
 }
@@ -521,7 +523,8 @@ fn sample_series_for(store: &store::Store, span: &SpanRef<'_>, limit: usize) -> 
     SpanSampleSeries {
         memory_samples: samples.iter().map(|sample| sample.1).collect(),
         memory_pressure_samples: store.memory_pressure_samples_for_range(start, end, limit),
-        active_worker_threads_samples: samples.iter().map(|sample| sample.3).collect(),
+        memory_footprint_samples: samples.iter().map(|sample| sample.3).collect(),
+        active_worker_threads_samples: samples.iter().map(|sample| sample.4).collect(),
         concurrency_samples: store.concurrency_samples_for_range(start, end, limit),
     }
 }
@@ -1032,6 +1035,7 @@ mod tests {
                     Timestamp::from_value(i),
                     i,
                     if i == 1 { 100 } else { (i % 100) as u8 },
+                    if i == 2 { 9999 } else { i * 10 },
                     i % 8,
                 );
             }
@@ -1059,6 +1063,7 @@ mod tests {
                     min: 0,
                     peak: 599,
                     max_pressure: 100,
+                    max_footprint: 9999,
                 };
                 assert_eq!(first.memory_summary, Some(expected_summary));
                 let child = &first.children[0];
@@ -1069,6 +1074,7 @@ mod tests {
                         for length in [
                             series.memory_samples.len(),
                             series.memory_pressure_samples.len(),
+                            series.memory_footprint_samples.len(),
                             series.active_worker_threads_samples.len(),
                             series.concurrency_samples.len(),
                         ] {
@@ -1080,13 +1086,18 @@ mod tests {
                         assert_eq!(series.concurrency_samples.len(), limit.min(elapsed));
                         if limit > 0 {
                             assert_eq!(series.memory_samples.last(), Some(&599));
-                            assert_eq!(
-                                series.active_worker_threads_samples.last(),
-                                Some(&(599 % 8))
-                            );
+                            assert_eq!(series.active_worker_threads_samples.last(), Some(&7));
                         }
                     }
                     if limit == 1 {
+                        assert_eq!(
+                            first
+                                .sample_series
+                                .as_ref()
+                                .unwrap()
+                                .memory_footprint_samples,
+                            vec![9999]
+                        );
                         assert_eq!(
                             first.sample_series.as_ref().unwrap().concurrency_samples,
                             vec![1.6]
@@ -1465,7 +1476,8 @@ mod tests {
         assert_eq!(summary.peak, 900);
         assert_eq!(summary.max_pressure, 3);
         // Footprint is maxed independently of the memory peak.
-        assert_eq!(summary.max_footprint, 7000);        assert!(
+        assert_eq!(summary.max_footprint, 7000);
+        assert!(
             MemorySummary::for_range(&store, Timestamp::from_micros(3), Timestamp::from_micros(4))
                 .is_none()
         );

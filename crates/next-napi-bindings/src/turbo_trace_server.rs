@@ -143,20 +143,22 @@ pub struct TraceSpanInfo {
     /// independently of whether or how many sample values are requested.
     pub memory_summary: Option<TraceMemorySummary>,
     /// Requested value arrays; absent unless `samples` was supplied.
-    /// MCP flattens this internal object to the four optional value arrays.
+    /// MCP flattens this internal object to the five optional value arrays.
     pub sample_series: Option<TraceSpanSampleSeries>,
     /// Descendants of this span, populated only when `depth > 1`.
     pub children: Vec<TraceSpanInfo>,
 }
 
-/// Requested process/global value series. Captured memory/pressure/workers
+/// Requested process/global value series. Captured memory/pressure/footprint/workers
 /// are grouped by recorded timestamps; concurrency uses equal-time segments.
 /// Memory is TurboMalloc live bytes, pressure is the recorded pressure byte,
-/// and workers are non-parked Tokio scheduler workers (not the blocking pool).
+/// Footprint is process RSS bytes (0 = not reported); workers are non-parked
+/// Tokio scheduler workers (not the blocking pool).
 #[napi(object)]
 pub struct TraceSpanSampleSeries {
     pub memory_samples: Vec<i64>,
     pub memory_pressure_samples: Vec<u8>,
+    pub memory_footprint_samples: Vec<i64>,
     pub active_worker_threads_samples: Vec<i64>,
     pub concurrency_samples: Vec<f64>,
 }
@@ -228,7 +230,6 @@ fn convert_span(s: turbopack_trace_server::SpanInfo) -> TraceSpanInfo {
         self_deallocations: s.self_deallocations as i64,
         self_persistent_allocations: s.self_persistent_allocations as i64,
         self_allocation_count: s.self_allocation_count as i64,
-
         memory_summary: s.memory_summary.map(|m| TraceMemorySummary {
             count: m.count as i64,
             start: m.start as i64,
@@ -245,6 +246,11 @@ fn convert_span(s: turbopack_trace_server::SpanInfo) -> TraceSpanInfo {
                 .map(|value| value as i64)
                 .collect(),
             memory_pressure_samples: series.memory_pressure_samples,
+            memory_footprint_samples: series
+                .memory_footprint_samples
+                .into_iter()
+                .map(|value| value as i64)
+                .collect(),
             active_worker_threads_samples: series
                 .active_worker_threads_samples
                 .into_iter()

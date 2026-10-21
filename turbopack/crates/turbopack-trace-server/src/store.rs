@@ -677,13 +677,14 @@ mod tests {
         let start = Timestamp::ZERO;
         let end = Timestamp::from_value(599);
         for i in 0..600 {
-            store.add_memory_sample(Timestamp::from_value(i), i, (i % 100) as u8, 0, i % 8);
+            store.add_memory_sample(Timestamp::from_value(i), i, (i % 100) as u8, i * 10, i % 8);
         }
         for limit in [0, 1, 200, 300, 1000] {
             let samples = store.memory_samples_for_range_with_ts(start, end, limit);
             let memory = store.memory_samples_for_range(start, end, limit);
             let pressure = store.memory_pressure_samples_for_range(start, end, limit);
             let workers = store.active_worker_threads_samples_for_range(start, end, limit);
+            let footprint = store.memory_footprint_samples_for_range(start, end, limit);
             assert!(samples.len() <= limit);
             assert_eq!(pressure.len(), samples.len());
             assert_eq!(
@@ -692,6 +693,10 @@ mod tests {
             );
             assert_eq!(
                 workers,
+                samples.iter().map(|sample| sample.4).collect::<Vec<_>>()
+            );
+            assert_eq!(
+                footprint,
                 samples.iter().map(|sample| sample.3).collect::<Vec<_>>()
             );
             if limit > 0 {
@@ -733,14 +738,25 @@ mod tests {
     }
 
     #[test]
-    fn pressure_and_workers_keep_the_viewer_reduction_semantics() {
+    fn pressure_footprint_and_workers_keep_the_viewer_reduction_semantics() {
         let mut store = Store::new();
         let start = Timestamp::ZERO;
         let end = Timestamp::from_value(10);
-        store.add_memory_sample(start, 100, 80, 1000, 7);
+        store.add_memory_sample(Timestamp::from_value(2), 200, 80, 200, 1);
+        store.add_memory_sample(Timestamp::from_value(4), 300, 2, 1000, 1);
+        store.add_memory_sample(Timestamp::from_value(6), 400, 2, 200, 7);
+        store.add_memory_sample(start, 100, 1, 200, 1);
         store.add_memory_sample(end, 900, 2, 200, 1);
         let samples = store.memory_samples_for_range_with_ts(start, end, 1);
         assert_eq!(samples, vec![(end, 900, 80, 1000, 7)]);
+        assert_eq!(
+            store.memory_footprint_samples_for_range(start, end, 1),
+            vec![1000]
+        );
+        assert_eq!(
+            store.active_worker_threads_samples_for_range(start, end, 1),
+            vec![7]
+        );
         assert_eq!(
             store.memory_pressure_samples_for_range(start, end, 1),
             vec![80]
@@ -993,7 +1009,7 @@ mod tests {
         for i in 0..10u64 {
             store.add_memory_sample(Timestamp::from_micros(i), i * 10, i as u8, i * 100, i);
         }
-        let samples = store.memory_samples_for_range_with_ts(Timestamp::ZERO, Timestamp::MAX);
+        let samples = store.memory_samples_for_range_with_ts(Timestamp::ZERO, Timestamp::MAX, 200);
         assert_eq!(samples.len(), 10);
         for (i, (ts, mem, pressure, footprint, workers)) in samples.into_iter().enumerate() {
             let i = i as u64;
@@ -1008,9 +1024,10 @@ mod tests {
     #[test]
     fn downsampled_memory_samples_use_column_max_for_pressure_footprint_and_workers() {
         let mut store = Store::new();
+        let limit = 200;
         // Two samples per group: the first has the higher TurboMalloc memory,
         // the second has the higher pressure, footprint and worker count.
-        for group in 0..MAX_MEMORY_SAMPLES as u64 {
+        for group in 0..limit as u64 {
             store.add_memory_sample(Timestamp::from_micros(group * 2), 1000 + group, 1, 10, 1);
             store.add_memory_sample(
                 Timestamp::from_micros(group * 2 + 1),
@@ -1022,17 +1039,17 @@ mod tests {
         }
 
         let (start, end) = (Timestamp::ZERO, Timestamp::MAX);
-        let with_ts = store.memory_samples_for_range_with_ts(start, end);
-        let memory = store.memory_samples_for_range(start, end);
-        let pressure = store.memory_pressure_samples_for_range(start, end);
-        let footprint = store.memory_footprint_samples_for_range(start, end);
-        let workers = store.active_worker_threads_samples_for_range(start, end);
+        let with_ts = store.memory_samples_for_range_with_ts(start, end, limit);
+        let memory = store.memory_samples_for_range(start, end, limit);
+        let pressure = store.memory_pressure_samples_for_range(start, end, limit);
+        let footprint = store.memory_footprint_samples_for_range(start, end, limit);
+        let workers = store.active_worker_threads_samples_for_range(start, end, limit);
 
-        assert_eq!(with_ts.len(), MAX_MEMORY_SAMPLES);
-        assert_eq!(memory.len(), MAX_MEMORY_SAMPLES);
-        assert_eq!(pressure.len(), MAX_MEMORY_SAMPLES);
-        assert_eq!(footprint.len(), MAX_MEMORY_SAMPLES);
-        assert_eq!(workers.len(), MAX_MEMORY_SAMPLES);
+        assert_eq!(with_ts.len(), limit);
+        assert_eq!(memory.len(), limit);
+        assert_eq!(pressure.len(), limit);
+        assert_eq!(footprint.len(), limit);
+        assert_eq!(workers.len(), limit);
 
         for (i, (ts, mem, p, f, w)) in with_ts.into_iter().enumerate() {
             let group = i as u64;

@@ -970,7 +970,7 @@ export interface TraceSpanInfo {
   memorySummary?: TraceMemorySummary
   /**
    * Requested value arrays; absent unless `samples` was supplied.
-   * MCP flattens this internal object to the four optional value arrays.
+   * MCP flattens this internal object to the five optional value arrays.
    */
   sampleSeries?: TraceSpanSampleSeries
   /** Descendants of this span, populated only when `depth > 1`. */
@@ -978,14 +978,16 @@ export interface TraceSpanInfo {
 }
 
 /**
- * Requested process/global value series. Captured memory/pressure/workers
+ * Requested process/global value series. Captured memory/pressure/footprint/workers
  * are grouped by recorded timestamps; concurrency uses equal-time segments.
  * Memory is TurboMalloc live bytes, pressure is the recorded pressure byte,
- * and workers are non-parked Tokio scheduler workers (not the blocking pool).
+ * Footprint is process RSS bytes (0 = not reported); workers are non-parked
+ * Tokio scheduler workers (not the blocking pool).
  */
 export interface TraceSpanSampleSeries {
   memorySamples: Array<number>
   memoryPressureSamples: Array<number>
+  memoryFootprintSamples: Array<number>
   activeWorkerThreadsSamples: Array<number>
   concurrencySamples: Array<number>
 }

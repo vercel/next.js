@@ -12,6 +12,7 @@ import {
 const series = {
   memorySamples: [1024, 2048],
   memoryPressureSamples: [7, 80],
+  memoryFootprintSamples: [4096, 8192],
   activeWorkerThreadsSamples: [2, 1],
   concurrencySamples: [1.25, 0],
 }
@@ -41,6 +42,7 @@ function span(overrides: Partial<TraceSpanInfo> = {}): TraceSpanInfo {
       min: 1024,
       peak: 1024,
       maxPressure: 7,
+      maxFootprint: 0,
     },
     children: [],
     ...overrides,
@@ -50,6 +52,7 @@ function span(overrides: Partial<TraceSpanInfo> = {}): TraceSpanInfo {
 const emptySeries = {
   memorySamples: [],
   memoryPressureSamples: [],
+  memoryFootprintSamples: [],
   activeWorkerThreadsSamples: [],
   concurrencySamples: [],
 }
@@ -202,7 +205,7 @@ describe('query-trace samples', () => {
     expect(result.firstSpanId).toBe('1')
   })
 
-  it('returns four empty arrays for zero while keeping the memory summary', () => {
+  it('returns five empty arrays for zero while keeping the memory summary', () => {
     expect(
       serializeTraceSpan(span({ sampleSeries: emptySeries }))
     ).toMatchObject({
@@ -222,6 +225,24 @@ describe('query-trace samples', () => {
     expect(summary).not.toContain('activeWorkerThreads')
   })
 
+  it('prints positive RSS in the full summary but omits unreported zero', () => {
+    const summary = span().memorySummary!
+    expect(
+      renderMemorySummary({ ...summary, maxFootprint: 8192 }, String)
+    ).toContain(', maxFootprint=8192')
+    expect(renderMemorySummary(summary, String)).not.toContain('maxFootprint')
+  })
+
+  it('retains zero RSS readings in requested output', () => {
+    const samples = { ...emptySeries, memoryFootprintSamples: [0] }
+    expect(
+      serializeTraceSpan(span({ sampleSeries: samples })).memoryFootprintSamples
+    ).toEqual([0])
+    expect(renderSampleSeriesMarkdown(samples, String)).toContain(
+      'Memory footprint (RSS) samples: 0\n'
+    )
+  })
+
   it('omits the memory summary when no readings are available', () => {
     expect(renderMemorySummary(undefined, String)).toBeNull()
   })
@@ -235,6 +256,7 @@ describe('query-trace samples', () => {
       '\nSample indices are not shared timestamps.\n' +
         'Memory (TurboMalloc live bytes) samples: 1 KB 2 KB\n' +
         'Memory pressure samples: 7% 80%\n' +
+        'Memory footprint (RSS) samples: 4 KB 8 KB\n' +
         'Active Tokio workers samples: 2 1\n' +
         'Concurrency samples: 1.25 0.00\n'
     )
@@ -251,6 +273,7 @@ describe('query-trace samples', () => {
       '\nSample indices are not shared timestamps.\n' +
         'Memory (TurboMalloc live bytes) samples: none\n' +
         'Memory pressure samples: none\n' +
+        'Memory footprint (RSS) samples: none\n' +
         'Active Tokio workers samples: none\n' +
         'Concurrency samples: 2.75\n'
     )

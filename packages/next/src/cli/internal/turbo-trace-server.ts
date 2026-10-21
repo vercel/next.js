@@ -219,7 +219,7 @@ export async function startTurboTraceServerCli(
         '',
         'For aggregated groups every allocation field is a group total, while `cpuDuration`, `correctedDuration`, `memorySummary` and requested samples describe the example span only. `firstSpanId` is first in execution order; use `heaviestSpanId` to reach the member holding the most bytes.',
         '',
-        "Set `samples: N` (a nonnegative safe integer, including values above 200) to include up to N values per series: `memorySamples` (TurboMalloc live bytes, not RSS), `memoryPressureSamples` (percent), `activeWorkerThreadsSamples` (non-parked scheduler workers, excluding blocking-pool threads), and `concurrencySamples` (global average self-time concurrency, rounded to hundredths; blocking=true spans do not contribute their own time). Without `samples`, JSON omits all four fields; `samples: 0` includes four empty arrays. Memory/worker rows use each recorded group's peak-memory sample; pressure uses each group's maximum. Concurrency uses equal-time segments, so indices are not shared timestamps. JSON returns number arrays (not the previous timestamped tuples); markdown includes compact formatted sample lines. `memorySummary.count` counts all captured readings in the span range, without downsampling.",
+        "Set `samples: N` (a nonnegative safe integer, including values above 200) to include up to N values per series: `memorySamples` (TurboMalloc live bytes, not RSS), `memoryPressureSamples` (percent), `memoryFootprintSamples` (process RSS bytes, 0 = not reported), `activeWorkerThreadsSamples` (non-parked scheduler workers, excluding blocking-pool threads), and `concurrencySamples` (global average self-time concurrency, rounded to hundredths; blocking=true spans do not contribute their own time). Without `samples`, JSON omits all five fields; `samples: 0` includes five empty arrays. Memory uses each recorded group's peak-memory sample; pressure, RSS and workers independently use each group's maximum. Concurrency uses equal-time segments, so indices are not shared timestamps. JSON returns number arrays (not the previous timestamped tuples); markdown includes compact formatted sample lines. `memorySummary.count` counts all captured readings in the span range, without downsampling.",
       ].join('\n'),
       inputSchema: {
         parent: z
@@ -270,7 +270,7 @@ export async function startTurboTraceServerCli(
           .max(Number.MAX_SAFE_INTEGER)
           .optional()
           .describe(
-            'Maximum values per memory, pressure, active-worker and concurrency series per span. Omit for summaries only; 0 returns empty arrays. Supports counts above 200. Larger values increase response/query cost.'
+            'Maximum values per memory, pressure, RSS footprint, active-worker and concurrency series per span. Omit for summaries only; 0 returns empty arrays. Supports counts above 200. Larger values increase response/query cost.'
           ),
         outputType: z
           .enum(['markdown', 'json'])
