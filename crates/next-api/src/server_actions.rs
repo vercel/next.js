@@ -14,7 +14,6 @@ use next_core::{
     root_param_getters_path,
     util::NextRuntime,
 };
-use smallvec::SmallVec;
 use swc_core::{
     atoms::{Atom, atom},
     common::comments::Comments,
@@ -1240,7 +1239,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     async fn chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _chunk_groups: SmallVec<[ChunkGroup; 1]>,
+        _chunk_group: ChunkGroup,
         _module_graph: ResolvedVc<ModuleGraph>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
