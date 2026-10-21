@@ -1,8 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import { randomUUID } from 'crypto'
 import escapeStringRegexp from 'escape-string-regexp'
 import stripAnsi from 'strip-ansi'
+import { createTestDataServer } from 'test-data-service/writer'
+import { createRouterAct } from 'router-act'
+import type * as Playwright from 'playwright'
+
+function defer(callback: () => Promise<void>) {
+  return {
+    [Symbol.asyncDispose]: callback,
+  }
+}
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
@@ -10,8 +19,46 @@ import stripAnsi from 'strip-ansi'
 describe('use-cache-swr', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipStart: true,
     env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
   })
+
+  // Each data-service request produces a new value. Holding the tested key
+  // pauses background revalidation. Holding foregroundCacheKey pauses a
+  // separate cold fill so the final prerender cannot start yet.
+  const dataRequestCountsByKey = new Map<string, number>()
+  const heldResponseKeys = new Set<string>()
+  const pendingResponseResolversByKey = new Map<string, Array<() => void>>()
+  let dataServer: ReturnType<typeof createTestDataServer>
+
+  function releaseDataResponses(key: string) {
+    heldResponseKeys.delete(key)
+    pendingResponseResolversByKey.get(key)?.forEach((resolveResponse) => {
+      resolveResponse()
+    })
+    pendingResponseResolversByKey.delete(key)
+  }
+
+  beforeAll(async () => {
+    dataServer = createTestDataServer((key, response) => {
+      const requestCount = (dataRequestCountsByKey.get(key) ?? 0) + 1
+      dataRequestCountsByKey.set(key, requestCount)
+      const resolveResponse = () => response.resolve(`${key}-v${requestCount}`)
+      if (heldResponseKeys.has(key)) {
+        const responseResolvers = pendingResponseResolversByKey.get(key) ?? []
+        responseResolvers.push(resolveResponse)
+        pendingResponseResolversByKey.set(key, responseResolvers)
+      } else {
+        resolveResponse()
+      }
+    })
+    const port = await findPort()
+    dataServer.listen(port)
+    next.env.TEST_DATA_SERVICE_URL = `http://localhost:${port}`
+    await next.start()
+  })
+
+  afterAll(() => dataServer?.close())
 
   let outputIndex: number
 
@@ -26,7 +73,268 @@ describe('use-cache-swr', () => {
       .join('\n')
   }
 
-  it('should serve stale data and then pre-warmed data on subsequent request', async () => {
+  async function fetchRdcDocument(key: string, foregroundCacheKey: string) {
+    const response = await next.fetch('/rdc', {
+      headers: {
+        cookie: `key=${key}; foregroundCacheKey=${foregroundCacheKey}`,
+      },
+    })
+    expect(response.status).toBe(200)
+    return response.text()
+  }
+
+  function expectConsistentCacheValue(
+    response: string,
+    key: string,
+    version: number
+  ) {
+    const values =
+      response.match(new RegExp(`${escapeStringRegexp(key)}-v\\d+`, 'g')) ?? []
+    expect([...new Set(values)]).toEqual([`${key}-v${version}`])
+  }
+
+  async function prepareStaleCacheEntry(key: string) {
+    // The warmup request uses a separate foreground key so the next request
+    // starts a new cache fill that the test can hold.
+    expectConsistentCacheValue(
+      await fetchRdcDocument(key, `${key}:warmup`),
+      key,
+      1
+    )
+    const warmedAt = Date.now()
+    await retry(() => {
+      expect(Date.now() - warmedAt).toBeGreaterThan(1100)
+    })
+    outputIndex = next.cliOutput.length
+  }
+
+  async function waitForRevalidationAndForegroundRead(
+    key: string,
+    foregroundCacheKey: string
+  ) {
+    await retry(() => {
+      expect(dataRequestCountsByKey.get(key)).toBe(2)
+      expect(dataRequestCountsByKey.get(foregroundCacheKey)).toBe(1)
+    })
+  }
+
+  async function waitForCacheHandlerWrite(key: string) {
+    const keyPattern = escapeStringRegexp(JSON.stringify(key))
+    await retry(() => {
+      expect(getOutput()).toMatch(
+        new RegExp(`PersistentCacheHandler::set[^\\r\\n]*${keyPattern}`)
+      )
+    })
+  }
+
+  async function expectRevalidatedCacheEntry(key: string) {
+    await waitForCacheHandlerWrite(key)
+    expectConsistentCacheValue(
+      await fetchRdcDocument(key, `${key}:warmup`),
+      key,
+      2
+    )
+  }
+
+  async function createRdcBrowser(
+    key: string,
+    foregroundCacheKey: string,
+    pathname = '/rdc/links'
+  ) {
+    let page: Playwright.Page
+    const { browser, response } = await next.browserWithResponse(pathname, {
+      async beforePageLoad(browserPage: Playwright.Page) {
+        page = browserPage
+        await page.context().addCookies([
+          { name: 'key', value: key, url: next.url },
+          {
+            name: 'foregroundCacheKey',
+            value: foregroundCacheKey,
+            url: next.url,
+          },
+        ])
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+    return { browser, page, act, response }
+  }
+
+  async function expectCachedRdcNavigation(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    act: ReturnType<typeof createRouterAct>,
+    key: string
+  ) {
+    // The embedded runtime prerender must cache the page for a return
+    // navigation without a server request.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/rdc/return"]')
+          .click()
+        await browser.elementByCss('a[href="/rdc/return"]').click()
+      },
+      { includes: 'Return to cached page' }
+    )
+    await act(async () => {
+      await browser.elementByCss('input[data-link-accordion="/rdc"]').click()
+      await browser.elementByCss('a[href="/rdc"]').click()
+    }, 'no-requests')
+    expect(await browser.elementById('rdc-value').text()).toBe(`${key}-v1`)
+  }
+
+  // @force-gate prefetching
+  it('serves the same stale value in HTML, hydration data, and the embedded runtime prefetch while revalidation is pending', async () => {
+    const key = `rdc-document-${randomUUID()}`
+    const foregroundCacheKey = `${key}:foreground`
+    await prepareStaleCacheEntry(key)
+    heldResponseKeys.add(key)
+    heldResponseKeys.add(foregroundCacheKey)
+    const pendingDocument = createRdcBrowser(key, foregroundCacheKey, '/rdc')
+    try {
+      await waitForRevalidationAndForegroundRead(key, foregroundCacheKey)
+      // Finish the foreground fill while revalidation stays pending. The
+      // document and its embedded runtime prerender must both use the stale
+      // entry.
+      releaseDataResponses(foregroundCacheKey)
+      const { browser, response, act } = await pendingDocument
+      await using _ = defer(() => browser.deleteCookies())
+      expect(await browser.elementById('rdc-value').text()).toBe(`${key}-v1`)
+      expectConsistentCacheValue(await response.text(), key, 1)
+      await expectCachedRdcNavigation(browser, act, key)
+    } finally {
+      releaseDataResponses(foregroundCacheKey)
+      releaseDataResponses(key)
+      await pendingDocument
+    }
+    await expectRevalidatedCacheEntry(key)
+  })
+
+  // @force-gate prefetching
+  it('serves the same stale value in navigation data and the embedded runtime prefetch while revalidation is pending', async () => {
+    const key = `rdc-navigation-${randomUUID()}`
+    const foregroundCacheKey = `${key}:foreground`
+    await prepareStaleCacheEntry(key)
+    const { browser, page, act } = await createRdcBrowser(
+      key,
+      foregroundCacheKey
+    )
+    await using _ = defer(() => browser.deleteCookies())
+    heldResponseKeys.add(key)
+    heldResponseKeys.add(foregroundCacheKey)
+    const pendingNavigationResponse = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === '/rdc'
+    )
+    const pendingNavigation = act(
+      async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/rdc"][data-prefetch="false"]'
+          )
+          .click()
+        await browser.elementByCss('a[href="/rdc"]').click()
+      },
+      { includes: `${key}-v1` }
+    )
+    try {
+      await waitForRevalidationAndForegroundRead(key, foregroundCacheKey)
+      // The navigation and its embedded runtime prerender must finish before
+      // background revalidation completes.
+      releaseDataResponses(foregroundCacheKey)
+      await pendingNavigation
+      expect(await browser.elementById('rdc-value').text()).toBe(`${key}-v1`)
+      const response = await pendingNavigationResponse
+      expectConsistentCacheValue(await response.text(), key, 1)
+      await expectCachedRdcNavigation(browser, act, key)
+    } finally {
+      releaseDataResponses(foregroundCacheKey)
+      releaseDataResponses(key)
+      await pendingNavigation
+    }
+    await expectRevalidatedCacheEntry(key)
+  })
+
+  // @force-gate prefetching
+  it("reuses the prospective prerender's stale value in the final runtime prerender after background revalidation completes", async () => {
+    const key = `rdc-prefetch-${randomUUID()}`
+    const foregroundCacheKey = `${key}:foreground`
+    await prepareStaleCacheEntry(key)
+    const { browser, act } = await createRdcBrowser(key, foregroundCacheKey)
+    await using _ = defer(() => browser.deleteCookies())
+    heldResponseKeys.add(key)
+    heldResponseKeys.add(foregroundCacheKey)
+    const pendingPrefetch = act(
+      async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/rdc"][data-prefetch="true"]'
+          )
+          .click()
+      },
+      { includes: `${key}-v1`, kind: 'runtime' }
+    )
+    try {
+      await waitForRevalidationAndForegroundRead(key, foregroundCacheKey)
+      // Complete revalidation while the foreground fill still holds the
+      // prospective prerender open. The final prerender must reuse the stale
+      // RDC entry despite the new handler value.
+      releaseDataResponses(key)
+      await waitForCacheHandlerWrite(key)
+      releaseDataResponses(foregroundCacheKey)
+      await pendingPrefetch
+      await act(async () => {
+        await browser.elementByCss('a[href="/rdc"]').click()
+      }, 'no-requests')
+      expect(await browser.elementById('rdc-value').text()).toBe(`${key}-v1`)
+    } finally {
+      releaseDataResponses(foregroundCacheKey)
+      releaseDataResponses(key)
+      await pendingPrefetch
+    }
+    await expectRevalidatedCacheEntry(key)
+  })
+
+  // @force-gate dev
+  it('completes dev validation with stale cached data without reporting uncached data while revalidation is pending', async () => {
+    const key = 'rdc-validation'
+    await next.render('/rdc/first')
+    const warmedAt = Date.now()
+    await retry(() => {
+      expect(Date.now() - warmedAt).toBeGreaterThan(1100)
+    })
+
+    outputIndex = next.cliOutput.length
+    heldResponseKeys.add(key)
+    heldResponseKeys.add('rdc-second')
+    const rendering = next.render$('/rdc/second')
+    try {
+      await retry(() => {
+        expect(dataRequestCountsByKey.get(key)).toBe(2)
+        expect(dataRequestCountsByKey.get('rdc-second')).toBe(1)
+      }, 10_000)
+      // Finish the cold fill to allow validation to start. Revalidation remains
+      // held, so validation must reuse the stale RDC entry.
+      releaseDataResponses('rdc-second')
+      const $ = await rendering
+      expect($('#rdc-value').text()).toBe(`${key}-v1`)
+
+      // The uncached page logs after both reads in each render. Its second log
+      // confirms validation consumed the entry before regeneration was
+      // released.
+      await retry(() => {
+        expect(
+          getOutput().match(/RDC validation second: rdc-validation-v1/g)
+            ?.length ?? 0
+        ).toBeGreaterThanOrEqual(2)
+      })
+      expect(getOutput()).not.toContain('encountered uncached data')
+    } finally {
+      releaseDataResponses('rdc-second')
+      releaseDataResponses(key)
+      await rendering
+    }
+  })
+
+  it('should serve stale data and then refreshed data on a subsequent request', async () => {
     const browser = await next.browser('/')
     const initialOuter = await browser.elementById('outer-data').text()
     expect(initialOuter).toBeDateString()
@@ -189,42 +497,46 @@ describe('use-cache-swr', () => {
     expect(cliOutput).toMatch(/PersistentCacheHandler::get.*"inner".*_N_T_\//)
   })
 
-  it.each(['concurrent', 'slow-read'])(
-    'should dedupe SWR regens across %s requests',
-    async (mode) => {
-      const id = `${mode}-${randomUUID()}`
-      const pathname = `/delayed-route?id=${id}`
-      const initial = await (await next.fetch(pathname)).json()
-      expect(initial.cached).toBeDateString()
-      outputIndex = next.cliOutput.length
+  it.each([
+    { mode: 'concurrent', scenario: 'across concurrent requests' },
+    {
+      mode: 'slow-read',
+      scenario:
+        'when a cache handler read returns stale data after revalidation completes',
+    },
+  ])('deduplicates background revalidations $scenario', async ({ mode }) => {
+    const id = `${mode}-${randomUUID()}`
+    const pathname = `/delayed-route?id=${id}`
+    const initial = await (await next.fetch(pathname)).json()
+    expect(initial.cached).toBeDateString()
+    outputIndex = next.cliOutput.length
 
-      // The simulated I/O takes as long as this entry's revalidate interval.
-      // Complete one stale read before starting another to avoid sharing only the
-      // lookup.
-      expect((await (await next.fetch(pathname)).json()).cached).toBe(
-        initial.cached
+    // The simulated I/O takes as long as this entry's revalidate interval.
+    // Complete one stale read before starting another to avoid sharing only the
+    // lookup.
+    expect((await (await next.fetch(pathname)).json()).cached).toBe(
+      initial.cached
+    )
+    expect((await (await next.fetch(pathname)).json()).cached).toBe(
+      initial.cached
+    )
+
+    await retry(() => {
+      const output = getOutput()
+      expect(output).toIncludeRepeated(
+        escapeStringRegexp(`use-cache-swr: generating delayed data ${id}`),
+        1
       )
-      expect((await (await next.fetch(pathname)).json()).cached).toBe(
-        initial.cached
+      expect(output).toIncludeRepeated(
+        escapeStringRegexp(`use-cache-swr: generated delayed data ${id}`),
+        1
       )
+    })
 
-      await retry(() => {
-        const output = getOutput()
-        expect(output).toIncludeRepeated(
-          escapeStringRegexp(`use-cache-swr: generating delayed data ${id}`),
-          1
-        )
-        expect(output).toIncludeRepeated(
-          escapeStringRegexp(`use-cache-swr: generated delayed data ${id}`),
-          1
-        )
-      })
-
-      const fresh = await (await next.fetch(pathname)).json()
-      expect(fresh.cached).toBeDateString()
-      expect(fresh.cached).not.toBe(initial.cached)
-    }
-  )
+    const fresh = await (await next.fetch(pathname)).json()
+    expect(fresh.cached).toBeDateString()
+    expect(fresh.cached).not.toBe(initial.cached)
+  })
 
   it('should not start another regeneration for a read during a background cache write', async () => {
     const id = `write-completion-${randomUUID()}`
