@@ -78,8 +78,8 @@ import {
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { isInterceptionRouteRewrite } from '../../lib/is-interception-route-rewrite'
-import { getTracer } from '../lib/trace/tracer'
-import { RouteModuleSpan } from '../lib/trace/constants'
+import { getTracer, SpanKind, type Span } from '../lib/trace/tracer'
+import { BaseServerSpan, RouteModuleSpan } from '../lib/trace/constants'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -632,6 +632,76 @@ export abstract class RouteModule<
     return { nextConfig, deploymentId }
   }
 
+  /**
+   * Runs a route handler that was invoked directly (e.g. by an adapter or a
+   * deployment, without next-server) inside its request span
+   * (`BaseServer.handleRequest`).
+   *
+   * The span is started before `fn` calls `prepare`, so everything done for
+   * the request, including route module preparation, belongs to the request's
+   * trace. When the handler is wrapped by next-server, which already started
+   * the request span, `fn` runs inside that active span instead.
+   *
+   * Callers must await `ensureInstrumentation` before calling this: on the
+   * first request, registering `instrumentation.ts` usually installs the
+   * tracer provider, and a span started earlier would not be recorded.
+   *
+   * `fn` receives the request span and the request's root span: the span that
+   * was active when the handler was invoked (next-server's request span, or a
+   * platform-created HTTP span), or the request span itself when there is no
+   * such span.
+   *
+   * `tracer` must be the caller's tracer: route modules are bundled with their
+   * own copy of the tracer, whose root span bookkeeping (e.g.
+   * `getRootSpanAttributes`) the caller can't see.
+   *
+   * @internal - only called by the Next.js build templates. Kept out of the
+   * published type declarations, which can't reference the tracer's types.
+   */
+  public async traceRequest<T>(
+    req: IncomingMessage,
+    {
+      tracer,
+      spanName,
+      httpTarget,
+    }: {
+      tracer: ReturnType<typeof getTracer>
+      spanName: string
+      httpTarget: string | undefined
+    },
+    fn: (span: Span | undefined, rootSpan: Span | undefined) => Promise<T>
+  ): Promise<T> {
+    const activeSpan = tracer.getActiveScopeSpan()
+    const isWrappedByNextServer = Boolean(
+      this.getRouterServerContext(req)?.isWrappedByNextServer
+    )
+
+    // TODO: activeSpan code path is for when wrapped by
+    // next-server can be removed when this is no longer used
+    if (isWrappedByNextServer && activeSpan) {
+      return fn(activeSpan, activeSpan)
+    }
+
+    return tracer.withPropagatedContext(
+      req.headers,
+      () =>
+        tracer.trace(
+          BaseServerSpan.handleRequest,
+          {
+            spanName,
+            kind: SpanKind.SERVER,
+            attributes: {
+              'http.method': req.method || 'GET',
+              'http.target': httpTarget,
+            },
+          },
+          (span) => fn(span, activeSpan ?? span)
+        ),
+      undefined,
+      !isWrappedByNextServer
+    )
+  }
+
   public prepare(
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | null,
@@ -645,6 +715,49 @@ export abstract class RouteModule<
       { spanName: 'prepare route module' },
       () => this.prepareImpl(req, res, options)
     )
+  }
+
+  /**
+   * Makes sure `instrumentation.ts` is registered for the Node.js runtime.
+   * Safe to call more than once per request. Returns the absolute project
+   * directory (`undefined` in the edge runtime, which handles loading
+   * instrumentation at the edge adapter level).
+   *
+   * @internal - called by `prepare` and by the Next.js build templates before
+   * `traceRequest`.
+   */
+  public async ensureInstrumentation(
+    req: IncomingMessage | BaseNextRequest
+  ): Promise<string | undefined> {
+    let absoluteProjectDir: string | undefined
+
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      const { join, relative } =
+        require('node:path') as typeof import('node:path')
+
+      absoluteProjectDir = join(
+        /* turbopackIgnore: true */
+        process.cwd(),
+        getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+      )
+
+      const absoluteDistDir = getRequestMeta(req, 'distDir')
+
+      if (absoluteDistDir) {
+        this.distDir = relative(absoluteProjectDir, absoluteDistDir)
+      }
+      const { ensureInstrumentationRegistered } = await import(
+        '../lib/router-utils/instrumentation-globals.external.js'
+      )
+      // ensure instrumentation is registered and pass
+      // onRequestError below. Awaited so any caller of `RouteModule.prepare`
+      // that bypasses `BaseServer.handleRequest` (where this is also awaited
+      // via `prepareImpl`) still observes the instrumentation hook completing
+      // before the userland route handler runs.
+      await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+    }
+
+    return absoluteProjectDir
   }
 
   private async prepareImpl(
@@ -701,38 +814,10 @@ export abstract class RouteModule<
       }
     | undefined
   > {
-    let absoluteProjectDir: string | undefined
-
-    // edge runtime handles loading instrumentation at the edge adapter level
-    if (process.env.NEXT_RUNTIME !== 'edge') {
-      if (res) {
-        patchSetHeaderWithCookieSupport(req, res)
-      }
-
-      const { join, relative } =
-        require('node:path') as typeof import('node:path')
-
-      absoluteProjectDir = join(
-        /* turbopackIgnore: true */
-        process.cwd(),
-        getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-      )
-
-      const absoluteDistDir = getRequestMeta(req, 'distDir')
-
-      if (absoluteDistDir) {
-        this.distDir = relative(absoluteProjectDir, absoluteDistDir)
-      }
-      const { ensureInstrumentationRegistered } = await import(
-        '../lib/router-utils/instrumentation-globals.external.js'
-      )
-      // ensure instrumentation is registered and pass
-      // onRequestError below. Awaited so any caller of `RouteModule.prepare`
-      // that bypasses `BaseServer.handleRequest` (where this is also awaited
-      // via `prepareImpl`) still observes the instrumentation hook completing
-      // before the userland route handler runs.
-      await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+    if (process.env.NEXT_RUNTIME !== 'edge' && res) {
+      patchSetHeaderWithCookieSupport(req, res)
     }
+    const absoluteProjectDir = await this.ensureInstrumentation(req)
     const manifests = getTracer().trace(
       RouteModuleSpan.loadManifests,
       { spanName: 'load route manifests' },
