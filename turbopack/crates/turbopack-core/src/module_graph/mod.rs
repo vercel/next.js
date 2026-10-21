@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use fixedbitset::FixedBitSet;
 use petgraph::{
     Direction,
     graph::{DiGraph, EdgeIndex, NodeIndex},
@@ -1520,10 +1521,17 @@ impl ModuleGraphSnapshot {
     /// visited multiple times.
     ///
     /// Runs in linear time and without recursion.
+    ///
+    /// Must be called on the whole graph, not on an individual graph layer (where `VisitedModule`
+    /// nodes can't be resolved).
     pub fn reverse_postorder_ranks(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     ) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, usize>> {
+        assert!(
+            !self.skip_visited_module_children && self.graph_idx_override.is_none(),
+            "reverse_postorder_ranks musn't be called on individual graphs"
+        );
         // Nodes are identified by their canonical node (i.e. never a `VisitedModule`), which is
         // the node the fixed point traversal expands.
         let canonical = |node: GraphNodeIndex| -> Result<GraphNodeIndex> {
@@ -1533,21 +1541,36 @@ impl ModuleGraphSnapshot {
                 .unwrap_or(node))
         };
 
-        let mut visited: FxHashSet<GraphNodeIndex> = FxHashSet::default();
-        let mut postorder: Vec<GraphNodeIndex> = Vec::new();
+        // Node indices of a `DiGraph` are dense, so a bitset per graph tracks the visited nodes.
+        let mut visited = self
+            .graphs
+            .iter()
+            .map(|g| FixedBitSet::with_capacity(g.graph.node_count()))
+            .collect::<Vec<_>>();
+        // Marks `node` as visited, returns whether it wasn't visited before.
+        let mut visit =
+            |node: GraphNodeIndex| !visited[node.graph_idx as usize].put(node.node_idx.index());
+
+        let mut postorder: Vec<GraphNodeIndex> = Vec::with_capacity(
+            self.graphs
+                .iter()
+                .map(|g| g.graph.node_count())
+                .sum::<usize>(),
+        );
+        let mut stack = Vec::new();
         for entry in entries {
             let entry = canonical(self.get_entry(entry)?)?;
-            if !visited.insert(entry) {
+            if !visit(entry) {
                 continue;
             }
-            let mut stack = vec![(
+            stack.push((
                 entry,
                 self.iter_graphs_neighbors_rev(entry, Direction::Outgoing, false, false),
-            )];
+            ));
             while let Some((node, children)) = stack.last_mut() {
                 if let Some((_, child)) = children.next() {
                     let child = canonical(child)?;
-                    if visited.insert(child) {
+                    if visit(child) {
                         stack.push((
                             child,
                             self.iter_graphs_neighbors_rev(
@@ -1566,11 +1589,11 @@ impl ModuleGraphSnapshot {
         }
 
         let count = postorder.len();
-        postorder
-            .into_iter()
-            .enumerate()
-            .map(|(i, node)| Ok((self.get_node(node)?.module(), count - 1 - i)))
-            .collect()
+        let mut ranks = FxHashMap::with_capacity_and_hasher(count, Default::default());
+        for (i, node) in postorder.into_iter().enumerate() {
+            ranks.insert(self.get_node(node)?.module(), count - 1 - i);
+        }
+        Ok(ranks)
     }
 
     /// Traverses all reachable nodes and also continue revisiting them as long the visitor returns
@@ -3424,6 +3447,52 @@ pub mod tests {
             assert_eq!(results.ranks_from_child_entry, expected);
             assert_eq!(results.ranks_from_all_entries, expected);
 
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_reverse_postorder_ranks_layer_snapshot_panics() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            async fn layer_panics_operation() -> Result<Vc<bool>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+                let repo = TestRepo::new(&root, [("a.js", vec!["b.js"])]);
+                let a = Vc::upcast::<Box<dyn Module>>(MockModule::new(
+                    root.join("a.js").unwrap(),
+                    repo,
+                ))
+                .to_resolved()
+                .await?;
+                let graph = SingleModuleGraph::new_with_entries(
+                    GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Entry {
+                        modules: vec![a],
+                        heuristics: EntryHeuristics::default(),
+                    }])
+                    .resolved_cell(),
+                    false,
+                    false,
+                );
+                let layers = ModuleGraph::from_graphs(vec![graph], None)
+                    .connect()
+                    .iter_graphs()
+                    .await?;
+                let layer = layers[0].connect().await?;
+                let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let _ = layer.reverse_postorder_ranks([a]);
+                }))
+                .is_err();
+                Ok(Vc::cell(panicked))
+            }
+
+            assert!(*layer_panics_operation().read_strongly_consistent().await?);
             Ok(())
         })
         .await
