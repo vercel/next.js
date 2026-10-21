@@ -521,6 +521,166 @@ async fn revision_snapshot(input: ResolvedVc<ChangingCompletion>) -> Result<Vc<u
     ))
 }
 
+static CACHED_COMPLETION_EXECUTIONS: AtomicUsize = AtomicUsize::new(0);
+
+#[turbo_tasks::function(operation, root)]
+async fn cached_completion_consumer(input: ResolvedVc<ChangingCompletion>) -> Result<Vc<u64>> {
+    completion_revision(changing_completion(*input)).await?;
+    // Unlike the revision itself, this detects semantic work being repeated on restore.
+    Ok(Vc::cell(
+        CACHED_COMPLETION_EXECUTIONS.fetch_add(1, Ordering::SeqCst) as u64,
+    ))
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn completion_revision_preserves_cached_consumers_on_restore() {
+    turbo_tasks_testing::run(&REGISTRATION, || async {
+        let input = changing_completion_input(2)
+            .resolve()
+            .strongly_consistent()
+            .await?;
+        Ok(*cached_completion_consumer(input)
+            .read_strongly_consistent()
+            .await?)
+    })
+    .await
+    .unwrap();
+}
+
+#[turbo_tasks::function(operation, root)]
+fn revision_observation(
+    input: ResolvedVc<ChangingCompletion>,
+) -> Vc<crate::evaluate::CompletionRevision> {
+    completion_revision(changing_completion(*input))
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn restored_completion_observations_get_fresh_ordinals_before_changes() {
+    // Observe the helper directly, as evaluation does, rather than persisting a copy of its
+    // session-local ordinal in an unrelated task's semantic result.
+    let mut previous = 0;
+    for initial in [true, false, false] {
+        let instance = REGISTRATION.create_turbo_tasks(
+            "restored_completion_observations_get_fresh_ordinals_before_changes",
+            initial,
+        );
+        let latest = turbo_tasks::run_once(instance.tt.clone(), async move {
+            let input_op = changing_completion_input(3);
+            let input_vc = input_op.resolve().strongly_consistent().await?;
+            let input = input_op.read_strongly_consistent().await?;
+            let revision = revision_observation(input_vc);
+            let restored = revision.read_strongly_consistent().await?;
+            assert!(
+                restored.n > previous,
+                "an unserialized helper is recomputed on demand"
+            );
+            assert_eq!(restored.n, revision.read_strongly_consistent().await?.n);
+            let tick = *input.tick.get_untracked();
+            input.tick.set(tick + 1);
+            let changed = revision.read_strongly_consistent().await?;
+            assert!(changed.n > restored.n);
+            let other = changing_completion_input(4)
+                .resolve()
+                .strongly_consistent()
+                .await?;
+            let other = revision_observation(other)
+                .read_strongly_consistent()
+                .await?;
+            assert!(other.n > changed.n, "restored lineages remain comparable");
+            assert!(restored.n < changed.n, "old observations stay immutable");
+            Ok(other.n)
+        })
+        .await
+        .unwrap();
+        instance.tt.stop_and_wait().await;
+        previous = latest;
+    }
+}
+
+#[test]
+fn completion_revision_cache_survives_process_restart() {
+    let cache = std::env::temp_dir().join(format!(
+        "turbopack-node-completion-process-cache-{}",
+        std::process::id()
+    ));
+    for phase in ["initial", "restored"] {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "evaluate::tests::completion_revision_persistence_subprocess",
+                "--nocapture",
+            ])
+            .env("TURBOPACK_NODE_TEST_CACHE_ROOT", &cache)
+            .env("TURBOPACK_NODE_COMPLETION_CACHE_PHASE", phase)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{phase} subprocess failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    std::fs::remove_dir_all(cache).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn completion_revision_persistence_subprocess() {
+    let Ok(phase) = std::env::var("TURBOPACK_NODE_COMPLETION_CACHE_PHASE") else {
+        return;
+    };
+    let initial = phase == "initial";
+    let instance = REGISTRATION.create_turbo_tasks("completion_process_restart", initial);
+    turbo_tasks::run_once(instance.tt.clone(), async move {
+        let consumer_input = changing_completion_input(2)
+            .resolve()
+            .strongly_consistent()
+            .await?;
+        cached_completion_consumer(consumer_input)
+            .read_strongly_consistent()
+            .await?;
+        assert_eq!(
+            CACHED_COMPLETION_EXECUTIONS.load(Ordering::SeqCst),
+            usize::from(initial),
+            "the restored semantic consumer must not execute, even with a fresh process clock"
+        );
+        if initial {
+            // Make the persisted helper ordinal larger than the allocator in a new process.
+            for key in 100..164 {
+                let input = changing_completion_input(key)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                revision_observation(input)
+                    .read_strongly_consistent()
+                    .await?;
+            }
+        }
+        let input_op = changing_completion_input(3);
+        let input_vc = input_op.resolve().strongly_consistent().await?;
+        let input = input_op.read_strongly_consistent().await?;
+        let revision = revision_observation(input_vc);
+        let old = revision.read_strongly_consistent().await?;
+        if initial {
+            assert!(old.n > 64);
+        } else {
+            assert!(
+                old.n < 64,
+                "old session ordinals must not be restored into a fresh clock"
+            );
+        }
+        let tick = *input.tick.get_untracked();
+        input.tick.set(tick + 1);
+        let new = revision.read_strongly_consistent().await?;
+        assert!(new.n > old.n);
+        assert!(old.n < new.n, "old snapshots stay immutable after restore");
+        Ok(())
+    })
+    .await
+    .unwrap();
+    instance.tt.stop_and_wait().await;
+}
+
 #[tokio::test]
 async fn completion_revisions_advance_on_invalidation_not_on_reads_and_preserve_snapshots() {
     run_once_without_cache_check(&REGISTRATION, async {

@@ -6,7 +6,7 @@ type EvaluationModule = {
 }
 
 // A worker can serve many emitted entries. Cache their initialization independently, including
-// asynchronous exports. A pool restart replaces the worker and its module/runtime caches together.
+// asynchronous exports.
 const modules = new Map<string, Promise<EvaluationModule['default']>>()
 
 /** Resolves to the entry's callable default export after its optional async initialization. */

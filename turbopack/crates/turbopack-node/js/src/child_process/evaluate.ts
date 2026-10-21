@@ -33,8 +33,6 @@ type IpcOutgoingMessage =
 
 const ipc = IPC as GenericIpc<IpcIncomingMessage, IpcOutgoingMessage>
 
-const queue: Array<{ entry: string; args: string[] }> = []
-
 export const run = async () => {
   let nextId = 1
   const requests = new Map()
@@ -64,25 +62,18 @@ export const run = async () => {
   // Only the generic bootstrap owns the IPC connection. Evaluation modules are loaded on demand.
   await ipc.sendReady()
 
-  // Queue handling
-  let isRunning = false
-  const run = async () => {
-    while (queue.length > 0) {
-      const { entry, args } = queue.shift()!
-      try {
-        const getValue = await loadEvaluation(entry)
-        const value = await getValue(internalIpc, ...args)
-        await ipc.send({
-          type: 'end',
-          data:
-            value === undefined ? undefined : JSON.stringify(value, null, 2),
-          duration: 0,
-        })
-      } catch (e) {
-        await ipc.sendError(e as Error)
-      }
+  const run = async (entry: string, args: string[]) => {
+    try {
+      const getValue = await loadEvaluation(entry)
+      const value = await getValue(internalIpc, ...args)
+      await ipc.send({
+        type: 'end',
+        data: value === undefined ? undefined : JSON.stringify(value, null, 2),
+        duration: 0,
+      })
+    } catch (e) {
+      await ipc.sendError(e as Error)
     }
-    isRunning = false
   }
 
   // Communication handling
@@ -91,11 +82,7 @@ export const run = async () => {
 
     switch (msg.type) {
       case 'evaluate': {
-        queue.push({ entry: msg.entry, args: msg.args })
-        if (!isRunning) {
-          isRunning = true
-          run()
-        }
+        run(msg.entry, msg.args)
         break
       }
       case 'result': {

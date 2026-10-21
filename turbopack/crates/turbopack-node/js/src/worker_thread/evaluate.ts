@@ -14,9 +14,6 @@ const binding: Binding = require(
 binding.workerCreated(workerId)
 
 export const run = async () => {
-  let isRunning = false
-  const queue: Array<{ taskId: number; entry: string; args: string[] }> = []
-
   const run = async (taskId: number, entry: string, args: string[]) => {
     try {
       const getValue = await loadEvaluation(entry)
@@ -42,12 +39,6 @@ export const run = async () => {
         ),
       })
     }
-    if (queue.length > 0) {
-      const next = queue.shift()!
-      run(next.taskId, next.entry, next.args)
-    } else {
-      isRunning = false
-    }
   }
 
   while (true) {
@@ -70,12 +61,7 @@ export const run = async () => {
 
     switch (msg.type) {
       case 'evaluate': {
-        if (!isRunning) {
-          isRunning = true
-          run(taskId, msg.entry, msg.args)
-        } else {
-          queue.push({ taskId, entry: msg.entry, args: msg.args })
-        }
+        run(taskId, msg.entry, msg.args)
         break
       }
       case 'result': {

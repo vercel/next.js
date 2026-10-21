@@ -580,7 +580,10 @@ impl PartialEq for CompletionRevision {
     }
 }
 
-#[turbo_tasks::function(session_dependent)]
+// Do not make this session-dependent: that would invalidate cached semantic evaluation results
+// on every restore. The serialization-skipped cells already recompute this worker-lifetime
+// metadata on demand in a new engine, without forcing otherwise cached consumers to execute.
+#[turbo_tasks::function]
 async fn completion_revision(completion: ResolvedVc<Completion>) -> Result<Vc<CompletionRevision>> {
     let completion = completion.await?;
     let state = CompletionRevisionState::default().resolved_cell();
