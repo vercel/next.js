@@ -637,6 +637,7 @@ impl ImportMetaGlobMap {
 pub struct ImportMetaGlobModuleReference {
     result: ResolvedVc<ModuleResolveResult>,
     export: ExportUsage,
+    eager: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -647,9 +648,14 @@ impl ModuleReference for ImportMetaGlobModuleReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
+        // Lazy matches are loaded on demand, like the target of a dynamic `import()`.
+        Some(if self.eager {
+            ChunkingType::Parallel {
+                inherit_async: false,
+                hoisted: false,
+            }
+        } else {
+            ChunkingType::Async
         })
     }
 
@@ -1037,6 +1043,7 @@ impl Module for ImportMetaGlobAsset {
                         ImportMetaGlobModuleReference {
                             result: entry.result,
                             export: export.clone(),
+                            eager: this.eager,
                         }
                         .resolved_cell(),
                     )
@@ -1091,6 +1098,16 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
         let map = &*self.map().await?;
         let minify = chunking_context.minify_type().await?;
 
+        // In lazy mode each matched module is in its own async chunk group (see
+        // `ImportMetaGlobModuleReference::chunking_type`), so it has to be loaded
+        // through its async loader, like the target of a dynamic `import()`.
+        let resolve_type =
+            if !this.eager && chunking_context.chunk_loading().await?.can_split_async() {
+                ResolveType::AsyncChunkLoader
+            } else {
+                ResolveType::ChunkItem
+            };
+
         let mut glob_map = ObjectLit {
             span: DUMMY_SP,
             props: vec![],
@@ -1102,7 +1119,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
                 *this.origin,
                 chunking_context,
                 *entry.result,
-                ResolveType::ChunkItem,
+                resolve_type,
                 None,
             )
             .await?;
