@@ -26,9 +26,6 @@ describe('app dir - next/font', () => {
         node_modules: new FileRef(join(__dirname, 'node_modules')),
         'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
       },
-      dependencies: {
-        '@next/font': 'workspace:*',
-      },
     })
 
     describe('import values', () => {
