@@ -1,7 +1,4 @@
-use std::{
-    mem::take,
-    path::{Component, Path, PathBuf},
-};
+use std::{mem::take, path::Path};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -245,59 +242,27 @@ async fn loader_path(cwd: &FileSystemPath, path: &str) -> Result<FileSystemPath>
         .with_context(|| format!("webpack loader path {path:?} is outside configured roots"))
 }
 
-/// Converts a raw system path without collapsing `..` before resolving preceding symlinks.
-/// Tracks those resolution dependencies even if resolution fails. `None` leaves Node to
-/// report the filesystem error through the loader's callback.
-async fn resolve_and_track_system_path(
-    cwd: &FileSystemPath,
-    file: &str,
-) -> Result<Option<FileSystemPath>> {
-    let mut sys_path = PathBuf::new();
-    for component in Path::new(file).components() {
-        if component == Component::ParentDir {
-            // Resolve and track the preceding symlinks before applying `..`. Lexical
-            // normalization could otherwise register the stat on a different file.
-            let path = loader_path(
-                cwd,
-                sys_path.to_str().context("stat path is not valid UTF-8")?,
-            )
-            .await?;
-            let path = match path.realpath().await? {
-                Ok(path) => path,
-                Err(error) if matches!(error.kind(), RealPathErrorType::Invalid { .. }) => {
-                    return Err(error.into());
-                }
-                // Keep the resolution dependencies, but let Node report ENOENT/ELOOP
-                // through the loader's callback.
-                Err(_) => return Ok(None),
-            };
-            if !matches!(*path.get_type().await?, FileSystemEntryType::Directory) {
-                // A file followed by `/..` produces ENOTDIR, not its parent directory.
-                return Ok(None);
-            }
-            sys_path = to_sys_path(path)
-                .await?
-                .context("resolved stat path is not on a disk filesystem")?;
-            sys_path.pop();
-        } else {
-            sys_path.push(component);
+/// Resolves a path passed to the loader's `fs`. As elsewhere in Turbopack, `..` is applied
+/// lexically before symlinks are followed. Returns `None` when Node's callback will report the
+/// error instead.
+async fn resolve_loader_path(cwd: &FileSystemPath, path: &str) -> Result<Option<FileSystemPath>> {
+    match loader_path(cwd, path).await?.realpath().await? {
+        Ok(path) => Ok(Some(path)),
+        // Changes behind a symlink leaving the configured roots can't be tracked.
+        Err(error) if matches!(error.kind(), RealPathErrorType::Invalid { .. }) => {
+            Err(error.into())
         }
+        Err(_) => Ok(None),
     }
-    let path = loader_path(
-        cwd,
-        sys_path.to_str().context("stat path is not valid UTF-8")?,
-    )
-    .await?;
-    Ok(Some(path))
 }
 
 async fn register_loader_stat_dependencies(cwd: &FileSystemPath, file: &str) -> Result<()> {
-    let Some(path) = resolve_and_track_system_path(cwd, file).await? else {
+    let Some(path) = resolve_loader_path(cwd, file).await? else {
         return Ok(());
     };
     let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs)
-        .expect("loader_path returns a path backed by DiskFileSystem");
-    fs.track_metadata_changes(path).await?;
+        .expect("resolved loader paths are backed by DiskFileSystem");
+    fs.full_metadata(path).await?;
     Ok(())
 }
 
@@ -995,7 +960,9 @@ impl EvaluateContext for WebpackLoaderContext {
             RequestMessage::TrackFileRead { file } => {
                 // Ignore result, we read on the JS side again to prevent some IPC overhead. Still
                 // await the read though to cover at least one class of race conditions.
-                let _ = &*loader_path(&self.cwd, &file).await?.read().await?;
+                if let Some(path) = resolve_loader_path(&self.cwd, &file).await? {
+                    let _ = &*path.read().await?;
+                }
                 Ok(ResponseMessage::TrackFileRead {})
             }
             RequestMessage::TrackFileStat { file } => {

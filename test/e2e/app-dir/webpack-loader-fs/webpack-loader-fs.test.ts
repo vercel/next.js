@@ -103,27 +103,6 @@ describe('webpack-loader-fs', () => {
   })
 
   // @force-gate dev && turbopack
-  it('tracks the stat target after resolving a symlink followed by ..', async () => {
-    const expectParentSize = async (size: number) => {
-      expect(await readParentStat()).toMatchObject({
-        parentSize: size,
-        relativeParentSize: size,
-        bufferParentSize: size,
-      })
-    }
-    await expectParentSize(6)
-    // Windows normalizes `..` before following directory symlinks; POSIX does not.
-    const target =
-      process.platform === 'win32'
-        ? 'app/path/to/stat-parent-target.bin'
-        : 'app/stat-parent-target.bin'
-    await next.patchFile(target, 'a longer file', async () => {
-      await retry(async () => expectParentSize(13))
-    })
-    await retry(async () => expectParentSize(6))
-  })
-
-  // @force-gate dev && turbopack
   it('invalidates metadata-only changes without reading file contents', async () => {
     const initial = await readStat()
     const target = path.join(next.testDir, 'app/stat-target.bin')

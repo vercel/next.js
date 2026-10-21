@@ -37,8 +37,8 @@ use crate::windows::{is_link_junction_point, to_verbatim_with_case_folded_disk};
 use crate::{
     AnyhowWrapper, DiskFileSystemMap, File, FileComparison, FileContent, FileMeta, FileSystem,
     FileSystemEntryType, FileSystemPath, FileSystemPathOption, LinkContent, LinkTarget,
-    PersistedFileContent, RawDirectoryContent, RawDirectoryEntry, RealPathErrorType,
-    WriteLinkContent, WriteLinkTargetType,
+    PersistedFileContent, RawDirectoryContent, RawDirectoryEntry, WriteLinkContent,
+    WriteLinkTargetType,
     canonicalized_path_cache::CanonicalizedPathWalkCache,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
@@ -868,8 +868,10 @@ impl DiskFileSystem {
     /// This registers dependencies; it does not return stat results. `metadata()` returns
     /// `FileMeta`, which omits sizes and timestamps. Metadata-only changes must invalidate stat
     /// calls without invalidating ordinary content reads.
+    ///
+    /// The caller must resolve symlinks, including parent directories, before calling this.
     #[turbo_tasks::function(fs, session_dependent)]
-    pub async fn track_metadata_changes(&self, fs_path: FileSystemPath) -> Result<Vc<Completion>> {
+    pub async fn full_metadata(&self, fs_path: FileSystemPath) -> Result<Vc<Completion>> {
         if self.inner.is_path_denied(&fs_path) {
             turbobail!("Cannot track metadata from denied path: {fs_path}");
         }
@@ -878,39 +880,22 @@ impl DiskFileSystem {
             self.inner
                 .metadata_invalidator_map
                 .insert(full_path.clone(), invalidator);
-            // Resolve before watching the requested parent: it may be below a file or in a
-            // symlink loop. Resolution already tracks reachable ancestors and links.
-            match &fs_path.realpath_with_links().await?.path_result {
-                Ok(target) if *target != fs_path => {
-                    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(target.fs)
-                        .expect("DiskFileSystem symlinks resolve within disk filesystems");
-                    fs.track_metadata_changes(target.clone()).await?;
-                }
-                Ok(_) => {
-                    if !fs_path.is_root() {
-                        self.inner
-                            .watcher
-                            .ensure_watched_file(&full_path, self.inner.root_path())
-                            .await?;
-                    }
-                    if matches!(&*fs_path.get_type().await?, FileSystemEntryType::Directory) {
-                        self.inner
-                            .watcher
-                            .ensure_watched_dir(&full_path, self.inner.root_path())
-                            .await?;
-                    }
-                }
-                Err(error) => match error.kind() {
-                    RealPathErrorType::Invalid { .. } => {
-                        return Err(error.clone().into());
-                    }
-                    // Watch registration can succeed for missing paths and symlink loops. Node's
-                    // fs.stat reports ENOENT/ELOOP through the loader callback; failing here would
-                    // bypass that callback. Keep the watches so creation or repair invalidates it.
-                    RealPathErrorType::NotFound
-                    | RealPathErrorType::CycleDetected { .. }
-                    | RealPathErrorType::TooManySymlinks { .. } => {}
-                },
+            let entry_type = *fs_path.get_type().await?;
+            debug_assert!(
+                !matches!(entry_type, FileSystemEntryType::Symlink),
+                "full_metadata requires a path with symlinks already resolved"
+            );
+            if !fs_path.is_root() {
+                self.inner
+                    .watcher
+                    .ensure_watched_file(&full_path, self.inner.root_path())
+                    .await?;
+            }
+            if matches!(entry_type, FileSystemEntryType::Directory) {
+                self.inner
+                    .watcher
+                    .ensure_watched_dir(&full_path, self.inner.root_path())
+                    .await?;
             }
         }
         Ok(Completion::new())
