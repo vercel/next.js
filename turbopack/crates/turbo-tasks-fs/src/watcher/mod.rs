@@ -754,18 +754,28 @@ impl DiskWatcher {
             let _guard = fs.tokio_handle().enter();
 
             let _lock = fs.invalidation_lock().blocking_write();
+            // All invalidators of the batch are invalidated together, with one reason per path.
+            let mut invalidators = Vec::new();
+            let mut reason_paths: Vec<PathBuf> = Vec::new();
             batch.execute(
                 fs.invalidator_map(),
                 fs.dir_invalidator_map(),
                 |invalidation_reason_path, invalidator| {
-                    invalidate(
-                        &*fs,
-                        &*turbo_tasks,
-                        report_invalidation_reason,
-                        invalidation_reason_path,
-                        invalidator,
-                    )
+                    invalidators.push(invalidator);
+                    if report_invalidation_reason
+                        && reason_paths.last().map(|p| p.as_path())
+                            != Some(invalidation_reason_path)
+                    {
+                        reason_paths.push(invalidation_reason_path.to_path_buf());
+                    }
                 },
+            );
+            invalidate(
+                &*fs,
+                &*turbo_tasks,
+                report_invalidation_reason,
+                &reason_paths,
+                invalidators,
             );
         }
     }
@@ -1097,7 +1107,7 @@ impl BatchedInvalidations {
         &mut self,
         invalidator_map: &InvalidatorMap,
         dir_invalidator_map: &InvalidatorMap,
-        invalidate: impl Fn(&Path, Invalidator),
+        mut invalidate: impl FnMut(&Path, Invalidator),
     ) {
         for (map, exact_flag, recursive_flag) in [
             (
@@ -1137,23 +1147,27 @@ impl BatchedInvalidations {
     level = "info",
     name = "file change",
     skip_all,
-    fields(name = %invalidation_reason_path.display())
+    fields(paths = invalidation_reason_paths.len(), invalidators = invalidators.len())
 )]
 fn invalidate(
     inner: &impl DiskFileSystemWatcherApi,
     turbo_tasks: &dyn TurboTasksApi,
     report_invalidation_reason: bool,
-    invalidation_reason_path: &Path,
-    invalidator: Invalidator,
+    invalidation_reason_paths: &[PathBuf],
+    invalidators: Vec<Invalidator>,
 ) {
-    if report_invalidation_reason
-        && let Some(path) =
-            format_absolute_fs_path(invalidation_reason_path, inner.name(), inner.root_path())
-    {
-        invalidator.invalidate_with_reason(turbo_tasks, WatchChange { path });
+    if invalidators.is_empty() {
         return;
     }
-    invalidator.invalidate(turbo_tasks);
+    if report_invalidation_reason {
+        let reasons = invalidation_reason_paths
+            .iter()
+            .filter_map(|path| format_absolute_fs_path(path, inner.name(), inner.root_path()))
+            .map(|path| WatchChange { path });
+        Invalidator::invalidate_all_with_reasons(invalidators, turbo_tasks, reasons);
+    } else {
+        Invalidator::invalidate_all(invalidators, turbo_tasks);
+    }
 }
 
 /// Invalidation was caused by a watcher rescan event. This will likely invalidate *every* watched

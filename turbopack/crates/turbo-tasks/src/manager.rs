@@ -46,6 +46,7 @@ use crate::{
     local_task_tracker::LocalTaskTracker,
     macro_helpers::NativeFunction,
     message_queue::{CompilationEvent, CompilationEventQueue},
+    parallel,
     priority_runner::{Claimable, Executor, PriorityRunner},
     registry,
     serialization_invalidation::SerializationInvalidator,
@@ -125,6 +126,15 @@ pub trait TurboTasksCallApi: Sync + Send {
 pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
+    /// Invalidates all `tasks` as one batch. `tasks` must not contain duplicates. Large batches are
+    /// split into chunks that are invalidated in parallel.
+    fn invalidate_many(&self, tasks: &[TaskId]);
+    /// Like [`TurboTasksApi::invalidate_many`], recording all `reasons` once for the whole batch.
+    fn invalidate_many_with_reasons(
+        &self,
+        tasks: &[TaskId],
+        reasons: Vec<StaticOrArc<dyn InvalidationReason>>,
+    );
 
     fn invalidate_serialization(&self, task: TaskId);
 
@@ -1873,6 +1883,34 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_task(task, self);
     }
 
+    #[instrument(level = "info", skip_all, name = "invalidate many", fields(count = tasks.len()))]
+    fn invalidate_many(&self, tasks: &[TaskId]) {
+        for_each_invalidation_chunk(tasks, |chunk| {
+            self.backend.invalidate_tasks(chunk, self);
+        });
+    }
+
+    #[instrument(level = "info", skip_all, name = "invalidate many", fields(count = tasks.len()))]
+    fn invalidate_many_with_reasons(
+        &self,
+        tasks: &[TaskId],
+        reasons: Vec<StaticOrArc<dyn InvalidationReason>>,
+    ) {
+        if tasks.is_empty() {
+            return;
+        }
+        // Recorded once, before any chunk is invalidated.
+        {
+            let (_, reason_set) = &mut *self.aggregated_update.lock().unwrap();
+            for reason in reasons {
+                reason_set.insert(reason);
+            }
+        }
+        for_each_invalidation_chunk(tasks, |chunk| {
+            self.backend.invalidate_tasks(chunk, self);
+        });
+    }
+
     fn invalidate_serialization(&self, task: TaskId) {
         self.backend.invalidate_serialization(task, self);
     }
@@ -2250,6 +2288,24 @@ pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T
 
 pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -> T {
     TURBO_TASKS.sync_scope(tt, f)
+}
+
+/// Calls `f` for chunks of `tasks`, in parallel when the batch is large enough (see
+/// [`parallel::for_each_chunk`]). Doesn't call `f` for an empty batch.
+///
+/// Invalidation reads the current task's priority (the dirty priority of an invalidation from
+/// inside a task). The parallel helper threads only carry the turbo-tasks instance, so the
+/// caller's task state is carried into every chunk here, making each chunk behave like the
+/// unchunked call.
+fn for_each_invalidation_chunk(tasks: &[TaskId], f: impl Fn(&[TaskId]) + Send + Sync) {
+    if tasks.is_empty() {
+        return;
+    }
+    let task_state = CURRENT_TASK_STATE.try_with(|ts| ts.clone()).ok();
+    parallel::for_each_chunk(tasks, |chunk| match &task_state {
+        Some(task_state) => CURRENT_TASK_STATE.sync_scope(task_state.clone(), || f(chunk)),
+        None => f(chunk),
+    });
 }
 
 pub fn turbo_tasks_future_scope<T>(
@@ -2911,5 +2967,69 @@ mod tests {
         // ...but it was spawned, so it still runs to completion.
         rx.await.unwrap();
         assert!(done.load(Ordering::SeqCst));
+    }
+
+    /// Calls `for_each_invalidation_chunk` on enough ids to chunk and returns, per chunk, the
+    /// chunk's ids, the thread it ran on and the task priority it observed.
+    fn invalidation_chunks() -> Vec<(Vec<TaskId>, std::thread::ThreadId, TaskPriority)> {
+        let tasks = (1..=1024)
+            .map(|id| TaskId::new(id).unwrap())
+            .collect::<Vec<_>>();
+        let chunks = std::sync::Mutex::new(Vec::new());
+        for_each_invalidation_chunk(&tasks, |chunk| {
+            let priority = CURRENT_TASK_STATE
+                .try_with(|ts| ts.read().unwrap().priority)
+                .unwrap_or(TaskPriority::initial());
+            // Give helper threads time to pick up chunks.
+            std::thread::sleep(Duration::from_millis(5));
+            chunks
+                .lock()
+                .unwrap()
+                .push((chunk.to_vec(), std::thread::current().id(), priority));
+        });
+        let chunks = chunks.into_inner().unwrap();
+        let mut seen = chunks
+            .iter()
+            .flat_map(|(chunk, ..)| chunk.iter().copied())
+            .collect::<Vec<_>>();
+        seen.sort_unstable();
+        assert_eq!(seen, tasks, "every id is passed exactly once");
+        assert!(chunks.len() > 1, "the batch is split into chunks");
+        chunks
+    }
+
+    /// Invalidation chunks run on helper threads must see the caller's task state (its priority
+    /// is the dirty priority), like an unchunked call on the calling thread would.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_invalidation_chunks_carry_task_state() {
+        let priority = TaskPriority::invalidation(7);
+        let task_state = CurrentTaskStateHandle::new(CurrentTaskState::new_temporary(
+            ExecutionId::MIN,
+            priority,
+            false,
+        ));
+        let caller = std::thread::current().id();
+        let chunks = CURRENT_TASK_STATE.sync_scope(task_state, invalidation_chunks);
+        assert!(
+            chunks.iter().any(|(_, thread, _)| *thread != caller),
+            "some chunks run on helper threads"
+        );
+        for (_, _, chunk_priority) in &chunks {
+            assert_eq!(*chunk_priority, priority);
+        }
+    }
+
+    /// Without a current task, chunks don't see any task state.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_invalidation_chunks_without_task_state() {
+        for (_, _, chunk_priority) in invalidation_chunks() {
+            assert_eq!(chunk_priority, TaskPriority::initial());
+        }
+    }
+
+    /// An empty batch doesn't reach the backend.
+    #[test]
+    fn test_invalidation_chunks_empty() {
+        for_each_invalidation_chunk(&[], |chunk| panic!("called with {chunk:?}"));
     }
 }
