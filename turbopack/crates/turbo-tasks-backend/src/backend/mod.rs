@@ -1859,8 +1859,9 @@ impl TurboTasksBackend {
         }
         invalidate(
             tasks.iter().copied().collect(),
+            // Called by `TurboTasksApi::invalidate_many*`, i.e. batched `Invalidator`s.
             #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::Unknown,
+            TaskDirtyCause::Invalidator,
             self.execute_context(turbo_tasks),
         );
     }
