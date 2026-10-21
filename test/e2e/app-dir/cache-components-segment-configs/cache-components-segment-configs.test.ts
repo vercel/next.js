@@ -1,4 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
+import path from 'path'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   retry,
   waitForRedbox,
@@ -6,9 +7,6 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
-// @force-gate !deploy
 describe('cache-components-segment-configs', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname + '/fixtures/default',
@@ -16,10 +14,11 @@ describe('cache-components-segment-configs', () => {
   })
 
   it("it should error when using segment configs that aren't supported by cacheComponents", async () => {
-    try {
+    if (isNextDev) {
       await next.start()
-    } catch {
-      // we expect the build to fail
+    } else {
+      // The build is expected to fail.
+      await expect(next.start()).rejects.toThrow()
     }
 
     if (isNextDev) {
@@ -89,77 +88,77 @@ describe('cache-components-segment-configs', () => {
         )
       }
     }
+  }, 240_000)
+})
+
+describe('cache-components-segment-configs layout propagation', () => {
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
+    files: __dirname + '/fixtures/default',
+    // The root layout exports `runtime`, so the "runtime" segment config
+    // propagates to each page that uses it.
+    overrideFiles: {
+      'app/layout.tsx': new FileRef(
+        path.join(__dirname, 'fixtures/layout-runtime/app/layout.tsx')
+      ),
+    },
+    skipStart: true,
   })
 
   it('should propagate configurations from layouts to pages', async () => {
-    // patch the root layout. We expect the "dynamic" segment config to now be part of
-    // each sub-page that uses this layout.
-    await next.patchFile(
-      'app/layout.tsx',
-      (content) => {
-        return `
-          export const runtime = 'nodejs';
-          ${content}
-        `
-      },
-      async () => {
-        try {
-          await next.start()
-        } catch {
-          // we expect the build to fail
-        }
+    if (isNextDev) {
+      await next.start()
+    } else {
+      // The build is expected to fail.
+      await expect(next.start()).rejects.toThrow()
+    }
 
-        if (isNextDev) {
-          const browser = await next.browser('/revalidate')
-          await waitForRedbox(browser)
-          const redbox = {
-            description: await getRedboxDescription(browser),
-            source: await getRedboxSource(browser),
-          }
-
-          if (isTurbopack) {
-            // The page-level error is shown first in the redbox, but
-            // the layout error is also present in the CLI output.
-            expect(redbox.description).toMatchInlineSnapshot(
-              `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
-            )
-          } else {
-            expect(redbox.description).toMatchInlineSnapshot(
-              `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
-            )
-          }
-          expect(redbox.source).toContain(
-            'is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-          )
-          // Verify that the "runtime" error from the layout propagation
-          // is present in the CLI output even if it's not the first error
-          // shown in the redbox.
-          expect(next.cliOutput).toContain(
-            '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-          )
-        } else {
-          await retry(async () => {
-            expect(next.cliOutput).toContain(
-              '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
-            )
-
-            // the stack trace is different between turbopack/webpack
-            if (isTurbopack) {
-              expectLinesToAppearTogether(next.cliOutput, [
-                './app/layout.tsx:2:24',
-              ])
-            } else {
-              expectLinesToAppearTogether(next.cliOutput, [
-                'Import trace for requested module:',
-                './app/fetch-cache/page.tsx',
-                './app/layout.tsx',
-              ])
-            }
-          })
-        }
+    if (isNextDev) {
+      const browser = await next.browser('/revalidate')
+      await waitForRedbox(browser)
+      const redbox = {
+        description: await getRedboxDescription(browser),
+        source: await getRedboxSource(browser),
       }
-    )
-  })
+
+      if (isTurbopack) {
+        // The page-level error is shown first in the redbox, but
+        // the layout error is also present in the CLI output.
+        expect(redbox.description).toMatchInlineSnapshot(
+          `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
+        )
+      } else {
+        expect(redbox.description).toMatchInlineSnapshot(
+          `"  x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."`
+        )
+      }
+      expect(redbox.source).toContain(
+        'is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+      )
+      // Verify that the "runtime" error from the layout propagation
+      // is present in the CLI output even if it's not the first error
+      // shown in the redbox.
+      expect(next.cliOutput).toContain(
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+      )
+    } else {
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        )
+
+        // the stack trace is different between turbopack/webpack
+        if (isTurbopack) {
+          expectLinesToAppearTogether(next.cliOutput, ['./app/layout.tsx:1:14'])
+        } else {
+          expectLinesToAppearTogether(next.cliOutput, [
+            'Import trace for requested module:',
+            './app/fetch-cache/page.tsx',
+            './app/layout.tsx',
+          ])
+        }
+      })
+    }
+  }, 240_000)
 })
 
 function expectLinesToAppearTogether(output: string, lines: string[]) {
