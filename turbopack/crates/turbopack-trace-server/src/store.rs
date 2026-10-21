@@ -410,19 +410,32 @@ impl Store {
         start: Timestamp,
         end: Timestamp,
     ) -> Vec<MemorySample> {
+        self.memory_samples_for_range_with_ts_limit(start, end, MAX_MEMORY_SAMPLES)
+    }
+
+    /// Query-specific limit; the viewer retains its fixed sample cap.
+    pub fn memory_samples_for_range_with_ts_limit(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        limit: usize,
+    ) -> Vec<MemorySample> {
+        if limit == 0 {
+            return Vec::new();
+        }
         let slice = self.memory_samples_slice(start, end);
         let count = slice.len();
         if count == 0 {
             return Vec::new();
         }
 
-        if count <= MAX_MEMORY_SAMPLES {
+        if count <= limit {
             return slice.to_vec();
         }
 
         // Merge groups of N samples: timestamp and memory come from the
         // max-memory sample, pressure, footprint and workers are column maxes.
-        let n = count.div_ceil(MAX_MEMORY_SAMPLES);
+        let n = count.div_ceil(limit);
         slice
             .chunks(n)
             .map(|chunk| {
@@ -458,17 +471,30 @@ impl Store {
     /// taking the maximum pressure value, independently of which sample had
     /// the max memory (matching [`Self::memory_samples_for_range_with_ts`]).
     pub fn memory_pressure_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u8> {
+        self.memory_pressure_samples_for_range_limit(start, end, MAX_MEMORY_SAMPLES)
+    }
+
+    /// Peak pressure per group, with the same boundaries as the limited memory series.
+    pub fn memory_pressure_samples_for_range_limit(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        limit: usize,
+    ) -> Vec<u8> {
+        if limit == 0 {
+            return Vec::new();
+        }
         let slice = self.memory_samples_slice(start, end);
         let count = slice.len();
         if count == 0 {
             return Vec::new();
         }
 
-        if count <= MAX_MEMORY_SAMPLES {
+        if count <= limit {
             return slice.iter().map(|(_, _, p, ..)| *p).collect();
         }
 
-        let n = count.div_ceil(MAX_MEMORY_SAMPLES);
+        let n = count.div_ceil(limit);
         slice
             .chunks(n)
             .map(|chunk| chunk.iter().map(|(_, _, p, ..)| *p).max().unwrap())
@@ -505,8 +531,18 @@ impl Store {
     /// of `[start, end)`. When corrected-time indexing is disabled, there is
     /// no tree to query and the series is omitted.
     pub fn concurrency_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<f64> {
+        self.concurrency_samples_for_range_limit(start, end, MAX_CONCURRENCY_SAMPLES)
+    }
+
+    /// Query-specific segment count, independent of recorded memory sample timestamps.
+    pub fn concurrency_samples_for_range_limit(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        limit: usize,
+    ) -> Vec<f64> {
         self.self_time_tree.as_ref().map_or_else(Vec::new, |tree| {
-            tree.lookup_range_concurrency_samples(start, end, MAX_CONCURRENCY_SAMPLES)
+            tree.lookup_range_concurrency_samples(start, end, limit)
         })
     }
 
@@ -652,6 +688,96 @@ mod tests {
         assert!(
             store
                 .concurrency_samples_for_range(Timestamp::ZERO, Timestamp::from_value(100))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn query_sample_limit_is_not_the_viewer_cap() {
+        let mut store = Store::new();
+        let start = Timestamp::ZERO;
+        let end = Timestamp::from_value(599);
+        for i in 0..600 {
+            store.add_memory_sample(Timestamp::from_value(i), i, (i % 100) as u8, 0, i % 8);
+        }
+        for limit in [0, 1, 200, 300, 1000] {
+            let samples = store.memory_samples_for_range_with_ts_limit(start, end, limit);
+            let pressure = store.memory_pressure_samples_for_range_limit(start, end, limit);
+            assert!(samples.len() <= limit);
+            assert_eq!(pressure.len(), samples.len());
+            if limit > 0 {
+                assert_eq!(samples.last().unwrap().1, 599);
+                assert_eq!(samples.last().unwrap().4, 599 % 8);
+            }
+        }
+        assert_eq!(
+            store
+                .memory_samples_for_range_with_ts_limit(start, end, 300)
+                .len(),
+            300
+        );
+        assert_eq!(
+            store
+                .memory_samples_for_range_with_ts_limit(start, end, 1000)
+                .len(),
+            600
+        );
+        assert_eq!(
+            store.memory_samples_for_range_with_ts_limit(start, end, 1)[0].2,
+            99
+        );
+        assert_eq!(
+            store.memory_pressure_samples_for_range_limit(start, end, 1),
+            vec![99]
+        );
+        assert!(store.memory_samples_for_range_with_ts(start, end).len() <= MAX_MEMORY_SAMPLES);
+        assert!(
+            store
+                .memory_samples_for_range_with_ts_limit(Timestamp::from_value(600), end, 1)
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn pressure_and_workers_keep_the_viewer_reduction_semantics() {
+        let mut store = Store::new();
+        let start = Timestamp::ZERO;
+        let end = Timestamp::from_value(10);
+        store.add_memory_sample(start, 100, 80, 1000, 7);
+        store.add_memory_sample(end, 900, 2, 200, 1);
+        let samples = store.memory_samples_for_range_with_ts_limit(start, end, 1);
+        assert_eq!(samples, vec![(end, 900, 80, 1000, 7)]);
+        assert_eq!(
+            store.memory_pressure_samples_for_range_limit(start, end, 1),
+            vec![80]
+        );
+        let mut outdated = FxHashSet::default();
+        let span = store.add_span(
+            None,
+            start,
+            rcstr!("test"),
+            rcstr!("work"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        store.add_self_time(span, start, Timestamp::from_value(1000), &mut outdated);
+        assert_eq!(
+            store.concurrency_samples_for_range_limit(start, Timestamp::from_value(1000), 300),
+            vec![1.0; 300]
+        );
+        assert!(
+            store
+                .concurrency_samples_for_range_limit(start, end, 0)
+                .is_empty()
+        );
+        assert_eq!(
+            store.concurrency_samples_for_range_limit(start, Timestamp::from_value(2), 300),
+            vec![1.0; 2]
+        );
+        store.self_time_tree = None;
+        assert!(
+            store
+                .concurrency_samples_for_range_limit(start, end, 300)
                 .is_empty()
         );
     }
