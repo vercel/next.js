@@ -47,7 +47,15 @@ function setupCollector(next: NextInstance, port: number) {
   }
 }
 
-function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
+function setup({
+  useDirectEntrypointHandler,
+  useNodeMiddleware,
+  withParentSpan = false,
+}: {
+  useDirectEntrypointHandler?: boolean
+  useNodeMiddleware?: boolean
+  withParentSpan?: boolean
+}) {
   const testSetup = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -66,8 +74,9 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
           startCommand: 'pnpm start-entrypoint',
           packageJson: {
             scripts: {
-              'start-entrypoint':
-                'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+              'start-entrypoint': withParentSpan
+                ? 'pnpm tsx custom-entrypoint-server.ts'
+                : 'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
             },
           },
           serverReadyPattern: /- Local:/,
@@ -2326,95 +2335,177 @@ describe.each(
       name: 'direct entrypoints',
       useDirectEntrypointHandler: true,
     },
-  ].filter(Boolean)
-)('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
-  describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
-    const {
-      next: { next, skipped },
-      getCollector,
-    } = setup({
-      useDirectEntrypointHandler,
-      useNodeMiddleware: runtime === 'nodejs',
-    })
+    isNextStart && {
+      name: 'direct entrypoints with parent span',
+      useDirectEntrypointHandler: true,
+      withParentSpan: true,
+    },
+  ].filter(Boolean) as {
+    name: string
+    useDirectEntrypointHandler: boolean
+    withParentSpan?: boolean
+  }[]
+)(
+  'opentelemetry - middleware $name',
+  ({ useDirectEntrypointHandler, withParentSpan = false }) => {
+    describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
+      const {
+        next: { next, skipped },
+        getCollector,
+      } = setup({
+        useDirectEntrypointHandler,
+        useNodeMiddleware: runtime === 'nodejs',
+        withParentSpan,
+      })
 
-    if (skipped) {
-      return
-    }
+      if (skipped) {
+        return
+      }
 
-    if (useDirectEntrypointHandler && runtime === 'edge') {
-      it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
-      return
-    }
+      if (useDirectEntrypointHandler && runtime === 'edge') {
+        it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
+        return
+      }
 
-    for (const env of [
-      {
-        name: 'root context',
-        fetchInit: undefined,
-        span: {
-          traceId: '[trace-id]',
-          rootParentId: undefined,
-        },
-      },
-      {
-        name: 'incoming context propagation',
-        fetchInit: {
-          headers: {
-            traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+      for (const env of [
+        {
+          name: 'root context',
+          fetchInit: undefined,
+          span: {
+            traceId: '[trace-id]',
+            rootParentId: undefined,
           },
         },
-        span: {
-          traceId: EXTERNAL.traceId,
-          rootParentId: EXTERNAL.spanId,
+        {
+          name: 'incoming context propagation',
+          fetchInit: {
+            headers: {
+              traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+            },
+          },
+          span: {
+            traceId: EXTERNAL.traceId,
+            rootParentId: EXTERNAL.spanId,
+          },
         },
-      },
-    ]) {
-      ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
-        env.name,
-        () => {
-          it('should trace middleware', async () => {
-            await next.fetch('/behind-middleware', env.fetchInit)
-            let expected = [
-              {
-                runtime: runtime,
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'middleware GET',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.target': '/behind-middleware',
-                  'next.span_name': 'middleware GET',
-                  'next.span_type': 'Middleware.execute',
+      ]) {
+        ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+          env.name,
+          () => {
+            // The middleware and the render are siblings in a single trace,
+            // under their shared parent.
+            it('should trace middleware', async () => {
+              await next.fetch('/behind-middleware', env.fetchInit)
+              // Behind the host span, the direct entrypoints' spans are
+              // exported without a runtime.
+              const runtimeOf = (name: string) =>
+                withParentSpan ? {} : { runtime: name }
+              const siblings = [
+                {
+                  ...runtimeOf('nodejs'),
+                  traceId: env.span.traceId,
+                  name: 'GET /behind-middleware',
+                  attributes: {
+                    'http.method': 'GET',
+                    'http.route': '/behind-middleware',
+                    'http.status_code': 200,
+                    'http.target': '/behind-middleware',
+                    'next.route': '/behind-middleware',
+                    'next.span_name': 'GET /behind-middleware',
+                    'next.span_type': 'BaseServer.handleRequest',
+                  },
                 },
-                status: { code: 0 },
-                spans: [],
-              },
-              {
-                runtime: 'nodejs',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'GET /behind-middleware',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/behind-middleware',
-                  'http.status_code': 200,
-                  'http.target': '/behind-middleware',
-                  'next.route': '/behind-middleware',
-                  'next.span_name': 'GET /behind-middleware',
-                  'next.span_type': 'BaseServer.handleRequest',
+                {
+                  ...runtimeOf(runtime),
+                  traceId: env.span.traceId,
+                  name: 'middleware GET',
+                  attributes: {
+                    'http.method': 'GET',
+                    'http.target': '/behind-middleware',
+                    'next.span_name': 'middleware GET',
+                    'next.span_type': 'Middleware.execute',
+                  },
+                  status: { code: 0 },
+                  spans: [],
                 },
-              },
-            ]
-            if (runtime === 'nodejs') {
-              // TODO unclear why this is reversed for Node.js runtime
-              expected.reverse()
-            }
-            await expectTrace(getCollector(), expected)
-          })
-        }
-      )
-    }
-  })
-})
+              ]
+
+              if (!useDirectEntrypointHandler) {
+                // next-server's middleware-invoke `handleRequest` span (marked
+                // `next.bubble`) is the shared parent.
+                await expectTrace(
+                  getCollector(),
+                  [
+                    {
+                      runtime: 'nodejs',
+                      traceId: env.span.traceId,
+                      parentId: env.span.rootParentId,
+                      name: 'GET',
+                      attributes: {
+                        'http.method': 'GET',
+                        'http.target': '/behind-middleware',
+                        'next.bubble': true,
+                        'next.span_name': 'GET',
+                        'next.span_type': 'BaseServer.handleRequest',
+                      },
+                      spans: siblings,
+                    },
+                  ],
+                  false,
+                  { includeBubbleSpans: true }
+                )
+              } else if (withParentSpan) {
+                // The middleware and the render are invoked separately: the
+                // active host span around the invocations is their shared
+                // parent, also over an incoming traceparent.
+                await expectTrace(getCollector(), [
+                  {
+                    traceId: '[trace-id]',
+                    parentId: undefined,
+                    name: 'GET /behind-middleware',
+                    spans: siblings.map((span) => ({
+                      ...span,
+                      traceId: '[trace-id]',
+                    })),
+                  },
+                ])
+              } else if (env.span.rootParentId) {
+                // Without a host span, an incoming traceparent is the shared
+                // parent.
+                await expectTrace(
+                  getCollector(),
+                  siblings.map((span) => ({
+                    ...span,
+                    parentId: env.span.rootParentId,
+                  }))
+                )
+              } else {
+                // Without any trace context, the middleware adapter inserts a
+                // root span for the request, the shared parent.
+                await expectTrace(getCollector(), [
+                  {
+                    runtime: 'nodejs',
+                    traceId: env.span.traceId,
+                    parentId: undefined,
+                    name: 'GET',
+                    attributes: {
+                      'http.method': 'GET',
+                      'http.target': '/behind-middleware',
+                      'next.span_name': 'GET',
+                      'next.span_type': 'Next.request',
+                    },
+                    status: { code: 0 },
+                    spans: siblings,
+                  },
+                ])
+              }
+            })
+          }
+        )
+      }
+    })
+  }
+)
 
 describe.each(
   [
@@ -2939,29 +3030,45 @@ type SpanMatch = Omit<Partial<HierSavedSpan>, 'spans'> & { spans?: SpanMatch[] }
 async function expectTrace(
   collector: Collector,
   match: SpanMatch[],
-  edgeOnly?: boolean
+  edgeOnly?: boolean,
+  {
+    includeBubbleSpans = false,
+  }: {
+    /**
+     * Include spans marked `next.bubble` (e.g. next-server's
+     * middleware-invoke `handleRequest` span), to match a hierarchy below them.
+     */
+    includeBubbleSpans?: boolean
+  } = {}
 ) {
-  // Extract expected http.target values from the match to filter out extra spans
-  // that may be generated in production mode (e.g., RSC prefetch requests)
-  const expectedTargets = new Set(
-    match
-      .map((m) => m.attributes?.['http.target'] as string | undefined)
-      .filter(Boolean)
-  )
+  // Extract expected http.target values from the match (including nested
+  // spans) to filter out extra spans that may be generated in production mode
+  // (e.g., RSC prefetch requests)
+  const expectedTargets = new Set<string>()
+  const collectTargets = (matches: SpanMatch[]) => {
+    for (const m of matches) {
+      const target = m.attributes?.['http.target'] as string | undefined
+      if (target) {
+        expectedTargets.add(target)
+      }
+      collectTargets(m.spans ?? [])
+    }
+  }
+  collectTargets(match)
 
   await retry(async () => {
-    const traces = collector
-      .getSpans()
-      .filter(
-        (span) =>
-          ![
-            'LoadComponents.loadRouteModule',
-            'AppRouteRouteModule.loadUserland',
-            'RouteModule.prepare',
-            'Instrumentation.loadModule',
-            'Instrumentation.register',
-          ].includes(span.attributes?.['next.span_type'] as string)
-      )
+    const traces = (
+      includeBubbleSpans ? collector.getAllSpans() : collector.getSpans()
+    ).filter(
+      (span) =>
+        ![
+          'LoadComponents.loadRouteModule',
+          'AppRouteRouteModule.loadUserland',
+          'RouteModule.prepare',
+          'Instrumentation.loadModule',
+          'Instrumentation.register',
+        ].includes(span.attributes?.['next.span_type'] as string)
+    )
 
     const tree: HierSavedSpan[] = []
     const spansForTree: HierSavedSpan[] = traces.map((span) => ({
@@ -3016,16 +3123,17 @@ async function expectTrace(
     }
 
     // Filter root spans to only those matching expected http.target values
+    // (themselves or in their subtree, e.g. below a host span without one).
     // This prevents flakiness from extra spans in prod mode (RSC prefetch, etc.)
+    const hasExpectedTarget = (span: HierSavedSpan): boolean => {
+      const target = span.attributes?.['http.target'] as string | undefined
+      return (
+        Boolean(target && expectedTargets.has(target)) ||
+        (span.spans ?? []).some(hasExpectedTarget)
+      )
+    }
     const filteredTree =
-      expectedTargets.size > 0
-        ? tree.filter((span) => {
-            const target = span.attributes?.['http.target'] as
-              | string
-              | undefined
-            return target && expectedTargets.has(target)
-          })
-        : tree
+      expectedTargets.size > 0 ? tree.filter(hasExpectedTarget) : tree
 
     filteredTree.sort((a, b) => {
       const runtimeDiff = (a.runtime ?? '').localeCompare(b.runtime ?? '')
