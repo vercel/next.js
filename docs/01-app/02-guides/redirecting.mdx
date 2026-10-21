@@ -410,7 +410,7 @@ export async function proxy(request) {
   const pathname = request.nextUrl.pathname
   const redirectData = await get(pathname)
 
-  if (redirectData) {
+  if (redirectData && typeof redirectData === 'string') {
     const redirectEntry = JSON.parse(redirectData)
     const statusCode = redirectEntry.permanent ? 308 : 307
     return NextResponse.redirect(redirectEntry.destination, statusCode)
