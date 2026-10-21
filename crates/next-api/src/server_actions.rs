@@ -41,6 +41,7 @@ use turbopack_core::{
         ChunkingContext, EntryChunkGroupResult, EvaluatableAsset, HmrChunkListSource, MinifyType,
         ModuleId, SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
+        worker_type::WorkerType,
     },
     context::AssetContext,
     environment::{ChunkLoading, Environment},
@@ -1320,11 +1321,23 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     #[turbo_tasks::function]
     async fn worker_loader_chunk_item(
         self: Vc<Self>,
-        _module: Vc<Box<dyn Module>>,
+        _module: Vc<Box<dyn ChunkableModule>>,
+        _asset_context: Vc<Box<dyn AssetContext>>,
+        _worker_type: WorkerType,
         _module_graph: Vc<ModuleGraph>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
         bail!("worker_loader_chunk_item should not be called in UseCacheContentHashChunkingContext")
+    }
+
+    #[turbo_tasks::function]
+    fn worker_loader_chunk_item_ident(
+        &self,
+        module: Vc<Box<dyn ChunkableModule>>,
+        worker_type: WorkerType,
+    ) -> Vc<AssetIdent> {
+        self.inner
+            .worker_loader_chunk_item_ident(module, worker_type)
     }
 
     #[turbo_tasks::function]
