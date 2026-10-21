@@ -83,7 +83,7 @@ const internalHandler: EdgeHandler = async (opts) => {
     requestStartTime = performance.timeOrigin + performance.now()
     const { join, relative } =
       require('node:path') as typeof import('node:path')
-    const { ensureInstrumentationRegisteredForRequest } =
+    const { ensureInstrumentationRegisteredWithDeferredSpans } =
       require('../../server/lib/router-utils/instrumentation-globals.external') as typeof import('../../server/lib/router-utils/instrumentation-globals.external')
     const absoluteProjectDir = join(
       /* turbopackIgnore: true */
@@ -97,10 +97,11 @@ const internalHandler: EdgeHandler = async (opts) => {
 
     // When this request registers `instrumentation.ts`, the adapter emits its
     // lifecycle spans inside the middleware span.
-    emitInstrumentationSpans = await ensureInstrumentationRegisteredForRequest(
-      absoluteProjectDir,
-      distDir
-    )
+    emitInstrumentationSpans =
+      await ensureInstrumentationRegisteredWithDeferredSpans(
+        absoluteProjectDir,
+        distDir
+      )
   }
 
   return adapter({

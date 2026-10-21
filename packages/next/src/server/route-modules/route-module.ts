@@ -789,7 +789,7 @@ export abstract class RouteModule<
       }
       const {
         ensureInstrumentationRegistered,
-        ensureInstrumentationRegisteredForRequest,
+        ensureInstrumentationRegisteredWithDeferredSpans,
       } = await import(
         '../lib/router-utils/instrumentation-globals.external.js'
       )
@@ -800,7 +800,7 @@ export abstract class RouteModule<
       // before the userland route handler runs.
       if (instrumentation) {
         instrumentation.emitSpans =
-          await ensureInstrumentationRegisteredForRequest(
+          await ensureInstrumentationRegisteredWithDeferredSpans(
             absoluteProjectDir,
             this.distDir
           )

@@ -234,7 +234,7 @@ export function ensureInstrumentationRegistered(
  * become children of the request's span. Returns `undefined` when
  * registration was already started by another caller.
  */
-export async function ensureInstrumentationRegisteredForRequest(
+export async function ensureInstrumentationRegisteredWithDeferredSpans(
   projectDir: string,
   distDir: string
 ): Promise<(() => void) | undefined> {

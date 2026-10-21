@@ -76,8 +76,14 @@ describe('instrumentation lifecycle spans', () => {
     const globals = loadGlobals()
 
     const [emit, concurrentEmit] = await Promise.all([
-      globals.ensureInstrumentationRegisteredForRequest(projectDir, '.next'),
-      globals.ensureInstrumentationRegisteredForRequest(projectDir, '.next'),
+      globals.ensureInstrumentationRegisteredWithDeferredSpans(
+        projectDir,
+        '.next'
+      ),
+      globals.ensureInstrumentationRegisteredWithDeferredSpans(
+        projectDir,
+        '.next'
+      ),
     ])
 
     // Only the initiating request gets them, and nothing was emitted yet.
@@ -97,7 +103,7 @@ describe('instrumentation lifecycle spans', () => {
 
     // Later requests don't emit them again.
     expect(
-      await globals.ensureInstrumentationRegisteredForRequest(
+      await globals.ensureInstrumentationRegisteredWithDeferredSpans(
         projectDir,
         '.next'
       )
@@ -109,7 +115,7 @@ describe('instrumentation lifecycle spans', () => {
     const globals = loadGlobals()
 
     const startup = globals.ensureInstrumentationRegistered(projectDir, '.next')
-    const emit = await globals.ensureInstrumentationRegisteredForRequest(
+    const emit = await globals.ensureInstrumentationRegisteredWithDeferredSpans(
       projectDir,
       '.next'
     )
@@ -123,7 +129,7 @@ describe('instrumentation lifecycle spans', () => {
     writeInstrumentation('exports.onRequestError = () => {}')
     const globals = loadGlobals()
 
-    const emit = await globals.ensureInstrumentationRegisteredForRequest(
+    const emit = await globals.ensureInstrumentationRegisteredWithDeferredSpans(
       projectDir,
       '.next'
     )
@@ -139,7 +145,10 @@ describe('instrumentation lifecycle spans', () => {
     const globals = loadGlobals()
 
     await expect(
-      globals.ensureInstrumentationRegisteredForRequest(projectDir, '.next')
+      globals.ensureInstrumentationRegisteredWithDeferredSpans(
+        projectDir,
+        '.next'
+      )
     ).rejects.toThrow(
       'An error occurred while loading instrumentation hook: register failed'
     )
@@ -160,7 +169,10 @@ describe('instrumentation lifecycle spans', () => {
     const globals = loadGlobals()
 
     await expect(
-      globals.ensureInstrumentationRegisteredForRequest(projectDir, '.next')
+      globals.ensureInstrumentationRegisteredWithDeferredSpans(
+        projectDir,
+        '.next'
+      )
     ).rejects.toThrow()
 
     // Nothing is left waiting for a request span that won't be created.
@@ -172,7 +184,10 @@ describe('instrumentation lifecycle spans', () => {
     const globals = loadGlobals()
 
     await expect(
-      globals.ensureInstrumentationRegisteredForRequest(projectDir, '.next')
+      globals.ensureInstrumentationRegisteredWithDeferredSpans(
+        projectDir,
+        '.next'
+      )
     ).rejects.toThrow('load failed')
 
     expect(mockTraced).toEqual([
