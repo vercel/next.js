@@ -75,8 +75,8 @@ impl RequireContextValue {
     pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Self> {
         let mut context_map = FxIndexMap::default();
 
-        for (key, entry) in map.await?.iter() {
-            context_map.insert(key.clone(), entry.origin_relative.clone());
+        for (key, request) in map.await?.iter() {
+            context_map.insert(key.clone(), request.clone());
         }
 
         Ok(RequireContextValue(context_map))
