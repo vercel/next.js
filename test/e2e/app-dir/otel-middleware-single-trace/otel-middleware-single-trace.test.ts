@@ -716,14 +716,15 @@ describe.each(VARIANTS)(
 // Self-hosted behind a custom server whose HTTP server wraps every request in
 // an active host span (like an APM's HTTP instrumentation, see
 // `custom-server.js`): the middleware and the render join the host span's
-// trace. Custom servers can't be deployed.
-describe.each(VARIANTS)(
+// trace. Custom servers can't be deployed, so this block is skipped when
+// deployed. (Not with `skipDeployment`: its `it.only` would also skip the
+// deployed tests above.)
+;(isNextDeploy ? describe.skip : describe).each(VARIANTS)(
   'otel-middleware-single-trace - custom server with $name',
   ({ file, exportName }) => {
     const isNodeMiddleware = exportName === 'proxy'
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       overrideFiles: {
         [file]: middlewareEntry(exportName),
       },
@@ -735,10 +736,6 @@ describe.each(VARIANTS)(
         NODE_ENV: isNextDev ? 'development' : 'production',
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     it('traces a page rendered after NextResponse.next() in the host span trace', async () => {
       const res = await next.fetch('/page')
