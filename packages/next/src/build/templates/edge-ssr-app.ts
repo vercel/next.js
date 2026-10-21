@@ -213,8 +213,7 @@ async function requestHandler(
           nextConfig.experimental.durableUseCacheEntries
         ),
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
-        clientTraceMetadata:
-          nextConfig.experimental.clientTraceMetadata || ([] as any),
+        clientTraceMetadata: nextConfig.experimental.clientTraceMetadata || [],
         clientParamParsingOrigins:
           nextConfig.experimental.clientParamParsingOrigins,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
@@ -273,7 +272,7 @@ async function requestHandler(
     const headers = new Headers()
     finalStatus = metadata.statusCode || baseRes.statusCode || 200
     // Pull any fetch metrics from the render onto the request.
-    ;(req as any).fetchMetrics = metadata.fetchMetrics
+    req.fetchMetrics = metadata.fetchMetrics
 
     // Set content type
     const contentType = result.contentType || 'text/html; charset=utf-8'

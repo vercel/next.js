@@ -2975,7 +2975,7 @@ export default abstract class Server<
             },
             set(target: any, prop, value) {
               if (prop === 'fetchMetrics') {
-                ;(req as any).fetchMetrics = value
+                req.fetchMetrics = value
               }
               target[prop] = value
               return true

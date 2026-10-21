@@ -361,7 +361,7 @@ export const getHandler = ({
                     nextConfig.assetPrefix
                   ),
                   previewProps,
-                  images: nextConfig.images as any,
+                  images: nextConfig.images,
                   nextConfigOutput: nextConfig.output,
                   optimizeCss: Boolean(nextConfig.experimental.optimizeCss),
                   nextScriptWorkers: Boolean(
@@ -381,8 +381,7 @@ export const getHandler = ({
 
                   experimental: {
                     clientTraceMetadata:
-                      nextConfig.experimental.clientTraceMetadata ||
-                      ([] as any),
+                      nextConfig.experimental.clientTraceMetadata || [],
                   },
 
                   locale,

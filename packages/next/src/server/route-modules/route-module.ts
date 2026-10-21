@@ -626,7 +626,7 @@ export abstract class RouteModule<
       )
     }
 
-    let serverFilesManifest = self.__SERVER_FILES_MANIFEST as any as
+    let serverFilesManifest = self.__SERVER_FILES_MANIFEST as
       | RequiredServerFilesManifest
       | undefined
     const routerServerContext = this.getRouterServerContext(req)
