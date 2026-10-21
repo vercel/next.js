@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/import-meta-glob/input/eager/c.js"],"sourcesContent":["export default 'eager c'\n"],"names":[],"mappings":";;;;uCAAe"}},
-    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/import-meta-glob/input/index.js"],"sourcesContent":["// Lazy matches are loaded on demand, so each one is split into its own async chunk.\nconst lazy = import.meta.glob('./lazy/*.js')\n\n// Eager matches are evaluated synchronously, so they stay in the entry chunk.\nconst eager = import.meta.glob('./eager/*.js', { eager: true })\n\nconsole.log(eager)\nlazy['./lazy/a.js']().then(console.log)\n"],"names":["lazy","eager","console","log","then"],"mappings":";;;;;;;;;;;;AAAA,oFAAoF;AACpF,MAAMA;AAEN,8EAA8E;AAC9E,MAAMC;AAENC,QAAQC,GAAG,CAACF;AACZD,IAAI,CAAC,cAAc,GAAGI,IAAI,CAACF,QAAQC,GAAG"}}]
-}
