@@ -224,13 +224,7 @@ const transform = (
               ipc
                 .sendRequest({
                   type: 'trackFileStat',
-                  // POSIX resolves symlinks before `..`; path.resolve would erase them.
-                  file:
-                    process.platform === 'win32'
-                      ? pathResolve(file)
-                      : path.isAbsolute(file)
-                        ? file
-                        : `${process.cwd()}/${file}`,
+                  file,
                 })
                 .then(
                   () => {
@@ -247,7 +241,7 @@ const transform = (
               ipc
                 .sendRequest({
                   type: 'trackFileRead',
-                  file: pathResolve(p),
+                  file: p,
                 })
                 .then(
                   () => {
