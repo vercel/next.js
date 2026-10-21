@@ -890,6 +890,28 @@ describe.each(VARIANTS)(
         `)
       }
     })
+
+    // The `instrumentation.ts` lifecycle spans (`load instrumentation module`,
+    // `register instrumentation`) of the instance serving the request, with
+    // their ancestors.
+    it('traces instrumentation registration in the triggering request', async () => {
+      const res = await next.fetch('/instrumentation-spans')
+      expect(res.status).toBe(200)
+      const tree = printSpanTree((await res.json()).spans, {
+        known: [INCOMING, SET_BY_MIDDLEWARE],
+      })
+      if (isNextDeploy) {
+        // Deployed functions register instrumentation lazily, in the first
+        // request they handle: the lifecycle spans are children of that
+        // request's span (a route or page entrypoint) or of the root inserted
+        // by the middleware adapter (a Node.js middleware entrypoint).
+        expect(tree).toMatchInlineSnapshot()
+      } else {
+        // `next start` / `next dev` register instrumentation at startup,
+        // outside of any request, so the lifecycle spans are roots.
+        expect(tree).toMatchInlineSnapshot()
+      }
+    })
   }
 )
 

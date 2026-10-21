@@ -133,13 +133,18 @@ export async function handler(
   // Registering `instrumentation.ts` usually installs the tracer provider, so
   // do it before starting the request span. The span is started before
   // `prepare`, so route module preparation is part of the request's trace.
-  await routeModule.ensureInstrumentation(req)
+  // When this request triggers registration, the lifecycle spans of
+  // `instrumentation.ts` are emitted inside the request span.
+  const { instrumentation } = await routeModule.ensureInstrumentation(req, {
+    deferSpans: true,
+  })
   return routeModule.traceRequest(
     req,
     {
       tracer: getTracer(),
       spanName: `${req.method || 'GET'} ${srcPage}`,
       httpTarget: req.url,
+      instrumentation,
     },
     (requestSpan, requestRootSpan) =>
       handleRequest(
