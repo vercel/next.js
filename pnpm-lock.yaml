@@ -2175,6 +2175,9 @@ importers:
       loader-runner:
         specifier: ^4.3.0
         version: 4.3.0
+      schema-utils:
+        specifier: 3.0.0
+        version: 3.0.0
     devDependencies:
       '@types/loader-runner':
         specifier: ^2.2.4

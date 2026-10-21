@@ -68,7 +68,7 @@ use crate::{
     evaluate_context::{config_tracing_module_context, node_evaluate_asset_context},
     module_options::{
         CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
-        package_import_map_from_context, package_import_map_from_import_mapping,
+        webpack_loader_import_map,
     },
     transition::{Transition, TransitionOptions},
 };
@@ -648,17 +648,15 @@ async fn process_default_internal(
             SourceMapsType::Full
         );
 
-        // Determine the import map for loader-runner
-        let loader_runner_package = webpack_loaders_options.loader_runner_package;
-
-        let import_map = if let Some(loader_runner_package) = loader_runner_package {
-            package_import_map_from_import_mapping(rcstr!("loader-runner"), *loader_runner_package)
-        } else {
-            package_import_map_from_context(
-                rcstr!("loader-runner"),
-                execution_context_value.project_path.clone(),
-            )
-        };
+        let import_map = webpack_loader_import_map(
+            webpack_loaders_options
+                .loader_runner_package
+                .map(|mapping| *mapping),
+            webpack_loaders_options
+                .schema_utils_package
+                .map(|mapping| *mapping),
+            Some(execution_context_value.project_path.clone()),
+        );
 
         let evaluate_context = node_evaluate_asset_context(
             *execution_context,

@@ -67,6 +67,37 @@ pub(crate) fn package_import_map_from_context(
     import_map.cell()
 }
 
+#[turbo_tasks::function]
+pub(crate) fn webpack_loader_import_map(
+    loader_runner_package: Option<ResolvedVc<ImportMapping>>,
+    schema_utils_package: Option<ResolvedVc<ImportMapping>>,
+    context_path: Option<FileSystemPath>,
+) -> Result<Vc<ImportMap>> {
+    let mut import_map = ImportMap::default();
+    for (package_name, mapping) in [
+        (rcstr!("loader-runner"), loader_runner_package),
+        (rcstr!("schema-utils"), schema_utils_package),
+    ] {
+        let mapping = match mapping {
+            Some(mapping) => mapping,
+            None => ImportMapping::PrimaryAlternative(
+                package_name.clone(),
+                Some(
+                    context_path
+                        .clone()
+                        .context("loader package resolution requires a context path")?,
+                ),
+            )
+            .resolved_cell(),
+        };
+        import_map.insert_exact_alias(
+            RcStr::from(format!("@vercel/turbopack/{package_name}")),
+            mapping,
+        );
+    }
+    Ok(import_map.cell())
+}
+
 async fn rule_condition_from_webpack_condition_glob(
     execution_context: ResolvedVc<ExecutionContext>,
     glob: &RcStr,
@@ -209,7 +240,7 @@ impl ModuleOptions {
             })
             || if let Some(options) = enable_webpack_loaders {
                 let options = options.await?;
-                options.loader_runner_package.is_none()
+                options.loader_runner_package.is_none() || options.schema_utils_package.is_none()
             } else {
                 false
             };
@@ -443,20 +474,15 @@ impl ModuleOptions {
             let webpack_loaders_options = webpack_loaders_options.await?;
             let execution_context =
                 execution_context.context("execution_context is required for webpack_loaders")?;
-            let import_map = if let Some(loader_runner_package) =
-                webpack_loaders_options.loader_runner_package
-            {
-                package_import_map_from_import_mapping(
-                    rcstr!("loader-runner"),
-                    *loader_runner_package,
-                )
-            } else {
-                package_import_map_from_context(
-                    rcstr!("loader-runner"),
-                    path.clone()
-                        .context("need_path in ModuleOptions::new is incorrect")?,
-                )
-            };
+            let import_map = webpack_loader_import_map(
+                webpack_loaders_options
+                    .loader_runner_package
+                    .map(|mapping| *mapping),
+                webpack_loaders_options
+                    .schema_utils_package
+                    .map(|mapping| *mapping),
+                path.clone(),
+            );
             let builtin_conditions = webpack_loaders_options
                 .builtin_conditions
                 .into_trait_ref()
