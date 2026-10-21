@@ -648,10 +648,7 @@ impl ModuleReference for ImportMetaGlobModuleReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        // In eager mode the matched module is evaluated synchronously, so it is placed
-        // in the same chunk group as the virtual module. In lazy mode it is only loaded
-        // when its thunk is called, so it is placed in its own async chunk group, the
-        // same as a target of a dynamic `import()`.
+        // Lazy matches are loaded on demand, like the target of a dynamic `import()`.
         Some(if self.eager {
             ChunkingType::Parallel {
                 inherit_async: false,
