@@ -2593,10 +2593,6 @@ function getIteratorEntries(result, iterator) {
     ((result = Array.from(iterator)), entries.set(iterator, result));
   return result;
 }
-function isPureData(result, container) {
-  result = result.pureData;
-  return null !== result && result.has(container);
-}
 function subscribeToAbort(result, listener) {
   if (result.aborted) return listener(result.abortReason), function () {};
   var listeners = result.abortListeners;
@@ -2989,37 +2985,14 @@ function isIncomplete(response, container) {
   response = response._incomplete;
   return null !== response && response.has(container);
 }
-function exitContainer(response, container, visitsBefore, read, pure) {
+function exitContainer(response, container, visitsBefore, read) {
   response._visiting.pop();
   var incomplete = response._incomplete;
   null !== incomplete && incomplete.delete(container);
-  read === container
-    ? (32 <= response._visits - visitsBefore &&
-        (response._models.set(container, container),
-        pure &&
-          ((visitsBefore = response._result),
-          (incomplete = visitsBefore.pureData),
-          null === incomplete &&
-            (visitsBefore.pureData = incomplete = new WeakSet()),
-          incomplete.add(container))),
-      (response._childPure = pure))
-    : (response._childPure = !1);
+  read === container &&
+    32 <= response._visits - visitsBefore &&
+    response._models.set(container, container);
   return read;
-}
-function isPureLeaf(response, child, read) {
-  if (read !== child) return !1;
-  switch (typeof child) {
-    case "string":
-      return 36 !== child.charCodeAt(0);
-    case "number":
-      return isFinite(child) && (0 !== child || 0 < 1 / child);
-    case "boolean":
-      return !0;
-    case "object":
-      return null === child || response._childPure;
-    default:
-      return !1;
-  }
 }
 function throwReadError(response, prevError) {
   var error = response._readError;
@@ -3052,7 +3025,6 @@ function readNode(
       parent,
       parentPropertyName
     );
-  response._childPure = !1;
   var models = response._models,
     reusable = null === context.keyPath && !context.implicitSlot;
   if (reusable) {
@@ -3152,17 +3124,11 @@ function createArrayCopy() {
 }
 function readArray(response, array, context) {
   var existing = response._models.get(array);
-  if (void 0 !== existing && !isIncomplete(response, array))
-    return (
-      (response._childPure =
-        existing === array && isPureData(response._result, array)),
-      existing
-    );
+  if (void 0 !== existing && !isIncomplete(response, array)) return existing;
   existing = response._visits;
   var cycle = enterContainer(response, array, createArrayCopy);
   if (null !== cycle) return cycle;
   cycle = null;
-  var pure = !0;
   try {
     for (var i = 0; i < array.length; i++) {
       var child = array[i],
@@ -3175,7 +3141,6 @@ function readArray(response, array, context) {
         null === response._readError && (response._readError = error);
         read = void 0;
       }
-      !pure || (i in array && isPureLeaf(response, child, read)) || (pure = !1);
       if (null === cycle) {
         if (read === child) continue;
         cycle = copyOf(response, array, createArrayCopy);
@@ -3190,8 +3155,7 @@ function readArray(response, array, context) {
     response,
     array,
     existing,
-    null === cycle ? array : cycle,
-    pure
+    null === cycle ? array : cycle
   );
 }
 function readLazy(response, lazy, context, descendContext) {
@@ -3339,11 +3303,12 @@ function readElementImpl(response, element, context, descendContext) {
         )),
         (context =
           context.implicitSlot && null !== init ? [response] : response))
-      : (init === element.key &&
-        descendContext === element.props &&
-        type === element.type
-          ? ((response._childPure = !1), (response = element))
-          : (response = createElement(type, init, descendContext)),
+      : ((response =
+          init === element.key &&
+          descendContext === element.props &&
+          type === element.type
+            ? element
+            : createElement(type, init, descendContext)),
         (context =
           context.implicitSlot && null !== init ? [response] : response));
   }
@@ -3536,15 +3501,9 @@ function readData(response, value, context, parent, parentPropertyName) {
   var result = response._result;
   if (null === value) return null;
   if ("object" === typeof value) {
-    response._childPure = !1;
     var models = response._models,
       existing = models.get(value);
-    if (void 0 !== existing && !isIncomplete(response, value))
-      return (
-        (response._childPure =
-          existing === value && isPureData(response._result, value)),
-        existing
-      );
+    if (void 0 !== existing && !isIncomplete(response, value)) return existing;
     switch (value.$$typeof) {
       case REACT_ELEMENT_TYPE:
         return (
@@ -3696,7 +3655,6 @@ function readObject(response, object, context) {
     cycle = enterContainer(response, object, createObjectCopy);
   if (null !== cycle) return cycle;
   cycle = null;
-  var pure = !0;
   try {
     for (var keys = Object.keys(object), i = 0; i < keys.length; i++) {
       var key = keys[i],
@@ -3705,10 +3663,6 @@ function readObject(response, object, context) {
           void 0 === child || "__proto__" === key
             ? void 0
             : readChild(response, child, context, object, key);
-      pure &&
-        ("__proto__" === key ||
-          (void 0 !== child && !isPureLeaf(response, child, read))) &&
-        (pure = !1);
       if (null === cycle) {
         if (read === child && void 0 !== child) continue;
         cycle = copyOf(response, object, createObjectCopy);
@@ -3723,8 +3677,7 @@ function readObject(response, object, context) {
     response,
     object,
     visitsBefore,
-    null === cycle ? object : cycle,
-    pure
+    null === cycle ? object : cycle
   );
 }
 function createMapCopy() {
@@ -3754,8 +3707,7 @@ function readMap(response, map, context) {
     response,
     map,
     visitsBefore,
-    null === cycle ? map : cycle,
-    !1
+    null === cycle ? map : cycle
   );
 }
 function createSetCopy() {
@@ -3784,8 +3736,7 @@ function readSet(response, set, context) {
     response,
     set,
     visitsBefore,
-    null === cycle ? set : cycle,
-    !1
+    null === cycle ? set : cycle
   );
 }
 function readThenable(response, thenable, context) {
@@ -3863,7 +3814,6 @@ function createResponse(
     _visiting: [],
     _incomplete: null,
     _visits: 0,
-    _childPure: !1,
     _modules: new Map(),
     _onError: void 0 === onError ? result.onError : onError,
     _readError: null,
