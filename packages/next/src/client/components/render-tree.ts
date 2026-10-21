@@ -441,6 +441,9 @@ function updateRenderTreeOnNavigation(
             oldCacheNode.varyParams
           )
         ) {
+          const oldRsc = oldCacheNode.rsc
+          const oldRscDidResolve =
+            !isDeferredRsc(oldRsc) || oldRsc.status !== 'pending'
           const cacheNode = createCacheNode(
             oldCacheNode.rsc,
             oldCacheNode.prefetchRsc,
@@ -456,7 +459,7 @@ function updateRenderTreeOnNavigation(
             )
           }
           newRenderTree = createRenderTree(newRouteTree, cacheNode)
-          needsDynamicRequest = false
+          needsDynamicRequest = !oldRscDidResolve
           break
         }
         // Intentional fallthrough
@@ -512,13 +515,18 @@ function updateRenderTreeOnNavigation(
     newRenderTree.data.scrollRef = oldRenderTree.data.scrollRef
   } else {
     // This segment appears in both the old and new routes. Reuse the existing
-    // data without triggering a request.
+    // data without triggering a request unless the previous dynamic data is
+    // still pending (e.g. an earlier navigation or refresh was superseded or
+    // aborted before its dynamic data streamed in).
     // TODO: Consider adding a fast path where if this segment is unchanged and
     // all of its children are unchanged, we return the exact same RenderTree
     // object. Reusing the exact previous object gives React more of a chance to
     // bail out of rendering.
+    const oldRsc = oldRenderTree.data.rsc
+    const oldRscDidResolve =
+      !isDeferredRsc(oldRsc) || oldRsc.status !== 'pending'
     newRenderTree = createRenderTree(newRouteTree, oldRenderTree.data)
-    needsDynamicRequest = false
+    needsDynamicRequest = !oldRscDidResolve
   }
 
   // During a refresh navigation, there's a special case that happens when
@@ -1035,6 +1043,9 @@ function createRenderTreeForSegment(
         // fresh navigation, so we use the caller-supplied bfcacheId — the
         // BFCacheEntry's id is only restored on history-traversal
         // navigations.
+        const oldRsc = bfcacheEntry.rsc
+        const oldRscDidResolve =
+          !isDeferredRsc(oldRsc) || oldRsc.status !== 'pending'
         return {
           node: createRenderTree(
             tree,
@@ -1045,7 +1056,7 @@ function createRenderTreeForSegment(
               bfcacheId
             )
           ),
-          needsDynamicRequest: false,
+          needsDynamicRequest: !oldRscDidResolve,
         }
       }
       break
@@ -1109,7 +1120,7 @@ function createRenderTreeForSegment(
               bfcacheEntry.bfcacheId
             )
           ),
-          needsDynamicRequest: false,
+          needsDynamicRequest: !oldRscDidResolve,
         }
       }
       break
