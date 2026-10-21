@@ -2,7 +2,7 @@
 
 Status: proposed release requirements, October 13, 2026. This document defines the target for graduating the experiment; it does not claim that these requirements are implemented or verified.
 
-Implementation baseline: [PR #98869](https://github.com/vercel/next.js/pull/98869) at `3371432a55`. See [remaining implementation work](NEXT_TESTING_REMAINING_WORK.md) for the current gaps. Parallel execution and CI sharding, expanded lifecycle/fixture APIs, assertions/snapshots, module mocking, and interactive terminal output are already part of that baseline.
+Original implementation baseline: [PR #98869](https://github.com/vercel/next.js/pull/98869) at `3371432a55`. The October 13 [remaining-work document](NEXT_TESTING_REMAINING_WORK.md) describes historical gaps. Use the [reviewed compatibility inventory](packages/next/src/experimental/testing/compatibility-inventory.md), [runtime capabilities](packages/next/src/experimental/testing/capabilities.ts) and [progress ledger](NEXT_TESTING_STABLE_PROGRESS.md) for current implementation scope and verification. The requirements below remain the stable release target.
 
 ## Release goal
 
@@ -14,7 +14,7 @@ Next retains control of compilation, module evaluation, scheduling, isolation, r
 
 ## Compatibility contract
 
-Before release, select a published stable Vitest version and pin its exact revision as the conformance reference. Publish the supported version range and the policy for adopting upstream changes. The experiment currently records revision `0780a8e5b7967a4168173599e9c74fb79aab2483` and primitive version `5.0.1`; those pins do not establish full compatibility. Reconcile the inventory with the chosen release and its [migration guide](https://vitest.dev/guide/migration/) before freezing the public contract.
+Before release, select a published stable Vitest version and pin its exact revision as the conformance reference. Publish the supported version range and the policy for adopting upstream changes. The experiment currently inventories Vitest `5.0.4` at revision `6a11cf66f99fa610b7364363d5ca42b66d994f40`; those pins do not establish full compatibility. Reconcile the inventory with the chosen release and its [migration guide](https://vitest.dev/guide/migration/) before freezing the public contract. The supported version range and upstream adoption policy remain release decisions.
 
 Maintain one compatibility inventory covering public exports, overloads, modifiers, types, configuration, environments, CLI options, and tooling interfaces. For each capability, record the applicable profiles, implementation status, conformance evidence, and any exception. Documentation and runtime capability reporting must agree with it.
 

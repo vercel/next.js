@@ -7286,3 +7286,50 @@ false; original152 watch failure evidence and all remaining release requirements
 are retained. Unvalidated named-key follow-up edits stay private for later.
 All source/build verification stays local except the explicitly requested Git
 push to the repository. Linux qualification and benchmarks remain deferred.
+
+## Inventory reconciliation after the publication checkpoint
+
+The compatibility inventory now separates actual facade export/member
+availability, scoped implementation evidence and broad release conformance.
+Its version2 schema retains all776 pinned API names, surfaces, overload strings,
+release classifications, reference pins and subpaths unchanged. A reviewed
+registry adds74 evidence groups across authoring/runtime, mocking,
+Browser/rendering, scheduling/tooling, coverage and adoption/release work.
+Every group records profiles, maintained evidence, capability paths and remaining
+gaps; CLI and Next rendering features without upstream declaration rows remain
+visible without qualifying rejected config equivalents.
+
+The generated row statuses distinguish73 scoped,237 partial,447 missing and19
+unreviewed reference entries. Those counts include aliases, named types and
+absent facade exports; they are not independent features or remaining-effort
+counts. Actual declaration extraction replaces the obsolete hardcoded export
+list, correctly recognizing Snapshots, around hooks, Chai, artifacts and the
+implemented public types. Export presence alone grants no behavioral or type
+conformance. All broad release classifications remain Missing or unverified;
+stableReady stays false, the supported version range stays null and no exception
+is approved by this reconciliation.
+
+Bounded nested-fixture, streamed-route, changed-watch, constructor-coverage and
+compiler-adapter metadata now agrees with existing implementation. Bare legacy
+coverage text remains distinct from supported standard dotted reporters. The
+Vitest/Vite mode option remains missing despite Next's different execution-mode
+selector. The stable requirements now point to the current inventory and5.0.4
+reference instead of treating the October13 historical gap list as current.
+No runtime functionality or authored test/reference expectation changes here.
+
+The implementation reference is pushed e68803b8bd, source-only156 plus sealed
+constructor coverage200. Full coherent155 acceptance remains distinct from that
+checkpoint's later build/static and targeted checks. Historical152 watch failure,
+unvalidated named-key follow-ups and the unapplied CommonJS proposal remain open;
+Linux qualification and performance benchmarking stay deferred. All source and
+verification for this reconciliation remain local.
+
+Validation passes: isolated full bootstrap and final core build, normal root
+TypeScript, changed-source ESLint, formatting and inventory regeneration/check.
+Seven negative generator controls reject unknown APIs/capabilities, missing
+evidence, duplicate groups, malformed profiles/metadata and generated drift,
+then restore original registry/output bytes. Independent review confirms all776
+reference rows and every maintained evidence path. Both existing capability
+publication controls pass2/2; the actual built CLI publishes the entire generated
+inventory exactly. No full functional acceptance rerun is claimed for this
+metadata-only reconciliation.

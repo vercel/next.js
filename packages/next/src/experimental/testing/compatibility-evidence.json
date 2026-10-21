@@ -1,0 +1,2578 @@
+{
+  "version": 1,
+  "referenceVersion": "5.0.4",
+  "scope": "Reviewed implementation claims supplement the generated pinned declaration inventory. Evidence groups qualify only their stated behavior and profiles, not full APIs or release readiness. Empty rowApi groups retain execution, CLI, rendering and release work absent from upstream declarations.",
+  "implementationStatus": {
+    "scoped": "Maintained reference/consumer evidence verifies the stated subset; broader API, overload and profile conformance is still unverified.",
+    "partial": "Positive functionality is implemented in the stated scope, with known gaps or unqualified combinations recorded explicitly.",
+    "missing": "The mapped target export or behavior is absent or uses different semantics. Refusal and diagnostics do not implement it.",
+    "unreviewed": "No complete implementation/evidence review for this surface is recorded. This is not proof that underlying functionality is absent."
+  },
+  "checkpoint": {
+    "implementationCommit": "e68803b8bd87774c71974bf8410a40198b732530",
+    "implementation": "source-only156 plus sealed constructor coverage200",
+    "lastFullAcceptance": {
+      "revision": 155,
+      "focusedTests": 2947,
+      "regressionTests": 264,
+      "browserCases": 47,
+      "browserCompleteRows": 76,
+      "browserArtifacts": 6
+    },
+    "implementationCommitFullAcceptance": false,
+    "scope": "The last full checkpoint is distinct from later build/static and targeted installed-consumer checks. This inventory reconciliation adds no runtime functionality."
+  },
+  "qualification": {
+    "stableReady": false,
+    "supportedVersionRange": null,
+    "approvedExceptions": [],
+    "remaining": [
+      "Full compatibility and release requirements remain in NEXT_TESTING_STABLE_RELEASE.md.",
+      "A scoped/partial implementation status does not promote the broad release classification to Compatible.",
+      "All original pinned API names and reference overloads are retained.",
+      "Unvalidated named-key follow-ups and the unapplied CommonJS hidden-flag proposal are excluded from implemented claims."
+    ],
+    "deferred": ["Linux qualification", "performance benchmarking"],
+    "evidence": [
+      "NEXT_TESTING_STABLE_PROGRESS.md",
+      "NEXT_TESTING_STABLE_RELEASE.md"
+    ]
+  },
+  "groups": [
+    {
+      "id": "adoption.documentation-and-examples",
+      "status": "partial",
+      "profiles": [
+        "shipped Next testing TypeScript, editor and streamed-route guides; maintained package migration examples"
+      ],
+      "implemented": "Packed consumer guides and migration fixtures describe implemented entry points and bounded execution contracts.",
+      "remaining": [
+        "Complete supported-version and upstream-upgrade policy, full API and migration documentation, broader examples, release notes and canary/rollback decisions remain unfinished."
+      ],
+      "evidence": [
+        "packages/next/experimental/testing/README.md",
+        "packages/next/experimental/testing/editor-api.md",
+        "packages/next/experimental/testing/rsc-route-rendering.md",
+        "test/e2e/app-dir/next-testing-package/migration/next.test.config.json",
+        "NEXT_TESTING_STABLE_RELEASE.md"
+      ],
+      "workstream": "adoption-release",
+      "capabilityPaths": [],
+      "rowApi": []
+    },
+    {
+      "id": "adoption.packaged-consumers",
+      "status": "partial",
+      "profiles": [
+        "bounded clean installed Node20/22/24/26 and Chromium consumer corpora"
+      ],
+      "implemented": "Maintained physical-package consumers exercise original JavaScript/TypeScript test bodies, strict public types, matcher helpers, configuration, snapshots, mocks and Browser interactions through the Next-owned runtime.",
+      "remaining": [
+        "Broader independent downstream suite migrations, package-manager/monorepo layouts, clean-install matrices and CI evidence remain release work."
+      ],
+      "evidence": [
+        "test/e2e/app-dir/next-testing-package/verify-downstream.mjs",
+        "test/e2e/app-dir/next-testing-package/migration/tests/javascript.case.js",
+        "test/e2e/app-dir/next-testing-package/migration/tests/typescript.case.ts",
+        "test/unit/app-dir/next-testing-stable-conformance/public-types.ts"
+      ],
+      "workstream": "adoption-release",
+      "capabilityPaths": [],
+      "rowApi": []
+    },
+    {
+      "id": "authoring-around-hooks",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.hooks",
+        "authoring.concurrentTimeoutOwnership",
+        "authoring.unsupported"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Around-hook exports are implemented. Measured aroundEach real-wrapper setup/teardown deadlines retain distinct declaration origins, actual settlement and healthy sibling signals; ordinary aroundEach/aroundAll have maintained fixtures.",
+      "remaining": [
+        "Complete around-hook failure/timeout conformance and aroundAll recovery remain release requirements.",
+        "Unsettled wrappers still block unopened work; broad combinations are not certified by diagnostics."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "packages/next/src/experimental/testing/runner/lifecycle.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/around-each/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/around-all/contract.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:aroundAll",
+        "vitest:aroundEach",
+        "vitest:it.aroundAll",
+        "vitest:it.aroundEach",
+        "vitest:test.aroundAll",
+        "vitest:test.aroundEach"
+      ]
+    },
+    {
+      "id": "authoring-chai",
+      "status": "partial",
+      "capabilityPaths": ["authoring.chaiAssertions"],
+      "profiles": [
+        "isolated development Node",
+        "isolated production Node",
+        "bounded serial development Chromium corpus"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "Public Chai assert/should/namespace exports are present. Qualified plugins/utilities/settings and configurable function-valued prototype descriptors preserve actual flags, live-scope callable identity, constructor identity and guarded receiver/result behavior. Nine descriptor cases match both ordinary and installed Node modes; development Chromium routing has a separate corpus.",
+      "remaining": [
+        "Collection-created plugin callables crossing into later cases remain a demonstrated gap.",
+        "Nonconfigurable/object-valued descriptors, raw reflection, prototype mutation/subclass breadth and broader profiles remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/assertions/index.ts",
+        "packages/next/src/experimental/testing/assertions/chai-namespace.ts",
+        "test/unit/next-testing-lifecycle/chai-descriptors-integration.ts",
+        "test/unit/next-testing-lifecycle/chai-descriptors-contract.mjs.txt",
+        "test/unit/next-testing-lifecycle/chai-descriptors-pristine.json",
+        "test/unit/next-testing-lifecycle/chai-browser-integration.ts",
+        "test/unit/next-testing-lifecycle/chai-static-settings-integration.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:assert",
+        "vitest:chai",
+        "vitest:expect.assert",
+        "vitest:should"
+      ]
+    },
+    {
+      "id": "authoring-clocks",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.timerPrimitive",
+        "authoring.browserFakeTimers",
+        "authoring.browserFakeTimerConfig",
+        "authoring.utilityLifetime"
+      ],
+      "profiles": [
+        "isolated development Node",
+        "isolated production Node",
+        "bounded serial development Chromium corpus"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "Node uses the pinned fake-timers primitive/patch with file-owned clocks, Date-only and async operations, captured real runner deadlines and qualified tick-mode public overloads. A separately measured serial development Chromium subset supports numeric project/per-call configuration, advancement, counts and restoration.",
+      "remaining": [
+        "Node child workers cannot fake nextTick.",
+        "Complete concurrent clock/resource interactions and profile combinations are unqualified.",
+        "Browser frame/tick-mode/microtask-option breadth, Date-valued project now, other browsers and modes remain open."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/assertions/fake-timers.ts",
+        "packages/next/src/experimental/testing/assertions/fake-timers-core.ts",
+        "packages/next/src/experimental/testing/assertions/utilities.ts",
+        "packages/next/src/experimental/testing/client/fake-timers.ts",
+        "test/unit/next-testing-lifecycle/timer-next-step-api.cjs",
+        "test/unit/next-testing-lifecycle/browser-fake-timers-integration.cjs",
+        "test/unit/next-testing-lifecycle/browser-project-fake-timers-contract.mjs.txt",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/timer-next-async/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/timer-pending-async/contract.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:vi.advanceTimersByTime",
+        "vitest:vi.advanceTimersByTimeAsync",
+        "vitest:vi.advanceTimersToNextFrame",
+        "vitest:vi.advanceTimersToNextTimer",
+        "vitest:vi.advanceTimersToNextTimerAsync",
+        "vitest:vi.clearAllTimers",
+        "vitest:vi.getMockedSystemTime",
+        "vitest:vi.getRealSystemTime",
+        "vitest:vi.getTimerCount",
+        "vitest:vi.isFakeTimers",
+        "vitest:vi.runAllTicks",
+        "vitest:vi.runAllTimers",
+        "vitest:vi.runAllTimersAsync",
+        "vitest:vi.runOnlyPendingTimers",
+        "vitest:vi.runOnlyPendingTimersAsync",
+        "vitest:vi.setSystemTime",
+        "vitest:vi.setTimerTickMode",
+        "vitest:vi.useFakeTimers",
+        "vitest:vi.useRealTimers",
+        "vitest:vitest.advanceTimersByTime",
+        "vitest:vitest.advanceTimersByTimeAsync",
+        "vitest:vitest.advanceTimersToNextFrame",
+        "vitest:vitest.advanceTimersToNextTimer",
+        "vitest:vitest.advanceTimersToNextTimerAsync",
+        "vitest:vitest.clearAllTimers",
+        "vitest:vitest.getMockedSystemTime",
+        "vitest:vitest.getRealSystemTime",
+        "vitest:vitest.getTimerCount",
+        "vitest:vitest.isFakeTimers",
+        "vitest:vitest.runAllTicks",
+        "vitest:vitest.runAllTimers",
+        "vitest:vitest.runAllTimersAsync",
+        "vitest:vitest.runOnlyPendingTimers",
+        "vitest:vitest.runOnlyPendingTimersAsync",
+        "vitest:vitest.setSystemTime",
+        "vitest:vitest.setTimerTickMode",
+        "vitest:vitest.useFakeTimers",
+        "vitest:vitest.useRealTimers"
+      ]
+    },
+    {
+      "id": "authoring-concurrency",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.concurrentSuiteOwnership",
+        "authoring.concurrentTimeoutOwnership",
+        "authoring.hookSequence",
+        "authoring.unsupported"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Actual enqueue-time asynchronous suite ownership, FIFO reservations, separate concurrency budgets, healthy sibling signals and settled same-case retry/repeat continuation have bounded full-trace reference evidence.",
+      "remaining": [
+        "Complete concurrent timeout/clock/snapshot/resource-mutation interactions remain open.",
+        "Unsettled operations, broader worker profiles and aroundAll recovery remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "packages/next/src/experimental/testing/runner/lifecycle.ts",
+        "packages/next/src/experimental/testing/runner/async-context.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/concurrent-isolation/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/sequential-inside-concurrent/contract.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:describe.concurrent",
+        "vitest:it.concurrent",
+        "vitest:suite.concurrent",
+        "vitest:test.concurrent"
+      ]
+    },
+    {
+      "id": "authoring-conditional-mocks",
+      "status": "scoped",
+      "capabilityPaths": ["authoring.spies"],
+      "profiles": ["fresh plain Node realm", "strict consumer types"],
+      "workstream": "authoring-runtime",
+      "implemented": "Next-owned conditional mock when/isWhenChain implements the measured pinned behavior, exhaustion diagnostics, assertion counts and public method types using maintained real fresh Node realm/type fixtures.",
+      "remaining": [
+        "Broader profile combinations and complete primitive mock behavior remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/assertions/when.ts",
+        "test/unit/app-dir/next-testing-mocked/next-testing-mocked.test.ts",
+        "test/unit/app-dir/next-testing-mocked/fixtures/when-cases.ts",
+        "test/unit/app-dir/next-testing-mocked/fixtures/when-exhausted-cases.ts",
+        "test/unit/app-dir/next-testing-mocked/types/when.txt",
+        "test/unit/app-dir/next-testing-mocked/types/when-exhausted.txt",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:vi.isWhenChain",
+        "vitest:vi.when",
+        "vitest:vitest.isWhenChain",
+        "vitest:vitest.when"
+      ]
+    },
+    {
+      "id": "authoring-declaration-types",
+      "status": "scoped",
+      "capabilityPaths": [
+        "authoring.publicDeclarationTypes",
+        "authoring.hookContextTypes",
+        "features.runtimeFactoryMocks.suiteFactoryTypes"
+      ],
+      "profiles": [
+        "strict clean installed Bundler consumer",
+        "strict clean installed Node16 consumer",
+        "isolated development/production Node behavioral corpus"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "Explicitly exported facade types have bounded strict clean installed Bundler/Node16 checks. TestOptions/SuiteOptions/TestFunction, listener return contracts, generic contexts and SuiteFactory intersections retain the measured pinned signatures without runtime changes.",
+      "remaining": [
+        "Full public target type inventory, all overload combinations and tooling/profile coverage remain unqualified.",
+        "The maintained older invalid next-timer argument diagnostic remains intentional; no clean full-type-test claim follows from selected controls."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "packages/next/experimental/testing/vitest.d.ts",
+        "test/unit/app-dir/next-testing-stable-conformance/public-types.ts",
+        "test/unit/app-dir/next-testing-mocked/fixtures/check-editor-types.cjs",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:OnTestFailedHandler",
+        "vitest:OnTestFinishedHandler",
+        "vitest:ProvidedContext",
+        "vitest:SuiteFactory",
+        "vitest:SuiteOptions",
+        "vitest:TestAPI",
+        "vitest:TestContext",
+        "vitest:TestError",
+        "vitest:TestFunction",
+        "vitest:TestOptions"
+      ]
+    },
+    {
+      "id": "authoring-declarations",
+      "status": "scoped",
+      "capabilityPaths": [
+        "authoring.declarations",
+        "authoring.declarationModifiers",
+        "authoring.asynchronousSuites",
+        "authoring.testOptions"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "The public declarations and supported conditional/focus/expected-failure/shuffle modifiers route to the Next-owned collector. Async suite collection and selected declaration combinations have maintained runtime corpora.",
+      "remaining": [
+        "All overloads and modifier combinations are not certified by export presence.",
+        "Full task/result introspection and broader worker/profile combinations remain release work."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "packages/next/src/experimental/testing/runner/sequence.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "test/unit/app-dir/next-testing-stable-conformance/conformance.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/async-suite-rejection/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/shuffled-suite/contract.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:describe",
+        "vitest:describe.only",
+        "vitest:describe.runIf",
+        "vitest:describe.shuffle",
+        "vitest:describe.skip",
+        "vitest:describe.skipIf",
+        "vitest:describe.todo",
+        "vitest:it",
+        "vitest:it.fails",
+        "vitest:it.only",
+        "vitest:it.runIf",
+        "vitest:it.skip",
+        "vitest:it.skipIf",
+        "vitest:it.todo",
+        "vitest:suite",
+        "vitest:suite.only",
+        "vitest:suite.runIf",
+        "vitest:suite.shuffle",
+        "vitest:suite.skip",
+        "vitest:suite.skipIf",
+        "vitest:suite.todo",
+        "vitest:test",
+        "vitest:test.fails",
+        "vitest:test.only",
+        "vitest:test.runIf",
+        "vitest:test.skip",
+        "vitest:test.skipIf",
+        "vitest:test.todo"
+      ]
+    },
+    {
+      "id": "authoring-equality-testers",
+      "status": "scoped",
+      "capabilityPaths": [
+        "authoring.equalityTesters",
+        "authoring.verifiedMatcherSubset"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Pinned recursive/asymmetric matcher registry is shared across expectation instances and disposed with its owning file; arrayContaining is in the conservative verified matcher subset.",
+      "remaining": [
+        "Other asymmetric/static matcher names and all combinations are not inferred from primitive inheritance."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/assertions/index.ts",
+        "test/unit/next-testing-lifecycle/assertion-integration.ts",
+        "test/unit/next-testing-assertions/assertions.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:expect.addEqualityTesters",
+        "vitest:expect.arrayContaining"
+      ]
+    },
+    {
+      "id": "authoring-expectation-owners",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.expectUtilities",
+        "authoring.collectionAssertionScope",
+        "authoring.utilityLifetime",
+        "authoring.matcherInventoryScope"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Next-owned assertion facade retains collection/case/manual owners, soft/poll/custom assertions, assertion counts, live scope guards and supported state. Measured unreachable errors, counts/lifetime and public never types match the genuine reference.",
+      "remaining": [
+        "Complete assertion name/overload enumeration is not certified.",
+        "Late async/poll/custom matcher attribution, concurrent mutation and broader environment/profile combinations remain qualification work.",
+        "Assertion counts intentionally finalize before teardown/listeners; later assertions stay observed without revalidating the completed count check."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/assertions/index.ts",
+        "packages/next/src/experimental/testing/runner/lifecycle.ts",
+        "test/unit/next-testing-assertions/assertions.test.ts",
+        "test/unit/next-testing-assertions/unreachable-types.txt",
+        "test/unit/next-testing-lifecycle/assertion-integration.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/create-expect/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/context-expect/contract.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:createExpect",
+        "vitest:expect",
+        "vitest:expect.assertions",
+        "vitest:expect.extend",
+        "vitest:expect.getState",
+        "vitest:expect.hasAssertions",
+        "vitest:expect.poll",
+        "vitest:expect.setState",
+        "vitest:expect.soft",
+        "vitest:expect.unreachable"
+      ]
+    },
+    {
+      "id": "authoring-fixtures",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.fixtures",
+        "authoring.fixturePropertyNames",
+        "authoring.unicodeFixtureDependencies",
+        "authoring.suiteAliases"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Object/builder fixtures, measured test/file/worker lifetimes, injection, overrides, receiver identity, prototype-shadowing names and qualified Unicode dependencies have maintained Node evidence; serial development isolate:false cohorts share the worker cache until cohort cleanup.",
+      "remaining": [
+        "Options-only normalization, describe-registration timing and broader builder/receiver overloads remain unqualified.",
+        "Rest/computed dependencies and general nested destructuring remain gaps outside the explicitly measured Unicode/nested subset.",
+        "Browser fixtures, worker-fixture assertion ownership and broader lifecycle/profile combinations remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/runner/fixtures.ts",
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "packages/next/src/experimental/testing/runner/lifecycle.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/builder-fixture/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/scoped-fixture-hooks/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/worker-fixture/contract.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:inject",
+        "vitest:it.extend",
+        "vitest:it.override",
+        "vitest:it.scoped",
+        "vitest:test.extend",
+        "vitest:test.override",
+        "vitest:test.scoped"
+      ]
+    },
+    {
+      "id": "authoring-helper-diagnostics",
+      "status": "scoped",
+      "capabilityPaths": ["authoring.assertionHelpers"],
+      "profiles": [
+        "development Node",
+        "bounded development Chromium five-case corpus"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "defineHelper preserves callable types/receiver/arguments/return/rejection while supported development Node and Chromium diagnostics show the outer helper caller and retain raw stacks.",
+      "remaining": [
+        "Broader Browser modes, rich diagnostic combinations and all profiles remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/assertions/define-helper.ts",
+        "packages/next/src/experimental/testing/vitest.ts",
+        "test/unit/app-dir/next-testing-mocked/fixtures/define-helper-cases.ts",
+        "test/unit/app-dir/next-testing-mocked/types/define-helper.txt",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": ["vitest:vi.defineHelper", "vitest:vitest.defineHelper"]
+    },
+    {
+      "id": "authoring-hooks",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.hooks",
+        "authoring.hookContextTypes",
+        "authoring.nativeAsyncHookAssertions",
+        "authoring.concurrentTimeoutOwnership",
+        "authoring.hookSequence"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Registered hooks, returned beforeEach cleanup, listeners, stack/list/parallel sequencing and qualified hook-deadline messages/registration frames retain actual ownership, captured budgets and abort identity. Generic hook context declarations have strict installed and trace evidence.",
+      "remaining": [
+        "Full concurrent hook/resource combinations and all-hook publication remain open.",
+        "Node20/24 production pending-afterEach timer ordering remains a demonstrated gap.",
+        "Generic finalizer/disposal/returned-All-cleanup budgets and full failure-listener task/result introspection are not certified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "packages/next/src/experimental/testing/runner/lifecycle.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "test/unit/next-testing-lifecycle/lifecycle-real-clock.cjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/hook-list-order/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/parallel-hook-order/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/failure-listener-context/contract.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:afterAll",
+        "vitest:afterEach",
+        "vitest:beforeAll",
+        "vitest:beforeEach",
+        "vitest:it.afterAll",
+        "vitest:it.afterEach",
+        "vitest:it.beforeAll",
+        "vitest:it.beforeEach",
+        "vitest:onTestFailed",
+        "vitest:onTestFinished",
+        "vitest:test.afterAll",
+        "vitest:test.afterEach",
+        "vitest:test.beforeAll",
+        "vitest:test.beforeEach"
+      ]
+    },
+    {
+      "id": "authoring-in-source-ambient",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.inSourceTests",
+        "authoring.typescriptImports"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Explicit Next type opt-in supplies import.meta.vitest declaration namespace; marker discovery and native exact-entry AST substitution share the active facade in fresh Node files, while ordinary production app compilation defaults marker false.",
+      "remaining": [
+        "Typed target importMeta subpath parity, Browser/RSC/cohort in-source profiles and all module-format/type combinations remain unqualified.",
+        "The actual published Next opt-in path and runtime compiler substitution are separate from exporting upstream ambient subpaths."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/in-source.ts",
+        "packages/next/experimental/testing/vitest-import-meta.d.ts",
+        "packages/next/experimental/testing/vitest-global.d.ts",
+        "test/unit/app-dir/next-testing-mocked/editor-types/import-meta.ts.txt",
+        "test/unit/app-dir/next-testing-mocked/fixtures/check-editor-types.cjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": ["vitest/import-meta", "vitest/importMeta"]
+    },
+    {
+      "id": "authoring-matcher-types",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.expectUtilities",
+        "authoring.assertionModifiers",
+        "authoring.chaiAssertions"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Public facade exports augmentable Assertion/Matchers/AsymmetricMatchersContaining, matcher state/object aliases, pinned matcher-result aliases and domain helper types. Maintained editor/strict installed fixtures exercise the bounded augmentation and helper contracts.",
+      "remaining": [
+        "Complete matcher/state/extension overload parity and all domain/environment combinations remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/assertions/index.ts",
+        "packages/next/src/experimental/testing/assertions/snapshot-helpers.ts",
+        "test/unit/app-dir/next-testing-mocked/editor-types/matcher-helper.d.ts.txt",
+        "test/unit/app-dir/next-testing-mocked/editor-types/matcher-results.ts.txt",
+        "test/unit/app-dir/next-testing-snapshot-helpers/snapshot-helpers.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:Assertion",
+        "vitest:AsymmetricMatchersContaining",
+        "vitest:AsyncMatcherResult",
+        "vitest:DomainMatchResult",
+        "vitest:DomainSnapshotAdapter",
+        "vitest:MatcherResult",
+        "vitest:MatcherState",
+        "vitest:Matchers",
+        "vitest:MatchersObject",
+        "vitest:SyncMatcherResult"
+      ]
+    },
+    {
+      "id": "authoring-mock-types",
+      "status": "scoped",
+      "capabilityPaths": ["authoring.spies"],
+      "profiles": ["strict common and client declaration consumers"],
+      "workstream": "authoring-runtime",
+      "implemented": "Public named mock result/context/settled/type-helper exports are explicit in the facade and are covered by actual common/client named-mock consumer fixtures, declaration augmentation and strict helper inference cases.",
+      "remaining": [
+        "All generic edge cases and behavioral/profile combinations remain outside this bounded type proof."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/assertions/index.ts",
+        "test/unit/app-dir/next-testing-mocked/next-testing-mocked.test.ts",
+        "test/unit/app-dir/next-testing-mocked/types/named-mocks.txt",
+        "test/unit/app-dir/next-testing-mocked/types/named-mocks-augmentation.txt",
+        "test/unit/app-dir/next-testing-mocked/types/mocked-optionals-exact.txt",
+        "test/unit/app-dir/next-testing-mocked/types/mocked-optionals-loose.txt",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:Mock",
+        "vitest:MockContext",
+        "vitest:MockInstance",
+        "vitest:MockResult",
+        "vitest:MockResultIncomplete",
+        "vitest:MockResultReturn",
+        "vitest:MockResultThrow",
+        "vitest:MockSettledResult",
+        "vitest:MockSettledResultFulfilled",
+        "vitest:MockSettledResultIncomplete",
+        "vitest:MockSettledResultRejected",
+        "vitest:Mocked",
+        "vitest:MockedClass",
+        "vitest:MockedFunction",
+        "vitest:MockedObject"
+      ]
+    },
+    {
+      "id": "authoring-parameterization",
+      "status": "scoped",
+      "capabilityPaths": [
+        "authoring.parameterization",
+        "authoring.parameterizationTemplates"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Measured array and tagged-template each/for overloads retain case arguments; tagged test.for retains extended fixture context, with strict installed types and six-case development/production reference comparison.",
+      "remaining": [
+        "Broader table forms, generic overload interactions, profile combinations and modifier combinations remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:describe.each",
+        "vitest:describe.for",
+        "vitest:it.each",
+        "vitest:it.for",
+        "vitest:suite.each",
+        "vitest:suite.for",
+        "vitest:test.each",
+        "vitest:test.for"
+      ]
+    },
+    {
+      "id": "authoring-reset-configuration",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.mockResetDefaults",
+        "authoring.utilityLifetime"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Configured mock/stub resets execute before each retry/repeat and before user setup and fixtures. Existing reset defaults and file-owned resource disposal have maintained lifecycle and Browser reset fixtures.",
+      "remaining": [
+        "Complete concurrency/resource mutation and all profile/setup/fixture combinations remain unqualified.",
+        "Configuration acceptance is distinct from parity for every reset interaction."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/assertions/index.ts",
+        "packages/next/src/experimental/testing/assertions/utilities.ts",
+        "packages/next/src/experimental/testing/runner/lifecycle.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "test/unit/next-testing-lifecycle/browser-mock-reset-config-contract.mjs.txt",
+        "test/unit/next-testing-lifecycle/browser-mock-reset-config-pristine.json",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/config-clearMocks-false/contract.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "config.test.clearMocks",
+        "config.test.mockReset",
+        "config.test.restoreMocks",
+        "config.test.unstubEnvs",
+        "config.test.unstubGlobals"
+      ]
+    },
+    {
+      "id": "authoring-runtime-internals",
+      "status": "missing",
+      "capabilityPaths": ["authoring.unsupported"],
+      "profiles": ["not implemented"],
+      "workstream": "authoring-runtime",
+      "implemented": "These exact target root runtime exports are absent from the pushed Next vitest facade. This is actual missing export evidence, not inferred from test diagnostics.",
+      "remaining": [
+        "Implement/qualify the full stable-target runtime export contract or retain explicit release-blocking gap."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:EvaluatedModules",
+        "vitest:Experimental",
+        "vitest:TestRunner"
+      ]
+    },
+    {
+      "id": "authoring-snapshots",
+      "status": "partial",
+      "capabilityPaths": ["authoring.snapshots"],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Snapshots is an actual public helper export, not missing. External/inline/raw/custom/domain helpers and serializers use authoritative source revisions and parent transactions; qualified Node helpers and fully settled body-failure publication retain exact reports and managed bytes.",
+      "remaining": [
+        "Hook/fixture/cleanup/late-owner/timeout/host-error publication vetoes remain.",
+        "Filtered CI key order, async-unawaited diagnostics, final-failed timeouts, explicit-update coverage combinations and crash recovery are open.",
+        "Browser/cohort/polling/expected-failure and custom environment/domain combinations remain beyond the bounded helper corpus."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/assertions/snapshot-helpers.ts",
+        "packages/next/src/experimental/testing/assertions/snapshots.ts",
+        "packages/next/src/experimental/testing/assertions/snapshot-environment.ts",
+        "test/unit/app-dir/next-testing-snapshot-helpers/snapshot-helpers.test.ts",
+        "test/unit/next-testing-lifecycle/failed-body-snapshots.ts",
+        "test/unit/next-testing-stage2-api/snapshot-parent.test.ts",
+        "test/unit/next-testing-stage2-api/snapshot-retry.test.ts",
+        "test/unit/app-dir/next-testing-stable-conformance/snapshots.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": ["vitest:Snapshots", "vitest:expect.addSnapshotSerializer"]
+    },
+    {
+      "id": "authoring-spies",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.spies",
+        "authoring.utilityLifetime",
+        "authoring.mockResetDefaults"
+      ],
+      "profiles": [
+        "fresh plain Node realm",
+        "bounded installed declaration consumers"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "Public spy/mock-object methods route to pinned primitives through the actual owner guards; mocked preserves its argument with precise public helper typing. Maintained fresh plain Node realm checks verify identity/routing, real mock state, closed-file mutation guards, conditional mock interactions and strict public named mock types.",
+      "remaining": [
+        "Primitive method availability does not certify every overload, object/property shape or cross-profile combination.",
+        "Broader concurrent reset/resource mutation and Browser/RSC/production composition remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/assertions/index.ts",
+        "test/unit/app-dir/next-testing-mocked/next-testing-mocked.test.ts",
+        "test/unit/app-dir/next-testing-mocked/fixtures/facade-cases.ts",
+        "test/unit/app-dir/next-testing-mocked/fixtures/ownership-cases.ts",
+        "test/unit/app-dir/next-testing-mocked/types/mocked.txt",
+        "test/unit/app-dir/next-testing-mocked/types/named-mocks.txt",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:vi.clearAllMocks",
+        "vitest:vi.fn",
+        "vitest:vi.isMockFunction",
+        "vitest:vi.mockObject",
+        "vitest:vi.mocked",
+        "vitest:vi.resetAllMocks",
+        "vitest:vi.restoreAllMocks",
+        "vitest:vi.spyOn",
+        "vitest:vitest.clearAllMocks",
+        "vitest:vitest.fn",
+        "vitest:vitest.isMockFunction",
+        "vitest:vitest.mockObject",
+        "vitest:vitest.mocked",
+        "vitest:vitest.resetAllMocks",
+        "vitest:vitest.restoreAllMocks",
+        "vitest:vitest.spyOn"
+      ]
+    },
+    {
+      "id": "authoring-static-expectation-helpers",
+      "status": "unreviewed",
+      "capabilityPaths": ["authoring.matcherInventoryScope"],
+      "profiles": [
+        "not independently qualified by this inventory reconciliation"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "These exact public static expectation rows exist in the pinned declaration inventory. This review does not establish complete name-specific behavioral evidence; the inherited primitive/facade is not enough to promote them.",
+      "remaining": [
+        "Review each exact helper, overload, lifetime and profile against the pinned target."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/assertions/index.ts",
+        "packages/next/src/experimental/testing/vitest.ts",
+        "test/unit/next-testing-lifecycle/assertion-integration.ts",
+        "test/unit/next-testing-assertions/assertions.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:expect.any",
+        "vitest:expect.anything",
+        "vitest:expect.closeTo",
+        "vitest:expect.fail",
+        "vitest:expect.not",
+        "vitest:expect.objectContaining",
+        "vitest:expect.schemaMatching",
+        "vitest:expect.stringContaining",
+        "vitest:expect.stringMatching",
+        "vitest:expect.toBeOneOf",
+        "vitest:expect.toSatisfy"
+      ]
+    },
+    {
+      "id": "authoring-suite-aliases",
+      "status": "scoped",
+      "capabilityPaths": [
+        "authoring.suiteAliases",
+        "authoring.suiteFactoryTestAPI"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "Extended and modified test APIs expose independent suite facades; each direct suite factory receives a fresh base API. Measured sync/async/nested/skipped factories and strict installed types match.",
+      "remaining": [
+        "Broader profiles and API combinations remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:it.describe",
+        "vitest:it.suite",
+        "vitest:test.describe",
+        "vitest:test.suite"
+      ]
+    },
+    {
+      "id": "authoring-task-artifacts",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.context",
+        "authoring.metadata",
+        "authoring.artifacts"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "recordArtifact is a real public runtime export. Qualified Node started-task artifacts retain serializable data, task attribution, mapped locations and supported attachments while the file is open. Task annotation/meta/tag behavior and public types have bounded maintained evidence.",
+      "remaining": [
+        "Live custom reporter hooks, Browser artifact parity, collected-but-unrun tasks and full Vitest task/result introspection remain unqualified.",
+        "Exported artifact type names do not certify all artifact producers or Browser behavior."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/runner/tasks.ts",
+        "packages/next/src/experimental/testing/runner/artifacts.ts",
+        "packages/next/src/experimental/testing/runner/annotations.ts",
+        "test/unit/next-testing-lifecycle/artifact-integration.ts",
+        "test/unit/next-testing-lifecycle/artifact-types.ts.txt",
+        "test/unit/next-testing-lifecycle/artifact-pristine.json",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/tags-and-meta/contract.case.mjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:BrowserTraceArtifact",
+        "vitest:FailureScreenshotArtifact",
+        "vitest:TaskMeta",
+        "vitest:TestAnnotation",
+        "vitest:TestAnnotationArtifact",
+        "vitest:TestAnnotationLocation",
+        "vitest:TestArtifact",
+        "vitest:TestArtifactBase",
+        "vitest:TestArtifactLocation",
+        "vitest:TestArtifactRegistry",
+        "vitest:TestAttachment",
+        "vitest:TestTagDefinition",
+        "vitest:TestTags",
+        "vitest:VisualRegressionArtifact",
+        "vitest:recordArtifact"
+      ]
+    },
+    {
+      "id": "authoring-type-assertions",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.typeAssertions",
+        "authoring.typeAssertionScope"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "assertType and expectTypeOf are actual exports using pinned expect-type primitives; one-shot consumer-tsc type-test files use owned process diagnostics and original AST spans without evaluating callbacks. All three exact names are explicitly exported by the facade.",
+      "remaining": [
+        "Focused type tasks, build, alternate checkers, watch/list/debug and full type-tooling conformance remain unqualified.",
+        "Exported type aliases must be checked individually; runtime name presence does not imply all target types exist."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/typecheck.ts",
+        "packages/next/src/experimental/testing/typecheck-worker.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/compiler-backed-typecheck/contract.test-d.ts",
+        "test/unit/app-dir/next-testing-stable-conformance/public-types.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:ExpectTypeOf",
+        "vitest:assertType",
+        "vitest:expectTypeOf"
+      ]
+    },
+    {
+      "id": "authoring-unexported-target-types",
+      "status": "missing",
+      "capabilityPaths": [
+        "authoring.publicDeclarationTypes",
+        "authoring.typeAssertionScope",
+        "authoring.unsupported"
+      ],
+      "profiles": ["type export absent from public facade"],
+      "workstream": "authoring-runtime",
+      "implemented": "These pinned public type names are not exported from the pushed public vitest bridge. Internal type existence and primitive inheritance do not export the target names.",
+      "remaining": [
+        "Restore and strictly verify each target public type contract; benchmark functionality remains deferred but its stable target cannot be silently removed."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "test/unit/app-dir/next-testing-stable-conformance/public-types.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:AssertType",
+        "vitest:Bench",
+        "vitest:BenchCompareOptions",
+        "vitest:BenchFn",
+        "vitest:BenchFnOptions",
+        "vitest:BenchFromSource",
+        "vitest:BenchOptions",
+        "vitest:BenchRegistration",
+        "vitest:BenchRegistrationInput",
+        "vitest:BenchResult",
+        "vitest:BenchRunOptions",
+        "vitest:BenchStorage",
+        "vitest:BenchmarkGroup",
+        "vitest:BenchmarkProvider",
+        "vitest:ExpectPollOptions",
+        "vitest:ExpectStatic",
+        "vitest:ExternalResult",
+        "vitest:JestAssertion",
+        "vitest:Matcher",
+        "vitest:SnapshotData",
+        "vitest:SnapshotMatchOptions",
+        "vitest:SnapshotResult",
+        "vitest:SnapshotSerializer",
+        "vitest:SnapshotStateOptions",
+        "vitest:SnapshotSummary",
+        "vitest:SnapshotUpdateState",
+        "vitest:SuiteAPI",
+        "vitest:SuiteCollector",
+        "vitest:TaskCustomOptions",
+        "vitest:TaskState",
+        "vitest:TestBenchmark",
+        "vitest:TestBenchmarkTask",
+        "vitest:TestExecutionMethod",
+        "vitest:TestRunnerConfig",
+        "vitest:TestTryOptions",
+        "vitest:UncheckedSnapshot"
+      ]
+    },
+    {
+      "id": "authoring-unimplemented-declaration-fn",
+      "status": "missing",
+      "capabilityPaths": [
+        "authoring.matcherInventoryScope",
+        "authoring.unsupported"
+      ],
+      "profiles": ["not implemented"],
+      "workstream": "authoring-runtime",
+      "implemented": "The pushed collector has no fn property implementation and routes unknown string members to unsupported. No maintained positive fn behavior or matching public overload is established.",
+      "remaining": [
+        "Implement and reference-qualify the pinned declaration fn API; refusal is not functionality."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:describe.fn",
+        "vitest:it.fn",
+        "vitest:suite.fn",
+        "vitest:test.fn"
+      ]
+    },
+    {
+      "id": "authoring-utilities",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.runtimeUtilityConfig",
+        "authoring.importSettling",
+        "authoring.utilityLifetime",
+        "features.runtimeFactoryMocks.booleanEnvironmentStubs"
+      ],
+      "profiles": [
+        "isolated development Node",
+        "isolated production Node",
+        "bounded Node/RSC import tracking",
+        "bounded development Chromium stubs"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "Actual vi/vitest namespace aliases expose file-owned stubs, shallow configuration mutation/reset and tracked Node/RSC import settling. Exact DEV/PROD/SSR flag truthiness, first-value restoration and generic public constraints have separate Node full-trace/type evidence. Development Chromium global stubs retain descriptors and facade identity.",
+      "remaining": [
+        "Concurrent utility mutation and broad runtime-config interactions remain unqualified.",
+        "Other Browser utility delegation/profile combinations are not inferred from Node support."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/assertions/utilities.ts",
+        "packages/next/src/experimental/testing/runner/imports.ts",
+        "test/unit/next-testing-assertions/assertions.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/vi-chain-identity/contract.case.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/dynamic-import-settled/contract.case.mjs",
+        "test/unit/next-testing-lifecycle/browser-vi-integration.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:vi",
+        "vitest:vi.dynamicImportSettled",
+        "vitest:vi.resetConfig",
+        "vitest:vi.setConfig",
+        "vitest:vi.stubEnv",
+        "vitest:vi.stubGlobal",
+        "vitest:vi.unstubAllEnvs",
+        "vitest:vi.unstubAllGlobals",
+        "vitest:vitest",
+        "vitest:vitest.dynamicImportSettled",
+        "vitest:vitest.resetConfig",
+        "vitest:vitest.setConfig",
+        "vitest:vitest.stubEnv",
+        "vitest:vitest.stubGlobal",
+        "vitest:vitest.unstubAllEnvs",
+        "vitest:vitest.unstubAllGlobals"
+      ]
+    },
+    {
+      "id": "authoring-utility-type",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.spies",
+        "authoring.timerPrimitive",
+        "authoring.runtimeUtilityConfig"
+      ],
+      "profiles": ["isolated development Node", "isolated production Node"],
+      "workstream": "authoring-runtime",
+      "implemented": "VitestUtils is an exported composition of the actual spy/utility/static-mock/when APIs. Specific timer/stub/helper/mock type contracts have separate maintained fixtures; composition existence is not full public utility conformance.",
+      "remaining": [
+        "Complete interface/overload/property parity across all utility and compiler/profile combinations remains open."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "packages/next/src/experimental/testing/assertions/utilities.ts",
+        "test/unit/app-dir/next-testing-mocked/fixtures/check-editor-types.cjs",
+        "test/unit/app-dir/next-testing-mocked/types/define-helper.txt",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": ["vitest:VitestUtils"]
+    },
+    {
+      "id": "authoring-waits",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.browserRealWaits",
+        "authoring.timerPrimitive"
+      ],
+      "profiles": [
+        "isolated development Node",
+        "isolated production Node",
+        "bounded serial development Chromium corpus"
+      ],
+      "workstream": "authoring-runtime",
+      "implemented": "Owned waits retain captured real deadlines, value/async/error/timeout/thenable handling and cancellation. Measured development Chromium waits survive supported following cases/afterAll and advance active fake clocks before callbacks.",
+      "remaining": [
+        "Late snapshot/async/soft/custom matcher attribution, other Browser modes/engines and full concurrent interactions remain unqualified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/assertions/wait.ts",
+        "packages/next/src/experimental/testing/assertions/utilities.ts",
+        "test/unit/next-testing-assertions/assertions.test.ts",
+        "test/unit/next-testing-lifecycle/browser-real-waits-integration.cjs",
+        "test/unit/next-testing-lifecycle/browser-real-waits-pristine.json",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest:vi.waitFor",
+        "vitest:vi.waitUntil",
+        "vitest:vitest.waitFor",
+        "vitest:vitest.waitUntil"
+      ]
+    },
+    {
+      "id": "browser-client-runtime",
+      "status": "partial",
+      "capabilityPaths": [
+        "execution.browser",
+        "features.production",
+        "features.staticFactoryMocks.browserImportMock"
+      ],
+      "profiles": [
+        "serial development/production Chromium client files; real Browser proof primarily Darwin Node26"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Real client realms run authored cases, async collection/hooks/around hooks, native interactions, bounded Browser mocking and production package conditions. Explicit enabled/disabled Browser profiles retain actual owned hosts and reports.",
+      "remaining": [
+        "Concurrent Browser cases, broader async classification/Promise behavior and complete utilities/clocks/lifecycle combinations.",
+        "Production automatic/manual/runtime mocks and setup/reset/mocking/coverage combinations.",
+        "Firefox and WebKit execution/config admission. The internal WebKit host bridge is implemented but is not end-to-end WebKit execution.",
+        "Linux/browser/platform matrix remains release qualification, currently deferred."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/client/browser-context.ts",
+        "packages/next/src/experimental/testing/browser/host.ts",
+        "packages/next/src/experimental/testing/browser/webkit-host.ts",
+        "test/unit/next-testing-browser-resources/browser.test.ts",
+        "test/unit/next-testing-execution/next-testing-execution.test.ts",
+        "test/e2e/app-dir/next-testing-package/verify-production-client.mjs"
+      ],
+      "rowApi": ["config.test.browser", "config.test.browser.enabled"]
+    },
+    {
+      "id": "browser-configuration-gaps",
+      "status": "missing",
+      "capabilityPaths": [],
+      "profiles": ["published Vitest Browser configuration surface"],
+      "workstream": "browser-rendering",
+      "implemented": "No behavior is claimed for these configuration keys. The pushed Next config parser admits only browser.enabled, viewport and instances; native Playwright behavior does not implement a configurable provider or command API.",
+      "remaining": [
+        "Implement or make explicit compatibility-scope decisions for each omitted browser configuration key, preserving functional requirements.",
+        "Provider/headless/custom commands/locators/expect, screenshots/traces/UI/orchestrator scripts, connection timeout and dependency sourcemap configuration remain absent from this parser."
+      ],
+      "evidence": ["packages/next/src/experimental/testing/config.ts"],
+      "rowApi": [
+        "config.test.browser.commands",
+        "config.test.browser.connectTimeout",
+        "config.test.browser.dependencySourcemaps",
+        "config.test.browser.detailsPanelPosition",
+        "config.test.browser.expect",
+        "config.test.browser.headless",
+        "config.test.browser.locators",
+        "config.test.browser.orchestratorScripts",
+        "config.test.browser.provider",
+        "config.test.browser.screenshotDirectory",
+        "config.test.browser.screenshotFailures",
+        "config.test.browser.testerHtmlPath",
+        "config.test.browser.trace",
+        "config.test.browser.traceView",
+        "config.test.browser.trackUnhandledErrors",
+        "config.test.browser.ui"
+      ]
+    },
+    {
+      "id": "browser-instances-and-viewport",
+      "status": "scoped",
+      "capabilityPaths": [
+        "features.browserInstances",
+        "features.browserViewport"
+      ],
+      "profiles": [
+        "explicit Chromium development/production instances; measured viewport scope development Chromium"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Explicit Chromium instances have distinct opaque profile identities, original public labels, exact parent/instance project selection and separate real owned realms. browser.enabled:false retains ordinary Node execution. Viewport width/height defaults and admitted integer bounds are implemented before page creation.",
+      "remaining": [
+        "Legacy no-instances discrepancy and broader profile/viewport combinations need qualification.",
+        "Other engines are not admitted by config. Instance-provider/options breadth remains absent."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/browser-instances.ts",
+        "packages/next/src/experimental/testing/config.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/next-testing-browser-resources/browser.test.ts"
+      ],
+      "rowApi": [
+        "config.test.browser.instances",
+        "config.test.browser.viewport"
+      ]
+    },
+    {
+      "id": "browser-native-interactions",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.browserUserEvent",
+        "features.nativeBrowserWheel",
+        "features.nativeBrowserTyping",
+        "features.runtimeFactoryMocks.deferredLocatorSelect"
+      ],
+      "profiles": [
+        "development/production Chromium; measured Darwin clipboard behavior; real Browser tests on Node26"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Native click/multiclick/hover/fill/clear/select, tab, upload, drag/drop, wheel, typing, held key/setup ownership, copy/cut/paste and selected deferred Locators execute actual events and controlled React turns. Pushed physical [code] descriptors cover case-insensitive bounded letters/digits/brackets/space/editing/modifier mappings, including measured right-code canonical-left native events; 22 complete ordinary and installed rows match.",
+      "remaining": [
+        "The six-file local named-key follow-up is unvalidated and outside the pushed tree; do not claim it implemented.",
+        "Remaining default-map codes, wider setup/options and clipboard/upload forms/platforms.",
+        "Other absent-query locator methods, wider timeout/error diagnostic parity and fake-clock/RAF combinations.",
+        "Other browser engines and concurrent behavior remain unqualified. The supplementary-Unicode defect occurs in the measured reference and needs an explicit reference policy, not a fabricated passing expectation."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/client/browser-context.ts",
+        "test/unit/next-testing-browser-resources/browser.test.ts",
+        "test/unit/next-testing-execution/next-testing-execution.test.ts",
+        "test/unit/next-testing-browser-resources/fixtures/user-event-physical-keyboard/physical.test.mjs.txt",
+        "test/e2e/app-dir/next-testing-package/verify-browser-physical-keyboard.mjs",
+        "test/e2e/app-dir/next-testing-package/browser-physical-keyboard.expected.json",
+        "test/e2e/app-dir/next-testing-package/verify-browser-locator-select.mjs",
+        "test/e2e/app-dir/next-testing-package/verify-browser-clipboard.mjs"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "browser-node-runtime-internals-unreviewed",
+      "status": "unreviewed",
+      "capabilityPaths": [],
+      "profiles": [
+        "upstream vitest/internal/browser and Node Browser-provider tooling declarations"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Next-owned implementation is not evidence for upstream internal runtime and Browser-provider tooling exports.",
+      "remaining": [
+        "Review the upstream internal/browser and node Browser-provider declarations individually; retain missing/unreviewed status unless a corresponding public bridge and behavior are verified."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/compatibility-inventory.json"
+      ],
+      "rowApi": [
+        "vitest/internal/browser:BrowserCommands",
+        "vitest/internal/browser:BrowserTraceEntryKind",
+        "vitest/internal/browser:CDPSession",
+        "vitest/internal/browser:DecodedMap",
+        "vitest/internal/browser:FileSpecification",
+        "vitest/internal/browser:FsOptions",
+        "vitest/internal/browser:MarkOptions",
+        "vitest/internal/browser:ParsedStack",
+        "vitest/internal/browser:SpyModule",
+        "vitest/internal/browser:StringifyOptions",
+        "vitest/internal/browser:collectTests",
+        "vitest/internal/browser:format",
+        "vitest/internal/browser:getOriginalPosition",
+        "vitest/internal/browser:getSafeTimers",
+        "vitest/internal/browser:getType",
+        "vitest/internal/browser:inspect",
+        "vitest/internal/browser:loadDiffConfig",
+        "vitest/internal/browser:loadSnapshotSerializers",
+        "vitest/internal/browser:processError",
+        "vitest/internal/browser:setSafeTimers",
+        "vitest/internal/browser:setupCommonEnv",
+        "vitest/internal/browser:setupEnv",
+        "vitest/internal/browser:startCoverageInsideWorker",
+        "vitest/internal/browser:startTests",
+        "vitest/internal/browser:stopCoverageInsideWorker",
+        "vitest/internal/browser:stringify",
+        "vitest/internal/browser:takeCoverageInsideWorker",
+        "vitest/node:BrowserBuiltinProvider",
+        "vitest/node:BrowserCommand",
+        "vitest/node:BrowserCommandContext",
+        "vitest/node:BrowserConfigOptions",
+        "vitest/node:BrowserConnectionError",
+        "vitest/node:BrowserInstanceOption",
+        "vitest/node:BrowserModuleMocker",
+        "vitest/node:BrowserOrchestrator",
+        "vitest/node:BrowserProvider",
+        "vitest/node:BrowserProviderCloseOptions",
+        "vitest/node:BrowserProviderOption",
+        "vitest/node:BrowserScript",
+        "vitest/node:BrowserServerContribution",
+        "vitest/node:BrowserServerFactory",
+        "vitest/node:BrowserServerState",
+        "vitest/node:BrowserServerStateSession",
+        "vitest/node:BrowserTraceViewOptions",
+        "vitest/node:ParentProjectBrowser",
+        "vitest/node:ProjectBrowser",
+        "vitest/node:ResolvedBrowserOptions",
+        "vitest/node:_BrowserNames"
+      ]
+    },
+    {
+      "id": "browser-ordered-setup",
+      "status": "partial",
+      "capabilityPaths": ["features.browserSetup"],
+      "profiles": [
+        "development/production Chromium one-shot; maintained Browser setup watch"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Ordered compiler-owned setup namespaces run actual top-level await/hooks/globals/CSS before the test module. Installed setup and setup-watch corpora retain complete rows, real generations and released hosts/artifacts; exported Promises stay data and rejection stops later loading.",
+      "remaining": [
+        "Parallel setup and setup plus mocks, reset, coverage, serializers or custom realms.",
+        "Complete setup-rejection diagnostic formatting and broader engines/profile qualification."
+      ],
+      "evidence": [
+        "test/unit/next-testing-browser-resources/fixtures/setup-list/a.test.mjs.txt",
+        "test/e2e/app-dir/next-testing-package/verify-browser-setup.mjs",
+        "test/e2e/app-dir/next-testing-package/verify-browser-setup-watch.mjs",
+        "test/e2e/app-dir/next-testing-package/browser-setup-watch.expected.json"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "browser-public-declaration-gaps",
+      "status": "missing",
+      "capabilityPaths": [],
+      "profiles": ["published vitest/browser declaration inventory"],
+      "workstream": "browser-rendering",
+      "implemented": "No matching published declaration is implemented for the five rows below. The Next-owned browser helper and Browser context behavior are distinct APIs and do not satisfy these named declarations.",
+      "remaining": [
+        "BrowserCommands, BrowserTraceEntryKind, CDPSession, FsOptions and MarkOptions remain missing from the published bridge.",
+        "The inventory has no @vitest/browser/context page/userEvent/Locator rows; behavior should be described in separate feature groups instead of misclassifying these unrelated types."
+      ],
+      "evidence": [
+        "packages/next/experimental/testing/browser.d.ts",
+        "packages/next/src/experimental/testing/compatibility-inventory.json"
+      ],
+      "rowApi": [
+        "vitest/browser:BrowserCommands",
+        "vitest/browser:BrowserTraceEntryKind",
+        "vitest/browser:CDPSession",
+        "vitest/browser:FsOptions",
+        "vitest/browser:MarkOptions"
+      ]
+    },
+    {
+      "id": "browser-rendering-and-components",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.browserRendering",
+        "features.browserComponents",
+        "features.watch.productionRegisteredComponents"
+      ],
+      "profiles": [
+        "development Chromium RTL",
+        "development/production Chromium vitest-browser-react and registered Next component fixtures"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Measured render/rerender/unmount/wrapper/renderHook/locator rows execute in physical installations. Registered server fixtures compile as genuine Next App Pages with SSR, explicit layouts, CSS and hydration. Qualified component watches rebuild real dependencies and remount fresh state.",
+      "remaining": [
+        "Implicit route/layout context and transport of arbitrary React values/functions.",
+        "Broader helper versions, hydration contracts, engines, concurrency and watch/setup combinations.",
+        "Ordinary production RTL act is unavailable in both measured runners; record this as a reference limitation rather than a Next-only missing implementation."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/browser/component-host.ts",
+        "test/e2e/app-dir/next-testing-package/verify-component-rendering.mjs",
+        "test/e2e/app-dir/next-testing-package/verify-component-watch.mjs",
+        "test/e2e/app-dir/next-testing-package/verify-registered-production-component-watch.mjs",
+        "test/e2e/app-dir/next-testing-package/component-rendering.expected.json"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "configuration.browser-options-unimplemented",
+      "status": "missing",
+      "capabilityPaths": [
+        "features.browserSetup.unsupported",
+        "features.browserRendering.scope",
+        "features.browserInstances.scope"
+      ],
+      "profiles": ["no qualified configuration behavior for these option rows"],
+      "workstream": "scheduling-tooling",
+      "implemented": "No implemented public configuration semantics claimed for these rows. Chromium execution, native interactions and host ownership elsewhere do not implement these option objects.",
+      "remaining": [
+        "Browser provider/command/UI/trace/screenshot/custom-page/orchestrator option compatibility",
+        "Provider-specific headless/connectivity and source-map configuration",
+        "Browser expect/locator option compatibility"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+      ],
+      "rowApi": [
+        "config.test.browser.commands",
+        "config.test.browser.connectTimeout",
+        "config.test.browser.dependencySourcemaps",
+        "config.test.browser.detailsPanelPosition",
+        "config.test.browser.expect",
+        "config.test.browser.headless",
+        "config.test.browser.locators",
+        "config.test.browser.orchestratorScripts",
+        "config.test.browser.provider",
+        "config.test.browser.screenshotDirectory",
+        "config.test.browser.screenshotFailures",
+        "config.test.browser.testerHtmlPath",
+        "config.test.browser.trace",
+        "config.test.browser.traceView",
+        "config.test.browser.trackUnhandledErrors",
+        "config.test.browser.ui"
+      ]
+    },
+    {
+      "id": "configuration.browser-selection",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.browserInstances",
+        "features.browserViewport",
+        "execution.browser"
+      ],
+      "profiles": [
+        "development/production Chromium client realm; viewport reference proof in development; disabled client selection remains ordinary Node"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Explicit enabled/viewport/instances configure the actual Chromium host. Instances expand to independent owned profiles with opaque IDs and exact public labels; browser.enabled:false does not start a Browser host.",
+      "remaining": [
+        "Other engines/providers and full instance/profile/watch combinations",
+        "General browser options outside the three admitted fields",
+        "Mixed-mode/concurrent Browser and broader viewport behavior"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/browser-instances.ts",
+        "packages/next/src/experimental/testing/client/server.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/next-testing-browser-resources/browser.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "config.test.browser",
+        "config.test.browser.enabled",
+        "config.test.browser.instances",
+        "config.test.browser.viewport"
+      ]
+    },
+    {
+      "id": "configuration.compiler-string-aliases",
+      "status": "partial",
+      "capabilityPaths": ["features.typescriptConfig"],
+      "profiles": [
+        "route-less development Node via actual Next compiler aliases"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Executable config.resolve.alias admits plain data mappings or ordered string entries with bare string finds and absolute contained-path replacements. Aliases are applied through the real Next resolver, with measured order and imported configuration watch dependencies.",
+      "remaining": [
+        "Regex/custom resolvers/pattern substitutions and other resolve fields",
+        "Conflicting inherited Next alias ordering",
+        "RSC, Browser, production and full watch/profile combinations"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/compiler/aliases.ts",
+        "packages/next/src/experimental/testing/config-worker.ts",
+        "packages/next/src/experimental/testing/config-modules.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/compiler-alias-native/vitest.config.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/compiler-alias-ordered-native/vitest.config.mjs"
+      ],
+      "rowApi": ["config.resolve"]
+    },
+    {
+      "id": "configuration.compiler-transform-closures",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.typescriptConfig",
+        "features.retainedSetupWatchSelection"
+      ],
+      "profiles": [
+        "bounded owned executable root/external project config; actual compiler transform callbacks and retained watch owner"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Flat plugins containing name and plain transform function use retained evaluated closures in their actual configuration realm. Supported source/map results and explicit addWatchFile dependencies cross a supervised broker; a qualified root transform realm survives unchanged watch configuration generations.",
+      "remaining": [
+        "General Vite plugin hooks/context mutation and arbitrary transform results",
+        "Inline project plugins and unimplemented root-to-external plugin inheritance",
+        "Full effective-config/plugin/watch/profile matrix and public Plugin type conformance"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/compiler/transform-hooks.ts",
+        "packages/next/src/experimental/testing/compiler/transform-broker.ts",
+        "packages/next/src/experimental/testing/config-modules.ts",
+        "packages/next/src/experimental/testing/config-worker.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/compiler-plugin-transform/vitest.config.mjs",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/compiler-plugin-helper-closure/vitest.config.mjs"
+      ],
+      "rowApi": ["config.plugins"]
+    },
+    {
+      "id": "configuration.custom-coverage",
+      "status": "partial",
+      "capabilityPaths": ["features.coverage.custom"],
+      "profiles": [
+        "one-shot isolated serial development Node; no V8, DOM, type tests, debugging, snapshots, module mocks/reset or helper-import graphs"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Project-configured provider:custom uses an actual single JavaScript provider entry, owned runtime capture hooks, parent-owned payloads, real provider callbacks/reporting and awaited cleanup. The parser accepts only the listed custom-provider option subset. enabled:false disables this custom configuration.",
+      "remaining": [
+        "Project-configured V8 or Istanbul provider behavior",
+        "General provider service/transform/helper dependencies and contexts",
+        "Production/RSC/Browser/watch/shard aggregation and composition with other features"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/coverage/custom-options.ts",
+        "packages/next/src/experimental/testing/coverage/custom-runtime.ts",
+        "packages/next/src/experimental/testing/coverage/custom-session.ts",
+        "packages/next/src/experimental/testing/coverage/custom-types.ts",
+        "packages/next/src/cli/next-test-runner.ts",
+        "test/unit/next-testing-coverage/next-testing-coverage.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+      ],
+      "rowApi": [
+        "config.test.coverage",
+        "config.test.coverage.clean",
+        "config.test.coverage.customProviderModule",
+        "config.test.coverage.enabled",
+        "config.test.coverage.provider",
+        "config.test.coverage.reportOnFailure",
+        "config.test.coverage.reportsDirectory"
+      ]
+    },
+    {
+      "id": "configuration.discovery-and-runtime-selection",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.typescriptConfig",
+        "features.testNamePattern",
+        "authoring.inSourceTests"
+      ],
+      "profiles": [
+        "configured isolated Node/RSC/Browser profiles; fresh Node in-source subset"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Configured include/exclude patterns and supported project/name/profile selections flow to actual discovery and compiler execution. includeSource uses real marker discovery and exact native-entry substitution in fresh Node files.",
+      "remaining": [
+        "Full source discovery/filter interactions across all environments and tooling",
+        "RSC/Browser/cohort in-source tests and typed importMeta subpaths",
+        "General config.test.mode parity with the reference rather than Next development/production profile selection"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/discovery.ts",
+        "packages/next/src/cli/next-test-runner.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "config.test.exclude",
+        "config.test.include",
+        "config.test.includeSource",
+        "config.test.testNamePattern"
+      ]
+    },
+    {
+      "id": "configuration.environments",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.domProviderWindow",
+        "execution.fileIsolation",
+        "execution.browser"
+      ],
+      "profiles": [
+        "actual Node, qualified explicit jsdom/happy-dom/custom providers; bounded DOM provider realm and cleanup contracts"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Environment configuration selects real owned providers and supported provider options rather than a diagnostic-only stand-in. The measured DOM window listener and matchMedia contracts preserve actual events/descriptors and restoration.",
+      "remaining": [
+        "Full downstream provider versions and environment-option matrix",
+        "All custom environment/controller APIs and environment/profile combinations",
+        "Cross-profile native-global and DOM lifecycle interactions"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/environments/config.ts",
+        "packages/next/src/experimental/testing/environments/runtime.ts",
+        "test/unit/next-testing-execution/next-testing-execution.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": ["config.test.environment", "config.test.environmentOptions"]
+    },
+    {
+      "id": "configuration.lifecycle-fixtures-and-defaults",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.typescriptConfig",
+        "features.orderedSetup",
+        "authoring"
+      ],
+      "profiles": [
+        "qualified Node/RSC/Browser execution subsets; Browser env configuration has a qualified development client subset, with production env behavior unqualified"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Supported settings are validated and forwarded to collection/execution. Setup files execute in the owned compiler collector; global setup/provide retain realm ownership and reverse teardown. Timeout/retry/bail/default controls preserve explicit zero/false and CLI precedence. Tags and attachments retain their bounded actual runtime paths.",
+      "remaining": [
+        "Complete lifecycle/error/timeout/fixture/profile combinations",
+        "Global-setup and retained services outside the measured watch/profile owners",
+        "General Node project env configuration and full public task/context/artifact semantics"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/config-modules.ts",
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "packages/next/src/experimental/testing/runner/lifecycle.ts",
+        "packages/next/src/experimental/testing/runner/tasks.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "test/unit/next-testing-execution/next-testing-execution.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "config.test.allowOnly",
+        "config.test.attachmentsDir",
+        "config.test.bail",
+        "config.test.env",
+        "config.test.globalSetup",
+        "config.test.globals",
+        "config.test.hookTimeout",
+        "config.test.passWithNoTests",
+        "config.test.provide",
+        "config.test.retry",
+        "config.test.setupFiles",
+        "config.test.strictTags",
+        "config.test.tags",
+        "config.test.testTimeout"
+      ]
+    },
+    {
+      "id": "configuration.loading-and-projects",
+      "status": "partial",
+      "capabilityPaths": ["features.typescriptConfig"],
+      "profiles": [
+        "Next/Vitest/Vite executable or JSON configuration; configured isolated project profiles; bounded external project roots within the invoking Next application"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Executable config object, Promise and function evaluation runs in a retained isolated realm. Discovery/selection, defaults, explicit project names, inline/external project configs, setup ownership and provided context are translated. External project roots must still be the invoking Next application.",
+      "remaining": [
+        "Full public config schema and declaration overload/field fidelity",
+        "Arbitrary project roots/workspaces and root/external inheritance combinations",
+        "Equivalent application compiler settings outside the explicitly qualified adapters"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/config-modules.ts",
+        "packages/next/src/experimental/testing/config-loader.ts",
+        "packages/next/src/experimental/testing/config-worker.ts",
+        "packages/next/src/experimental/testing/config-api.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/config-factory-ts/vitest.config.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/config-factory-cjs/vitest.config.cjs",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "config.root",
+        "config.test",
+        "config.test.name",
+        "config.test.projects",
+        "config.test.root"
+      ]
+    },
+    {
+      "id": "configuration.mock-and-clock-defaults",
+      "status": "partial",
+      "capabilityPaths": [
+        "authoring.timerPrimitive",
+        "authoring.mockResetDefaults",
+        "features.moduleCacheReset",
+        "features.runtimeFactoryMocks"
+      ],
+      "profiles": [
+        "qualified isolated Node, serial development cohort and Chromium runtime subsets; Node worker nextTick cannot be faked"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Validated fake-timer options and reset/unstub booleans reach the actual runtime, preserving explicit false. File-owned fake timers retain captured real runner/process deadlines.",
+      "remaining": [
+        "Complete fake-clock/lifecycle/concurrency/snapshot interactions",
+        "Full automatic reset/mock semantics across Browser/RSC/production/cohorts",
+        "Unsupported timer/provider options and broader setup-owned timer lifetimes"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/assertions/utilities.ts",
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "test/unit/next-testing-stage2-api/api.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "config.test.clearMocks",
+        "config.test.fakeTimers",
+        "config.test.mockReset",
+        "config.test.restoreMocks",
+        "config.test.unstubEnvs",
+        "config.test.unstubGlobals"
+      ]
+    },
+    {
+      "id": "configuration.remaining-settings",
+      "status": "missing",
+      "capabilityPaths": ["features.typescriptConfig"],
+      "profiles": [
+        "not admitted/qualified by the current runtime config schema"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "No implementation claimed for these remaining root/test settings. Inert helper exports, permissive Record types and explicit unsupported-setting diagnostics do not implement configuration behavior.",
+      "remaining": [
+        "Root Vite/build/server/assets/CSS/env/optimizer/transform settings outside bounded compiler adapters",
+        "Test deps/cache/fsModuleCache/runner/error-console hooks and async leak tooling",
+        "Chai/diff/expect/snapshot formatting/environment/path controls and remaining execution settings"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/config-api.ts",
+        "packages/next/src/experimental/testing/config-loader.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+      ],
+      "rowApi": [
+        "config.appType",
+        "config.assetsInclude",
+        "config.base",
+        "config.build",
+        "config.builder",
+        "config.cacheDir",
+        "config.clearScreen",
+        "config.css",
+        "config.customLogger",
+        "config.define",
+        "config.dev",
+        "config.devtools",
+        "config.envDir",
+        "config.envPrefix",
+        "config.environments",
+        "config.esbuild",
+        "config.experimental",
+        "config.future",
+        "config.html",
+        "config.input",
+        "config.isBundled",
+        "config.json",
+        "config.legacy",
+        "config.logLevel",
+        "config.mode",
+        "config.optimizeDeps",
+        "config.oxc",
+        "config.preview",
+        "config.publicDir",
+        "config.server",
+        "config.ssr",
+        "config.test.alias",
+        "config.test.benchmark",
+        "config.test.cache",
+        "config.test.chaiConfig",
+        "config.test.chaiConfig.includeStack",
+        "config.test.chaiConfig.showDiff",
+        "config.test.chaiConfig.truncateThreshold",
+        "config.test.css",
+        "config.test.dangerouslyIgnoreUnhandledErrors",
+        "config.test.deps",
+        "config.test.deps.interopDefault",
+        "config.test.deps.moduleDirectories",
+        "config.test.deps.optimizer",
+        "config.test.deps.web",
+        "config.test.detectAsyncLeaks",
+        "config.test.diff",
+        "config.test.dir",
+        "config.test.disableConsoleIntercept",
+        "config.test.expandSnapshotDiff",
+        "config.test.expect",
+        "config.test.experimental",
+        "config.test.fsModuleCache",
+        "config.test.fsModuleCachePath",
+        "config.test.hideSkippedTests",
+        "config.test.includeTaskLocation",
+        "config.test.injectCjsGlobals",
+        "config.test.logHeapUsage",
+        "config.test.onConsoleLog",
+        "config.test.onStackTrace",
+        "config.test.onUnhandledError",
+        "config.test.printConsoleTrace",
+        "config.test.repeats",
+        "config.test.resolveSnapshotPath",
+        "config.test.runner",
+        "config.test.server",
+        "config.test.sharedViteServer",
+        "config.test.silent",
+        "config.test.slowTestThreshold",
+        "config.test.snapshotEnvironment",
+        "config.test.snapshotFormat",
+        "config.test.taskTitleValueFormatTruncate",
+        "config.test.teardownTimeout",
+        "config.test.update",
+        "config.tsconfig",
+        "config.worker"
+      ]
+    },
+    {
+      "id": "configuration.reporting-editor-watch-and-debug-options",
+      "status": "missing",
+      "capabilityPaths": [
+        "features.resultReports",
+        "features.editorControls",
+        "features.watch",
+        "features.debugging"
+      ],
+      "profiles": [
+        "separate Next CLI implementations exist; these authored config options are not admitted"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "No config option conformance claimed. Actual CLI result reporters, watch/changed selection, editor controls and worker debugger behavior must be documented as CLI features rather than these config rows.",
+      "remaining": [
+        "Translate configured reporters/output/API/watch/debug options",
+        "Watch-trigger extension points and UI behavior",
+        "Preserve actual lifecycle and reporter semantics when adding configuration forms"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/cli/next-test-runner.ts",
+        "packages/next/src/experimental/testing/editor-api.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/next-testing-reporting/reporting.test.ts",
+        "test/unit/app-dir/next-testing-watch/next-testing-watch.test.ts",
+        "packages/next/experimental/testing/editor-api.md"
+      ],
+      "rowApi": [
+        "config.test.api",
+        "config.test.changed",
+        "config.test.forceRerunTriggers",
+        "config.test.inspect",
+        "config.test.inspectBrk",
+        "config.test.inspector",
+        "config.test.open",
+        "config.test.outputFile",
+        "config.test.reporters",
+        "config.test.ui",
+        "config.test.uiBase",
+        "config.test.watch",
+        "config.test.watchTriggerPatterns"
+      ]
+    },
+    {
+      "id": "configuration.scheduling-and-sequence",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.scheduling",
+        "execution.fileIsolation",
+        "authoring"
+      ],
+      "profiles": [
+        "bounded Node/RSC one-shot/development-watch workers; serial Browser leases; isolate:false serial development Node cohorts"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Actual bounded worker scheduling (1..64 including measured percentages), case concurrency, supported hook/setup ordering and global file/test shuffle seed propagation are implemented. Explicit isolate:false uses actual serial compiler cohorts in its stated profile.",
+      "remaining": [
+        "Watch sharding and concurrent Browser cases",
+        "Shared/cohort execution outside the serial development Node subset",
+        "All timeout/snapshot/resource interactions, other pool semantics and complete sequence defaults"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/scheduling.ts",
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/runner/sequence.ts",
+        "packages/next/src/experimental/testing/runner/collector.ts",
+        "packages/next/src/cli/next-test-runner.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/next-testing-lifecycle/next-testing-lifecycle.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "config.test.isolate",
+        "config.test.maxConcurrency",
+        "config.test.maxWorkers",
+        "config.test.sequence",
+        "config.test.sequence.concurrent",
+        "config.test.sequence.hooks",
+        "config.test.sequence.seed",
+        "config.test.sequence.setupFiles",
+        "config.test.sequence.shuffle"
+      ]
+    },
+    {
+      "id": "configuration.sequence-extensions-and-pools",
+      "status": "missing",
+      "capabilityPaths": ["features.scheduling.unsupported"],
+      "profiles": ["no qualified public config implementation"],
+      "workstream": "scheduling-tooling",
+      "implemented": "No config implementation claimed. CLI --no-file-parallelism is a distinct implemented worker-limit control; it does not implement config.test.fileParallelism or the reference pool APIs.",
+      "remaining": [
+        "Public pool/worker selection and options",
+        "Custom/grouped sequencers",
+        "Configuration forms of fileParallelism/execArgv and VM memory behavior"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/cli/next-test-runner.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+      ],
+      "rowApi": [
+        "config.test.execArgv",
+        "config.test.fileParallelism",
+        "config.test.pool",
+        "config.test.sequence.groupOrder",
+        "config.test.sequence.sequencer",
+        "config.test.vmMemoryLimit"
+      ]
+    },
+    {
+      "id": "configuration.snapshot-serializers",
+      "status": "partial",
+      "capabilityPaths": ["authoring.snapshots", "features.snapshotUpdate"],
+      "profiles": [
+        "qualified Node/RSC snapshot profiles; Browser serializer compositions remain bounded"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Configured serializer modules load through the actual compiler/setup ordering and feed the existing snapshot system.",
+      "remaining": [
+        "Complete serializer/provider/Browser/watch/failure-phase combinations",
+        "Public snapshot environment, formatting and custom path configuration semantics"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/assertions/snapshots.ts",
+        "test/unit/next-testing-stage2-api/api.test.ts",
+        "test/unit/next-testing-stage2-api/snapshot-parent.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+      ],
+      "rowApi": ["config.test.snapshotSerializers"]
+    },
+    {
+      "id": "configuration.standard-coverage-options",
+      "status": "missing",
+      "capabilityPaths": [
+        "features.coverage.scope",
+        "features.coverage.unsupported"
+      ],
+      "profiles": [
+        "not implemented through the project-configured option rows; separate CLI V8 subset exists"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "No runtime configuration implementation claimed for these rows. Exported coverageConfigDefaults are inert data. CLI standard flags exercise a separate V8 path with bounded implemented includes, reports, cleanOnRerun and thresholds.",
+      "remaining": [
+        "Translate project-configured standard providers/options into actual execution/reporting",
+        "Coverage processing/external/remap/watermark/class-method/instrumenter options",
+        "Changed-source/provider/subprocess options and advanced threshold/report formats"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/coverage/custom-options.ts",
+        "packages/next/src/experimental/testing/coverage/options.ts",
+        "packages/next/src/experimental/testing/config-api.ts",
+        "packages/next/src/cli/next-test-runner.ts",
+        "test/unit/next-testing-coverage/next-testing-coverage.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+      ],
+      "rowApi": [
+        "config.test.coverage.allowExternal",
+        "config.test.coverage.autoAttachSubprocess",
+        "config.test.coverage.changed",
+        "config.test.coverage.cleanOnRerun",
+        "config.test.coverage.exclude",
+        "config.test.coverage.excludeAfterRemap",
+        "config.test.coverage.htmlDir",
+        "config.test.coverage.ignoreClassMethods",
+        "config.test.coverage.include",
+        "config.test.coverage.instrumenter",
+        "config.test.coverage.processingConcurrency",
+        "config.test.coverage.reporter",
+        "config.test.coverage.skipFull",
+        "config.test.coverage.thresholds",
+        "config.test.coverage.watermarks"
+      ]
+    },
+    {
+      "id": "configuration.typechecking-build-and-spawn",
+      "status": "missing",
+      "capabilityPaths": ["authoring.typeAssertionScope"],
+      "profiles": ["no qualified implementation"],
+      "workstream": "scheduling-tooling",
+      "implemented": "build:false only preserves the supported one-shot mode; rejecting build:true is not build functionality. spawnTimeout is not an admitted option.",
+      "remaining": [
+        "Actual TypeScript build/reference mode",
+        "Reference-compatible compiler spawn-timeout controls"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/typecheck.ts",
+        "packages/next/src/cli/next-test-runner.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+      ],
+      "rowApi": [
+        "config.test.typecheck.build",
+        "config.test.typecheck.spawnTimeout"
+      ]
+    },
+    {
+      "id": "configuration.typechecking-one-shot",
+      "status": "partial",
+      "capabilityPaths": ["authoring.typeAssertionScope"],
+      "profiles": [
+        "one-shot consumer TypeScript tsc process; without watch/list/inspect/coverage"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Actual one-shot consumer tsc checking selects type-test files, records real original AST spans and preserves source errors without executing authored callbacks. checker:tsc is supported; the option is not general checker parity.",
+      "remaining": [
+        "Alternate checkers and full type-tooling declaration conformance",
+        "Watch/list/debug/coverage combinations",
+        "Focused type-task selection and all source-error/project/compiler-version combinations"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/typecheck.ts",
+        "packages/next/src/experimental/testing/typecheck-worker.ts",
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/cli/next-test-runner.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/compiler-backed-typecheck/contract.test-d.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/compiler-backed-typecheck/tsconfig.json",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "config.test.typecheck",
+        "config.test.typecheck.allowJs",
+        "config.test.typecheck.checker",
+        "config.test.typecheck.enabled",
+        "config.test.typecheck.exclude",
+        "config.test.typecheck.ignoreSourceErrors",
+        "config.test.typecheck.include",
+        "config.test.typecheck.only",
+        "config.test.typecheck.tsconfig"
+      ]
+    },
+    {
+      "id": "configuration.vite-mode",
+      "status": "missing",
+      "workstream": "scheduling-tooling",
+      "capabilityPaths": ["features.typescriptConfig"],
+      "profiles": [
+        "Vitest/Vite mode semantics are not implemented by the Next execution-profile selector"
+      ],
+      "implemented": "Next development/production execution-profile selection exists separately; it does not implement this reference option.",
+      "remaining": [
+        "Implement the reference Vite-mode contract or obtain an explicit scoped release decision with a migration path."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config.ts",
+        "packages/next/src/experimental/testing/config-worker.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts"
+      ],
+      "rowApi": ["config.test.mode"]
+    },
+    {
+      "id": "coverage.cli-standard-v8",
+      "status": "partial",
+      "capabilityPaths": ["features.coverage"],
+      "profiles": [
+        "bounded development/production Node; development Chromium; development Node/client standard watch; bare coverage separate Node one-shot line mode"
+      ],
+      "workstream": "coverage",
+      "implemented": "CLI dotted standard V8 flags drive actual source plans, retained maps/counters, JSON/JSON summary/text summary/LCOV/lcovonly reports, minimum or negative uncovered-count thresholds, per-file thresholds and bounded watch replacement/cleanOnRerun behavior. Real mapping refinements remain individually bounded to measured TypeScript/JSX owners.",
+      "remaining": [
+        "Project-configured V8/Istanbul and full provider parity",
+        "RSC, production Browser/production-watch coverage, runtime/CommonJS mock and snapshot-update combinations",
+        "Broader TypeScript/JSX transforms and emitted owners, arbitrary effective-config dependencies",
+        "Remaining reporter formats, glob/update threshold modes and cross-shard aggregation",
+        "Earlier intermittent coverage-watch hang has no established causal fix and remains separate qualification work"
+      ],
+      "evidence": [
+        "packages/next/src/cli/next-test-runner.ts",
+        "packages/next/src/experimental/testing/coverage/options.ts",
+        "packages/next/src/experimental/testing/coverage/report-standard.ts",
+        "packages/next/src/experimental/testing/coverage/parameter-properties.ts",
+        "packages/next/src/experimental/testing/coverage/source-analysis.ts",
+        "test/unit/next-testing-coverage/next-testing-coverage.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "execution-environments",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.domProviderWindow",
+        "execution.runtimeWindow"
+      ],
+      "profiles": [
+        "Node compiler profiles in development/production; real jsdom, happy-dom, edge-runtime and custom SSR providers"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Real provider setup/teardown, serializable environment options and leading per-file directives execute in owned file workers; global descriptors are restored even on failure. DOM proxy-hidden event methods, matchMedia placeholder and actual provider identity are positively implemented. Custom SSR environment setup can await teardown.",
+      "remaining": [
+        "Custom client compilation environments are explicitly unimplemented (viteEnvironment:client refuses).",
+        "Edge VM options are not admitted and cannot be counted as supported Edge functionality.",
+        "Full downstream DOM/provider/version/profile matrix, setup/mocking/coverage/clock combinations and broader cleanup stress remain qualification."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/environments/config.ts",
+        "packages/next/src/experimental/testing/environments/runtime.ts",
+        "packages/next/src/experimental/testing/environments/edge.ts",
+        "test/unit/next-testing-execution/next-testing-execution.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/fixtures/per-file-environment/contract.case.mjs",
+        "test/e2e/app-dir/next-testing-package/verify-dom-downstream.mjs",
+        "test/e2e/app-dir/next-testing-package/dom-downstream.expected.json"
+      ],
+      "rowApi": ["config.test.environment", "config.test.environmentOptions"]
+    },
+    {
+      "id": "mocking-commonjs-publication",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.staticFactoryMocks.commonJsOriginals",
+        "features.staticFactoryMocks.commonJsImportMock",
+        "features.staticFactoryMocks.callablePublication",
+        "features.staticFactoryMocks.commonJsFactories"
+      ],
+      "profiles": [
+        "isolated development Node20/22/24/26; bounded certified CommonJS leaf helper targets"
+      ],
+      "workstream": "mocking",
+      "implemented": "Certified ordinary callable/async/generator namespaces retain descriptors, key order, strict receivers and actual completion. The exact self-default plus true-flag form is pushed; 44 new complete four-engine rows and 92 installed rows extend the prior publication corpus.",
+      "remaining": [
+        "The original truthy-export corpus has 20/32 complete matching rows and 28 passing bodies; twelve complete-row gaps remain.",
+        "Hidden own data flags, other default/getter/flag forms and broader then-adopted/TLA/Promise/reset combinations. The N hidden-flag proposal is unapplied and is not implementation evidence.",
+        "Author require() mock interception is excluded by the upstream compatibility contract; certified internal CommonJS dependency edges/reset support remains separate."
+      ],
+      "evidence": [
+        "test/unit/next-testing-compiler/next-testing-compiler.test.ts",
+        "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-publication/contract.test.mjs.txt",
+        "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-publication/pristine-rows.json",
+        "test/unit/next-testing-compiler/external-package/cjs-import-mock-self-default-inherited/pristine-rows.json"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "mocking-module-cache-reset",
+      "status": "partial",
+      "capabilityPaths": ["features.moduleCacheReset"],
+      "profiles": [
+        "isolated development Node; compiled ESM, certified compiled CommonJS graph and native provider generations"
+      ],
+      "workstream": "mocking",
+      "implemented": "Actual compiler-owned dynamic import/reset generations preserve certified CommonJS dependencies/cycles and held namespaces. Anonymous terminal function expression support is pushed; native package/builtin namespaces follow certified provider IDs.",
+      "remaining": [
+        "Named/async/generator/arrow/class expression and complex-parameter reset certificates beyond the admitted syntax.",
+        "Leaf Promise behavior on Node20/22 and single-root native namespace identity retain demonstrated gaps.",
+        "Nonrelative importActual helpers, broader static/runtime combinations, unresolved/dynamic dependency edges and other execution profiles."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/mocking/module-cache.ts",
+        "test/unit/next-testing-compiler/next-testing-compiler.test.ts",
+        "test/unit/app-dir/next-testing-mocking/next-testing-mocking.test.ts"
+      ],
+      "rowApi": ["vitest:vi.resetModules", "vitest:vitest.resetModules"]
+    },
+    {
+      "id": "mocking-runtime-registration",
+      "status": "partial",
+      "capabilityPaths": ["features.runtimeFactoryMocks"],
+      "profiles": [
+        "isolated development Node; certified literal local ESM/CommonJS graphs and native targets"
+      ],
+      "workstream": "mocking",
+      "implemented": "doMock/doUnmock lazily execute lexical factories, preserve held namespaces, support registration replacement/unregistration, actual reset and measured pending/failure ownership. Certified compiled CommonJS dependencies/cycles and ESM demand graphs execute real bodies and match full rows.",
+      "remaining": [
+        "Eight exploratory compiled ESM p/q completion-order rows differ.",
+        "Broader async/dynamic/native-demand graphs, compiled static/runtime mixtures and cross-completed-attempt factories.",
+        "RSC, Browser and production runtime mocks; setup, serializers, coverage, custom realms and shared cohorts.",
+        "Direct require() interception is upstream excluded, not a required missing compatibility feature."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/mocking/dynamic.ts",
+        "packages/next/src/experimental/testing/mocking/runtime.ts",
+        "packages/next/src/experimental/testing/mocking/registry.ts",
+        "test/unit/next-testing-compiler/next-testing-compiler.test.ts",
+        "test/unit/next-testing-compiler/external-package/runtime-registration-dependency-transitions-v2/pristine-rows.json",
+        "test/e2e/app-dir/next-testing-package/verify-mock-runtime.mjs"
+      ],
+      "rowApi": [
+        "vitest:vi.doMock",
+        "vitest:vi.doUnmock",
+        "vitest:vitest.doMock",
+        "vitest:vitest.doUnmock"
+      ]
+    },
+    {
+      "id": "mocking-static-module-helpers",
+      "status": "partial",
+      "capabilityPaths": ["features.staticFactoryMocks"],
+      "profiles": [
+        "development Node (isolated; certified local/compiled ESM, CommonJS, native packages/builtins)",
+        "development route-less RSC static factories",
+        "development Chromium bounded local ESM",
+        "production Node bounded static factories"
+      ],
+      "workstream": "mocking",
+      "implemented": "Compiler-owned static vi.mock/hoisted/importActual/importMock/unmock execute real source identities and namespace/cache behavior in their stated subsets. Literal source/import targets, factory keys, original callbacks, manual/automatic mocks, native packages/builtins and selected cycles are positively implemented.",
+      "remaining": [
+        "Broader setup/reset/runtime combinations across Browser, RSC and production.",
+        "Computed/dynamic/query/attribute targets and arbitrary factory export shapes.",
+        "Multi-target, dynamic-only, manual/setup or competing-actual original cycles.",
+        "Complete missing-original diagnostics and cross-profile callback behavior."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/vitest.ts",
+        "test/unit/next-testing-compiler/next-testing-compiler.test.ts",
+        "test/unit/app-dir/next-testing-mocking/next-testing-mocking.test.ts",
+        "test/e2e/app-dir/next-testing-package/verify-mock-authoring.mjs"
+      ],
+      "rowApi": [
+        "vitest:vi.hoisted",
+        "vitest:vi.importActual",
+        "vitest:vi.importMock",
+        "vitest:vi.mock",
+        "vitest:vi.unmock",
+        "vitest:vitest.hoisted",
+        "vitest:vitest.importActual",
+        "vitest:vitest.importMock",
+        "vitest:vitest.mock",
+        "vitest:vitest.unmock"
+      ]
+    },
+    {
+      "id": "qualification.cleanup-and-production-omission",
+      "status": "partial",
+      "profiles": [
+        "maintained isolated worker/server/browser cleanup and normal application compilation controls"
+      ],
+      "implemented": "Existing process-supervision, resource-cleanup, cancellation and application-omission controls remain part of the implementation baseline.",
+      "remaining": [
+        "Sustained combined cleanup/cancellation/worker/browser stress, production omission across every application output/trace and the complete release execution matrix remain qualification work."
+      ],
+      "evidence": [
+        "test/e2e/app-dir/next-testing-package/verify-process-supervisor.mjs",
+        "test/unit/next-testing-browser-resources/browser.test.ts",
+        "test/unit/next-testing-compiler/next-testing-compiler.test.ts",
+        "NEXT_TESTING_STABLE_RELEASE.md"
+      ],
+      "workstream": "adoption-release",
+      "capabilityPaths": [],
+      "rowApi": []
+    },
+    {
+      "id": "qualification.platforms-and-ci",
+      "status": "unreviewed",
+      "profiles": ["complete release matrix remains unqualified"],
+      "implemented": "No complete supported Node/OS/architecture/browser/CI matrix is claimed. The last coherent full checkpoint and subsequent targeted checks are recorded separately.",
+      "remaining": [
+        "Run full acceptance against the exact integrated implementation revision, then qualify advertised Node engines, operating systems, architectures, browsers, package managers and CI workflows.",
+        "Retain the historical revision152 watch failure as unresolved until its cause is established.",
+        "Linux qualification and performance benchmarking remain deferred by user direction; all source and functional qualification stay local."
+      ],
+      "evidence": [
+        "NEXT_TESTING_STABLE_PROGRESS.md",
+        "NEXT_TESTING_STABLE_RELEASE.md"
+      ],
+      "workstream": "adoption-release",
+      "capabilityPaths": [],
+      "rowApi": []
+    },
+    {
+      "id": "rsc-route-and-stream-rendering",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.rscRouteRendering",
+        "execution.routeContextScope",
+        "execution.routeDefaultSlots",
+        "execution.routeNotFound",
+        "execution.routeAuthInterrupts"
+      ],
+      "profiles": [
+        "explicit development/production Turbopack Node force-dynamic RSC routes; cacheScope:file"
+      ],
+      "workstream": "browser-rendering",
+      "implemented": "Supplied subtrees and full buffered/streaming route helpers use real AppPage entries, layouts, manifests/request stores, native HTML/Flight bytes and cleanup. Complete corpora cover encoded params, default slots, notFound/auth/redirects, streaming cancellation, held/rejected after work and healthy following requests. Pushed error/boundary/digest work preserves real separate debug-channel producer closure and 32 complete installed error rows.",
+      "remaining": [
+        "Implicit or static/prerender routes, Cache Components/PPR, Server Action transport and client hydration.",
+        "Broader parallel/intercepted route contracts, public debug transport, partial-delivery/cancel combinations, Edge and other profiles/platforms.",
+        "Production RSC watch and broader rendering/coverage combinations remain unqualified. routeContext:false describes lack of general implicit route context; it must not erase the explicit implemented contracts."
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/rsc/route-render.ts",
+        "packages/next/src/experimental/testing/compiler/route-render.ts",
+        "packages/next/experimental/testing/rsc-route-rendering.md",
+        "test/unit/next-testing-rsc-lifecycle/bridge.test.ts",
+        "test/unit/next-testing-rsc-lifecycle/render-request.test.ts",
+        "test/e2e/app-dir/next-testing-package/verify-route-stream.mjs",
+        "test/e2e/app-dir/next-testing-package/verify-route-render-errors.mjs",
+        "test/e2e/app-dir/next-testing-package/fixtures/route-render-errors/development.expected.json",
+        "test/e2e/app-dir/next-testing-package/fixtures/route-render-errors/production.expected.json"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "tooling.cli-affected-watch-selection",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.affectedSelection",
+        "features.watch.changedNodeInitialSelection",
+        "features.productionRelatedWatch"
+      ],
+      "profiles": [
+        "isolated development/production Node initial related/changed watch; later actual compiler-consumer selection"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "One-shot related/changed selection and bounded related/changed watch use real Git changed-source inputs and the actual compiler dependency planner. Later edits retain the complete discovered registry and select actual consumers. Dirty alpha, beta-only, shared-both, unrelated-no-report and alpha-only stages match both modes and fresh installed consumers.",
+      "remaining": [
+        "Empty initial selection, staged/untracked/additions/deletions and invalid-ref/no-Git watch",
+        "Other profiles/reporters/shards/platforms",
+        "Broader affected/configuration-dependency selection and full incremental lifecycle qualification"
+      ],
+      "evidence": [
+        "packages/next/src/cli/next-test-runner.ts",
+        "packages/next/src/experimental/testing/incremental/source-selection.ts",
+        "packages/next/src/experimental/testing/incremental/source-planner.ts",
+        "packages/next/src/experimental/testing/incremental/watch-session.ts",
+        "test/unit/app-dir/next-testing-incremental/next-testing-incremental.test.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "packages/next/src/experimental/testing/incremental/README.md"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "tooling.cli-editor-debug-controls",
+      "status": "partial",
+      "capabilityPaths": ["features.editorControls", "features.debugging"],
+      "profiles": [
+        "isolated development/production Node one-shot cancellation and watch full/file reruns without coverage; one-shot real worker CDP debugger"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Editor discovery/cancellation and settled full/file-profile watch reruns use the actual watch owner and retain stale/running/duplicate refusal, active cleanup and recovery. --inspect/--inspectBrk debug the real file worker with measured CDP resume and paused cancellation.",
+      "remaining": [
+        "Individual case actions, editor debugging and snapshot controls",
+        "Watch debugging, coverage composition and broader setup/profile/editor-extension compatibility",
+        "First-authored-line pause equivalence and long debugger pauses"
+      ],
+      "evidence": [
+        "packages/next/src/cli/next-test-runner.ts",
+        "packages/next/src/experimental/testing/editor-api.ts",
+        "packages/next/src/experimental/testing/incremental/watch-session.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/experimental/testing/editor-api.md"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "tooling.cli-listing-and-sharding",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.listing",
+        "features.scheduling.sharding",
+        "features.testNamePattern"
+      ],
+      "profiles": [
+        "one-shot filtered projects; static native-SWC discovery or explicit owned collection; isolated shard checkouts"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Actual one-shot sharding uses canonical physical-path SHA-1 partitions after filtering with stable balance and fresh project/file-size order. Listing supports plain files and native static JSON declarations, plus explicit real compiler collection.",
+      "remaining": [
+        "Watch sharding and shared writable application output",
+        "Custom transforms/re-exported declaration helpers in static discovery",
+        "Full foreign schema/report/shard coverage aggregation and project/focus matrix"
+      ],
+      "evidence": [
+        "packages/next/src/cli/next-test-runner.ts",
+        "packages/next/src/experimental/testing/scheduling.ts",
+        "packages/next/src/experimental/testing/discovery.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "tooling.cli-reporting-and-merge",
+      "status": "partial",
+      "capabilityPaths": ["features.resultReports"],
+      "profiles": [
+        "qualified one-shot Node, bounded development/production Chromium callbacks, serial development cohorts; final terminal-blob replay"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Built-in result reporters and real supervised custom completion adapters retain measured task/console/module/case/run-end facts, typed local/package reporter graphs and captured terminal-blob replay. Next blobs and validated terminal Vitest 5.0.4 tasks merge without compiling authored tests.",
+      "remaining": [
+        "Custom-reporter watch lifetimes and concurrent attribution",
+        "CTS/alias/plugin and broader typed reporter graphs or advanced task/context APIs",
+        "Foreign coverage/nonterminal tasks/other merge reporters, full schema and snapshot statistics"
+      ],
+      "evidence": [
+        "packages/next/src/cli/next-test-runner.ts",
+        "packages/next/src/experimental/testing/reporting/custom-reporter.ts",
+        "packages/next/src/experimental/testing/reporting/custom-reporter-loader.ts",
+        "packages/next/src/experimental/testing/reporting/custom-reporter-worker.ts",
+        "packages/next/src/experimental/testing/reporting/builtin-reporters.ts",
+        "test/unit/next-testing-reporting/reporting.test.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/app-dir/next-testing-stable-release-gaps/release-gaps.test.ts",
+        "packages/next/src/experimental/testing/reporting/README.md"
+      ],
+      "rowApi": []
+    },
+    {
+      "id": "types.configuration-helper-subset",
+      "status": "partial",
+      "capabilityPaths": [
+        "features.typescriptConfig",
+        "authoring.typescriptImports"
+      ],
+      "profiles": [
+        "published inert config helper bridge; broad Record config fields"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "Existing ConfigEnv and inert defineConfig/defineProject helper aliases publish a bounded object/Promise/function surface. Broader configuration shape acceptance is intentionally not an implementation claim.",
+      "remaining": [
+        "Exact reference named exports/overloads and project/workspace type relationships",
+        "Field-level positive/negative type fidelity and configuration runtime equivalence"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config-api.ts",
+        "packages/next/experimental/testing/vitest-global.d.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest/config:ConfigEnv",
+        "vitest/config:ViteUserConfig",
+        "vitest/config:ViteUserConfigExport",
+        "vitest/config:ViteUserConfigFn",
+        "vitest/config:ViteUserConfigFnObject",
+        "vitest/config:ViteUserConfigFnPromise"
+      ]
+    },
+    {
+      "id": "types.configuration-project-workspace-contracts",
+      "status": "missing",
+      "capabilityPaths": ["features.typescriptConfig"],
+      "profiles": [
+        "no named public declarations for these reference types in the config bridge"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "The config bridge exports broad UserConfig aliases; it does not publish these six named project/workspace contracts.",
+      "remaining": [
+        "Provide required named public config/project/workspace types with exact relationships and installed positive/negative controls"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config-api.ts",
+        "packages/next/experimental/testing/vitest-global.d.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest/config:TestProjectConfiguration",
+        "vitest/config:TestProjectInlineConfiguration",
+        "vitest/config:TestUserConfig",
+        "vitest/config:UserProjectConfigExport",
+        "vitest/config:UserProjectConfigFn",
+        "vitest/config:UserWorkspaceConfig"
+      ]
+    },
+    {
+      "id": "types.tooling-controller-coverage-and-reporter-contracts",
+      "status": "unreviewed",
+      "capabilityPaths": [
+        "features.resultReports",
+        "features.coverage",
+        "features.scheduling",
+        "features.editorControls",
+        "authoring.typeAssertionScope"
+      ],
+      "profiles": [
+        "private Next runtime interfaces exist, but these reference public controller types are not independently qualified"
+      ],
+      "workstream": "scheduling-tooling",
+      "implemented": "No named public reference type conformance claimed. Private Next reporter, coverage-provider, scheduling, editor or tsc interfaces are not substitutes for the public vitest/node type surface.",
+      "remaining": [
+        "Audit each named public export and exact declarations against the pinned reference",
+        "Strict installed consumer positive/negative controls for generics, overloads and module routing",
+        "Implement missing public APIs only when required by the stable release contract"
+      ],
+      "evidence": [
+        "packages/next/src/experimental/testing/config-api.ts",
+        "packages/next/src/experimental/testing/coverage/custom-types.ts",
+        "packages/next/src/experimental/testing/reporting/custom-reporter.ts",
+        "packages/next/src/experimental/testing/typecheck.ts",
+        "packages/next/src/experimental/testing/editor-api.ts",
+        "test/unit/next-testing-cli/next-testing-cli.test.ts",
+        "test/unit/next-testing-reporting/reporting.test.ts",
+        "test/unit/next-testing-coverage/next-testing-coverage.test.ts",
+        "packages/next/experimental/testing/README.md"
+      ],
+      "rowApi": [
+        "vitest/config:Plugin",
+        "vitest/config:WatcherTriggerPattern",
+        "vitest/node:ApiConfig",
+        "vitest/node:BaseCoverageOptions",
+        "vitest/node:BuiltinReporterOptions",
+        "vitest/node:BuiltinReporters",
+        "vitest/node:CliOptions",
+        "vitest/node:CliParseOptions",
+        "vitest/node:CoverageInstrumenter",
+        "vitest/node:CoverageIstanbulOptions",
+        "vitest/node:CoverageOptions",
+        "vitest/node:CoverageProvider",
+        "vitest/node:CoverageProviderModule",
+        "vitest/node:CoverageReporter",
+        "vitest/node:CoverageV8Options",
+        "vitest/node:CustomProviderOptions",
+        "vitest/node:HTMLOptions",
+        "vitest/node:InlineConfig",
+        "vitest/node:InstrumenterOptions",
+        "vitest/node:JUnitOptions",
+        "vitest/node:JsonAssertionResult",
+        "vitest/node:JsonOptions",
+        "vitest/node:JsonTestResult",
+        "vitest/node:JsonTestResults",
+        "vitest/node:Pool",
+        "vitest/node:PoolOptions",
+        "vitest/node:PoolRunnerInitializer",
+        "vitest/node:PoolTask",
+        "vitest/node:PoolWorker",
+        "vitest/node:ProcessPool",
+        "vitest/node:ProjectConfig",
+        "vitest/node:Report",
+        "vitest/node:ReportContext",
+        "vitest/node:ReportedHookContext",
+        "vitest/node:Reporter",
+        "vitest/node:ResolvedConfig",
+        "vitest/node:ResolvedCoverageOptions",
+        "vitest/node:ResolvedProjectConfig",
+        "vitest/node:SequenceHooks",
+        "vitest/node:SequenceSetupFiles",
+        "vitest/node:SerializedTestProject",
+        "vitest/node:TestSequencer",
+        "vitest/node:TestSequencerConstructor",
+        "vitest/node:TypeCheckCollectLineNumbers",
+        "vitest/node:TypeCheckCollectLines",
+        "vitest/node:TypeCheckContext",
+        "vitest/node:TypeCheckErrorInfo",
+        "vitest/node:TypeCheckRawErrorsMap",
+        "vitest/node:TypeCheckRootAndTarget",
+        "vitest/node:TypecheckConfig",
+        "vitest/node:UIOptions",
+        "vitest/node:UserWorkspaceConfig",
+        "vitest/node:VitestOptions",
+        "vitest/node:VitestPluginContext",
+        "vitest/node:VitestRunMode",
+        "vitest/node:WatcherTriggerPattern",
+        "vitest:RuntimeConfig",
+        "vitest:SerializedConfig",
+        "vitest:SerializedCoverageConfig",
+        "vitest:SerializedRootConfig",
+        "vitest:TestRunnerConfig"
+      ]
+    }
+  ]
+}

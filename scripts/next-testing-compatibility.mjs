@@ -1,5 +1,5 @@
-import { readFile, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { readFile, stat, writeFile } from 'node:fs/promises'
+import { dirname, isAbsolute, join, relative } from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
@@ -33,26 +33,6 @@ const program = ts.createProgram(
   options
 )
 const checker = program.getTypeChecker()
-const implemented = new Set([
-  'assert',
-  'assertType',
-  'expectTypeOf',
-  'test',
-  'it',
-  'describe',
-  'suite',
-  'expect',
-  'createExpect',
-  'inject',
-  'vi',
-  'vitest',
-  'beforeAll',
-  'afterAll',
-  'beforeEach',
-  'afterEach',
-  'onTestFinished',
-  'onTestFailed',
-])
 const rows = []
 const keys = new Set()
 function add(row) {
@@ -73,7 +53,6 @@ for (const { subpath, file } of paths) {
     add({
       api: `vitest${subpath.slice(1)}`,
       surface: 'ambient declarations',
-      implemented: false,
     })
     continue
   }
@@ -88,7 +67,6 @@ for (const { subpath, file } of paths) {
     add({
       api,
       surface: runtime ? 'runtime export' : 'public type',
-      implemented: subpath === '.' && implemented.has(exported.name),
       overloads: signatures(type),
     })
     if (
@@ -145,8 +123,199 @@ for (const { subpath, file } of paths) {
   }
 }
 rows.sort((a, b) => (a.api < b.api ? -1 : a.api > b.api ? 1 : 0))
+
+// Availability is extracted from the actual Next facades, independently of the
+// reference program. Merely exporting a name does not establish conformance.
+const entries = {
+  vitest: 'packages/next/src/experimental/testing/vitest.ts',
+  'vitest/config': 'packages/next/src/experimental/testing/config-api.ts',
+  'vitest/browser':
+    'packages/next/src/experimental/testing/client/browser-context.ts',
+}
+const nextProgram = ts.createProgram(
+  Object.values(entries).map((file) => join(root, file)),
+  options
+)
+const nextChecker = nextProgram.getTypeChecker()
+const facades = new Map(
+  Object.entries(entries).map(([name, file]) => {
+    const source = nextProgram.getSourceFile(join(root, file))
+    const symbol = source && nextChecker.getSymbolAtLocation(source)
+    if (!symbol) throw new Error(`Cannot inventory Next facade ${name}`)
+    return [
+      name,
+      {
+        file,
+        source,
+        exports: new Map(
+          nextChecker
+            .getExportsOfModule(symbol)
+            .map((item) => [item.name, item])
+        ),
+      },
+    ]
+  })
+)
+function availability(row) {
+  const match = /^(vitest(?:\/[^:]+)?):([^.]+)(?:\.(.+))?$/.exec(row.api)
+  if (!match) return { status: 'not-applicable' }
+  const [, module, name, member] = match
+  const facade = facades.get(module)
+  const exported = facade?.exports.get(name)
+  if (!exported)
+    return { status: 'absent', ...(facade && { entry: facade.file }) }
+  const resolved =
+    exported.flags & ts.SymbolFlags.Alias
+      ? nextChecker.getAliasedSymbol(exported)
+      : exported
+  const typeOnly = exported.declarations?.some(
+    (item) =>
+      ts.isExportSpecifier(item) &&
+      (item.isTypeOnly || item.parent.parent.isTypeOnly)
+  )
+  const exists = member
+    ? nextChecker
+        .getTypeOfSymbolAtLocation(resolved, facade.source)
+        .getProperty(member)
+    : row.surface === 'runtime export'
+      ? !typeOnly && resolved.flags & ts.SymbolFlags.Value
+      : resolved.flags & ts.SymbolFlags.Type
+  return { status: exists ? 'available' : 'absent', entry: facade.file }
+}
+
+const evidencePath = join(
+  root,
+  'packages/next/src/experimental/testing/compatibility-evidence.json'
+)
+const evidence = JSON.parse(await readFile(evidencePath, 'utf8'))
+if (evidence.version !== 1 || evidence.referenceVersion !== manifest.version)
+  throw new Error('Compatibility evidence schema or reference version drifted.')
+const capabilitySource = ts.createSourceFile(
+  'capabilities.ts',
+  await readFile(
+    join(root, 'packages/next/src/experimental/testing/capabilities.ts'),
+    'utf8'
+  ),
+  ts.ScriptTarget.Latest,
+  true
+)
+let capabilityObject
+for (const statement of capabilitySource.statements) {
+  if (!ts.isVariableStatement(statement)) continue
+  for (const declaration of statement.declarationList.declarations) {
+    if (declaration.name.getText(capabilitySource) === 'testCapabilities') {
+      capabilityObject = declaration.initializer
+      while (ts.isAsExpression(capabilityObject))
+        capabilityObject = capabilityObject.expression
+    }
+  }
+}
+function hasCapability(path) {
+  let current = capabilityObject
+  for (const key of path.split('.')) {
+    if (!current || !ts.isObjectLiteralExpression(current)) return false
+    current = current.properties.find(
+      (property) => property.name?.getText(capabilitySource) === key
+    )?.initializer
+  }
+  return Boolean(current)
+}
+const statuses = new Set(['scoped', 'partial', 'missing', 'unreviewed'])
+const nonemptyString = (value) =>
+  typeof value === 'string' && value.trim() !== ''
+if (
+  !Array.isArray(evidence.groups) ||
+  !evidence.groups.length ||
+  [...statuses].some(
+    (status) => !nonemptyString(evidence.implementationStatus?.[status])
+  ) ||
+  !nonemptyString(evidence.checkpoint?.implementationCommit) ||
+  !evidence.checkpoint.lastFullAcceptance ||
+  evidence.qualification?.stableReady !== false ||
+  evidence.qualification.supportedVersionRange !== null ||
+  !Array.isArray(evidence.qualification.approvedExceptions)
+)
+  throw new Error('Incomplete compatibility evidence metadata.')
+const groupIds = new Set()
+const rowGroups = new Map()
+for (const group of evidence.groups) {
+  if (groupIds.has(group.id) || !nonemptyString(group.id))
+    throw new Error(`Duplicate or empty compatibility evidence id: ${group.id}`)
+  groupIds.add(group.id)
+  if (!statuses.has(group.status))
+    throw new Error(`Invalid compatibility implementation status: ${group.id}`)
+  for (const field of [
+    'capabilityPaths',
+    'profiles',
+    'remaining',
+    'evidence',
+    'rowApi',
+  ]) {
+    if (!Array.isArray(group[field]) || !group[field].every(nonemptyString))
+      throw new Error(`Invalid ${field} in compatibility evidence: ${group.id}`)
+  }
+  if (
+    !group.profiles.length ||
+    !group.evidence.length ||
+    !nonemptyString(group.implemented) ||
+    !group.remaining.length ||
+    !nonemptyString(group.workstream)
+  )
+    throw new Error(`Incomplete compatibility evidence: ${group.id}`)
+  for (const path of group.capabilityPaths) {
+    if (!hasCapability(path))
+      throw new Error(`Unknown capability path in ${group.id}: ${path}`)
+  }
+  for (const file of group.evidence) {
+    const path = join(root, file)
+    if (
+      isAbsolute(file) ||
+      relative(root, path).startsWith('..') ||
+      !(await stat(path)).isFile()
+    )
+      throw new Error(`Invalid evidence file in ${group.id}: ${file}`)
+  }
+  for (const api of group.rowApi) {
+    if (!keys.has(api))
+      throw new Error(`Unknown reference API in ${group.id}: ${api}`)
+    const groups = rowGroups.get(api) ?? []
+    if (groups.includes(group.id))
+      throw new Error(`Duplicate API in ${group.id}: ${api}`)
+    groups.push(group.id)
+    rowGroups.set(api, groups)
+  }
+}
+const groupsById = new Map(evidence.groups.map((group) => [group.id, group]))
+for (const row of rows) {
+  row.declaration = availability(row)
+  const groups = rowGroups.get(row.api) ?? []
+  const claims = groups.map((id) => groupsById.get(id).status)
+  row.implementation = {
+    status:
+      row.declaration.status === 'absent'
+        ? 'missing'
+        : claims.includes('partial')
+          ? 'partial'
+          : claims.includes('scoped')
+            ? claims.every((status) => status === 'scoped')
+              ? 'scoped'
+              : 'partial'
+            : claims.includes('missing')
+              ? 'missing'
+              : 'unreviewed',
+    evidenceGroups: groups,
+  }
+}
+function counts(items) {
+  return Object.fromEntries(
+    [...statuses].map((status) => [
+      status,
+      items.filter((item) => item === status).length,
+    ])
+  )
+}
 const inventory = {
-  version: 1,
+  version: 2,
   reference: {
     version: '5.0.4',
     revision: '6a11cf66f99fa610b7364363d5ca42b66d994f40',
@@ -154,8 +323,28 @@ const inventory = {
       'sha512-z0WxZRV2Sg48wF0FSgMq3TFG8JS38/Qr96vZVZdX6+Em9raQTvnXQvdTFJe2m3rfyJnEHeHQ/snceIdi8D1pVg==',
   },
   scope:
-    'Published declaration inventory. An implemented export is not full behavioral/type conformance. Overloads, modifier combinations, configuration semantics, CLI, environments and tooling remain release blockers until separately evidenced.',
+    'Pinned reference declarations plus reviewed Next implementation evidence. Declaration availability is an export/member shape check, not behavioral or type conformance. Implementation status applies only to the linked evidence groups and profiles. Missing or unverified release classifications remain blockers; unsupported-feature diagnostics do not complete functionality.',
+  implementationStatus: evidence.implementationStatus,
+  checkpoint: evidence.checkpoint,
+  qualification: evidence.qualification,
+  summary: {
+    referenceApis: rows.length,
+    declarations: {
+      available: rows.filter((row) => row.declaration.status === 'available')
+        .length,
+      absent: rows.filter((row) => row.declaration.status === 'absent').length,
+      notApplicable: rows.filter(
+        (row) => row.declaration.status === 'not-applicable'
+      ).length,
+    },
+    implementation: counts(rows.map((row) => row.implementation.status)),
+    evidenceGroups: counts(evidence.groups.map((group) => group.status)),
+    releaseCompatibleApis: rows.filter(
+      (row) => row.classification === 'Compatible'
+    ).length,
+  },
   subpaths: Object.keys(manifest.exports).sort(),
+  evidenceGroups: evidence.groups.map(({ rowApi: _, ...group }) => group),
   capabilities: rows,
 }
 const target = join(

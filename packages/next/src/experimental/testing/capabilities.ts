@@ -110,7 +110,7 @@ export const testCapabilities = {
       builderReceivers:
         'Development/production Node extend and override dispatch through the actual receiver, including borrowed methods and the public facade. Extend returns a fresh unmodified run API; override retains actual receiver identity and current suite scope. Complete nine-case/thirteen-event reference corpora, strict installed types and a six-case/eight-event serial development cohort retain cached receiver ownership. Options-only normalization, describe registration timing and broader receiver/profile forms remain unqualified.',
       dependencies:
-        'object-destructured names, aliases, and defaults; no rest, nested, or computed properties',
+        'object-destructured names, aliases, defaults and the bounded unicodeFixtureDependencies nested-destructuring subset; rest/computed and broader dependency forms remain unqualified',
     },
     expectUtilities: [
       'createExpect',
@@ -241,7 +241,7 @@ export const testCapabilities = {
       'complete concurrent timeout/snapshot/resource-mutation interactions',
       'complete around-hook failure/timeout conformance',
       'full Vitest task/result introspection',
-      'shared worker profiles beyond serial development Node cohorts; rest/nested/computed fixture dependencies',
+      'shared worker profiles beyond serial development Node cohorts; rest/computed and nested fixture dependencies beyond the unicodeFixtureDependencies subset',
       'untransformed vi.mock/vi.importActual/vi.hoisted',
     ],
     differences: [
@@ -265,7 +265,7 @@ export const testCapabilities = {
       'Node test graphs retain runtime typeof-window observations, including actual global stubs and installed DOM providers; ordinary application server/client contexts keep their own compiler folding. The unchanged two-case development/production Node corpus compares actual stubbed and restored branches and complete reference rows. Broader global/compiler/profile combinations remain unqualified.',
     routeContext: false,
     routeContextScope:
-      'Explicit development and production Node RSC routes use the actual AppProject page, loader tree, effective route configuration, manifests and request stores for a supplied subtree. The measured ASCII and encoded route corpora retain params/root params, headers and cookies, plus actual new/existing production snapshots. Normal dynamic-param helpers encode user-facing root and catch-all values after decoded logical request validation, matching ordinary app requests for spaces, Unicode, literal percent and encoded slash. The separate rsc.renderRoute helper renders actual ancestor layouts and buffered HTML/Flight for the qualified explicit force-dynamic route contract. Implicit routing, production watch, streaming/static/cache/PPR and broader route semantics remain unqualified.',
+      'Explicit development and production Node RSC routes use the actual AppProject page, loader tree, effective route configuration, manifests and request stores for a supplied subtree. The measured ASCII and encoded route corpora retain params/root params, headers and cookies, plus actual new/existing production snapshots. Normal dynamic-param helpers encode user-facing root and catch-all values after decoded logical request validation, matching ordinary app requests for spaces, Unicode, literal percent and encoded slash. The separate rsc.renderRoute and rsc.renderRouteStream helpers render actual ancestor layouts and buffered or streaming HTML/Flight for the qualified explicit force-dynamic route contracts described under features.rscRouteRendering. Implicit routing, production watch, static/cache/PPR and broader route semantics remain unqualified.',
     routeDefaultSlots:
       'Explicit force-dynamic development/production Node initial HTML/Flight rendering includes actual default-only named slots through the real AppProject loader tree. Eight installed cases match complete ordinary application rows for root and nested routes, both default slots, provider/client context, root params, repeated queries, headers, cookies and after callbacks. Existing unique-page/AppPath, named-page/interception, Node runtime and dynamicParams gates remain. Matching named slot pages, navigation, static/PPR/actions, streaming and broader hydration remain unqualified.',
     routeNotFound:
@@ -567,7 +567,7 @@ export const testCapabilities = {
     productionRelatedWatch: {
       supported: true,
       scope:
-        'Explicit ordinary development/production Node related watch retains all discovered entries while the initial compiler plan selects the requested source consumer. Later dependency edits select their actual consumers, shared edits rerun both owners, unrelated edits retain the existing machine report, and SIGINT joins shutdown. Both modes match the pristine five-stage corpus, including ten complete authored case/output rows with changed source values; all18 incremental and77 watch session controls pass with the old16 and71 bodies/expectations held. Every plan closes before selection, unknown evidence widens selection and superseded plans join before another run. Changed-watch, other profiles and additions/deletions, empty initial selections, coverage and broader reporter/editor interactions remain unqualified.',
+        'Explicit ordinary development/production Node related watch retains all discovered entries while the initial compiler plan selects the requested source consumer. Later dependency edits select their actual consumers, shared edits rerun both owners, unrelated edits retain the existing machine report, and SIGINT joins shutdown. Both modes match the pristine five-stage corpus, including ten complete authored case/output rows with changed source values; all18 incremental and77 watch session controls pass with the old16 and71 bodies/expectations held. Every plan closes before selection, unknown evidence widens selection and superseded plans join before another run. Changed-watch combinations beyond watch.changedNodeInitialSelection, other profiles, additions/deletions, empty initial selections, coverage and broader reporter/editor interactions remain unqualified.',
     },
     resultReports: {
       nodeSuiteErrorOwnership:
@@ -599,7 +599,7 @@ export const testCapabilities = {
     typescriptConfig: {
       supported: true,
       scope:
-        'Next, Vitest, and Vite test configs load in an isolated retained realm; compatible discovery, globals, setup/global setup and provided context are translated. Compiler overrides and unimplemented settings receive explicit errors.',
+        'Next, Vitest, and Vite test configs load in an isolated retained realm; compatible discovery, globals, setup/global setup and provided context are translated. Bounded string-alias and transform adapters use the actual Next compiler; other compiler overrides and unimplemented settings receive explicit errors.',
     },
     coverage: {
       classFieldFunctions:
@@ -627,6 +627,8 @@ export const testCapabilities = {
         'development Chromium client',
       ],
       reports: ['json', 'json-summary', 'text', 'text-summary', 'lcov'],
+      reportsScope:
+        'The reports list includes bare-coverage legacy JSON/text output. Standard dotted reporter flags admit JSON, JSON summary, text summary, LCOV and the additional LCOV-only subset; the standard full text reporter remains unimplemented.',
       additionalReports: [
         {
           name: 'lcovonly',
@@ -661,7 +663,7 @@ export const testCapabilities = {
         'production watch and legacy line-coverage watch',
         'combining coverage with snapshot updates',
         'coverage-provider compatibility',
-        'unqualified typed-source compiler configurations, arrow owners beyond qualified variable, static object-property, call arguments and the bounded classFieldArrows subset, remaining runtime-generating TypeScript, unexecuted constructor parameter properties and JSX standard coverage beyond the measured planned explicit-include owners',
+        'unqualified typed-source compiler configurations, arrow owners beyond qualified variable, static object-property, call arguments and the bounded classFieldArrows subset, remaining runtime-generating TypeScript, unexecuted constructor parameter properties beyond the bounded constructorParameterProperties subset and JSX standard coverage beyond the measured planned explicit-include owners',
         'project-configured standard coverage and broader custom-provider service/transform dependencies',
         'standard reporters beyond JSON, JSON summary, text summary and LCOV, and advanced threshold modes',
       ],
