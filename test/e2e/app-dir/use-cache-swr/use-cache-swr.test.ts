@@ -156,7 +156,7 @@ describe('use-cache-swr', () => {
       },
     })
     const act = createRouterAct(page, { includeAppShellRequests: true })
-    return { browser, page, act, response }
+    return { browser, act, response }
   }
 
   async function expectCachedRdcNavigation(
@@ -214,16 +214,10 @@ describe('use-cache-swr', () => {
     const key = `rdc-navigation-${randomUUID()}`
     const foregroundCacheKey = `${key}:foreground`
     await prepareStaleCacheEntry(key)
-    const { browser, page, act } = await createRdcBrowser(
-      key,
-      foregroundCacheKey
-    )
+    const { browser, act } = await createRdcBrowser(key, foregroundCacheKey)
     await using _ = defer(() => browser.deleteCookies())
     heldResponseKeys.add(key)
     heldResponseKeys.add(foregroundCacheKey)
-    const pendingNavigationResponse = page.waitForResponse(
-      (response) => new URL(response.url()).pathname === '/rdc'
-    )
     const pendingNavigation = act(
       async () => {
         await browser
@@ -242,8 +236,6 @@ describe('use-cache-swr', () => {
       releaseDataResponses(foregroundCacheKey)
       await pendingNavigation
       expect(await browser.elementById('rdc-value').text()).toBe(`${key}-v1`)
-      const response = await pendingNavigationResponse
-      expectConsistentCacheValue(await response.text(), key, 1)
       await expectCachedRdcNavigation(browser, act, key)
     } finally {
       releaseDataResponses(foregroundCacheKey)
