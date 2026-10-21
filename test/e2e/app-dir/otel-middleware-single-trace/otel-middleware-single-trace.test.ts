@@ -1,13 +1,19 @@
-import { isNextDeploy, nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
+import { isOneTimeSpan, printSpanTree, type TreeSpan } from 'otel-span-tree'
 
-const USER_TRACE_ID = '0af7651916cd43dd8448eb211c80319c'
-const USER_SPAN_ID = 'b7ad6b7169203331'
-const INCOMING_TRACE_ID = '4bf92f3577b34da6a3ce929d0e0e4736'
-const INCOMING_SPAN_ID = '00f067aa0ba902b7'
-const INCOMING_TRACEPARENT = `00-${INCOMING_TRACE_ID}-${INCOMING_SPAN_ID}-01`
-const TRACE_ID = /^(?!0{32}$)[0-9a-f]{32}$/
-const SPAN_ID = /^(?!0{16}$)[0-9a-f]{16}$/
+const INCOMING = {
+  name: 'incoming',
+  traceId: '4bf92f3577b34da6a3ce929d0e0e4736',
+  spanId: '00f067aa0ba902b7',
+}
+// The traceparent `middleware-impl.ts` sets for `/user-traceparent`.
+const SET_BY_MIDDLEWARE = {
+  name: 'set by middleware',
+  traceId: '0af7651916cd43dd8448eb211c80319c',
+  spanId: 'b7ad6b7169203331',
+}
+const INCOMING_TRACEPARENT = `00-${INCOMING.traceId}-${INCOMING.spanId}-01`
 
 const MATCHER = [
   '/page',
@@ -36,21 +42,25 @@ function middlewareEntry(exportName: 'proxy' | 'middleware') {
   ].join('\n')
 }
 
-interface RenderTrace {
-  traceId: string
-  // The parent of the render's request span (`BaseServer.handleRequest`).
-  requestParentSpanId: string
-  // The `traceparent` request header the render received.
-  traceparent: string
-}
+type Body = 'html' | 'json' | 'none'
 
-// The app reports its trace and parent span IDs itself (no local collector;
-// see `trace-recorder.ts`), so these assertions also hold when deployed. Every
-// request that passes through middleware must stay in a single trace, and the
-// middleware span and the render's request span must be siblings: children of
-// the same parent span. That parent is next-server's middleware-invoke
-// `handleRequest` span when self-hosted, and the incoming / platform trace
-// context or the root span inserted by the middleware adapter when deployed.
+// Pages render differently with Cache Components (also between dev and
+// start), so page span trees have a snapshot per render mode.
+const renderMode = !process.env.__NEXT_CACHE_COMPONENTS
+  ? 'default'
+  : isNextDev
+    ? 'cache components, dev'
+    : 'cache components'
+
+// The trace of every request is asserted as a span tree snapshot (see
+// `printSpanTree`). There is no collector (so the suite also works when
+// deployed): the app reports the spans itself (see `trace-recorder.ts`). The
+// middleware reports its span and its ancestors, and the render its request
+// span, that span's ancestors, and the descendants started before the page or
+// route handler reports. Spans started in another process (e.g. next-server's
+// spans for Edge middleware, or the platform's when deployed) show up as
+// `[remote]` parents. Deployed apps have their own snapshots: the platform
+// invokes the middleware and the render separately.
 describe.each([
   // `proxy.ts` always runs in the Node.js runtime.
   { name: 'proxy (nodejs runtime)', file: 'proxy.ts', exportName: 'proxy' },
@@ -63,9 +73,8 @@ describe.each([
 ] as const)('otel-middleware-single-trace - $name', ({ file, exportName }) => {
   // When self-hosted, Node.js middleware runs in the server process, so its
   // parent (next-server's middleware-invoke `handleRequest` span) was started
-  // in the same process. The Edge sandbox only sees that span's context via
-  // the request's `traceparent`.
-  const isInProcessMiddleware = exportName === 'proxy'
+  // in the same process. The Edge sandbox only sees that span's context.
+  const isNodeMiddleware = exportName === 'proxy'
   const { next } = nextTestSetup({
     files: __dirname,
     overrideFiles: {
@@ -83,62 +92,31 @@ describe.each([
     },
   })
 
-  // Asserts the middleware span's trace and parent, and returns them.
-  function getMiddlewareTrace(res: Response) {
-    const traceId = res.headers.get('x-mw-trace-id')
-    expect(traceId).toMatch(TRACE_ID)
-    const parentSpanId = res.headers.get('x-mw-parent-span-id')
-    expect(parentSpanId).toMatch(SPAN_ID)
-    const parentType = res.headers.get('x-mw-parent-type')
-    const receivedTraceparent = res.headers.get('x-mw-received-traceparent')
-    if (isNextDeploy) {
-      // The platform's trace context, or the root span inserted by the
-      // middleware adapter when the request carries none.
-      expect(['remote', 'Next.request']).toContain(parentType)
-    } else {
-      // next-server's middleware-invoke `handleRequest` span, whose context
-      // that pass wrote onto the request.
-      expect(parentType).toBe(
-        isInProcessMiddleware ? 'BaseServer.handleRequest' : 'remote'
+  // The span tree of a request, from the spans the middleware reported in its
+  // response headers and the render reported in the body.
+  async function getSpanTree(res: Response, body: Body) {
+    const spans = new Map<string, TreeSpan>()
+    const add = (list: TreeSpan[]) => {
+      for (const span of list) {
+        spans.set(span.id, span)
+      }
+    }
+    add(JSON.parse(res.headers.get('x-mw-spans') ?? '[]'))
+    if (body === 'html') {
+      add(
+        JSON.parse(
+          cheerio
+            .load(await res.text())('#spans')
+            .text()
+        )
       )
-      expect(receivedTraceparent?.split('-')[2]).toBe(parentSpanId)
+    } else if (body === 'json') {
+      add((await res.json()).spans)
     }
-    return {
-      traceId,
-      parentSpanId,
-      grandparentSpanId: res.headers.get('x-mw-grandparent-span-id'),
-      receivedTraceparent,
-    }
-  }
-
-  // Asserts the render is in the middleware's trace and a sibling of the
-  // middleware span (same parent span).
-  function expectSiblingOfMiddleware(res: Response, render: RenderTrace) {
-    const middleware = getMiddlewareTrace(res)
-    expect({
-      traceId: render.traceId,
-      requestParentSpanId: render.requestParentSpanId,
-    }).toEqual({
-      traceId: middleware.traceId,
-      requestParentSpanId: middleware.parentSpanId,
+    return printSpanTree([...spans.values()], {
+      known: [INCOMING, SET_BY_MIDDLEWARE],
+      omit: isOneTimeSpan,
     })
-    // The middleware never changes a traceparent the request carries
-    // (incoming, from the platform, or written by next-server), so the render
-    // receives it unchanged. Without one, the middleware inserts a root span
-    // and passes on its context instead.
-    if (middleware.receivedTraceparent !== 'none') {
-      expect(render.traceparent).toBe(middleware.receivedTraceparent)
-    }
-    return middleware
-  }
-
-  async function getPageTrace(res: Response): Promise<RenderTrace> {
-    const $ = cheerio.load(await res.text())
-    return {
-      traceId: $('#trace-id').text(),
-      requestParentSpanId: $('#request-parent-span-id').text(),
-      traceparent: $('#traceparent').text(),
-    }
   }
 
   function expectNoInternalHeaders(res: Response) {
@@ -147,113 +125,507 @@ describe.each([
     }
   }
 
-  it('keeps a page rendered after NextResponse.next() a sibling of the middleware span', async () => {
+  it('traces a page rendered after NextResponse.next()', async () => {
     const res = await next.fetch('/page')
     expect(res.status).toBe(200)
-    expectSiblingOfMiddleware(res, await getPageTrace(res))
     expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'html')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else if (renderMode === 'cache components, dev') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  ├─ render route (app) /page (AppRender.getBodyResult)
+       │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+       │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │  └─ start response (NextNodeServer.startResponse)
+       │  └─ resolve page components (NextNodeServer.findPageComponents)
+       │     └─ load route module (LoadComponents.loadRouteModule)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    } else if (renderMode === 'cache components') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  ├─ render route (app) /page (AppRender.getBodyResult)
+       │  │  └─ build component tree (NextNodeServer.createComponentTree)
+       │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  ├─ resolve page components (NextNodeServer.findPageComponents)
+       │  │  └─ load route module (LoadComponents.loadRouteModule)
+       │  └─ start response (NextNodeServer.startResponse)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  ├─ render route (app) /page (AppRender.getBodyResult)
+       │  │  └─ build component tree (NextNodeServer.createComponentTree)
+       │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  └─ resolve page components (NextNodeServer.findPageComponents)
+       │     └─ load route module (LoadComponents.loadRouteModule)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    }
   })
 
-  it('keeps a route handler executed after NextResponse.next() a sibling of the middleware span', async () => {
+  it('traces a route handler executed after NextResponse.next()', async () => {
     const res = await next.fetch('/route-handler')
     expect(res.status).toBe(200)
-    expectSiblingOfMiddleware(res, await res.json())
     expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'json')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  └─ resolve page components (NextNodeServer.findPageComponents)
+       │     └─ load route module (LoadComponents.loadRouteModule)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    }
   })
 
-  it('keeps a rewritten page a sibling of the middleware span', async () => {
+  it('traces a rewritten page', async () => {
     const res = await next.fetch('/rewrite')
     expect(res.status).toBe(200)
-    expectSiblingOfMiddleware(res, await getPageTrace(res))
     expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'html')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else if (renderMode === 'cache components, dev') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  ├─ render route (app) /page (AppRender.getBodyResult)
+       │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+       │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │  └─ start response (NextNodeServer.startResponse)
+       │  └─ resolve page components (NextNodeServer.findPageComponents)
+       │     └─ load route module (LoadComponents.loadRouteModule)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    } else if (renderMode === 'cache components') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  ├─ render route (app) /page (AppRender.getBodyResult)
+       │  │  └─ build component tree (NextNodeServer.createComponentTree)
+       │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  ├─ resolve page components (NextNodeServer.findPageComponents)
+       │  │  └─ load route module (LoadComponents.loadRouteModule)
+       │  └─ start response (NextNodeServer.startResponse)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  ├─ render route (app) /page (AppRender.getBodyResult)
+       │  │  └─ build component tree (NextNodeServer.createComponentTree)
+       │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  └─ resolve page components (NextNodeServer.findPageComponents)
+       │     └─ load route module (LoadComponents.loadRouteModule)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    }
   })
 
   it('traces a middleware redirect', async () => {
     const res = await next.fetch('/redirect', { redirect: 'manual' })
     expect(res.status).toBe(307)
-    getMiddlewareTrace(res)
     expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'none')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else if (isNodeMiddleware) {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] [remote]
+       └─ middleware GET (Middleware.execute)"
+      `)
+    }
   })
 
   it('traces a direct middleware response', async () => {
     const res = await next.fetch('/direct')
     expect(res.status).toBe(200)
-    expect(await res.text()).toBe('direct response from middleware')
-    getMiddlewareTrace(res)
+    expect(await res.clone().text()).toBe('direct response from middleware')
     expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'none')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else if (isNodeMiddleware) {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] [remote]
+       └─ middleware GET (Middleware.execute)"
+      `)
+    }
   })
 
   it('traces a request the middleware does not match', async () => {
     const res = await next.fetch('/unmatched')
     expect(res.status).toBe(200)
-    expect(res.headers.get('x-mw-trace-id')).toBeNull()
-    const $ = cheerio.load(await res.text())
-    expect($('#trace-id').text()).toMatch(TRACE_ID)
+    expect(res.headers.get('x-mw-spans')).toBeNull()
     expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'html')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else if (renderMode === 'cache components, dev') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ prepare route module (RouteModule.prepare)
+       ├─ render route (app) /unmatched (AppRender.getBodyResult)
+       │  ├─ build component tree (NextNodeServer.createComponentTree)
+       │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  └─ start response (NextNodeServer.startResponse)
+       └─ resolve page components (NextNodeServer.findPageComponents)
+          └─ load route module (LoadComponents.loadRouteModule)"
+      `)
+    } else if (renderMode === 'cache components') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ prepare route module (RouteModule.prepare)
+       ├─ render route (app) /unmatched (AppRender.getBodyResult)
+       │  └─ build component tree (NextNodeServer.createComponentTree)
+       │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       ├─ resolve page components (NextNodeServer.findPageComponents)
+       │  └─ load route module (LoadComponents.loadRouteModule)
+       └─ start response (NextNodeServer.startResponse)"
+      `)
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ prepare route module (RouteModule.prepare)
+       ├─ render route (app) /unmatched (AppRender.getBodyResult)
+       │  └─ build component tree (NextNodeServer.createComponentTree)
+       │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       └─ resolve page components (NextNodeServer.findPageComponents)
+          └─ load route module (LoadComponents.loadRouteModule)"
+      `)
+    }
   })
 
-  it.each(['/page', '/route-handler', '/rewrite'])(
-    'keeps %s a sibling of the middleware span with an incoming traceparent',
-    async (pathname) => {
-      const res = await next.fetch(pathname, {
-        headers: { traceparent: INCOMING_TRACEPARENT },
-      })
-      expect(res.status).toBe(200)
-      const render: RenderTrace =
-        pathname === '/route-handler'
-          ? await res.json()
-          : await getPageTrace(res)
-      const middleware = expectSiblingOfMiddleware(res, render)
-      if (isNextDeploy) {
-        // The platform decides whether a client-supplied traceparent is
-        // trusted; whatever the middleware received is passed on unchanged
-        // (asserted above).
-        if (middleware.receivedTraceparent === INCOMING_TRACEPARENT) {
-          expect(render.traceId).toBe(INCOMING_TRACE_ID)
-        }
-      } else {
-        // Self-hosted Next.js continues the caller's trace: the incoming span
-        // is the parent of next-server's middleware-invoke `handleRequest`.
-        expect(render.traceId).toBe(INCOMING_TRACE_ID)
-        if (isInProcessMiddleware) {
-          expect(middleware.grandparentSpanId).toBe(INCOMING_SPAN_ID)
-        }
-      }
-      expectNoInternalHeaders(res)
+  it('traces /page with an incoming traceparent', async () => {
+    const res = await next.fetch('/page', {
+      headers: { traceparent: INCOMING_TRACEPARENT },
+    })
+    expect(res.status).toBe(200)
+    expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'html')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else if (renderMode === 'cache components, dev') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace incoming] [incoming traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ GET (BaseServer.handleRequest)
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  ├─ render route (app) /page (AppRender.getBodyResult)
+          │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+          │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  └─ start response (NextNodeServer.startResponse)
+          │  └─ resolve page components (NextNodeServer.findPageComponents)
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute)"
+      `)
+    } else if (renderMode === 'cache components') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace incoming] [incoming traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ GET (BaseServer.handleRequest)
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  ├─ render route (app) /page (AppRender.getBodyResult)
+          │  │  └─ build component tree (NextNodeServer.createComponentTree)
+          │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  ├─ resolve page components (NextNodeServer.findPageComponents)
+          │  │  └─ load route module (LoadComponents.loadRouteModule)
+          │  └─ start response (NextNodeServer.startResponse)
+          └─ middleware GET (Middleware.execute)"
+      `)
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace incoming] [incoming traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ GET (BaseServer.handleRequest)
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  ├─ render route (app) /page (AppRender.getBodyResult)
+          │  │  └─ build component tree (NextNodeServer.createComponentTree)
+          │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  └─ resolve page components (NextNodeServer.findPageComponents)
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute)"
+      `)
     }
-  )
+  })
+
+  it('traces /route-handler with an incoming traceparent', async () => {
+    const res = await next.fetch('/route-handler', {
+      headers: { traceparent: INCOMING_TRACEPARENT },
+    })
+    expect(res.status).toBe(200)
+    expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'json')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace incoming] [incoming traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ GET (BaseServer.handleRequest)
+          │  ├─ executing api route (app) /route-handler (AppRouteRouteHandlers.runHandler)
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  └─ resolve page components (NextNodeServer.findPageComponents)
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute)"
+      `)
+    }
+  })
+
+  it('traces /rewrite with an incoming traceparent', async () => {
+    const res = await next.fetch('/rewrite', {
+      headers: { traceparent: INCOMING_TRACEPARENT },
+    })
+    expect(res.status).toBe(200)
+    expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'html')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else if (renderMode === 'cache components, dev') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace incoming] [incoming traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ GET (BaseServer.handleRequest)
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  ├─ render route (app) /page (AppRender.getBodyResult)
+          │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+          │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  └─ start response (NextNodeServer.startResponse)
+          │  └─ resolve page components (NextNodeServer.findPageComponents)
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute)"
+      `)
+    } else if (renderMode === 'cache components') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace incoming] [incoming traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ GET (BaseServer.handleRequest)
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  ├─ render route (app) /page (AppRender.getBodyResult)
+          │  │  └─ build component tree (NextNodeServer.createComponentTree)
+          │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  ├─ resolve page components (NextNodeServer.findPageComponents)
+          │  │  └─ load route module (LoadComponents.loadRouteModule)
+          │  └─ start response (NextNodeServer.startResponse)
+          └─ middleware GET (Middleware.execute)"
+      `)
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace incoming] [incoming traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ GET (BaseServer.handleRequest)
+          │  ├─ prepare route module (RouteModule.prepare)
+          │  ├─ render route (app) /page (AppRender.getBodyResult)
+          │  │  └─ build component tree (NextNodeServer.createComponentTree)
+          │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  └─ resolve page components (NextNodeServer.findPageComponents)
+          │     └─ load route module (LoadComponents.loadRouteModule)
+          └─ middleware GET (Middleware.execute)"
+      `)
+    }
+  })
 
   it('still applies request header overrides set by middleware', async () => {
     const res = await next.fetch('/user-overrides', {
       headers: { 'x-delete-me': 'please', 'x-keep-me': 'kept' },
     })
     expect(res.status).toBe(200)
-    const $ = cheerio.load(await res.text())
-    const headers = JSON.parse($('#headers').text())
+    const html = await res.clone().text()
+    const headers = JSON.parse(cheerio.load(html)('#headers').text())
     expect(headers['x-user-added']).toBe('added-by-middleware')
     expect(headers['x-keep-me']).toBe('kept')
     expect(headers['x-delete-me']).toBeUndefined()
-    expectSiblingOfMiddleware(res, {
-      traceId: $('#trace-id').text(),
-      requestParentSpanId: $('#request-parent-span-id').text(),
-      traceparent: headers['traceparent'],
-    })
     expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'html')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else if (renderMode === 'cache components, dev') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  ├─ render route (app) /headers-echo (AppRender.getBodyResult)
+       │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+       │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │  └─ start response (NextNodeServer.startResponse)
+       │  └─ resolve page components (NextNodeServer.findPageComponents)
+       │     └─ load route module (LoadComponents.loadRouteModule)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    } else if (renderMode === 'cache components') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  ├─ render route (app) /headers-echo (AppRender.getBodyResult)
+       │  │  └─ build component tree (NextNodeServer.createComponentTree)
+       │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  ├─ resolve page components (NextNodeServer.findPageComponents)
+       │  │  └─ load route module (LoadComponents.loadRouteModule)
+       │  └─ start response (NextNodeServer.startResponse)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] GET (BaseServer.handleRequest)
+       ├─ GET (BaseServer.handleRequest)
+       │  ├─ prepare route module (RouteModule.prepare)
+       │  ├─ render route (app) /headers-echo (AppRender.getBodyResult)
+       │  │  └─ build component tree (NextNodeServer.createComponentTree)
+       │  │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+       │  └─ resolve page components (NextNodeServer.findPageComponents)
+       │     └─ load route module (LoadComponents.loadRouteModule)
+       └─ middleware GET (Middleware.execute)"
+      `)
+    }
   })
 
-  // The one intentional exception to the sibling invariant: a traceparent the
-  // middleware explicitly sets is respected, so the render continues it.
+  // A traceparent the middleware explicitly sets is respected: the render
+  // continues it instead of being a sibling of the middleware span.
   it('respects a traceparent explicitly set by middleware', async () => {
     const res = await next.fetch('/user-traceparent')
     expect(res.status).toBe(200)
-    const $ = cheerio.load(await res.text())
-    expect({
-      traceId: $('#trace-id').text(),
-      requestParentSpanId: $('#request-parent-span-id').text(),
-    }).toEqual({
-      traceId: USER_TRACE_ID,
-      requestParentSpanId: USER_SPAN_ID,
-    })
     expectNoInternalHeaders(res)
+    const tree = await getSpanTree(res, 'html')
+    if (isNextDeploy) {
+      expect(tree).toMatchInlineSnapshot()
+    } else if (isNodeMiddleware) {
+      if (renderMode === 'cache components, dev') {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET (BaseServer.handleRequest)
+         └─ middleware GET (Middleware.execute)
+         [trace set by middleware] [set by middleware traceparent]
+         └─ GET (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            ├─ render route (app) /headers-echo (AppRender.getBodyResult)
+            │  ├─ build component tree (NextNodeServer.createComponentTree)
+            │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+            │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+            │  └─ start response (NextNodeServer.startResponse)
+            └─ resolve page components (NextNodeServer.findPageComponents)
+               └─ load route module (LoadComponents.loadRouteModule)"
+        `)
+      } else if (renderMode === 'cache components') {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET (BaseServer.handleRequest)
+         └─ middleware GET (Middleware.execute)
+         [trace set by middleware] [set by middleware traceparent]
+         └─ GET (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            ├─ render route (app) /headers-echo (AppRender.getBodyResult)
+            │  └─ build component tree (NextNodeServer.createComponentTree)
+            │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+            │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+            ├─ resolve page components (NextNodeServer.findPageComponents)
+            │  └─ load route module (LoadComponents.loadRouteModule)
+            └─ start response (NextNodeServer.startResponse)"
+        `)
+      } else {
+        expect(tree).toMatchInlineSnapshot(`
+         "[trace A] GET (BaseServer.handleRequest)
+         └─ middleware GET (Middleware.execute)
+         [trace set by middleware] [set by middleware traceparent]
+         └─ GET (BaseServer.handleRequest)
+            ├─ prepare route module (RouteModule.prepare)
+            ├─ render route (app) /headers-echo (AppRender.getBodyResult)
+            │  └─ build component tree (NextNodeServer.createComponentTree)
+            │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+            │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+            └─ resolve page components (NextNodeServer.findPageComponents)
+               └─ load route module (LoadComponents.loadRouteModule)"
+        `)
+      }
+    } else if (renderMode === 'cache components, dev') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] [remote]
+       └─ middleware GET (Middleware.execute)
+       [trace set by middleware] [set by middleware traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ prepare route module (RouteModule.prepare)
+          ├─ render route (app) /headers-echo (AppRender.getBodyResult)
+          │  ├─ build component tree (NextNodeServer.createComponentTree)
+          │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │  └─ start response (NextNodeServer.startResponse)
+          └─ resolve page components (NextNodeServer.findPageComponents)
+             └─ load route module (LoadComponents.loadRouteModule)"
+      `)
+    } else if (renderMode === 'cache components') {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] [remote]
+       └─ middleware GET (Middleware.execute)
+       [trace set by middleware] [set by middleware traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ prepare route module (RouteModule.prepare)
+          ├─ render route (app) /headers-echo (AppRender.getBodyResult)
+          │  └─ build component tree (NextNodeServer.createComponentTree)
+          │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          ├─ resolve page components (NextNodeServer.findPageComponents)
+          │  └─ load route module (LoadComponents.loadRouteModule)
+          └─ start response (NextNodeServer.startResponse)"
+      `)
+    } else {
+      expect(tree).toMatchInlineSnapshot(`
+       "[trace A] [remote]
+       └─ middleware GET (Middleware.execute)
+       [trace set by middleware] [set by middleware traceparent]
+       └─ GET (BaseServer.handleRequest)
+          ├─ prepare route module (RouteModule.prepare)
+          ├─ render route (app) /headers-echo (AppRender.getBodyResult)
+          │  └─ build component tree (NextNodeServer.createComponentTree)
+          │     ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          │     └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+          └─ resolve page components (NextNodeServer.findPageComponents)
+             └─ load route module (LoadComponents.loadRouteModule)"
+      `)
+    }
   })
 })

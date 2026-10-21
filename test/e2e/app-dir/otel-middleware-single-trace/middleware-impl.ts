@@ -1,22 +1,14 @@
-import { trace } from '@opentelemetry/api'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getParentSpanId, getSpanType } from './trace-recorder'
+import { getMiddlewareSpans } from './trace-recorder'
 
 export const USER_TRACE_ID = '0af7651916cd43dd8448eb211c80319c'
 export const USER_SPAN_ID = 'b7ad6b7169203331'
 
 // Shared by `proxy.ts` (Node.js runtime) and `middleware.ts` (Edge runtime).
 export function handler(request: NextRequest) {
-  const spanContext = trace.getActiveSpan()?.spanContext()
-  const traceId = spanContext?.traceId ?? 'none'
-  const spanId = spanContext?.spanId ?? 'none'
-  // The middleware span's parent: a span started in this process (next-server's
-  // middleware-invoke `handleRequest`, or the root span inserted by the
-  // middleware adapter) or the remote parent from the request's `traceparent`.
-  const parentSpanId = getParentSpanId(spanContext?.spanId)
-  const parentType = getSpanType(parentSpanId) ?? 'remote'
-  const grandparentSpanId = getParentSpanId(parentSpanId)
-  const receivedTraceparent = request.headers.get('traceparent') ?? 'none'
+  // The middleware's span and its ancestors started in this process, for the
+  // test to print the request's span tree.
+  const spans = getMiddlewareSpans()
   const { pathname } = request.nextUrl
 
   let response: NextResponse
@@ -43,11 +35,6 @@ export function handler(request: NextRequest) {
     response = NextResponse.next()
   }
 
-  response.headers.set('x-mw-trace-id', traceId)
-  response.headers.set('x-mw-span-id', spanId)
-  response.headers.set('x-mw-parent-span-id', parentSpanId ?? 'none')
-  response.headers.set('x-mw-parent-type', parentType)
-  response.headers.set('x-mw-grandparent-span-id', grandparentSpanId ?? 'none')
-  response.headers.set('x-mw-received-traceparent', receivedTraceparent)
+  response.headers.set('x-mw-spans', JSON.stringify(spans))
   return response
 }

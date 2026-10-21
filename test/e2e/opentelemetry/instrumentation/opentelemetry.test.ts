@@ -7,6 +7,11 @@ import path from 'path'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
+import {
+  type KnownTraceContext,
+  isOneTimeSpan,
+  printSpanTree,
+} from 'otel-span-tree'
 
 const EXTERNAL = {
   traceId: 'ee75cd9e534ff5e9ed78b4a0c706f0f2',
@@ -2367,76 +2372,137 @@ describe.each(
         return
       }
 
-      const requests = [
-        { name: 'page', pathname: '/behind-middleware', render: true },
-        {
-          name: 'route handler',
-          pathname: '/behind-middleware/route-handler',
-          render: true,
-        },
-        // The direct entrypoint harness only serves paths that map to an
-        // entrypoint, so it can't serve rewrites or redirects.
-        ...(useDirectEntrypointHandler
-          ? []
-          : [
-              {
-                name: 'rewrite',
-                pathname: '/behind-middleware/rewrite',
-                render: true,
-              },
-              {
-                name: 'redirect',
-                pathname: '/behind-middleware/redirect',
-                render: false,
-              },
-            ]),
-      ]
-
-      const contexts = [
+      for (const { name, traceparent } of [
         { name: 'root context', traceparent: false },
-        // The parent-span harness starts its own root span without extracting
-        // incoming headers. The incoming context then still wins over that
-        // active host span, for the middleware and the render alike.
         { name: 'incoming context propagation', traceparent: true },
-      ]
-
-      for (const ctx of contexts) {
+      ]) {
         ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
-          ctx.name,
+          name,
           () => {
-            it.each(requests)(
-              'should keep the $name request in a single trace',
-              async ({ pathname, render }) => {
-                const id = Math.random().toString(36).slice(2)
-                // Span timestamps are epoch microseconds.
-                const startedAt = Date.now() * 1000
-                const res = await next.fetch(`${pathname}?id=${id}`, {
-                  redirect: 'manual',
-                  headers: ctx.traceparent
-                    ? {
-                        traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
-                      }
-                    : {},
-                })
-                expect(res.status).toBe(render ? 200 : 307)
+            // The middleware and the render are siblings in a single trace.
+            it('should trace middleware', async () => {
+              const startedAt = Date.now()
+              const res = await next.fetch('/behind-middleware', {
+                headers: traceparent
+                  ? {
+                      traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+                    }
+                  : {},
+              })
+              expect(res.status).toBe(200)
+              const tree = await getSpanTree(getCollector(), { startedAt })
 
-                await expectSingleTrace(getCollector(), {
-                  id,
-                  startedAt,
-                  pathname,
-                  // The parent-span harness exports through its own provider,
-                  // which doesn't record the runtime.
-                  middlewareRuntime: withParentSpan ? undefined : runtime,
-                  render,
-                  traceparent: ctx.traceparent,
-                  shape: withParentSpan
-                    ? 'host-root'
-                    : useDirectEntrypointHandler
-                      ? 'separately-invoked'
-                      : 'handle-request-root',
-                })
+              if (withParentSpan) {
+                // A host span around the middleware and the render. An
+                // incoming traceparent wins over the active host span.
+                if (traceparent) {
+                  expect(tree).toMatchInlineSnapshot(`
+                    "[trace A] GET /behind-middleware
+                    [trace incoming] [incoming traceparent]
+                    ├─ GET /behind-middleware (BaseServer.handleRequest)
+                    │  ├─ NextNodeServer.clientComponentLoading
+                    │  ├─ prepare route module (RouteModule.prepare)
+                    │  └─ render route (app) /behind-middleware (AppRender.getBodyResult)
+                    │     ├─ build component tree (NextNodeServer.createComponentTree)
+                    │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │     ├─ generateMetadata /behind-middleware/layout (ResolveMetadata.generateMetadata)
+                    │     ├─ generateMetadata /behind-middleware/page (ResolveMetadata.generateMetadata)
+                    │     └─ start response (NextNodeServer.startResponse)
+                    └─ middleware GET (Middleware.execute)"
+                  `)
+                } else {
+                  expect(tree).toMatchInlineSnapshot(`
+                    "[trace A] GET /behind-middleware
+                    ├─ GET /behind-middleware (BaseServer.handleRequest)
+                    │  ├─ NextNodeServer.clientComponentLoading
+                    │  ├─ prepare route module (RouteModule.prepare)
+                    │  └─ render route (app) /behind-middleware (AppRender.getBodyResult)
+                    │     ├─ build component tree (NextNodeServer.createComponentTree)
+                    │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │     ├─ generateMetadata /behind-middleware/layout (ResolveMetadata.generateMetadata)
+                    │     ├─ generateMetadata /behind-middleware/page (ResolveMetadata.generateMetadata)
+                    │     └─ start response (NextNodeServer.startResponse)
+                    └─ middleware GET (Middleware.execute)"
+                  `)
+                }
+              } else if (useDirectEntrypointHandler) {
+                // The middleware and the render are invoked separately. The
+                // middleware adapter inserts a root span for the request
+                // unless it carries a trace context.
+                if (traceparent) {
+                  expect(tree).toMatchInlineSnapshot(`
+                    "[trace incoming] [incoming traceparent]
+                    ├─ GET /behind-middleware (BaseServer.handleRequest)
+                    │  ├─ NextNodeServer.clientComponentLoading
+                    │  ├─ prepare route module (RouteModule.prepare)
+                    │  └─ render route (app) /behind-middleware (AppRender.getBodyResult)
+                    │     ├─ build component tree (NextNodeServer.createComponentTree)
+                    │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │     ├─ generateMetadata /behind-middleware/layout (ResolveMetadata.generateMetadata)
+                    │     ├─ generateMetadata /behind-middleware/page (ResolveMetadata.generateMetadata)
+                    │     └─ start response (NextNodeServer.startResponse)
+                    └─ middleware GET (Middleware.execute)"
+                  `)
+                } else {
+                  expect(tree).toMatchInlineSnapshot(`
+                    "[trace A] GET /behind-middleware (Next.request)
+                    ├─ GET /behind-middleware (BaseServer.handleRequest)
+                    │  ├─ NextNodeServer.clientComponentLoading
+                    │  ├─ prepare route module (RouteModule.prepare)
+                    │  └─ render route (app) /behind-middleware (AppRender.getBodyResult)
+                    │     ├─ build component tree (NextNodeServer.createComponentTree)
+                    │     │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │     │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │     ├─ generateMetadata /behind-middleware/layout (ResolveMetadata.generateMetadata)
+                    │     ├─ generateMetadata /behind-middleware/page (ResolveMetadata.generateMetadata)
+                    │     └─ start response (NextNodeServer.startResponse)
+                    └─ middleware GET (Middleware.execute)"
+                  `)
+                }
+              } else {
+                // next-server's middleware-invoke `handleRequest` span is the
+                // shared parent.
+                if (traceparent) {
+                  expect(tree).toMatchInlineSnapshot(`
+                    "[trace incoming] [incoming traceparent]
+                    └─ GET (BaseServer.handleRequest)
+                       ├─ GET /behind-middleware (BaseServer.handleRequest)
+                       │  ├─ NextNodeServer.clientComponentLoading
+                       │  ├─ prepare route module (RouteModule.prepare)
+                       │  ├─ render route (app) /behind-middleware (AppRender.getBodyResult)
+                       │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+                       │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                       │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                       │  │  ├─ generateMetadata /behind-middleware/layout (ResolveMetadata.generateMetadata)
+                       │  │  ├─ generateMetadata /behind-middleware/page (ResolveMetadata.generateMetadata)
+                       │  │  └─ start response (NextNodeServer.startResponse)
+                       │  └─ resolve page components (NextNodeServer.findPageComponents)
+                       │     └─ load route module (LoadComponents.loadRouteModule)
+                       └─ middleware GET (Middleware.execute)"
+                  `)
+                } else {
+                  expect(tree).toMatchInlineSnapshot(`
+                    "[trace A] GET (BaseServer.handleRequest)
+                    ├─ GET /behind-middleware (BaseServer.handleRequest)
+                    │  ├─ NextNodeServer.clientComponentLoading
+                    │  ├─ prepare route module (RouteModule.prepare)
+                    │  ├─ render route (app) /behind-middleware (AppRender.getBodyResult)
+                    │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+                    │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+                    │  │  ├─ generateMetadata /behind-middleware/layout (ResolveMetadata.generateMetadata)
+                    │  │  ├─ generateMetadata /behind-middleware/page (ResolveMetadata.generateMetadata)
+                    │  │  └─ start response (NextNodeServer.startResponse)
+                    │  └─ resolve page components (NextNodeServer.findPageComponents)
+                    │     └─ load route module (LoadComponents.loadRouteModule)
+                    └─ middleware GET (Middleware.execute)"
+                  `)
+                }
               }
-            )
+            })
           }
         )
       }
@@ -2444,180 +2510,56 @@ describe.each(
   }
 )
 
-// Root spans of one-time work that is not part of any request: server startup
-// (instrumentation registration, route module prewarming). Route module
-// preparation (`RouteModule.prepare`) runs for every request, so it must be
-// part of the request's trace.
-const STARTUP_SPAN_TYPES = new Set([
-  'Instrumentation.loadModule',
-  'Instrumentation.register',
-  'LoadComponents.loadRouteModule',
-])
-
 /**
- * Asserts that every span of the request tagged with `?id=<id>` belongs to a
- * single trace, using the real trace IDs (unlike `expectTrace`, which
- * normalizes them away). The middleware span's `http.target` is the pathname
- * without the query, so it is matched by `pathname` (the collector is reset
- * before every test).
+ * The full span tree (`printSpanTree`) of every span started since the
+ * request did, including `next.bubble` spans, without one-time work. Waits
+ * until the request's middleware and render spans are collected and the tree
+ * stops changing.
  */
-async function expectSingleTrace(
+async function getSpanTree(
   collector: Collector,
   {
-    id,
     startedAt,
-    pathname,
-    middlewareRuntime,
-    render,
-    traceparent,
-    shape,
+    known = [{ name: 'incoming', ...EXTERNAL }],
   }: {
-    id: string
+    /**
+     * When the request started (`Date.now()`): spans of earlier requests
+     * that are still being exported are left out.
+     */
     startedAt: number
-    pathname: string
-    middlewareRuntime: string | undefined
-    render: boolean
-    traceparent: boolean
-    // The parent shared by the middleware span and the render's request span.
-    // In every shape, they are siblings (direct children of that parent).
-    // handle-request-root: next-server's middleware-invoke `handleRequest`
-    //   (self-hosted router server), the root or a child of the incoming span.
-    // separately-invoked: middleware invoked separately from the render
-    //   without a host span (e.g. direct entrypoints): the incoming span, or
-    //   the `Next.request` root inserted by the middleware adapter.
-    // host-root: a span started by the host around middleware and render.
-    shape: 'handle-request-root' | 'separately-invoked' | 'host-root'
+    known?: KnownTraceContext[]
   }
 ) {
+  let tree = ''
   await retry(async () => {
-    // Include `next.bubble` spans: next-server's middleware-invoke
-    // `handleRequest` span is one of them and is the root of the trace.
-    const spans = collector.getAllSpans()
-    const byId = new Map(spans.map((span) => [span.id, span]))
-
-    const requestSpans = spans.filter((span) =>
-      String(span.attributes?.['http.target'] ?? '').includes(`id=${id}`)
-    )
-    const middlewareSpans = spans.filter(
-      (span) =>
-        span.attributes?.['next.span_type'] === 'Middleware.execute' &&
-        span.attributes?.['http.target'] === pathname
-    )
-    expect(middlewareSpans).toHaveLength(1)
-    const [middlewareSpan] = middlewareSpans
-    expect(middlewareSpan.runtime).toBe(middlewareRuntime)
-    requestSpans.push(middlewareSpan)
-
-    const handleRequestSpans = requestSpans.filter(
-      (span) =>
-        span.attributes?.['next.span_type'] === 'BaseServer.handleRequest'
-    )
-    const renderSpan = handleRequestSpans.find(
-      (span) => span.attributes?.['next.route']
-    )
-    if (render) {
-      expect(renderSpan).toBeDefined()
-      // The render is always a sibling of the middleware span.
-      expect(renderSpan!.parentId).toBe(middlewareSpan.parentId)
-    } else {
-      expect(renderSpan).toBeUndefined()
-    }
-
-    const traceIds = new Set(requestSpans.map((span) => span.traceId))
-    expect([...traceIds]).toEqual([
-      traceparent ? EXTERNAL.traceId : middlewareSpan.traceId,
-    ])
-    // Every span started for this request (not only the correlated entry
-    // spans) must be in that trace, so detached child spans fail too. One-time
-    // work (`STARTUP_SPAN_TYPES`) runs in its own root traces and is not part
-    // of the request.
-    const rootOf = (span: SavedSpan) => {
-      let current = span
-      while (current.parentId && byId.has(current.parentId)) {
-        current = byId.get(current.parentId)!
-      }
-      return current
-    }
-    const spansSinceRequest = spans.filter(
-      (span) =>
-        (span.timestamp ?? 0) >= startedAt &&
-        !STARTUP_SPAN_TYPES.has(
-          String(rootOf(span).attributes?.['next.span_type'])
-        ) &&
-        // The parent-span harness's own span doesn't extract the incoming
-        // context, so it is in another trace than the request.
-        !(
-          shape === 'host-root' &&
-          traceparent &&
-          !span.parentId &&
-          !span.attributes?.['next.span_type']
-        )
-    )
+    const spans = collector
+      .getAllSpans()
+      .filter((span) => (span.timestamp ?? 0) >= startedAt * 1000)
+    const types = spans.map((span) => span.attributes?.['next.span_type'])
+    expect(types).toContain('Middleware.execute')
     expect(
-      spansSinceRequest
-        .filter((span) => span.traceId !== middlewareSpan.traceId)
-        .map((span) => `${span.name}|${span.attributes?.['next.span_type']}`)
-    ).toEqual([])
-    // Every span of that trace must be reachable from a single root (or from
-    // the external parent when the request carried a traceparent).
-    const traceSpans = spans.filter(
-      (span) => span.traceId === middlewareSpan.traceId
-    )
-    const roots = traceSpans.filter(
-      (span) =>
-        !span.parentId ||
-        (traceparent && span.parentId === EXTERNAL.spanId) ||
-        !byId.has(span.parentId)
-    )
-    const insertedRoots = traceSpans.filter(
-      (span) => span.attributes?.['next.span_type'] === 'Next.request'
-    )
-
-    if (shape === 'handle-request-root') {
-      expect(roots).toHaveLength(1)
-      const [root] = roots
-      expect(root.attributes?.['next.span_type']).toBe(
-        'BaseServer.handleRequest'
+      spans.some(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
+          span.attributes?.['next.route']
       )
-      // The middleware-invoke pass keeps its existing name.
-      expect(root.name).toBe('GET')
-      expect(root.attributes?.['next.bubble']).toBe(true)
-      expect(root.parentId).toBe(traceparent ? EXTERNAL.spanId : undefined)
-      expect(middlewareSpan.parentId).toBe(root.id)
-      expect(insertedRoots).toEqual([])
-    } else if (shape === 'separately-invoked') {
-      if (traceparent) {
-        // The incoming trace context is respected as is.
-        expect(middlewareSpan.parentId).toBe(EXTERNAL.spanId)
-        expect(insertedRoots).toEqual([])
-      } else {
-        // The middleware adapter inserts a root span for the request.
-        expect(roots).toHaveLength(1)
-        const [root] = roots
-        expect(root).toMatchObject({
-          name: `GET ${pathname}`,
-          kind: 1, // SERVER
-          attributes: {
-            'next.span_type': 'Next.request',
-            'http.method': 'GET',
-            'http.target': pathname,
-          },
-        })
-        expect(root.parentId).toBeUndefined()
-        expect(middlewareSpan.parentId).toBe(root.id)
-      }
-    } else if (traceparent) {
-      // The incoming context wins over the active host span.
-      expect(middlewareSpan.parentId).toBe(EXTERNAL.spanId)
-      expect(insertedRoots).toEqual([])
-    } else {
-      expect(roots).toHaveLength(1)
-      const [root] = roots
-      expect(root.attributes?.['next.span_type']).toBeUndefined()
-      expect(middlewareSpan.parentId).toBe(root.id)
-      expect(insertedRoots).toEqual([])
-    }
+    ).toBe(true)
+    const next = printSpanTree(
+      spans.map((span) => ({
+        id: span.id!,
+        parentId: span.parentId,
+        traceId: span.traceId!,
+        name: span.name!,
+        type: span.attributes?.['next.span_type'],
+      })),
+      { known, omit: isOneTimeSpan }
+    )
+    // Spans are exported one by one as they end.
+    const previous = tree
+    tree = next
+    expect(next).toBe(previous)
   })
+  return tree
 }
 
 describe.each(
@@ -3025,79 +2967,64 @@ describe('opentelemetry with custom server', () => {
   // next-server's middleware-invoke `handleRequest` span, which is a child of
   // the host span.
   it('should keep a request through middleware in the host span trace', async () => {
-    const id = Math.random().toString(36).slice(2)
-    const res = await next.fetch(`/behind-middleware?id=${id}`)
+    const startedAt = Date.now()
+    const res = await next.fetch('/behind-middleware')
     expect(res.status).toBe(200)
-
-    await retry(async () => {
-      const spans = getCollector().getAllSpans()
-      const middlewareSpans = spans.filter(
-        (span) =>
-          span.attributes?.['next.span_type'] === 'Middleware.execute' &&
-          span.attributes?.['http.target'] === '/behind-middleware'
-      )
-      expect(middlewareSpans).toHaveLength(1)
-      const [middlewareSpan] = middlewareSpans
-      const handleRequestSpans = spans.filter(
-        (span) =>
-          span.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
-          String(span.attributes?.['http.target']).includes(`id=${id}`)
-      )
-      const bubbleSpan = handleRequestSpans.find(
-        (span) => span.attributes?.['next.bubble']
-      )
-      const renderSpan = handleRequestSpans.find(
-        (span) => span.attributes?.['next.route']
-      )
-      expect(bubbleSpan).toBeDefined()
-      expect(renderSpan).toBeDefined()
-      const hostSpan = spans.find((span) => span.id === bubbleSpan!.parentId)
-      expect(hostSpan?.name).toBe('custom-server-request')
-      expect(hostSpan?.parentId).toBeUndefined()
-      expect({
-        middlewareParent: middlewareSpan.parentId,
-        renderParent: renderSpan!.parentId,
-        traceIds: [
-          ...new Set(
-            [hostSpan!, bubbleSpan!, middlewareSpan, renderSpan!].map(
-              (span) => span.traceId
-            )
-          ),
-        ],
-      }).toEqual({
-        middlewareParent: bubbleSpan!.id,
-        renderParent: bubbleSpan!.id,
-        traceIds: [hostSpan!.traceId],
-      })
-    })
+    expect(await getSpanTree(getCollector(), { startedAt }))
+      .toMatchInlineSnapshot(`
+      "[trace A] custom-server-request
+      └─ GET (BaseServer.handleRequest)
+         ├─ GET /behind-middleware (BaseServer.handleRequest)
+         │  ├─ NextNodeServer.clientComponentLoading
+         │  ├─ prepare route module (RouteModule.prepare)
+         │  ├─ render route (app) /behind-middleware (AppRender.getBodyResult)
+         │  │  ├─ build component tree (NextNodeServer.createComponentTree)
+         │  │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         │  │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         │  │  ├─ generateMetadata /behind-middleware/layout (ResolveMetadata.generateMetadata)
+         │  │  ├─ generateMetadata /behind-middleware/page (ResolveMetadata.generateMetadata)
+         │  │  └─ start response (NextNodeServer.startResponse)
+         │  └─ resolve page components (NextNodeServer.findPageComponents)
+         │     └─ load route module (LoadComponents.loadRouteModule)
+         └─ middleware GET (Middleware.execute)"
+    `)
   })
 
   // A traceparent the middleware explicitly sets as a request-header override
   // is respected, also over the active host span.
   it('should respect a traceparent set by middleware with a host span', async () => {
-    const id = Math.random().toString(36).slice(2)
-    const res = await next.fetch(`/behind-middleware/user-traceparent?id=${id}`)
+    const startedAt = Date.now()
+    const res = await next.fetch('/behind-middleware/user-traceparent')
     expect(res.status).toBe(200)
-
-    await retry(async () => {
-      const renderSpan = getCollector()
-        .getAllSpans()
-        .find(
-          (span) =>
-            span.attributes?.['next.span_type'] ===
-              'BaseServer.handleRequest' &&
-            span.attributes?.['next.route'] &&
-            String(span.attributes?.['http.target']).includes(`id=${id}`)
-        )
-      expect(renderSpan).toBeDefined()
-      expect({
-        traceId: renderSpan!.traceId,
-        parentId: renderSpan!.parentId,
-      }).toEqual({
-        traceId: '0af7651916cd43dd8448eb211c80319c',
-        parentId: 'b7ad6b7169203331',
+    expect(
+      await getSpanTree(getCollector(), {
+        startedAt,
+        known: [
+          {
+            name: 'middleware',
+            traceId: '0af7651916cd43dd8448eb211c80319c',
+            spanId: 'b7ad6b7169203331',
+          },
+        ],
       })
-    })
+    ).toMatchInlineSnapshot(`
+      "[trace A] custom-server-request
+      └─ GET (BaseServer.handleRequest)
+         └─ middleware GET (Middleware.execute)
+      [trace middleware] [middleware traceparent]
+      └─ GET /behind-middleware (BaseServer.handleRequest)
+         ├─ NextNodeServer.clientComponentLoading
+         ├─ prepare route module (RouteModule.prepare)
+         ├─ render route (app) /behind-middleware (AppRender.getBodyResult)
+         │  ├─ build component tree (NextNodeServer.createComponentTree)
+         │  │  ├─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         │  │  └─ resolve segment modules (NextNodeServer.getLayoutOrPageModule)
+         │  ├─ generateMetadata /behind-middleware/layout (ResolveMetadata.generateMetadata)
+         │  ├─ generateMetadata /behind-middleware/page (ResolveMetadata.generateMetadata)
+         │  └─ start response (NextNodeServer.startResponse)
+         └─ resolve page components (NextNodeServer.findPageComponents)
+            └─ load route module (LoadComponents.loadRouteModule)"
+    `)
   })
 })
 

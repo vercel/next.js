@@ -1,11 +1,8 @@
 import { connection } from 'next/server'
-import { getRenderTraceInfo } from '../../trace-recorder'
+import { getRenderSpans } from '../../trace-recorder'
 
-export async function GET(request: Request) {
-  // Run at request time so the reported trace belongs to the request.
+export async function GET() {
+  // Run at request time so the reported spans belong to the request.
   await connection()
-  const { traceId, requestParentSpanId } = getRenderTraceInfo()
-  // The trace context the route handler received.
-  const traceparent = request.headers.get('traceparent') ?? 'none'
-  return Response.json({ traceId, requestParentSpanId, traceparent })
+  return Response.json({ spans: getRenderSpans() })
 }

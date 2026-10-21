@@ -1,19 +1,18 @@
-import { trace } from '@opentelemetry/api'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
+import { getRenderSpans } from '../../trace-recorder'
 
-async function TraceId() {
-  // Run at request time so the reported trace belongs to the request.
+async function Spans() {
+  // Run at request time so the reported spans belong to the request.
   await connection()
-  const traceId = trace.getActiveSpan()?.spanContext().traceId ?? 'none'
-  return <p id="trace-id">{traceId}</p>
+  return <pre id="spans">{JSON.stringify(getRenderSpans())}</pre>
 }
 
 // Not matched by the middleware: a baseline for requests without middleware.
 export default function Page() {
   return (
     <Suspense>
-      <TraceId />
+      <Spans />
     </Suspense>
   )
 }

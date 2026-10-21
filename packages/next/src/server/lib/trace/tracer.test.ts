@@ -225,38 +225,6 @@ describe('trace context with the W3C propagator', () => {
       fn
     )
 
-  it('reports whether a valid span context is active', () => {
-    const tracer = getTracer()
-    expect(tracer.hasActiveSpanContext()).toBe(false)
-    expect(
-      withSpanContext(
-        {
-          traceId: TRACE_ID,
-          spanId: SPAN_ID,
-          traceFlags: 1,
-          isRemote: false,
-        },
-        () => tracer.hasActiveSpanContext()
-      )
-    ).toBe(true)
-    expect(
-      withSpanContext(
-        { traceId: TRACE_ID, spanId: SPAN_ID, traceFlags: 1, isRemote: true },
-        () => tracer.hasActiveSpanContext()
-      )
-    ).toBe(true)
-    expect(
-      withSpanContext(
-        {
-          traceId: '00000000000000000000000000000000',
-          spanId: '0000000000000000',
-          traceFlags: 0,
-        },
-        () => tracer.hasActiveSpanContext()
-      )
-    ).toBe(false)
-  })
-
   it('prefers the carrier traceparent over the active span in force mode', () => {
     const result = withSpanContext(
       {
