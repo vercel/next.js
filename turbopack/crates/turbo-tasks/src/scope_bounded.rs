@@ -26,7 +26,10 @@ use parking_lot::Mutex;
 use tokio::{runtime::Handle, task::block_in_place};
 use tracing::{Span, info_span};
 
-use crate::{TurboTasksApi, manager::try_turbo_tasks, turbo_tasks_scope};
+use crate::{
+    TurboTasksApi,
+    manager::{ensure_turbo_tasks_scope, try_turbo_tasks},
+};
 
 /// A job placed on the work queue: its result-slot index and the closure to run.
 type WorkQueueJob = (usize, Box<dyn FnOnce() + Send + 'static>);
@@ -171,8 +174,10 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         let f: Box<dyn FnOnce() + Send + 'scope> = Box::new(|| {
             let result = {
                 if let Some(turbo_tasks) = turbo_tasks {
-                    // Ensure that the turbo tasks context is maintained across the job.
-                    turbo_tasks_scope(turbo_tasks, f)
+                    // Ensure that the turbo tasks context is maintained across the job. Jobs run
+                    // on the calling thread already have it (possibly borrowed, e.g. inside
+                    // `with_turbo_tasks`), so it's only entered when needed.
+                    ensure_turbo_tasks_scope(turbo_tasks, f)
                 } else {
                     // If no turbo tasks context is available, just run the job.
                     f()

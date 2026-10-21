@@ -111,6 +111,10 @@ pub struct ExecuteContext<'e> {
     /// teardown in `stop()` waits for this context to be dropped.
     _shutdown_guard: Option<RwLockReadGuard<'e, bool>>,
     task_lock_counter: TaskLockCounter,
+    /// Overrides the current task priority, which is otherwise read from the task-local task
+    /// state. Set for work that runs off the calling task's thread (see
+    /// [`ExecuteContext::with_current_task_priority`]).
+    current_task_priority: Option<TaskPriority>,
 }
 
 impl<'e> ExecuteContext<'e> {
@@ -125,7 +129,16 @@ impl<'e> ExecuteContext<'e> {
             _operation_guard: backend.start_operation(),
             _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
+            current_task_priority: None,
         }
+    }
+
+    /// Makes [`ExecuteContext::get_current_task_priority`] return `priority` instead of reading
+    /// it from the task-local task state. Used when the work runs on another thread than the
+    /// calling task, where that task-local is not available.
+    pub(super) fn with_current_task_priority(mut self, priority: TaskPriority) -> Self {
+        self.current_task_priority = Some(priority);
+        self
     }
 
     /// Like [`ExecuteContext::new`], but owns the shutdown read guard that
@@ -143,6 +156,7 @@ impl<'e> ExecuteContext<'e> {
             _operation_guard: backend.start_operation(),
             _shutdown_guard: Some(shutdown_guard),
             task_lock_counter: TaskLockCounter::new(),
+            current_task_priority: None,
         }
     }
 
@@ -165,6 +179,7 @@ impl<'e> ExecuteContext<'e> {
             _operation_guard: None,
             _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
+            current_task_priority: None,
         }
     }
 
@@ -940,6 +955,7 @@ impl<'e> ExecuteContext<'e> {
         ChildExecuteContext {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
+            current_task_priority: self.current_task_priority,
         }
     }
 
@@ -1153,7 +1169,8 @@ impl<'e> ExecuteContext<'e> {
     }
 
     pub fn get_current_task_priority(&self) -> TaskPriority {
-        self.turbo_tasks.get_current_task_priority()
+        self.current_task_priority
+            .unwrap_or_else(|| self.turbo_tasks.get_current_task_priority())
     }
 
     /// Record `task` as a GC candidate **if it is in fact collectible**.
@@ -1228,6 +1245,7 @@ impl<'e> ExecuteContext<'e> {
 pub struct ChildExecuteContext<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+    current_task_priority: Option<TaskPriority>,
 }
 
 impl<'e> ChildExecuteContext<'e> {
@@ -1241,6 +1259,7 @@ impl<'e> ChildExecuteContext<'e> {
             // already waits for, so it needs no shutdown guard of its own.
             _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
+            current_task_priority: self.current_task_priority,
         }
     }
 }
