@@ -94,7 +94,7 @@ describe.each([
     if (isNextDeploy) {
       // The platform's trace context, or the root span inserted by the
       // middleware adapter when the request carries none.
-      expect(['remote', 'Middleware.request']).toContain(parentType)
+      expect(['remote', 'Next.request']).toContain(parentType)
     } else {
       // next-server's middleware-invoke `handleRequest` span, whose context
       // that pass wrote onto the request.

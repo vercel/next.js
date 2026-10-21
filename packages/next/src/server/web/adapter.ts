@@ -36,7 +36,7 @@ import {
   type TraceContextHeaders,
 } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
-import { MiddlewareSpan } from '../lib/trace/constants'
+import { MiddlewareSpan, NextSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
 import {
   forwardTraceContextToRequest,
@@ -427,7 +427,7 @@ export async function adapter(
         // middleware and the render are siblings in one trace instead of two
         // independent root spans.
         return tracer.trace(
-          MiddlewareSpan.request,
+          NextSpan.request,
           {
             spanName: `${request.method} ${request.nextUrl.pathname}`,
             kind: SpanKind.SERVER,

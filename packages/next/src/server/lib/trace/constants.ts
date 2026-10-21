@@ -130,10 +130,13 @@ enum ResolveMetadataSpan {
 
 enum MiddlewareSpan {
   execute = 'Middleware.execute',
+}
+
+enum NextSpan {
   // Root span inserted by the middleware adapter when the request has no
   // trace context (separately invoked middleware without a parent), so the
   // middleware and the render are siblings in one trace.
-  request = 'Middleware.request',
+  request = 'Next.request',
 }
 
 type SpanTypes =
@@ -153,11 +156,12 @@ type SpanTypes =
   | `${RouteModuleSpan}`
   | `${ResolveMetadataSpan}`
   | `${MiddlewareSpan}`
+  | `${NextSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = new Set([
   MiddlewareSpan.execute,
-  MiddlewareSpan.request,
+  NextSpan.request,
   BaseServerSpan.handleRequest,
   RenderSpan.getServerSideProps,
   RenderSpan.getStaticProps,
@@ -205,6 +209,7 @@ export {
   RouteModuleSpan,
   ResolveMetadataSpan,
   MiddlewareSpan,
+  NextSpan,
 }
 
 export type { SpanTypes }

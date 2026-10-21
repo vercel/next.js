@@ -2484,7 +2484,7 @@ async function expectSingleTrace(
     //   (self-hosted router server), the root or a child of the incoming span.
     // separately-invoked: middleware invoked separately from the render
     //   without a host span (e.g. direct entrypoints): the incoming span, or
-    //   the `Middleware.request` root inserted by the middleware adapter.
+    //   the `Next.request` root inserted by the middleware adapter.
     // host-root: a span started by the host around middleware and render.
     shape: 'handle-request-root' | 'separately-invoked' | 'host-root'
   }
@@ -2570,7 +2570,7 @@ async function expectSingleTrace(
         !byId.has(span.parentId)
     )
     const insertedRoots = traceSpans.filter(
-      (span) => span.attributes?.['next.span_type'] === 'Middleware.request'
+      (span) => span.attributes?.['next.span_type'] === 'Next.request'
     )
 
     if (shape === 'handle-request-root') {
@@ -2598,7 +2598,7 @@ async function expectSingleTrace(
           name: `GET ${pathname}`,
           kind: 1, // SERVER
           attributes: {
-            'next.span_type': 'Middleware.request',
+            'next.span_type': 'Next.request',
             'http.method': 'GET',
             'http.target': pathname,
           },
