@@ -34,7 +34,6 @@ const PRINTED_ATTRIBUTES = [
 interface Entry {
   span: SdkSpan
   parentId: string | undefined
-  parentTraceId: string | undefined
 }
 
 const MAX_RECORDED_SPANS = 10_000
@@ -54,11 +53,9 @@ export const spanRecorder: SpanProcessor = {
       // Drop the oldest entry (Map iterates in insertion order).
       spans.delete(spans.keys().next().value!)
     }
-    const parentSpanContext = trace.getSpanContext(parentContext)
     spans.set(span.spanContext().spanId, {
       span,
-      parentId: parentSpanContext?.spanId,
-      parentTraceId: parentSpanContext?.traceId,
+      parentId: trace.getSpanContext(parentContext)?.spanId,
     })
   },
   onEnd(_span: ReadableSpan) {},
@@ -133,26 +130,20 @@ export function getMiddlewareSpans() {
 
 /**
  * The `instrumentation.ts` lifecycle spans (`Instrumentation.*`) started in
- * this process, with their parent's span and trace ID, and its type when the
- * parent was started here too.
+ * this process, with their ancestors as far as they were started here.
  */
 export function getInstrumentationLifecycleSpans() {
-  const spans = getRecordedSpans()
-  return [...spans.values()]
-    .filter(({ span }) =>
+  const spans = new Map<string, RecordedSpan>()
+  for (const [id, { span }] of getRecordedSpans()) {
+    if (
       String(span.attributes['next.span_type']).startsWith('Instrumentation.')
-    )
-    .map((entry) => {
-      const span = toRecordedSpan(entry)
-      const parent = span.parentId ? spans.get(span.parentId) : undefined
-      return {
-        type: span.type,
-        traceId: span.traceId,
-        parentSpanId: entry.parentId ?? null,
-        parentTraceId: entry.parentTraceId ?? null,
-        parentType: parent ? (toRecordedSpan(parent).type ?? null) : null,
+    ) {
+      for (const recorded of getChain(id)) {
+        spans.set(recorded.id, recorded)
       }
-    })
+    }
+  }
+  return [...spans.values()]
 }
 
 /**
