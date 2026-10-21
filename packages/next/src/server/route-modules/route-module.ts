@@ -97,6 +97,26 @@ export interface RouteModuleOptions<
 }
 
 /**
+ * Returned by `RouteModule.ensureInstrumentation` with `deferSpans`, and passed
+ * to `RouteModule.traceRequest`.
+ *
+ * @internal
+ */
+export interface RequestInstrumentation {
+  /**
+   * When the request started, before registering `instrumentation.ts` (same
+   * clock as the instrumentation lifecycle spans). The request span is
+   * backdated to it.
+   */
+  startTime: number
+  /**
+   * Emits the lifecycle spans of `instrumentation.ts`. Only set for the request
+   * that triggered registration; called inside the request span.
+   */
+  emitSpans?: () => void
+}
+
+/**
  * RouteHandlerContext is the base context for a route handler.
  */
 export interface RouteModuleHandleContext {
@@ -644,7 +664,10 @@ export abstract class RouteModule<
    *
    * Callers must await `ensureInstrumentation` before calling this: on the
    * first request, registering `instrumentation.ts` usually installs the
-   * tracer provider, and a span started earlier would not be recorded.
+   * tracer provider, and a span started earlier would not be recorded. With
+   * the `instrumentation` it returned, the request span is backdated to cover
+   * registration, and the lifecycle spans of `instrumentation.ts` are children
+   * of the request span when this request triggered registration.
    *
    * `fn` receives the request span and the request's root span: the span that
    * was active when the handler was invoked (next-server's request span, or a
@@ -664,10 +687,12 @@ export abstract class RouteModule<
       tracer,
       spanName,
       httpTarget,
+      instrumentation,
     }: {
       tracer: ReturnType<typeof getTracer>
       spanName: string
       httpTarget: string | undefined
+      instrumentation: RequestInstrumentation | undefined
     },
     fn: (span: Span | undefined, rootSpan: Span | undefined) => Promise<T>
   ): Promise<T> {
@@ -690,12 +715,16 @@ export abstract class RouteModule<
           {
             spanName,
             kind: SpanKind.SERVER,
+            startTime: instrumentation?.startTime,
             attributes: {
               'http.method': req.method || 'GET',
               'http.target': httpTarget,
             },
           },
-          (span) => fn(span, activeSpan ?? span)
+          (span) => {
+            instrumentation?.emitSpans?.()
+            return fn(span, activeSpan ?? span)
+          }
         ),
       undefined,
       !isWrappedByNextServer
@@ -723,13 +752,25 @@ export abstract class RouteModule<
    * directory (`undefined` in the edge runtime, which handles loading
    * instrumentation at the edge adapter level).
    *
+   * With `deferSpans` (callers of `traceRequest`), it also returns the
+   * `instrumentation` to pass to `traceRequest`: when this call triggered
+   * registration, the lifecycle spans of `instrumentation.ts` are not emitted
+   * yet but emitted inside the request span.
+   *
    * @internal - called by `prepare` and by the Next.js build templates before
    * `traceRequest`.
    */
   public async ensureInstrumentation(
-    req: IncomingMessage | BaseNextRequest
-  ): Promise<string | undefined> {
+    req: IncomingMessage | BaseNextRequest,
+    { deferSpans = false }: { deferSpans?: boolean } = {}
+  ): Promise<{
+    absoluteProjectDir: string | undefined
+    instrumentation: RequestInstrumentation | undefined
+  }> {
     let absoluteProjectDir: string | undefined
+    const instrumentation: RequestInstrumentation | undefined = deferSpans
+      ? { startTime: performance.timeOrigin + performance.now() }
+      : undefined
 
     if (process.env.NEXT_RUNTIME !== 'edge') {
       const { join, relative } =
@@ -746,7 +787,10 @@ export abstract class RouteModule<
       if (absoluteDistDir) {
         this.distDir = relative(absoluteProjectDir, absoluteDistDir)
       }
-      const { ensureInstrumentationRegistered } = await import(
+      const {
+        ensureInstrumentationRegistered,
+        ensureInstrumentationRegisteredWithDeferredSpans,
+      } = await import(
         '../lib/router-utils/instrumentation-globals.external.js'
       )
       // ensure instrumentation is registered and pass
@@ -754,10 +798,18 @@ export abstract class RouteModule<
       // that bypasses `BaseServer.handleRequest` (where this is also awaited
       // via `prepareImpl`) still observes the instrumentation hook completing
       // before the userland route handler runs.
-      await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+      if (instrumentation) {
+        instrumentation.emitSpans =
+          await ensureInstrumentationRegisteredWithDeferredSpans(
+            absoluteProjectDir,
+            this.distDir
+          )
+      } else {
+        await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+      }
     }
 
-    return absoluteProjectDir
+    return { absoluteProjectDir, instrumentation }
   }
 
   private async prepareImpl(
@@ -817,7 +869,7 @@ export abstract class RouteModule<
     if (process.env.NEXT_RUNTIME !== 'edge' && res) {
       patchSetHeaderWithCookieSupport(req, res)
     }
-    const absoluteProjectDir = await this.ensureInstrumentation(req)
+    const { absoluteProjectDir } = await this.ensureInstrumentation(req)
     const manifests = getTracer().trace(
       RouteModuleSpan.loadManifests,
       { spanName: 'load route manifests' },

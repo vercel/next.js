@@ -2042,11 +2042,20 @@ describe.each(
 
 if (isNextStart) {
   describe.each([
-    { name: 'without parent span', withParentSpan: false },
-    { name: 'with parent span', withParentSpan: true },
+    {
+      name: 'without parent span',
+      withParentSpan: false,
+      coldTraceparent: false,
+    },
+    {
+      name: 'without parent span, cold request with traceparent',
+      withParentSpan: false,
+      coldTraceparent: true,
+    },
+    { name: 'with parent span', withParentSpan: true, coldTraceparent: false },
   ])(
     'opentelemetry route module preparation with direct entrypoint handler $name',
-    ({ withParentSpan }) => {
+    ({ withParentSpan, coldTraceparent }) => {
       let collector: Collector | undefined
       const { next, skipped } = nextTestSetup({
         files: __dirname,
@@ -2098,7 +2107,7 @@ if (isNextStart) {
           []
         for (const [index, pathname] of pathnames.entries()) {
           for (const variant of [
-            { traceparent: false },
+            { traceparent: index === 0 && coldTraceparent },
             { traceparent: false },
             ...(withParentSpan ? [] : [{ traceparent: true }]),
           ]) {
@@ -2188,6 +2197,46 @@ if (isNextStart) {
             } else {
               expect(requestSpan.parentId).toBeUndefined()
             }
+          }
+
+          // The cold request registered instrumentation, so the lifecycle
+          // spans of `instrumentation.ts` are children of its request span
+          // instead of separate traces.
+          const coldRequest = requests.find((request) => request.cold)!
+          const coldRequestSpan = spans.find(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'BaseServer.handleRequest' &&
+              String(span.attributes?.['http.target'] ?? '').includes(
+                `id=${coldRequest.id}`
+              )
+          )!
+          expect(coldRequest.traceparent).toBe(coldTraceparent)
+          for (const [type, name] of [
+            ['Instrumentation.loadModule', 'load instrumentation module'],
+            ['Instrumentation.register', 'register instrumentation'],
+          ]) {
+            const lifecycleSpans = spans.filter(
+              (span) => span.attributes?.['next.span_type'] === type
+            )
+            expect(lifecycleSpans).toEqual([
+              expect.objectContaining({
+                ...(withParentSpan ? {} : { runtime: 'nodejs' }),
+                name,
+                parentId: coldRequestSpan.id,
+                traceId: coldRequestSpan.traceId,
+                attributes: {
+                  'next.span_category': 'nextjs',
+                  'next.span_name': name,
+                  'next.span_type': type,
+                },
+                status: { code: 0 },
+              }),
+            ])
+            // The request span is backdated to cover registration.
+            expect(coldRequestSpan.timestamp!).toBeLessThanOrEqual(
+              lifecycleSpans[0].timestamp!
+            )
           }
         })
       })
@@ -2340,14 +2389,26 @@ describe.each(
       useDirectEntrypointHandler: true,
       withParentSpan: true,
     },
+    // Only the first request, with an incoming `traceparent`, in a fresh
+    // process.
+    isNextStart && {
+      name: 'direct entrypoints, cold request with traceparent',
+      useDirectEntrypointHandler: true,
+      coldTraceparent: true,
+    },
   ].filter(Boolean) as {
     name: string
     useDirectEntrypointHandler: boolean
     withParentSpan?: boolean
+    coldTraceparent?: boolean
   }[]
 )(
   'opentelemetry - middleware $name',
-  ({ useDirectEntrypointHandler, withParentSpan = false }) => {
+  ({
+    useDirectEntrypointHandler,
+    withParentSpan = false,
+    coldTraceparent = false,
+  }) => {
     describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
       const {
         next: { next, skipped },
@@ -2364,6 +2425,82 @@ describe.each(
 
       if (useDirectEntrypointHandler && runtime === 'edge') {
         it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
+        return
+      }
+
+      if (useDirectEntrypointHandler) {
+        // Runs first, in a fresh process: the first request reaches the
+        // Node.js middleware, which registers `instrumentation.ts`.
+        it('should trace instrumentation registration in the first middleware request', async () => {
+          const res = await next.fetch(
+            `/behind-middleware?id=${Math.random().toString(36).slice(2)}`,
+            {
+              headers: coldTraceparent
+                ? {
+                    traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+                  }
+                : {},
+            }
+          )
+          expect(res.status).toBe(200)
+
+          await retry(async () => {
+            const spans = getCollector().getAllSpans()
+            const byId = new Map(spans.map((span) => [span.id, span]))
+            const [middlewareSpan] = spans.filter(
+              (span) =>
+                span.attributes?.['next.span_type'] === 'Middleware.execute'
+            )
+            expect(middlewareSpan).toBeDefined()
+            // The shared parent of the middleware span: the incoming
+            // `traceparent` (not exported here), the host span, or, without
+            // either, the root inserted by the middleware adapter, backdated
+            // to cover registration. The middleware triggered registration, so
+            // the lifecycle spans are its children.
+            const parent = byId.get(middlewareSpan.parentId!)
+            if (coldTraceparent) {
+              expect(parent).toBeUndefined()
+              expect(middlewareSpan).toMatchObject({
+                parentId: EXTERNAL.spanId,
+                traceId: EXTERNAL.traceId,
+              })
+            } else {
+              expect(parent).toBeDefined()
+              expect(parent!.attributes?.['next.span_type']).toBe(
+                withParentSpan ? undefined : 'Next.request'
+              )
+            }
+
+            for (const [type, name] of [
+              ['Instrumentation.loadModule', 'load instrumentation module'],
+              ['Instrumentation.register', 'register instrumentation'],
+            ]) {
+              const lifecycleSpans = spans.filter(
+                (span) => span.attributes?.['next.span_type'] === type
+              )
+              expect(lifecycleSpans).toEqual([
+                expect.objectContaining({
+                  name,
+                  parentId: middlewareSpan.id,
+                  traceId: middlewareSpan.traceId,
+                  status: { code: 0 },
+                }),
+              ])
+              // The middleware span is backdated to cover registration.
+              expect(middlewareSpan.timestamp!).toBeLessThanOrEqual(
+                lifecycleSpans[0].timestamp!
+              )
+              if (parent) {
+                expect(parent.timestamp!).toBeLessThanOrEqual(
+                  middlewareSpan.timestamp!
+                )
+              }
+            }
+          })
+        })
+      }
+
+      if (coldTraceparent) {
         return
       }
 
@@ -2611,6 +2748,22 @@ describe.each(
         expect(loadModuleSpan?.timestamp).toBeLessThanOrEqual(
           registerSpan!.timestamp!
         )
+        if (useDirectEntrypointHandler) {
+          // Direct entrypoints register instrumentation in the first request,
+          // so the lifecycle spans are children of its request span.
+          for (const span of [loadModuleSpan, registerSpan]) {
+            const parent = spans.find(({ id }) => id === span?.parentId)
+            expect(parent?.attributes?.['next.span_type']).toBe(
+              'BaseServer.handleRequest'
+            )
+            expect(span?.traceId).toBe(parent!.traceId)
+          }
+        } else {
+          // `next start` registers instrumentation at startup, outside of any
+          // request, so the lifecycle spans are roots.
+          expect(loadModuleSpan?.parentId).toBeUndefined()
+          expect(registerSpan?.parentId).toBeUndefined()
+        }
       })
     })
   }
