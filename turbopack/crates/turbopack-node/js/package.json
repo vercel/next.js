@@ -8,7 +8,8 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "loader-runner": "^4.3.0"
+    "loader-runner": "^4.3.0",
+    "schema-utils": "3.0.0"
   },
   "devDependencies": {
     "@types/loader-runner": "^2.2.4",
