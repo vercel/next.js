@@ -12,8 +12,8 @@ async function collect(stream: Readable): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
-function decodeScripts(html: Buffer): Array<[number, string?]> {
-  const self = { __next_f: [] as Array<[number, string?]> }
+function decodeScripts(html: Buffer): Array<[number, ...string[]]> {
+  const self = { __next_f: [] as Array<[number, ...string[]]> }
   const scripts = html.toString().matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)
   for (const script of scripts) {
     runInNewContext(script[1], { self })
@@ -55,9 +55,11 @@ describe('Node inline Flight data', () => {
     )
     const received = Buffer.concat(
       decodeScripts(html)
-        .filter(([tag]) => tag === 1 || tag === 3)
-        .map(([tag, value]) =>
-          Buffer.from(value!, tag === 1 ? 'utf8' : 'base64')
+        .filter(([tag]) => tag === 1 || tag === 3 || tag === 4)
+        .flatMap(([tag, ...values]) =>
+          values.map((value) =>
+            Buffer.from(value, tag === 3 ? 'base64' : 'utf8')
+          )
         )
     )
     const expected = Buffer.concat(
@@ -92,7 +94,9 @@ describe('Node inline Flight data', () => {
       expect(html).toEqual(
         Buffer.from(
           `${start}(self.__next_f=self.__next_f||[]).push([0]);self.__next_f.push([2,"\\u003c\\u0026\\u003e"])</script>` +
-            `${start}self.__next_f.push([1,"\\u003chead\\u003e\\u0026\\n\\"${text}é\\\\tail😀"])</script>`
+            `${start}self.__next_f.push([4,"\\u003chead\\u003e\\u0026\\n\\"","${text}"])</script>` +
+            `${start}self.__next_f.push([1,"é"])</script>` +
+            `${start}self.__next_f.push([4,"\\\\tail😀",""])</script>`
         )
       )
     }

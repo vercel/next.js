@@ -62,6 +62,7 @@ type FlightSegment =
   | [isNotBootstrap: 1, responsePartial: string]
   | [isFormState: 2, formState: any]
   | [isBinary: 3, responseBase64Partial: string]
+  | [isRows: 4, ...rows: string[]]
 
 type NextFlight = Omit<Array<FlightSegment>, 'push'> & {
   push: (seg: FlightSegment) => void
@@ -85,10 +86,22 @@ function nextServerDataCallback(seg: FlightSegment): void {
     if (!initialServerDataBuffer)
       throw new Error('Unexpected server data: missing bootstrap script.')
 
+    const encoded = encoder.encode(seg[1])
     if (initialServerDataWriter) {
-      initialServerDataWriter.enqueue(encoder.encode(seg[1]))
+      initialServerDataWriter.enqueue(encoded)
     } else {
-      initialServerDataBuffer.push(seg[1])
+      initialServerDataBuffer.push(encoded)
+    }
+  } else if (seg[0] === 4) {
+    if (!initialServerDataBuffer)
+      throw new Error('Unexpected server data: missing bootstrap script.')
+
+    for (let i = 1; i < seg.length; i++) {
+      if (initialServerDataWriter) {
+        initialServerDataWriter.enqueue(seg[i])
+      } else {
+        initialServerDataBuffer.push(seg[i] as string)
+      }
     }
   } else if (seg[0] === 2) {
     initialFormStateData = seg[1]
@@ -127,7 +140,7 @@ function isStreamErrorOrUnfinished(ctr: ReadableStreamDefaultController) {
 function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
   if (initialServerDataBuffer) {
     initialServerDataBuffer.forEach((val) => {
-      ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
+      ctr.enqueue(val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
       // Instant Navigation Testing API: don't close or error the inline
